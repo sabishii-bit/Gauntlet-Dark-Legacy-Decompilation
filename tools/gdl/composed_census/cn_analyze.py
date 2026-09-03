@@ -14,11 +14,18 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
 import webfrank as wf  # noqa: E402
+from fndiff import unit_key  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))  # repo root (fixed after promotion)
 
 
+# THE CHOKE POINT for the WR family (run-43 item 8): wr_perm_hash,
+# wr_try_rule, wr_ve_derive and wr_const_closure_probe all import these two,
+# and every one of them built its object path from raw argv. A lane that
+# typed the core tools' `game/x/y.c` spelling got `...y.c.o` and a MISSING
+# OBJECT, which reads as "not in the census" rather than as a spelling.
 def our_object(unit):
+    unit = unit_key(unit)
     d, base = unit.rsplit("/", 1)
     body = os.path.join(ROOT, "build", "GUNE5D", "src", d, ".postprocess",
                         "body", base + ".o")
@@ -29,7 +36,8 @@ def our_object(unit):
 
 
 def target_object(unit):
-    return os.path.join(ROOT, "build", "GUNE5D", "obj", unit + ".o")
+    return os.path.join(ROOT, "build", "GUNE5D", "obj",
+                        unit_key(unit) + ".o")
 
 
 def load(path, name):

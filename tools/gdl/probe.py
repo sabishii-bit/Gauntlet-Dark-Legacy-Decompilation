@@ -109,6 +109,17 @@ docstring omitted it — the flags below all work):
                      pin-drift warning
   --list-banks       the named banks for this unit, with the commit each was
                      banked at
+  --revert-best      restore the BEST-SCORING banked state — the bytes the
+                     BEST anchor names — through the same restore path as
+                     --restore. THREE revert points now, and they answer
+                     three different questions: --revert = the last banking
+                     verdict (which may be a NEUTRAL), --revert-baseline =
+                     where the session started, --revert-best = the best
+                     state this session measured. probe writes the best bank
+                     itself whenever a verdict moves the anchor, so
+                     recovering a best state after two later probes banked
+                     over it is one call instead of the three hand Edits and
+                     ~60s CL measured per recovery
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -354,6 +365,16 @@ def snapshot_path(unit, source, tag=None):
 # overwritten by a verdict — only by an explicit re-bank of that name.
 _TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$")
 
+# Run-43 item 4. The rolling snapshot follows the LAST banking verdict and
+# NEUTRAL banks too, so the state that actually scores best stops being
+# reachable the moment a later probe banks anything else: CL measured three
+# hand Edits and ~60s to reconstruct a best state per recovery. This tag is
+# written whenever the BEST anchor moves onto the bytes just probed, and
+# `--revert-best` restores it through the ordinary revert path. It starts
+# with `_`, which `_TAG_RE` refuses, so no `--bank`/`--restore` name can
+# ever collide with it.
+BEST_BANK_TAG = "__best"
+
 
 def flag_value(argv, name):
     """`--name VALUE` or `--name=VALUE` from argv, or None."""
@@ -384,6 +405,39 @@ def validate_tag(tag, flag):
                       " never normalised, so two spellings can never be one"
                       " bank.")
     return tag, None
+
+
+def write_named_bank(unit, source, tag):
+    """Write a named snapshot plus its commit and pin sidecars. Returns
+    (path, existed) — the one writer for `--bank` and the best bank."""
+    snap = snapshot_path(unit, source, tag)
+    existed = snap.exists()
+    shutil.copyfile(source, snap)
+    head = git_head()
+    if head:
+        snap.with_suffix(snap.suffix + ".meta").write_text(
+            json.dumps({"head": head}), encoding="utf-8")
+    snap.with_suffix(snap.suffix + ".pins").write_text(
+        json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+        encoding="utf-8")
+    return snap, existed
+
+
+def anchor_names_these_bytes(state, digest, real):
+    """Does the BEST anchor describe the state just probed? (run-43 item 4)
+
+    Keyed on the object DIGEST when there is one, because `real` alone reads
+    equal across states that differ (a NEUTRAL probe scores the best `real`
+    without BEING the best state, and banking it as `best` would hand a
+    later `--revert-best` the wrong bytes). The `real` comparison is the
+    fallback for a probe with no digest, where nothing finer exists.
+    """
+    best_bytes = state.get("best_bytes")
+    if best_bytes is not None and digest is not None:
+        return best_bytes == digest
+    if best_bytes is not None or digest is not None:
+        return False
+    return state.get("best_real") is not None and state["best_real"] == real
 
 
 def list_named_banks(unit, source):
@@ -686,10 +740,13 @@ def keep_consumes_transient_bank(argv):
 
     `--restore NAME` (run-42 item 3) takes the same path as `--revert` and
     belongs on the same side of this decision; it also carries a VALUE, so
-    it is matched by prefix rather than by equality.
+    it is matched by prefix rather than by equality. `--revert-best`
+    (run-43 item 4) is the same restore path against a reserved tag and
+    belongs on the same side, matched by equality since it takes no value.
     """
     return not any(flag in argv for flag in
-                   ("--revert", "--revert-baseline", "--discard")) and not any(
+                   ("--revert", "--revert-baseline", "--discard",
+                    "--revert-best")) and not any(
         arg == "--restore" or arg.startswith("--restore=") for arg in argv)
 
 
@@ -2866,6 +2923,11 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     lines = [
         "ARBITRATION (one call, both states built; no verdict computed,"
         " nothing banked, working tree restored)",
+        "  NOTE: in THIS tool --arbitrate MEASURES. `defake_gate.py"
+        " --arbitrate` is the word for ACCEPTING a CONFLICT there; the accept"
+        " word HERE is --rebase-best (defake_gate now takes that spelling"
+        " too). Same word, two meanings, in two tools one loop alternates"
+        " between — so read the ARBITER line below, then run the accept.",
         f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}",
         f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}",
     ]
@@ -3491,6 +3553,14 @@ def main():
     if bank_error or restore_error:
         print(bank_error or restore_error)
         return 1
+    # --revert-best takes the same restore path as `--restore NAME`, against
+    # the reserved tag no user name can spell.
+    if "--revert-best" in sys.argv:
+        if restore_tag:
+            print("--revert-best and --restore name two different states;"
+                  " run one at a time")
+            return 1
+        restore_tag = BEST_BANK_TAG
     if "--list-banks" in sys.argv:
         if source is None:
             print(f"no src source found for {unit}")
@@ -3508,22 +3578,16 @@ def main():
                             .get("head") or "unstamped")[:9]
                 except ValueError:
                     head = "unreadable"
-            print(f"  {tag:<24} {path}  banked at {head}")
+            note = ("   (written by probe itself when the BEST anchor moved;"
+                    " restore with --revert-best)"
+                    if tag == BEST_BANK_TAG else "")
+            print(f"  {tag:<24} {path}  banked at {head}{note}")
         return 0
     if bank_tag:
         if source is None:
             print(f"cannot bank: no src source found for {unit}")
             return 1
-        snap = snapshot_path(unit, source, bank_tag)
-        existed = snap.exists()
-        shutil.copyfile(source, snap)
-        head = git_head()
-        if head:
-            snap.with_suffix(snap.suffix + ".meta").write_text(
-                json.dumps({"head": head}), encoding="utf-8")
-        snap.with_suffix(snap.suffix + ".pins").write_text(
-            json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
-            encoding="utf-8")
+        snap, existed = write_named_bank(unit, source, bank_tag)
         print(f"{'re-banked' if existed else 'banked'} {source} as"
               f" '{bank_tag}' -> {snap}. No verdict overwrites a named bank;"
               f" `--restore {bank_tag}` brings it back and re-scores,"
@@ -3556,9 +3620,18 @@ def main():
             return 1
         snap = snapshot_path(unit, source, restore_tag)
         if not snap.exists():
+            if restore_tag == BEST_BANK_TAG:
+                print("no BEST state banked for this unit yet: the best bank"
+                      " is written when a verdict moves the BEST anchor"
+                      " (BASELINE / IMPROVED / REBASED), and --no-bank"
+                      " probes never write one. `--revert` restores the"
+                      " rolling snapshot; `--revert-baseline` the session"
+                      " baseline.")
+                return 1
             if restore_tag:
                 known = ", ".join(tag for tag, _p
-                                  in list_named_banks(unit, source))
+                                  in list_named_banks(unit, source)
+                                  if not tag.startswith("_"))
                 print(f"cannot restore: no bank named '{restore_tag}' for"
                       f" {unit}" + (f" (have: {known})" if known
                                     else " (this unit has no named banks)"))
@@ -3572,11 +3645,14 @@ def main():
         # This used to run only when the .meta sidecar existed, which made
         # a missing stamp a silent PASS; it now fails closed in the shared
         # guard.
-        snap_label = (f"bank '{restore_tag}'" if restore_tag
-                      else f"{fn}'s banked snapshot")
-        if guard_stale_restore(snap, source,
-                               f"bank '{restore_tag}'" if restore_tag
-                               else "snapshot"):
+        if restore_tag == BEST_BANK_TAG:
+            snap_label = guard_label = "the BEST-scoring banked state"
+        elif restore_tag:
+            snap_label = guard_label = f"bank '{restore_tag}'"
+        else:
+            snap_label = f"{fn}'s banked snapshot"
+            guard_label = "snapshot"
+        if guard_stale_restore(snap, source, guard_label):
             return 1
         if snap.read_bytes() == source.read_bytes():
             print(f"nothing to restore: {snap_label} IS the current"
@@ -3770,6 +3846,12 @@ def main():
         fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
         return 0
 
+    # NOT aliased to `--arbitrate` (run-43 item 6, and this is why): in THIS
+    # tool `--arbitrate` is a MEASUREMENT — it prints the (real, fuzzy) pair
+    # for both states and banks nothing — while in defake_gate the same word
+    # is the DECISION that accepts a CONFLICT. One word, two meanings, in
+    # two tools a lane alternates between inside one loop. `--rebase-best`
+    # is this tool's accept word; defake_gate now also accepts that spelling.
     rebase_best = "--rebase-best" in sys.argv
     accept_fuzzy_loss = "--accept-fuzzy-loss" in sys.argv
     # The pre-verdict state, kept so the fuzzy gate below can re-run the
@@ -3985,6 +4067,21 @@ def main():
               " --revert restores THIS state"
               + ("; to discard this neutral edit use git, not --revert"
                  if kind == "NEUTRAL" else "") + "]")
+        # THE BEST STATE GETS ITS OWN SLOT (run-43 item 4). The rolling
+        # snapshot follows the LAST banking verdict, NEUTRAL included, so
+        # after a NEUTRAL or a reverted-and-re-probed axis the bytes that
+        # actually scored best are reachable only by hand — CL measured
+        # three Edits and ~60s per recovery. Written only when the BEST
+        # anchor names the bytes just probed, so a NEUTRAL that merely ties
+        # `real` never overwrites the real best.
+        if anchor_names_these_bytes(state, digest, real):
+            best_snap, _existed = write_named_bank(unit, source,
+                                                   BEST_BANK_TAG)
+            fuzzy_note = (f", fuzzy {state['best_fuzzy']:.4f}%"
+                          if state.get("best_fuzzy") is not None else "")
+            print(f"[BEST state banked (real {real}{fuzzy_note}):"
+                  f" probe.py {unit} {fn} --revert-best restores THESE bytes"
+                  f" however many later verdicts bank -> {best_snap}]")
         # The KEEP end of the transient-pin A/B (run-38 item 5). The revert
         # end already consumes the bank; this one did not, so a bank
         # outlived the A/B it described and the NEXT revert in the TU

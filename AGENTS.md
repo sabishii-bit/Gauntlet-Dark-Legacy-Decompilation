@@ -26,6 +26,28 @@
 >    runs from (a worker regenerated the shared checkout's build graph
 >    this way; absolute script paths protect reads, not a script's own
 >    output).
+> 6a. `... | Select-Object -First N` on a PYTHON pipe makes the command
+>    report FAILURE. PowerShell stops the pipeline as soon as it has N
+>    objects, python dies on the broken pipe, and `$LASTEXITCODE` reads
+>    **-1** (255 to anything reading a byte) for a run that was fine.
+>    Reproduce with any repo tool that prints a long list:
+>    `python tools/gdl/nearmiss.py --min 90 | Select-Object -First 2;
+>    $LASTEXITCODE` -> **-1**; the same command with `-Last 2` -> 0.
+>    `-Last` buffers the whole stream and is safe; so is capturing first
+>    (`$o = python ...; $o | Select-Object -First 2`). It is also
+>    INTERMITTENT — a command that finishes writing before the pipeline
+>    stops exits 0 — so one clean observation does not mean you are safe.
+>    NEVER read an exit code through a `-First` pipe: that is a gate
+>    reporting a failure that did not happen.
+> 6b. `Select-String -Pattern 'A|B' -SimpleMatch` matches NOTHING.
+>    `-SimpleMatch` takes the pattern literally, so the alternation is
+>    searched for as the six characters `A|B` and the result is an empty
+>    set that reads exactly like "no hits, all clear". Measured on the
+>    suite-summary screen this file recommends: `'OK|FAILED' -SimpleMatch`
+>    = 0 rows, the same pattern as a REGEX = 2 rows, and `'FAILED'
+>    -SimpleMatch` = 1. Drop `-SimpleMatch` whenever the pattern contains
+>    `|`; keep it only for literals with regex metacharacters in them
+>    (`fn_800DACD8(+0x4)`), where it is the right tool.
 > 6. Adding a TU's FIRST rule to `config/GUNE5D/webfrank.json` does NOT
 >    create its WEBFRANK build edge — a plain `ninja` runs green with the
 >    rule silently unapplied (looks exactly like "the rule didn't work").
@@ -408,7 +430,20 @@ one, and supersede the law if your target contradicts it.
    required once per commit, not once per edit. (Run-36 note: the
    suite now runs ~17s, but editing any `tools/gdl/*.py` invalidates
    the graph DB fingerprint, so the NEXT graph-suite run pays a ~19s
-   rebuild — a timing swing, not flakiness.)
+   rebuild — a timing swing, not flakiness.) **`python -m
+   memory_graph.test_graph --changed` decides that per-commit run from
+   the paths git reports** (`--since <ref>` compares a range instead of
+   the working tree): it runs the full suite when anything under
+   `memory_graph/`, `tools/gdl/`, `config/GUNE5D/` or
+   `research/xbox_symbols/` changed and skips otherwise, printing both
+   sides of the comparison. Those four roots are the MEASURED input set
+   (instrumented run: 2,164 repo paths read, nothing under `src/`,
+   `include/`, `configure.py` or `AGENTS.md`) — the intuitive "did I
+   touch a memory_graph file?" reading is NOT the discriminant and would
+   have wrongly skipped 17 of the last 60 commits, because every
+   `tools/gdl` source is a graph build input and `config/GUNE5D/
+   webfrank.json` feeds law/pin queries. Over those 60 commits the
+   sound gate skips 30, worth ~20 minutes.
 14. **A guard's refusal is a measurement of the guard, not only of the
    function.** Two coarse guards each refused a provable function
    while failing correctly by their own logic (blanket relocation
@@ -883,7 +918,27 @@ objects. Judge the setup by whether `ninja` finishes green, never by the
 size of the first build.ninja. Unit paths for every tool above are
 `game/.../file.c` forms — no `src/` prefix (the tools now strip a stray
 `src/` themselves, but errors from older invocations show the bare
-`missing: build/...` form).
+`missing: build/...` form). Since run 43 the `composed_census/` family
+accepts the same spellings as the core tools (`game/x/y`, `game/x/y.c`,
+`src/game/x/y.c`, backslashes) — `fndiff.unit_key` is the one normalizer
+and the census tools route through it. Before that, 16 of the 18 census
+tools that take a unit built `build/GUNE5D/obj/{unit}.o` from raw argv, so
+a `.c` spelling produced `...y.c.o` and a MISSING OBJECT, which reads as
+"this function is not in the census" rather than as a spelling.
+
+**IMPORTABLE CORE (run-43 item 10).** A tool whose module docstring
+carries a line beginning `IMPORTABLE CORE:` names functions you may call
+IN-PROCESS: they are pure over parsed data, they never build, and
+importing the module has no side effects. Use them for any sweep — a
+per-function subprocess is the wrong shape when two object parses would
+do (`fndiff`, `slotdiff`, `savedregs`, `defake_gate`, `nearmiss` carry
+the line today; `tools/gdl/tests/test_importable_core.py` fails if a
+marked module stops importing silently or renames a function it
+advertises). Measured over all 62 tools/gdl modules: 51 import silently,
+9 do work at import (abicheck, build_rule and the addr16/addrlo/
+add_remat census family) and 2 fail outright (pdb20_dump, splice_rules
+each open a file at import) — those 11 are library-hostile and are the
+debt this convention makes visible.
 
 Do not invent ad-hoc diff pipelines when a project tool already provides the
 measurement. After each meaningful change: rebuild the owning object, re-score,

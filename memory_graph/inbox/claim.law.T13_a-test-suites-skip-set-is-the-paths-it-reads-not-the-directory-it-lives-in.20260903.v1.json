@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/t13_suite_inputs.py",
+    "memory_graph/test_graph.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run tools/gdl/composed_census/t13_suite_inputs.py: if the root histogram shows a repository root outside GRAPH_SUITE_INPUT_ROOTS (memory_graph/, tools/gdl/, config/GUNE5D/, research/xbox_symbols/), the skip set is too narrow and the law is broken as stated. memory_graph/test_graph.py::ChangedModeTests::test_every_core_build_input_is_relevant fails mechanically if core._iter_input_paths grows a class outside those roots; test_test_graph_reads_no_source_tree fails if any test reaches into src/ or include/.",
+  "id": "claim.law.T13_a-test-suites-skip-set-is-the-paths-it-reads-not-the-directory-it-lives-in.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T05:46:21Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-03",
+  "value": "A per-commit test suite may only be SKIPPED against the set of paths it was MEASURED to read, never against the directory it lives in. Measured for memory_graph/test_graph.py by instrumenting builtins.open / os.stat / os.scandir / os.listdir over a full run (2,164 distinct repository paths, 336 tests, 0 failures): memory_graph/records 1856, tools/gdl 277, memory_graph/inbox 13, memory_graph/legacy 3, config/GUNE5D 3, research/xbox_symbols 3, plus memory_graph/{core.py,gdlmem.py,schema.sql,schema/,test_graph.py}. Nothing under src/, include/, configure.py or AGENTS.md is read at all. Two of those roots are invisible to the intuitive 'did I touch a memory_graph file?' reading and both are live lanes' working files: every tools/gdl source is a graph BUILD input via core._iter_tool_source_paths (and the suite imports defake_gate.py and defake_rewrite.py directly), and config/GUNE5D/webfrank.json feeds law_corpus's pin-mechanism search. CALIBRATED over the last 60 commits on main: the measured discriminant skips 30 (50%); the intuitive one would skip 47, and 17 of those skips would be UNSOUND. The sound gate costs 0.59s against a 40.9s suite, so a skipped commit saves 40.3s and the 60-commit history saves ~20 minutes at zero soundness cost."
+}

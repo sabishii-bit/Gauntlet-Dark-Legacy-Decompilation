@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import io
 import json
 import shutil
 import sqlite3
@@ -21,6 +22,7 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -3248,6 +3250,58 @@ class HypothesisContradictionTests(unittest.TestCase):
                 " answer this relocation symbols question."))
         self.assertIsNone(core.hypothesis_contradiction_warning(record))
 
+    def test_a_law_screen_sentence_is_not_a_denial(self):
+        """Run-43: 3 of Gate J's 5 live firings were this shape.
+
+        "claim.law.X SCREENED and NOT applicable here — it does not reach
+        this function's local area at all" is a statement about a CITED
+        LAW's reach, not a denial that an instrument exists. One of the
+        three flagged a record for AGREEING with itself: the hypothesis
+        said the frame is NOT declaration-count driven and the law screen
+        two fields away said declaration count does not reach the function.
+        Gate E already drops record-id sentences whole for the same reason.
+        """
+        record = self._record(
+            statement=("The frame is not declaration-count driven; three"
+                       " declaration probes were NEUTRAL-IDENTICAL."),
+            cheapest_refuting_observation=(
+                "Run probe.py --slots and read the declaration count of the"
+                " NEUTRAL-IDENTICAL local area."))
+        record["attributes"]["law_screen"] = (
+            "claim.law.dead-nominal-local-area-tracks-declaration-count"
+            ".20260831.v1 SCREENED and NOT applicable here - the run-41"
+            " declaration probes were NEUTRAL-IDENTICAL, so declaration"
+            " count does not reach this function's local area at all.")
+        self.assertIsNone(core.hypothesis_contradiction_warning(record))
+
+    def test_a_path_and_its_basename_are_one_shared_term(self):
+        """Run-43: the whole of one firing was {game/mb/mb_model, mb_model}.
+
+        A denial saying that unit carries no webfrank pins, paired with a
+        mandate to move a declaration in it, shares the SUBJECT and nothing
+        else — the normal shape of a record, not a contradiction.
+        """
+        terms = core._distinctive_terms(
+            "game/mb/mb_model carries no webfrank pins")
+        self.assertIn("game/mb/mb_model", terms)
+        self.assertNotIn("mb_model", terms)
+
+    def test_only_path_components_fold_not_every_substring(self):
+        """Folding every substring instead would erase ordinary vocabulary.
+
+        The true positive's two shared terms are the plain words `relocation`
+        and `symbol` — `symbols.txt` is not even an artifact token here, since
+        the pattern recognises .py/.json/paths — so a substring rule would be
+        free to eat them the moment a longer word containing them appeared.
+        """
+        terms = core._distinctive_terms(
+            "run tools/gdl/fnasm.py over the relocation symbols")
+        self.assertIn("tools/gdl/fnasm.py", terms)
+        self.assertNotIn("fnasm.py", terms)     # a component of the path
+        self.assertNotIn("fnasm", terms)        # ...and its bare stem
+        self.assertIn("relocation", terms)      # unrelated words survive
+        self.assertIn("symbol", terms)
+
 
 class RecordSizePreflightTests(unittest.TestCase):
     """T10 run-40 item 1: the 16KB cap now says WHERE the bytes are."""
@@ -4344,5 +4398,256 @@ class _FakeCursor:
         return self._row
 
 
+# ---------------------------------------------------------------------------
+# `--changed`: run the suite only when the tree touches something it reads.
+# ---------------------------------------------------------------------------
+#
+# The suite is a per-COMMIT gate (AGENTS.md discipline 13) and costs ~41s
+# here, which run-42's T12 lane paid on six commits that touched no graph
+# input at all. The framing of that observation was "commits touching no
+# memory_graph file"; that is NOT the discriminant. Every path the suite
+# reads was MEASURED by instrumenting builtins.open/os.stat/os.scandir over
+# a full run (2,164 distinct repo paths, 336 tests, 0 failures):
+#
+#   memory_graph/records   1856      memory_graph/legacy       3
+#   tools/gdl               277      config/GUNE5D             3
+#   memory_graph/inbox       13      research/xbox_symbols     3
+#   memory_graph/{core.py,gdlmem.py,schema.sql,schema/,test_graph.py}
+#
+# Two of those roots are invisible to the "memory_graph file" reading and
+# both are live lanes' working files: `tools/gdl/**` (every tool source is a
+# graph BUILD input via core._iter_tool_source_paths, and the suite imports
+# defake_gate.py and defake_rewrite.py directly), and
+# `config/GUNE5D/webfrank.json` (tu_briefing reads pin `mechanism` prose off
+# it). Nothing under src/, include/, configure.py or AGENTS.md is touched at
+# all. `test_graph_reads_no_source_tree` and
+# `test_every_core_build_input_is_relevant` keep this list honest.
+
+GRAPH_SUITE_INPUT_ROOTS = (
+    "memory_graph/",
+    "tools/gdl/",
+    "config/GUNE5D/",
+    "research/xbox_symbols/",
+)
+
+
+def _normalize_repo_path(raw: str) -> str:
+    text = str(raw).replace("\\", "/").strip()
+    if text.startswith('"') and text.endswith('"') and len(text) > 1:
+        text = text[1:-1]
+    while text.startswith("./"):
+        text = text[2:]
+    return text.lstrip("/")
+
+
+def graph_suite_relevant(paths):
+    """The subset of `paths` that can change this suite's verdict.
+
+    Conservative by construction: a whole root is relevant if the suite
+    reads anything under it, because a skip that is wrong costs a silently
+    unrun gate while a run that was unnecessary costs 41 seconds.
+    """
+    hits = []
+    for raw in paths:
+        rel = _normalize_repo_path(raw)
+        if not rel:
+            continue
+        if any(rel.startswith(root) for root in GRAPH_SUITE_INPUT_ROOTS):
+            hits.append(rel)
+    return hits
+
+
+def _parse_porcelain_z(blob: str):
+    """Paths out of `git status --porcelain -z` (renames carry two)."""
+    items = [item for item in blob.split("\0") if item]
+    paths, index = [], 0
+    while index < len(items):
+        item = items[index]
+        index += 1
+        if len(item) > 3 and item[2] == " ":
+            status, path = item[:2], item[3:]
+            paths.append(path)
+            if ("R" in status or "C" in status) and index < len(items):
+                paths.append(items[index])
+                index += 1
+        else:
+            paths.append(item)
+    return paths
+
+
+def changed_paths(base=None, root=core.REPO_ROOT):
+    """(paths, description). `base` compares a REF range instead of the tree."""
+    import subprocess
+    if base:
+        command = ["git", "diff", "--name-only", "-z", f"{base}..HEAD"]
+        description = f"git diff --name-only {base}..HEAD"
+    else:
+        command = ["git", "status", "--porcelain", "-z"]
+        description = "git status --porcelain (working tree + index)"
+    result = subprocess.run(command, cwd=str(root), capture_output=True,
+                            text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "git failed")
+    blob = result.stdout
+    paths = ([item for item in blob.split("\0") if item] if base
+             else _parse_porcelain_z(blob))
+    return paths, description
+
+
+def changed_gate(base=None, root=core.REPO_ROOT, stream=sys.stdout) -> bool:
+    """True = run the suite. Prints the paths it compared, both ways."""
+    try:
+        paths, description = changed_paths(base=base, root=root)
+    except Exception as error:                      # noqa: BLE001
+        print(f"graph-suite --changed: RUN (cannot read git: {error})",
+              file=stream)
+        return True
+    relevant = graph_suite_relevant(paths)
+    print(f"graph-suite --changed: {len(paths)} changed path(s)"
+          f" from `{description}`", file=stream)
+    if relevant:
+        for rel in relevant[:20]:
+            print(f"  relevant: {rel}", file=stream)
+        if len(relevant) > 20:
+            print(f"  ... and {len(relevant) - 20} more", file=stream)
+        print(f"RUN: {len(relevant)} changed path(s) under"
+              f" {', '.join(GRAPH_SUITE_INPUT_ROOTS)}", file=stream)
+        return True
+    for rel in [_normalize_repo_path(path) for path in paths][:20]:
+        print(f"  irrelevant: {rel}", file=stream)
+    if len(paths) > 20:
+        print(f"  ... and {len(paths) - 20} more", file=stream)
+    print(f"SKIP: no changed path under"
+          f" {', '.join(GRAPH_SUITE_INPUT_ROOTS)}", file=stream)
+    return False
+
+
+class ChangedModeTests(unittest.TestCase):
+    """Item 1: the skip discriminant, and the guards that keep it sound."""
+
+    def test_graph_inputs_are_relevant(self):
+        for path in ("memory_graph/records/attempts/a.json",
+                     "memory_graph/core.py",
+                     "memory_graph/inbox/work_claim.x.json",
+                     "memory_graph/legacy/PARKED.txt",
+                     "tools/gdl/probe.py",
+                     "tools/gdl/composed_census/wf_word_diff.py",
+                     "config/GUNE5D/symbols.txt",
+                     "research/xbox_symbols/xbox_structs.tsv"):
+            self.assertEqual(graph_suite_relevant([path]), [path], path)
+
+    def test_webfrank_json_is_relevant(self):
+        """MEASURED as stat()ed by the suite; it is not a core build input.
+
+        `tu_briefing` reads pin `mechanism` prose straight off it, so a
+        webfrank.json edit can move a brief assertion. It also sits outside
+        every "memory_graph file" reading of this gate.
+        """
+        self.assertEqual(
+            graph_suite_relevant(["config/GUNE5D/webfrank.json"]),
+            ["config/GUNE5D/webfrank.json"])
+
+    def test_source_tree_edits_are_not_relevant(self):
+        for path in ("src/game/ui/select.c", "include/game/player.h",
+                     "configure.py", "AGENTS.md", "README.md",
+                     "T13_scratch/probe.py", "build/GUNE5D/report.json",
+                     "orig/GUNE5D/sys/main.dol", "LANE_LOCK"):
+            self.assertEqual(graph_suite_relevant([path]), [], path)
+
+    def test_windows_separators_and_quoting_normalize(self):
+        self.assertEqual(
+            graph_suite_relevant(["memory_graph\\core.py", "./tools/gdl/x.py",
+                                  '"memory_graph/records/q.json"']),
+            ["memory_graph/core.py", "tools/gdl/x.py",
+             "memory_graph/records/q.json"])
+
+    def test_every_core_build_input_is_relevant(self):
+        """The mechanical falsifier: core decides what the graph reads.
+
+        If a later run adds an input CLASS to `_iter_input_paths` outside
+        these roots, this fails instead of the gate silently skipping a
+        suite that would have caught the change.
+        """
+        missed = []
+        for path in core._iter_input_paths(core.REPO_ROOT):
+            rel = path.relative_to(core.REPO_ROOT).as_posix()
+            if not graph_suite_relevant([rel]):
+                missed.append(rel)
+        self.assertEqual(missed[:10], [], "core build inputs outside"
+                         f" GRAPH_SUITE_INPUT_ROOTS ({len(missed)} total)")
+
+    def test_test_graph_reads_no_source_tree(self):
+        """Guards the negative half: no test may reach into src/ or include/.
+
+        Falsifier and re-measurement path: instrument builtins.open/os.stat/
+        os.scandir over a full run (T13_scratch/t13_suite_inputs.py, run 43)
+        and re-read the root histogram.
+        """
+        text = Path(__file__).read_text(encoding="utf-8")
+        # Needles are COMPOSED, never written out: a literal spelling of the
+        # forbidden form inside its own guard makes the guard fail on itself.
+        for directory in ("src", "include"):
+            for quote in ('"', "'"):
+                self.assertNotIn("REPO_ROOT / " + quote + directory + quote,
+                                 text)
+
+    def test_porcelain_parses_status_codes_and_renames(self):
+        blob = ("?? LANE_LOCK\0"
+                " M src/game/ui/select.c\0"
+                "R  memory_graph/records/new.json\0"
+                "memory_graph/records/old.json\0"
+                "A  tools/gdl/nearmiss.py\0")
+        self.assertEqual(_parse_porcelain_z(blob),
+                         ["LANE_LOCK", "src/game/ui/select.c",
+                          "memory_graph/records/new.json",
+                          "memory_graph/records/old.json",
+                          "tools/gdl/nearmiss.py"])
+
+    def test_gate_prints_what_it_compared_and_skips(self):
+        stream = io.StringIO()
+
+        def fake(base=None, root=None):
+            return ["src/game/ui/select.c", "AGENTS.md"], "fake"
+
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
+            self.assertFalse(changed_gate(stream=stream))
+        text = stream.getvalue()
+        self.assertIn("irrelevant: src/game/ui/select.c", text)
+        self.assertIn("SKIP:", text)
+
+    def test_gate_runs_on_a_graph_path(self):
+        stream = io.StringIO()
+
+        def fake(base=None, root=None):
+            return ["src/game/ui/select.c", "tools/gdl/fndiff.py"], "fake"
+
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertIn("relevant: tools/gdl/fndiff.py", stream.getvalue())
+
+    def test_a_broken_git_runs_the_suite(self):
+        stream = io.StringIO()
+
+        def fake(base=None, root=None):
+            raise RuntimeError("not a git repository")
+
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertIn("RUN (cannot read git", stream.getvalue())
+
+
 if __name__ == "__main__":
+    argv = list(sys.argv)
+    base = None
+    if "--since" in argv:
+        position = argv.index("--since")
+        base = argv[position + 1]
+        del argv[position:position + 2]
+    if "--changed" in argv:
+        argv.remove("--changed")
+        if not changed_gate(base=base):
+            sys.exit(0)
+    elif base:
+        raise SystemExit("--since is only meaningful with --changed")
+    sys.argv = argv
     unittest.main(verbosity=2)

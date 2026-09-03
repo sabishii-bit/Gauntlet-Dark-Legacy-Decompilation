@@ -77,5 +77,43 @@ class ResidualFormatTests(unittest.TestCase):
             nearmiss.format_residual(None, None, None, False), "")
 
 
+class HiddenRowAccountingTests(unittest.TestCase):
+    """Run-43 item 3: the "dropped row" was `--parked skip`, silently.
+
+    Reproduced before the fix: `nearmiss --min 90` prints all 221 in-band
+    rows; `--parked skip` prints 79 and says nothing about the other 142,
+    which included MBCameraUpdate at 99.97% and do_enemy_move at 99.05%. An
+    independent enumeration straight out of report.json found 221 in band
+    and 221 printed by default — so no row is lost in the report-reading
+    path, and the queue tool was not dropping anything.
+    """
+
+    def test_the_footer_states_the_band_and_what_was_hidden(self):
+        text = nearmiss.summary_line(79, 142, 258, 90.0)
+        self.assertIn("79 near-miss fns", text)
+        self.assertIn("221 in band", text)
+        self.assertIn("142 hidden by --parked skip", text)
+
+    def test_the_footer_no_longer_cites_a_file_it_does_not_read(self):
+        text = nearmiss.summary_line(79, 142, 258, 90.0)
+        self.assertNotIn("PARKED.txt", text)
+        self.assertIn("memory graph", text)
+
+    def test_nothing_hidden_still_reports_zero_rather_than_going_quiet(self):
+        text = nearmiss.summary_line(221, 0, 258, 90.0)
+        self.assertIn("221 in band", text)
+        self.assertIn("0 hidden", text)
+
+    def test_every_row_carries_its_record_count(self):
+        row = nearmiss.format_row(99.97, 636, "", 7, "MBCameraUpdate",
+                                  "game/mb/mb_camera", "  [PARKED]")
+        self.assertIn("rec=7", row)
+        self.assertTrue(row.endswith("[PARKED]"))
+
+    def test_a_function_with_no_records_reads_zero_not_blank(self):
+        self.assertIn("rec=0 ", nearmiss.format_row(
+            99.0, 100, "", 0, "fn_80001000", "game/test/foo", ""))
+
+
 if __name__ == "__main__":
     unittest.main()

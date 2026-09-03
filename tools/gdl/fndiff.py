@@ -61,6 +61,19 @@ unexamined set. Calibrated over all 257 unit pairs: 3,222 rows are
 kind-differing-but-equal, 45 are wrong-datum and 177 wrong-value, and 23
 of the 72 flagged functions read `real 0` today.
 
+--datum answers the same question ALIGNMENT-FREE, for the rows --clean's
+positional pairing cannot pair: it compares the MULTISET of pool VALUES both
+functions read, so a datum present on one side only is named by its VALUE
+even where no position can be trusted. VALUE-EQUAL means every datum retail
+reads we read, and any --clean row the function carries is a pairing,
+displacement or rule-binding artifact. Add --raw to read the pre-webfrank
+compiler object (on a pinned TU the relocations in the src/ object are what
+the RULE left behind). Add --resolve-lbl to treat our `extern u8
+lbl_8023D000[]` placeholder and the splitter's name for that address as one
+datum (OFF by default: it changes verdicts a lane may have started with).
+KNOWN LIMIT: a multiset cannot see a TRANSPOSITION. This is the merged core
+behind composed_census/cr_datum_screen.py and cq_raw_pool_screen.py.
+
 --ops leads with BRANCH-TARGET DIVERGENCE when one is present: a
 same-opcode branch row whose DISPLACEMENT differs and which has no unpaired
 cluster between it and its target cannot be explained by instruction drift,
@@ -104,6 +117,16 @@ agree. SCHEDULE_CANDIDATE is a review queue, not proof of semantic equivalence.
 
 The base object is rebuilt via ninja automatically whenever the source file
 is newer (pass --no-build to skip). This prevents analyzing stale objects.
+
+IMPORTABLE CORE: unit_key, parse, classify_function, count_real,
+instruction_lines, opcode_multiset_signature, pool_row_findings,
+datum_screen_from_lines, datum_multiset_screen, object_sections,
+object_datum_table, target_datum_entry, dol_read, symbol_table — pure
+functions over object paths and parsed line lists; no build, no printing,
+and importing this module has no side effects. A sweep calls them
+in-process (the objdump, DOL and symbols.txt readers are all cached per
+process) instead of spawning one subprocess per function (run-43 item 10;
+the convention is documented in AGENTS.md).
 """
 
 from collections import Counter
@@ -118,6 +141,24 @@ VERSION = "GUNE5D"
 OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
 SYMBOLS_TXT = Path(f"config/{VERSION}/symbols.txt")
 RETAIL_DOL = Path(f"orig/{VERSION}/sys/main.dol")
+
+def unit_key(unit):
+    """The canonical unit spelling: no `src/`, no `.c`/`.cpp`, forward slashes.
+
+    THE CONVENTION, and why this is exported (run-43 item 8). Core tools
+    (probe, fndiff, fnasm) accept `game/x/y`, `game/x/y.c`, `src/game/x/y.c`
+    and the backslash forms, because a lane types whatever its editor just
+    showed it. Most composed_census tools built `build/GUNE5D/obj/{unit}.o`
+    straight from argv, so `game/x/y.c` became `...y.c.o`, and the tool
+    reported a MISSING OBJECT — which reads as "this function is not in the
+    census", not as "you spelled the unit the other way". Measured: 18
+    census tools take a unit and 16 did not normalize.
+    """
+    text = str(unit).replace("\\", "/").strip().strip("/")
+    if text.startswith("src/"):
+        text = text[len("src/"):]
+    return re.sub(r"\.(c|cpp)$", "", text)
+
 
 _POOL_SYMBOLS = None
 
@@ -702,64 +743,13 @@ def _object_local_data(objfile: Path):
     key = str(objfile)
     if key in _LOCAL_DATA_CACHE:
         return _LOCAL_DATA_CACHE[key]
-    table = {}
-    try:
-        syms = subprocess.run([str(OBJDUMP), "-t", str(objfile)],
-                              capture_output=True, text=True).stdout
-    except OSError:
-        _LOCAL_DATA_CACHE[key] = table
-        return table
-    wanted = {}
-    sections = set()
-    for line in syms.splitlines():
-        if "\t" not in line:
-            continue
-        left, right = line.split("\t", 1)
-        left_fields = left.split()
-        right_fields = right.split()
-        if len(left_fields) < 2 or len(right_fields) < 2:
-            continue
-        if "O" not in left_fields[1:]:
-            continue
-        section = left_fields[-1]
-        if not section.startswith("."):
-            continue
-        try:
-            value = int(left_fields[0], 16)
-            size = int(right_fields[0], 16)
-        except ValueError:
-            continue
-        if size == 0:
-            continue
-        wanted[right_fields[-1]] = (section, value, size)
-        sections.add(section)
-    blobs = {}
-    for section in sections:
-        try:
-            dump = subprocess.run(
-                [str(OBJDUMP), "-s", "-j", section, str(objfile)],
-                capture_output=True, text=True).stdout
-        except OSError:
-            continue
-        data = bytearray()
-        for line in dump.splitlines():
-            m = re.match(r"^\s+([0-9a-f]+)\s((?:[0-9a-f]{2,8} ){1,4})", line)
-            if not m:
-                continue
-            offset = int(m.group(1), 16)
-            words = "".join(m.group(2).split())
-            if offset != len(data):
-                data.extend(b"\x00" * max(0, offset - len(data)))
-            try:
-                data.extend(bytes.fromhex(words))
-            except ValueError:
-                continue
-        blobs[section] = bytes(data)
-    for name, (section, value, size) in wanted.items():
-        blob = blobs.get(section)
-        if blob is None or value + size > len(blob):
-            continue
-        table[name] = blob[value:value + size]
+    # One objdump reader serves this and the datum screen below (run 43
+    # item 2 dedup); `readable=None` keeps this view's original behaviour of
+    # reading EVERY section that carries contents, not only the pool ones.
+    table = {name: blob
+             for name, (_section, _size, blob)
+             in object_datum_table(Path(objfile), readable=None).items()
+             if blob}
     _LOCAL_DATA_CACHE[key] = table
     return table
 
@@ -1012,6 +1002,383 @@ def pool_findings_note(findings):
         if counts.get(kind):
             parts.append(f"{counts[kind]} {kind}")
     return ", ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# The alignment-free DATUM screen: one core for two shipped census tools.
+# ---------------------------------------------------------------------------
+#
+# `pool_row_findings` above is POSITIONAL — it classifies the rows --clean
+# pairs, so it only speaks about rows whose instructions already align. Two
+# composed_census tools were written for the rows it cannot pair, and each
+# carried half the answer:
+#
+#   cq_raw_pool_screen.py  reads the RAW compiler object
+#                          (.postprocess/body/<tu>.o) instead of the
+#                          postprocessed one, so a webfrank RULE artifact
+#                          cannot be mistaken for a source defect;
+#   cr_datum_screen.py     carries the calibrated false-positive
+#                          suppressions — pointer/jump tables, addend
+#                          splitting, address keying for byteless symbols,
+#                          and the T11 prefix-granularity reconciliation.
+#
+# Both re-implemented a DOL reader, a symbols.txt parser and an objdump
+# section reader that fndiff already owned; cr_datum_screen re-read the
+# whole 8MB retail DOL once per datum. This is the merged surface: CR's
+# calibrated algorithm, CQ's object selection, fndiff's caches. Both scripts
+# now delegate here and keep their own CLIs and output.
+
+# Full-entry compare: poolval's 16-byte preview missed a string that first
+# differs at +0x21 (AtreeNodeInit).
+DATUM_PREFIX_BYTES = 256
+INITIALIZED_SECTIONS = frozenset({".data", ".sdata", ".sdata2", ".rodata",
+                                  ".text", ".init"})
+_SYMBOL_TABLE = None
+_DATUM_TABLE_CACHE = {}
+_SECTION_CACHE = {}
+
+
+def symbol_table():
+    """name -> (section, address, size). BSS/SBSS entries carry no bytes."""
+    global _SYMBOL_TABLE
+    if _SYMBOL_TABLE is None:
+        table = {}
+        if SYMBOLS_TXT.exists():
+            pattern = re.compile(
+                r"^(\S+)\s*=\s*(\.\w+):0x([0-9A-Fa-f]+);.*?"
+                r"size:0x([0-9A-Fa-f]+)")
+            for line in SYMBOLS_TXT.read_text(
+                    encoding="utf-8", errors="replace").splitlines():
+                match = pattern.match(line.strip())
+                if match:
+                    table[match.group(1)] = (match.group(2),
+                                             int(match.group(3), 16),
+                                             int(match.group(4), 16))
+        _SYMBOL_TABLE = table
+    return _SYMBOL_TABLE
+
+
+def dol_read(addr, size):
+    """`size` bytes at a retail address, clamped to the section. Cached."""
+    dol = _retail_dol()
+    if not dol:
+        return None
+    blob, sections = dol
+    for start, end, off in sections:
+        if start <= addr < end:
+            span = min(size, end - addr)
+            base = off + (addr - start)
+            return blob[base:base + span]
+    return None
+
+
+def target_datum_entry(name, cap=DATUM_PREFIX_BYTES):
+    """(section, size, bytes|None) for a retail symbol, from symbols.txt."""
+    entry = symbol_table().get(name)
+    if entry is None:
+        return None
+    section, addr, size = entry
+    blob = dol_read(addr, min(size, cap)) if section in INITIALIZED_SECTIONS \
+        else None
+    return section, size, blob
+
+
+def object_sections(objfile, readable=INITIALIZED_SECTIONS):
+    """({symbol: (section, offset, size)}, {section: bytes}) for one object.
+
+    The single objdump reader in this repository: `object_datum_table` and
+    `_object_local_data` slice per symbol out of it, and
+    `cq_raw_pool_screen` reads WINDOWS past a symbol's end out of the same
+    section bytes. Sections outside `readable` are listed but not dumped;
+    pass `readable=None` to dump every section that carries contents.
+    """
+    key = (str(objfile), None if readable is None else tuple(sorted(readable)))
+    cached = _SECTION_CACHE.get(key)
+    if cached is not None:
+        return cached
+    wanted, sections = {}, set()
+    try:
+        listing = subprocess.run([str(OBJDUMP), "-t", str(objfile)],
+                                 capture_output=True, text=True).stdout
+    except OSError:
+        _SECTION_CACHE[key] = ({}, {})
+        return {}, {}
+    for line in listing.splitlines():
+        if "\t" not in line:
+            continue
+        left, right = line.split("\t", 1)
+        left_fields, right_fields = left.split(), right.split()
+        if len(left_fields) < 2 or len(right_fields) < 2:
+            continue
+        if "O" not in left_fields[1:]:
+            continue
+        section = left_fields[-1]
+        if not section.startswith("."):
+            continue
+        try:
+            value, size = int(left_fields[0], 16), int(right_fields[0], 16)
+        except ValueError:
+            continue
+        if size == 0:
+            continue
+        wanted[right_fields[-1]] = (section, value, size)
+        sections.add(section)
+    blobs = {}
+    for section in sections:
+        if readable is not None and section not in readable:
+            continue
+        try:
+            dump = subprocess.run(
+                [str(OBJDUMP), "-s", "-j", section, str(objfile)],
+                capture_output=True, text=True).stdout
+        except OSError:
+            continue
+        data = bytearray()
+        for line in dump.splitlines():
+            match = re.match(r"^\s+([0-9a-f]+)\s((?:[0-9a-f]{2,8} ){1,4})",
+                             line)
+            if not match:
+                continue
+            offset = int(match.group(1), 16)
+            words = "".join(match.group(2).split())
+            if offset != len(data):
+                data.extend(b"\x00" * max(0, offset - len(data)))
+            try:
+                data.extend(bytes.fromhex(words))
+            except ValueError:
+                continue
+        blobs[section] = bytes(data)
+    _SECTION_CACHE[key] = (wanted, blobs)
+    return wanted, blobs
+
+
+def object_datum_table(objfile, readable=INITIALIZED_SECTIONS):
+    """{symbol: (section, size, bytes|None)} for data objects defined here.
+
+    A symbol whose section was not dumped keeps its size and reports no
+    bytes, which is the state `datum_key` falls through on.
+    """
+    key = (str(objfile), None if readable is None else tuple(sorted(readable)))
+    cached = _DATUM_TABLE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    wanted, blobs = object_sections(objfile, readable)
+    table = {}
+    for name, (section, value, size) in wanted.items():
+        blob = blobs.get(section)
+        if blob is None or value + size > len(blob):
+            table[name] = (section, size, None)
+        else:
+            table[name] = (section, size, blob[value:value + size])
+    _DATUM_TABLE_CACHE[key] = table
+    return table
+
+
+def is_pointer_table(blob, name=""):
+    """A relocation-filled table: resolved addresses in the retail image and
+    ZEROS in our object, because our entries live in the relocation table.
+    That is a representation difference, never a datum difference."""
+    if name.startswith("jumptable_"):
+        return True
+    if not blob or len(blob) < 8 or len(blob) % 4:
+        return False
+    if not any(blob):
+        return True
+    words = [int.from_bytes(blob[i:i + 4], "big")
+             for i in range(0, len(blob), 4)]
+    return all(0x80000000 <= word < 0x80400000 or word == 0 for word in words)
+
+
+def split_addend(symbol):
+    if "+" in symbol:
+        base, offset = symbol.split("+", 1)
+        try:
+            return base, int(offset, 0)
+        except ValueError:
+            return base, 0
+    return symbol, 0
+
+
+_PLACEHOLDER_ADDR_RE = re.compile(r"^(?:lbl|jumptable|jtbl)_([0-9A-Fa-f]{6,8})$")
+
+
+def placeholder_address(name):
+    """Address encoded IN a dtk placeholder name, or None.
+
+    Our sources declare unrecovered data as `extern u8 lbl_8023D000[]` while
+    the splitter named the same bytes for its own side (`atree_scroll`), so
+    the two spellings of ONE address key differently: the target resolves to
+    `A:0x8023D000` and ours falls through to `N:lbl_8023D000`. The name
+    itself carries the address — `symbol_addresses` already treats the
+    suffix as an address by registering a stripped alias.
+
+    OFF by default so a lane mid-run keeps the verdicts it started with;
+    measured effect image-wide is in the run-43 item-2 record.
+    """
+    match = _PLACEHOLDER_ADDR_RE.match((name or "").strip())
+    return int(match.group(1), 16) if match else None
+
+
+def datum_key(symbol, local, cap=DATUM_PREFIX_BYTES,
+              placeholder_addresses=False):
+    """(key, size): the BYTES when readable, else the ADDRESS, else the name.
+
+    Three refinements, each forced by a measured false positive:
+      * resolve through symbols.txt for ANY name, not just `lbl_*` — our
+        source spells a literal MWCC pools as `@N` where retail's splitter
+        named the same bytes `sPi`/`pmissile_sfxidx`;
+      * key by ADDRESS when there are no bytes, so our
+        `gControllerButtons+0x4` and retail's `sFlags` (0x803445CC either
+        way) are one datum;
+      * a relocation-filled table reads as addresses on one side and zeros
+        on the other (see `is_pointer_table`).
+    """
+    base, addend = split_addend(symbol)
+    entry = local.get(base)
+    if entry is not None and entry[2] is not None:
+        blob = entry[2][:cap]
+        if is_pointer_table(blob, base):
+            return "P:%d" % entry[1], entry[1]
+        blob = blob[addend:] if addend else blob
+        if blob:
+            return "B:" + blob.hex(), entry[1]
+    retail = target_datum_entry(base, cap)
+    if retail is not None:
+        _section, size, blob = retail
+        if blob and is_pointer_table(blob, base):
+            return "P:%d" % size, size
+        if blob and addend < len(blob):
+            return "B:" + blob[addend:].hex(), size
+        known = symbol_table().get(base)
+        if known:
+            return "A:0x%08X" % (known[1] + addend), size
+    known = symbol_table().get(base)
+    if known:
+        return "A:0x%08X" % (known[1] + addend), known[2]
+    if placeholder_addresses:
+        encoded = placeholder_address(base)
+        if encoded is not None:
+            return "A:0x%08X" % (encoded + addend), None
+    return "N:" + symbol, None
+
+
+def datum_relocs(lines):
+    """symbol (with its addend) -> count, over one function's whole body."""
+    counts = Counter()
+    for line in lines:
+        if line.startswith("    "):
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) > 1:
+                counts[parts[1].strip()] += 1
+    return counts
+
+
+def datum_screen_from_lines(target_lines, ours_lines, target_object,
+                            ours_object, cap=DATUM_PREFIX_BYTES,
+                            placeholder_addresses=False):
+    """The screen itself: compare the two functions' DATUM MULTISETS.
+
+    Alignment-free by construction — relocation index k names the same
+    instruction on both sides only where the instruction words already
+    agree, so a multiset is the only trustworthy pairing.
+
+    KNOWN LIMIT, by construction: a TRANSPOSITION preserves the multiset,
+    so this screen cannot see one (enemy::move_logic00's swapped pi/2pi
+    reads VALUE-EQUAL here). It is the complement of a wrong-OPERAND
+    census, not a replacement.
+    """
+    target_local = object_datum_table(target_object)
+    ours_local = object_datum_table(ours_object)
+    target_counts = datum_relocs(target_lines)
+    ours_counts = datum_relocs(ours_lines)
+    target_keys, ours_keys, labels = Counter(), Counter(), {}
+    for symbol, count in target_counts.items():
+        key, size = datum_key(symbol, target_local, cap, placeholder_addresses)
+        target_keys[key] += count
+        labels.setdefault(key, []).append(f"T:{symbol}({size})")
+    for symbol, count in ours_counts.items():
+        key, size = datum_key(symbol, ours_local, cap, placeholder_addresses)
+        ours_keys[key] += count
+        labels.setdefault(key, []).append(f"O:{symbol}({size})")
+    only_target = target_keys - ours_keys
+    only_ours = ours_keys - target_keys
+    # T11 granularity law: a target run that CONTAINS our shorter entry is
+    # the same datum at a different splitting granularity, not a defect.
+    for key in list(only_ours):
+        if not key.startswith("B:"):
+            continue
+        mine = bytes.fromhex(key[2:])
+        for other in list(only_target):
+            if not other.startswith("B:"):
+                continue
+            theirs = bytes.fromhex(other[2:])
+            if theirs.startswith(mine) or mine.startswith(theirs):
+                shared = min(only_target[other], only_ours[key])
+                only_target[other] -= shared
+                only_ours[key] -= shared
+                if only_target[other] <= 0:
+                    del only_target[other]
+                if only_ours[key] <= 0:
+                    del only_ours[key]
+                break
+    return {
+        "verdict": ("VALUE-EQUAL" if not only_target and not only_ours
+                    else "VALUE-DELTA"),
+        "target_only": only_target,
+        "ours_only": only_ours,
+        "labels": labels,
+        "target_relocs": sum(target_counts.values()),
+        "ours_relocs": sum(ours_counts.values()),
+    }
+
+
+def ours_object_path(unit, raw=False):
+    """(path, raw_used). `raw` prefers the pre-postprocess compiler object.
+
+    On a webfrank-pinned TU the src/ object's relocations are what the RULE
+    left behind, so a defect row read off it can be a rule artifact rather
+    than a source-value defect (game/enemy/enemy::move_logic00 is a shipped
+    one).
+    """
+    base = Path(f"build/{VERSION}/src/{unit}.o")
+    if raw:
+        body = base.parent / ".postprocess" / "body" / base.name
+        if body.is_file():
+            return body, True
+    return base, False
+
+
+def datum_multiset_screen(unit, fn, raw=False, cap=DATUM_PREFIX_BYTES,
+                          placeholder_addresses=False):
+    """Screen one function by unit name. None when either object lacks it."""
+    unit = unit_key(unit)
+    target_object = Path(f"build/{VERSION}/obj/{unit}.o")
+    ours_object, raw_used = ours_object_path(unit, raw)
+    if not target_object.exists() or not ours_object.exists():
+        return None
+    target_functions, ours_functions = parse(target_object), parse(ours_object)
+    if fn not in target_functions or fn not in ours_functions:
+        return None
+    result = datum_screen_from_lines(target_functions[fn], ours_functions[fn],
+                                     target_object, ours_object, cap,
+                                     placeholder_addresses)
+    result.update({"unit": unit, "function": fn,
+                   "ours_object": str(ours_object), "raw_used": raw_used})
+    return result
+
+
+def print_datum_screen(name, result):
+    """One function's verdict, naming every datum by VALUE, not by position."""
+    print(f"{result['verdict']:<12} {name}"
+          f"  (relocs target {result['target_relocs']} /"
+          f" ours {result['ours_relocs']}"
+          + ("; RAW compiler object)" if result.get("raw_used") else ")"))
+    for key, count in sorted(result["target_only"].items()):
+        print(f"    TARGET-ONLY x{count}  {key}"
+              f"   {result['labels'].get(key)}")
+    for key, count in sorted(result["ours_only"].items()):
+        print(f"    OURS-ONLY   x{count}  {key}"
+              f"   {result['labels'].get(key)}")
 
 
 def positional_reloc_rows(target_lines, ours_lines, resolve=None):
@@ -1752,7 +2119,7 @@ def truncate_ops(ops_text, limit):
 
 def main():
     flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean",
-             "--raw", "--relocs")
+             "--raw", "--relocs", "--datum", "--resolve-lbl")
     args = [a for a in sys.argv[1:] if a not in flags]
     list_only = "-l" in sys.argv
     ops_only = "--ops" in sys.argv
@@ -1762,14 +2129,12 @@ def main():
     clean = "--clean" in sys.argv
     raw = "--raw" in sys.argv
     relocs_only = "--relocs" in sys.argv
+    datum_only = "--datum" in sys.argv
     if not args or args[0] in ("--help", "-h", "help"):
         print(__doc__)
         return 1
 
-    unit = args[0].replace("\\", "/").strip("/")
-    if unit.startswith("src/"):
-        unit = unit[len("src/"):]
-    unit = re.sub(r"\.(c|cpp)$", "", unit)
+    unit = unit_key(args[0])
     target_o = Path(f"build/{VERSION}/obj/{unit}.o")
     base_o = Path(f"build/{VERSION}/src/{unit}.o")
     if raw:
@@ -1845,6 +2210,14 @@ def main():
             side = "target" if t is None else "base"
             print(f"ONLY-IN-{'BASE' if t is None else 'TARGET'}  {name}"
                   f"  (extra {side} fns are usually deadstripped statics)")
+            continue
+        if datum_only:
+            # Alignment-free: the multiset of pool VALUES, not the rows a
+            # positional pairing produced. `--raw` reads the pre-webfrank
+            # object so a RULE artifact cannot read as a source defect.
+            print_datum_screen(name, datum_screen_from_lines(
+                t, b, target_o, base_o,
+                placeholder_addresses="--resolve-lbl" in sys.argv))
             continue
         if relocs_only:
             # First-class relocation-symbol-set delta with addresses resolved

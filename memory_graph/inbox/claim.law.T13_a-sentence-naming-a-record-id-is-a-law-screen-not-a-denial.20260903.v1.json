@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py",
+    "memory_graph/test_graph.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "batch-gating",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run hypothesis_contradiction_warning over memory_graph/records/**: if it fires on a record whose flagged DENIAL sentence names no record id and whose shared terms are not a path and its own basename, the narrowings are too aggressive and the law is wrong. memory_graph/test_graph.py::HypothesisContradictionTests pins both narrowings and the surviving true positive.",
+  "id": "claim.law.T13_a-sentence-naming-a-record-id-is-a-law-screen-not-a-denial.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T05:46:23Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-03",
+  "value": "A prose screen looking for DENIALS must skip any sentence that names a record id: in this corpus such a sentence is a LAW SCREEN about a cited law's reach, not a denial that an instrument exists. MEASURED run 43 over all 1,849 accepted records: Gate J (hypothesis_contradiction_warning) fired 5 times with 1 true positive. Three of the four false positives were law-screen sentences of the shape 'claim.law.X SCREENED and NOT applicable here - it does NOT reach this function's local area at all', and ONE of those flagged a record for AGREEING with itself (the hypothesis said the frame is NOT declaration-count driven while the law screen two fields away said declaration count does not reach the function). The fourth was a path-vs-basename double count: the whole shared-term evidence was {game/mb/mb_model, mb_model}, one concept counted twice because the artifact-token pattern yields the path and the word pattern yields its basename. Skipping record-id sentences (the rule gate_e_substance already applies for the same reason) and folding a path token with its own components takes the screen to 1 firing of 1, with the known true positive intact. GENERALISATION: a prose classifier's precision decays as the corpus grows a WRITING HABIT the classifier's vocabulary matches; re-measure a shipped prose gate's firing set against the whole corpus rather than trusting the precision it shipped with. A related extension was REFUTED in the same pass: pairing a record's TYPED denial.scope directly with its hypothesis mandate by shared vocabulary fires on 18 of the 43 records carrying both (42%), and every example is legitimate, because a denial scoped to 'axis A on function F ONLY' and a hypothesis mandating 'run tool T on function F' share the subject by construction."
+}
