@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wg_identical_slot_provenance.py",
+    "tools/gdl/tests/test_wg_identical_slot_provenance.py",
+    "tools/gdl/composed_census/wg_identical_slot_provenance.py --calibrate",
+    "tools/gdl/composed_census/t15_operand_provenance.py --only pool_garbage_collect",
+    "config/GUNE5D/webfrank.json (game/audio/mempool::pool_garbage_collect unproven_recolor_audit)"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show that t15_operand_provenance does examine identically-encoded use slots - i.e. that lines 380-381 and 421-422 of tools/gdl/composed_census/t15_operand_provenance.py do not skip them - or produce a pinned function where the complement screen fires and the aligned raw view shows the two streams reading the same value. For the second half: a machine-proved consistent recolor in which every identically-encoded use slot provably reads equal values would refute the running-renaming explanation of the 4 residual firings.",
+  "id": "claim.law.WG_a-clean-operand-provenance-verdict-cannot-clear-a-pin.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T17:18:06Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-t15-operand-provenance",
+  "valid_from": "2026-09-03",
+  "value": "t15_operand_provenance compares VALUES only where the register ENCODING differs, so a CLEAN or UNDECIDED verdict from it is never evidence that a pinned function hides no operand-value difference; it only says none was found in the slots it looked at. The screen skips twice, both visible in the shipped source: `if our_word == target_word: continue` (screen_pair, line 380) drops every identical word, and `if our_reg == target_reg: continue` (line 421) drops every identically-named slot INSIDE a differing word. A per-web reallocation defeats both, because one register NUMBER can carry two different webs across the two streams and then reads different values while spelling identically. MEASURED POSITIVE, game/audio/mempool::pool_garbage_collect +0x30: our `mr r31,r0` copies the &lbl_8031EB00 entries base out of r0 while retail's `mr r3,r0` copies the secondary.head node out of r0. The word differs (dest r31 vs r3) so t15 examines it, but both SOURCE slots read g0, so line 421 drops them and t15 returns UNDECIDED with ZERO OPERAND-VALUE-DIFF rows for the one function in the corpus whose own shipped rule note documents exactly that value difference and quotes both guards refusing on it. THE COMPLEMENT SHIPS: `tools/gdl/composed_census/wg_identical_slot_provenance.py` screens the identically-encoded use slots and flags +0x30 with ours=expr(0x38000000,pool-datum) against target=expr(0x80000004). A FIRING IS NOT A BUG VERDICT, and this is the second half of the law: verify_consistent_recolor proves a RUNNING renaming, which lets one register name carry different webs at different program points, so a proven recolor is under no obligation to make identical slots read equal values. Two-sided calibration at c621fcbac over the 83 machine-proved, non-pre-recolor-staged rules with a differing raw body: 75 CLEAN, 4 UNDECIDED (depth only), 4 FIRED (InitAnim, PlayerProcessPowerups, load_player_model, DrawBlit) = a 4.8% principled false-positive rate; the exclusions that got there are named with the number each removed - DATUM-SPELLING (our @N/section spelling against dtk's lbl_ADDR or real name) removed 88 slots in 3 functions and NAMING-DRIFT (two real names for one address) removed 12 slots in 3 functions, taking the firings from 10 to 4. Over the whole 154-rule tier: 152 paired, 92 CLEAN, 9 CLEAN-AFTER-EXCLUSIONS, 33 UNDECIDED, 15 FIRED (11 of the 15 declare a pre-recolor stage, where positions do not correspond and the screen makes no claim), 3 ERROR (`bctr` without discoverable jumptable targets: CritterDoTexmodNode, gendir_8004FBC8, TowerCheckMessages). CONSEQUENCE FOR THE PROMOTION LANE: an image-wide t15 pass is a lower bound on operand-value differences, not a clearance; run both screens, and treat either one's firing as a place to read the aligned raw view, never as a verdict."
+}
