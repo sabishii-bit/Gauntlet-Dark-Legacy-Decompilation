@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py",
+    "memory_graph/test_graph.py"
+  ],
+  "attributes": {
+    "provenance": "Measured by claude-fleet-worker-T12 in run 42 (item 4 of work_claim.tool-queue-12.20260903.v1) over every accepted record in memory_graph/records at commit 928bd14a2, before and after the change. Extends claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1 from mining heuristics to BLOCKING gates, and adds the ids-as-well-as-bodies correlate that run 41 recorded after a prose screen keyed on record bodies was defeated by record ids.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A record refused by the narrowed gate that nevertheless quotes its named register inside a PPC instruction somewhere - or a corpus re-run showing the trip set is no longer {attempt.MV_playvqmovie-three-new-source-axes-negative-residual-is-cpp-eh-frame.20260902.v1 (r31), attempt.PC_do-players-linkage-axis-closed-from-step0-artifact-and-the-assignment-site-decides.20260903.v1 (r19)} for a reason other than those two records being superseded. Re-run: a script walking memory_graph/records/**/*.json and calling core.register_definition_gaps(hypothesis, json.dumps(record)) must return a non-empty list for exactly those two records and for no other accepted record.",
+  "id": "claim.law.T12_a-blocking-gate-must-be-calibrated-on-the-records-that-already-do-the-work-not-only-on-the-failure-it-was-built-for.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T04:11:50Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-03",
+  "value": "A proposal gate is calibrated against the failure it was built for and rarely against the CORRECT records it will also refuse, and the second measurement is the one that decides whether it can block. Gate I (a hypothesis naming a register must cite that register) was built from two real failures where a register was named in prose with no instruction quoted anywhere. As shipped it additionally required a STREAM ANCHOR - an offset within 140 characters of the citation - and that requirement, not the register-naming one, is what fires: replayed over all 1814 accepted records, 92 carry a hypothesis, 15 would trip on 33 register gaps, and of those 33, TWENTY-NINE quote the register inside a real PPC instruction and lack only the offset, TWO are `stmw`/`lmw` save-run bases (a save run's base register has no definition site; stmw does not define it), and TWO are the class the gate exists for. Two genuine refusals out of thirty-three is 6% precision on a gate that BLOCKS. The repair is not to weaken the idea but to SPLIT it: block on the narrow question the failures actually show (was the register quoted in an instruction at all - which still refuses both measured failures, 2/2), and demote the anchor to an advisory warning, since the corpus says the anchor is the normal thing to omit. TWO CORRELATES. (1) A gate reading record PROSE must be calibrated against record IDS too: this corpus writes registers into its slugs - `attempt.CL_print-n-of-m-in-place-multiply-frees-r0-for-the-pre-prologue-address.20260903.v1`, `claim.law.r0-homed-address-temp-forces-the-indexed-store-form.20260901.v1` and eight more of 1814 - while 12 hypothesis statements quote a record id. The two sets have not intersected yet, so this is a LATENT hazard with named carriers and 0 live firings; the mask prevents rather than repairs, and a queue item asserting it as a measured symptom was wrong about the frequency while right about the mechanism. (2) An unsatisfiable demand is worse than a wrong one: no evidence discharges a demand for the definition site of a register that has none, so an ABI-fixed register, a save-set RANGE and an `stmw` base are masked rather than taxed."
+}

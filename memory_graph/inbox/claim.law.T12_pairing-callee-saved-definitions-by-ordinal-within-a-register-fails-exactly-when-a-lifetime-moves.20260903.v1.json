@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/savedregs.py",
+    "tools/gdl/tests/test_savedregs.py"
+  ],
+  "attributes": {
+    "provenance": "Derived and calibrated by claude-fleet-worker-T12 in run 42 (item 1 of work_claim.tool-queue-12.20260903.v1), on the function claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 came from. It does not contradict that law: the width-class law is about which register a web's FIRST definition lands in, and this is about the ranges the first-definition table never compared. The scope banner shipped in run 41 (T11 item 5) already said those ranges were uncompared; this says what comparing them requires.",
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where the lifetime pairing reports PERMUTED rA->rB while the aligned view (`fnasm <unit> <fn> 0xA:0xB --diff`) shows the two definitions are not the same value - or a function where the ordinal pairing's DIFFERENT ROLE verdict is confirmed by the aligned view and the lifetime pairing's PERMUTED/ESCAPED verdict is not. Re-run: `python tools/gdl/savedregs.py game/movie/movieplayer fn_800D8BCC --per-web` must keep naming r21->r19 x2 and r19->r12 x2, and `python tools/gdl/fnasm.py game/movie/movieplayer fn_800D8BCC 0x1c0:0x260 --diff` must keep showing `1c4: li r21,0` against `1c4: li r19,0`.",
+  "id": "claim.law.T12_pairing-callee-saved-definitions-by-ordinal-within-a-register-fails-exactly-when-a-lifetime-moves.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T04:11:49Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "A callee-saved register hosts SEVERAL live ranges, and pairing two streams' definitions by ORDINAL WITHIN A REGISTER is correct only while no range changes register - which is precisely the case such a comparison exists to find. When a range moves, ordinal pairing aligns unrelated ranges and reports the result as a value difference, hiding a permutation behind a list of role mismatches. Pair by ALIGNED POSITION with a register-FREE role instead (mask the defined register where it appears in its own sources, so `addi r21,r21,4` and `addi r19,r19,4` are one role), and pair ROLE-FIRST: same register AND same role wins before any cross-register match, because a definition that merely MOVED IN THE SCHEDULE is not a permutation and the first-definition table already reports emission order separately. MEASURED on game/movie/movieplayer::fn_800D8BCC (215/215 insns, opcode multiset 0t): ordinal pairing printed 5 DIFFERENT ROLE rows, aligning the target's `@0x1d8 add r19,r12,r0` against our `@0x1c4 li r19,0`. Position pairing alone then called 3 of 5 'permutations' on a reordered prologue the first-definition table reads correctly. Role-first position pairing reads the same function as 2 PERMUTED (target r21 IS our r19: `@0x1c4 li` and `@0x23c addi %,4` at identical offsets), 2 ESCAPED (the target keeps a loop pointer in callee-saved r19 where ours keeps it in VOLATILE r12) and 2 INTRUDER (ours spends callee-saved r21 on a range the target holds in volatile r10). TWO CLASSES ARE INVISIBLE FROM INSIDE THE CALLEE-SAVED BANK and only a whole-file pairing finds them: a range that ESCAPED to a volatile, and a volatile role ours over-promoted. CORPUS: 54 units, 267 nonmatching functions with both objects on disk - the ordinal view flags 3187 later rows across 176 functions, lifetime pairing reclassifies 1869 of them, finds an escape or intrusion in 146 functions, and names a moved range in 20 functions the ordinal view called clean. WINDOW SENSITIVITY, swept 6/12/24/48/96 aligned rows: `in place` is invariant (3682 at every setting) and PERMUTED moves 4.8%, so those verdicts are robust; ESCAPED (189->304) and INTRUDER (117->235) trade directly against UNPAIRED (1265->816) and must be read with the row delta the tool prints, never as a bare count."
+}
