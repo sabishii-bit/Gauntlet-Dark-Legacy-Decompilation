@@ -5054,6 +5054,38 @@ RESIDUAL_LAW_PREVIEW_KEYS = (
 # post-compaction payload.
 RESIDUAL_PIN_PREVIEW = 6
 RESIDUAL_PIN_MECHANISM_CHARS = 700
+# The same treatment for `--query`, which run-40 item 4 did not reach
+# (run-49 item 3, T18). The OR-matching added in run 34 fixed a real defect —
+# a spread query used to AND to zero — but it SELECTS every law carrying ANY
+# term, and the corpus's common words are carried by most of it. Measured at
+# 6daaa47b8 over ten queries: 1,786 rows returned, 188 (10.5%) carry EVERY
+# term, so 89.5% of what a query returns is single-term neighbours.
+#
+#   laws --query "memory disambiguation"     150,351 B   68 rows,   3 all-term
+#   laws --query "live zero remat"           589,131 B  279 rows,  19 all-term
+#   laws --query "reloc blind real naming"   786,164 B  400 rows,   4 all-term
+#   laws --query "callee saved width class"  599,386 B  305 rows,   7 all-term
+#
+# T18's "~500KB spill for a 3-hit query" is the second row of that table.
+# Byte breakdown of the 589,131: the laws array is 357,802 (60.7%) and inside
+# it `evidence` 24.6%, `falsifier` 18.9%, `scope` 5.6%, `asserted_by` 4.6% —
+# 53.7% in four fields nothing ranks on — with pin_mechanisms another 56,873
+# (9.7%) at the top level. So, exactly as for --residual, the fix is the
+# PREVIEW plus the PROJECTION, not a change to which rows match: the OR
+# selection and its per-term diagnostics are untouched, `truncated` and
+# `query_terms_matched` say what was cut and why each row is here, and
+# `--full 1` returns everything.
+QUERY_LAW_PREVIEW = 25
+QUERY_LAW_PREVIEW_KEYS = (
+    "id", "status", "score", "n", "applied_count", "match",
+    "query_terms_matched", "superseded_by", "age_days", "tags",
+    "needs_revalidation",
+)
+# The limit `laws` uses when the caller names none. An EXPLICIT --limit is
+# honoured exactly and turns the preview off: a cap that swallowed an
+# explicit widening would be a second silent filter, which is the class of
+# defect this item is about.
+LAWS_LIMIT_DEFAULT = 400
 
 
 def _sentences(text: str) -> list[str]:
@@ -7268,7 +7300,7 @@ def law_corpus(
     db_path: Path | None = None,
     tag: str | None = None,
     full: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
     residual: str | None = None,
     include_provisional: int = 0,
     rank: int = 1,
@@ -7292,6 +7324,9 @@ def law_corpus(
     exact residual", which no facet could ask before.
     """
     ensure_database(root, db_path)
+    explicit_limit = limit is not None
+    if limit is None:
+        limit = LAWS_LIMIT_DEFAULT
     sql = f"""
         SELECT r.record_id, r.record_state, r.valid_from, r.recorded_at,
                c.epistemic_state, c.value_json,
@@ -7658,11 +7693,26 @@ def law_corpus(
         laws = matched_laws
         residual_filtered = True
         limit = min(limit, RESIDUAL_LAW_PREVIEW)
+    # QUERY VOLUME (run-49 item 4). Same treatment, same reasoning, applied
+    # to the surface run-40 item 4 did not reach — see QUERY_LAW_PREVIEW for
+    # the measured table. Deliberately NOT applied when a tag is present:
+    # `--tag core-screen` is the mandatory de-fakematch screen and a preview
+    # over a mandatory screen is the "quieter screen nobody knew they ran"
+    # failure the provisional-suppression comment above already names.
+    query_previewed = (bool(query) and not full and not residual and not tag
+                       and not explicit_limit)
+    query_matched_total = len(laws)
+    if query_previewed:
+        limit = QUERY_LAW_PREVIEW
     truncated = max(0, len(laws) - limit)
     laws = laws[:limit]
 
     # falsifier/asserted_by come from the raw record, not the claim table.
-    if laws:
+    # PREFILTER BEFORE MATERIALIZING: the projection below drops both fields
+    # (18.9% + 4.6% of a query payload's law bytes), so under a query preview
+    # this second pass over raw_json is not run at all rather than run and
+    # then thrown away.
+    if laws and not query_previewed:
         with closing(open_database(root, db_path)) as connection:
             marks = ",".join("?" * len(laws))
             for extra in connection.execute(
@@ -7763,7 +7813,40 @@ def law_corpus(
         ),
     }
     if query:
+        # DELIBERATELY NOT PREVIEWED. Pin `mechanism` prose is 9.7% of a
+        # query payload's bytes and the densest derivation of a closed
+        # residual anywhere in the project (AGENTS.md); run-37 item 5
+        # measured that cutting it at 600 chars discarded 59.1% of the
+        # corpus's derivations — 77,547 of 131,115 chars across 82 of 91
+        # pins — with the operative sentence routinely in the tail. Shrinking
+        # the law rows must not quietly re-impose the cut that fix removed.
         out["pin_mechanisms"] = webfrank_pin_mechanisms(root, query)
+    if query_previewed:
+        out["laws"] = [
+            {key: row[key] for key in QUERY_LAW_PREVIEW_KEYS if key in row}
+            | {"head": row.get("head")}
+            for row in out["laws"]
+        ]
+        out["query_matched_total"] = query_matched_total
+        out["laws_projection"] = (
+            "COMPACT query projection: "
+            + ", ".join(QUERY_LAW_PREVIEW_KEYS)
+            + ", head. `evidence`, `scope`, `falsifier` and `asserted_by` are"
+            " omitted — 53.7% of a query payload's law bytes, and nothing"
+            " ranks on them. Fetch a law you actually want with `gdlmem.py"
+            " record <id>`, or re-run with `--full 1`. `pin_mechanisms` is"
+            " NOT previewed: run-37 item 5 measured that truncating pin"
+            " derivations discards the operative sentence.")
+        out["query_selection_note"] = (
+            f"{query_matched_total} law(s) carry at least one of your terms;"
+            f" the top {len(out['laws'])} are returned, ranked by status tier"
+            " then by how many DISTINCT terms each carries (read"
+            " `query_terms_matched` — a row at 1 of 3 is a single-term"
+            " neighbour, and 89.5% of query rows are, measured over ten"
+            " queries). Terms are OR-matched on purpose: an AND filter"
+            " returned zero on spread queries. `--limit N` turns the preview"
+            " off and returns N rows in full, `--full 1` returns every match"
+            " with every field.")
     if residual_filtered:
         out["laws"] = [
             {key: row[key] for key in RESIDUAL_LAW_PREVIEW_KEYS if key in row}
@@ -10139,7 +10222,12 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                              help="1 = inline complete law text"),
                 # Default must exceed the corpus: at 100, 36 of 136 laws
                 # were silently invisible to enumeration (audit, 2026-08-31).
-                SurfaceParam("limit", int, default=400, maximum=500),
+                SurfaceParam("limit", int, default=None, maximum=500,
+                             help="rows to return (default"
+                                  f" {LAWS_LIMIT_DEFAULT}). A --query without"
+                                  " --tag, --residual or --full previews the"
+                                  f" top {QUERY_LAW_PREVIEW} instead; naming"
+                                  " any explicit limit turns the preview off"),
                 SurfaceParam("include_provisional", int, default=0, maximum=1,
                              help="1 = also return PROVISIONAL laws (zero"
                                   " verified successes). Hidden by default so"

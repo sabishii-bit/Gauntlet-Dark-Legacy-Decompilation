@@ -1698,9 +1698,15 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertNotIn(" …", pin["mechanism"])
 
     def test_law_rows_expose_falsifier_and_asserted_by(self):
-        row = law_corpus("live zero remat", root=self.root)["laws"][0]
-        self.assertEqual(row["asserted_by"], ["tools/gdl/webfrank.py"])
-        self.assertTrue(row["falsifier"])
+        """Both fields survive any request that is not the compact query
+        preview (run-49 item 4 moved them behind it — they are 23.5% of a
+        query payload's law bytes and nothing ranks on them)."""
+        for kwargs in ({"full": 1}, {"limit": 50}):
+            row = law_corpus("live zero remat", root=self.root,
+                             **kwargs)["laws"][0]
+            self.assertEqual(row["asserted_by"], ["tools/gdl/webfrank.py"],
+                             kwargs)
+            self.assertTrue(row["falsifier"], kwargs)
 
     # --- run 34 item 6: per-term hit counts + OR-rank --------------------
     def test_or_rank_surfaces_a_partial_match_the_and_filter_dropped(self):
@@ -1723,6 +1729,86 @@ class RetrievalQueryTests(unittest.TestCase):
     def test_a_single_term_query_reports_its_own_hit_count(self):
         result = law_corpus("allocator", root=self.root)
         self.assertEqual(result["query_term_hits"], {"allocator": 1})
+
+    # --- run-49 item 4: the query preview --------------------------------
+    #
+    # THE DEFECT (T18). run-34 item 6 made query terms OR-matched, which
+    # fixed a real failure (a spread query used to AND to zero) but selects
+    # every law carrying ANY term. Measured at 6daaa47b8 over ten queries
+    # against the LIVE corpus: 1,786 rows returned, 188 (10.5%) carry EVERY
+    # term. `laws --query "memory disambiguation"` was 150,351 bytes for 68
+    # rows of which 3 carry both terms -- T18's "~500KB spill for a 3-hit
+    # query" is `"live zero remat"`, 589,131 bytes for 279 rows / 19
+    # all-term. Byte breakdown of that payload's law array: evidence 24.6%,
+    # falsifier 18.9%, scope 5.6%, asserted_by 4.6% -- 53.7% in four fields
+    # nothing ranks on.
+    #
+    # AFTER, same ten queries at the same commit: 3,634,037 -> 242,932 bytes
+    # (93.3% cut); 8 previewed, 2 (`jumptable` 17 rows, `stfsu` 5) already
+    # under the preview and returned whole. `--tag core-screen` is untouched
+    # by construction (50 rows, unchanged), and pin_mechanisms is untouched
+    # by choice (run-37 item 5).
+    def test_a_plain_query_returns_the_compact_preview(self):
+        result = law_corpus("live zero remat", root=self.root)
+        self.assertIn("query_selection_note", result)
+        self.assertIn("laws_projection", result)
+        row = result["laws"][0]
+        for dropped in ("evidence", "scope", "falsifier", "asserted_by"):
+            self.assertNotIn(dropped, row)
+        for kept in ("id", "status", "score", "match",
+                     "query_terms_matched", "head"):
+            self.assertIn(kept, row)
+
+    def test_the_preview_reports_how_many_matched_and_how_many_were_cut(self):
+        """A silent cut reads as 'the corpus holds this many laws', which is
+        the false-all-clear class this corpus already has a rule about."""
+        result = law_corpus("live zero remat", root=self.root)
+        self.assertEqual(
+            result["query_matched_total"],
+            result["count"] + result["truncated"])
+
+    def test_an_explicit_limit_turns_the_preview_off(self):
+        result = law_corpus("live zero remat", root=self.root, limit=50)
+        self.assertNotIn("query_selection_note", result)
+        self.assertIn("falsifier", result["laws"][0])
+
+    def test_full_returns_every_field(self):
+        result = law_corpus("live zero remat", root=self.root, full=1)
+        self.assertNotIn("query_selection_note", result)
+        self.assertIn("evidence", result["laws"][0])
+
+    def test_a_TAG_screen_is_never_previewed(self):
+        """--tag core-screen is the MANDATORY de-fakematch screen; a preview
+        over it is the 'quieter screen nobody knew they ran' failure."""
+        result = law_corpus(root=self.root, tag="core-screen")
+        self.assertNotIn("query_selection_note", result)
+        result = law_corpus("allocator", root=self.root, tag="core-screen")
+        self.assertNotIn("query_selection_note", result)
+
+    def test_a_residual_query_keeps_its_own_projection(self):
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        self.assertNotIn("query_selection_note", result)
+
+    def test_an_unfiltered_browse_is_untouched(self):
+        result = law_corpus(root=self.root, include_provisional=1)
+        self.assertNotIn("query_selection_note", result)
+        self.assertNotIn("laws_projection", result)
+        self.assertIn("falsifier", result["laws"][0])
+
+    def test_pin_mechanisms_are_NOT_truncated_by_the_preview(self):
+        """run-37 item 5 measured that cutting pin prose discards 59.1% of
+        the corpus's derivations with the operative sentence in the tail.
+        Shrinking law rows must not quietly re-impose that cut."""
+        pin = law_corpus("carrier", root=self.root)["pin_mechanisms"][0]
+        self.assertEqual(pin["mechanism_chars"], len(pin["mechanism"]))
+        self.assertNotIn(" …", pin["mechanism"])
+
+    def test_a_query_under_the_preview_size_loses_nothing(self):
+        """The negative side: 2 of the 10 measured queries were already
+        under the preview. Such a query must report truncated 0."""
+        result = law_corpus("allocator", root=self.root)
+        self.assertEqual(result["truncated"], 0)
+        self.assertEqual(result["query_matched_total"], result["count"])
 
     # --- laws --residual -------------------------------------------------
     def test_residual_signature_finds_sibling_records(self):
