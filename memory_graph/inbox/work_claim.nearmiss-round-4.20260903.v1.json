@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLOSE lane, round 4 - WITH NEW EYES: nearmiss now ranks on probe real, shows rec= record counts, and NO LONGER silently hides parked rows (T13: --parked was hiding 142 of 221 band rows incl. 99.97-fuzzy functions). Re-derive the roster INCLUDING previously-hidden rows; a parked row whose park is STALE (expiry fired, or superseded, or alignment moved since) is fair game - run its expiry_check before deciding, respect typed DO-NOT-RETRY denials that hold. Rank: zero-record first, then stale-parked by real ascending. Skip TUs claimed by WC/SW/SS/DP this run (gdlmem claims; StartGemFX is SW's - your anchor is nominal only, do not work it). Work top 4-6: byte-exact (STRICT) or typed park; one commit per landed fn. Fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; defake_gate baseline per TU; gate = 'main.dol: OK'; STRICT closes prominent; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:StartGemFX",
+  "id": "work_claim.nearmiss-round-4.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NM",
+  "recorded_at": "2026-09-03T05:58:44Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

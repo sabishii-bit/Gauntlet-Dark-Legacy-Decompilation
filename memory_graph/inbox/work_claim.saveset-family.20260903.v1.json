@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, the save-set family (SL's run-43 census: 17 save-set rows; SL proved rows carrying both save+frame labels are save-set rows in disguise - frame delta = exactly the extra save-area words): re-derive the roster live (sl_slot_census.py is the shipped surface; quote save-set columns per row), work 4-6 rows by save-width delta ascending. Governing laws (screen, then treat as candidates): loaded-local-outranks-param-copy-outranks-direct-param (3 sightings), saved-parameter-declared-copy, declaration-order-double-bound, savedregs --per-web is live (per-lifetime - trust it over first-defs). EnablePlayerControls: the run-43 SL park banks the CALL-SITE class as mandatory step 1 (callee-side is proved unreachable - 3 same-digest NEUTRAL-IDENTICALs; the inlined body substitutes call-site literals pre-dataflow - so probe the CALL SITES). context per fn FIRST; aligned view before hypotheses; fresh fuzzy per keep; 3-attempt cap; pins screened; defake_gate baseline per TU; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:EnablePlayerControls",
+  "id": "work_claim.saveset-family.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SS",
+  "recorded_at": "2026-09-03T05:58:45Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

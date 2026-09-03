@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, the two biggest open fns: (1) do_players (game/game/player.c, real 840 / fuzzy 97.27 / count T1174/O1172 at last report - re-measure live): STEP 0 gdlmem context, execute the NEWEST accepted record's diagnosis check (the run-39 PC record banks a permutation-class lead with source-exhaustion provenance; the static-drop lever remains VETOED TU-wide by the 9-STRICT law; read every veto scope clause literally). (2) do_player_select (game/ui/select.c, real 1185 / 13t): continue from the NX run-43 record (switch-range-check law is the proven lever family there; census remaining clusters nearest-first; the pool/frame axes are DOUBLY REFUTED - do not re-attack). Big-fn rules: >4000-insn arbitration does not apply (both under); fresh fuzzy per keep; aligned view at every cluster before probing; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap per mechanism; do_exit + select pins screened, --rederive-pin on pool changes; TU-scope guard live. defake_gate baseline per TU; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:do_players",
+  "id": "work_claim.bigfn-drive.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DP",
+  "recorded_at": "2026-09-03T05:58:45Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
