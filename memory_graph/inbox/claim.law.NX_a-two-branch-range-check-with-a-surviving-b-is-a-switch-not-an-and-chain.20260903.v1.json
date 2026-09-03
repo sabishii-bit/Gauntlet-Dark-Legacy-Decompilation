@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py game/ui/select do_player_select 0x1518:0x1548 --diff",
+    "tools/gdl/probe.py game/ui/select do_player_select --arbitrate"
+  ],
+  "attributes": {
+    "provenance": "attempt.NX_do-player-select-a-switch-range-check-and-one-cse-local-close-four-of-seventeen-multiset-tokens.20260903.v3, PROBE 4, commit 1485e482b. Population NOT yet censused: this is one measured instance plus one recorded degenerate sibling (update_class_spec's one-case switch, cited in attempt.UC_do-player-select-baseline-parity-was-manufactured-by-the-wrong-extern.20260902.v1). A lane wanting to sweep it should grep the image for the `bge ; b` adjacency in target streams before treating it as a class.",
+    "tags": [
+      "switch-form",
+      "peephole",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A target function in a peephole-off TU where the `cmpwi HI ; bge D ; cmpwi LO ; bge B ; b D` shape is provably produced by an `&&` chain rather than a switch - i.e. an `if (x < HI && x >= LO)` source form that compiles to five words with the surviving `b` - or a switch over a contiguous small range in one of these TUs that compiles to the four-word `blt` form. Either observation is one `probe.py` build in any NonMatching game TU and would demote this to a per-function coincidence.",
+  "id": "claim.law.NX_a-two-branch-range-check-with-a-surviving-b-is-a-switch-not-an-and-chain.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T05:01:40Z",
+  "schema_version": 1,
+  "subject": "function:do_player_select",
+  "valid_from": "2026-09-03",
+  "value": "In this project's peephole-off game TUs, a target sequence of the shape `cmpwi rX,HI ; bge DEFAULT ; cmpwi rX,LO ; bge BODY ; b DEFAULT` is MWCC's lowering of a SWITCH over the contiguous case range LO..HI-1, not of a `&&` chain: an `if (x < HI && x >= LO)` compiles instead to `cmpwi rX,HI ; bge DEFAULT ; cmpwi rX,LO ; blt DEFAULT` with the arms fused into one branch and no trailing `b`. The discriminant is the SURVIVING unconditional `b` immediately after the second conditional branch - the redundant jump-to-next-block that peephole would delete - together with the second branch pointing AT the body rather than away from it. Measured on game/ui/select::do_player_select at 0x1524-0x1538: the target emits `@0x1524 cmpwi r0,2`, `@0x1528 bge ->0x1548`, `@0x152c cmpwi r0,0`, `@0x1530 bge ->0x1538`, `@0x1534 b ->0x1548` while our `if (*(s32*)(pl + offsetof(Player, sel_step)) < 2 && *(s32*)(pl + offsetof(Player, sel_step)) >= 0)` emitted `@0x1520 cmpwi r0,2`, `@0x1524 bge ->0x1540`, `@0x1528 cmpwi r0,0`, `@0x152c blt ->0x1540` - one word short and the wrong polarity. Rewriting the source as `switch (*(s32*)(pl + offsetof(Player, sel_step))) { case 0: case 1: <body> break; }` reproduced the target's five words exactly, moved the opcode multiset from 17t to 14t and the instruction count from O1882 to O1883 against T1885, and raised fresh objdiff fuzzy 96.2610% -> 96.3194% (arbitrated with probe.py --arbitrate; `real` rose by 1 and was overruled by fuzzy). The practical rule: when a target range test costs THREE branch words and ours costs two, do not look for a branch-polarity trick - look for a switch in the original source. The same TU's own one-case-switch finding (update_class_spec, `beq`+`b`) is the degenerate single-case member of this family."
+}
