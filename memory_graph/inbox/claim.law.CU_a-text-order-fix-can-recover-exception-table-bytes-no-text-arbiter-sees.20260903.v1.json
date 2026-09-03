@@ -1,0 +1,16 @@
+{
+  "asserted_by": [
+    "tools/gdl/textorder.py",
+    "tools/gdl/defake_gate.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "A text-order repair that leaves extab/extabindex matched-byte counts unchanged while the moved functions demonstrably own extab entries, or any measurement in which extab bytes move WITHOUT a change in .text function order or frame width. Run `python tools/gdl/defake_gate.py check <unit> --rebuild` across a text-order fix and read its DATA-CHANGED line; `python tools/gdl/textorder.py <unit>` decides the order half.",
+  "id": "claim.law.CU_a-text-order-fix-can-recover-exception-table-bytes-no-text-arbiter-sees.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T19:48:30Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A .text FUNCTION-ORDER fix can move matched DATA bytes in extab/extabindex, because those sections are emitted in .text function order -- so a textorder repair is not only a flip precondition, it can be a scoring win that every per-function .text arbiter is blind to. MEASURED on game/sys/cardutil at commit 6a4cb1a82: moving cardThreadMain after cardWaitResult (no function's .text bytes changed at all -- defake_gate reported GATE OK with zero score movement on all 23 functions) took extab from 141 to 144 of 144 matched bytes (SECTION NOW COMPLETE) and extabindex from 210 to 215 of 216, a net +8 B, reported only by defake_gate's DATA-CHANGED line. This is the POSITIVE direction of claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match, which recorded the same channel losing bytes invisibly; the two together say the extab channel is bidirectional and must be read on every keep, not only on frame changes. NOT UNIVERSAL: the sibling game/movie/movieplayer text-order fix at commit 83ffdefb2 moved ZERO data bytes (extab 570/936 and extabindex 467/468 both unchanged), so the payoff depends on whether the moved functions own exception-table entries -- the screen is to read defake_gate's DATA-CHANGED line, never to assume either sign."
+}

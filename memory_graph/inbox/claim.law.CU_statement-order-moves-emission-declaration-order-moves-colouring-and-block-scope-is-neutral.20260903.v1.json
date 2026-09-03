@@ -1,0 +1,16 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/fnasm.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "Any function in which reordering the zero-init STATEMENTS of a same-width integer group changes which register a web lands in, or in which moving that group between block scope and function top (at constant relative order) changes the object at all. Either kills the separation. Reproduce with `python tools/gdl/probe.py <unit> <fn> --fuzzy` around each edit and read the web-to-register map from the loop-tail increments via `python tools/gdl/fnasm.py <unit> <fn> <lo>:<hi> --diff`, never from the preheader positions -- the preheader is exactly where lever 1 makes the two look alike.",
+  "id": "claim.law.CU_statement-order-moves-emission-declaration-order-moves-colouring-and-block-scope-is-neutral.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T19:48:32Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "For a group of same-width integer locals zero-initialised before a loop, MWCC separates two levers that lanes routinely conflate, and a third candidate is inert. (1) STATEMENT order of the zero-initialisations controls the EMISSION order of the `li rX,0` words and nothing else: each web KEEPS its register across the reorder. (2) DECLARATION order controls the REGISTER ASSIGNMENT: the group colours ASCENDING in declaration order through the free volatile block. (3) Moving those declarations between BLOCK scope and the function's top declaration list, at constant relative order, is CATEGORICALLY NEUTRAL -- the group is walked identically either way. MEASURED on game/sys/cardutil::cardDoWrite (263/263 instructions, no webfrank pin). Lever 1: reordering `iconCount/ciCount/spShift/fmtShift = 0` to `iconCount/spShift/ciCount/fmtShift = 0` swapped the emission positions of ciCount and spShift while ciCount stayed in r8 and spShift stayed in r9 -- fuzzy 98.8593% and real 90 both unchanged. Lever 2: reversing the four DECLARATIONS to `fmtShift, spShift, ciCount, iconCount` re-coloured the group from iconCount=r7/ciCount=r8/spShift=r9/fmtShift=r10 to fmtShift=r7/spShift=r8/ciCount=r9/iconCount=r10, moving iconCount onto the target's r10 -- fuzzy 98.8593% -> 98.8783%, real 90 -> 86. Lever 3: hoisting the same four declarations to function top in their ORIGINAL order returned fuzzy and real to exactly 98.8593% and 90, the pre-reversal values. This is the VOLATILE analogue of claim.law.stack-slots-descend-in-declaration-order.20260831.v1 and of savedregs.py's callee-saved declaration-list note, and it is stated separately because it was measured on volatile registers, which savedregs.py never reads."
+}
