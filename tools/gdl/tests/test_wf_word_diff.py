@@ -22,7 +22,8 @@ sys.path.insert(0, str(TOOLS / "composed_census"))
 
 from wf_word_diff import (basic_block_leaders,  # noqa: E402
                           mnemonic_divergence, ops_clusters, ops_regions,
-                          region_word_counts, _locally_aligned)
+                          parse_range, region_word_counts, rows_in_range,
+                          _locally_aligned)
 from unabsorbed import rule_served_functions  # noqa: E402
 
 
@@ -203,6 +204,41 @@ class RelocPairingReliabilityTests(unittest.TestCase):
         ours = words(*([ADDI_R4] * 9))
         tgt = words(*([ADDI_R5] * 9))
         self.assertTrue(_locally_aligned(ours, tgt, 4))
+
+
+class RangeWindowTests(unittest.TestCase):
+    """Run-42 item 2. `--range` replaces a hand grep over the `--list`
+    output, whose measured failure mode was UNDER-MATCHING — it counted the
+    rows whose printed text matched a pattern rather than the rows whose
+    offset falls in the window, and a windowed count nearly reached a record
+    that way (AGENTS.md discipline 8).
+
+    Live check on game/movie/movieplayer::fn_800D8BCC: 66 differing words
+    whole-function, 23 of them inside +0x1c4-0x250 (34.8%) — the second-loop
+    window where savedregs' lifetime pairing names the r21->r19 permutation.
+    """
+
+    ROWS = [(0x00, 1, 2), (0x1c4, 1, 2), (0x1c8, 1, 2), (0x250, 1, 2)]
+
+    def test_the_window_is_half_open_like_every_other_tool_here(self):
+        self.assertEqual((0x1c4, 0x250), parse_range("0x1c4:0x250"))
+        kept = rows_in_range(self.ROWS, (0x1c4, 0x250))
+        self.assertEqual([0x1c4, 0x1c8], [row[0] for row in kept])
+
+    def test_decimal_and_hex_both_parse(self):
+        self.assertEqual((16, 32), parse_range("16:32"))
+        self.assertEqual((16, 32), parse_range("0x10:0x20"))
+
+    def test_no_range_keeps_every_row(self):
+        self.assertIsNone(parse_range(None))
+        self.assertEqual(self.ROWS, rows_in_range(self.ROWS, None))
+
+    def test_a_malformed_range_is_refused_not_silently_ignored(self):
+        """A silently-ignored window reports the WHOLE function's count
+        under a heading that says otherwise."""
+        for bad in ("0x1c4", "0x250:0x1c4", "a:b", "1:2:3"):
+            with self.assertRaises(SystemExit, msg=bad):
+                parse_range(bad)
 
 
 if __name__ == "__main__":

@@ -94,6 +94,21 @@ docstring omitted it — the flags below all work):
                      reporting the discarded probe (--no-rebuild skips)
   --revert-baseline  restore the SESSION's first banked baseline, then
                      rebuild the object for the same reason
+  --bank NAME        write a NAMED snapshot of the current source that no
+                     verdict overwrites, and return without building. The
+                     rolling snapshot is ONE slot and every banking verdict
+                     takes it, so a lane exploring several axes off one base
+                     had nowhere to keep that base: SA hand-rolled scratch
+                     copies and then had to fix LastWriteTime by hand,
+                     because Copy-Item preserves mtime and ninja serves a
+                     STALE object as if it were live (AGENTS discipline 7).
+  --restore NAME     restore a named bank and re-score, through the ordinary
+                     --revert path: function-scoped by default,
+                     --whole-file for all-or-nothing, with the same
+                     stale-restore guard, transient-pin restore and
+                     pin-drift warning
+  --list-banks       the named banks for this unit, with the commit each was
+                     banked at
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -322,11 +337,67 @@ def source_path(unit):
     return None
 
 
-def snapshot_path(unit, source):
+def snapshot_path(unit, source, tag=None):
     slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", unit)
-    path = Path(f"build/{VERSION}/gate/snap_{slug}{source.suffix}")
+    name = f"snap_{slug}" + (f"__{tag}" if tag else "")
+    path = Path(f"build/{VERSION}/gate/{name}{source.suffix}")
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+# Run-42 item 3. The rolling snapshot is ONE slot and every banking verdict
+# overwrites it, so a lane exploring several axes off one base has nowhere
+# to keep the base: SA hand-rolled scratch copies and then had to touch
+# LastWriteTime by hand, because `Copy-Item` preserves mtime and ninja
+# served a STALE object as if it were live (AGENTS.md discipline 7).
+# Named banks are the same machinery with a name, and they are never
+# overwritten by a verdict — only by an explicit re-bank of that name.
+_TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$")
+
+
+def flag_value(argv, name):
+    """`--name VALUE` or `--name=VALUE` from argv, or None."""
+    for index, arg in enumerate(argv):
+        if arg == name:
+            return argv[index + 1] if index + 1 < len(argv) else ""
+        if arg.startswith(name + "="):
+            return arg[len(name) + 1:]
+    return None
+
+
+def validate_tag(tag, flag):
+    """The tag, or a refusal message — never a silently-normalised name.
+
+    A tag becomes a FILENAME, so a slash or a shell metacharacter in it
+    would write outside the gate directory. Normalising it instead would
+    let `--bank a/b` and `--bank a_b` be one bank under two spellings,
+    which is how a lane restores the wrong base.
+    """
+    if tag is None:
+        return None, None
+    if not tag or tag.startswith("-"):
+        return None, f"{flag} needs a NAME (e.g. `{flag} before-declswap`)"
+    if not _TAG_RE.match(tag):
+        return None, (f"{flag}: {tag!r} is not a usable bank name — letters,"
+                      " digits, _ . - only, starting with a letter or digit,"
+                      " 40 characters max. The name becomes a filename and is"
+                      " never normalised, so two spellings can never be one"
+                      " bank.")
+    return tag, None
+
+
+def list_named_banks(unit, source):
+    """[(tag, path)] for this unit's named banks, oldest name first."""
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", unit)
+    gate = Path(f"build/{VERSION}/gate")
+    if not gate.is_dir():
+        return []
+    out = []
+    for path in sorted(gate.glob(f"snap_{slug}__*{source.suffix}")):
+        tag = path.name[len(f"snap_{slug}__"):-len(source.suffix)]
+        if tag:
+            out.append((tag, path))
+    return out
 
 
 def git_head():
@@ -608,13 +679,18 @@ def keep_consumes_transient_bank(argv):
     """Should a KEEP drop this TU's transient pin bank? (run-38 item 5)
 
     False on a revert invocation: --revert / --revert-baseline / --discard
-    re-score through the same keep path, and their own consumer
+    / --restore re-score through the same keep path, and their own consumer
     (wf_rederive_pin.restore_transient) deliberately KEEPS the bank when
     it emitted notes — "resolve these, then delete it by hand". Dropping
     it from the keep path would overrule that instruction.
+
+    `--restore NAME` (run-42 item 3) takes the same path as `--revert` and
+    belongs on the same side of this decision; it also carries a VALUE, so
+    it is matched by prefix rather than by equality.
     """
     return not any(flag in argv for flag in
-                   ("--revert", "--revert-baseline", "--discard"))
+                   ("--revert", "--revert-baseline", "--discard")) and not any(
+        arg == "--restore" or arg.startswith("--restore=") for arg in argv)
 
 
 def drop_transient_pins(unit, why):
@@ -1422,9 +1498,7 @@ def discard_refusal(fn, unit, inside, outside, entangled):
     TWO CLASSES, REPORTED SEPARATELY (run-41 item 9). `restore_scope_counts`
     returns OUTSIDE and STRADDLING hunks in one list while counting only the
     outside ones, and this text used to print the outside COUNT against the
-    whole LIST. On a hunk that crosses the boundary — which is what a
-    declaration hoist out of a nested block produces when it moves the
-    function's own bracing lines — it read, verbatim:
+    whole LIST. On a hunk that crosses the boundary it read, verbatim:
 
         0 uncommitted hunk(s) in this TU lie OUTSIDE alpha
         (straddling L12-L13)
@@ -1433,6 +1507,20 @@ def discard_refusal(fn, unit, inside, outside, entangled):
     `--discard --function` as the remedy, which probe's own control flow
     refuses again for exactly that hunk. Both numbers now come from the list
     they describe, and only the remedies that can actually run are offered.
+
+    WHAT PRODUCES A STRADDLING HUNK IS STILL AN OPEN QUESTION (run-42 item
+    8). This docstring used to answer it — "which is what a declaration
+    hoist out of a nested block produces when it moves the function's own
+    bracing lines" — inheriting the CT lane's stated cause. That cause is
+    now REFUTED against CT's own tree: replayed on
+    src/game/mb/mb_camera.c at 503a6a186, CT's probes B and D (and a
+    third hoist that moves the artificial block's brace lines) each
+    attribute EVERY hunk INSIDE MBCameraUpdate — 2, 3 and 2 inside, zero
+    outside, zero straddling — while a sibling edit in the same file is
+    correctly attributed outside. T11's constructed cases said the same
+    thing; CT's real tree now says it too. The straddling CLASS is real and
+    the suite's own fixture exercises it; what SOURCE SHAPE produces one in
+    this codebase is unknown, and no example has been found.
     """
     outside_spans = [row for row in entangled if row[0] == "outside"]
     straddling = [row for row in entangled if row[0] == "straddling"]
@@ -3046,7 +3134,48 @@ def update_neutral_identical_streak(state, verdict):
     return 0
 
 
-def replan_hint(streak):
+# The direction the hint used to prescribe unconditionally, kept as the
+# SLOT-CLASS counter-example rather than deleted: on a frame/local-area
+# residual it is backwards, and it was measured backwards four times in one
+# lane. attempt.CL_mbcameraupdate-derived-iv-order-closes-the-scratch-band-
+# and-costs-8-frame-bytes.20260903.v1 probed MBCameraUpdate's 8-byte frame
+# surplus with FOUR declaration-class levers — hoisting the loop locals to
+# the enclosing block, deleting the block and moving all three ints to
+# function scope, deleting a local by reusing another, and eliminating a
+# named variable in favour of an inline expression — and all four returned
+# NEUTRAL-IDENTICAL against the same object digest 92a95ba06d65. The two
+# probes that DID reach codegen were STATEMENT-shape (an accumulator
+# `dstOffset += 16` at the loop end versus a derived `dstOffset = row * 16`
+# at its top), and the kept win — real 34 -> 10 — was a statement-shape one.
+# Its predecessor record adds two more: CT's probes B and D were both
+# declaration hoists and both NEUTRAL-IDENTICAL at digest 0ee73392d393.
+_SLOT_CLASS_REDIRECT = (
+    " ON THIS FUNCTION THE USUAL ADVICE IS BACKWARDS. The slot arbiter"
+    " fired, so the residual is frame- or slot-shaped, and declaration,"
+    " scope and local-COUNT levers are exactly the ones measured to fold"
+    " away here: MBCameraUpdate's 8-byte frame surplus took four of them"
+    " (hoist the loop locals to the enclosing block; delete the block and"
+    " move the ints to function scope; delete a local by reusing another;"
+    " replace a named variable with an inline expression) and returned the"
+    " SAME object digest 92a95ba06d65 every time, while both probes that"
+    " reached codegen were STATEMENT-shape — an accumulator against a"
+    " derived induction variable — and the statement-shape form is what"
+    " bought real 34 -> 10"
+    " (attempt.CL_mbcameraupdate-derived-iv-order-closes-the-scratch-band-"
+    "and-costs-8-frame-bytes.20260903.v1). Try the statement shape that"
+    " changes WHAT IS LIVE ACROSS THE LOOP, and arbitrate on the slot map"
+    " printed below, not on `real`.")
+
+_LEVER_QUESTION = (
+    " Change the CONSTRUCT CLASS, not the spelling. Which class reaches"
+    " codegen is a fact about this function, not a rule: declaration, type"
+    " and order levers reach it in some functions and fold in others, and"
+    " so do statement-shape levers — pick the class whose OUTPUT you can"
+    " name in the target's aligned view, and `gdlmem laws --query <your"
+    " residual signature>` first.")
+
+
+def replan_hint(streak, slot_class=False):
     """Advice after an edit that never reached codegen at all.
 
     NEUTRAL-IDENTICAL means the object bytes did not move: the edit folded
@@ -3064,9 +3193,19 @@ def replan_hint(streak):
     probe had already shown unreachable. The banner now fires on the first,
     and ESCALATES at REPLAN_AT, where the evidence really has widened from
     one construct to the axis class.
+
+    CLASS-CONDITIONAL FROM RUN 42 (item 5). The digest FACT above is what
+    the banner is for and it is unchanged; the PRESCRIPTION that rode along
+    with it — "a declaration/type/order change rather than a statement
+    respell" — was measured pointing the wrong way six times on one
+    function, because on a frame/slot residual the declaration class is
+    precisely the one that folds. `slot_class` is the slot arbiter's own
+    signal, already computed for the map probe prints under a slot-shaped
+    residual, so the redirect costs no extra measurement.
     """
     if streak < 1:
         return None
+    tail = _SLOT_CLASS_REDIRECT if slot_class else _LEVER_QUESTION
     if streak < REPLAN_AT:
         return (
             "THIS EDIT NEVER REACHED CODEGEN: the object bytes are"
@@ -3077,10 +3216,8 @@ def replan_hint(streak):
             " point either, and re-spelling it is how UA and UB each spent"
             " two more probes for nothing. Before the next probe, establish"
             " that your lever can reach codegen AT ALL (does the construct"
-            " survive to the object? does the target even differ here?), or"
-            " change the LEVER — a declaration/type/order change rather"
-            " than a statement respell. `gdlmem laws --query <your residual"
-            " signature>` first."
+            " survive to the object? does the target even differ here?)."
+            + tail
         )
     return (
         f"RE-PLAN THE AXIS CLASS: {streak} consecutive NEUTRAL-IDENTICAL"
@@ -3088,11 +3225,9 @@ def replan_hint(streak):
         " the object bytes never moved. That is a fact about the AXIS, not"
         " about the spellings: this construct does not reach the compiler's"
         " decision point at all, so a further spelling of it cannot either."
-        " Change the LEVER (a different mechanism, a different function"
-        " boundary, a declaration/type/order change rather than a statement"
-        " respell), or record the axis as measured-dead with these"
-        f" {streak} probed forms. `gdlmem laws --query <your residual"
-        " signature>` before the next probe."
+        " Record the axis as measured-dead with these"
+        f" {streak} probed forms, or move to a different mechanism or"
+        " function boundary." + tail
     )
 
 
@@ -3342,6 +3477,58 @@ def main():
         if "--no-rebuild" not in sys.argv:
             rebuild_after_restore(unit, "--discard")
         return 0
+    # NAMED BANKS (run-42 item 3). The rolling snapshot is one slot that
+    # every banking verdict overwrites, so a multi-axis lane had nowhere to
+    # keep the base it wanted to come back to; SA hand-rolled scratch copies
+    # and then had to fix LastWriteTime by hand. `--bank NAME` writes a
+    # snapshot no verdict will overwrite; `--restore NAME` takes the ordinary
+    # revert path against it, so the stale-restore guard, the transient-pin
+    # restore, the pin-drift warning and the re-score all apply unchanged.
+    bank_tag, bank_error = validate_tag(
+        flag_value(sys.argv, "--bank"), "--bank")
+    restore_tag, restore_error = validate_tag(
+        flag_value(sys.argv, "--restore"), "--restore")
+    if bank_error or restore_error:
+        print(bank_error or restore_error)
+        return 1
+    if "--list-banks" in sys.argv:
+        if source is None:
+            print(f"no src source found for {unit}")
+            return 1
+        banks = list_named_banks(unit, source)
+        if not banks:
+            print(f"no named banks for {unit} (`--bank NAME` writes one)")
+            return 0
+        for tag, path in banks:
+            meta = path.with_suffix(path.suffix + ".meta")
+            head = "unstamped"
+            if meta.exists():
+                try:
+                    head = (json.loads(meta.read_text(encoding="utf-8"))
+                            .get("head") or "unstamped")[:9]
+                except ValueError:
+                    head = "unreadable"
+            print(f"  {tag:<24} {path}  banked at {head}")
+        return 0
+    if bank_tag:
+        if source is None:
+            print(f"cannot bank: no src source found for {unit}")
+            return 1
+        snap = snapshot_path(unit, source, bank_tag)
+        existed = snap.exists()
+        shutil.copyfile(source, snap)
+        head = git_head()
+        if head:
+            snap.with_suffix(snap.suffix + ".meta").write_text(
+                json.dumps({"head": head}), encoding="utf-8")
+        snap.with_suffix(snap.suffix + ".pins").write_text(
+            json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+            encoding="utf-8")
+        print(f"{'re-banked' if existed else 'banked'} {source} as"
+              f" '{bank_tag}' -> {snap}. No verdict overwrites a named bank;"
+              f" `--restore {bank_tag}` brings it back and re-scores,"
+              " `--list-banks` lists them.")
+        return 0
     if "--revert-baseline" in sys.argv:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
@@ -3363,12 +3550,19 @@ def main():
         if "--no-rebuild" not in sys.argv:
             rebuild_after_restore(unit, "--revert-baseline")
         return 0
-    if "--revert" in sys.argv:
+    if "--revert" in sys.argv or restore_tag:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
             return 1
-        snap = snapshot_path(unit, source)
+        snap = snapshot_path(unit, source, restore_tag)
         if not snap.exists():
+            if restore_tag:
+                known = ", ".join(tag for tag, _p
+                                  in list_named_banks(unit, source))
+                print(f"cannot restore: no bank named '{restore_tag}' for"
+                      f" {unit}" + (f" (have: {known})" if known
+                                    else " (this unit has no named banks)"))
+                return 1
             print("cannot revert: no banked snapshot for this unit yet"
                   " (a BASELINE or IMPROVED probe banks one)")
             return 1
@@ -3378,16 +3572,20 @@ def main():
         # This used to run only when the .meta sidecar existed, which made
         # a missing stamp a silent PASS; it now fails closed in the shared
         # guard.
-        if guard_stale_restore(snap, source, "snapshot"):
+        snap_label = (f"bank '{restore_tag}'" if restore_tag
+                      else f"{fn}'s banked snapshot")
+        if guard_stale_restore(snap, source,
+                               f"bank '{restore_tag}'" if restore_tag
+                               else "snapshot"):
             return 1
         if snap.read_bytes() == source.read_bytes():
-            print("nothing to revert: the banked snapshot IS the current"
+            print(f"nothing to restore: {snap_label} IS the current"
                   " working tree (NEUTRAL probes bank too). If you want to"
                   " discard an uncommitted neutral edit, use git"
                   " (`git status` / `git checkout -- <file>`); re-scoring:")
         elif "--whole-file" in sys.argv:
             shutil.copyfile(snap, source)
-            print(f"reverted {source} to {fn}'s banked snapshot —"
+            print(f"restored {source} to {snap_label} —"
                   " --whole-file: uncommitted work on OTHER functions in"
                   " this TU since that bank is GONE; re-scoring:")
         else:
@@ -3408,13 +3606,13 @@ def main():
                 print(f"REFUSED (function-scoped revert): {err}")
                 return 1
             if new_text == cur_text:
-                print(f"nothing to revert INSIDE {fn}: the snapshot and the"
+                print(f"nothing to restore INSIDE {fn}: {snap_label} and the"
                       " working tree differ only elsewhere in this TU"
                       " (--whole-file would take those changes back too);"
                       " re-scoring:")
             else:
                 source.write_bytes(new_text.encode("latin-1"))
-                print(f"reverted {fn} to its banked snapshot — {notes};"
+                print(f"restored {fn} to {snap_label} — {notes};"
                       " re-scoring:")
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
@@ -3658,7 +3856,8 @@ def main():
                                    prev_tokens, prev_insns, prev_digest,
                                    digest, prev_data=prev_data, data=data,
                                    source_changed=source_changed,
-                                   reverted="--revert" in sys.argv)
+                                   reverted=("--revert" in sys.argv
+                                             or bool(restore_tag)))
         state["last_verdict"] = verdict
     # A run of edits that never reached codegen is a fact about the axis,
     # not about the spellings tried. Aggregate it and say so.
@@ -3666,7 +3865,16 @@ def main():
     state["neutral_identical_streak"] = streak
     if data is not None:
         state["last_data"] = data
-    hint = replan_hint(streak)
+    # The slot arbiter's signal is needed BEFORE the replan hint (run-42
+    # item 5): the hint's prescription is class-conditional and the
+    # frame/slot class is where the old unconditional one pointed the wrong
+    # way. Computed once here on exactly the condition the map itself is
+    # gated on, then reused for printing further down — no second slotdiff.
+    slots_output, slots_fire, slots_reason = None, False, ""
+    if real > 0 and "--no-slots" not in sys.argv:
+        slots_output = run_slot_arbiter(unit, fn)
+        slots_fire, slots_reason = slot_arbiter_signal(slots_output)
+    hint = replan_hint(streak, slot_class=slots_fire)
     if hint:
         verdict += "\n" + hint
         state["last_verdict"] = verdict
@@ -3711,13 +3919,11 @@ def main():
     # rather than reach for the tool that already existed. Gated on real > 0
     # (no residual, nothing to arbitrate) and on slotdiff's own signal, so a
     # register/schedule probe never carries a 60-line map it does not need.
-    if real > 0 and "--no-slots" not in sys.argv:
-        slots_output = run_slot_arbiter(unit, fn)
-        fires, reason = slot_arbiter_signal(slots_output)
-        if fires or ("--slots" in sys.argv and slots_output):
-            print(slot_arbiter_header(
-                reason or "requested with --slots (no decisive slot signal)"))
-            print(slots_output.strip())
+    if slots_fire or ("--slots" in sys.argv and slots_output):
+        print(slot_arbiter_header(
+            slots_reason or "requested with --slots (no decisive slot"
+                            " signal)"))
+        print(slots_output.strip())
 
     # The census used to print in full on EVERY baseline probe. Measured
     # 2026-09-02: 22 lines per probe on game/world/camera, game/game/combat,

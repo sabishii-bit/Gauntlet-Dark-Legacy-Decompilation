@@ -33,7 +33,19 @@ webs in registers it compared only once. Every run now prints what was not
 compared: the number of later definitions in each stream, the number of
 differing rows touching no callee-saved register at all (or UNSCREENED when
 the counts differ and rows cannot pair), and any later-web role mismatch.
-`--per-web` prints the later definitions side by side.
+
+`--per-web` IS THE LIFETIME VIEW (run 42). Its first form paired later
+definitions by ORDINAL WITHIN A REGISTER, which is correct only while no
+live range changes register — precisely the case the view exists for. On
+fn_800D8BCC it aligned the target's `add r19,r12,r0` against our
+`li r19,0`, two unrelated ranges, and printed four DIFFERENT ROLE rows.
+Pairing by ALIGNED POSITION instead (the opcode-sequence alignment
+`fnasm --diff` prints) reads the same function as: the target's r21 range
+IS our r19 range — same role, same position, a PERMUTATION; and the
+target's r19 loop pointer lives in VOLATILE r12 in ours — an ESCAPE the
+callee-saved bank cannot see from the inside. Verdicts are `in place`,
+`PERMUTED rA->rB`, `ESCAPED rA->rB` (ours failed to promote), `INTRUDER`
+(ours over-promoted a volatile role) and `UNPAIRED`.
 
 READING IT. The rows are ordered by FIRST DEFINITION in each stream, which
 is the order the allocator handed the registers out. A row whose two
@@ -69,9 +81,34 @@ GPR_SAVED = tuple(f"r{n}" for n in range(31, 13, -1))
 FPR_SAVED = tuple(f"f{n}" for n in range(31, 13, -1))
 
 # Mnemonics that do NOT define their first operand. Stores write memory;
-# compares write a condition register; branches write nothing.
+# compares write a condition register; branches write nothing; every `mt*`
+# form MOVES TO a special register and its first operand is a SOURCE
+# (`mtctr r31`, `mtcrf 0x8,r30`) — without that entry a loop-count setup
+# manufactures a phantom definition of a callee-saved register, which is
+# the one place this tool reads a source as a destination.
 NON_DEFINING = re.compile(
-    r"^(?:st|b|cmp|tw|dcb|icb|sync|isync|eieio|nop)")
+    r"^(?:st|b|cmp|tw|dcb|icb|sync|isync|eieio|nop|mt)")
+
+# Register CLASSES. The correspondence table proper only reads the
+# callee-saved bank, but a lifetime that MOVED between banks is invisible
+# from inside it: fn_800D8BCC keeps a loop pointer in callee-saved r19 where
+# ours keeps the same value in volatile r12, and no amount of callee-saved
+# bookkeeping can see that. Pairing lifetimes needs the whole file.
+CALLEE_SAVED = frozenset(
+    [f"r{n}" for n in range(14, 32)] + [f"f{n}" for n in range(14, 32)])
+ABI_FIXED = frozenset(("r1", "r2", "r13"))
+
+
+def register_class(register):
+    """"callee-saved" | "volatile" | "abi" | None for a non-register token."""
+    if register in CALLEE_SAVED:
+        return "callee-saved"
+    if register in ABI_FIXED:
+        return "abi"
+    if re.fullmatch(r"[rf]\d+", register or ""):
+        return "volatile"
+    return None
+
 
 INSN_RE = re.compile(r"^([a-z][a-z0-9._+-]*)\s+(.*)$")
 
@@ -257,6 +294,264 @@ def role(text):
     return f"{mnemonic} {','.join(sources)}".strip()
 
 
+def web_role(text):
+    """`role()` with SELF-REFERENCES masked, so a role is register-free.
+
+    `role()` drops the destination but leaves it in the sources, so an
+    induction step reads as `addi r21,4` in one stream and `addi r19,4` in
+    the other — different strings for the same live range, which is exactly
+    the comparison a PERMUTED lifetime needs to survive. Masking the defined
+    register to `%` makes the two roles equal and lets the permutation be
+    named instead of reported as five unrelated role mismatches
+    (measured on fn_800D8BCC: 4 of its 5 ordinal "DIFFERENT ROLE" rows).
+    """
+    mnemonic, operands = parse_instruction(text)
+    if mnemonic is None or not operands:
+        return role(text)
+    destination = operands[0]
+    folded = role(text)
+    return re.sub(rf"\b{re.escape(destination)}\b", "%", folded)
+
+
+def definition_target(text):
+    """The register this row DEFINES, or None if it defines no register."""
+    mnemonic, operands = parse_instruction(text)
+    if mnemonic in ("lmw", "stmw"):
+        return None
+    if not mnemonic or not operands:
+        return None
+    if NON_DEFINING.match(mnemonic):
+        return None
+    return operands[0] if register_class(operands[0]) else None
+
+
+def aligned_rows(target_rows, our_rows):
+    """[(target_row|None, our_row|None)] on the opcode-sequence alignment.
+
+    The same correspondence `fnasm --diff` and `fndiff --ops` print. Raw
+    offset pairing is only correct when the two streams hold equal counts
+    AND no insertion has drifted them; this is correct in both cases, and
+    when the counts differ it degrades to one-sided rows instead of to a
+    silently wrong pairing.
+    """
+    import difflib
+    t_ops = [(row[1].split() or [""])[0] for row in target_rows or []]
+    o_ops = [(row[1].split() or [""])[0] for row in our_rows or []]
+    out = []
+    for _tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, t_ops, o_ops, autojunk=False).get_opcodes():
+        for k in range(max(i2 - i1, j2 - j1)):
+            t_index = i1 + k if i1 + k < i2 else None
+            o_index = j1 + k if j1 + k < j2 else None
+            out.append((target_rows[t_index] if t_index is not None else None,
+                        our_rows[o_index] if o_index is not None else None))
+    return out
+
+
+# How far, in ALIGNED ROWS, a definition may move and still be read as the
+# same live range in the other stream. It bounds phase 2 only — phase 1
+# (same register AND same role) is unwindowed, because that pairing needs no
+# distance evidence.
+#
+# CALIBRATED, not chosen: swept 6/12/24/48/96 over the 267 nonmatching
+# functions with both objects on disk (54 units). `in place` is completely
+# window-invariant (3682 at every setting) and PERMUTED barely moves
+# (1530 -> 1603 across a 16x sweep, 4.8%). ESCAPED/INTRUDER trade directly
+# against UNPAIRED and ARE window-sensitive (escaped 189 -> 304, intruder
+# 117 -> 235, unpaired 1265 -> 816), so read an escape/intrusion verdict
+# with its printed row delta rather than as a bare count. 24 is the knee:
+# past it the p90 reach runs away (8 rows at 24, 21 at 96) while the
+# escape/intruder yield per row of window collapses.
+LIFETIME_WINDOW = 24
+
+
+def _definition_index(rows, target_rows, our_rows, ours):
+    """[(aligned_position, register, row)] for every register definition.
+
+    Positions come from the opcode-sequence alignment, so a target row and
+    the our-row it aligns with share a position and a move in the schedule
+    is a small position delta rather than an arbitrary byte-offset one.
+    """
+    positions = {}
+    for position, (t_row, o_row) in enumerate(
+            aligned_rows(target_rows, our_rows)):
+        row = o_row if ours else t_row
+        if row is not None:
+            positions[id(row)] = position
+    out = []
+    for row in rows or []:
+        register = definition_target(row[1])
+        if register and register_class(register) != "abi":
+            out.append((positions.get(id(row), 0), register, row))
+    return out
+
+
+def lifetime_pairs(target_rows, our_rows):
+    """[(label, target_row|None, our_row|None, verdict, note)] per LIVE RANGE.
+
+    A callee-saved register hosts several live ranges, and the run-41 item
+    is that the per-web view paired them by ORDINAL WITHIN A REGISTER — a
+    pairing correct only while no lifetime changes register. On fn_800D8BCC
+    it aligned the target's `add r19,r12,r0` against our `li r19,0` (two
+    unrelated ranges), printed four DIFFERENT ROLE rows, and hid the actual
+    finding: the target's r21 range IS our r19 range with an identical role,
+    and the target's r19 range lives in volatile r12 in ours.
+
+    Pairing is ROLE-FIRST, in three phases, because pairing on position
+    alone re-reports a reordered prologue as a permutation (measured: naive
+    position pairing called 3 of fn_800D8BCC's 5 "permutations" on rows the
+    first-definition table correctly reads as an emission-order difference):
+
+      1. same register AND same role, nearest in position -> `in place`
+         (a schedule move is not a permutation)
+      2. same role, any register, within LIFETIME_WINDOW aligned rows ->
+         PERMUTED (callee-saved to callee-saved) / ESCAPED (to a volatile) /
+         INTRUDER (ours promotes a role the target keeps volatile)
+      3. leftovers: same register with a different role -> DIFFERENT ROLE;
+         otherwise the aligned counterpart decides ESCAPED vs UNPAIRED.
+    """
+    t_defs = _definition_index(target_rows, target_rows, our_rows, False)
+    o_defs = _definition_index(our_rows, target_rows, our_rows, True)
+    aligned_partner = {}
+    for t_row, o_row in aligned_rows(target_rows, our_rows):
+        if t_row is not None and o_row is not None:
+            aligned_partner[id(t_row)] = o_row
+            aligned_partner[id(o_row)] = t_row
+    t_saved = [d for d in t_defs if d[1] in CALLEE_SAVED]
+    o_saved = [d for d in o_defs if d[1] in CALLEE_SAVED]
+    used_t, used_o, out = set(), set(), []
+
+    def take(t_def, o_def, verdict, note, anchor_ours=False):
+        # The row LABEL names the callee-saved range being discussed. For an
+        # INTRUDER that range is OURS (the target side is the volatile the
+        # role legitimately lives in), so the label must follow it or the
+        # row reads as a statement about a volatile register.
+        if t_def is not None:
+            used_t.add(id(t_def[2]))
+        if o_def is not None:
+            used_o.add(id(o_def[2]))
+        anchor = o_def if (anchor_ours or t_def is None) else t_def
+        if (t_def is not None and o_def is not None
+                and verdict not in ("in place", "DIFFERENT ROLE")):
+            # The window sweep says ESCAPED/INTRUDER counts depend on how far
+            # the pairing is allowed to reach, so every such row carries its
+            # reach and the reader can discount a distant one.
+            note = (f"{note}; {abs(t_def[0] - o_def[0])} aligned rows apart"
+                    if note else
+                    f"{abs(t_def[0] - o_def[0])} aligned rows apart")
+        out.append((t_def[0] if t_def else o_def[0],
+                    anchor[1], anchor_ours or t_def is None,
+                    t_def[2] if t_def else None,
+                    o_def[2] if o_def else None, verdict, note))
+
+    def nearest(candidates, position):
+        free = [c for c in candidates if id(c[2]) not in used_o]
+        return min(free, key=lambda c: abs(c[0] - position)) if free else None
+
+    # Phase 1 — same register, same role. A move in the schedule is not a
+    # permutation, and the first-definition table above already says so.
+    for t_def in t_saved:
+        match = nearest([o for o in o_saved
+                         if o[1] == t_def[1]
+                         and web_role(o[2][1]) == web_role(t_def[2][1])],
+                        t_def[0])
+        if match:
+            take(t_def, match, "in place", "")
+
+    # Phase 2 — same role, different register, near in position.
+    for t_def in t_saved:
+        if id(t_def[2]) in used_t:
+            continue
+        match = nearest([o for o in o_defs
+                         if web_role(o[2][1]) == web_role(t_def[2][1])],
+                        t_def[0])
+        if match is None or abs(match[0] - t_def[0]) > LIFETIME_WINDOW:
+            continue
+        if match[1] in CALLEE_SAVED:
+            take(t_def, match, f"PERMUTED {t_def[1]}->{match[1]}",
+                 "same role, a different callee-saved register")
+        else:
+            take(t_def, match, f"ESCAPED {t_def[1]}->{match[1]}",
+                 "same role, ours keeps it in a VOLATILE")
+    for o_def in o_saved:
+        if id(o_def[2]) in used_o:
+            continue
+        free = [t for t in t_defs
+                if id(t[2]) not in used_t
+                and web_role(t[2][1]) == web_role(o_def[2][1])]
+        match = (min(free, key=lambda c: abs(c[0] - o_def[0]))
+                 if free else None)
+        if match is None or abs(match[0] - o_def[0]) > LIFETIME_WINDOW:
+            continue
+        take(match, o_def, f"INTRUDER {o_def[1]} (target uses {match[1]})",
+             "same role, ours promotes a range the target keeps volatile",
+             anchor_ours=True)
+
+    # Phase 3 — leftovers. Same register with a different value is a real
+    # role mismatch; otherwise the aligned counterpart says whether the
+    # range escaped to a volatile or has no counterpart at all.
+    for t_def in t_saved:
+        if id(t_def[2]) in used_t:
+            continue
+        match = nearest([o for o in o_saved if o[1] == t_def[1]], t_def[0])
+        if match is not None and abs(match[0] - t_def[0]) <= LIFETIME_WINDOW:
+            take(t_def, match, "DIFFERENT ROLE",
+                 f"target `{role(t_def[2][1])}`"
+                 f" vs ours `{role(match[2][1])}`")
+            continue
+        partner = aligned_partner.get(id(t_def[2]))
+        partner_reg = definition_target(partner[1]) if partner else None
+        if partner_reg and register_class(partner_reg) == "volatile":
+            take(t_def, (t_def[0], partner_reg, partner),
+                 f"ESCAPED {t_def[1]}->{partner_reg}",
+                 "ours keeps this position in a VOLATILE (role differs)")
+        else:
+            take(t_def, None, "UNPAIRED",
+                 f"target holds `{role(t_def[2][1])}`; ours has no matching"
+                 " definition")
+    for o_def in o_saved:
+        if id(o_def[2]) in used_o:
+            continue
+        take(None, o_def, "UNPAIRED",
+             f"ours holds `{role(o_def[2][1])}`; the target has no matching"
+             " definition")
+
+    out.sort(key=lambda row: (row[0], row[1]))
+    ordinal_seen, labelled = {}, []
+    for position, register, ours_only, t_row, o_row, verdict, note in out:
+        side = "ours " if ours_only else ""
+        ordinal = ordinal_seen.get((side, register), 0)
+        ordinal_seen[(side, register)] = ordinal + 1
+        labelled.append((f"{side}{register}[{ordinal}]", t_row, o_row,
+                         verdict, note))
+    return labelled
+
+
+def lifetime_summary(pairs):
+    """{verdict-class: count} plus the permutation/escape mappings."""
+    counts = {"in place": 0, "permuted": 0, "escaped": 0,
+              "intruder": 0, "unpaired": 0, "different role": 0}
+    maps = {"permuted": {}, "escaped": {}, "intruder": {}}
+    for _label, _t, _o, verdict, _note in pairs:
+        head = verdict.split()[0]
+        if verdict == "in place":
+            counts["in place"] += 1
+        elif head == "DIFFERENT":
+            counts["different role"] += 1
+        elif head in ("PERMUTED", "ESCAPED"):
+            key = "permuted" if head == "PERMUTED" else "escaped"
+            counts[key] += 1
+            maps[key][verdict.split()[1]] = maps[key].get(
+                verdict.split()[1], 0) + 1
+        elif head == "INTRUDER":
+            counts["intruder"] += 1
+            maps["intruder"][verdict.split()[1]] = maps["intruder"].get(
+                verdict.split()[1], 0) + 1
+        else:
+            counts["unpaired"] += 1
+    return counts, maps
+
+
 def correspondence(target_defs, our_defs):
     """[(register, target_row_or_None, our_row_or_None)], r31 downward.
 
@@ -302,7 +597,7 @@ def emission_order(defs):
     return [row[0] for row in defs]
 
 
-def scope_banner(target_rows, our_rows, registers, later_mismatches,
+def scope_banner(target_rows, our_rows, registers, lpairs,
                  count_diffs):
     """The lines that say what this table did NOT compare.
 
@@ -341,12 +636,42 @@ def scope_banner(target_rows, our_rows, registers, later_mismatches,
             " hold different instruction counts, so rows do not pair by"
             " offset. Treat the volatile-register question as UNSCREENED,"
             " not as clean.")
-    if later_mismatches:
+    counts, maps = lifetime_summary(lpairs)
+    later_role = sum(1 for label, _t, _o, verdict, _n in lpairs
+                     if verdict.startswith("DIFFERENT ROLE")
+                     and not label.endswith("[0]"))
+    if later_role:
         lines.append(
-            f"  LATER-WEB MISMATCH: {len(later_mismatches)} definition(s)"
-            " beyond the first hold a different value in the two streams"
-            " (`--per-web` lists them). The assignment verdict above does"
-            " NOT cover these.")
+            f"  LATER-WEB MISMATCH: {later_role} definition(s)"
+            " beyond the first hold a different value in the SAME register"
+            " in the two streams (`--per-web` lists them). The assignment"
+            " verdict above does NOT cover these.")
+    for key, headline in (
+            ("permuted", "LIFETIME PERMUTATION"),
+            ("escaped", "LIFETIME ESCAPED TO A VOLATILE"),
+            ("intruder", "VOLATILE ROLE PROMOTED IN OURS")):
+        if not counts[key]:
+            continue
+        mapping = ", ".join(
+            f"{name}{'' if n == 1 else f' x{n}'}"
+            for name, n in sorted(maps[key].items()))
+        lines.append(
+            f"  {headline}: {counts[key]} live range(s) — {mapping}."
+            + (" Same role, different callee-saved register: a"
+               " declaration-list fact, not a schedule one."
+               if key == "permuted" else
+               " The target keeps this value in a callee-saved register"
+               " across a call or a loop and ours does not — a LIFETIME"
+               " question, invisible to the first-definition table above."
+               if key == "escaped" else
+               " Ours spends a callee-saved register where the target uses"
+               " a volatile — the save set is paying for a range that does"
+               " not need it."))
+    if counts["unpaired"]:
+        lines.append(
+            f"  UNPAIRED LIVE RANGE(S): {counts['unpaired']} — one stream"
+            " defines a callee-saved register at an aligned position where"
+            " the other defines nothing at all.")
     if count_diffs:
         lines.append(
             "  DEFINITION-COUNT DIFFERS on "
@@ -357,34 +682,38 @@ def scope_banner(target_rows, our_rows, registers, later_mismatches,
     return lines
 
 
-def format_per_web(target_rows, our_rows, registers):
-    """Every definition of every callee-saved register, both streams."""
-    target_all = all_definitions(target_rows, registers)
-    our_all = all_definitions(our_rows, registers)
-    lines = ["  PER-WEB: every definition of each callee-saved register,"
-             " paired by ordinal within that register"]
-    for register in sorted(set(target_all) | set(our_all),
-                           key=lambda r: (r[0], -int(r[1:]))):
-        t_defs = target_all.get(register, [])
-        o_defs = our_all.get(register, [])
-        for ordinal in range(max(len(t_defs), len(o_defs))):
-            t_def = t_defs[ordinal] if ordinal < len(t_defs) else None
-            o_def = o_defs[ordinal] if ordinal < len(o_defs) else None
+def format_per_web(target_rows, our_rows, registers, lpairs=None):
+    """Every LIVE RANGE, paired across the streams by aligned position.
 
-            def cell(row):
-                if row is None:
-                    return f"{'--':>7}  {'(no such definition)':<30}"
-                offset, text = row
-                shown = text if len(text) <= 30 else text[:27] + "..."
-                return f"{'@0x%x' % offset:>7}  {shown:<30}"
+    Not by ordinal within a register: that pairing is only correct while no
+    lifetime changes register, and the case the view exists for is exactly
+    the case where one does.
+    """
+    if lpairs is None:
+        lpairs = lifetime_pairs(target_rows, our_rows)
+    lines = ["  PER-WEB: every live range (one row per DEFINITION), paired"
+             " across the streams by ALIGNED POSITION, not by ordinal within"
+             " a register — a range that changed register still pairs",
+             f"  {'RANGE':<11}{'TARGET@':>7}  {'definition':<30}"
+             f"  {'OURS@':>7}  {'definition':<30}  VERDICT"]
 
-            flag = ""
-            if t_def is None or o_def is None:
-                flag = "  <= ONE STREAM ONLY"
-            elif role(t_def[1]) != role(o_def[1]):
-                flag = "  <= DIFFERENT ROLE"
-            lines.append(f"  {register}[{ordinal}]".ljust(11)
-                         + f"{cell(t_def)}  {cell(o_def)}{flag}")
+    def cell(row):
+        if row is None:
+            return f"{'--':>7}  {'(nothing at this position)':<30}"
+        offset, text = row
+        shown = text if len(text) <= 30 else text[:27] + "..."
+        return f"{'@0x%x' % offset:>7}  {shown:<30}"
+
+    for label, target_row, our_row, verdict, note in lpairs:
+        suffix = f"  <= {verdict}" if verdict != "in place" else "  in place"
+        if note:
+            suffix += f" ({note})"
+        lines.append(f"  {label:<11}{cell(target_row)}"
+                     f"  {cell(our_row)}{suffix}")
+    counts, _maps = lifetime_summary(lpairs)
+    lines.append(
+        "  LIFETIME TOTALS: "
+        + ", ".join(f"{n} {name}" for name, n in counts.items() if n))
     return lines
 
 
@@ -462,10 +791,11 @@ def format_table(unit, fn, target_rows, our_rows, show_uses=False,
                      " question and nothing else — read the scope lines"
                      " below before treating it as an all-clear.")
 
-    later_mismatches, count_diffs = web_mismatches(
+    lpairs = lifetime_pairs(target_rows, our_rows)
+    _later_mismatches, count_diffs = web_mismatches(
         target_rows, our_rows, registers)
     lines.extend(scope_banner(target_rows, our_rows, registers,
-                              later_mismatches, count_diffs))
+                              lpairs, count_diffs))
 
     target_order = emission_order(target_defs)
     our_order = emission_order(our_defs)
@@ -484,7 +814,8 @@ def format_table(unit, fn, target_rows, our_rows, show_uses=False,
             " local the other stream kept somewhere else, or an allocator"
             " copy — `slotdiff.py` owns the frame side of that question.")
     if per_web:
-        lines.extend(format_per_web(target_rows, our_rows, registers))
+        lines.extend(format_per_web(target_rows, our_rows, registers,
+                                    lpairs))
     return "\n".join(lines)
 
 

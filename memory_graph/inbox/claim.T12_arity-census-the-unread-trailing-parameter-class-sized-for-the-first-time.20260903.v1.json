@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Measured by claude-fleet-worker-T12 in run 42 (item 6 of work_claim.tool-queue-12.20260903.v1) at commit fbad5d6f9 with `python tools/gdl/aritycheck.py`. The census is only as good as its screen, and the screen took four measured false-positive classes out before these numbers: blanked string literals made `strncmp(sig, \"VBNK\", 4)` read as two arguments (which put strncmp, strcmp, strchr and memcmp in the first census), macro bodies counted as call sites, varargs definitions were not excluded, and definitions with no call site in the tree were reported although nothing pays for them. A fifth defect made the tool blind to its own control case: every one of attract.c's six sndFxInit CALL sites was filed as a declaration because it ends in a semicolon. Address-taken functions are excluded outright, which removes all three sites the NM record's spelling census found. The four PHANTOM-CANDIDATE rows are UNVERIFIED against target bytes: this lane owns none of those TUs and made no edit.",
+    "tags": [
+      "matching",
+      "symbol-identity",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.T12_arity-census-the-unread-trailing-parameter-class-sized-for-the-first-time.20260903.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-03T04:11:51Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "The parameter-COUNT class has now been counted. claim.law.NM_an-unread-trailing-parameter-is-invisible-in-the-callee-and-costs-the-caller-an-instruction.20260903.v1 closed one instance end to end and said explicitly that its population was NOT spelling-detectable and had NOT been counted; `tools/gdl/aritycheck.py` (run 42) is that census, over src/ plus include/, in zero builds. THREE VERDICTS, 61 rows. PHANTOM-CANDIDATE (a trailing parameter the body never reads AND a call site passing fewer arguments - the NM class, where the short call is the tree's own evidence for the shorter arity and the callee's bytes cannot contradict it), 4 rows: game/mb/mb_blit::MBNewTempQuad (arity 2, trailing `b` unread, ELEVEN 0-argument call sites across game/pb/dbgtext.c, game/sys/memcard.c and game/ui/screensaver.c); game/mb/mb_blit::mbBlitSetPage (arity 1, trailing `page` unread, three 0-argument calls plus a K&R declaration at game/mb/mb_font.c:110); game/pb/pb_error::fn_800C1174 (arity 2, trailing `errorHigh` unread, a 1-argument call at game/ps2/ml_error.c:204 under a K&R declaration at :69); game/game/combat::screen_limitation (arity 1, trailing `camIdx` unread, a 0-argument call at game/world/camera.c:643). KNR-SHORT-CALL (a short call whose trailing parameter IS read - the class claim.law.knr-extern-arity-can-be-faithful-not-a-defect.20260831.v1 owns, where prototyping regressed init_attract_mode real 210 -> 211), 15 rows, including that law's own instance game/audio/sndfx::sndFxInit. UNREAD-TRAILING (unread, but every call passes the full list), 42 rows. EVERY ROW IS DECIDED AT THE CALL SITE, NOT BY THE SCREEN: read the caller's aligned view for an `ours-only -1 lwz|li|mr` beside the call, exactly as the NM law prescribes. Neither existing tool asks this question - externcheck ranks type CLASSES and abicheck models GPR/FPR sequence assignment (AGENTS.md discipline 16), so both are blind to COUNT."
+}

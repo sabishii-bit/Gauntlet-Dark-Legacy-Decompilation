@@ -1217,6 +1217,243 @@ class ReplanHintTests(unittest.TestCase):
     def test_the_hint_persists_above_the_threshold(self):
         self.assertIsNotNone(replan_hint(9))
 
+    def test_the_prescription_is_class_conditional_run42(self):
+        """Run-42 item 5. The banner used to prescribe "a declaration/type/
+        order change rather than a statement respell" unconditionally, and
+        on a frame/slot residual that is backwards.
+
+        Measured on game/mb/mb_camera::MBCameraUpdate's 8-byte frame
+        surplus: FOUR declaration-class probes (hoist the loop locals to the
+        enclosing block; delete the block and move the ints to function
+        scope; delete a local by reusing another; replace a named variable
+        with an inline expression) all returned NEUTRAL-IDENTICAL at object
+        digest 92a95ba06d65, while both probes that reached codegen were
+        statement-shape and the statement-shape form bought real 34 -> 10
+        (attempt.CL_mbcameraupdate-derived-iv-order-closes-the-scratch-band-
+        and-costs-8-frame-bytes.20260903.v1). Its predecessor adds two more
+        declaration hoists at digest 0ee73392d393
+        (attempt.CT_mbcameraupdate-statement-order-drive.20260903.v1).
+        """
+        for streak in (1, REPLAN_AT):
+            plain = replan_hint(streak, slot_class=False)
+            slots = replan_hint(streak, slot_class=True)
+            self.assertNotIn("declaration/type/order", plain)
+            self.assertIn("BACKWARDS", slots)
+            self.assertIn("92a95ba06d65", slots)
+            self.assertIn("STATEMENT-shape", slots)
+
+    def test_the_digest_fact_survives_in_both_classes(self):
+        """The prescription changed; the measurement it rides on did not."""
+        for slot_class in (False, True):
+            hint = replan_hint(1, slot_class=slot_class)
+            self.assertIn("NEVER REACHED CODEGEN", hint)
+            self.assertIn("CATEGORICAL", hint)
+
+    def test_the_default_is_the_non_slot_wording(self):
+        self.assertEqual(replan_hint(1), replan_hint(1, slot_class=False))
+
+
+class NamedBankTests(unittest.TestCase):
+    """Run-42 item 3. The rolling snapshot is ONE slot that every banking
+    verdict overwrites, so a multi-axis lane had nowhere to keep the base it
+    meant to come back to — SA hand-rolled scratch copies and then had to
+    fix LastWriteTime by hand, because Copy-Item preserves mtime and ninja
+    then serves a stale object as if it were live."""
+
+    def test_a_named_bank_has_its_own_path(self):
+        source = Path("src/game/mb/mb_camera.c")
+        plain = probe.snapshot_path("game/mb/mb_camera", source)
+        named = probe.snapshot_path("game/mb/mb_camera", source, "axis-a")
+        self.assertNotEqual(plain, named)
+        self.assertIn("__axis-a", named.name)
+        self.assertEqual(".c", named.suffix)
+
+    def test_two_names_are_two_banks(self):
+        source = Path("src/game/mb/mb_camera.c")
+        self.assertNotEqual(
+            probe.snapshot_path("game/mb/mb_camera", source, "a"),
+            probe.snapshot_path("game/mb/mb_camera", source, "b"))
+
+    def test_the_flag_value_reads_both_spellings(self):
+        self.assertEqual("x", probe.flag_value(["--bank", "x"], "--bank"))
+        self.assertEqual("x", probe.flag_value(["--bank=x"], "--bank"))
+        self.assertIsNone(probe.flag_value(["--no-bank"], "--bank"))
+        self.assertIsNone(probe.flag_value([], "--bank"))
+
+    def test_a_tag_that_would_escape_the_gate_directory_is_refused(self):
+        """The tag becomes a FILENAME. Normalising it instead would let
+        `--bank a/b` and `--bank a_b` be one bank under two spellings,
+        which is how a lane restores the wrong base."""
+        for bad in ("a/b", "../x", "a b", "-x", "", "." * 5 + "/etc"):
+            tag, error = probe.validate_tag(bad, "--bank")
+            self.assertIsNone(tag, bad)
+            self.assertTrue(error, bad)
+
+    def test_a_normal_name_is_accepted_unchanged(self):
+        for good in ("before-declswap", "axis_2", "v1.2", "a"):
+            tag, error = probe.validate_tag(good, "--bank")
+            self.assertEqual(good, tag)
+            self.assertIsNone(error)
+
+    def test_no_flag_is_not_an_error(self):
+        self.assertEqual((None, None), probe.validate_tag(None, "--bank"))
+
+    def test_restore_counts_as_a_revert_for_the_transient_pin_bank(self):
+        """--restore takes the --revert path, so it must sit on the same
+        side of the transient-pin decision or a restore would consume a
+        bank the revert path means to keep."""
+        self.assertFalse(keep_consumes_transient_bank(["--restore", "a"]))
+        self.assertFalse(keep_consumes_transient_bank(["--restore=a"]))
+        self.assertTrue(keep_consumes_transient_bank(["--no-bank"]))
+
+
+class NestedBlockHoistAttributionTests(unittest.TestCase):
+    """Run-42 item 8: CT's stated `--revert` cause, on CT's ACTUAL tree.
+
+    T11 fixed a real defect in `discard_refusal` (an outside COUNT printed
+    against a list that also held straddling hunks) but recorded that CT's
+    STATED cause never reproduced — "three constructed nested-block
+    declaration hoists ... all attributed every hunk INSIDE the function",
+    and "whether the original observation had a third cause is unresolved
+    and needs the CT lane's actual tree to settle"
+    (attempt.T11_tool-queue-11-ten-items-with-three-calibration-narrowings
+    .20260903.v1).
+
+    The tree below is MBCameraUpdate as it stood at 503a6a186, the commit
+    attempt.CT_mbcameraupdate-statement-order-drive.20260903.v1 records —
+    the artificial block with `int dstOffset = 0;` and a shadowing
+    `f32 z`, and the do-loop body's own `int srcOffset` / `int col`. The
+    hoists are CT's probes B and D verbatim. Every one attributes INSIDE.
+
+    FALSIFIER for the refutation this encodes: any source shape in this
+    repository for which `restore_scope_counts` returns a `straddling`
+    row. None has been found — T11's three constructed cases, CT's two real
+    probes, and a third hoist that moves the artificial block's own brace
+    lines all attribute inside, while a sibling edit attributes outside.
+    """
+
+    TREE = '''void MBWorldToScreen(f32* dst, f32* world)
+{
+    dst[2] = dst[3];
+    dst[3] = lbl_80348B20;
+}
+
+/* 0x800B582C - MBCameraUpdate : per-frame MB camera / projection setup. */
+void MBCameraUpdate(f32* position, f32* matrix)
+{
+    f32* saved = lbl_8029E378;
+    int row;
+    f32* view3 = &camera[41];
+    f32 z;
+
+    CopyMat3(matrix, copied);
+
+    row = 0;
+    {
+        int dstOffset = 0;
+        f32 z = lbl_80348B3C;
+
+        do {
+            int srcOffset = row * 4;
+            int col;
+
+            for (col = 0; col < 3; col++) {
+                *(f32*)((u8*)view3 + dstOffset + col * 4) =
+                    *(f32*)((u8*)matrix + srcOffset + col * 16);
+            }
+            *(f32*)((u8*)view3 + dstOffset + 12) = z;
+            row++;
+            dstOffset += 16;
+        } while (row < 3);
+    }
+    view3[15] = lbl_80348B20;
+}
+'''
+
+    def counts(self, current):
+        return probe.restore_scope_counts(self.TREE, current,
+                                          "MBCameraUpdate")
+
+    def test_ct_probe_D_hoist_is_attributed_inside(self):
+        """`int srcOffset;` and `int col;` hoisted from the do-loop body to
+        the enclosing block's declaration list."""
+        current = self.TREE.replace(
+            "        do {\n"
+            "            int srcOffset = row * 4;\n"
+            "            int col;\n",
+            "        int srcOffset;\n"
+            "        int col;\n\n"
+            "        do {\n"
+            "            srcOffset = row * 4;\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(0, outside)
+        self.assertEqual([], entangled)
+
+    def test_ct_probe_B_hoist_is_attributed_inside(self):
+        """`row = 0;` moved across the artificial block's brace."""
+        current = self.TREE.replace(
+            "    row = 0;\n"
+            "    {\n"
+            "        int dstOffset = 0;\n",
+            "    {\n"
+            "        int dstOffset;\n\n"
+            "        row = 0;\n"
+            "        dstOffset = 0;\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(0, outside)
+        self.assertEqual([], entangled)
+
+    def test_moving_the_blocks_own_brace_lines_is_attributed_inside(self):
+        """The shape the previous docstring PREDICTED would straddle."""
+        current = self.TREE.replace(
+            "    row = 0;\n"
+            "    {\n"
+            "        int dstOffset = 0;\n"
+            "        f32 z = lbl_80348B3C;\n\n"
+            "        do {\n",
+            "    row = 0;\n"
+            "    dstOffset = 0;\n"
+            "    z = lbl_80348B3C;\n"
+            "    {\n"
+            "        do {\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(0, outside)
+        self.assertEqual([], entangled)
+
+    def test_a_sibling_edit_is_still_attributed_outside(self):
+        """The control: the attribution is not simply saying INSIDE to
+        everything."""
+        current = self.TREE.replace("    dst[2] = dst[3];",
+                                    "    dst[2] = dst[3]; /* x */")
+        inside, outside, entangled = self.counts(current)
+        self.assertEqual(0, inside)
+        self.assertEqual(1, outside)
+        self.assertEqual(["outside"], [row[0] for row in entangled])
+
+    def test_a_hoist_beside_a_sibling_edit_separates_the_two(self):
+        """The state a --discard actually refuses in: work inside AND
+        outside at once."""
+        current = self.TREE.replace(
+            "    dst[2] = dst[3];", "    dst[2] = dst[3]; /* x */").replace(
+            "        do {\n"
+            "            int srcOffset = row * 4;\n"
+            "            int col;\n",
+            "        int srcOffset;\n"
+            "        int col;\n\n"
+            "        do {\n"
+            "            srcOffset = row * 4;\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(1, outside)
+        self.assertEqual(["outside"], [row[0] for row in entangled])
+        text = probe.discard_refusal("MBCameraUpdate", "game/mb/mb_camera",
+                                     inside, outside, entangled)
+        self.assertIn("1 uncommitted hunk(s) lie OUTSIDE", text)
+        self.assertNotIn("STRADDLE", text)
+
 
 class RescoreGuardTests(unittest.TestCase):
     BASE = {"best_real": 48, "best_multiset": 4, "last_real": 65,
