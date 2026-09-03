@@ -1,0 +1,36 @@
+{
+  "attempted_axis": "Convert the three prose-only parks on MBDrawBlits into a measured one by running the axis the newest of them NAMES but never records a form for: the local-alias spelling for the repeatedly-read f32 global lbl_80343EA0, which owns the `lfs` whose position is one half of the two-row residual.",
+  "attributes": {
+    "law_screen": "claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and APPLIED: the multiset reads 0t at real 8 and the whole residual is two positions. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED and APPLIED as the explanation of the failure -- the added `f32 wrap;` grew the local area and the frame went 56 -> 64 with three ours-only slots at 64/68, which is the law read in the costing direction. The three prior records (attempt.mbdrawblits-hoisted-constant-deal-order-permutation.20260901.v1, attempt.mp-label-correction.mbdrawblits.20260831.v1, attempt.parked.mbdrawblits.20260829.v1) are all PROSE-ONLY parks with no typed denial and no probed_form, i.e. WEAK vetoes under the denial_note; this record supplies the first literal form any of the three can be screened against.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\"]",
+    "probed_form": "Added `f32 wrap;` to MBDrawBlits's declaration list after `f32 load;` and replaced `load = (f32)pbLoad; load -= lbl_80343EA0 * floorf(load / lbl_80343EA0); lbl_80344DD8 = load / lbl_80343EA0;` with `wrap = lbl_80343EA0; load = (f32)pbLoad; load -= wrap * floorf(load / wrap); lbl_80344DD8 = load / wrap;`. Reverted.",
+    "residual": "Unchanged at real 8: two load positions and the FPR assignment that follows them. Count parity and an IDENTICAL 111/111 multiset hold, so the function is eligible for a non-adjacent two-word permutation.",
+    "scope": "src/game/mb/mb_blit.c::MBDrawBlits only. NO SOURCE CHANGE RETAINED -- restored with `probe.py --revert-best`, which re-scored NEUTRAL real 8 / T111-O111 / multiset 0t and printed COUNT-PARITY GAINED on the way back; `git status --short` is clean apart from the lane's untracked LANE_LOCK.",
+    "verification": "One probe, measured from the session's own BASELINE state (real 8, fresh fuzzy 98.8288%) and reverted in the same loop. No build gate was run for a negative that retained nothing. The DATA warning is recorded rather than acted on: it fired on the probe state, not on the retained state, and the retained object is the committed one."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/mb/mb_blit MBDrawBlits --ops -- re-probe the alias class only if the frame ever reads target 56 / ours 56 with a spare slot, or if the two swapped load rows at @0x5c and @0x78 change shape.",
+    "falsifier": "Any alias form that holds T111/O111 count parity. The measured claim is that the extra declaration widens the frame by 8 bytes and pulls two calls into the head of the function, so a parity-held alias disproves it.",
+    "premise_measurement": "`probe.py game/mb/mb_blit MBDrawBlits --ops` BASELINE real 8, insns T111/O111, multiset 0t, fresh fuzzy 98.8288%. The alias probe returned COUNT-PARITY LOST T111/O112, real 8 -> 43, multiset 7t (`target-only: +1 lfd +1 lfs +1 stfd  ours-only: -2 addi -2 bl`), a frame widened from 56 to 64 with slots differing 4T/3O, and a DATA warning that .extab AND .extabindex both moved.",
+    "scope": "The named-local alias for lbl_80343EA0 in MBDrawBlits, introduced as a new declaration. It does NOT deny statement REORDERING of the three float statements (the other axis the prior park names), nor any form that reuses an EXISTING local rather than adding one."
+  },
+  "function": "function:MBDrawBlits",
+  "hypothesis": {
+    "cheapest_refuting_observation": "If moving that statement leaves both rows at @0x5c and @0x78 unchanged, the load order is fixed by the FPR numbering rather than by statement order (note the target and our streams also disagree on which FPR receives each constant: f2/f4/f0/f3 against f4/f3/f2/f0), and the honest next step is an FPR-web lever, not a statement move.",
+    "screened_against_target": "yes -- `fnasm game/mb/mb_blit MBDrawBlits 0x40:0x90 --diff` was read before the probe and is quoted above; the eight instructions between the two differing rows (`@0x60 lwz r5,56(r5)` through `@0x74 add r0,r4,r0`) are byte-identical in both streams, which is what makes this a pure position question.",
+    "statement": "The prior parks describe this as 'two swapped constant-load positions', which the aligned view refines into something narrower and more actionable: it is not two constants swapping with each other, it is the SDA f32 global read overtaking the third double-precision conversion constant. The target emits `@0x4c lfd f2,@lbl_80348A88`, `@0x54 lfd f4,@lbl_80348A98`, `@0x5c lfs f0,@lbl_80343EA0`, `@0x78 lfd f3,@lbl_80348AD8`; ours emits `@0x4c lfd f4`, `@0x54 lfd f3`, `@0x5c lfd f2` and defers `@0x78 lfs f0,@lbl_80343EA0` to last. The next lane should therefore move the STATEMENT that owns the third double -- `lbl_80344DE0 = (f32)(1.0 / (f64)lbl_80344DDC);` -- rather than the global's readers, because that statement's constant is the one occupying the target's `lfs` slot; reordering it after `load = (f32)pbLoad;` is one probe and adds no declaration."
+  },
+  "id": "attempt.NM_mbdrawblits-the-global-alias-costs-a-frame-slot-and-the-park-gets-its-first-probed-form.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T18:36:04Z",
+  "residual": {
+    "capability_needed": "instruction_permutation over a non-adjacent pair (the two loads sit 0x1c apart with eight untouched instructions between them)",
+    "family": "constant-hoist",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL 111/111; replace T[23:24]@5c-60 = ['lfs'] O[23:24]@5c-60 = ['lfd']; replace T[30:31]@78-7c = ['lfd'] O[30:31]@78-7c = ['lfs']"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

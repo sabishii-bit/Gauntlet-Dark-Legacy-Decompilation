@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/world/gauntworld fn_8005E90C --ops",
+    "tools/gdl/fnasm.py game/world/gauntworld fn_8005E90C 0x30:0x80 --diff"
+  ],
+  "attributes": {
+    "tags": [
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A loop whose invariant is spelled inline and whose divide is STILL hoisted into the preheader, or a named-local form whose divide stays in the body. Either shows the spelling is not the discriminant. Reproduce with `fnasm <unit> <fn> <preheader range> --diff` before and after moving the expression across the loop header; no A/B build is needed to falsify the first half.",
+  "id": "claim.law.NM_a-named-local-outside-the-loop-hoists-the-whole-invariant-the-inline-form-hoists-only-its-parts.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T18:36:45Z",
+  "schema_version": 1,
+  "subject": "function:fn_8005E90C",
+  "valid_from": "2026-09-03",
+  "value": "MWCC's loop-invariant motion is decided by WHERE the value is spelled, not by whether it is invariant. An invariant computed into a NAMED LOCAL before the loop and merely divided inside it (`delta = (u8*)p - (u8*)base; while (...) { t = delta / 240; ... }`) is hoisted ENTIRE: the global load, the subtraction, the divisor materialisation and the `divw` all land in the preheader ahead of the loop-entry branch. The same value spelled INLINE inside the loop (`while (...) { t = ((u8*)p - (u8*)base) / 240; ... }`) is hoisted only in its address-arithmetic parts -- the global load and the `subf` go to the preheader, the `li` of the divisor and the `divw` stay in the body and are recomputed every iteration. A partial hoist in the target (preheader `lwz`+`subf`, body `li`+`divw`) is therefore a SOURCE-SHAPE tell for the inline form, not evidence of a compiler-version or LICM-strength difference. Measured on fn_8005E90C: ours emitted `lwz r3,@sItems` / `li r0,240` / `subf` / `divw` / `b ->b4` at @0x48-0x58 against the target's `lwz` / `subf` / `b ->b4` with `li r0,240` and `divw r3,r5,r0` inside the body at @0x54/@0x5c; deleting the named local and inlining the pointer difference closed that cluster and took real 14 -> 12 with fresh fuzzy 96.8667% -> 99.2000%. COST TO BUDGET FOR: deleting the local drops the frame (72 -> 64 here, an 8-byte step, not 4), so pair the edit with the nominal pad under claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 and re-check the slot map. This refutes the framing that such a residual is a systematic 'our LICM hoists what retail's does not' class needing a cross-function census."
+}
