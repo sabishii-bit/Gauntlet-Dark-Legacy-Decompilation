@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py (SUPERSEDED_RECORD_IDS, SUPERSEDING_RECORD_BY_TARGET)",
+    "memory_graph/test_graph.py (MergingSupersessionTests, SupersessionScreenPerformanceTests)"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Propose a record whose `supersedes` is a two-element list and rebuild: if `gdlmem laws` reports `superseded_by` on only one of the two named predecessors -- or on neither -- the widening did not take. Run `python -m memory_graph.test_graph MergingSupersessionTests`, whose five cases pin the list shape, the scalar shape, the no-supersedes majority, the dedup walk and the non-correlated form. The perf claim dies if `SUPERSEDED_RECORD_IDS` is ever measured correlated again (test_no_correlated_supersedes_subquery_remains_in_core).",
+  "id": "claim.law.T17_a-merging-record-can-now-retire-every-lineage-it-names.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T19:10:43Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-03",
+  "value": "`supersedes` was read as a SCALAR by the supersession index (`SUPERSEDED_RECORD_IDS`, `SUPERSEDING_RECORD_BY_TARGET`, the dedup lineage walk, the citation resolver) while the staging validation path already accepted a LIST. The two halves of the schema disagreed, so a list-valued `supersedes` passed staging and then retired NOTHING: `json_extract` hands back the array's JSON TEXT (`[\"a.v2\",\"b.v1\"]`), which equals no record_id anywhere, and the record silently reported no supersession at all. The cost was paid by every MERGING record, which by definition has more than one predecessor. Measured at da451ef28 on the live corpus: claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1 reported `status: established` with NO superseded_by in `laws`, while the record that merged it -- claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v3 -- named it in `attributes.subsumes`, a free-prose key whose corpus population is ONE and which no index reads. v3's own integrator_note named this constant as the reason it could not do better, i.e. the author diagnosed it correctly and had no channel. Corpus shapes at that commit: 1,433 records with no `supersedes`, 561 scalar, 0 list -- so nothing was retroactively repaired by the widening; the trap was ARMED and unsprung, and the first lane to write a list would have been the one to pay. Fixed run-47 item 10: both index queries UNION a `json_each` expansion guarded on `json_type(...) = 'array'` (the scalar branch is guarded on `= 'text'`, which is a strictly narrower NULL guard than the `IS NOT NULL` it replaces), the dedup walk follows list parents, and the citation resolver checks every id in a list. Cost, measured on 2,000 rows x 20 screens: 0.033s -> 0.040s; both halves stay non-correlated, so the run-36 495x property is intact. NM v3 now names BOTH predecessors and BF v1 reports `superseded_by` it. A retirement recorded in prose is not recorded."
+}

@@ -1391,6 +1391,62 @@ def load_baseline(path):
     return data, {}
 
 
+def progress_split():
+    """The live STRICT/EQUIVALENT split, or None when it cannot be read.
+
+    Delegates to `progress.postprocessor_split` — one implementation, so this
+    tool and `progress.py --split` can never quote two different numbers for
+    the same question (the second-copy hazard that put two figures for one
+    discriminator in front of two lanes).
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import progress
+        return progress.postprocessor_split()
+    except Exception:
+        return None
+
+
+def _progress_module_format(split):
+    """`progress.format_split`, or a plain fallback if the import fails."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import progress
+        return progress.format_split(split)
+    except Exception:
+        return (f"STRICT {split.get('strict_percent', 0):.2f}%"
+                f" + EQUIVALENT {split.get('equivalent_percent', 0):.2f}%")
+
+
+def progress_delta_line(baseline_split, current_split):
+    """The MEASURED STRICT/EQUIVALENT delta between two stamped splits.
+
+    Returns None when either end is missing — a baseline taken before run 47
+    carries no split, and an absent number must read as absent, never as
+    zero movement.
+    """
+    if not baseline_split or not current_split:
+        return None
+    strict = (current_split["strict_percent"]
+              - baseline_split["strict_percent"])
+    equivalent = (current_split["equivalent_percent"]
+                  - baseline_split["equivalent_percent"])
+    fns = (current_split["strict_functions"]
+           - baseline_split["strict_functions"])
+    eq_fns = (current_split["equivalent_functions"]
+              - baseline_split["equivalent_functions"])
+    return (f"  PROGRESS SPLIT since this baseline: STRICT"
+            f" {baseline_split['strict_percent']:.2f}% ->"
+            f" {current_split['strict_percent']:.2f}% ({strict:+.2f},"
+            f" {fns:+d} fns) | EQUIVALENT"
+            f" {baseline_split['equivalent_percent']:.2f}% ->"
+            f" {current_split['equivalent_percent']:.2f}%"
+            f" ({equivalent:+.2f}, {eq_fns:+d} fns)."
+            " IMAGE-WIDE, not this TU's: every lane's landed work moves it,"
+            " so this is what your lane's delta must be measured AGAINST,"
+            " not attributed to.")
+
+
 def save_baseline(path, snap, unit):
     """Anchor every baseline to the commit and source bytes it was taken
     at.
@@ -1413,6 +1469,16 @@ def save_baseline(path, snap, unit):
         "taken_at": datetime.now(timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"),
     }
+    # THE PROGRESS SPLIT, stamped at the moment the baseline is taken
+    # (run-47 item 6). Mandatory policy makes the STRICT/EQUIVALENT split
+    # the reportable figure, and the computation lived only INSIDE
+    # `configure.py progress`, so nothing could store one: a lane reporting
+    # its own STRICT delta had to ATTRIBUTE it — read two printed
+    # percentages from two different moments and assert the difference was
+    # its own. With both ends stamped, `check` prints a MEASUREMENT.
+    split = progress_split()
+    if split is not None:
+        meta["progress"] = split
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps({"meta": meta, "functions": snap}, indent=2,
@@ -1695,6 +1761,10 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
                       " (no target object to compare against, so `check` can"
                       " only report that they moved)")
         print(f"  {fuzzy_note}")
+        if meta.get("progress"):
+            print("  PROGRESS SPLIT stamped: "
+                  + _progress_module_format(meta["progress"])
+                  + " — `check` reports the MEASURED delta against this")
         print(f"  anchored to commit {(meta.get('head') or '?')[:9]},"
               f" source sha1 {(meta.get('source_sha1') or '?')[:9]}"
               " — rebuild this exact baseline anywhere with"
@@ -1710,6 +1780,17 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             print(f"[baseline was taken at commit {meta['head'][:9]}, HEAD is"
                   f" now {head[:9]} — it still gates, but say WHICH commit"
                   " it anchors to when quoting its numbers]")
+        # The MEASURED progress delta (run-47 item 6). Silent when the
+        # baseline predates the stamp: an absent number must read as absent,
+        # never as "no movement".
+        delta = progress_delta_line(meta.get("progress"), progress_split())
+        if delta:
+            print(delta)
+        elif meta.get("progress") is None:
+            print("  [no PROGRESS SPLIT stamped in this baseline (taken"
+                  " before run 47) — a STRICT delta quoted against it would"
+                  " be ATTRIBUTED, not measured. Re-take with"
+                  f" `defake_gate.py baseline {unit} --at-head`.]")
     else:
         print("[baseline predates run 29: no commit anchor and no"
               " genuine-row counts — re-take it to enable the structure"

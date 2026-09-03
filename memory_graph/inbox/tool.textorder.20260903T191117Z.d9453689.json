@@ -1,0 +1,16 @@
+{
+  "constraints": [],
+  "entrypoint": "python tools/gdl/textorder.py <unit> | --all [--state Matching] [--quiet]",
+  "id": "tool.textorder.20260903T191117Z.d9453689",
+  "kind": "tool",
+  "name": "textorder",
+  "purpose": "The .text FUNCTION-ORDER screen: the one flip precondition no project score sees. Compares the sequence of .text symbol names by offset in the dtk split object against ours, restricted to the names BOTH objects define, and names each misordered group. A TU can read 100 a naive full-sequence compare flags 53 of 200 already-Matching units, all false positives (dead-stripped static helpers and dtk naming differences). Restricted to shared names it flags 0 of 200 Matching and 23 of 52 NonMatching (measured at 4726b33ca over 252 unit pairs). Unpaired names are printed, never scored. A NO-PAIR verdict (assembly-only units) exits 2 and must not block a flip.",
+  "recorded_at": "2026-09-03T19:11:17Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/textorder.py",
+  "status": "active",
+  "tool_key": "tool:textorder",
+  "tool_kind": "analysis",
+  "usage": [],
+  "valid_from": "2026-09-03T19:11:17+00:00"
+}

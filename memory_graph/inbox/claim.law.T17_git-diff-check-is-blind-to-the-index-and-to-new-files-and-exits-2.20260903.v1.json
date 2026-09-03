@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "AGENTS.md (first-five-minutes trap 6d, and the two verification-gate paragraphs)"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Reproduce the table: add trailing whitespace to a tracked file and read `git diff --check` / `git diff --cached --check` / `git diff --check HEAD` before and after `git add`, then repeat with a brand-new file. If bare `git diff --check` reports a STAGED defect, or reports an untracked new file, or exits 1 rather than 2 on this git build, the law is wrong for that build and should be re-measured and superseded. T17_scratch/t17_gitcheck.ps1 and t17_gitcheck2.ps1 were the measuring scripts.",
+  "id": "claim.law.T17_git-diff-check-is-blind-to-the-index-and-to-new-files-and-exits-2.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T19:11:37Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "`git diff --check` -- named in two AGENTS.md verification gates as a thing that must 'pass' -- cannot see what a lane is about to commit, and does not exit 1. Four states measured at 1cb9909d6 in this repository (exit codes; 0 = clean): a TRACKED file with an unstaged whitespace defect gives `git diff --check` 2, `git diff --cached --check` 0, `git diff --check HEAD` 2. The SAME defect STAGED gives 0 / 2 / 2 -- bare `--check` goes clean the moment `git add` runs, which every lane does before committing, so by the time the gate is usually run it has nothing left to see. A brand-new UNTRACKED file whose every line ends in trailing whitespace gives 0 / 0 / 0: invisible to all three. Staged, that same new file gives 0 / 2 / 2, so `git diff --cached --check` is the ONLY form that ever sees a new file at all -- and a new file is what a tool lane adds most (this lane added seven). The exit code is 2, never 1, so a script testing `-eq 1` reads every defect as clean. THE SOUND GATE is `git diff --check HEAD` (tracked, staged or not) AND `git diff --cached --check` once anything is staged, both exiting 0; state it as those commands, never as 'git diff --check passes'. Recorded in AGENTS.md as first-five-minutes trap 6d, with the table, and both verification-gate paragraphs were corrected to name the two commands."
+}

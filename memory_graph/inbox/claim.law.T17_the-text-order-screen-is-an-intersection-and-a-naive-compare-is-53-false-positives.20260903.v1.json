@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/textorder.py",
+    "tools/gdl/finish_tu.py",
+    "tools/gdl/tests/test_t17_textorder.py"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "An already-Matching unit that the intersection screen calls MISORDERED is a false positive and refutes the calibration -- run `python tools/gdl/textorder.py --all --state Matching`, which must report 0 MISORDERED. In the other direction, a unit reported MISORDERED that nevertheless flips green through finish_tu would refute the precondition itself; the screen would then be measuring something the linker does not care about.",
+  "id": "claim.law.T17_the-text-order-screen-is-an-intersection-and-a-naive-compare-is-53-false-positives.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T19:11:39Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "The .text FUNCTION-ORDER screen that claim.law.MF_every-function-at-real-0-does-not-mean-the-text-order-is-right-and-no-project-score-sees-it.20260903.v1 specifies now ships as tools/gdl/textorder.py and runs as a finish_tu PRECONDITION, after claimcheck and datadiff. THE DISCRIMINANT IS AN INTERSECTION, and that is the whole calibration. Comparing the FULL sequence of .text symbol names by offset, dtk's split object against ours, flags 53 of 200 already-Matching units -- every one a false positive, because those units link byte-identically today. Restricting the comparison to the names BOTH objects define flags 0 of 200 Matching and 23 of 52 NonMatching (measured at 4726b33ca over the 252 unit pairs built in this tree). The unpaired names are static helpers the linker dead-strips (`ours-only`; PPCArch alone has 22) and dtk spellings we name differently (`target-only`); neither occupies a position in the linked image, so neither can misorder it. They are PRINTED, never scored. Groups are closed at the first index where the two slices hold the same MULTISET, not by difflib: the two sequences are permutations of one another by construction, so an insert/delete matcher reports each transposition TWICE with one side blank -- atree's two recorded groups printed as four, half of them empty. Live proof the precondition is load-bearing: game/sys/cardutil and game/movie/movieplayer clear claimcheck AND datadiff and are MISORDERED, so before this the only thing between them and a flip attempt was nothing. cardutil's group is `cardStart cardWaitResult cardThreadMain` against our `cardThreadMain cardStart cardWaitResult`."
+}

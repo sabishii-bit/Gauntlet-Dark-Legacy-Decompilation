@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "AGENTS.md (first-five-minutes trap 6c)"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A windowed search whose window provably contains every place the answer could live -- e.g. a glob over a directory tree that is the complete definition site for the class being asked about -- is sound, and the law should say so if such a case is measured. Re-run the reproduction: `t16_rederive_body` with and without `glob: \"tools/gdl/*.py\"`. If the filtered form ever returns the definition, the window was not the problem and this law is wrong for that pattern.",
+  "id": "claim.law.T17_a-filtered-grep-cannot-answer-a-does-it-exist-question.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T19:11:38Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "An existence question -- 'is there a tool for X', 'does any record cover Y' -- answered with a FILTERED search has no coverage, and its empty result is indistinguishable from a measured absence. Measured at 1cb9909d6 in this tree: the pattern `t16_rederive_body` with `glob: \"tools/gdl/*.py\"` returns `No matches found` / `Found 0 total occurrences across 0 files`, while the SAME pattern unfiltered returns 8 occurrences in 4 files -- the tool itself, its test module, an accepted attempt record, and the line in AGENTS.md that documents it. The glob excludes `tools/gdl/composed_census/`, where a large part of the tool corpus lives. A NON-empty windowed result is not coverage either: `wf_rederive_pin` through the same window returns 17 hits in 3 files and misses its own definition. This is the mechanism behind the recorded incident of a lane reporting `wf_rederive_pin.py` 'does not exist' (AGENTS.md trap 15b) and behind run 44's WS finding `webfrank_audit.py` only by listing the directory. The same applies to a result CAP: a count or files-with-matches answer that hit its head_limit is a floor, not a total. THE RULE: an existence question gets an UNFILTERED search or a directory listing, and the absence claim quotes the exact command with its empty output, per the run-46 absence rule. Filters narrow a search already known to succeed. Recorded in AGENTS.md as first-five-minutes trap 6c."
+}

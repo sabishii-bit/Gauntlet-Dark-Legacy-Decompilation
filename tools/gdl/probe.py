@@ -139,6 +139,15 @@ docstring omitted it — the flags below all work):
                      words are accepted by both families so the one you type
                      is the one you get, and passing both is REFUSED rather
                      than resolved by whichever branch tests first.
+                     A function-scoped restore that does NOT fully arrive —
+                     any hunk of the bank lying OUTSIDE the named function
+                     survives, which every helper-lift produces — measures a
+                     franken-state, banks nothing, and EXITS 5. The number is
+                     still printed (the build was paid for) but under a NOT A
+                     VERDICT label, below the refusal: the old form led with a
+                     `READOUT  real N (insns ...)` headline shaped exactly
+                     like a verdict line and exited 0, and was read as a score
+                     of the banked state twice.
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -190,6 +199,29 @@ docstring omitted it — the flags below all work):
   --scaffold-all     print EVERY scaffold row (the census is otherwise
                      capped at 20, and a TU whose scaffold runs past the
                      cut could not be audited from the loop at all)
+  --no-reloc-screen  skip the RELOC-SYMBOL screen a BASELINE runs (below)
+
+Every BASELINE verdict — that is, the FIRST probe of a function — runs the
+RELOC-SYMBOL screen and says which of four things it measured: mismatching
+rows, clean, NOT COMPARABLE, or not run (count-asymmetric). Two globals both
+reachable through EMB_SDA21 share the instruction word `lwz rD,0(rB)`, so
+reading the WRONG one moves no number this tool prints — not `real`, not the
+multiset, not fuzzy (claim.law.SA_a-wrong-global-that-shares-an-instruction-
+word-is-invisible-to-every-score-including-the-word-count.20260902.v1). Seven
+such bugs have been found here and the seventh surfaced only when someone sat
+down to write the function's PARK RECORD, after the work was over. Calibrated
+at 65348245e over every built pair: 11 flagged, 2,825 clean, 47 not
+comparable, 115 count-asymmetric; median 17ms.
+
+When the opcode multiset is IDENTICAL and `real` is not zero, the verdict was
+decided by `real` ALONE — and `real` counts differing WORDS, so a register
+recolour rippling through forty instructions swamps the single word a wrong
+LITERAL occupies. probe then prints an IMMEDIATE-ROW ARBITER line: how many
+positions have a matching opcode and a differing literal, and how that count
+moved since the last probe. That is the number NM had to tally by hand, on a
+function where `real` said REVERT on the probe that unlocked the exact. It is
+silent when the count is zero and was zero before: 2,844 functions are
+multiset-IDENTICAL in this tree and 33 of them carry IMMEDIATE rows.
 
 Two semantics every worker must know before trusting --revert as an undo:
 (1) NEUTRAL probes BANK TOO (they may be verified-neutral work worth
@@ -1503,16 +1535,38 @@ def franken_readout_refusal(fn, label, notes, real, insns, tok):
     — and nothing is banked from it. `--whole-file` makes the restore
     complete; a plain probe with no restore flag banks normally, because then
     the tree is only claiming to be itself.
+
+    RUN-47 ITEM 3, the residual half. Refusing in prose was not enough: BP
+    re-scored the wrong state TWICE with this text on screen. Reproduced at
+    65348245e on game/anim/atree::AtreeMatch, both partial shapes — a
+    helper-lift (a static helper hoisted to file scope) and a plain
+    sibling-body edit — and the two things a reader and a script go by both
+    said SUCCESS:
+
+      (a) the process exited 0. probe carries every OTHER refusal in its exit
+          code (`scoped_revert`'s straddling-hunk ValueError exits 1, an
+          unknown flag and a contradictory scope exit 2, a fuzzy readout with
+          no number exits 4), so a gate could not tell this refusal from a
+          banked probe. `--revert` already refuses correctly; this copies it.
+      (b) the headline read `READOUT   real 0 (insns T44/O44, multiset 0t)`
+          — the same shape, the same column and the same width as a real
+          verdict line (`BASELINE  real 0 (insns T44/O44, multiset 0t)`),
+          printed ABOVE the refusal. A worker scanning for the score finds a
+          score. The refusal now leads and the number is labelled as what it
+          is: a measurement of a state that exists nowhere.
     """
-    return (f"READOUT   real {real} (insns {insns}{tok})\n"
-            f"REFUSED TO BANK: the restore of {label} was FUNCTION-SCOPED and"
-            f" did not fully arrive — {notes}. What was just measured is a"
-            f" FRANKEN-STATE ({fn} from the bank, the rest of the TU from the"
-            " working tree), so no verdict, no BEST anchor and no fuzzy"
-            " anchor were written from it (an anchor cached this way"
-            " arbitrates every later probe on the function). Re-run with"
+    return (f"REFUSED (partial restore): the restore of {label} was"
+            f" FUNCTION-SCOPED and did not fully arrive — {notes}. What was"
+            f" just measured is a FRANKEN-STATE ({fn} from the bank, the rest"
+            " of the TU from the working tree), so NO verdict, NO BEST anchor"
+            " and NO fuzzy anchor were written from it (an anchor cached this"
+            " way arbitrates every later probe on the function). Re-run with"
             " --whole-file to restore the whole TU, or probe with no restore"
-            " flag to score the tree as it actually stands.")
+            " flag to score the tree as it actually stands.\n"
+            f"  NOT A VERDICT — real {real} (insns {insns}{tok}) measured on"
+            " the franken tree. The build was paid for, so the number is"
+            " printed; it describes a state that exists in no bank and in no"
+            f" commit. Exit code {PARTIAL_RESTORE_EXIT}.")
 
 
 def _parity(insns):
@@ -2014,6 +2068,185 @@ def genuine_row_count(unit, fn):
         return len(result.genuine), rows
     except Exception:
         return None
+
+
+IMMEDIATE_COUNT_RE = re.compile(r"^\s+(\d+) IMMEDIATE row\(s\):")
+
+
+def immediate_row_count(ops_output):
+    """How many IMMEDIATE rows `fndiff --ops` reported, or None.
+
+    An IMMEDIATE row is a position where the OPCODE agrees and a LITERAL does
+    not. Those rows live inside the matcher's EQUAL runs, so no cluster covers
+    them and — this is the whole point — the opcode multiset cannot see them
+    either. fndiff prints the count on its own summary line; this reads that
+    rather than re-deriving it, so probe and fndiff can never quote two
+    different numbers for one question.
+    """
+    if not ops_output:
+        return None
+    for line in ops_output.splitlines():
+        match = IMMEDIATE_COUNT_RE.match(line)
+        if match:
+            return int(match.group(1))
+    # --ops always runs immediate_deltas; no summary line means zero rows.
+    return 0 if "opcode multiset:" in ops_output else None
+
+
+def immediate_arbiter_line(immediates, previous, real, prev_real):
+    """The arbiter line for a multiset-IDENTICAL residual, or None.
+
+    Run-47 item 5. When the opcode multiset is IDENTICAL, probe's verdict is
+    computed from `real` and a token count that is structurally zero, and the
+    headline says "pure reorder, schedule-class residual". `real` counts
+    DIFFERING WORDS, so a register recolour rippling through forty
+    instructions swamps the one word a wrong literal occupies: NM had to
+    tally the IMMEDIATE rows BY HAND, and `real` said REVERT on the probe
+    that unlocked the exact. The IMMEDIATE count is the number that actually
+    moves when a literal is fixed, and it is the one number this loop never
+    printed.
+
+    Silent when there is nothing to arbitrate (no IMMEDIATE rows now and none
+    before): a function whose residual is genuinely pure recolour must not
+    carry a line about literals. Calibrated at e05f39017 over every built
+    pair: 2,844 functions are multiset-IDENTICAL and 33 of them carry
+    IMMEDIATE rows, so the line is silent on 99% of the class it guards.
+    """
+    if immediates is None:
+        return None
+    if not immediates and not previous:
+        return None
+    if previous is None:
+        return (f"IMMEDIATE-ROW ARBITER: {immediates} row(s) where the OPCODE"
+                " agrees and a LITERAL does not. The opcode multiset is"
+                " IDENTICAL, so the verdict above was decided by `real` —"
+                " which counts differing WORDS, and a register recolour"
+                " rippling through forty instructions swamps the single word"
+                " a wrong literal occupies. Arbitrate a literal fix on THIS"
+                " count, not on `real` (`fndiff <unit> <fn> --ops` lists"
+                " every row).")
+    delta = immediates - previous
+    direction = ("UNCHANGED" if delta == 0
+                 else f"{delta:+d} vs the last probe's {previous}")
+    note = ""
+    if delta < 0 and prev_real is not None and real > prev_real:
+        note = (" — `real` ROSE while the IMMEDIATE count FELL. That is the"
+                " shape NM measured: the verdict advises a revert on the"
+                " probe that closed a literal. Read the --ops rows before"
+                " reverting.")
+    elif delta > 0:
+        note = (" — an IMMEDIATE row APPEARED. A same-opcode literal"
+                " difference is an eligibility-deciding word, not schedule"
+                " noise; no postprocessor class reaches it.")
+    return (f"IMMEDIATE-ROW ARBITER: {immediates} row(s) ({direction}) where"
+            " the OPCODE agrees and a LITERAL does not. The opcode multiset"
+            " is IDENTICAL, so `real` alone decided the verdict above and"
+            " `real` cannot separate a literal from a recolour." + note)
+
+
+def reloc_symbol_screen(unit, fn):
+    """The wrong-global screen, as a dict, for the FIRST probe of a function.
+
+    Run-47 item 2. claim.law.SA_a-wrong-global-that-shares-an-instruction-
+    word-is-invisible-to-every-score-including-the-word-count.20260902.v1:
+    when two globals are both EMB_SDA21-reachable the instruction word is
+    `lwz rD,0(rB)` in BOTH streams and only the RELOCATION names the symbol,
+    so `real`, the opcode multiset, objdiff fuzzy and wf_word_diff's own
+    word count are all blind to reading the wrong one. Seven such bugs have
+    been found in this project and the SEVENTH surfaced only when someone sat
+    down to write a PARK RECORD — after the function had been probed,
+    measured and given up on. A screen that only runs at park time is a
+    screen that runs after the decisions it should have informed.
+
+    This calls wf_word_diff's `reloc_symbol_mismatches` rather than
+    re-deriving it: that function already resolves symbols to ADDRESSES (so a
+    rename cancels), compares only offsets whose WORDS are identical and
+    whose reloc TYPES agree, drops anonymous pool entries to fndiff --clean,
+    and marks a row PAIRING UNRELIABLE when the mnemonics near it disagree.
+
+    `status` is one of:
+      rows            -- mismatching relocations found (print every row)
+      clean           -- comparable, nothing found
+      not-comparable  -- a relocation table could not be paired: UNSCREENED,
+                         never "clean" (47 functions in this tree)
+      count-asymmetric-- the two streams differ in instruction count, so no
+                         offset pairing exists at all (115 functions)
+      unavailable     -- objects missing or the census module did not import
+    """
+    try:
+        sys.path.insert(0, str(TOOLS))
+        sys.path.insert(0, str(TOOLS / "composed_census"))
+        import wf_word_diff
+    except Exception:
+        return {"status": "unavailable", "rows": []}
+    try:
+        _kind, ours, tgt = wf_word_diff.word_streams(unit, fn)
+    except SystemExit:
+        return {"status": "count-asymmetric", "rows": []}
+    except Exception:
+        return {"status": "unavailable", "rows": []}
+    try:
+        rows = wf_word_diff.reloc_symbol_mismatches(unit, fn, ours, tgt)
+    except Exception:
+        return {"status": "unavailable", "rows": []}
+    if rows is None:
+        return {"status": "not-comparable", "rows": []}
+    if not rows:
+        return {"status": "clean", "rows": [],
+                "compared": len(ours) // 4}
+    return {"status": "rows", "rows": rows}
+
+
+def format_reloc_screen(result):
+    """The line(s) a first probe prints for the wrong-global screen, or None.
+
+    Calibrated over every function pair built in this tree at 65348245e:
+    11 flagged (4 with an index-aligned row), 2,825 comparable and clean,
+    47 not comparable, 115 count-asymmetric. The clean case gets ONE line, not
+    silence: an absence a worker cannot distinguish from "nobody looked" is
+    the failure this item exists to fix, and the loud form would bury the
+    verdict on 2,825 of 2,998 functions (the scaffold census was demoted for
+    exactly that, run-37 item 7). Screen cost, measured over the same sweep:
+    median 17ms, p95 86ms, max 163ms per function -- against a probe that
+    runs a ninja build.
+    """
+    status = result["status"]
+    if status == "clean":
+        return ("[RELOC-SYMBOL SCREEN: clean — every instruction whose word"
+                " matches also relocates the SAME symbol. This is the"
+                " wrong-global class, which `real`, the multiset and fuzzy"
+                " are all blind to; it is now MEASURED absent here, not"
+                " unexamined.]")
+    if status == "not-comparable":
+        return ("[RELOC-SYMBOL SCREEN: NOT COMPARABLE — a relocation table"
+                " could not be paired against these words, so the"
+                " wrong-global class is UNSCREENED here, not absent. Read the"
+                " symbol column of `fnasm <unit> <fn> --diff` before"
+                " believing a zero residual.]")
+    if status == "count-asymmetric":
+        return ("[RELOC-SYMBOL SCREEN: not run — the two streams differ in"
+                " instruction count, so no offset pairing exists. Re-run this"
+                " probe once the counts agree; the wrong-global class is"
+                " UNSCREENED until then.]")
+    if status != "rows":
+        return None
+    rows = result["rows"]
+    firm = sum(1 for row in rows if row[3])
+    out = [f"RELOC-SYMBOL MISMATCH: {len(rows)} instruction(s) ({firm}"
+           " index-aligned) whose WORD is identical in both streams relocate"
+           " a DIFFERENT symbol. NO number on the verdict line moves when one"
+           " of these is fixed — PlayerProcessPowerups read the wrong SDA21"
+           " global and every count stayed identical before and after"
+           " (claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-"
+           "invisible-to-every-score-including-the-word-count.20260902.v1)."
+           " Read every row BEFORE working the residual, not at park time."]
+    for offset, t_sym, o_sym, aligned in rows:
+        out.append(f"    +{offset:#06x}  target {t_sym}   ours {o_sym}"
+                   + ("" if aligned else
+                      "   [PAIRING UNRELIABLE: mnemonics disagree nearby, so"
+                      " these two offsets need not be the same instruction —"
+                      " confirm with `fnasm <unit> <fn> 0xA:0xB --diff`]"))
+    return "\n".join(out)
 
 
 BEST_KEYS = ("best_real", "best_multiset", "best_insns", "best_bytes",
@@ -2693,6 +2926,22 @@ def _defake_gate_module():
         return None
 
 
+def tu_baseline_exists(unit):
+    """Is there a defake_gate baseline for this unit? No build, no measure.
+
+    The TU-scope gate's own header used to promise a cross-check without
+    knowing whether one was possible. This is the cheapest half of that
+    question and it is decidable from a path (run-47 item 7).
+    """
+    module = _defake_gate_module()
+    if module is None:
+        return False
+    try:
+        return module.gate_path(unit).exists()
+    except Exception:
+        return False
+
+
 def tu_sibling_regressions(unit):
     """(verdicts, note) from the TU's defake_gate baseline, or (None, why).
 
@@ -3358,8 +3607,8 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
     return 0
 
 
-def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
-    """Build the report and print this function's fresh objdiff fuzzy.
+def measure_fuzzy(unit, fn, fn_stripped, state, digest=None):
+    """(headline, notes) for a --fuzzy readout; mutates `state`, prints NOTHING.
 
     CONFLICT arbitration used to cost two manual builds per keep; this is
     that loop, made durable. The report build is a full link — expect it
@@ -3369,34 +3618,44 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     so a later probe can reuse it only when the bytes are provably the
     same ones — and when those bytes are the BEST state's, it also becomes
     the fuzzy anchor a later CONFLICT prints without spending a build.
+
+    SPLIT FROM ITS PRINTING (run-47 item 8). The number used to be printed
+    from inside this call, which happens AFTER the READOUT line, after the
+    standing verdict (a CONFLICT's annotation runs to several lines) and
+    after the first-bank note: measured at ecf51590f on
+    game/world/camera::camera_mode_dest, `probe.py <unit> <fn> --fuzzy`
+    printed the FUZZY line as line 9 of 10. That is the buried-number
+    variant of AGENTS.md trap 6a — a PowerShell `| Select-Object -First N`
+    both corrupts the exit code AND eats the number, and the number was
+    printed last, so the evidence for the bug it appears to show is exactly
+    what it eats. `headline` is now returned so the caller can print it
+    FIRST; `notes` are the caching lines, which belong at the bottom.
+    `headline` is None when no number was produced.
     """
-    got_number = False
+    notes = []
     try:
-        val = report_fuzzy(unit, fn, fn_stripped)
-        prev_fz = state.get("last_fuzzy")
-        got_number = val is not None
-        if val is not None:
-            arrow = (f" (prev {prev_fz:.4f})"
-                     if isinstance(prev_fz, float) else "")
-            print(f"FUZZY (fresh report): {val:.4f}%{arrow}")
-            state["last_fuzzy"] = val
-            if digest is not None:
-                state["last_fuzzy_bytes"] = digest
-                if state.get("best_bytes") == digest:
-                    state["best_fuzzy"] = val
-                    print("[cached as the BEST-STATE fuzzy anchor — the next"
-                          " CONFLICT prints it without spending a build]")
-                else:
-                    print("[cached against these exact bytes; it becomes the"
-                          " anchor once this state is banked as best]")
-            state_file.write_text(json.dumps(state), encoding="utf-8")
-        else:
-            print("[--fuzzy: no number — the report build FAILED or this"
-                  " function is absent from build/GUNE5D/report.json; no"
-                  " fuzzy readout, and nothing cached]")
+        value = report_fuzzy(unit, fn, fn_stripped)
     except Exception as err:
-        print(f"[--fuzzy: readout failed: {err}]")
-    return got_number
+        return None, [f"[--fuzzy: readout failed: {err}]"]
+    if value is None:
+        return None, ["[--fuzzy: no number — the report build FAILED or this"
+                      " function is absent from build/GUNE5D/report.json; no"
+                      " fuzzy readout, and nothing cached]"]
+    previous = state.get("last_fuzzy")
+    arrow = (f" (prev {previous:.4f})"
+             if isinstance(previous, float) else "")
+    headline = f"FUZZY (fresh report): {value:.4f}%{arrow}"
+    state["last_fuzzy"] = value
+    if digest is not None:
+        state["last_fuzzy_bytes"] = digest
+        if state.get("best_bytes") == digest:
+            state["best_fuzzy"] = value
+            notes.append("[cached as the BEST-STATE fuzzy anchor — the next"
+                         " CONFLICT prints it without spending a build]")
+        else:
+            notes.append("[cached against these exact bytes; it becomes the"
+                         " anchor once this state is banked as best]")
+    return headline, notes
 
 
 REPLAN_AT = 3
@@ -3739,7 +3998,8 @@ KNOWN_FLAGS = frozenset((
     "--accept-fuzzy-loss", "--apply", "--arbitrate", "--bank", "--count",
     "--discard", "--force-stale-revert", "--function", "--fuzzy", "--help",
     "--ignore-claim", "--list-banks", "--no-bank", "--no-build",
-    "--no-fuzzy-gate", "--no-rebuild", "--no-slots", "--no-tu-gate",
+    "--no-fuzzy-gate", "--no-rebuild", "--no-reloc-screen", "--no-slots",
+    "--no-tu-gate",
     "--numstat", "--ops", "--raw", "--rebase-best", "--rebaseline",
     "--rederive-pin", "--reset", "--restore", "--revert",
     "--revert-baseline", "--revert-best", "--scaffold", "--scaffold-all",
@@ -3756,6 +4016,16 @@ KNOWN_FLAGS = frozenset((
 # "FUZZY (fresh report): 100.0000%"; through `-First 2`, exit -1 and no
 # number.)
 FUZZY_NO_NUMBER_EXIT = 4
+
+# A function-scoped restore (--revert / --revert-best / --restore NAME) that
+# did NOT fully arrive: the tree measured afterwards is a franken-state and
+# nothing is banked from it. Run-47 item 3 — the refusal used to exit 0, so it
+# was indistinguishable from a banked probe to any script or gate, while
+# `scoped_revert`'s straddling-hunk refusal has always exited 1. Distinct from
+# 1 and 2 on purpose: nothing is WRONG with the invocation and no error
+# occurred; a state was measured and deliberately not banked, and a caller
+# that wants to branch on exactly that needs its own code.
+PARTIAL_RESTORE_EXIT = 5
 
 
 def unknown_flags(argv, known=KNOWN_FLAGS):
@@ -4180,7 +4450,11 @@ def main():
             fn, label, notes, real, insns,
             f", multiset {multiset_tokens}t"
             if multiset_tokens is not None else ""))
-        return 0
+        # The refusal carries in the EXIT CODE, not only in the prose
+        # (run-47 item 3). Exiting 0 made a refused readout and a banked
+        # probe the same event to every caller, and the readout headline
+        # was shaped like a verdict — measured twice in the field.
+        return PARTIAL_RESTORE_EXIT
 
     state = {}
     if state_file.exists():
@@ -4188,6 +4462,15 @@ def main():
     prev_tokens = state.get("last_multiset")
     prev_insns = state.get("last_insns")
     prev_digest = state.get("last_bytes")
+    # The IMMEDIATE-row count (run-47 item 5), read from the --ops dump probe
+    # already captured. It is banked beside `real` so the NEXT probe can print
+    # a DELTA: on a multiset-IDENTICAL residual that delta is the only number
+    # that moves when a literal is fixed.
+    prev_immediates = state.get("last_immediates")
+    prev_real = state.get("last_real")
+    immediates = immediate_row_count(ops_output)
+    if immediates is not None:
+        state["last_immediates"] = immediates
     # Both digests read the object that was actually SCORED, so under --raw
     # the re-score guard and NEUTRAL-IDENTICAL describe the same bytes the
     # verdict does.
@@ -4229,6 +4512,19 @@ def main():
         banked_note = ("no verdict computed; no revert point existed, so"
                        " this readout banked one" if first_bank else
                        "no verdict computed, no revert point banked")
+        # THE NUMBER FIRST (run-47 item 8). This readout exists to hand a
+        # CONFLICT arbitration one number, and it used to print it LAST —
+        # line 9 of 10 on game/world/camera::camera_mode_dest, below the
+        # READOUT line, below a multi-line standing verdict and below the
+        # bank note. A `| Select-Object -First N` then eats the number AND
+        # reports -1 for a run that exited 0 (AGENTS.md trap 6a), so the
+        # number this mode exists for was the first thing a truncated pipe
+        # destroyed. Everything else here is context and can be truncated
+        # harmlessly.
+        headline, fuzzy_notes = measure_fuzzy(unit, fn, fn_stripped, state,
+                                              digest=digest)
+        if headline:
+            print(headline)
         print(f"READOUT   real {real} (insns {insns}{tok})"
               f"  [--fuzzy: {banked_note}]")
         standing = state.get("last_verdict")
@@ -4245,8 +4541,11 @@ def main():
             print("[banked from the CURRENT state — still no verdict and no"
                   " BEST anchor. --revert / --revert-baseline now restore"
                   " THIS state; --no-bank opts out.]")
-        if not fuzzy_readout(unit, fn, fn_stripped, state, state_file,
-                             digest=digest):
+        for note in fuzzy_notes:
+            print(note)
+        if headline:
+            state_file.write_text(json.dumps(state), encoding="utf-8")
+        else:
             # A readout with no number is not a success. It exited 0 before,
             # so a script could not tell a fuzzy of 0 from a failed report
             # build, and the CONFLICT arbitration this readout exists to
@@ -4334,7 +4633,35 @@ def main():
         scope_changes = tu_scope_changes(
             None if committed is None else committed.decode("latin-1"),
             source.read_bytes().decode("latin-1"))
-        if scope_changes:
+        if scope_changes and verdict.startswith("BASELINE"):
+            # RUN-47 ITEM 7. A BASELINE is EXEMPT from this gate by
+            # construction (it banks no improvement claim and is the
+            # session's only revert point), so the cross-check below can
+            # decide nothing here — but the header used to print anyway,
+            # announcing "cross-checking the whole TU against its
+            # defake_gate baseline". Reproduced at a3d735404 on
+            # game/anim/atree::AtreeDelete: with the baseline file MOVED
+            # ASIDE, so no cross-check was even possible, probe printed the
+            # identical output. A lane reads that line, believes its
+            # siblings were checked at the first probe, and finds out later
+            # that they never were — NM paid a re-probe for it. Say what is
+            # actually true instead, and skip the measurement.
+            has_baseline = tu_baseline_exists(unit)
+            print(f"[TU-scope gate: {len(scope_changes)} file-scope"
+                  " change(s) already in this tree. The sibling cross-check"
+                  " is NOT run on a BASELINE — a baseline is exempt from"
+                  " this gate, so the check could not change anything here."
+                  + ("" if has_baseline else
+                     " (There is also no defake_gate baseline for this unit"
+                     f" yet: `defake_gate.py baseline {unit} --at-head`"
+                     " takes one, and the NEXT banking verdict is gated"
+                     " against it.)")
+                  + "]")
+            verdict, state = apply_tu_scope_gate(
+                verdict, state, {key: state_before.get(key)
+                                 for key in BEST_KEYS},
+                scope_changes, None, None, "not run on a BASELINE", unit, fn)
+        elif scope_changes:
             print(f"[TU-scope gate: {len(scope_changes)} file-scope"
                   " change(s) in this diff — cross-checking the whole TU"
                   " against its defake_gate baseline (no build;"
@@ -4390,6 +4717,16 @@ def main():
     if state.get("count_class"):
         print(state["count_class"])
     print(verdict)
+    # THE IMMEDIATE-ROW ARBITER (run-47 item 5), directly under the verdict it
+    # qualifies. Only for a multiset-IDENTICAL residual: there the verdict is
+    # `real` alone, `real` counts differing WORDS, and the one word a wrong
+    # literal occupies is invisible beside a register recolour. Silent unless
+    # the count is nonzero now or was last time.
+    if multiset_tokens == 0 and real > 0:
+        arbiter = immediate_arbiter_line(
+            immediates, prev_immediates, real, prev_real)
+        if arbiter:
+            print(arbiter)
     # The DATA column, printed alongside EVERY verdict (run 34 item 1): the
     # verdict above scores the INSTRUCTION STREAM ONLY, so a moved non-text
     # section — a widened save area losing its .extab match, a corrected pool
@@ -4446,6 +4783,22 @@ def main():
     # (or the existing --scaffold/--scaffold-all), and a BASELINE prints a
     # ONE-LINE pointer so the audit obligation is still announced rather
     # than silently dropped (run-37 item 7).
+    # THE WRONG-GLOBAL SCREEN, on the FIRST probe of every function (run-47
+    # item 2). Seven wrong-global bugs have been found in this project and the
+    # SEVENTH surfaced only at PARK-RECORD time — after the function had been
+    # probed, measured and given up on — because no score sees a relocation:
+    # two EMB_SDA21 globals share the instruction word, so `real`, the opcode
+    # multiset, objdiff fuzzy and wf_word_diff's own word count are identical
+    # before and after the fix. A BASELINE verdict is exactly "the first probe
+    # of this function", which is the last moment the answer can still steer
+    # the work instead of explaining it. Calibrated at 65348245e over every
+    # built function pair: 11 flagged, 2,825 clean, 47 not comparable, 115
+    # count-asymmetric; median cost 17ms against a probe that runs a build.
+    if verdict.startswith("BASELINE") and "--no-reloc-screen" not in sys.argv:
+        screen = format_reloc_screen(reloc_symbol_screen(unit, fn))
+        if screen:
+            print(screen)
+
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
                      or "--verbose" in sys.argv)
     if want_scaffold and source is not None:
