@@ -796,6 +796,16 @@ python tools/gdl/defake_rewrite.py <file> --base X --type T --map off=field,...
 python tools/gdl/fuzzy.py <unit> [<fn>]        # fuzzy from last report, no regen
 python tools/gdl/xrefnum.py <const...> [--cast-only]  # who else uses this offset
 python tools/gdl/externcheck.py                # cross-TU extern type conflicts
+python tools/gdl/aritycheck.py [--verdict PHANTOM-CANDIDATE]  # parameter
+    # COUNT: which definitions declare a trailing parameter the body never
+    # reads, and which call sites pass fewer arguments than declared.
+    # externcheck ranks type CLASSES and abicheck models GPR/FPR sequence
+    # assignment (discipline 16) — neither reads count, which is why
+    # init_enemy's phantom 4th argument had to be found by hand. Zero
+    # builds. Census 2026-09-03: 4 PHANTOM-CANDIDATE, 15 KNR-SHORT-CALL,
+    # 42 UNREAD-TRAILING. A verdict is a place to look: both governing laws
+    # (NM_an-unread-trailing-parameter..., knr-extern-arity-can-be-faithful
+    # -not-a-defect) are settled against the TARGET BYTES at the call site.
 python tools/gdl/matchtool.py probe <unit> --brief
 python tools/gdl/lowmatch.py --max 50 --min-size 200 --sort impact
 python configure.py progress
