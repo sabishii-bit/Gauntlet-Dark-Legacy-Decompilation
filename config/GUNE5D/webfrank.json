@@ -2805,6 +2805,47 @@
     ],
     "game/world/tower": [
     {
+      "function": "towerRecordLevelBeaten",
+      "before_sha256": "dda97de53294f292329500ea5431063e5e04863eee8cb8d0bba78fa64f776d19",
+      "after_sha256": "c7f8f50089473e521ec6248b36daf4752b75c8a207628402acfc6e40b22964b0",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 79,
+        "permuted_instructions": 2
+      },
+      "mechanism": "Source-exhaustion provenance: attempt.NM_towerrecordlevelbeaten-store-order-and-decl-order-are-both-unreachable.20260902.v1 (three probed_form axes and a typed denial whose scope explicitly leaves the postprocessor path unscreened) and attempt.ES_tower-record-level-beaten-store-order-is-not-source-order.20260903.v1 (a fourth, held_fixed to the statement order alone, NEUTRAL-IDENTICAL: the two stores never reach the scheduler as an ordered pair). Measured run 42 at c117e66da: 79/79, opcode multiset IDENTICAL, `wf_word_diff.py game/world/tower.c towerRecordLevelBeaten` reports 25 DIFFERING WORDS, MNEMONIC DIVERGENCE 0, RELOC-SYMBOL MISMATCH 0. Two of the 25 are the entry store pair the two source records failed to move: the target emits `stw r31,@lbl_803448AC` then `stw r30,@lbl_803448A8` at +0x20/+0x24 and ours emits them in the opposite order, so it is a two-atom PERMUTATION and not a renaming at all - permuting our window [0x20,0x28) with order [1,0] carries both relocations with their atoms and lands both words byte-exact on the target before the register stage runs. The window is a store/store pair, so check_permutation_dependences refuses it under the default single-memory-resource model ('permutation changes the final write of mem, which is live after the region'); it is admitted only by the declared memory_disambiguation, which proves through the split map that the two accesses are 4-byte writes to .sbss 0x803448A8 and 0x803448AC, disjoint and therefore non-aliasing. The remaining 23 words are the loop-body scratch renaming NM diagnosed (target reusing the dead lvl register r7 for the constant 1 where ours spends r11) and they are proved by verify_consistent_recolor in its STRICT form - no value_equality_recolor escape and no unproven audit. That REFUTES the per-function prediction NM carried from claim.RC_block-rotation-population-census-run-39.20260902.v1, which measured this function's best-fit assignment at 80.0% of callee-saved pairs with 30 scratch divergences and concluded the strict proof would refuse; the census's prediction is wrong here because the two-word obstruction is a permutation the census had no way to model. real 48 -> 0.",
+      "instruction_permutation": [
+        {
+          "start": "0x20",
+          "end": "0x28",
+          "order": [1, 0],
+          "before_sha256": "aea222fbee687c1b51e797507bfdf7288a82a719e2cddd32ccfc4f6d375485cc",
+          "after_sha256": "735edfd5298eb7039d780cb4609a7adf671f031b8d546348d23c199b8c9dd0c2",
+          "before_relocations_sha256": "4079e46799f9e68db656733ba2e4ae34765d7e1a70a252931672ae5de08d9713",
+          "after_relocations_sha256": "17923ca9084067a1b64aa963e6251982b60d620857bf19e6caadc52feabbe226"
+        }
+      ],
+      "memory_disambiguation": {
+        "locations": [
+          {
+            "at": "0x20",
+            "symbol": "lbl_803448A8",
+            "section": ".sbss",
+            "address": "0x803448A8",
+            "width": 4
+          },
+          {
+            "at": "0x24",
+            "symbol": "lbl_803448AC",
+            "section": ".sbss",
+            "address": "0x803448AC",
+            "width": 4
+          }
+        ]
+      },
+      "copy_register_fields": true
+    },
+    {
       "function": "TowerCheckMessages",
       "before_sha256": "ee9590da37daff4a371cb53c1ddcd353cb27677a23074b619f32d861cc433778",
       "after_sha256": "924878c9658c8f0b0dff2042ce4e099881b48a7757f6198e08fc49999d0a6700",
