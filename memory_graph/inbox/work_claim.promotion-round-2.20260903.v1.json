@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "PROMOTION lane round 2, CORRECTED ordering (claim.law.PP_the-smallest-webfrank-rules-are-the-worst-promotion-candidates): (1) run t15_operand_provenance IMAGE-WIDE over the rule-served tier - any rule whose function shows an operand-VALUE difference is a PointLineDist2D-class candidate (real source bugs under a recolor verdict) - work those first, fixes + escape/rule deletions. (2) the 9 no-attempt-record rules (claim.T15_promotion-queue-roster: AllocFile, sysClearFlags, DoAnimation, DoWorldAnimation, StartComboFX, MBNewNode, fn_80051480, DistanceToClosestPlayer, fn_80094164 - PP already probed AllocFile/sysClearFlags/MBNewNode and banked records on its branch, now in records/ - READ THEM FIRST, do not re-probe dead axes): per fn, derive the mechanism (raw body A/B loop - the PP recipe: ninja the .postprocess/body object + fnasm --raw --diff + wf_word_diff), promote if a source form lands, else author the missing attempt record with the mechanism (provenance debt: 68 rules cite no record). (3) drawMemCardMessage +0x1ec (the t15 screen's one open finding - quoted instructions in its record). OWNED: the TUs of the fns you work, checked against gdlmem claims. Rule deletions are surgical single-unit edits + configure + forced replay. Fresh fuzzy per keep; pins = raw-body probes only; defake baseline per TU; gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:DoWorldAnimation",
+  "id": "work_claim.promotion-round-2.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PR",
+  "recorded_at": "2026-09-03T16:56:21Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
