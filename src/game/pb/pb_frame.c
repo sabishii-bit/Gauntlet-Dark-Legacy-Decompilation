@@ -637,20 +637,20 @@ void pbFrameMode(s32 mode, s32 flag)
             }
         }
 
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_frame))) = *(P8*)tA;
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_zbuf))) = *(P8*)(tA + (offsetof(PbTplA, m0C)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_xyoffset))) = *(P8*)(tA + (offsetof(PbTplA, m18)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_scissor))) = *(P8*)(tA + (offsetof(PbTplA, m24)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_test))) = *(P8*)(tA + (offsetof(PbTplA, m4C)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_frame))) = *(P8*)tB;
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_zbuf))) = *(P8*)(tB + (offsetof(PbTplB, m0C)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_xyoffset))) = *(P8*)(tB + (offsetof(PbTplB, m18)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_scissor))) = *(P8*)(tB + (offsetof(PbTplB, m24)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_test))) = *(P8*)(tB + (offsetof(PbTplB, m4C)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, prmodecont))) = *(P8*)(tA + (offsetof(PbTplA, m30)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, colclamp))) = *(P8*)(tA + (offsetof(PbTplA, m38)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c1_frame))) = *(u64*)tA;
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c1_zbuf))) = *(u64*)(tA + (offsetof(PbTplA, m0C)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c1_xyoffset))) = *(u64*)(tA + (offsetof(PbTplA, m18)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c1_scissor))) = *(u64*)(tA + (offsetof(PbTplA, m24)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c1_test))) = *(u64*)(tA + (offsetof(PbTplA, m4C)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c2_frame))) = *(u64*)tB;
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c2_zbuf))) = *(u64*)(tB + (offsetof(PbTplB, m0C)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c2_xyoffset))) = *(u64*)(tB + (offsetof(PbTplB, m18)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c2_scissor))) = *(u64*)(tB + (offsetof(PbTplB, m24)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, c2_test))) = *(u64*)(tB + (offsetof(PbTplB, m4C)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, prmodecont))) = *(u64*)(tA + (offsetof(PbTplA, m30)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, colclamp))) = *(u64*)(tA + (offsetof(PbTplA, m38)));
         lbl_80344FB4 = (*(u64*)(buf + (offsetof(PBFRAMEBUF, colclamp))) & 1) != 0;
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, dthe))) = *(P8*)(tA + (offsetof(PbTplA, m44)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, dthe))) = *(u64*)(tA + (offsetof(PbTplA, m44)));
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_fba) + 4)) = 0;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_fba))) = 0;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_fba) + 4)) = 0;
@@ -665,11 +665,11 @@ void pbFrameMode(s32 mode, s32 flag)
         *(u32*)(buf + (offsetof(PBFRAMEBUF, pabe))) = 0;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, texa))) = 0;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, texa) + 4)) = 128;
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_test))) = *(P8*)tC;
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_prim))) = *(P8*)(tC + (offsetof(PbTplC, m08)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_rgbaq))) = *(P8*)(tC + (offsetof(PbTplC, m10)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2a))) = *(P8*)(tC + (offsetof(PbTplC, m1C)));
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2b))) = *(P8*)(tC + (offsetof(PbTplC, m28)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, clr_test))) = *(u64*)tC;
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, clr_prim))) = *(u64*)(tC + (offsetof(PbTplC, m08)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, clr_rgbaq))) = *(u64*)(tC + (offsetof(PbTplC, m10)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2a))) = *(u64*)(tC + (offsetof(PbTplC, m1C)));
+        *(u64*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2b))) = *(u64*)(tC + (offsetof(PbTplC, m28)));
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_frame) + 12)) = 76;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_frame) + 8)) = 0;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_zbuf) + 12)) = 78;

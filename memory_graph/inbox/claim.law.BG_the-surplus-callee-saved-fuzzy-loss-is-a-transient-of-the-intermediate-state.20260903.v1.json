@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/fnasm.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "scope": "MWCC GC 1.2.5 family; measured on one function (HealthMeterUpdate, boss.c) with the DP law's five do_players probes as the contrasting population. It does NOT claim the DP diagnosis is wrong \u2014 the diagnosis reproduced exactly \u2014 only that the PRIORITY it recommends is unsafe as a stopping rule.",
+    "tags": [
+      "metrics",
+      "workflow",
+      "matching",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A multi-edit family on a function carrying a surplus callee-saved register whose intermediate fuzzy collapse does NOT recover \u2014 i.e. every edit of the family lands, the surplus register is shed, the aligned-view row census improves monotonically, and fresh objdiff fuzzy at the END of the family is still below its value before edit 1. Reproduce the measurement with `python tools/gdl/probe.py game/boss/boss HealthMeterUpdate --fuzzy` at 0f45ae610-era boss.c against the state at a5bc58df1; the six intermediate fuzzy readings are quoted above and each was taken from a fresh report build.",
+  "id": "claim.law.BG_the-surplus-callee-saved-fuzzy-loss-is-a-transient-of-the-intermediate-state.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T21:28:35Z",
+  "schema_version": 1,
+  "subject": "function:HealthMeterUpdate",
+  "valid_from": "2026-09-03",
+  "value": "The surplus-callee-saved fuzzy loss (claim.law.DP_on-a-function-carrying-a-surplus-callee-saved-register-a-local-structural-win-is-a-fuzzy-loss.20260903.v1) is a property of the INTERMEDIATE STATE, not a verdict on the edit, and its operational corollary 'per-cluster structure is the last residual to work' is wrong when the per-cluster edits are what sheds the surplus register. Measured on HealthMeterUpdate at c8a28c3bb, where ours saved f31 and the target saves no FPR (ours `@0x10 stfd f31,72(r1)`, frame 80; target `@0x10 stmw r25,36(r1)`, frame 64): edit 1 of a six-edit family moved real 261 -> 251, the opcode multiset 29t -> 25t, the ops clusters 25 -> 23 and EVERY aligned-view row class strictly better ('=' 88 -> 96, '~' 111 -> 107, '|' 18 -> 17, '<' 14 -> 11, '>' 13 -> 12), while fresh objdiff fuzzy COLLAPSED 84.0866 -> 68.6320 (-15.5 points, reproduced in both directions on a clean tree). A per-keep fuzzy gate would have reverted it. The same family, continued without reverting, ran 84.0866 -> 68.6320 -> 92.2424 -> 98.8961 -> 99.3723 -> 99.8485 -> 100.0000% and finished EXACT, and the edit that shed f31 (giving the compiler an int local for `(int)cv` instead of a live float across two calls) was edit 3, reachable only THROUGH edit 1. The rule: arbitrate a multi-edit family on the family, not on its first member; when fresh fuzzy disagrees with real AND the multiset AND the aligned-view row census all at once, the three structural arbiters are the ones to follow, because objdiff's alignment is a global choice that a +/-1 count flip re-rolls."
+}
