@@ -1201,12 +1201,12 @@ void fn_8006F16C(s32 initialise)
     f32* yawp;
     f32 yawv;
     f32* dir;
-    f32* cbase;
     s32 result;
     f32 pitch;
     f64 yaw;
-    s32 iterations;
     s32 successes;
+    s32 iterations;
+    f32* cbase;
 
     lbl_80344A6C = &lbl_80274C50;
     if (initialise != 0) {
