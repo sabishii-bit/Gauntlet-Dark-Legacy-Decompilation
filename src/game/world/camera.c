@@ -3291,8 +3291,8 @@ void camera_mode_dest(s32 camIdx)
             (f32*)(sTriggerCameras + lbl_8034450C * 0x28 + 4));
         angle = (f64)FixAngle((f32)(lbl_80345F60 -
                                      (f64)lbl_80344448));
-        angle = lbl_803460B0 * angle;
-        angle = (f64)(f32)(lbl_803460B8 * angle);
+        angle = lbl_803460B8 * angle;
+        angle = (f64)(f32)(lbl_803460B0 * angle);
         if (angle < (f64)lbl_80345EC8) {
             angle = (f64)(f32)(angle + lbl_803460C0);
         }
@@ -3300,8 +3300,8 @@ void camera_mode_dest(s32 camIdx)
             angle = lbl_80345EC8;
         }
         if (lbl_80344A28 == 0) {
-            f64 pitchValue = lbl_803460B0 * (f64)lbl_80344444;
-            s32 pitchDegrees = (s32)(lbl_803460B8 * pitchValue);
+            f64 pitchValue = lbl_803460B8 * (f64)lbl_80344444;
+            s32 pitchDegrees = (s32)(lbl_803460B0 * pitchValue);
             dbgTextPrintfCol(2, 3, lbl_80111B3C, pitchDegrees,
                              angle);
         }
@@ -3367,8 +3367,7 @@ void camera_mode_dest(s32 camIdx)
 
     if ((f64)distance >= lbl_803460D0 ||
         lbl_80344510 != lbl_8034450C) {
-        targetPitch = lbl_80344444;
-        if (lbl_8034442C < targetPitch) {
+        if (lbl_8034442C < (targetPitch = lbl_80344444)) {
             if ((f64)lbl_80344424 < lbl_80345F70) {
                 lbl_80344424 =
                     (f32)((f64)lbl_80344424 + lbl_803460D8);
