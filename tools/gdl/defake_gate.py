@@ -83,6 +83,22 @@ one "revert or fix before committing" for both directions and told three
 run-37 lanes to revert genuine fixes
 (claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-...20260902.v1).
 
+DATUMS ARE RESOLVED BEFORE NAMES (run-48 item 2). That direction check
+compared SYMBOL NAMES, and an MWCC anonymous pool entry (`@433`, `@1058`) is
+not in config/GUNE5D/symbols.txt, so it resolved to nothing and every
+named -> anonymous row read as MOVED-AWAY-FROM-TARGET — for a relocation
+pointing at the SAME CONSTANT under a compiler-private name. Measured on
+game/world/items::DistanceToClosestPlayer, where `fndiff --relocs` printed
+`relocation sets IDENTICAL (16 reloc(s), addresses resolved)` and exited 0
+against the gate's exit 1 (claim.law.PR_defake-gate-compares-relocation-
+names-while-fndiff-relocs-resolves-them.20260903.v1), and the integrator had
+to rule the keep in by hand. A named-versus-anonymous row is now decided by
+what the two entries HOLD, using fndiff's own kind-equal-value classifier:
+equal bytes -> RELOC-DATUM-EQUAL (passes, bank with --update-improved);
+DIFFERING bytes -> REGRESSION, which the name comparison could only call
+DIRECTION-UNKNOWN. Two CONCRETE addresses are still compared by address —
+same value at two addresses is two different data objects.
+
 --rebuild runs the unit's ninja object target first, so rebuild+gate is one
 call and a stale object can never be gated. On any REGRESSION the check
 automatically prints each regressing function's fndiff --ops summary so the
@@ -526,8 +542,111 @@ def _resolved_counts(rows, resolve):
         if addr is not None)
 
 
+def our_object(unit):
+    """The object this gate scores — the same one `measure_unit` reads."""
+    return Path(f"build/{VERSION}/src/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+
+
+# "not supplied" must be distinguishable from "read, and there was nothing
+# there": None is a REAL answer from both byte readers (an uninitialized
+# section, an unknown symbol), and a default of None made the two the same
+# argument — a test asserting the unreadable case silently exercised a live
+# symbols.txt lookup instead.
+UNREAD = object()
+
+
+def pool_datum_direction(target_sym, cur_sym, ours_object,
+                         target_bytes=UNREAD, ours_bytes=UNREAD):
+    """(direction, detail) under the KIND-EQUAL-VALUE rule, or None.
+
+    THE DEFECT (run-48 item 2, claim.law.PR_defake-gate-compares-relocation-
+    names-while-fndiff-relocs-resolves-them.20260903.v1). `resolve_symbol`
+    reads config/GUNE5D/symbols.txt, and an MWCC anonymous pool entry
+    (`@433`, `@1058`) is not in it, so it resolves to None. The name
+    comparison below then reads "our OLD symbol matched the target's, the new
+    one does not" and returns `away` — a REGRESSION — for a relocation that
+    points at the SAME CONSTANT under a compiler-private name. Reproduced at
+    c8cdf216d by driving this function with the record's own symbols:
+
+      _row_direction(13, 'sArrowFloorYOffset', '@433', ...) -> away
+        "target reloc[13] is 'sArrowFloorYOffset' (0x80346FB0) — our OLD
+         symbol matched it, the new one does not"
+
+    while `fndiff --relocs` on the same body prints `relocation sets
+    IDENTICAL (16 reloc(s), addresses resolved)` and exits 0, and
+    `fndiff.target_datum_bytes('sArrowFloorYOffset')` is `3fe0000000000000`
+    — the f64 0.5 our `@433` also holds. The integrator RULED that keep
+    approved under the kind-equal-value rule (work_claim.apply-rulings
+    .20260903.v1).
+
+    THE RULE IS fndiff's, not a new one: `pool_row_findings` already
+    classifies a named-vs-anonymous row by its BYTES — POOL-KIND-EQUAL when
+    they agree (benign), WRONG-POOL-VALUE when they do not — and
+    `_datum_prefix_equal` handles the granularity mismatch (dtk names a whole
+    contiguous run with one `lbl_ADDR` symbol while we emit each literal as
+    its own `@N`). This applies the same classifier to the direction check.
+
+    SCOPE, deliberately narrow. Returns None — the name comparison decides
+    exactly as before — unless at least one side is an ANONYMOUS pool entry.
+    Two CONCRETE addresses holding the same value are still two different
+    data objects (fndiff calls that WRONG-POOL-DATUM), and a bytes-equal
+    escape there would let a wrong-datum bug through. Returns None as well
+    when either side's bytes could not be read: that is fndiff's
+    POOL-KIND-UNDECIDED, and an unread measurement must never manufacture a
+    pass.
+
+    CALIBRATED TWO-SIDED at c8cdf216d over all 257 built unit pairs, by
+    running fndiff's own classifier (`pool_row_findings`) across the image —
+    this is the class CENSUS, i.e. the population the rule is defined over,
+    not a firing count (the direction check only runs when a symbol changed
+    against the gate's baseline at unchanged instruction words):
+      POOL-KIND-EQUAL       3,317 rows in 634 functions  -> now PASSES
+      WRONG-POOL-VALUE         81 rows in  32 functions  -> still FAILS, now
+                                                            with a VALUE
+                                                            reason instead of
+                                                            DIRECTION-UNKNOWN
+      POOL-KIND-UNDECIDED       0 rows                   -> unchanged
+      RENAME                   81 rows in  52 functions  -> untouched
+      WRONG-POOL-DATUM         36 rows in  18 functions  -> untouched
+      POOL-RENUMBER            24 rows in  10 functions  -> untouched
+    The positive class reaches into the 100%-matched SDK — three of the first
+    rows are dolphin/demo/DEMOInit::LoadMemInfo, which is byte-identical at
+    real 0 — which is how thoroughly a NAME comparison misreads this shape.
+
+    Pure over the two byte strings when they are supplied, so both verdicts
+    are decided in a test without an object or a retail image.
+    """
+    if fndiff._symbol_kind(target_sym) == fndiff._symbol_kind(cur_sym):
+        return None
+    if "anon" not in (fndiff._symbol_kind(target_sym),
+                      fndiff._symbol_kind(cur_sym)):
+        return None
+    if target_bytes is UNREAD:
+        target_bytes = fndiff.target_datum_bytes(target_sym)
+    if ours_bytes is UNREAD:
+        ours_bytes = fndiff.ours_datum_bytes(cur_sym, ours_object)
+    if not target_bytes or not ours_bytes:
+        return None
+    if fndiff._datum_prefix_equal(target_bytes, ours_bytes):
+        return "datum-equal", (
+            f"the target's {target_sym!r} and our {cur_sym!r} hold the SAME"
+            f" datum ({fndiff._render_value(target_bytes)}) — a named-versus-"
+            "anonymous pool spelling, not a moved relocation. `@N` is an MWCC"
+            " compiler-private pool entry and is absent from symbols.txt, so"
+            " the NAME comparison can only read it as a loss; the kind-equal-"
+            "value rule (fndiff pool_row_findings: POOL-KIND-EQUAL) decides"
+            " it by VALUE")
+    return "away", (
+        f"the target's {target_sym!r} holds"
+        f" {fndiff._render_value(target_bytes)} while our {cur_sym!r} holds"
+        f" {fndiff._render_value(ours_bytes)} — a named-versus-anonymous pool"
+        " row whose BYTES DISAGREE (fndiff's WRONG-POOL-VALUE class). Our"
+        " pool entry carries a different constant; this is a value defect,"
+        " which the name comparison could only report as DIRECTION-UNKNOWN")
+
+
 def _row_direction(index, base_sym, cur_sym, cur_relocs, target_relocs,
-                   resolve):
+                   resolve, ours_object=None):
     """(direction, detail) for ONE changed relocation, judged vs target.
 
     Positional pairing first: `real 0` on both sides means the instruction
@@ -547,6 +666,14 @@ def _row_direction(index, base_sym, cur_sym, cur_relocs, target_relocs,
         where = (f"target reloc[{index}] is {target_sym!r}"
                  + (f" (0x{target_at:08X})" if target_at is not None else
                     " (unresolvable)"))
+        # DATUMS BEFORE NAMES (run-48 item 2). A named-versus-anonymous row
+        # is decided by what the two entries HOLD; the name comparison
+        # below cannot resolve an `@N` at all and reads every one of them
+        # as a loss.
+        by_value = pool_datum_direction(target_sym, cur_sym, ours_object)
+        if by_value is not None:
+            direction, detail = by_value
+            return direction, f"{where} — {detail}"
         if target_at is None:
             return "unknown", (f"{where} — the target's own symbol does not"
                                " resolve, so direction is undecidable")
@@ -571,13 +698,18 @@ def _row_direction(index, base_sym, cur_sym, cur_relocs, target_relocs,
 
 
 def relocation_change_direction(base_relocs, cur_relocs, target_relocs,
-                                resolve=None):
-    """('toward'|'away'|'unknown', detail) for a relocation-symbol change.
+                                resolve=None, ours_object=None):
+    """('toward'|'datum-equal'|'away'|'unknown', detail) for a symbol change.
 
     Called only for a change `naming_drift_is_benign` already refused as a
     rename, i.e. one that genuinely re-points a call or a datum. `away`
     dominates: if any single relocation moved away from the target the
     whole change fails, no matter what the others did.
+
+    `datum-equal` (run-48 item 2) is a PASSING direction: every changed row
+    was decided by VALUE and none of them moved. It ranks below `toward`
+    only in that a run containing both is reported as `toward` — a repair
+    plus a re-spelling is a repair.
     """
     resolve = resolve or resolve_symbol
     if not target_relocs:
@@ -592,7 +724,8 @@ def relocation_change_direction(base_relocs, cur_relocs, target_relocs,
         if base_sym == cur_sym:
             continue
         direction, detail = _row_direction(
-            index, base_sym, cur_sym, cur_relocs, target_relocs, resolve)
+            index, base_sym, cur_sym, cur_relocs, target_relocs, resolve,
+            ours_object=ours_object)
         rows.append((direction, f"{base_sym!r} -> {cur_sym!r}: {detail}"))
     if not rows:
         return "unknown", "no changed relocation symbol to judge"
@@ -600,13 +733,15 @@ def relocation_change_direction(base_relocs, cur_relocs, target_relocs,
     directions = {direction for direction, _detail in rows}
     if "away" in directions:
         return "away", joined
-    if directions == {"toward"}:
+    if "toward" in directions and directions <= {"toward", "datum-equal"}:
         return "toward", joined
+    if directions == {"datum-equal"}:
+        return "datum-equal", joined
     return "unknown", joined
 
 
 def compare(baseline, current, renames=None, resolve=None,
-            target_relocs=None):
+            target_relocs=None, ours_object=None):
     """Verdicts per function; regression = matched fell or real grew.
 
     ``renames`` maps old baseline names to new current names (--rename
@@ -671,7 +806,8 @@ def compare(baseline, current, renames=None, resolve=None,
                     cur_name = renames.get(name, name)
                     direction, dwhy = relocation_change_direction(
                         base.get("relocs"), cur.get("relocs"),
-                        target_relocs.get(cur_name), resolve=resolve)
+                        target_relocs.get(cur_name), resolve=resolve,
+                        ours_object=ours_object)
                     head = ("relocation symbols changed at unchanged"
                             f" instruction words — {why}.")
                     if direction == "toward":
@@ -681,6 +817,20 @@ def compare(baseline, current, renames=None, resolve=None,
                              + " — this is a relocation REPAIR, not a"
                                " regression; keep it and re-anchor with"
                                " --update-improved")
+                        )
+                    elif direction == "datum-equal":
+                        # RUN-48 ITEM 2. Every changed row was decided by
+                        # VALUE and none of them moved: our relocation names
+                        # an MWCC anonymous pool entry holding exactly the
+                        # datum the target's symbol holds. This used to be a
+                        # REGRESSION and an exit 1, and the integrator had to
+                        # rule over it by hand.
+                        verdicts.append(
+                            (name, "RELOC-DATUM-EQUAL",
+                             head + " KIND-EQUAL-VALUE: " + dwhy
+                             + " — the relocation did NOT move; only the"
+                               " pool SPELLING did. Not a regression; keep it"
+                               " and re-anchor with --update-improved")
                         )
                     elif direction == "away":
                         verdicts.append(
@@ -1831,7 +1981,8 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
               " every sibling still gates against its original anchor;"
               " record the arbitration + its fuzzy in the attempt record)")
     verdicts = compare(baseline, snap, renames,
-                       target_relocs=target_relocation_symbols(unit))
+                       target_relocs=target_relocation_symbols(unit),
+                       ours_object=our_object(unit))
     verdicts = arbitrate_regressions(verdicts, unit, baseline,
                                      arbiter=arbiter)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
@@ -1926,7 +2077,7 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
     # so that instruction did nothing.
     improved = [v for v in verdicts
                 if v[1] in ("IMPROVED", "RELOC-TOWARD-TARGET",
-                            "NAMING-DRIFT")]
+                            "RELOC-DATUM-EQUAL", "NAMING-DRIFT")]
     if improved and update_improved:
         # Archive the outgoing baseline so the session-start census stays
         # reconstructable (a worker had to rebuild it from transcripts).
