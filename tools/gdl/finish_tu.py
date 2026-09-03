@@ -2,7 +2,11 @@
 """Green-gated end-of-TU pipeline. One command that cannot commit a red build.
 
 Steps:
-  1. claimcheck the unit (object sections vs splits claims)
+  1. claimcheck the unit (object sections vs splits claims), datadiff its
+     data bytes, and textorder its .text FUNCTION ORDER -- the third is the
+     precondition no score sees (a TU can be 36/36 real 0 with clean data
+     and be unflippable because its functions are emitted in the wrong
+     order; every project score pairs by name)
   2. flip Object(NonMatching, ...) -> Matching in configure.py (idempotent)
   3. python configure.py
   4. ninja -j2  -- exit code checked directly, never through a pipe; the
@@ -108,6 +112,24 @@ def main():
                       "wrong constants or emission order never link green. "
                       "(Zero-filled claim slack is NOT this: it prints "
                       "DATA-DEBT and does not set the exit code.)")
+                return 1
+            # .text FUNCTION ORDER. The one flip precondition NO score sees:
+            # fndiff, probe, defake_gate, objdiff fuzzy and the progress
+            # report all pair functions BY NAME, so a permutation of
+            # same-set function groups is invisible to every number while
+            # the linked DOL depends on it completely
+            # (claim.law.MF_every-function-at-real-0-does-not-mean-the-text-
+            # order-is-right-and-no-project-score-sees-it.20260903.v1).
+            # game/anim/atree carried it for four runs at 36/36 real 0.
+            # Calibrated at 4726b33ca: 0 of 200 already-Matching units fire
+            # this, 23 of 52 NonMatching do.
+            r = run([PY, "tools/gdl/textorder.py", u])
+            if r.returncode == 1:
+                print(f"BLOCKED by {u}: .text function ORDER differs from the "
+                      "target (groups named above). Every score pairs by name "
+                      "and reads clean; the link does not. Fix the "
+                      "source-definition order and re-run "
+                      f"`python tools/gdl/textorder.py {u}`.")
                 return 1
 
         cfg_snapshot = (REPO / "configure.py").read_text(encoding="utf-8")
