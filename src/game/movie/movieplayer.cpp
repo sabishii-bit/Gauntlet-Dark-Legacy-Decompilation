@@ -1136,16 +1136,44 @@ void fn_800D9648(u32* param_1, MovieDecodeCall* param_2) {
     fn_800D93D4(param_1, param_2->flags, arg1, arg2, arg3, arg4);
 }
 
-void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
+/* The codec's virtual interface, as the target's own call sites describe it.
+ * Metrowerks places the vtable pointer AFTER the class's data members, which
+ * is why every dispatch here loads it from +0x20 of the object (the same
+ * placement the Codec destructors' `stw r0,32(this)` establishes above), and
+ * why the codec embedded in MovieState at +336 has its vtable word at +368.
+ * Slots are named only where this TU calls them: the dispatch word is
+ * `8 + 4*slot`, so decode is slot 1 (+12, fn_800D967C) and close is slot 5
+ * (+28, fn_800DA60C).  Declared, never defined: the implementations and the
+ * vtable itself live in the codec's own translation unit. */
+#pragma cplusplus on
+class MovieCodec {
+public:
+    u32 _00[8];
+    virtual void v0();
+    virtual void decode(u32 context, u32 bitmap);
+    virtual void v2();
+    virtual void v3();
+    virtual void v4(u8* call, s32 flags);
+    virtual void close();
+};
+
+/* fn_800DA6A4 dispatches slot 4, but stays a C-mode function: compiled as
+ * C++ its `return frameIndex < frameCount` becomes a bool and MWCC adds a
+ * zero-extending clrlwi the target does not have (measured 159 -> 160
+ * instructions).  The call goes through this inline instead. */
+static inline void MovieCodecV4(u8* codec, u8* call, s32 flags) {
+    ((MovieCodec*)codec)->v4(call, flags);
+}
+
+extern "C" void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
     register u32 arg3;
     register u32 arg2;
-    register void (*dispatch)(int, u32, u32);
 
-    dispatch = *(void (**)(int, u32, u32))(*(u32*)(param_1 + 32) + 12);
     arg3 = param_2->bitmap;
     arg2 = param_2->context;
-    dispatch(param_1, arg2, arg3);
+    ((MovieCodec*)param_1)->decode(arg2, arg3);
 }
+#pragma cplusplus off
 
 /* Initialize a VQ frame buffer and its 16-bit component selectors.
  * header's BI_BITFIELDS masks feed the shift/bit fields in reversed order
@@ -1742,13 +1770,9 @@ void fn_800DBA80(u8* dec, s32 fd);
 void __dl__FPv(void* p);
 void __dla__FPv(void* p);
 
-typedef struct MovieCloseVTable {
-    u8 pad[28];
-    void (*close)(u8*);
-} MovieCloseVTable;
-
+#pragma cplusplus on
 #pragma dont_inline on
-void fn_800DA60C(register u8* m)
+extern "C" void fn_800DA60C(register u8* m)
 {
     register u8* strm;
     register u8* self = m;
@@ -1764,7 +1788,7 @@ void fn_800DA60C(register u8* m)
         }
         *(u32*)(self + offsetof(MovieState, audio)) = 0;
     }
-    (*(MovieCloseVTable**)(self + offsetof(MovieState, decoderVtable)))->close(self + 336);
+    ((MovieCodec*)(self + 336))->close();
     fn_800DBA80(self + 32, *(s32*)(self + offsetof(MovieState, fd)));
     if (*(s32*)(self + offsetof(MovieState, fd)) != 0) {
         sceClose(*(s32*)(self + offsetof(MovieState, fd)));
@@ -1772,6 +1796,7 @@ void fn_800DA60C(register u8* m)
     *(s32*)(self + offsetof(MovieState, fd)) = 0;
 }
 #pragma dont_inline off
+#pragma cplusplus off
 
 /* Advance the VQ stream by one presentation interval and prime its audio. */
 u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
@@ -1844,11 +1869,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
         *(u32*)(movie + offsetof(MovieState, fileFormat.sizeImage)) = chunk[4];
         *(u32*)(movie + offsetof(MovieState, decodeCall.chunk)) = chunk[8];
         *(s32*)(movie + offsetof(MovieState, decodeCall.destination)) = decodeFrame;
-        {
-            register void (*decode)(u8*, u8*, s32) =
-                *(void (**)(u8*, u8*, s32))(*(u32*)(movie + offsetof(MovieState, decoderVtable)) + 0x18);
-            decode(movie + 0x150, movie + 0x11C, 0);
-        }
+        MovieCodecV4(movie + 0x150, movie + 0x11C, 0);
         fn_800DB29C((MovieChunkStream*)(movie + 0x20));
     }
 done:
