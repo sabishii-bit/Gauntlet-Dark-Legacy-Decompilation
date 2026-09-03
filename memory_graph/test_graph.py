@@ -4104,5 +4104,194 @@ class RegisterDefinitionGapTests(unittest.TestCase):
         self.assertEqual([], self.gaps(None))
 
 
+class ReportAllGateFailuresTests(unittest.TestCase):
+    """Run-41 item 7: --dry-run reports EVERY gate failure in one call.
+
+    The gates are independent `if` blocks over one record, but each raised on
+    the spot, so a draft violating five of them cost five author round-trips:
+    NM paid exactly that, and MV paid seventeen attempts once the `--size`
+    preflight — a mutually exclusive CLI branch that could not run in the same
+    call as the gates — is counted. Calibrated against a deliberately invalid
+    draft: three gates (missing law_screen, an unknown tag, an unquoted
+    postprocessor reclassification) now arrive together with the size report.
+
+    Which drafts are REFUSED must not change; only how many calls it takes to
+    learn why. Both directions are asserted below.
+    """
+
+    def setUp(self):
+        self.root = make_root(with_symbols=False)
+        self._probe = core._probe_record_references
+        core._probe_record_references = lambda *a, **k: None
+
+    def tearDown(self):
+        core._probe_record_references = self._probe
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _bad_attempt(self):
+        return {
+            "schema_version": 1,
+            "id": "attempt.report-all-calibration.v1",
+            "kind": "attempt",
+            "function": "function:TextHeightMLines",
+            "attempted_axis": "a deliberately invalid draft",
+            "outcome": "parked",
+            "attributes": {
+                "tags": ["not-a-real-tag"],
+                "residual": "reclassified postprocessor-class: a pure"
+                            " recolor, eligible for a rule.",
+            },
+        }
+
+    def test_one_call_names_every_independent_failure(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(self._bad_attempt(), root=self.root,
+                                  dry_run=True, report_all=True)
+        text = str(caught.exception)
+        self.assertIn("law_screen", text)
+        self.assertIn("not-a-real-tag", text)
+        self.assertIn("N/N", text)
+        self.assertIn("proposal problem(s)", text)
+        self.assertIn("[1]", text)
+        self.assertIn("[3]", text)
+
+    def test_without_report_all_it_still_stops_at_the_first(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(self._bad_attempt(), root=self.root,
+                                  dry_run=True)
+        text = str(caught.exception)
+        self.assertIn("law_screen", text)
+        self.assertNotIn("not-a-real-tag", text)
+
+    def test_report_all_refuses_exactly_what_the_gates_refused(self):
+        """The collector must not make a bad draft pass."""
+        for report_all in (False, True):
+            with self.subTest(report_all=report_all):
+                with self.assertRaises(MemoryGraphError):
+                    stage_record_proposal(self._bad_attempt(), root=self.root,
+                                          dry_run=True,
+                                          report_all=report_all)
+
+    def test_a_valid_record_still_stages_under_report_all(self):
+        law = {"schema_version": 1, "id": "claim.law.report-all-ok.v1",
+               "kind": "claim", "subject": "compiler:test",
+               "predicate": "codegen_law", "epistemic_state": "verified",
+               "value": "MWCC emits the second addend first here."}
+        path = stage_record_proposal(law, root=self.root, dry_run=True,
+                                     report_all=True)
+        self.assertFalse(path.exists())      # dry run writes nothing
+        self.assertTrue(stage_record_proposal(law, root=self.root).exists())
+
+    def test_a_structurally_invalid_record_reports_and_stops(self):
+        """`id` and `kind` are what every later check reads, so a schema
+        failure cannot be carried forward without inventing answers."""
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal({"schema_version": 1, "kind": "attempt"},
+                                  root=self.root, dry_run=True,
+                                  report_all=True)
+        self.assertIn("missing record fields", str(caught.exception))
+
+
+class WorkClaimAnchorVetoTests(unittest.TestCase):
+    """Run-41 item 8, from a run-40 integrator miss.
+
+    `work_claim.sched-census-t2.20260902.v1` anchored function:CritterDoSfx
+    while its own scope read "SA/SB own PlayerProcessPowerups, fn_800DACD8,
+    do_enemies, CritterTranslate - VETO those" — and CritterDoSfx lives in
+    game/enemy/critter.c, the same TU as the withheld CritterTranslate. TU
+    ownership is whole-TU, so the anchor pointed the lane at a TU the order
+    had already given away.
+
+    TWO CALIBRATION PASSES over all 361 work_claim versions in this
+    repository's history set the pattern. Veto words alone fired on 9, of
+    which 8 were CORRECT orders (a lane vetoing one function inside a TU it
+    owns is the normal shape) — 89% false. Ownership words alone fired on 16,
+    nearly all false, because every `claim.law.…` citation contains "claim"
+    and scopes say things like "You own both sides". Requiring both, with the
+    owner named as a LANE CODE, fires on exactly 1 of 361: the real one.
+    """
+
+    class FakeConnection:
+        """A symbol table standing in for the GameCube import."""
+
+        MODULES = {
+            "critterdosfx": "game/enemy/critter.c",
+            "crittertranslate": "game/enemy/critter.c",
+            "do_enemies": "game/enemy/enemy.c",
+            "damage_enemy": "game/enemy/enemy.c",
+            "playerprocesspowerups": "game/game/player.c",
+            "camlimitplayerdpos": "game/boss/bosscam.c",
+        }
+
+        def execute(self, _sql, params):
+            tu = self.MODULES.get(str(params[0]).lower())
+            return _FakeCursor({"tu": tu} if tu else None)
+
+    def check(self, function, scope):
+        record = {"schema_version": 1, "id": "work_claim.t.v1",
+                  "kind": "work_claim", "function": function,
+                  "owner": "claude-fleet-worker-XX", "state": "active",
+                  "claimed_at": "2026-09-03",
+                  "attributes": {"scope": scope}}
+        return core.work_claim_anchor_veto(record, self.FakeConnection())
+
+    CT_SCOPE = ("SOURCE lane, schedule-class tier 2: take the next-cheapest"
+                " rows (SA/SB own PlayerProcessPowerups, fn_800DACD8,"
+                " do_enemies, CritterTranslate - VETO those), i.e. rows 5-10")
+
+    def test_the_run40_miss_is_caught(self):
+        message = self.check("function:CritterDoSfx", self.CT_SCOPE)
+        self.assertIsNotNone(message)
+        self.assertIn("CritterDoSfx", message)
+        self.assertIn("CritterTranslate", message)
+        self.assertIn("game/enemy/critter.c", message)
+
+    def test_an_anchor_in_an_unclaimed_tu_is_fine(self):
+        self.assertIsNone(
+            self.check("function:CamLimitPlayerDpos", self.CT_SCOPE))
+
+    def test_vetoing_a_function_inside_a_tu_you_own_is_the_normal_shape(self):
+        """8 of the 9 firings of the first cut were exactly this."""
+        self.assertIsNone(self.check(
+            "function:do_enemies",
+            "SOURCE lane, game/enemy/enemy.c: work the schedule rows."
+            " Do not touch damage_enemy (P6 wall = VETO)."))
+
+    def test_ownership_words_without_a_withholding_are_not_a_conflict(self):
+        """The second cut fired on 16 claims for saying 'own' in passing."""
+        self.assertIsNone(self.check(
+            "function:CritterDoSfx",
+            "You own both sides of CritterTranslate: fix the pool spelling"
+            " at source, per claim.law.MB_empty-then-ternary.v1."))
+
+    def test_a_law_id_citation_is_not_an_ownership_claim(self):
+        self.assertIsNone(self.check(
+            "function:CritterDoSfx",
+            "Screen claim.law.webfrank-cannot-close-a-count-asymmetric-"
+            "residual.20260831.v1 before excluding CritterTranslate."))
+
+    def test_a_scope_with_no_prose_is_silent(self):
+        self.assertIsNone(self.check("function:CritterDoSfx", ""))
+
+    def test_an_unresolvable_anchor_is_silent_not_a_guess(self):
+        self.assertIsNone(self.check("function:NotASymbol", self.CT_SCOPE))
+
+    def test_only_work_claims_are_checked(self):
+        record = {"schema_version": 1, "id": "attempt.t.v1", "kind": "attempt",
+                  "function": "function:CritterDoSfx",
+                  "attempted_axis": "x", "outcome": "parked",
+                  "attributes": {"scope": self.CT_SCOPE}}
+        self.assertIsNone(
+            core.work_claim_anchor_veto(record, self.FakeConnection()))
+
+
+class _FakeCursor:
+    def __init__(self, row):
+        self._row = row
+
+    def fetchone(self):
+        return self._row
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

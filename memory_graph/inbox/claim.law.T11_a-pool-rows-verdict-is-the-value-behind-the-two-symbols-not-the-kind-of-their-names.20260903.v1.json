@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py",
+    "tools/gdl/tests/test_pool_rows.py",
+    "tools/gdl/poolval.py",
+    "git:e245b8f87"
+  ],
+  "attributes": {
+    "tags": [
+      "pool-layout",
+      "relocation",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any pool row whose two symbols differ in KIND, whose bytes AGREE on their overlap, and which nevertheless blocks a byte-exact close \u2014 that would show the kind difference carries information the value comparison misses. Or the converse: any row whose bytes DISAGREE that is nonetheless benign after linking. Cheapest check, zero builds: `python tools/gdl/fndiff.py <unit> <fn> --clean` on any function whose HINT line reports POOL-KIND-EQUAL rows, then read the two data values with `python tools/gdl/poolval.py <lbl_symbol>` and `objdump -t`/`-s` on our object for the @N entry.",
+  "id": "claim.law.T11_a-pool-rows-verdict-is-the-value-behind-the-two-symbols-not-the-kind-of-their-names.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T02:44:11Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A relocation row that `fndiff --clean` normalizes away is decided by the DATA BEHIND the two symbols, not by whether the two names are of the same kind. The tempting rule \u2014 'a row where the target names lbl_ADDR and we emit an anonymous @N is a defect' \u2014 is false in both directions and was refuted twice in one run, from independent evidence.\n\nMEASUREMENT (all 257 unit pairs, run 41): kind-differing rows number 3,399 in 642 functions. Un-suppressing them as diff rows would add that much noise and move `real` project-wide, which this project forbids outright \u2014 'naming a pool constant must never change a score' is why the normalizer exists (fndiff.pool_symbols, field report 2026-08-31). Comparing the VALUES instead splits the same population into 3,222 rows that are genuinely benign and 177 that are not, beside 45 rows where both symbols resolve to concrete and different addresses.\n\nLIVE COUNTEREXAMPLE TO THE KIND RULE: the NM lane closed game/enemy/enemy::init_enemy BYTE-EXACT in run 41 while it carried a kind-differing row \u2014 our @1785 against the target's lbl_80346938, the s32->f64 magic constant 0x4330000080000000 \u2014 whose values agree. A kind-based rule would have made a new STRICT exact read as not-exact.\n\nLIVE POSITIVE FOR THE VALUE RULE: the row that carried the mechanism of run-40's STRICT close is served either way, because its values DIFFERED. adsInitFromHeader's prologue read `lfd f28,@lbl_80349318` (the u32 bias) in the target against our `lfd f28,@lbl_80349310` (65536.0), beside `lfd f30,@lbl_80349320` against our `@273` (attempt.NM_adsinitfromheader-extern-scaffold-and-statement-order-close.20260902.v1).\n\nTHE COMPARISON HAS ITS OWN GRANULARITY TRAP, and getting it wrong costs 160 false rows: dtk names a whole contiguous .rodata run with ONE lbl_ symbol \u2014 lbl_80116BD8 is 0xB4 bytes spanning four string literals \u2014 while MWCC emits each literal as its own @N object of 0x28. Comparing the full byte arrays called 337 rows wrong, including DEMOInit::LoadMemInfo, a byte-identical function inside the 100%-matched SDK. The relocation points at the START of both entries, so the decidable question is whether the shorter is a PREFIX of the longer; on that comparison the count is 177 and LoadMemInfo is clear.\n\nCONSEQUENCE FOR TOOLING: report such a row, never score it. The value comparison is a channel printed beside `real`, not a term inside it, so no queue, gate or record that quotes `real` moves \u2014 and a function reading `real 0` can still be told that two of its pool references read different data (23 functions are in exactly that state today; see claim.T11_score-invisible-pool-and-relocation-defect-census-run-41.20260903.v1)."
+}

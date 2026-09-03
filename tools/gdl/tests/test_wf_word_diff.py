@@ -20,7 +20,9 @@ TOOLS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TOOLS))
 sys.path.insert(0, str(TOOLS / "composed_census"))
 
-from wf_word_diff import mnemonic_divergence  # noqa: E402
+from wf_word_diff import (basic_block_leaders,  # noqa: E402
+                          mnemonic_divergence, ops_clusters, ops_regions,
+                          region_word_counts, _locally_aligned)
 from unabsorbed import rule_served_functions  # noqa: E402
 
 
@@ -108,6 +110,99 @@ class PinScreenTests(unittest.TestCase):
     def test_a_missing_config_is_empty_not_a_crash(self):
         root = Path(tempfile.mkdtemp(prefix="t10-wfwd-none-"))
         self.assertEqual(rule_served_functions("game/x/y", root), set())
+
+
+B_FWD_8 = 0x48000008        # b   +8   (unconditional, no link)
+BL_FWD_8 = 0x48000009       # bl  +8   (a CALL, not a terminator)
+BLR = 0x4E800020            # blr
+BNE_FWD_8 = 0x40820008      # bc  4,2,+8
+
+
+class BasicBlockLeaderTests(unittest.TestCase):
+    """--by-region (run 41 item 4): the cut points the cluster partition
+    lacks. A recolor lives entirely inside the matcher's equal runs, so the
+    --ops partition alone put 58 of fn_800D8BCC's 66 words in ONE region."""
+
+    def test_a_straight_line_function_is_one_block(self):
+        self.assertEqual(
+            basic_block_leaders(words(ADDI_R4, ADDI_R5, LWZ)), [0])
+
+    def test_a_branch_starts_a_block_at_its_target_and_its_fallthrough(self):
+        # index 0 branches to index 2; index 1 is the fallthrough leader.
+        stream = words(B_FWD_8, ADDI_R4, ADDI_R5, LWZ)
+        self.assertEqual(basic_block_leaders(stream), [0, 1, 2])
+
+    def test_a_call_is_not_a_terminator(self):
+        """bl returns; splitting on every call would shred the partition."""
+        self.assertEqual(
+            basic_block_leaders(words(BL_FWD_8, ADDI_R4, ADDI_R5)), [0])
+
+    def test_a_conditional_branch_cuts_both_ways(self):
+        stream = words(ADDI_R4, BNE_FWD_8, ADDI_R5, LWZ)
+        self.assertEqual(basic_block_leaders(stream), [0, 2, 3])
+
+    def test_blr_cuts_the_following_instruction(self):
+        self.assertEqual(
+            basic_block_leaders(words(ADDI_R4, BLR, ADDI_R5)), [0, 2])
+
+    def test_a_leader_past_the_end_is_dropped(self):
+        """A terminator in the LAST slot has no fallthrough to name."""
+        self.assertEqual(basic_block_leaders(words(ADDI_R4, BLR)), [0])
+
+
+class RegionDecompositionTests(unittest.TestCase):
+    def test_regions_cover_the_function_without_gaps_or_overlap(self):
+        ours = words(ADDI_R4, B_FWD_8, ADDI_R4, LWZ, ADDI_R4)
+        tgt = words(ADDI_R5, B_FWD_8, ADDI_R5, LFS, ADDI_R5)
+        regions = ops_regions(ours, tgt)
+        bounds = [(lo, hi) for _tag, lo, hi, _a, _b in regions]
+        self.assertEqual(bounds[0][0], 0)
+        self.assertEqual(bounds[-1][1], 5)
+        for (_lo, hi), (lo2, _hi2) in zip(bounds, bounds[1:]):
+            self.assertEqual(hi, lo2)
+
+    def test_cluster_boundaries_are_never_lost_to_the_block_split(self):
+        ours = words(ADDI_R4, LWZ, ADDI_R4)
+        tgt = words(ADDI_R4, LFS, ADDI_R4)
+        cluster_edges = {lo for _t, lo, _hi, _a, _b in ops_clusters(ours, tgt)}
+        region_edges = {lo for _t, lo, _hi, _a, _b in ops_regions(ours, tgt)}
+        self.assertTrue(cluster_edges <= region_edges)
+
+    def test_every_differing_word_lands_in_exactly_one_region(self):
+        ours = words(ADDI_R4, B_FWD_8, ADDI_R4, LWZ, ADDI_R4)
+        tgt = words(ADDI_R5, B_FWD_8, ADDI_R5, LWZ, ADDI_R5)
+        rows = [(0, 0, 0), (8, 0, 0), (16, 0, 0)]
+        counts = region_word_counts(rows, ops_regions(ours, tgt))
+        self.assertEqual(sum(row[3] for row in counts), len(rows))
+
+    def test_a_region_carrying_nothing_reports_zero(self):
+        ours = words(ADDI_R4, B_FWD_8, ADDI_R5)
+        tgt = words(ADDI_R5, B_FWD_8, ADDI_R5)
+        # One equal cluster, cut once at the branch's fallthrough leader.
+        counts = region_word_counts([(0, 0, 0)], ops_regions(ours, tgt))
+        self.assertEqual([(row[1], row[2], row[3]) for row in counts],
+                         [(0, 2, 1), (2, 3, 0)])
+
+
+class RelocPairingReliabilityTests(unittest.TestCase):
+    """An unlinked `bl` is one word whatever it calls, so an offset-paired
+    relocation row is only trustworthy where the mnemonics align."""
+
+    def test_identical_streams_are_aligned_everywhere(self):
+        stream = words(*([ADDI_R4] * 12))
+        self.assertTrue(_locally_aligned(stream, stream, 6))
+
+    def test_a_nearby_mnemonic_divergence_marks_the_row(self):
+        ours = words(*([ADDI_R4] * 6 + [LWZ] + [ADDI_R4] * 5))
+        tgt = words(*([ADDI_R4] * 6 + [LFS] + [ADDI_R4] * 5))
+        self.assertFalse(_locally_aligned(ours, tgt, 6))
+        self.assertFalse(_locally_aligned(ours, tgt, 9))   # inside window 4
+        self.assertTrue(_locally_aligned(ours, tgt, 11))   # outside it
+
+    def test_register_field_differences_do_not_unalign_a_row(self):
+        ours = words(*([ADDI_R4] * 9))
+        tgt = words(*([ADDI_R5] * 9))
+        self.assertTrue(_locally_aligned(ours, tgt, 4))
 
 
 if __name__ == "__main__":

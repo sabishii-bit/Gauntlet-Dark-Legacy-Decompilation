@@ -221,5 +221,70 @@ class FormatTableTests(unittest.TestCase):
         self.assertIn("stmw base: target r16 ours r15", text)
 
 
+class ScopeBannerTests(unittest.TestCase):
+    """Run-41 item 5. The old closing line — "Whatever residual remains is
+    NOT a save-register assignment question" — was a claim about the whole
+    function drawn from a comparison of the FIRST definition of each
+    CALLEE-SAVED register, and three records took it as a premise while
+    fn_800D8BCC's residual was a VOLATILE colour cascade this tool never
+    reads. Corpus calibration: of 493 functions where the old all-clear
+    fired, 426 survive the wider screen and 67 do not (40 with volatile-only
+    differing rows, 26 whose counts make the question unscreenable, 12 with
+    a later-web mismatch)."""
+
+    MATCHING = [[0x0, "stwu r1,-64(r1)"], [0x4, "mr r31,r3"],
+                [0x8, "addi r4,r5,1"], [0xc, "blr"]]
+
+    def test_the_all_clear_no_longer_claims_the_whole_function(self):
+        ours = [[0x0, "stwu r1,-64(r1)"], [0x4, "mr r31,r3"],
+                [0x8, "addi r4,r5,2"], [0xc, "blr"]]
+        text = savedregs.format_table("u", "f", self.MATCHING, ours)
+        self.assertIn("at its FIRST definition", text)
+        self.assertNotIn("NOT a save-register assignment question", text)
+
+    def test_a_volatile_only_differing_row_is_counted_and_named(self):
+        ours = [[0x0, "stwu r1,-64(r1)"], [0x4, "mr r31,r3"],
+                [0x8, "addi r4,r5,2"], [0xc, "blr"]]
+        text = savedregs.format_table("u", "f", self.MATCHING, ours)
+        self.assertIn("ROWS THIS TABLE CANNOT SEE: 1 differing", text)
+        self.assertIn("volatile-register residual", text)
+
+    def test_unequal_counts_report_UNSCREENED_rather_than_zero(self):
+        ours = self.MATCHING[:-1]
+        text = savedregs.format_table("u", "f", self.MATCHING, ours)
+        self.assertIn("not computable", text)
+        self.assertIn("UNSCREENED", text)
+
+    def test_a_later_web_holding_a_different_value_is_reported(self):
+        target = [[0x0, "mr r31,r3"], [0x4, "lwz r31,8(r4)"], [0x8, "blr"]]
+        ours = [[0x0, "mr r31,r3"], [0x4, "lwz r31,12(r4)"], [0x8, "blr"]]
+        later, count_diffs = savedregs.web_mismatches(
+            target, ours, savedregs.GPR_SAVED + savedregs.FPR_SAVED)
+        self.assertEqual([(row[0], row[1]) for row in later], [("r31", 1)])
+        self.assertEqual(count_diffs, [])
+        text = savedregs.format_table("u", "f", target, ours)
+        self.assertIn("LATER-WEB MISMATCH: 1 definition(s)", text)
+
+    def test_a_differing_definition_COUNT_is_reported_not_silently_zipped(self):
+        target = [[0x0, "mr r31,r3"], [0x4, "lwz r31,8(r4)"], [0x8, "blr"]]
+        ours = [[0x0, "mr r31,r3"], [0x8, "blr"]]
+        _later, count_diffs = savedregs.web_mismatches(
+            target, ours, savedregs.GPR_SAVED + savedregs.FPR_SAVED)
+        self.assertEqual(count_diffs, [("r31", 2, 1)])
+
+    def test_per_web_lists_every_definition_of_a_register(self):
+        target = [[0x0, "mr r31,r3"], [0x4, "lwz r31,8(r4)"], [0x8, "blr"]]
+        ours = [[0x0, "mr r31,r3"], [0x4, "lwz r31,12(r4)"], [0x8, "blr"]]
+        text = savedregs.format_table("u", "f", target, ours, per_web=True)
+        self.assertIn("r31[0]", text)
+        self.assertIn("r31[1]", text)
+        self.assertIn("DIFFERENT ROLE", text)
+
+    def test_per_web_is_off_by_default(self):
+        target = [[0x0, "mr r31,r3"], [0x4, "lwz r31,8(r4)"], [0x8, "blr"]]
+        self.assertNotIn("r31[0]",
+                         savedregs.format_table("u", "f", target, target))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -20,7 +20,20 @@ reproduce it. This prints both, aligned, with the permutation named.
 
     python tools/gdl/savedregs.py game/movie/movieplayer fn_800D8BCC
     python tools/gdl/savedregs.py game/game/player do_players --uses
+    python tools/gdl/savedregs.py <unit> <fn> --per-web  # later live ranges
     python tools/gdl/savedregs.py <unit> <fn> --raw     # pre-webfrank body
+
+WHAT ITS ALL-CLEAR MEANS, AND WHAT IT DOES NOT (run 41). The table compares
+the FIRST definition of each CALLEE-SAVED register. It used to close a clean
+comparison with "Whatever residual remains is NOT a save-register assignment
+question" — a claim about the whole function drawn from that narrow
+comparison. Three records took it as a premise while fn_800D8BCC's actual
+residual was a VOLATILE colour cascade this tool never reads, beside later
+webs in registers it compared only once. Every run now prints what was not
+compared: the number of later definitions in each stream, the number of
+differing rows touching no callee-saved register at all (or UNSCREENED when
+the counts differ and rows cannot pair), and any later-web role mismatch.
+`--per-web` prints the later definitions side by side.
 
 READING IT. The rows are ordered by FIRST DEFINITION in each stream, which
 is the order the allocator handed the registers out. A row whose two
@@ -144,6 +157,75 @@ def first_definitions(rows, registers):
                   key=lambda row: row[1])
 
 
+def all_definitions(rows, registers):
+    """{register: [(offset, text), ...]} — EVERY definition, in order.
+
+    `first_definitions` keeps one row per register, which is the right unit
+    for the assignment question and the wrong unit for the claim the table
+    used to close with. One register hosts SEVERAL live ranges across a
+    function, and two streams can agree on the first definition of all
+    thirteen while disagreeing on later ones.
+    """
+    found = {register: [] for register in registers}
+    for offset, text in rows or []:
+        mnemonic, operands = parse_instruction(text)
+        if mnemonic in ("lmw", "stmw"):
+            continue
+        for register in registers:
+            if defines(mnemonic, operands, register):
+                found[register].append((offset, text))
+    return {register: rows_ for register, rows_ in found.items() if rows_}
+
+
+def web_mismatches(target_rows, our_rows, registers):
+    """[(register, ordinal, target_role, our_role)] beyond the FIRST def.
+
+    Definitions of one register are paired by ORDINAL within that register,
+    which is exact when both streams define it the same number of times and
+    is reported as a count difference when they do not.
+    """
+    target_all = all_definitions(target_rows, registers)
+    our_all = all_definitions(our_rows, registers)
+    out, count_diffs = [], []
+    for register in sorted(set(target_all) | set(our_all)):
+        t_defs = target_all.get(register, [])
+        o_defs = our_all.get(register, [])
+        if len(t_defs) != len(o_defs):
+            count_diffs.append((register, len(t_defs), len(o_defs)))
+        for ordinal, (t_def, o_def) in enumerate(zip(t_defs, o_defs)):
+            if ordinal == 0:
+                continue          # the assignment table already owns this
+            t_role, o_role = role(t_def[1]), role(o_def[1])
+            if t_role != o_role:
+                out.append((register, ordinal, t_role, o_role))
+    return out, count_diffs
+
+
+_ANY_SAVED_RE = re.compile(
+    r"\b(?:r(?:1[4-9]|2\d|3[01])|f(?:1[4-9]|2\d|3[01]))\b")
+
+
+def rows_outside_the_saved_bank(target_rows, our_rows):
+    """(differing rows touching NO callee-saved register, comparable?).
+
+    The other half of the false all-clear: this whole table says nothing
+    about VOLATILE registers, and MV's fn_800D8BCC residual was a volatile
+    colour cascade. When the two streams hold the same instruction count the
+    rows pair by index, so the number is exact; otherwise it is not
+    computable and must be reported as unknown rather than as zero.
+    """
+    if len(target_rows or []) != len(our_rows or []):
+        return None, False
+    count = 0
+    for (_t_off, t_text), (_o_off, o_text) in zip(target_rows, our_rows):
+        if t_text == o_text:
+            continue
+        if _ANY_SAVED_RE.search(t_text) or _ANY_SAVED_RE.search(o_text):
+            continue
+        count += 1
+    return count, True
+
+
 def use_counts(rows, registers):
     """{register: times it appears as any operand}."""
     counts = {register: 0 for register in registers}
@@ -220,7 +302,94 @@ def emission_order(defs):
     return [row[0] for row in defs]
 
 
-def format_table(unit, fn, target_rows, our_rows, show_uses=False):
+def scope_banner(target_rows, our_rows, registers, later_mismatches,
+                 count_diffs):
+    """The lines that say what this table did NOT compare.
+
+    Run-41 item 5. The closing line used to read "Whatever residual remains
+    is NOT a save-register assignment question", which is a claim about the
+    whole function made from a comparison of the FIRST definition of each
+    CALLEE-SAVED register. Three records took that all-clear as a premise
+    (attempt.MV_fn800d8bcc-duplicated-branch-locals-belong-to-the-common-
+    block.20260903.v1 and its two predecessors), and fn_800D8BCC's actual
+    residual was a VOLATILE colour cascade — a class this table never looks
+    at — beside later webs it never compared.
+    """
+    lines = []
+    target_all = all_definitions(target_rows, registers)
+    our_all = all_definitions(our_rows, registers)
+    later = sum(max(0, len(rows_) - 1) for rows_ in target_all.values())
+    ours_later = sum(max(0, len(rows_) - 1) for rows_ in our_all.values())
+    outside, comparable = rows_outside_the_saved_bank(target_rows, our_rows)
+    lines.append(
+        f"  SCOPE OF THIS TABLE: the FIRST definition of each callee-saved"
+        f" register. Not compared above: {later} later definition(s) in the"
+        f" target and {ours_later} in ours (one register hosts several live"
+        " ranges), and every VOLATILE register, which this tool never reads."
+        " `--per-web` compares the later definitions.")
+    if comparable:
+        lines.append(
+            f"  ROWS THIS TABLE CANNOT SEE: {outside} differing"
+            " instruction row(s) at aligned offsets touch NO callee-saved"
+            " register at all"
+            + (" — a volatile-register residual, which is what three"
+               " records mistook this table's all-clear for."
+               if outside else "."))
+    else:
+        lines.append(
+            "  ROWS THIS TABLE CANNOT SEE: not computable — the two streams"
+            " hold different instruction counts, so rows do not pair by"
+            " offset. Treat the volatile-register question as UNSCREENED,"
+            " not as clean.")
+    if later_mismatches:
+        lines.append(
+            f"  LATER-WEB MISMATCH: {len(later_mismatches)} definition(s)"
+            " beyond the first hold a different value in the two streams"
+            " (`--per-web` lists them). The assignment verdict above does"
+            " NOT cover these.")
+    if count_diffs:
+        lines.append(
+            "  DEFINITION-COUNT DIFFERS on "
+            + ", ".join(f"{register} ({t} vs {o})"
+                        for register, t, o in count_diffs)
+            + " — one stream redefines the register more often, so the"
+              " later webs do not pair one-to-one.")
+    return lines
+
+
+def format_per_web(target_rows, our_rows, registers):
+    """Every definition of every callee-saved register, both streams."""
+    target_all = all_definitions(target_rows, registers)
+    our_all = all_definitions(our_rows, registers)
+    lines = ["  PER-WEB: every definition of each callee-saved register,"
+             " paired by ordinal within that register"]
+    for register in sorted(set(target_all) | set(our_all),
+                           key=lambda r: (r[0], -int(r[1:]))):
+        t_defs = target_all.get(register, [])
+        o_defs = our_all.get(register, [])
+        for ordinal in range(max(len(t_defs), len(o_defs))):
+            t_def = t_defs[ordinal] if ordinal < len(t_defs) else None
+            o_def = o_defs[ordinal] if ordinal < len(o_defs) else None
+
+            def cell(row):
+                if row is None:
+                    return f"{'--':>7}  {'(no such definition)':<30}"
+                offset, text = row
+                shown = text if len(text) <= 30 else text[:27] + "..."
+                return f"{'@0x%x' % offset:>7}  {shown:<30}"
+
+            flag = ""
+            if t_def is None or o_def is None:
+                flag = "  <= ONE STREAM ONLY"
+            elif role(t_def[1]) != role(o_def[1]):
+                flag = "  <= DIFFERENT ROLE"
+            lines.append(f"  {register}[{ordinal}]".ljust(11)
+                         + f"{cell(t_def)}  {cell(o_def)}{flag}")
+    return lines
+
+
+def format_table(unit, fn, target_rows, our_rows, show_uses=False,
+                 per_web=False):
     registers = GPR_SAVED + FPR_SAVED
     target_defs = first_definitions(target_rows, registers)
     our_defs = first_definitions(our_rows, registers)
@@ -288,9 +457,15 @@ def format_table(unit, fn, target_rows, our_rows, show_uses=False):
             " byte-identical and proves the boundary rather than moving it.")
     elif len(target_defs) == len(our_defs):
         lines.append("  ASSIGNMENT MATCHES: every callee-saved register"
-                     " holds the same value in both streams. Whatever"
-                     " residual remains is NOT a save-register assignment"
-                     " question.")
+                     " holds the same value at its FIRST definition in both"
+                     " streams. That closes the first-definition assignment"
+                     " question and nothing else — read the scope lines"
+                     " below before treating it as an all-clear.")
+
+    later_mismatches, count_diffs = web_mismatches(
+        target_rows, our_rows, registers)
+    lines.extend(scope_banner(target_rows, our_rows, registers,
+                              later_mismatches, count_diffs))
 
     target_order = emission_order(target_defs)
     our_order = emission_order(our_defs)
@@ -308,6 +483,8 @@ def format_table(unit, fn, target_rows, our_rows, show_uses=False):
             f" callee-saved web(s), ours {len(our_defs)}. The extra web is a"
             " local the other stream kept somewhere else, or an allocator"
             " copy — `slotdiff.py` owns the frame side of that question.")
+    if per_web:
+        lines.extend(format_per_web(target_rows, our_rows, registers))
     return "\n".join(lines)
 
 
@@ -336,7 +513,8 @@ def main():
               " the function name")
         return 1
     print(format_table(unit, fn, target_rows, our_rows,
-                       show_uses="--uses" in sys.argv))
+                       show_uses="--uses" in sys.argv,
+                       per_web="--per-web" in sys.argv))
     return 0
 
 

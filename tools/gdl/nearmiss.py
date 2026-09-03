@@ -16,6 +16,15 @@ Parked caps come from the project memory graph: attempt records whose outcome
 is 'parked' or 'capped' (residuals already diagnosed as allocator-quirk
 walls). Default is to mark them [PARKED] rather than hide, so the queue stays
 honest.
+
+--residuals prints `real=N`, which is `fndiff --count`'s real (raw diff rows
+with every relocation line dropped) — the same number probe.py prints and the
+one work orders and attempt records quote — and RANKS on it. It used to print
+and rank on `fndiff --clean`'s differently-computed real under the
+unexplained label `d=`: measured over the live 219-row queue the two
+disagree on 140 rows and 177 of the 219 positions move when ranked on the
+arbiter every other tool quotes. `clean=N` is printed beside it only when the
+two disagree, so a record quoting either number still resolves to this row.
 """
 
 import argparse
@@ -25,7 +34,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fndiff import classify_function, normalized_reloc_lines, parse
+from fndiff import (classify_function, count_real, normalized_reloc_lines,
+                    parse)
 
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
@@ -59,6 +69,39 @@ def load_parked():
         return {row[0] for row in rows}
     finally:
         connection.close()
+
+
+def residual_columns(target, base):
+    """(real, clean, category) for one function's two parsed line lists.
+
+    THE COLUMN IS probe.py's `real` (run-41 item 6). Two different
+    computations are both called `real` in this project: raw diff rows minus
+    every relocation line (what `fndiff --count` and probe.py report, and
+    what work orders and attempt records quote), and rows over
+    reloc-NORMALIZED text (what `fndiff --clean` reports). This queue used to
+    print and RANK on the second under the unexplained label `d=`. Measured
+    over the live 219-row queue: the two disagree on 140 rows and 177 of the
+    219 positions change when ranked on the arbiter every other tool quotes
+    (AudioSetupBossStreams 1523 vs 1297; PlayerMotion 4168 vs 3982).
+    """
+    clean_rows = [line for line in difflib.unified_diff(
+        normalized_reloc_lines(target), normalized_reloc_lines(base),
+        lineterm="", n=0)
+        if line[:1] in "+-" and line[:3] not in ("+++", "---")]
+    raw_rows = [line for line in difflib.unified_diff(
+        target, base, lineterm="", n=0)
+        if line[:1] in "+-" and line[:3] not in ("+++", "---")]
+    return (count_real(raw_rows), len(clean_rows),
+            classify_function(target, base))
+
+
+def format_residual(real, clean, category, residuals):
+    """The residual columns of one queue row."""
+    if real is None:
+        return "  real=???" if residuals else ""
+    text = f"  real={real:4d}"
+    text += f" clean={clean:<4d}" if clean != real else " " * 11
+    return text + f" {category:<18}"
 
 
 def main():
@@ -110,33 +153,34 @@ def main():
                 name = f.get("name", "?")
                 size = int(f.get("size", 0) or 0)
                 real = None
+                clean = None
                 category = None
                 if target_fns is not None:
                     target = target_fns.get(name)
                     base = base_fns.get(name)
                     if target is not None and base is not None:
-                        diff = difflib.unified_diff(
-                            normalized_reloc_lines(target),
-                            normalized_reloc_lines(base), lineterm="", n=0)
-                        real = sum(1 for line in diff
-                                   if line[:1] in "+-" and
-                                   line[:3] not in ("+++", "---"))
-                        category = classify_function(target, base)
-                rows.append((pct, size, name, unit, real, category))
+                        real, clean, category = residual_columns(target, base)
+                rows.append((pct, size, name, unit, real, category, clean))
 
     if args.residuals:
         rows.sort(key=lambda r: (r[4] is None, r[4] or 0, -r[1], -r[0]))
     else:
         rows.sort(key=lambda r: (-r[0], r[1]))
+    if args.residuals:
+        print("legend: real=N is `fndiff --count`'s real — raw diff rows with"
+              " every relocation line dropped — which is the number probe.py"
+              " prints and the one every work order quotes; the queue is"
+              " ranked on it. clean=N appears only when `fndiff --clean`'s"
+              " differently-computed real disagrees, so a record quoting"
+              " either can be matched to this row.")
     shown = 0
-    for pct, size, name, unit, real, category in rows:
+    for pct, size, name, unit, real, category, clean in rows:
         tag = ""
         if name in parked:
             if args.parked == "skip":
                 continue
             tag = "  [PARKED]"
-        residual = (f"  d={real:3d} {category:<18}" if real is not None
-                    else "" if not args.residuals else "  d=???")
+        residual = format_residual(real, clean, category, args.residuals)
         print(f"{pct:6.2f}%  {size:5d}B{residual}  {name:<40} {unit}{tag}")
         shown += 1
     print(f"--- {shown} near-miss fns (>= {args.min}%, < 100%)"

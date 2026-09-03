@@ -51,6 +51,25 @@ functions score real > 0 in this state while linking byte-identical, and
 read as open work. Two CONCRETE symbols that disagree are never absorbed
 into it -- that is a real relocation defect.
 
+--clean also REPORTS every pool row it normalizes away, without scoring
+any of them. A row whose two symbols name different data prints as
+POOL-DEFECT (WRONG-POOL-DATUM = two concrete addresses; WRONG-POOL-VALUE =
+named-vs-anonymous entries whose BYTES disagree, read from the retail DOL
+and from our own object), and the benign remainder is counted on the HINT
+line, so "(+N pool-name lines suppressed)" no longer stands for an
+unexamined set. Calibrated over all 257 unit pairs: 3,222 rows are
+kind-differing-but-equal, 45 are wrong-datum and 177 wrong-value, and 23
+of the 72 flagged functions read `real 0` today.
+
+--ops leads with BRANCH-TARGET DIVERGENCE when one is present: a
+same-opcode branch row whose DISPLACEMENT differs and which has no unpaired
+cluster between it and its target cannot be explained by instruction drift,
+so the two streams branch to different places. That is a control-flow
+verdict, and it used to print last, under a parenthetical calling these rows
+"usually downstream" — which put the mechanism of a real 60 -> 34 win below
+twelve downstream IMMEDIATE rows. Calibrated: 35 rows in 14 functions,
+against 6,982 raw branch rows in 180.
+
 --ops collapses each function to its opcode stream (registers, operands and
 relocs ignored) and prints only the structurally inserted/deleted/replaced
 clusters. Use it to separate real shape differences (missing statements,
@@ -90,6 +109,7 @@ is newer (pass --no-build to skip). This prevents analyzing stale objects.
 from collections import Counter
 import difflib
 import re
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -97,6 +117,7 @@ from pathlib import Path
 VERSION = "GUNE5D"
 OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
 SYMBOLS_TXT = Path(f"config/{VERSION}/symbols.txt")
+RETAIL_DOL = Path(f"orig/{VERSION}/sys/main.dol")
 
 _POOL_SYMBOLS = None
 
@@ -636,6 +657,363 @@ def resolve_reloc_symbol_positional(symbol):
         return None
 
 
+# ---------------------------------------------------------------------------
+# Pool-row identity: the rows --clean normalizes away (run-41 item 3)
+#
+# `normalized_reloc_lines` collapses BOTH a dtk-named pool datum (lbl_ADDR,
+# or a splitter-named .sdata2/.rodata object) AND our object's anonymous
+# compiler pool entry (@N) to "<local>", so a row where the two sides name
+# DIFFERENT data diffs to nothing and is invisible in the recommended
+# iteration view. That is exactly the row that carried the mechanism of
+# run-40's STRICT close: adsInitFromHeader's prologue read
+# `lfd f28,@lbl_80349318` in the target and `lfd f28,@lbl_80349310` in ours
+# (one constant, wrong datum) beside `lfd f30,@lbl_80349320` vs
+# `lfd f30,@@273` (named vs anonymous), and --clean printed
+# "MATCH (pool-name noise only) ... (+8 pool-name lines suppressed)"
+# (attempt.NM_adsinitfromheader-extern-scaffold-and-statement-order-close
+# .20260902.v1; claim.law.NM_extern-scaffold-float-steals-the-low-callee-
+# saved-fpr-from-the-generated-conversion-constants.20260902.v1).
+#
+# CALIBRATED over all 257 unit pairs in this tree before shipping
+# (T11_scratch/t11_pool_kind_census.py): 3,399 suppressed rows in 642
+# functions differ only in KIND (named vs anonymous), 81 are pure renames,
+# 45 rows in 22 functions name two CONCRETE and DIFFERENT addresses. So
+# "stop suppressing kind-differing rows" as a raw diff row would add 3,399
+# rows of noise and move `real` project-wide, which the project forbids
+# ("naming a pool constant must never change a score"). What decides a
+# kind-differing row is the VALUE behind the two symbols, which is
+# readable: our @N is a local datum in our own object, and the target's
+# lbl_ADDR is at a known address in the retail DOL. Rows are therefore
+# reported, never scored, and only rows whose data actually disagree are
+# printed individually.
+# ---------------------------------------------------------------------------
+
+_LOCAL_DATA_CACHE: dict = {}
+_DOL_CACHE = None
+
+
+def _object_local_data(objfile: Path):
+    """{symbol: bytes} for data symbols DEFINED in this object.
+
+    Our compile emits its pool entries as local `@N` objects with a real
+    size; the bytes behind one are the only way to decide whether an
+    anonymous entry holds the same constant as the target's named datum.
+    """
+    key = str(objfile)
+    if key in _LOCAL_DATA_CACHE:
+        return _LOCAL_DATA_CACHE[key]
+    table = {}
+    try:
+        syms = subprocess.run([str(OBJDUMP), "-t", str(objfile)],
+                              capture_output=True, text=True).stdout
+    except OSError:
+        _LOCAL_DATA_CACHE[key] = table
+        return table
+    wanted = {}
+    sections = set()
+    for line in syms.splitlines():
+        if "\t" not in line:
+            continue
+        left, right = line.split("\t", 1)
+        left_fields = left.split()
+        right_fields = right.split()
+        if len(left_fields) < 2 or len(right_fields) < 2:
+            continue
+        if "O" not in left_fields[1:]:
+            continue
+        section = left_fields[-1]
+        if not section.startswith("."):
+            continue
+        try:
+            value = int(left_fields[0], 16)
+            size = int(right_fields[0], 16)
+        except ValueError:
+            continue
+        if size == 0:
+            continue
+        wanted[right_fields[-1]] = (section, value, size)
+        sections.add(section)
+    blobs = {}
+    for section in sections:
+        try:
+            dump = subprocess.run(
+                [str(OBJDUMP), "-s", "-j", section, str(objfile)],
+                capture_output=True, text=True).stdout
+        except OSError:
+            continue
+        data = bytearray()
+        for line in dump.splitlines():
+            m = re.match(r"^\s+([0-9a-f]+)\s((?:[0-9a-f]{2,8} ){1,4})", line)
+            if not m:
+                continue
+            offset = int(m.group(1), 16)
+            words = "".join(m.group(2).split())
+            if offset != len(data):
+                data.extend(b"\x00" * max(0, offset - len(data)))
+            try:
+                data.extend(bytes.fromhex(words))
+            except ValueError:
+                continue
+        blobs[section] = bytes(data)
+    for name, (section, value, size) in wanted.items():
+        blob = blobs.get(section)
+        if blob is None or value + size > len(blob):
+            continue
+        table[name] = blob[value:value + size]
+    _LOCAL_DATA_CACHE[key] = table
+    return table
+
+
+def _retail_dol():
+    """(blob, [(start, end, file_offset)]) for the retail DOL, or None."""
+    global _DOL_CACHE
+    if _DOL_CACHE is None:
+        if not RETAIL_DOL.exists():
+            _DOL_CACHE = False
+        else:
+            blob = RETAIL_DOL.read_bytes()
+            sections = []
+            for i in range(18):
+                off = struct.unpack_from(">I", blob, 0x00 + i * 4)[0]
+                addr = struct.unpack_from(">I", blob, 0x48 + i * 4)[0]
+                size = struct.unpack_from(">I", blob, 0x90 + i * 4)[0]
+                if off and addr and size:
+                    sections.append((addr, addr + size, off))
+            _DOL_CACHE = (blob, sections)
+    return _DOL_CACHE or None
+
+
+_SYMBOL_SIZES = None
+
+
+def symbol_sizes():
+    """name -> declared byte size from symbols.txt (0 when unstated)."""
+    global _SYMBOL_SIZES
+    if _SYMBOL_SIZES is None:
+        table = {}
+        if SYMBOLS_TXT.exists():
+            pattern = re.compile(
+                r"^(\S+)\s*=\s*\.\w+:0x[0-9A-Fa-f]+;.*?size:0x([0-9A-Fa-f]+)")
+            for line in SYMBOLS_TXT.read_text(
+                    encoding="utf-8", errors="replace").splitlines():
+                match = pattern.match(line.strip())
+                if match:
+                    table[match.group(1)] = int(match.group(2), 16)
+        _SYMBOL_SIZES = table
+    return _SYMBOL_SIZES
+
+
+def target_datum_bytes(symbol):
+    """Bytes behind a target relocation symbol, read from the retail DOL."""
+    head = _RELOC_SYM_RE.match((symbol or "").strip())
+    if not head:
+        return None
+    name = head.group(1)
+    base = symbol_addresses().get(name)
+    size = symbol_sizes().get(name)
+    if base is None or not size:
+        return None
+    try:
+        addr = base + int(head.group(2) or "0", 0)
+    except ValueError:
+        return None
+    dol = _retail_dol()
+    if not dol:
+        return None
+    blob, sections = dol
+    for start, end, off in sections:
+        if start <= addr and addr + size <= end:
+            return blob[off + (addr - start): off + (addr - start) + size]
+    return None
+
+
+def ours_datum_bytes(symbol, objfile):
+    """Bytes behind one of OUR relocation symbols, read from our object."""
+    head = _RELOC_SYM_RE.match((symbol or "").strip())
+    if not head or objfile is None:
+        return None
+    data = _object_local_data(Path(objfile)).get(head.group(1))
+    if data is None:
+        return None
+    try:
+        addend = int(head.group(2) or "0", 0)
+    except ValueError:
+        return None
+    if addend:
+        return data[addend:] or None
+    return data
+
+
+def _symbol_kind(symbol):
+    """'anon' for a compiler-private pool entry, else 'named'."""
+    head = _RELOC_SYM_RE.match((symbol or "").strip())
+    name = head.group(1) if head else (symbol or "").strip()
+    return "anon" if _ANONYMOUS_POOL_RE.fullmatch(name) else "named"
+
+
+def suppressed_pool_rows(t, b):
+    """[(t_index, t_symbol, ours_symbol)] for rows --clean normalizes away.
+
+    Paired exactly the way clean_diff pairs its lines — a sequence match
+    over the reloc-NORMALIZED text — so every row returned here is one the
+    --clean diff itself scored as EQUAL.
+    """
+    tn, bn = normalized_reloc_lines(t), normalized_reloc_lines(b)
+    rows = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, tn, bn, autojunk=False).get_opcodes():
+        if tag != "equal":
+            continue
+        for k in range(i2 - i1):
+            t_line, o_line = t[i1 + k], b[j1 + k]
+            if t_line == o_line or not t_line.startswith("    "):
+                continue
+            t_parts = t_line.strip().split(maxsplit=1)
+            o_parts = o_line.strip().split(maxsplit=1)
+            rows.append((i1 + k,
+                         t_parts[1] if len(t_parts) > 1 else "",
+                         o_parts[1] if len(o_parts) > 1 else ""))
+    return rows
+
+
+def _instruction_offsets(lines):
+    """line index -> byte offset of the instruction that line belongs to."""
+    offsets = {}
+    count = 0
+    for index, line in enumerate(lines):
+        if line.startswith("    "):
+            offsets[index] = max(0, (count - 1) * 4)
+        else:
+            offsets[index] = count * 4
+            count += 1
+    return offsets
+
+
+def _datum_prefix_equal(t_val, o_val):
+    """Do two pool entries hold the same constant, at differing GRANULARITY?
+
+    Calibration catch (run 41): dtk names a whole contiguous .rodata run
+    with ONE `lbl_ADDR` symbol — `lbl_80116BD8` is 0xB4 bytes covering four
+    string literals — while our compiler emits each literal as its own `@N`
+    object (`@33`, 0x28 bytes). Comparing the full byte arrays called every
+    such row a value mismatch: 337 rows in 123 functions, including
+    byte-identical functions inside the 100%-matched SDK (DEMOInit::
+    LoadMemInfo at real 0). The relocation points at the START of both, so
+    the decidable question is whether the shorter entry is a PREFIX of the
+    longer one.
+    """
+    if not t_val or not o_val:
+        return False
+    span = min(len(t_val), len(o_val))
+    return t_val[:span] == o_val[:span]
+
+
+def _render_value(data, at=0):
+    """Human reading of a pool datum, windowed at the first differing byte.
+
+    A scalar prints as its float/word interpretation; a long datum (dtk
+    names a whole .rodata string run with one symbol) prints an ASCII
+    window around `at`, because "0x41747265…" truncated to 16 bytes made
+    two DIFFERENT strings render identically.
+    """
+    if not data:
+        return "?"
+    if len(data) == 4:
+        return (f"0x{struct.unpack_from('>I', data)[0]:08X}"
+                f" (f32 {struct.unpack_from('>f', data)[0]!r})")
+    if len(data) == 8:
+        return (f"0x{data.hex().upper()}"
+                f" (f64 {struct.unpack_from('>d', data)[0]!r})")
+    lo = max(0, at - 8)
+    window = data[lo:lo + 32]
+    text = "".join(chr(byte) if 32 <= byte < 127 else "." for byte in window)
+    return f"+0x{lo:x} {text!r}" + ("…" if lo + 32 < len(data) else "")
+
+
+def pool_row_findings(t, b, ours_object=None):
+    """Classify every pool row --clean suppresses. Never touches a score.
+
+    Row classes, in decreasing severity:
+      WRONG-POOL-DATUM  both symbols resolve to CONCRETE addresses and the
+                        two addresses differ — the same instruction reads a
+                        different datum, so the linked words differ
+      WRONG-POOL-VALUE  named-vs-anonymous, and the BYTES behind the two
+                        entries disagree — our pool holds a different
+                        constant (this is the adsInitFromHeader shape)
+      POOL-KIND-UNDECIDED  named-vs-anonymous and the bytes could not be
+                        read on one side
+      POOL-KIND-EQUAL   named-vs-anonymous, same bytes — benign, counted
+      RENAME            two spellings of one address — benign, counted
+    """
+    offsets = _instruction_offsets(t)
+    findings = []
+    for index, t_sym, o_sym in suppressed_pool_rows(t, b):
+        t_at = resolve_reloc_symbol_positional(t_sym)
+        o_at = resolve_reloc_symbol_positional(o_sym)
+        at = offsets.get(index, 0)
+        if t_at is not None and o_at is not None:
+            kind = "RENAME" if t_at == o_at else "WRONG-POOL-DATUM"
+            findings.append((kind, at, t_sym, o_sym, None, None))
+            continue
+        if _symbol_kind(t_sym) == _symbol_kind(o_sym):
+            # Two anonymous entries: pool renumbering, no cross-object
+            # identity exists at all. Benign by construction.
+            findings.append(("POOL-RENUMBER", at, t_sym, o_sym, None, None))
+            continue
+        t_val = target_datum_bytes(t_sym)
+        o_val = ours_datum_bytes(o_sym, ours_object)
+        if t_val is None or o_val is None:
+            findings.append(("POOL-KIND-UNDECIDED", at, t_sym, o_sym,
+                             t_val, o_val))
+        elif _datum_prefix_equal(t_val, o_val):
+            findings.append(("POOL-KIND-EQUAL", at, t_sym, o_sym,
+                             t_val, o_val))
+        else:
+            findings.append(("WRONG-POOL-VALUE", at, t_sym, o_sym,
+                             t_val, o_val))
+    return findings
+
+
+LOUD_POOL_CLASSES = ("WRONG-POOL-DATUM", "WRONG-POOL-VALUE")
+
+
+def print_pool_findings(name, findings):
+    """Print the suppressed pool rows. Returns the loud-row count."""
+    loud = [row for row in findings if row[0] in LOUD_POOL_CLASSES]
+    if loud:
+        print(f"POOL-DEFECT {name}  ({len(loud)} relocation row(s) that"
+              " --clean normalizes to nothing read a DIFFERENT pool datum —"
+              " no score in this tool sees them)")
+        for kind, at, t_sym, o_sym, t_val, o_val in loud:
+            if kind == "WRONG-POOL-DATUM":
+                t_at = resolve_reloc_symbol_positional(t_sym)
+                o_at = resolve_reloc_symbol_positional(o_sym)
+                print(f"    pool@0x{at:x}  target {t_sym} (0x{t_at:08X})"
+                      f"   ours {o_sym} (0x{o_at:08X})   ADDRESSES DIFFER")
+            else:
+                first = next((i for i in range(min(len(t_val), len(o_val)))
+                              if t_val[i] != o_val[i]), 0)
+                print(f"    pool@0x{at:x}  target {t_sym}"
+                      f" = {_render_value(t_val, first)}"
+                      f"   ours {o_sym} = {_render_value(o_val, first)}"
+                      f"   VALUES DIFFER (first at +0x{first:x})")
+    return len(loud)
+
+
+def pool_findings_note(findings):
+    """One-line census of the benign suppressed rows, for the HINT line."""
+    counts = Counter(row[0] for row in findings
+                     if row[0] not in LOUD_POOL_CLASSES)
+    if not counts:
+        return ""
+    parts = []
+    for kind in ("POOL-KIND-EQUAL", "POOL-KIND-UNDECIDED", "POOL-RENUMBER",
+                 "RENAME"):
+        if counts.get(kind):
+            parts.append(f"{counts[kind]} {kind}")
+    return ", ".join(parts)
+
+
 def positional_reloc_rows(target_lines, ours_lines, resolve=None):
     """(rows, reason) — the positional relocation-identity pass.
 
@@ -907,6 +1285,71 @@ def immediate_deltas(t, b):
     return out
 
 
+_BRANCH_TARGET_INDEX_RE = re.compile(r"<fn\+0x(-?[0-9a-f]+)>")
+
+
+def _branch_target_index(line):
+    """Instruction index a normalized branch row points at, or None."""
+    m = _BRANCH_TARGET_INDEX_RE.search(line)
+    if not m:
+        return None
+    text = m.group(1)
+    value = -int(text[1:], 16) if text.startswith("-") else int(text, 16)
+    return value // 4
+
+
+def branch_divergences(t, b):
+    """[(t_index, o_index, t_target, o_target, structural)] rows.
+
+    Run-41 item 2. `--ops` prints these LAST, after every cluster and every
+    IMMEDIATE row, under a parenthetical calling them "usually downstream of
+    the clusters above". Usually is not always: for CT's MBCameraUpdate the
+    branch divergence WAS the mechanism of a real 60 -> 34 win and it sat
+    below twelve downstream IMMEDIATE rows, where a truncated view drops it
+    entirely.
+
+    STRUCTURAL is the discriminator that makes it a verdict rather than a
+    footnote, and CALIBRATION forced it to be a strict one. `parse`
+    normalizes a branch to its ABSOLUTE target `<fn+0xNN>`, so two
+    BYTE-IDENTICAL branch words sitting at different indices normalize to
+    different targets and land in this list as pure positional artifacts.
+    Ranking on the absolute target alone called 5,286 of 6,982 rows
+    structural (76%, 164 functions) — a headline that fires on three rows
+    in four is a footnote with a louder font. The instruction word encodes
+    the DISPLACEMENT, so the displacement is what must differ; and even
+    then an unpaired cluster between the branch and its target explains the
+    difference as drift. Both conditions are required.
+    """
+    ti, _t_rel = relocated_instructions(t)
+    bi, _b_rel = relocated_instructions(b)
+    to = [ln.split()[0] for ln in ti]
+    bo = [ln.split()[0] for ln in bi]
+    blocks = difflib.SequenceMatcher(
+        None, to, bo, autojunk=False).get_opcodes()
+    t_unpaired = [(i1, i2) for tag, i1, i2, _j1, _j2 in blocks
+                  if tag != "equal" and i2 > i1]
+    o_unpaired = [(j1, j2) for tag, _i1, _i2, j1, j2 in blocks
+                  if tag != "equal" and j2 > j1]
+
+    def spans_clear(unpaired, lo, hi):
+        lo, hi = min(lo, hi), max(lo, hi)
+        return not any(start < hi and lo < end for start, end in unpaired)
+
+    rows = []
+    for t_index, o_index, kind, t_line, b_line in immediate_deltas(t, b):
+        if kind != "branch":
+            continue
+        t_target = _branch_target_index(t_line)
+        o_target = _branch_target_index(b_line)
+        if t_target is None or o_target is None:
+            continue
+        structural = ((t_target - t_index) != (o_target - o_index)
+                      and spans_clear(t_unpaired, t_index, t_target)
+                      and spans_clear(o_unpaired, o_index, o_target))
+        rows.append((t_index, o_index, t_target, o_target, structural))
+    return rows
+
+
 # How many rows either side of an unpaired block are treated as guesses.
 # The matcher's alignment is trustworthy in the MIDDLE of a long equal run
 # and progressively less so as it approaches a boundary it had to choose.
@@ -1037,10 +1480,16 @@ def real_reconciliation(real, raw_rows, noise):
     return ""
 
 
-def clean_diff(name, t, b):
+def clean_diff(name, t, b, ours_object=None):
     """Noise-free diff + always-printed summary + mechanical hints.
 
     Empty output can never mean success: every function ends with a '==' line.
+
+    Pool rows this view normalizes away are reported but never scored (see
+    the pool-row identity block above): a row whose two symbols name
+    different data is printed in full, and the benign remainder is counted
+    on the HINT line so "N pool-name lines suppressed" can no longer stand
+    for an unexamined set.
     """
     tn, bn = normalized_reloc_lines(t), normalized_reloc_lines(b)
     raw = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
@@ -1054,7 +1503,17 @@ def clean_diff(name, t, b):
         for line in diff:
             print(line)
 
+    findings = pool_row_findings(t, b, ours_object)
+    loud = print_pool_findings(name, findings)
+
     hints = []
+    if loud:
+        hints.append(f"{loud} suppressed pool row(s) name DIFFERENT data"
+                     " (printed above) — this view's `real` cannot see them;"
+                     " confirm with `--relocs`")
+    note = pool_findings_note(findings)
+    if note:
+        hints.append(f"suppressed pool rows: {note}")
     tf, bf = frame_size(t), frame_size(b)
     if tf is not None and bf is not None and tf != bf:
         delta = tf - bf
@@ -1171,6 +1630,30 @@ def ops_diff(name, t, b):
         losses = " ".join(f"-{n} {op}" for op, n in sorted(delta[1].items()))
         print(f"  opcode multiset: DIFFERS  target-only: {gains or '(none)'}"
               f"  ours-only: {losses or '(none)'}")
+    # HEADLINE CLASS, ABOVE THE CLUSTERS (run-41 item 2). A branch-target
+    # divergence that drift cannot explain is a CONTROL-FLOW difference, not
+    # a downstream artifact, and printing it last — below every cluster and
+    # every IMMEDIATE row, under a parenthetical saying it is "usually
+    # downstream" — put the mechanism of CT's real 60 -> 34 MBCameraUpdate
+    # win beneath twelve IMMEDIATE rows, where probe's truncated view drops
+    # it. Equal counts alone are not the discriminator (local inserts and
+    # deletes cancel); "no unpaired cluster between the branch and its
+    # target" is.
+    branches = branch_divergences(t, b)
+    structural = [row for row in branches if row[4]]
+    if structural:
+        print(f"  BRANCH-TARGET DIVERGENCE: {len(structural)} of"
+              f" {len(branches)} same-opcode branch row(s) point at a"
+              " DIFFERENT instruction with NO unpaired cluster between the"
+              " branch and its target — instruction drift cannot explain"
+              " these, so the two streams branch to different places. This"
+              " is a control-flow difference, not downstream noise; read it"
+              " before the clusters below.")
+        for t_index, o_index, t_target, o_target, _ in structural:
+            print(f"    BRANCH T[{t_index}]@{t_index * 4:x} ->"
+                  f" @{t_target * 4:x}   O[{o_index}]@{o_index * 4:x} ->"
+                  f" @{o_target * 4:x}"
+                  f"   (target moves {(o_target - t_target) * 4:+d} bytes)")
     # @0x offsets are function-relative byte offsets (index*4), directly
     # usable as fnasm.py 0xA:0xB slices on the target (T) / --ours (O) dumps.
     flagged = 0
@@ -1210,10 +1693,14 @@ def ops_diff(name, t, b):
               " eligibility-deciding word, not schedule noise. Read each at"
               f" `fnasm <unit> {name} 0x{imm[0][0] * 4:x}:0x"
               f"{imm[0][0] * 4 + 4:x} --diff`.")
-    if branch_imm:
-        print(f"  ({len(branch_imm)} further same-opcode row(s) differ only"
-              " in a normalized BRANCH TARGET — usually downstream of the"
-              " clusters above; fix those first and re-read.)")
+    drifting = len(branch_imm) - len(structural)
+    if drifting > 0:
+        print(f"  ({drifting} further same-opcode row(s) differ only in a"
+              " normalized BRANCH TARGET, each with an unpaired cluster"
+              " between the branch and its target — those ARE explainable as"
+              " downstream drift; fix the clusters first and re-read."
+              + (" The structural ones are reported at the top.)"
+                 if structural else ")"))
     if flagged:
         print(f"  {flagged} of {len(clusters)} clusters flagged: SHIFTABLE ="
               " the same edit is expressible at another offset, so THIS"
@@ -1238,6 +1725,18 @@ def truncate_ops(ops_text, limit):
     if len(lines) <= limit:
         return "\n".join(lines)
     kept, dropped = lines[:limit], lines[limit:]
+    # The BRANCH-TARGET DIVERGENCE block is emitted above the clusters
+    # precisely so a cut cannot hide it (run-41 item 2); if a cut ever does
+    # reach it, say so rather than let it vanish the way IMMEDIATE rows did.
+    branch_dropped = sum(
+        1 for line in dropped
+        if line.lstrip().startswith(("BRANCH ", "BRANCH-TARGET")))
+    if branch_dropped:
+        kept.append(
+            f"  ... {branch_dropped} BRANCH-TARGET DIVERGENCE line(s)"
+            " suppressed — a branch that drift cannot explain is a"
+            " control-flow difference, not noise; read the full"
+            " `fndiff --ops`")
     imm_dropped = sum(
         1 for line in dropped if line.lstrip().startswith("IMMEDIATE "))
     if imm_dropped:
@@ -1386,7 +1885,7 @@ def main():
             ops_diff(name, t, b)
             continue
         if clean:
-            clean_diff(name, t, b)
+            clean_diff(name, t, b, ours_object=base_o)
             continue
         print("=" * 20, name)
         for line in difflib.unified_diff(t, b, "target", "base", lineterm="", n=2):

@@ -1418,19 +1418,59 @@ def discard_refusal(fn, unit, inside, outside, entangled):
     The refusal fires ONLY when there IS other work: with every hunk inside
     the named function a whole-file restore and a scoped one are the same
     bytes, and nothing changes.
+
+    TWO CLASSES, REPORTED SEPARATELY (run-41 item 9). `restore_scope_counts`
+    returns OUTSIDE and STRADDLING hunks in one list while counting only the
+    outside ones, and this text used to print the outside COUNT against the
+    whole LIST. On a hunk that crosses the boundary — which is what a
+    declaration hoist out of a nested block produces when it moves the
+    function's own bracing lines — it read, verbatim:
+
+        0 uncommitted hunk(s) in this TU lie OUTSIDE alpha
+        (straddling L12-L13)
+
+    a count of zero followed by a list of one, and it then offered
+    `--discard --function` as the remedy, which probe's own control flow
+    refuses again for exactly that hunk. Both numbers now come from the list
+    they describe, and only the remedies that can actually run are offered.
     """
-    spans = ", ".join(f"{kind} L{a}-L{b}" for kind, a, b in entangled)
-    return (
-        f"REFUSED: --discard would restore ALL of {unit} to HEAD, and"
-        f" {outside} uncommitted hunk(s) in this TU lie OUTSIDE {fn}"
-        f" ({spans}). That is the one thing this flag cannot undo.\n"
-        "  --discard --function   restore ONLY the hunks inside"
-        f" {fn}, leaving the rest of the TU's uncommitted work alone\n"
+    outside_spans = [row for row in entangled if row[0] == "outside"]
+    straddling = [row for row in entangled if row[0] == "straddling"]
+
+    def spans_of(rows):
+        return ", ".join(f"L{a}-L{b}" for _kind, a, b in rows)
+
+    lines = [f"REFUSED: --discard would restore ALL of {unit} to HEAD."]
+    if outside_spans:
+        lines.append(
+            f"  {len(outside_spans)} uncommitted hunk(s) lie OUTSIDE {fn}"
+            f" ({spans_of(outside_spans)}) — restoring the whole file"
+            " destroys them, and that is the one thing this flag cannot"
+            " undo.")
+    if straddling:
+        lines.append(
+            f"  {len(straddling)} hunk(s) STRADDLE {fn}'s boundary"
+            f" ({spans_of(straddling)}) — each contains lines both inside"
+            " and outside the function, so no scoped restore can separate"
+            " them.")
+    if not outside_spans:
+        lines.append(
+            f"  No hunk lies wholly outside {fn}: every other differing line"
+            " in this TU is inside it. --whole-file therefore destroys no"
+            " sibling function's work here, only the straddling hunk(s)"
+            " above.")
+    if straddling:
+        lines.append(
+            "  --discard --function  WILL REFUSE while a straddling hunk"
+            " exists; it cannot split one.")
+    else:
+        lines.append(
+            f"  --discard --function   restore ONLY the hunks inside {fn},"
+            " leaving the rest of the TU's uncommitted work alone")
+    lines.append(
         "  --discard --whole-file  take the old all-or-nothing restore"
-        " deliberately (run `git diff` first)\n"
-        "  A hunk marked `straddling` crosses the function boundary and"
-        " cannot be separated at all; --whole-file is the only option for"
-        " it, and only after you have read the diff.")
+        " deliberately (run `git diff` first)")
+    return "\n".join(lines)
 
 
 def count_distance(text):

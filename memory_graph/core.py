@@ -4064,6 +4064,94 @@ def unknown_entity_message(key: str, namespaces, suggestions) -> str:
     return "\n".join(lines)
 
 
+# A sentence fires only when it does BOTH things: attribute ownership to
+# ANOTHER LANE, and withhold the named work. Two calibration passes over all
+# 361 work_claim versions in this repository's history set that conjunction:
+#
+#   veto words alone (VETO / excluding / skip / "do not touch") fired on 9
+#   claims of which 8 were correct orders — a lane that owns a TU and vetoes
+#   ONE function inside it ("damage_enemy P6 = VETO", "do not touch
+#   LinkItemTriggers", "fn_800D860C fuzzy-vetoed") is the normal healthy
+#   shape, an 89% false-positive rate;
+#
+#   ownership words alone fired on 16, nearly all false: "You own both
+#   sides", "(owns webfrank.py + tests)", and every `claim.law.…` citation
+#   in the corpus contains the word `claim`.
+#
+# What made run-40's miss a miss is that BOTH were present at once: "SA/SB
+# own PlayerProcessPowerups, fn_800DACD8, do_enemies, CritterTranslate -
+# VETO those". Owner attribution is required to name a LANE CODE, not just
+# to use the word "own".
+_OTHER_OWNER_RE = re.compile(
+    r"(?:\b[A-Z]{2,3}(?:\s*/\s*[A-Z]{2,3})*\s+owns?\b"
+    r"|\bowned by\b|\bclaimed by\b|\bpending\s+[A-Z]{2,3}\b"
+    r"|\bowns? theirs\b)")
+_WITHHELD_RE = re.compile(
+    r"(?:\bVETO\b|\bvetoe?[ds]?\b|\bEXCLUD|\bexclud|\bskip(?:ping)?\b"
+    r"|\bdo not touch\b|\bhands? off\b)")
+_SENTENCE_SPLIT_RE = re.compile(r"[.;\n]|(?<=\))\s+(?=[A-Z])")
+_IDENTIFIER_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]{3,}\b")
+
+
+def work_claim_anchor_veto(record: dict[str, Any],
+                           connection: sqlite3.Connection) -> str | None:
+    """Message when a work_claim's anchor sits inside a TU its scope vetoes.
+
+    Run-41 item 8, from an integrator miss in run 40:
+    `work_claim.sched-census-t2.20260902.v1` anchored
+    `function:CritterDoSfx` while its own scope read "SA/SB own
+    PlayerProcessPowerups, fn_800DACD8, do_enemies, CritterTranslate - VETO
+    those" — and CritterDoSfx lives in game/enemy/critter.c, the same TU as
+    the vetoed CritterTranslate. TU ownership is whole-TU by the project's
+    own rule (MWCC pools, declaration order and register allocation couple a
+    TU), so the anchor pointed the lane straight at a TU the order had
+    already given away, and nothing checked it.
+
+    The check is narrow on purpose, and calibration is what set the width:
+    only a sentence that hands the function to ANOTHER OWNER counts, and only
+    a name the symbol table resolves to a GameCube function counts. A lane
+    that owns a TU and vetoes one function inside it — the normal shape — is
+    silent, and so is a scope with no ownership language.
+    """
+    if record.get("kind") != "work_claim":
+        return None
+    anchor = record.get("function")
+    if not isinstance(anchor, str) or not anchor.startswith("function:"):
+        return None
+    anchor_name = anchor[len("function:"):]
+    anchor_tu = _module_for_function(connection, anchor_name)
+    if not anchor_tu:
+        return None
+    scope = _record_field(record, "scope")
+    if not isinstance(scope, str) or not scope.strip():
+        return None
+    for sentence in _SENTENCE_SPLIT_RE.split(scope):
+        if not (_OTHER_OWNER_RE.search(sentence)
+                and _WITHHELD_RE.search(sentence)):
+            continue
+        for candidate in _IDENTIFIER_RE.findall(sentence):
+            if candidate.lower() == anchor_name.lower():
+                continue
+            other_tu = _module_for_function(connection, candidate)
+            if other_tu and other_tu == anchor_tu:
+                return (
+                    f"the work_claim anchors function:{anchor_name}, which"
+                    f" lives in {anchor_tu} — the same TU as {candidate},"
+                    " which this order's own scope hands to another owner: "
+                    + " ".join(sentence.split())[:240]
+                    + ". TU ownership is whole-TU (MWCC pools, declaration"
+                    " order and register allocation couple a TU), so this"
+                    " anchor points the lane at a TU the order has already"
+                    " given away. Anchor the claim on a function in a TU"
+                    " the scope actually leaves open, or correct the"
+                    " ownership note."
+                    " Run-40's work_claim.sched-census-t2.20260902.v1"
+                    " shipped with exactly this shape"
+                    " (function:CritterDoSfx against a vetoed"
+                    " CritterTranslate, both game/enemy/critter.c).")
+    return None
+
+
 def _probe_record_references(
     record: dict[str, Any], root: Path, db_path: Path | None = None,
     connection: sqlite3.Connection | None = None,
@@ -4759,7 +4847,11 @@ def gate_e_substance(record: Mapping[str, Any]) -> str:
     )
 
 
-def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
+def _apply_proposal_gates(
+    record: dict[str, Any],
+    *,
+    collect_failures: list[str] | None = None,
+) -> list[str]:
     """The three run-29 validation gates, binding on NEW proposals only.
 
     Each gate exists because a specific burned-probe criticism was recorded;
@@ -4773,6 +4865,20 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     """
     text = _record_text(record)
     warnings: list[str] = []
+
+    def fail(message: str) -> None:
+        """Report a gate failure: raise, or COLLECT under --dry-run.
+
+        Run-41 item 7. Every gate below used to raise on the spot, so a
+        draft violating five of them cost five author round-trips — NM
+        paid exactly that, and MV paid seventeen attempts once the size
+        preflight is counted. The gates are INDEPENDENT `if` blocks, so
+        collecting instead of raising reports the whole set in one pass
+        without changing which drafts are refused.
+        """
+        if collect_failures is None:
+            raise MemoryGraphError(message)
+        collect_failures.append(message)
     refuter_warning = hypothesis_refuter_warning(
         _record_field(record, "hypothesis"))
     if refuter_warning:
@@ -4788,7 +4894,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
         law_text = value if isinstance(value, str) else text
         hit = _NECESSITY_RE.search(law_text)
         if hit and not _record_field(record, "falsifier"):
-            raise MemoryGraphError(
+            fail(
                 f"necessity-language law (matched {hit.group(0)!r}) requires a"
                 " `falsifier`: state what evidence would DISPROVE this law and"
                 " where that evidence lives. An unconditional law with no"
@@ -4838,7 +4944,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
         or bool(_POSTPROCESSOR_CLASS_RE.search(substance))
     )
     if reclassifies and not _INSNS_QUOTE_RE.search(text):
-        raise MemoryGraphError(
+        fail(
             "a record reclassifying a function into the postprocessor work"
             " class must QUOTE the instruction counts as N/N (ours/target)."
             " claim.law.webfrank-cannot-close-instruction-count-deltas"
@@ -4890,7 +4996,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             # ask, read the refusal as "you must invent a denial". An
             # escape a reader does not reach is an escape that does not
             # exist. Two branches, in the order a reader needs them.
-            raise MemoryGraphError(
+            fail(
                 f"denial language (matched {denial_hit.group(0)!r}) on a"
                 " function-anchored record.\n"
                 "\nARE YOU DESCRIBING SOMEONE ELSE'S DENIAL — screening it,"
@@ -4927,7 +5033,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             and not _record_field(record, "differing_words")):
         sized = _WORD_SIZED_RESIDUAL_RE.search(gate_e_text)
         if sized and not _WORD_DIFF_EVIDENCE_RE.search(gate_e_text):
-            raise MemoryGraphError(
+            fail(
                 "a residual claim confined to a named window and sized in"
                 f" words (matched {' '.join(sized.group(0).split())!r})"
                 " must quote the RAW DIFFERING-WORD COUNT that backs it."
@@ -4955,7 +5061,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
         if (rows >= _CORRESPONDENCE_MIN_ROWS
                 and _CORRESPONDENCE_WORD_RE.search(text)
                 and not _COVERAGE_RANGE_RE.search(text)):
-            raise MemoryGraphError(
+            fail(
                 f"this record publishes a register correspondence ({rows}"
                 " mapping rows) and never says WHICH BYTES it covers."
                 " A correspondence derived from part of a function is not a"
@@ -4991,7 +5097,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             multi = _MULTI_EDIT_COUNT_RE.search(probed) \
                 or _MULTI_EDIT_ENUM_RE.search(probed)
             if multi and not _record_field(record, "held_fixed"):
-                raise MemoryGraphError(
+                fail(
                     "multi-edit probed_form (matched"
                     f" {' '.join(multi.group(0).split())!r}) requires"
                     " `held_fixed`: name the variable this park held CONSTANT"
@@ -5024,7 +5130,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             and not _record_field(record, "verifiers_run")):
         closed = _POSTPROCESSOR_CLOSED_RE.search(substance)
         if closed:
-            raise MemoryGraphError(
+            fail(
                 "a record closing the POSTPROCESSOR path for a function"
                 f" (matched {' '.join(closed.group(0).split())!r}) must"
                 " enumerate WHICH verifiers ran, in `verifiers_run`. A"
@@ -5062,7 +5168,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             and not _WINDOW_SHAPE_RE.search(substance)):
         composed = _COMPOSED_CLOSED_RE.search(substance)
         if composed:
-            raise MemoryGraphError(
+            fail(
                 "a record closing the COMPOSED postprocessor class"
                 f" (matched {' '.join(composed.group(0).split())!r}) must"
                 " name the WINDOWS it tried, in `windows_tried` or in the"
@@ -5093,7 +5199,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             and _STACK_REGION_RE.search(substance)
             and not _record_field(record, "addressing_modes_covered")
             and not _ADDRESSING_MODE_EVIDENCE_RE.search(substance)):
-        raise MemoryGraphError(
+        fail(
             "a claim that a stack REGION IS NEVER ACCESSED must state which"
             " ADDRESSING MODES the measurement covered — set"
             " `addressing_modes_covered`, or say so in the prose. This is a"
@@ -5137,7 +5243,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
         statement = statement.get("statement")
     gaps = register_definition_gaps(statement, text)
     if gaps:
-        raise MemoryGraphError(
+        fail(
             "this hypothesis names the register(s)"
             f" {', '.join(gaps)} but the record never quotes a DEFINITION"
             " SITE for them — an instruction that WRITES the register,"
@@ -5300,6 +5406,7 @@ def stage_record_proposal(
     dry_run: bool = False,
     confirm_new: bool = False,
     warnings: list[str] | None = None,
+    report_all: bool = False,
 ) -> Path:
     """Atomically stage one validated record in the review-required inbox.
 
@@ -5309,9 +5416,33 @@ def stage_record_proposal(
     of itself. ``dry_run`` runs the full validation (schema, law_screen,
     tags, references, duplicates) but writes nothing — for iterating on a
     draft without producing throwaway inbox files.
+
+    ``report_all`` (run-41 item 7) collects EVERY independent check's failure
+    and raises them together instead of stopping at the first. The checks
+    below are independent by construction — separate `if` blocks over the
+    same record — so stopping at the first one made a draft violating five
+    gates cost five author round-trips. NM paid exactly that, and MV paid
+    seventeen attempts once the `--size` preflight is counted, because that
+    preflight was a mutually exclusive CLI branch and could not run in the
+    same call as the gates. Which drafts are refused does not change; only
+    how many round-trips it takes to learn why.
     """
     if not isinstance(record, dict):
         raise MemoryGraphError("proposed record must be a JSON object")
+    failures: list[str] | None = [] if report_all else None
+
+    def fail(message: str) -> None:
+        if failures is None:
+            raise MemoryGraphError(message)
+        failures.append(message)
+
+    def finish() -> None:
+        if failures:
+            raise MemoryGraphError(
+                f"{len(failures)} proposal problem(s), all of them reported"
+                " together so one edit can fix the draft:\n"
+                + "\n".join(f"  [{n}] {text}"
+                            for n, text in enumerate(failures, 1)))
     now = datetime.now(timezone.utc)
     # Freshness stamps: valid_from is the author's semantic date (defaulted to
     # today), recorded_at is always the actual staging moment.
@@ -5323,7 +5454,7 @@ def stage_record_proposal(
             attributes.get("law_screen") if isinstance(attributes, dict) else None
         )
         if not isinstance(law_screen, str) or not law_screen.strip():
-            raise MemoryGraphError(
+            fail(
                 "attempt proposals must carry attributes.law_screen: name the"
                 " law records screened for this pass and whether each applied"
                 " (run `gdlmem.py laws` for the current corpus); an explicit"
@@ -5337,15 +5468,23 @@ def stage_record_proposal(
         unknown = [tag for tag in proposed_tags
                    if tag not in LAW_TAG_VOCABULARY]
         if unknown:
-            raise MemoryGraphError(
+            fail(
                 f"unknown tag(s) {unknown}: attributes.tags must come from"
                 " the controlled vocabulary — "
                 + ", ".join(sorted(LAW_TAG_VOCABULARY))
                 + " (extend LAW_TAG_VOCABULARY in memory_graph/core.py via a"
                 " reviewed change if a new pattern class is real)"
             )
-    _validate_record(record, Path("<proposal>"))
-    gate_warnings = _apply_proposal_gates(record)
+    try:
+        _validate_record(record, Path("<proposal>"))
+    except MemoryGraphError as error:
+        fail(str(error))
+        # A structurally invalid record cannot be carried through the
+        # remaining checks without inventing answers: `id` and `kind` are
+        # what every one of them reads. Report what is known and stop.
+        finish()
+        raise
+    gate_warnings = _apply_proposal_gates(record, collect_failures=failures)
     if warnings is not None:
         warnings.extend(gate_warnings)
     try:
@@ -5356,7 +5495,24 @@ def stage_record_proposal(
         # as unresolvable — the one answer a lagging inbox could get wrong —
         # bring the graph fully current and ask again. The cost is paid only
         # on the failing path, and the second answer is the authoritative one.
-        _probe_record_references(record, root)
+        try:
+            _probe_record_references(record, root)
+        except MemoryGraphError as error:
+            fail(str(error))
+    if record.get("kind") == "work_claim":
+        # Run-41 item 8. Runs after the reference probe, which has already
+        # ensured the database, so the lookup is a read on a warm file.
+        try:
+            connection = open_database(root)
+        except Exception:                       # no DB: silence, not a guess
+            connection = None
+        if connection is not None:
+            try:
+                conflict = work_claim_anchor_veto(record, connection)
+            finally:
+                connection.close()
+            if conflict:
+                fail(conflict)
     record_id = record["id"]
     in_place_resolved = in_place.resolve() if in_place is not None else None
     # Gate J's denial sources are collected in THIS pass, not a second one:
@@ -5386,7 +5542,7 @@ def stage_record_proposal(
             if not isinstance(existing, dict):
                 continue
             if existing.get("id") == record_id:
-                raise MemoryGraphError(f"record id {record_id!r} already exists at {path}")
+                fail(f"record id {record_id!r} already exists at {path}")
             existing_id = existing.get("id")
             if not isinstance(existing_id, str):
                 continue
@@ -5411,7 +5567,7 @@ def stage_record_proposal(
                 f"{hit['id']} ({hit['signal']}, similarity"
                 f" {hit['similarity']}, shared: {', '.join(hit['shared_words'])})"
                 for hit in near)
-            raise MemoryGraphError(
+            fail(
                 "this claim closely resembles a record that already exists:"
                 f" {listing}."
                 " PREFER ATTACHING over duplicating: add your measurement to"
@@ -5433,7 +5589,8 @@ def stage_record_proposal(
         destination_dir.mkdir(parents=True, exist_ok=True)
         destination = destination_dir / f"{slug}.json"
         if destination.exists():
-            raise MemoryGraphError(f"proposal destination already exists: {destination}")
+            fail(f"proposal destination already exists: {destination}")
+    finish()
     if dry_run:
         return destination
     temp = destination.with_suffix(f".{uuid.uuid4().hex}.tmp")
