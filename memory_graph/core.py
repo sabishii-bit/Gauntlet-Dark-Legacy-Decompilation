@@ -5633,6 +5633,28 @@ def _duplicate_claim_candidates(
             ).fetchall()
         }
         claim_ids.update(_inbox_claim_ids(root))
+        # THE WHOLE LINEAGE, not just the record named in `supersedes`
+        # (run 46). The field is a SCALAR, so a v3 can only name v2 — and v1
+        # is by construction the nearest slug-neighbour of both, so the gate
+        # fired on the retired ancestor of the very chain the v3 continues
+        # and told its author to attach to a record v2 had already replaced.
+        # Walk backwards through the supersession edges and exempt every
+        # ancestor; the bound keeps a cyclic corpus from spinning.
+        ancestors = dict(connection.execute(
+            "SELECT record_id, json_extract(raw_json, '$.supersedes')"
+            "  FROM record_ingest"
+            " WHERE json_extract(raw_json, '$.supersedes') IS NOT NULL"
+        ).fetchall())
+        frontier, seen = list(declared), set(declared)
+        while frontier:
+            current = frontier.pop()
+            parent = ancestors.get(current)
+            if isinstance(parent, str) and parent not in seen:
+                seen.add(parent)
+                declared.add(parent)
+                frontier.append(parent)
+            if len(seen) > 64:
+                break
         for existing_id in sorted(claim_ids):
             if existing_id == record.get("id") or existing_id in declared:
                 continue

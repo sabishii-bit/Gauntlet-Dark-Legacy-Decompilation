@@ -2768,6 +2768,63 @@ class OwnedUnitsTests(unittest.TestCase):
         self.assertIn("game/ps2/ml_fmath", result["owned_units_index"])
 
 
+class SupersessionLineageDedupTests(unittest.TestCase):
+    """Run-46 T16: a v3 is not a duplicate of the v1 its v2 retired.
+
+    `supersedes` is a SCALAR, so a v3 can only name v2 — and v1, being the
+    nearest slug-neighbour of both, tripped the dedup screen and told the
+    author to attach to a record v2 had already replaced. Measured on
+    claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto:
+    proposing .v3 with supersedes=.v2 was refused, naming .v1.
+    """
+
+    def setUp(self):
+        self.root = ev_root()
+        records = self.root / "memory_graph" / "records" / "claims"
+        for version, parent in (("v1", None), ("v2", "claim.law.thing.v1")):
+            body = {
+                "schema_version": 1, "id": f"claim.law.thing.{version}",
+                "kind": "claim", "predicate": "codegen_law",
+                "subject": "compiler:test",
+                "epistemic_state": "verified",
+                "value": "a law about a thing", "valid_from": TODAY,
+            }
+            if parent:
+                body["supersedes"] = parent
+            _write(records / f"claim.law.thing.{version}.json", body)
+        build_database(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _v3(self):
+        return {
+            "schema_version": 1, "id": "claim.law.thing.v3", "kind": "claim",
+            "predicate": "codegen_law", "subject": "compiler:test",
+            "epistemic_state": "verified", "valid_from": TODAY,
+            "supersedes": "claim.law.thing.v2",
+            "value": "a law about a thing, merged",
+        }
+
+    def test_the_retired_ancestor_no_longer_blocks_the_v3(self):
+        self.assertEqual(
+            core._duplicate_claim_candidates(self._v3(), self.root), [])
+
+    def test_an_unrelated_near_duplicate_still_fires(self):
+        fresh = dict(self._v3())
+        del fresh["supersedes"]
+        hits = core._duplicate_claim_candidates(fresh, self.root)
+        self.assertTrue(hits, "the screen must still catch a bare re-derivation")
+
+    def test_naming_the_grandparent_directly_also_works(self):
+        direct = dict(self._v3())
+        direct["supersedes"] = "claim.law.thing.v1"
+        # v2 is not an ancestor of v1, so it is still screened — the walk
+        # goes BACKWARDS only, which is the direction supersession runs.
+        hits = core._duplicate_claim_candidates(direct, self.root)
+        self.assertEqual([hit["id"] for hit in hits], ["claim.law.thing.v2"])
+
+
 class OwnedUnitsValidationTests(unittest.TestCase):
     """Gate J: a malformed ownership list is refused, an absent one is not."""
 
