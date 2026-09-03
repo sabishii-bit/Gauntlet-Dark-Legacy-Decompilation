@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, the slot/frame family via T12's new roster SLOT column (58 open rows: 17 save-set, 15 frame, 26 exclusive-only): re-derive the roster live (defake_gate roster; quote the slot column per row), rank frame rows by |delta| ascending, work 4-6: known instances fn_80093918 (8B frame delta - the axis its cap never probed), AudioWithName (16B), plus the freshest rows the roster surfaces. Levers with recorded provenance: the compensating-pair law (pad + shrink an unobservable sibling array), bottom-anchored-temp-group law, scoped-pragma-resizes-frame law, by-value-aggregate law. slotdiff auto-fires (T9); probe's slot banner is your diagnosis. Fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; skip claimed TUs. defake_gate baseline per TU; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:fn_80093918",
+  "id": "work_claim.slot-family.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SL",
+  "recorded_at": "2026-09-03T04:29:48Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
