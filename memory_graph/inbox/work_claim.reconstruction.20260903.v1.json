@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/boss/boss.c",
+      "game/pb/pb_frame.c"
+    ],
+    "scope": "RECONSTRUCTION lane, the two biggest shaped residuals: (1) HealthMeterUpdate (boss.c, real 261, 25 clusters - BP's run-47 note: a double-vs-float REWRITE (4x cror/bne/lfs/b vs bge, fsub vs fsubs) - the sibling HealthMeterStart closed 132->24 run 44 via pool-struct granularity + ternary arm order; read its record chain, apply the family levers, decompose w/ the aligned view nearest-first). (2) pbFrameMode (pb_frame, real 391, T958/O959 - FT's record documents the aRWork compensating pair (one mr vs a callee-saved promotion, inseparable) - do NOT retry it; census the OTHER clusters nearest-first; 77 same-opcode IMMEDIATE rows = likely one systematic displacement family, find its root). Both are multi-session functions - land improvements, bank typed decompositions; count-parity changes categorical; fresh fuzzy per keep; aligned view before every hypothesis; 3-attempt cap per mechanism; pins screened; defake baseline per TU. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:HealthMeterUpdate",
+  "id": "work_claim.reconstruction.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-BG",
+  "recorded_at": "2026-09-03T20:54:56Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

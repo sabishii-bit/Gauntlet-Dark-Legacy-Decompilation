@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/sys/memcard.c"
+    ],
+    "scope": "CORRECTNESS lane, the ordered-datum defect queue (claim/attempt WF_t17-ordered-datum-rescreen + tool.wf-ordered-datum-screen, run 48: 12 DEFECT rows image-wide via the register-slot discriminator): (1) loadGauntletSave (memcard) - reloc [161]/[162]: the same value registers write TWO ADJACENT .sbss GLOBALS SWAPPED (lbl_80344A14 vs lbl_80344A18) - verify against retail bytes, fix, gate on the mismatch vanishing from the screen + unchanged scores. (2) Re-run wf_ordered_datum_screen image-wide at HEAD; work the remaining DEFECT rows (12 at last census, minus any closed since): VERIFY each against retail per the candidate-not-bug discipline (the screen is calibrated but a row is a candidate until retail bytes confirm), fix confirmed rows, refute artifacts w/ records. Extend owned_units at selection; claims --owns per unit; scores EXPECTED flat - say so per fix; defake baseline per TU; pins screened (memcard has 5 - raw-body probes); gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:loadGauntletSave",
+  "id": "work_claim.ordered-datum-fixes.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CV",
+  "recorded_at": "2026-09-03T20:54:53Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

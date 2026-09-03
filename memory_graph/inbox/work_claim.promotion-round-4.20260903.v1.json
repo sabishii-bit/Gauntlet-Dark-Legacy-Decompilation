@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/mb/mb_tree.c"
+    ],
+    "scope": "PROMOTION lane round 4 - WITH probe --raw LIVE (the velocity unlock: the one-command A/B loop now works on all 153 pinned fns; raw word count governs, fuzzy is manufactured on pins). Ranking per the corrected order: (1) t15_operand_provenance + wg complement rows first (any operand-value lead = a PointLineDist2D-class bug candidate); (2) then t15_promotion_queue smallest-residual rules WITH attempt records whose mechanisms suggest source levers (the no-record tier is closed; read each record + grep the fn's own file first); known candidates w/ fresh mechanism records: MBNewNode (23w, callee-saved rotated by one - the decl/init split law + uninitialised-webs law are NEW since its cap), InitAnim (4w), fn_800D967C (2w, virtual-dispatch idiom - the TU-shape task banked run 45), AllocFile (2w, latency-hiding pair). Promotions DELETE rules same-commit + configure + forced replay; raw-body loop via probe --raw; fresh raw word count per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; extend owned_units at selection. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:MBNewNode",
+  "id": "work_claim.promotion-round-4.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PR",
+  "recorded_at": "2026-09-03T20:54:54Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

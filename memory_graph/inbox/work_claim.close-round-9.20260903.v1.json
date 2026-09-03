@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/audio/audio.c",
+      "game/pb/dbgtext.c"
+    ],
+    "scope": "CLOSE lane round 9: seeds w/ fresh records: AudioLoadPart (audio, real 102 - the error-path block placement at +0x200-vs-+0x254 remains the unprobed carrier; the compensating-pair second half is refuted, do not retry declared-local forms), fn_800C03E0 (dbgtext, real 482 post-transposition-fix - continue the census; closing it unblocks the dbgtext flip), cardDoWrite (cardutil, real 86 - recolor-class after CU's source work; if it reaches a provable shape file a rule request). Then the fresh roster (real-ranked w/ the structure columns; rec-LETTER read; expiry checks run). Extend owned_units at selection; claims --owns per unit; byte-exact or typed park; one commit per landed fn; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; defake baseline per TU. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:AudioLoadPart",
+  "id": "work_claim.close-round-9.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NC",
+  "recorded_at": "2026-09-03T20:54:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

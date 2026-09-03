@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl",
+      "memory_graph"
+    ],
+    "scope": "TOOL lane (owns tools/gdl + memory_graph except webfrank surfaces): run-48 queue; observations w/ verbatim output; two-sided calibration incl. expiry-check sweeps (the T18 rule); one commit per item. (1) probe verdict line: project-WEIGHTED fuzzy delta beside function-local (NC: a -1.10 local = ~0.001 image; a full ninja was needed to settle it) AND the IMMEDIATE-arbiter line INTO the verdict (WF: it sat 3 lines under [revert advised] on the probe that closed a literal). (2) --discard: re-score after restore (FT: stale prev printed a FALSE class-change banner computed against the discarded state; --revert already re-scores - copy it). (3) datadiff: ONE verdict for zero-filled slack (plain says advisory, --sections says FLIP BLOCKER on the same 3 bytes - WF measured the contradiction; one label goes). (4) laws --query: prefilter before materializing (T18: ~500KB spill for a 3-hit query; head limit default). (5) propose-record gate: an expiry_check naming a path under *_scratch/ is a dead command by construction - refuse it (T18 found an accepted record unfalsifiable for a run). (6) savedregs: pin paragraph on pinned functions (DA: the default postprocessed read prints a confident ASSIGNMENT MATCHES that --raw contradicts; keep the default, add the warning). (7) test_graph --changed: default --since to the merge-base when the working tree is clean (DA: bare --changed decides wrong after commit). (8) AGENTS: obj/** is a dtk-split REFERENCE not a build artifact (CU broke the graph deleting one; document + provision --resplit flag); header-comment freshness (NC: a confident wrong TU-wide claim w/ 'do not grind' - the convention: header claims get a date + a falsification command or they are hints not vetoes). (9) law-invalidation links: a shipped mechanism should surface laws whose refusal grounds it invalidates (WF measured memory_disambiguation clearing a law's 2nd ground; gdlmem laws --asserted-by is the query shape). Scoped tests between items; FULL suites per commit; ninja 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:TextHeightMLines",
+  "id": "work_claim.tool-queue-19.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T19",
+  "recorded_at": "2026-09-03T20:54:54Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
