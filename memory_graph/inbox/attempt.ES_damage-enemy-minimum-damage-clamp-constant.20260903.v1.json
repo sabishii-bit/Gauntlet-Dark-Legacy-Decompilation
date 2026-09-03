@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Correct the minimum-damage clamp constant found by the aligned positional pool-relocation census: our object loaded lbl_80346820 (0.0f) where the retail object loads lbl_803468F0 (1.0f) at +0x418.",
+  "attributes": {
+    "law_screen": "claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 APPLIED as the detector -- the row is its worked proof. claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1 SCREENED: lbl_803468F0 is .sdata2 (poolval), so it is a read-only pool entry and the extern spelling is legal at this site; the neighbouring guard reads `*(volatile f64*)&lbl_80346810`, an address-taken site the same law forbids literalising, and it was left untouched. claim.law.pool-literal-substitution-is-per-function.20260831.v1 SCREENED and NOT triggered -- this edit does not literalise anything, it changes WHICH named extern is read, so the TU's anonymous pool population is unchanged and no sibling's pool names churn. attempt.parked.damage-enemy-p6-goto-pair.20260831.v1 and attempt.enemy-extern-literal-sweep.20260831.v1 SCREENED: both cap the branch-polarity cluster at +0x5a4, a different region; neither touches +0x418 and neither is retried here.",
+    "laws_applied": "[\"claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1\", \"claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1\"]",
+    "probed_form": "src/game/enemy/enemy.c:5349, inside damage_enemy: `amount = lbl_80346820;` -> `amount = lbl_803468F0;` (one token; the enclosing `if (player_index >= 0 && (f64)amount < *(volatile f64*)&lbl_80346810)` is unchanged).",
+    "residual": "SEMANTICS, the reason this record exists: retail clamps a player's post-armour damage UP to 1.0 when it falls below 1.0; our reconstruction set it to 0.0, so any player attack computing less than one point of damage was silently discarded. This is a GAMEPLAY defect, not a scoring one, and no metric in the project reported it -- real, --clean, --ops, reloc_set_delta and objdiff fuzzy all read the function identically before and after. The function's remaining real 66 is the previously-capped +0x5a4/+0x5ac branch-polarity pair (target bgt then bne+b, ours cror+bne then beq), which is untouched by this edit and stays capped under attempt.parked.damage-enemy-p6-goto-pair.20260831.v1.",
+    "scope": "src/game/enemy/enemy.c only, one line. Commit 77b0aa9a4.",
+    "verification": "BEFORE: probe.py game/enemy/enemy damage_enemy -> BASELINE real 66 (insns T571/O571, multiset 4t), fresh objdiff fuzzy 99.2207%. AFTER: NEUTRAL real 66, same counts, same multiset, and the fix is invisible to every arbiter -- which is the finding. The relocation map is the arbiter that DOES see it: es_relocmap on damage_enemy printed `[44] T@0x0418 lbl_803468F0 | O@0x0418 lbl_80346820` before and prints no lbl-vs-lbl row after. Aligned view `fnasm game/enemy/enemy damage_enemy 0x400:0x440 --diff` now reads `418: lfs f0,@lbl_803468F0` on BOTH sides. defake_gate check game/enemy/enemy -> GATE OK (66 functions, 54 at real 0, none moved). Full ninja -> build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:damage_enemy",
+  "id": "attempt.ES_damage-enemy-minimum-damage-clamp-constant.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T01:48:54Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset DIFFERS target-only: +1 b +1 bgt  ours-only: -1 beq -1 cror"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

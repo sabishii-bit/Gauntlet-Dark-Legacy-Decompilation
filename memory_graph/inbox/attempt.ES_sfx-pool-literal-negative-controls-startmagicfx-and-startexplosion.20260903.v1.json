@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Negative controls for the guard-hoist screen: substitute the literal 0.0f for the same .sdata2 label lbl_80348068 at the single call-argument site in StartMagicFX and in StartExplosion, the two sibling sites in the TU that do NOT carry the hoisted-above-a-guard signature.",
+  "attributes": {
+    "law_screen": "claim.law.ES_extern-literal-pays-exactly-where-the-extern-read-hoists-above-a-guard.20260903.v1 -- these two probes ARE its negative controls, and this record exists so they stay findable per-function rather than only inside the law's prose. claim.law.pool-literal-substitution-is-per-function.20260831.v1 APPLIED as the arbitration rule: score-neutral conversions are not free (they churn the anonymous pool and can flip byte-identical siblings to pool-name noise), so both were discarded. claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1 SCREENED: lbl_80348068 is f32, the half that law says substitutes freely -- and freely here means WITHOUT COST, not with benefit, which is exactly what was measured. claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1 APPLIED: .sdata2, bytes 00 00 00 00, neither site is lvalue or address-taken.",
+    "laws_applied": "[\"claim.law.ES_extern-literal-pays-exactly-where-the-extern-read-hoists-above-a-guard.20260903.v1\", \"claim.law.pool-literal-substitution-is-per-function.20260831.v1\"]",
+    "probed_form": "(1) src/game/sfx/sfx.c:1590 in StartMagicFX: `idx = StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, lbl_80348068);` -> `... , 0.0f);`. (2) src/game/sfx/sfx.c:1669 in StartExplosion: `ret = StartFXSub(t, (f32*)(en + 48), 43, 0x800, lbl_80348068);` -> `... , 0.0f);`.",
+    "residual": "The controls do the work here: one TU, one label, three sites, three identical one-token edits -- and only the site whose --ops signature showed the load displaced ACROSS a conditional branch moved the score (StartGemFX, real 40 -> 30, fuzzy 92.52 -> 95.51). The other two sites, whose loads sit in the same basic block as their use in both streams, measured exactly zero. That separation is what makes the guard-hoist screen a screen rather than a guess, and it independently reproduces claim.law.pool-literal-substitution-is-per-function.20260831.v1's finding that direction is per-FUNCTION, not per-TU. The remaining residuals on these two functions are unrelated to the pool spelling: StartMagicFX carries a 2-token multiset delta at equal counts, StartExplosion a 1-token delta with ours one instruction SHORT (343 vs 342).",
+    "scope": "NO SOURCE CHANGE RETAINED from either probe -- both discarded with `probe.py game/sfx/sfx <fn> --discard`. defake_gate check game/sfx/sfx -> GATE OK afterwards, with the one banked improvement (StartGemFX real 40 -> 30) intact.",
+    "verification": "StartMagicFX: BASELINE real 50, insns T115/O115, multiset 2t, fresh objdiff fuzzy 91.7739%; AFTER NEUTRAL real 50 (object bytes changed, score identical). StartExplosion: BASELINE real 191, insns T343/O342, multiset 1t; AFTER NEUTRAL real 191. Both discarded from the same HEAD (b9453e2b0) they were applied to."
+  },
+  "function": "tu:game/sfx/sfx",
+  "held_fixed": "Each probe varied ONE call argument at ONE site and was applied to and discarded from HEAD independently -- never stacked. Held constant in both: the file-scope `extern f32 lbl_80348068;`, the other fourteen reads of that label in sfx.c, every declaration list, and the already-landed StartGemFX conversion (commit b9453e2b0).",
+  "id": "attempt.ES_sfx-pool-literal-negative-controls-startmagicfx-and-startexplosion.20260903.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-03T01:54:46Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "constant-hoist",
+    "measured_at": "2026-09-03",
+    "signature": "StartMagicFX multiset 2t at T115/O115; StartExplosion multiset 1t at T343/O342"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

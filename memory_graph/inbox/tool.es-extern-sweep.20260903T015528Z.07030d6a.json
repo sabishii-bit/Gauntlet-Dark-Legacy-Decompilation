@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Rank on the 'real' column (probe.py's), never on 'clean': the reloc-normalised number puts six MATCH-MODULO-RELOC-NAMING jumptable rows at the top of a real-ascending queue as real 4-8 when probe.py reads them 0, and tools/gdl/nearmiss.py --residuals mis-ranks the same way. The scaffold declaration is only the PRECONDITION for the extern-literal lever, never the reason to pull it - screen with claim.law.literal-sweep-needs-lfd-stfd-tell-first.20260831.v1, claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1 and claim.law.ES_extern-literal-pays-exactly-where-the-extern-read-hoists-above-a-guard.20260903.v1 first, and arbitrate keeps under claim.law.pool-literal-substitution-is-per-function.20260831.v1 (discard score-neutral conversions). The function splitter is a brace-depth scan over comment/string-stripped text, so a row's byte offsets come from the objects and its LABEL LIST from the source - re-read the source before quoting a label as a candidate."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/es_extern_sweep.py [--out PATH] [--max-real N]",
+  "id": "tool.es-extern-sweep.20260903T015528Z.07030d6a",
+  "kind": "tool",
+  "name": "es_extern_sweep",
+  "purpose": "Ranked table of every function that READS one of its TU's 'extern f32/f64 lbl_XXXXXXXX' scaffold declarations and still has a residual - the working queue for the extern-literal and scaffold-FPR levers. Columns: probe.py real, the reloc-normalised clean real, NMIS (positional named-vs-named pool relocation mismatches), OONLY (named pool labels only our side reads), MSET (opcode multiset IDENT/DIFF) and FPONLY (every differing instruction identical once FPR numbers are erased = the pure run-40 scaffold symptom).",
+  "recorded_at": "2026-09-03T01:55:28Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/es_extern_sweep.py",
+  "status": "active",
+  "tool_key": "tool:es-extern-sweep",
+  "tool_kind": "census",
+  "usage": [
+    "Run from the repository root; --out defaults to build/GUNE5D/es_extern_sweep.json, --max-real N trims the printed table only. Needs a current build and build/GUNE5D/report.json. Measured 2026-09-03: 1019 declaration sites in 42 TUs, 68 candidate functions in 21 NonMatching TUs, FPONLY = 0 across all of them."
+  ],
+  "valid_from": "2026-09-03T01:55:28+00:00"
+}

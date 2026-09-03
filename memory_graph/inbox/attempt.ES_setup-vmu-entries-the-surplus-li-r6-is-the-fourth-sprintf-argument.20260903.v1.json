@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Execute the run-40 record's own framing -- kill the ours-only `li r6,0` at the second sprintf -- by the two source routes that could produce it: dropping the fourth sprintf argument, and hoisting the second format string's address into its own entry-block local.",
+  "attributes": {
+    "law_screen": "claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 APPLIED as the detector -- setup_vmu_entries is a WRONG row of that census (target ADDR16_LO lbl_80114724 against ours lbl_80114718 at the same slot), and running the aligned view on the row per that law's own usage rule is what showed the row to be a HOIST-ORDER effect rather than a wrong string. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 APPLIED and CONFIRMED by probe 2 (one added pointer local took the function from 59 to 60 instructions and moved extabindex). attempt.UE_setup-vmu-entries-joint-close-executed-remat-invariant-under-three-levers.20260902.v1 and attempt.UD_setup-vmu-entries-is-not-a-permutation-and-the-count-parity-is-a-coupled-pair.20260902.v1 SCREENED: both target the SAME `li r6,0` and the lbl_80344610 load form, and neither of the two forms below is among the levers they name.",
+    "laws_applied": "[\"claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\"]",
+    "probed_form": "(1) src/game/ui/select.c:2227 `sprintf(buf, slotFormat, n + 1, idx);` -> `sprintf(buf, slotFormat, n + 1);`. (2) src/game/ui/select.c:2212 add `char* altFormat = lbl_80114724;` beside `char* slotFormat = lbl_80114718;`, delete the mid-function `slotFormat = lbl_80114724;` at :2223, and call `sprintf(buf, altFormat, n + 1, idx);`.",
+    "residual": "real 24 with counts EQUAL at 59/59. THE RUN-40 FRAMING IS WRONG IN ONE PLACE AND THIS RECORD CORRECTS IT: the ours-only `li r6,0` at the second sprintf is NOT a surplus instruction to be deleted, it is the call's FOURTH ARGUMENT (`idx`), and the target passes it too -- the target simply materialises it ONCE in the entry block at +0x18 and lets it survive to the call, because its other arm's `lbz r6,@lbl_80343DEC` sits on the mutually exclusive path. Probe 1 proves this by removing the argument and LOSING count parity in the wrong direction (58 vs 59), which is the observation the run-40 lane's three joint levers could not make because they were trying to delete the instruction rather than to move it. WHAT THE ALIGNED VIEW ACTUALLY SHOWS at +0x0..+0x2c: the target's entry block materialises BOTH format-string addresses (`lis r4,@lbl_80114718(HA)` at +0x4, `addi r4,r4,@lbl_80114718(LO)` at +0x10, `lis r3,@lbl_80114724(HA)` at +0x28) plus `li r6,0` and `li r5,0`; ours materialises only lbl_80114718's HA in the entry block and defers lbl_80114724 entirely into the else arm. So the real question on this function is ENTRY-BLOCK HOIST SET, not argument count -- and probe 2 shows that the obvious way to buy the hoist (a second pointer local) costs a frame slot the target does not spend. NEXT LANE: look for a spelling that materialises lbl_80114724 in the entry block WITHOUT adding a declaration -- e.g. a single conditional-expression format selection evaluated before the branch.",
+    "scope": "NO SOURCE CHANGE RETAINED -- both probes discarded with `probe.py game/ui/select setup_vmu_entries --discard`; defake_gate check game/ui/select -> GATE OK at commit bc713b923.",
+    "verification": "BASELINE probe.py game/ui/select setup_vmu_entries -> real 24, insns T59/O59, multiset 0t, fresh objdiff fuzzy 78.8983%. (1) COUNT-PARITY LOST T59/O58, real 24 -> 31. (2) REGRESSED real -> 41 at T59/O60 with extabindex MOVED (frame widened by the added local). Both worse; both reverted."
+  },
+  "function": "function:setup_vmu_entries",
+  "held_fixed": "The two probes each varied ONE thing and were measured independently from HEAD, never stacked. Probe 1 varied the ARGUMENT LIST of the second sprintf only, holding both format-string spellings, the declaration list, the control flow and the goto skeleton constant. Probe 2 varied the DECLARATION LIST only (one added local plus the removal of the mid-function reassignment that it replaces), holding the argument list, the control flow and the goto skeleton constant. Probe 1 was discarded to HEAD before probe 2 was applied.",
+  "id": "attempt.ES_setup-vmu-entries-the-surplus-li-r6-is-the-fourth-sprintf-argument.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T01:53:36Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "constant-hoist",
+    "measured_at": "2026-09-03",
+    "signature": "insns T59/O59, multiset 0t at baseline"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

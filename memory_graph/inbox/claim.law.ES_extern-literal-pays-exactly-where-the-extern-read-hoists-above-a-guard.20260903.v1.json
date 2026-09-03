@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/sfx/sfx StartGemFX --ops",
+    "tools/gdl/fnasm.py game/sfx/sfx StartGemFX 0x28:0x50 --diff",
+    "tools/gdl/defake_gate.py check game/sfx/sfx",
+    "git:b9453e2b0"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "sda-global",
+      "pool-layout",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose pool load our object hoists above a guard the target loads inside, where substituting the literal at that one call-argument site leaves the load in the same block (or moves it further from the target's position) -- measure with `python tools/gdl/probe.py <unit> <fn> --ops` before and after, and read `fnasm <unit> <fn> 0xA:0xB --diff` across the branch. Equally falsifying: a site with NO guard between the two load positions whose literal substitution nevertheless improves real by more than the +1-per-site relocation cost, which would show the guard is not the discriminator. Cheapest single check: re-run the StartGemFX A/B by restoring `lbl_80348068` at src/game/sfx/sfx.c:761,763,765 and re-probing -- real must return to 40 and fuzzy to 92.52%.",
+  "id": "claim.law.ES_extern-literal-pays-exactly-where-the-extern-read-hoists-above-a-guard.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T01:47:42Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "A NEW, CHEAP, POSITIVE SCREEN for the extern-literal substitution, with one positive and two negative controls measured inside ONE TU in one session. THE SIGNATURE: our stream emits `lf[sd] fN,0(0) @lbl_XXXXXXXX(EMB_SDA21)` BEFORE a conditional branch, and the target emits the SAME load AFTER it, inside the guarded block -- an ours-only load inserted early plus a target-only load deleted a few instructions later, at an IDENTICAL opcode multiset. MECHANISM: a read of an `extern f32/f64 lbl_*` is a load of a GLOBAL, and MWCC will speculatively hoist it out of a guarded block (it is a plain memory read of an address the compiler holds in the small-data base register, and hoisting shortens the dependence chain into the call). The same value written as a plain literal is not a memory read at all until the pool entry is materialised, so MWCC materialises it AT the use, inside the block, which is where the target has it. This is the OPPOSITE direction of claim.law.extern-scalar-read-defeats-fp-literal-hoist.20260831.v1 (whose lever is extern OPACITY pinning a load) and BOUNDS it: that law is about a value CONSUMED IN ARITHMETIC in the same block; this one is about a value passed as a CALL ARGUMENT from inside a guarded block, where the extern spelling is the thing that hoists. WORKED PROOF, game/sfx/sfx::StartGemFX (107/107 instructions, opcode multiset IDENTICAL before AND after): baseline real 40, objdiff fuzzy 92.5234%. The function is a three-arm dispatch and each arm inlines StartFXSubGutsP, whose last argument is the fx start time, spelled `lbl_80348068` (.sdata2 f32 0.0f, poolval-verified). In all three arms our object emitted `lfs f1,@lbl_80348068` immediately before the `cmplwi`/`beq` null-check on `h->atree`, while the target emits it after the `beq`. Rewriting the three call sites' argument to the literal `0.0f` -- and NOTHING else, the file-scope `extern f32 lbl_80348068;` and all fourteen sibling reads untouched, per the per-function line-range scoping in claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1 -- closed all three displaced-load clusters: real 40 -> 30, fresh objdiff fuzzy 92.5234% -> 95.5140%, multiset IDENTICAL throughout, defake_gate check game/sfx/sfx -> GATE OK (1 improved, no sibling moved), full ninja -> build/GUNE5D/main.dol: OK. Commit b9453e2b0. TWO NEGATIVE CONTROLS, same TU, same label, same session, same one-argument edit: game/sfx/sfx::StartMagicFX (real 50, T115/O115) substituting `lbl_80348068` -> `0.0f` at its single site measured EXACTLY NEUTRAL (real 50 -> 50); game/sfx/sfx::StartExplosion (real 191, T343/O342) likewise EXACTLY NEUTRAL. Neither carries the signature -- their pool loads are not hoisted across a guard -- and both were discarded per claim.law.pool-literal-substitution-is-per-function.20260831.v1's rule that score-neutral conversions are not free (they churn the anonymous pool). So the screen SEPARATES: 1 of 3 sites in one TU, and the one that paid is the one the signature named in advance. HOW TO RUN THE SCREEN, no build: `python tools/gdl/fndiff.py <unit> <fn> --ops`; if a cluster pair reads `insert T[i:i] O[i:i+1]=['lfs'|'lfd']` followed within ~6 instructions by `delete T[j:j+1]=['lfs'|'lfd'] O[k:k]`, open `fnasm <unit> <fn> 0xA:0xB --diff` and check whether a conditional branch sits BETWEEN the two positions. If it does, literalise that site. RELATION TO THE OTHER SCREENS: claim.law.literal-sweep-needs-lfd-stfd-tell-first names a target-only lfd/stfd RUN (a prologue hoist we lack); claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell names an FPR-colouring win at an identical multiset. This is a third, disjoint case -- the counts and the multiset are identical and the FPR colours agree; only the load's BASIC BLOCK differs."
+}

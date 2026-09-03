@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Two source-order corrections read straight off the aligned positional pool-relocation census: (a) the 180.0 / (1/pi) operand order in the two radians-to-degrees chains, (b) the staged `targetPitch` load that inverted a two-load compare pair.",
+  "attributes": {
+    "law_screen": "claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 APPLIED -- both edits came from its census rows, not from reading the function. claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 APPLIED to (b): the compare's two loads are scheduled in ASSIGNMENT order, so folding the staging assignment into the condition put them in the target's order. claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1 SCREENED: lbl_803460B0 and lbl_803460B8 are .sdata2 (poolval: 0.31830988614222805 and 180.0) and lbl_8034442C / lbl_80344444 are NOT in the DOL at all (sbss/bss -- mutable globals), so no literalisation was attempted on any of the four; only their ORDER changed. claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1 SCREENED, not needed (no substitution). attempt.extern-retype.camera.20260831.v1 SCREENED (neutral, gPlayers/gCurLevel retype -- a different axis).",
+    "laws_applied": "[\"claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1\", \"claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1\"]",
+    "probed_form": "src/game/world/camera.c:3294-3295 `angle = lbl_803460B0 * angle; angle = (f64)(f32)(lbl_803460B8 * angle);` -> `angle = lbl_803460B8 * angle; angle = (f64)(f32)(lbl_803460B0 * angle);`. src/game/world/camera.c:3303-3304 `f64 pitchValue = lbl_803460B0 * (f64)lbl_80344444; s32 pitchDegrees = (s32)(lbl_803460B8 * pitchValue);` -> the same two labels exchanged. src/game/world/camera.c:3370-3371 `targetPitch = lbl_80344444;` + `if (lbl_8034442C < targetPitch) {` -> the single line `if (lbl_8034442C < (targetPitch = lbl_80344444)) {`.",
+    "residual": "real 156. SEMANTIC NOTE on (a): 180.0*x then *(1/pi) and (1/pi)*x then *180.0 are the same value in exact arithmetic but NOT the same in IEEE double, so the target's operand order is the faithful one independently of the score. WHAT REMAINS is a STACK-LAYOUT residual, not a pool one: the slot map reads TARGET-ONLY slots 24 (2 uses) and 28 (3 uses) against OURS-ONLY 40 and 44 (2 uses each) with slot 36 at target 2 vs ours 3, and the --ops IMMEDIATE rows show a consistent +8 displacement of a three-float group (target stfs/lfs at 28/32/36 where we use 36/40/44, and target 24 where we use 32) at an equal frame size of 208. So our frame carries eight bytes of something below that group that the target does not. NEXT LANE'S STEP 1: this is a declaration-count question -- census camera_mode_dest's locals against the target's slot map before probing anything else; the remaining lf[sd] reorder clusters at +0x2b8, +0x3e8, +0x480 and +0x4c4 are almost certainly downstream of it.",
+    "scope": "src/game/world/camera.c only, three regions inside camera_mode_dest. Commit bc713b923. camera.c carries five webfrank pins (camera_mode_target, debug_camera_pos, camera_init_for_gamemode, camera_mode_level, do_camera); none is camera_mode_dest, the edit changes no instruction COUNT and no anonymous-pool entry, and the full ninja replayed every rule.",
+    "verification": "probe.py game/world/camera camera_mode_dest -> BASELINE real 160, insns T682/O682, multiset 0t, frame 208, saves r29, fresh objdiff fuzzy 97.5499%. After (a): IMPROVED real 160 -> 158 at fresh fuzzy 97.5499%. After (b): IMPROVED real 158 -> 156, fresh fuzzy 97.5645% (measured with `probe.py --fuzzy` on the kept state, not carried from the baseline report). defake_gate check game/world/camera -> GATE OK (1 improved; 22 functions, 17 at real 0, none regressed). Full ninja -> build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:camera_mode_dest",
+  "held_fixed": "The TU's declaration set and frame: neither edit adds, removes or retypes a local, so frame size stayed 208 and the saved-register set stayed r29 across both probes. Only statement/operand ORDER varied.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/probe.py game/world/camera camera_mode_dest --slots` after deleting any single 8-byte local from the declaration list: if the group does not move as a block from 36/40/44 to 28/32/36, the displacement is not a declaration-list effect and the hypothesis is dead.",
+    "screened_against_target": "partly -- the slot map and the sixteen IMMEDIATE rows were both read from the live objects at commit bc713b923 and agree on a uniform +8 displacement. NOT checked: which declaration is the surplus one, and whether the target's slot 24/28 pair is one 8-byte object or two 4-byte ones.",
+    "statement": "camera_mode_dest's residual is an 8-byte local-block displacement, not a schedule: our frame places the three-float group at r1+36..44 where the target places it at r1+28..36 while both frames are 208 bytes, so exactly one 8-byte local (an f64 temp or a pad) sits below the group in our declaration list and does not in the target's. Removing or relocating that one declaration should move all sixteen IMMEDIATE rows at once."
+  },
+  "id": "attempt.ES_camera-mode-dest-pool-operand-order-and-staged-compare.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T01:49:36Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "frame-slot",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (682/682) with 16 IMMEDIATE words differing at aligned same-opcode positions"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
