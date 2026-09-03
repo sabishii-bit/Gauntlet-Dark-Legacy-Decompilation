@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Promote a copy_register_fields rule (no mechanism note, no prior attempt record - one of the nine zero-record rules named by claim.T15_promotion-queue-roster-153-rules-151-functions-and-the-provenance-backlog.20260903.v1) by re-deriving the retail source form of the two byte-swap expressions the residual sits in.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - every measurement was taken on the RAW body object `build/GUNE5D/src/game/anim/.postprocess/body/anim.o`, because the pinned src/ object reads real 0 by construction. claim.law.PP_the-smallest-webfrank-rules-are-the-worst-promotion-candidates.20260903.v1 SCREENED and CONTRADICTED by this result: DoAnimation is an 8-word rule, near the small end of the roster, and it closed on the FIRST source probe. claim.law.PP_a-register-only-verdict-cannot-see-a-reassociated-fp-product.20260903.v1 SCREENED via tools/gdl/composed_census/t15_operand_provenance.py, which returns PROVENANCE-CONSISTENT for this function - correctly: the two streams computed the same value, so this was a true recolor and the cure was still source-reachable. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and not applicable (no zero-copy site). claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and satisfied (151/151 throughout).",
+    "laws_applied": "[\"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "probed_form": "ONE probe, kept. `flags = (u16)((bytes[1] << 8) | bytes[0]);` and `next = (u16)((bytes[1] << 8) | bytes[0]);` -> `flags = (u16)(bytes[0] | (bytes[1] << 8));` and `next = (u16)(bytes[0] | (bytes[1] << 8));`. DIFFERING WORDS 8 -> 0 on the first probe.",
+    "residual": "NONE. The mechanism, read from the aligned raw view: the source spells a big-endian halfword byte-swap as `(bytes[1] << 8) | bytes[0]`, and MWCC lowers it to `lbz` the HIGH-address byte first, `lbz` the low-address byte second, `rlwimi` the first into the second, `clrlwi` to 16 bits. The LOAD order is identical in both streams (47(r1) then 46(r1)); only the two scratch registers r3/r4 were exchanged. What picks them is the SOURCE OPERAND ORDER of the `|`: the operand written FIRST lands in the HIGHER of the two adjacent scratch registers. Ours wrote the shifted byte first, so `bytes[1]` took r4 and retail has it in r3; writing the unshifted byte first (`bytes[0] | (bytes[1] << 8)`) puts `bytes[1]` in r3 and `bytes[0]` in r4, which is retail exactly, at both sites, with the rlwimi destination and source following. Note that both spellings compute the same value and the same rlwimi structure - this was a genuine recolor by every shape-based measure, and it was still closable from source in one probe.",
+    "scope": "src/game/anim/anim.c (DoAnimation body only, two lines) and the `game/anim/anim` DoAnimation entry in config/GUNE5D/webfrank.json, DELETED in the same commit per the promotion directive. The unit keeps its InitAnim rule, so the unit entry itself remains. Commit e4f491fba.",
+    "verification": "defake_gate baseline game/anim/anim --at-head at commit c621fcbac (10 functions, 10 at real 0, source sha1 4a341ea7f); defake_gate check game/anim/anim after the keep: GATE OK. fndiff --clean game/anim/anim DoAnimation: EXACT, 0 real diff lines. configure.py + touch tools/gdl/webfrank.py + full `ninja -j2` forced full replay: every remaining shipped rule replayed and `build/GUNE5D/main.dol: OK`. python -m unittest discover tools/gdl/tests -b: Ran 1386 tests, OK. python -m memory_graph.test_graph -b: Ran 359 tests, OK. Scores: combined matched held at 67.83% and fuzzy at 98.51% BY DESIGN - the postprocessor split moved STRICT 56.79% (2585 fns) -> 56.84% (2586 fns) and EQUIVALENT 11.05% (152 fns) -> 10.99% (151 fns). That is the whole point of a promotion: the function was already byte-identical in the shipped image; what changed is that the credit is now earned by the compiler instead of by a rule."
+  },
+  "coverage_range": "0x0:0x25c - whole body. The correspondence below was read from `fnasm.py game/anim/anim DoAnimation --raw --diff` over all 151 instructions.",
+  "function": "function:DoAnimation",
+  "held_fixed": "ONE edit, one variable: only the ORDER of the two operands of the `|` in the two byte-swap expressions changed. The `u8* bytes` alias, the two `volatile union WordBytes` locals, the `u16 flagRaw`/`u16 nextRaw` staging halfwords, the declaration list and every other statement in DoAnimation were held constant. Both sites were changed together because the aligned view showed the identical 4-word exchange at both.",
+  "id": "attempt.PR_doanimation-promoted-the-byte-swap-or-operand-order-picks-the-temp-pair.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T17:21:03Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "151/151 insns, 0 mnemonic divergence, 8 differing words BEFORE the fix (0 after); an r3<->r4 exchange at +0x84/+0x88/+0x90/+0x94 and again at +0xa0/+0xa4/+0xac/+0xb0"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "None needed and none run: the function is now byte-identical as COMPILER OUTPUT, so its rule was DELETED rather than re-proved. Before the fix the shipped rule was `copy_register_fields: true` with a REGISTER_ONLY audit and no other stage; after the fix `fndiff --clean` reports EXACT, 0 real diff lines, and `wf_word_diff` reports DIFFERING WORDS = 0 on the raw pre-postprocess body. The `verify_consistent_recolor` path is simply no longer reached for this function."
+}

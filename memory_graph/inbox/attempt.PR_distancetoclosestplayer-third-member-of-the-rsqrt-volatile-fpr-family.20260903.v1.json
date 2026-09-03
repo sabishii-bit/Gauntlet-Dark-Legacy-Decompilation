@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Derive the mechanism behind a 42-word copy_register_fields rule (no mechanism note, no prior attempt record - one of the nine zero-record rules in claim.T15_promotion-queue-roster-153-rules-151-functions-and-the-provenance-backlog.20260903.v1) and decide whether it is its own problem or a member of an already-worked family.",
+  "attributes": {
+    "law_screen": "claim.law.PP_a-register-only-verdict-cannot-see-a-reassociated-fp-product.20260903.v1 SCREENED AND RUN: `t15_operand_provenance.py` returns PROVENANCE-CONSISTENT for this function, and the fnmsub operand pairs were additionally read by hand - target `@0x98 fnmsub f0,f5,f0,f2` against ours `@0x98 fnmsub f0,f4,f0,f2` and target `@0x174 fnmsub f0,f5,f0,f2` against ours `@0x174 fnmsub f0,f3,f0,f4`, all of the form `three - distance*(estimate*estimate)`. The PointLineDist2D reassociation bug does NOT recur here either. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - the measurement was taken on `build/GUNE5D/src/game/world/.postprocess/body/items.o` via `fnasm --raw --diff`, never on the pinned src/ object. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and satisfied (122/122).",
+    "laws_applied": "[\"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "probed_form": "NO SOURCE PROBE WAS RUN on this function, and that is deliberate rather than an omission: the mechanism was derived from the aligned raw view and matches, instruction for instruction, a family whose three cheapest axes are already measured dead on two siblings in this same run and the previous one. Recording this as `never-attempted` on the source axes - per the AGENTS.md sweep-hygiene rule that an outcome must say which - so a later lane knows the axes below are UNTRIED HERE even though they are dead on the siblings.",
+    "residual": "The rule stays. THE MECHANISM, from the aligned raw view: the function runs the same four-iteration Newton-Raphson reciprocal-square-root kernel twice - once unguarded for the flyby camera (0x84-0xd0) and once inside the `bdnz` player loop (0x168-0x1ac) - and the whole 42-word gap is which volatile FPRs carry the squared distance and the two f64 refinement constants. In the FIRST kernel our constants already agree with retail (`sNewtonThree` in f2 in both) and only the distance register differs, target f5 against ours f4. In the SECOND kernel the loop-invariant constants are hoisted before the loop and take target f3/f2 against our f5/f4, with the distance at target f3 against our f3-versus-f5 pairing, cascading through every fmul/fnmsub in the arm. The callee-saved accumulator is f31 in BOTH streams and agrees at `@0x1bc fcmpo cr0,fX,f31` and `@0x1c4 fmr f31,fX`, which is the sharp contrast with fn_80051480, where the accumulator placement WAS the whole residual. Here the accumulator is already right and only the volatile numbering around the hoisted constants is wrong.",
+    "scope": "No source change. src/game/world/items.c was READ ONLY; `git status --porcelain -uall` prints only the untracked LANE_LOCK. No defake baseline was taken because nothing was built for this function beyond the already-current raw body object.",
+    "verification": "Measured at commit e4f491fba from the raw body object produced by the run's green full build (`ninja -j2` printing `build/GUNE5D/main.dol: OK`), read with `python tools/gdl/fnasm.py game/world/items DistanceToClosestPlayer --raw --diff` (122/122) and `python tools/gdl/composed_census/t15_operand_provenance.py`."
+  },
+  "function": "function:DistanceToClosestPlayer",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Compare the FIRST (unguarded) kernel against the SECOND (in-loop) kernel in our own stream. If both kernels place the constants identically, the pre-loop hoist is not what distinguishes them and the framing is wrong. Measured 2026-09-03 from the aligned view: they do NOT - our first kernel's `sNewtonThree` is f2, matching retail, while our second kernel's is f4 against retail's f2, so the divergence appears exactly where the hoist appears.",
+    "screened_against_target": "yes - the f31 accumulator agreement, the two per-kernel constant assignments and the fnmsub operand pairs were all read from `fnasm --raw --diff` against the retail bytes over the whole 122-instruction body.",
+    "statement": "This is the third measured member of one family (see claim.law.PR_the-rsqrt-newton-kernel-volatile-fpr-permutation-is-one-family.20260903.v1), and the family's untried lever is the CONSTANT HOIST, not the accumulator: retail hoists `sArrowFloorYOffset` and `sNewtonThree` into f3/f2 before the loop while ours hoists them into f5/f4, and the distance register numbering follows from what is left. The concrete untried step 1 for the next lane is to change the hoist itself - spell the two refinement constants as f64 locals initialised before the loop, or conversely re-read them inside the loop body so no pre-loop hoist block exists - and read whether the second kernel's numbering moves. Do NOT re-run the `register`-keyword axis or the block-scope declaration axis: both are measured dead on two siblings of this family."
+  },
+  "id": "attempt.PR_distancetoclosestplayer-third-member-of-the-rsqrt-volatile-fpr-family.20260903.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-03T17:23:33Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "122/122 insns, 0 mnemonic divergence, 42 differing words; volatile-FPR permutation across two reciprocal-square-root kernels, callee-saved accumulator f31 AGREEING in both streams"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

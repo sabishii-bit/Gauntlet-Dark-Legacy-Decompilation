@@ -175,16 +175,6 @@
           "instructions": 106
         },
         "copy_register_fields": true
-      },
-      {
-        "function": "DoAnimation",
-        "before_sha256": "fcd7e72a74ef7e30b5f3f48de4cb1256aa95ab7c78968954d796263e9025f934",
-        "after_sha256": "fd1508bee37258e85d6410485ced75bd4d8b60b84dcb97d0dbdf3ec7a635daf2",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 151
-        },
-        "copy_register_fields": true
       }
     ],
     "game/anim/atree": [

@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Derive the mechanism behind a 57-word copy_register_fields rule listed as having NO attempt record at all (claim.T15_promotion-queue-roster-153-rules-151-functions-and-the-provenance-backlog.20260903.v1), checking the TU's own header comments before spending a probe.",
+  "attributes": {
+    "law_screen": "claim.law.PP_a-register-only-verdict-cannot-see-a-reassociated-fp-product.20260903.v1 SCREENED AND RUN: `t15_operand_provenance.py` returns PROVENANCE-CONSISTENT. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - measured on `build/GUNE5D/src/game/sfx/.postprocess/body/sfx.o`. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and satisfied (183/183). claim.law.PP_the-smallest-webfrank-rules-are-the-worst-promotion-candidates.20260903.v1 SCREENED - its no-attempt-record ranking is the one this lane executed, and this is the second function in one TU where that ranking pointed at work that had already been done and written down outside the graph.",
+    "laws_applied": "[\"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "probed_form": "NO NEW PROBE WAS RUN. src/game/sfx/sfx.c lines 2154-2161 already carry the park VERBATIM, including an explicit do-not-retry: \"STRUCTURAL MATCH, 183/183, opcode streams identical. PARKED residual: duplicated-inline renum in arms 2-4 only (arm 1 byte-exact) -- target colors type=r26/h=r27/base=r28/mul=r29/ret=r30 there, ours rotates to type=r30/ret=r29/h=r26/mul=r28/base=r27. Exhausted: ret-var vs direct returns (identical output, axis dead), caller-local type staging (adds addi copies), ternary select (breaks inlining). Do not re-run.\" That is a five-register correspondence, three exhausted axes with their failure modes, and a do-not-retry instruction - materially better provenance than most graph records carry - sitting in a medium no census reads. This record relocates it into the graph and re-verifies its two load-bearing numbers.",
+    "residual": "The rule stays. The mechanism is the one the source comment states and it is unchanged at this commit: the function is four duplicated `StartFXSubGutsP` inlines under a two-level branch on `lbl_8034482C` and `which`, the FIRST arm is byte-exact, and arms two through four carry a five-web rotation of the inlined body's callee-saved set - target type=r26, h=r27, base=r28, mul=r29, ret=r30 against ours type=r30, ret=r29, h=r26, mul=r28, base=r27. Because the four arms are copies of ONE inline, a source lever must act on the inline's own shape or on the branch structure feeding it, which is exactly what the three exhausted axes tried; the ret-var axis was measured byte-identical (axis dead), caller-local type staging added `addi` copies, and the ternary select broke the inlining outright.",
+    "scope": "No source change. src/game/sfx/sfx.c was READ ONLY; `git status --porcelain -uall` shows no modification to it.",
+    "verification": "defake_gate baseline game/sfx/sfx --at-head at commit e4f491fba (72 functions, 53 at real 0, source sha1 33d4aa47b), taken and left untouched since nothing was edited. Re-verified at that commit from the run's green full build (`ninja -j2` printing `build/GUNE5D/main.dol: OK`): `wf_word_diff.py game/sfx/sfx fn_80094164` reports 183 insns, DIFFERING WORDS = 57, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = YES - confirming the comment's 183/183 and its 'opcode streams identical' claim, and supplying the raw differing-word count the comment never had."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/sfx/sfx fn_80094164 - if the count is no longer 57 or the instruction count is no longer 183, both this record and the source comment it relocates have expired.",
+    "falsifier": "Any of the three exhausted axes producing a word count below 57 on a re-probe at a later alignment - which is possible in principle, since parked probes are alignment-sensitive and this TU has moved since the comment was written.",
+    "premise_measurement": "The axes were measured by an earlier pass whose only surviving artifact is the source comment at src/game/sfx/sfx.c:2154-2161. This record re-measures only the counts, at commit e4f491fba: `wf_word_diff.py game/sfx/sfx fn_80094164` = 183 insns, 57 differing words, 0 mnemonic divergence.",
+    "scope": "The three axes the source comment records - ret-var versus direct returns, caller-local type staging, and the ternary select - on fn_80094164 only. It does NOT deny the shared-callee axis named in `hypothesis`."
+  },
+  "function": "function:fn_80094164",
+  "held_fixed": "This run varied NOTHING - no probe was run and no source byte was edited. The three axes quoted in `probed_form` are RELOCATED from the source comment at src/game/sfx/sfx.c:2154-2161 and were run by an earlier, unrecorded pass; the comment does not say what that pass held constant, so the held-fixed variable is not recoverable and this record does NOT assert a joint veto. Per AGENTS.md discipline 6 the three are three separate single-axis negatives whose combination was never measured, and a joint probe is not foreclosed.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Compare our arm 1 against our arm 2 in the same stream with `fnasm.py game/sfx/sfx fn_80094164 --raw`. If our four arms already differ from each other, editing the shared callee cannot fix three of them without breaking the fourth, and the hypothesis is dead before any build.",
+    "screened_against_target": "no - the five-register correspondence above is quoted from the source comment's own derivation, and this record re-verified only the counts (183/183, 57 words, 0 mnemonic divergence, 0 reloc mismatch) against the retail bytes. The per-arm register rows were NOT independently re-read from the aligned view in this run, and a lane acting on them should re-read them first.",
+    "statement": "The comment's three axes all vary the CALL SITE. The untried axis is the callee: `StartFXSubGutsP`'s own body determines the inlined register order, and a change there moves all four arms at once - including the first, which is currently byte-exact and is therefore the constraint any such change must not break. The concrete step is to read whether the first arm's colouring and arms 2-4's differ in OUR stream too (a within-stream comparison, zero builds); if our own four arms are not identically coloured, the rotation is a per-arm allocation artifact and the callee is not the lever."
+  },
+  "id": "attempt.PR_fn80094164-its-park-and-its-do-not-rerun-were-already-in-a-source-comment.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T17:30:06Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "183/183 insns, 0 mnemonic divergence, 57 differing words; a five-web rotation across the second, third and fourth of four duplicated StartFXSubGutsP inlines, with the first arm byte-exact"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
