@@ -416,9 +416,25 @@ one, and supersede the law if your target contradicts it.
    failure — state gates as commands ("ninja prints main.dol: OK"),
    never as raw hashes.
 13. **Running the test suite:** `python -m unittest discover
-   tools/gdl/tests` from the repo root. There is no pytest. Module
+   tools/gdl/tests -b` from the repo root. There is no pytest. Module
    counts drift — state test gates as the command plus "all green",
-   not as a number. For the memory graph, `gdlmem build` is the
+   not as a number.
+   **`-b` IS PART OF THE COMMAND.** Without it the suite's stdout is
+   the tools' own chatter from PASSING tests, and the verdict is not
+   in it: measured run 44 on a green run, the whole stdout stream was
+   12 lines — 10 `WEBFRANK <fn>: ...` rule reports, one
+   `[arbitration log NOT written to ...]` and one `[transient pin bank
+   CONSUMED ...]` — while `Ran N tests` and `OK` go to STDERR, so a
+   PowerShell `2>&1` puts the verdict ABOVE the noise and a tail reads
+   as a webfrank failure. That is where the `-SimpleMatch` trap (trap
+   6b) bites: lanes grep for the verdict and the pattern they reach
+   for contains `|`. `-b` is not a mute switch — unittest BUFFERS
+   per-test output and REPLAYS it under a `Stdout:` header for any
+   test that fails (verified both ways: a passing test's print is
+   swallowed, a failing test's is replayed), so it is strictly better
+   than routing tool prints to stderr or adding a `--quiet`, both of
+   which lose the text exactly when it is wanted. `python -m
+   memory_graph.test_graph -b` takes it too. For the memory graph, `gdlmem build` is the
    write-path gate (~30s) and `gdlmem validate` is the whole-corpus
    check — it now completes in under a second (the old "never block
    on it" advice described a quadratic bug, fixed run 33 at 3,400x).
