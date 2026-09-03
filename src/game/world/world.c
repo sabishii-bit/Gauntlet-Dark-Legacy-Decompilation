@@ -807,36 +807,35 @@ static void sSetupWorldHeader(u32* w) {
     }
 }
 
-/* FindWORLDOBJ: find an object by name from the current world root. */
-WorldObj* FindWORLDOBJ(char* name) {
-    WorldObj* node = world_objects;
+/* sFindWorldObj: by-name subtree walk shared by FindWORLDOBJ and
+ * FindWorldObject; both call sites inline it. */
+static inline WorldObj* sFindWorldObj(WorldObj* node, char* name) {
     s16 index;
 
     while (node != 0) {
-        if (strcmp(name, node->desc) != 0) {
-            goto search_children;
+        if (strcmp(name, node->desc) == 0) {
+            return node;
         }
-        goto done;
-search_children:
         index = node->childidx;
         if (index >= 0) {
             WorldObj* r = FindWorldObject(&world_objects[index], name);
             if (r != 0) {
-                node = r;
-                goto done;
+                return r;
             }
         }
         index = node->nextidx;
         if (index >= 0) {
             node = &world_objects[index];
         } else {
-            node = 0;
-            goto done;
+            return 0;
         }
     }
-    node = 0;
-done:
-    return node;
+    return 0;
+}
+
+/* FindWORLDOBJ: find an object by name from the current world root. */
+WorldObj* FindWORLDOBJ(char* name) {
+    return sFindWorldObj(world_objects, name);
 }
 
 /* FindWorldObject: recursive by-name subtree search. */
