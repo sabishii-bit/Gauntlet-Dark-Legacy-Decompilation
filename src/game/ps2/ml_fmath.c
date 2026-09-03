@@ -1029,7 +1029,7 @@ void WRollMat3(f32* matrix, f32 angle)
 
 /* Pre-multiply by a pitch rotation. */
 #pragma opt_propagation off
-void WPitchMat3(register f32* matrix, f32 angle)
+void WPitchMat3(f32* matrix, f32 angle)
 {
     u8 unused0[8];
     f32 magnitude = angle;
@@ -1043,19 +1043,14 @@ void WPitchMat3(register f32* matrix, f32 angle)
         f32 s = sin(angle);
         f32 c = cos(angle);
         for (row = 0; row < 3; row++) {
-            f32* v = matrix + row * 4;
-            f32* aPtr;
-            f32 a;
-            f32 b;
+            f32 a = matrix[row * 4 + 1];
+            f32 b = matrix[row * 4 + 2];
             f32 newB;
             f32 newA;
-            a = v[1];
-            aPtr = v + 1;
-            b = *(v += 2);
             newA = c * a - s * b;
             newB = c * b + s * a;
-            *v = newB;
-            *aPtr = newA;
+            matrix[row * 4 + 2] = newB;
+            matrix[row * 4 + 1] = newA;
         }
     }
 }
