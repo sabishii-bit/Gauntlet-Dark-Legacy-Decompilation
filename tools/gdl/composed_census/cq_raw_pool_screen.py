@@ -22,6 +22,20 @@ nearest preceding lbl_, so a fixed window truncates it).
 Usage, from the repository root:
   python tools/gdl/composed_census/cq_raw_pool_screen.py game/enemy/enemy move_logic00
 
+SCOPE, measured run 43 and NOT the same question `cr_datum_screen.py` asks:
+this screen resolves POOL data only (our anonymous `@N` entries and the
+splitter's `lbl_*`) and DROPS every other relocation, so it answers "is a
+LITERAL in this function wrong?".  cr_datum_screen keys every relocation,
+including named globals and callees.  Over 55 live functions the two verdicts
+disagreed 28 times, always this way round (pool-only EQUAL vs all-relocations
+DELTA) -- so they are complements, not two halves of one screen.  What they
+DID duplicate was infrastructure: a DOL reader, a symbols.txt parser and an
+objdump reader that `fndiff` already owned.  Those are now shared
+(`fndiff.object_sections`, `fndiff.dol_read`, `fndiff.symbol_addresses`) and
+this screen's verdicts are unchanged -- verified byte-for-byte against the
+pre-merge tool on all 55 functions.  The RAW-object idea this tool
+contributed is now also available as `fndiff --datum --raw`.
+
 Verdicts:
   VALUE MULTISET EQUAL   the compiler already uses exactly the target's pool
                          values - no literal in this function is wrong, and
@@ -32,6 +46,7 @@ Verdicts:
   COUNT MISMATCH         relocation counts differ; the screen is
                          inconclusive, not clean.
 """
+import os
 import re
 import struct
 import subprocess
@@ -39,62 +54,31 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "tools" / "gdl"))
+import fndiff  # noqa: E402
+
 NBYTES = 48
 
 
-def load_dol():
-    dol = (ROOT / "orig" / "GUNE5D" / "sys" / "main.dol").read_bytes()
-    sections = []
-    for i in range(18):
-        off = struct.unpack_from(">I", dol, 0x00 + i * 4)[0]
-        addr = struct.unpack_from(">I", dol, 0x48 + i * 4)[0]
-        size = struct.unpack_from(">I", dol, 0x90 + i * 4)[0]
-        if off and addr and size:
-            sections.append((addr, addr + size, off))
-    return dol, sections
-
-
 def load_symbols():
-    syms, sizes = {}, {}
-    text = (ROOT / "config" / "GUNE5D" / "symbols.txt").read_text(
-        encoding="utf-8", errors="replace")
-    for line in text.splitlines():
-        m = re.match(r"^(\S+)\s*=\s*\.(\w+):0x([0-9A-Fa-f]+);", line.strip())
-        if m:
-            syms[m.group(1)] = int(m.group(3), 16)
-            sz = re.search(r"size:0x([0-9A-Fa-f]+)", line)
-            sizes[m.group(1)] = int(sz.group(1), 16) if sz else 4
-    return syms, sizes
+    """(name -> address, name -> size), from fndiff's symbols.txt readers.
+
+    Size defaults to 4 exactly as the private parser did — a symbols.txt
+    line with no `size:` field still resolves.
+    """
+    addresses = fndiff.symbol_addresses()
+    sizes = fndiff.symbol_sizes()
+    return addresses, {name: sizes.get(name, 4) for name in addresses}
 
 
-def load_object(obj, objdump):
-    """Return {symbol: (section, offset, size)} and {section: bytes}."""
-    sect_data, cur = {}, None
-    out = subprocess.run([str(objdump), "-s", str(obj)], capture_output=True,
-                         text=True).stdout
-    for line in out.splitlines():
-        m = re.match(r"Contents of section (\S+):", line)
-        if m:
-            cur = m.group(1)
-            sect_data[cur] = {}
-            continue
-        m = re.match(r"\s+([0-9a-f]+) ((?:[0-9a-f]{2,8} ?){1,4})", line)
-        if m and cur:
-            sect_data[cur][int(m.group(1), 16)] = bytes.fromhex(
-                m.group(2).replace(" ", ""))
-    whole = {s: b"".join(d[b] for b in sorted(d)) for s, d in sect_data.items()}
+def load_object(obj):
+    """{symbol: (section, offset, size)}, {section: bytes} — shared reader.
 
-    symoff = {}
-    tbl = subprocess.run([str(objdump), "-t", str(obj)], capture_output=True,
-                         text=True).stdout
-    for line in tbl.splitlines():
-        m = re.match(
-            r"^([0-9a-f]{8})\s+\S+\s+\S+\s+(\S+)\s+([0-9a-f]+)\s+(\S+)$",
-            line.strip())
-        if m:
-            symoff[m.group(4)] = (m.group(2), int(m.group(1), 16),
-                                  int(m.group(3), 16) or 4)
-    return symoff, whole
+    Run-43 item 2: this used to be a third private objdump parser beside
+    fndiff's and cr_datum_screen's. The screen's own logic below is
+    unchanged; only the readers are shared.
+    """
+    return fndiff.object_sections(obj, readable=None)
 
 
 def fmt(blob):
@@ -131,14 +115,14 @@ def main():
     unit = sys.argv[1].replace(".cpp", "").replace(".c", "")
     fn = sys.argv[2]
 
-    dol, sections = load_dol()
+    # fndiff's readers address the DOL, symbols.txt and objdump by
+    # repository-relative path, so this tool now runs from the root the way
+    # its docstring already required.
+    os.chdir(ROOT)
     syms, symsize = load_symbols()
 
     def dol_bytes(addr, n):
-        for start, end, off in sections:
-            if start <= addr < end:
-                return dol[off + (addr - start): off + (addr - start) + n]
-        return b""
+        return fndiff.dol_read(addr, n) or b""
 
     body = (ROOT / "build" / "GUNE5D" / "src" / unit).parent \
         / ".postprocess" / "body" / (Path(unit).name + ".o")
@@ -149,10 +133,7 @@ def main():
     if not body.exists():
         print(f"missing object for {unit}: run ninja first")
         return 2
-    objdump = ROOT / "build" / "binutils" / "powerpc-eabi-objdump.exe"
-    if not objdump.exists():
-        objdump = ROOT / "build" / "binutils" / "powerpc-eabi-objdump"
-    symoff, whole = load_object(body, objdump)
+    symoff, whole = load_object(body)
 
     def our_bytes(name, n=None):
         ent = symoff.get(name)

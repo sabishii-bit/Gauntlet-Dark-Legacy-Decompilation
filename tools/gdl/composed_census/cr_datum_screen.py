@@ -27,6 +27,15 @@ Run from the repository root:
     python tools/gdl/composed_census/cr_datum_screen.py <unit> <fn>
     python tools/gdl/composed_census/cr_datum_screen.py --image \
         --out build/GUNE5D/cr_image_datum.txt
+    python tools/gdl/composed_census/cr_datum_screen.py --raw <unit> <fn>
+
+MERGED, run 43 item 2: the screen itself now lives in `fndiff` as
+`datum_screen_from_lines` / `datum_multiset_screen`, shared with
+`cq_raw_pool_screen.py`, whose contribution was the RAW-object path (`--raw`
+here, `fndiff --datum --raw`).  This file is the CR-shaped CLI over it and
+keeps its output verbatim: the merged core was calibrated by re-running
+`--image` over all 1,702 screened functions and diffing against the
+pre-merge report.
 
 Calibrated 2026-09-03 against four live controls before shipping:
   player::PlayerRestoreState  VALUE-DELTA (100.0/500.0 vs 0.5/30.0)  [true +]
@@ -36,6 +45,11 @@ Calibrated 2026-09-03 against four live controls before shipping:
                               pool row)                              [true -]
   shop::show_gold             VALUE-EQUAL (bias/1-256 swapped between
                               f30 and f31, ours anonymous)           [true -]
+NOTE (run 43): the three true positives above now read VALUE-EQUAL — every
+one of those defects was FIXED in run 42, so the shipped control set no
+longer discriminates.  The live discriminating set is the 49 VALUE-DELTA
+functions in `--image`; re-derive controls from a fresh `--image` run rather
+than trusting the list above.
 KNOWN LIMIT, by construction: a TRANSPOSITION preserves the multiset, so this
 screen cannot see one (enemy::move_logic00's swapped pi/2pi reads VALUE-EQUAL
 here).  It is the complement of es_named_reloc_census.py, not a replacement:
@@ -44,228 +58,28 @@ that tool finds wrong-OPERAND rows, this one finds wrong-DATUM rows.
 
 import argparse
 import json
-import re
-import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools" / "gdl"))
+import fndiff  # noqa: E402
 from fndiff import parse  # noqa: E402
 
-VERSION = "GUNE5D"
-LBL_RE = re.compile(r"^lbl_[0-9A-Fa-f]{6,8}$")
-OBJDUMP = REPO / "build" / "binutils" / "powerpc-eabi-objdump.exe"
-PREFIX = 256         # full-entry compare; poolval's 16-byte preview missed a
-                     # string that first differs at +0x21 (AtreeNodeInit)
-INITIALIZED = {".data", ".sdata", ".sdata2", ".rodata", ".text", ".init"}
-_obj_cache = {}
-_dol = None
-_syms = None
+VERSION = fndiff.VERSION
 
 
-def dol_image():
-    """address -> bytes reader over the retail DOL (exact, no 16-byte cap)."""
-    global _dol
-    if _dol is None:
-        raw = (REPO / "orig" / VERSION / "sys" / "main.dol").read_bytes()
-        import struct
-        off = struct.unpack(">18I", raw[0x00:0x48])
-        adr = struct.unpack(">18I", raw[0x48:0x90])
-        siz = struct.unpack(">18I", raw[0x90:0xD8])
-        _dol = [(a, s, o) for o, a, s in zip(off, adr, siz) if s]
-    return _dol
+def screen(unit, fn, raw=False, resolve_lbl=False):
+    """(target_only, ours_only, labels), or None when the function is absent.
 
-
-def dol_read(addr, size):
-    for a, s, o in dol_image():
-        if a <= addr < a + s:
-            n = min(size, a + s - addr)
-            raw = (REPO / "orig" / VERSION / "sys" / "main.dol").read_bytes()
-            return raw[o + (addr - a): o + (addr - a) + n]
-    return None
-
-
-def symtable():
-    """symbols.txt: name -> (section, address, size). BSS/SBSS carry no bytes."""
-    global _syms
-    if _syms is None:
-        _syms = {}
-        pat = re.compile(r"^(\S+)\s*=\s*(\.\w+):0x([0-9A-Fa-f]+);.*?size:0x([0-9A-Fa-f]+)")
-        for line in (REPO / "config" / VERSION / "symbols.txt").read_text().splitlines():
-            m = pat.match(line.strip())
-            if m:
-                _syms[m.group(1)] = (m.group(2), int(m.group(3), 16), int(m.group(4), 16))
-    return _syms
-
-
-_pool_cache = {}
-
-
-def poolbytes(labels):
-    """lbl_ADDR -> {'section','size','bytes'} read from the RETAIL DOL."""
-    st = symtable()
-    for x in labels:
-        if x in _pool_cache or x not in st:
-            continue
-        sec, addr, size = st[x]
-        blob = dol_read(addr, min(size, PREFIX)) if sec in INITIALIZED else None
-        _pool_cache[x] = {"section": sec, "size": size, "bytes": blob}
-    return _pool_cache
-
-
-def objdata(objpath):
-    """local symbol -> (section, first-16-bytes) for one ELF object."""
-    key = str(objpath)
-    if key in _obj_cache:
-        return _obj_cache[key]
-    syms = {}
-    r = subprocess.run([str(OBJDUMP), "-t", str(objpath)], capture_output=True, text=True)
-    for line in r.stdout.splitlines():
-        m = re.match(r"^([0-9A-Fa-f]{8})\s+\S+\s+O\s+(\S+)\s+([0-9A-Fa-f]{8})\s+(?:\.hidden\s+)?(\S+)$", line)
-        if m:
-            syms[m.group(4)] = (m.group(2), int(m.group(1), 16), int(m.group(3), 16))
-    sections = {}
-    for sec in {s[0] for s in syms.values()}:
-        rr = subprocess.run([str(OBJDUMP), "-s", "-j", sec, str(objpath)],
-                            capture_output=True, text=True)
-        buf = bytearray()
-        base = None
-        for line in rr.stdout.splitlines():
-            m = re.match(r"^\s*([0-9A-Fa-f]+)\s((?:[0-9A-Fa-f]{2,8}\s){1,4})\s", line)
-            if not m:
-                continue
-            off = int(m.group(1), 16)
-            if base is None:
-                base = off
-            chunk = bytes.fromhex(m.group(2).replace(" ", ""))
-            while len(buf) < off - base:
-                buf.append(0)
-            buf[off - base:off - base + len(chunk)] = chunk
-        sections[sec] = bytes(buf)
-    out = {}
-    for name, (sec, off, size) in syms.items():
-        blob = (sections.get(sec, b"")[off:off + min(size, PREFIX)]
-                if sec in INITIALIZED else None)
-        out[name] = (sec, size, blob)
-    _obj_cache[key] = out
-    return out
-
-
-def relocs(lines):
-    """symbol (with its addend) -> count, over the whole function."""
-    out = Counter()
-    for line in lines:
-        if line.startswith("    "):
-            parts = line.strip().split(maxsplit=1)
-            if len(parts) > 1:
-                out[parts[1].strip()] += 1
-    return out
-
-
-def is_pointer_table(blob, name=""):
-    """A relocation-filled table: resolved addresses in the retail image,
-    zeros in our object (our entries live in the relocation table)."""
-    if name.startswith("jumptable_"):
-        return True
-    if not blob or len(blob) < 8 or len(blob) % 4:
-        return False
-    if not any(blob):
-        return True
-    words = [int.from_bytes(blob[i:i + 4], "big") for i in range(0, len(blob), 4)]
-    return all(0x80000000 <= w < 0x80400000 or w == 0 for w in words)
-
-
-def split_addend(sym):
-    if "+" in sym:
-        base, off = sym.split("+", 1)
-        try:
-            return base, int(off, 0)
-        except ValueError:
-            return base, 0
-    return sym, 0
-
-
-def datum_key(sym, local):
-    """Bytes when we can read them, else the ADDRESS, else the symbol name.
-
-    Three refinements, each forced by a measured false positive:
-      * resolve through symbols.txt for ANY name, not just `lbl_*` -- our
-        source spells a literal MWCC pools as `@N` where retail's splitter
-        named the same bytes `sPi`/`pmissile_sfxidx`;
-      * key by ADDRESS when there are no bytes, so our `gControllerButtons+0x4`
-        and retail's `sFlags` (0x803445CC either way) are one datum;
-      * a relocation-filled table (`jumptable_*`, an address array) reads as
-        resolved addresses in the retail image and as ZEROS in our object,
-        because our entries live in the relocation table -- that is a
-        representation difference, never a datum difference.
+    Thin wrapper: `fndiff.datum_multiset_screen` is the implementation.
     """
-    base, addend = split_addend(sym)
-    if base in local and local[base][2] is not None:
-        if is_pointer_table(local[base][2], base):
-            return "P:%d" % local[base][1], local[base][1]
-        blob = local[base][2][addend:] if addend else local[base][2]
-        if blob:
-            return "B:" + blob.hex(), local[base][1]
-    p = poolbytes([base]).get(base)
-    if p:
-        if p["bytes"] and is_pointer_table(p["bytes"], base):
-            return "P:%d" % p["size"], p["size"]
-        if p["bytes"] and addend < len(p["bytes"]):
-            return "B:" + p["bytes"][addend:].hex(), p["size"]
-        st = symtable().get(base)
-        if st:
-            return "A:0x%08X" % (st[1] + addend), p["size"]
-    st = symtable().get(base)
-    if st:
-        return "A:0x%08X" % (st[1] + addend), st[2]
-    return "N:" + sym, None
-
-
-def prefix_merge(keys):
-    """T11 granularity law: a shorter entry that is a PREFIX of a longer one
-    is the same datum seen at a different splitting granularity."""
-    return keys
-
-
-def screen(unit, fn):
-    tobj = REPO / "build" / VERSION / "obj" / f"{unit}.o"
-    bobj = REPO / "build" / VERSION / "src" / f"{unit}.o"
-    tfns, bfns = parse(tobj), parse(bobj)
-    if fn not in tfns or fn not in bfns:
+    result = fndiff.datum_multiset_screen(unit, fn, raw=raw,
+                                          placeholder_addresses=resolve_lbl)
+    if result is None:
         return None
-    tl, bl = objdata(tobj), objdata(bobj)
-    tc, bc = relocs(tfns[fn]), relocs(bfns[fn])
-    poolbytes(list(tc) + list(bc))
-    tk, bk = Counter(), Counter()
-    label = {}
-    for s, n in tc.items():
-        k, sz = datum_key(s, tl)
-        tk[k] += n
-        label.setdefault(k, []).append(f"T:{s}({sz})")
-    for s, n in bc.items():
-        k, sz = datum_key(s, bl)
-        bk[k] += n
-        label.setdefault(k, []).append(f"O:{s}({sz})")
-    only_t, only_b = tk - bk, bk - tk
-    # prefix reconciliation: a target run that CONTAINS our shorter entry
-    for k in list(only_b):
-        if not k.startswith("B:"):
-            continue
-        mine = bytes.fromhex(k[2:])
-        for tkey in list(only_t):
-            if tkey.startswith("B:") and (bytes.fromhex(tkey[2:]).startswith(mine)
-                                          or mine.startswith(bytes.fromhex(tkey[2:]))):
-                n = min(only_t[tkey], only_b[k])
-                only_t[tkey] -= n
-                only_b[k] -= n
-                if only_t[tkey] <= 0:
-                    del only_t[tkey]
-                if only_b[k] <= 0:
-                    del only_b[k]
-                break
-    return only_t, only_b, label
+    return result["target_only"], result["ours_only"], result["labels"]
 
 
 def main():
@@ -275,7 +89,16 @@ def main():
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--image", action="store_true",
                     help="every function of every NonMatching unit pair")
-    ap.add_argument("--census", default=str(REPO / "build" / VERSION / "cr_es_census.json"))
+    ap.add_argument("--raw", action="store_true",
+                    help="read the pre-webfrank compiler object, so a RULE"
+                         " artifact cannot read as a source-value defect")
+    ap.add_argument("--resolve-lbl", action="store_true",
+                    help="take a dtk placeholder name's address FROM the name"
+                         " (our `extern u8 lbl_8023D000[]` vs the splitter's"
+                         " `atree_scroll` are one datum). OFF by default so a"
+                         " lane keeps the verdicts it started with")
+    ap.add_argument("--census",
+                    default=str(REPO / "build" / VERSION / "cr_es_census.json"))
     ap.add_argument("--out", default=None,
                     help="write the report here (default: stdout; generated "
                          "artifacts belong under build/, never beside the script)")
@@ -306,7 +129,7 @@ def main():
                 json.loads(Path(args.census).read_text())]
     counts = Counter()
     for unit, fn in todo:
-        res = screen(unit, fn)
+        res = screen(unit, fn, raw=args.raw, resolve_lbl=args.resolve_lbl)
         if res is None:
             if not args.image:
                 emit(f"MISSING     {unit}::{fn}")
