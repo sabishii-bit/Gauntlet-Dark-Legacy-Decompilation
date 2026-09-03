@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "attempt.SS_initoanimlist-loop-init-order-and-declaration-order-close-the-induction-renaming.20260903.v1 (sighting 1), attempt.SS_playercontrols-the-call-site-class-buys-only-a-compensating-pad-and-the-helper-sits-on-the-inline-threshold.20260903.v1 (sighting 2), attempt.SS_audioloadpart-neither-the-empty-then-block-nor-a-cursor-local-reaches-the-slot-scan-cluster.20260903.v1 (sighting 3). Each carries the literal probed_form and the before/after numbers; all three probes were reverted and each TU was left byte-identical to its commit.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where a local whose initialiser is a compile-time constant reaches codegen as a live register web \u2014 i.e. the constant stops being rematerialised at its uses after the declaration is added. One aligned view (`fnasm <unit> <fn> --diff`) plus one build shows it. A weaker falsifier for the cost half: a constant-initialised local that adds no stack slot at all (frame and every r1-relative displacement unchanged), which would show the charge is conditional rather than automatic.",
+  "id": "claim.law.SS_a-scaffold-local-cannot-manufacture-a-constant-web-it-folds-and-still-buys-a-slot.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T06:33:10Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "The standing cure for a constant-hoist residual \u2014 'the target keeps constant K in a callee-saved register and we rematerialise it, so give K a named local' \u2014 CANNOT work, and it is not free to try. MWCC folds a local whose initialiser is a compile-time-known value at every use, so the intended register web never exists; but the declaration still charges its nominal stack slot, which shifts every r1-relative displacement below it and turns a null probe into a measured REGRESSION. Three independent sightings in one run (2026-09-03, run 44), in three TUs, with three different value kinds. (1) src/game/g3d/auxanim.c::InitOAnimList: `int notfound;` + `notfound = -1;` aimed at the target's `li r28,-1` preheader hoist \u2014 the hoist did not appear, `li r0,-1` survived verbatim at +0x114, the new local took slots 32..35 and pushed the byte-swap scratch block from 32..43 to 36..47, and real went 58 -> 78 with the opcode multiset still IDENTICAL and the IMMEDIATE row count 4 -> 20. (2) src/game/game/controls.c::EnablePlayerControls / DisablePlayerControls: `s32 z = 0; s32 n = 12;` at both call sites of an inlined helper, aimed at the target's `li r27,0` / `li r31,12` callee-saved constants \u2014 every remat survived (`li r0,12` before `mtctr`, `li r0,0` twice in the loop), the two dead scalars bought exactly 8 bytes of local area, and the frame closed 24 -> 32 to EQUAL the target's 32 for the wrong reason: the target's extra 8 bytes are save area for two more callee-saved registers, ours are dead locals, and the `stmw` base moved 8 -> 16 while the target's stayed at 8. (3) src/game/audio/audio.c::AudioLoadPart: `u8* q = state + slot * 36;` as a cursor aimed at the target's `add`+`lwz` address form \u2014 the ten --ops clusters reproduced BIT-FOR-BIT, and the only measured effect was a 4-byte shift of every r1-relative displacement, real 171 -> 183. CONSEQUENCES. First, sighting (2) is the general shape of a COMPENSATING ERROR and the reason a frame-parity gain must never be banked without reading the save base: a dead-local pad can close a frame delta that is really a save-set delta, improving real and fuzzy while moving the function AWAY from the mechanism. Read `stmw`'s offset, not just `stwu`'s immediate. Second, this is the fold-side complement of claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1: that law says the slot is charged, this one says the value is folded anyway, and together they make the scaffold-local class strictly negative-expectation for any CONSTANT. It does NOT apply to a local initialised from a LOADED or CALL-RETURNED value, which is a different class and is the one claim.law.CT_a-saved-parameter-numbers-below-the-locals-until-you-give-it-a-declared-copy.20260903.v1 is about."
+}

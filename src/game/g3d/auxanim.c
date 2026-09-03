@@ -467,16 +467,15 @@ void InitOAnimList(OANIMHDR* hdr, int arg)
     u16 h2;
     u8 unused[16];
     u8* s;
-    int i;
     int off;
+    int i;
     char* p;
 
     if (hdr == 0) {
         FatalError("Bad header passed in to InitOAnimList.", 0x804060);
     }
     p = (char*)((int)hdr + hdr->offset);
-    off = 0;
-    for (i = 0; i < hdr->count; i++) {
+    for (i = 0, off = 0; i < hdr->count; i++, off += 0x28) {
         v = *(u32*)(p + off + 0x20);
         s = (u8*)&v;
         r[0] = s[3];
@@ -490,7 +489,6 @@ void InitOAnimList(OANIMHDR* hdr, int arg)
         h2 = *(u16*)(p + off + 0x26);
         s = (u8*)&h2;
         *(u16*)(p + off + 0x26) = (s[1] << 8) | s[0];
-        off += 0x28;
     }
     i = 0;
     while (i < hdr->count) {
