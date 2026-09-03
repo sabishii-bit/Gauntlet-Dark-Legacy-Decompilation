@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/audio/audio.c",
+      "game/ui/auxscreen.c"
+    ],
+    "scope": "CLOSE lane round 8 (nearmiss + branchpair remainder, one lane): seeds w/ fresh records: AudioLoadPart (audio, real 102/94.95 \u2014 BP's v2 names the error-path block at +0x200-vs-+0x254 as the unprobed carrier), init_mapscreen (auxscreen, real 99 arbitrated-better, 184/185 \u2014 one insn from count parity; BP's record names the ent_h second-pointer/extab trade \u2014 respect the Data cost, the gate fix is in flight). Then the fresh roster (real-ranked; rec-LETTER read: D respected, P re-check expiry, prose re-probe in policy) + the 18 branchpair rows (census live; recognition screen + nm expansion check before any lift; v3 law playbook). Extend owned_units at selection; cross-check claims --owns per unit. Byte-exact or typed park; one commit per landed fn; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; defake baseline per TU. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:AudioLoadPart",
+  "id": "work_claim.close-round-8.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NC",
+  "recorded_at": "2026-09-03T19:19:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

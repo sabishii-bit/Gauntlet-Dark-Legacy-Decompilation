@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl/webfrank.py",
+      "config/GUNE5D/webfrank.json",
+      "game/sfx/psfx.c"
+    ],
+    "scope": "POSTPROCESSOR lane (owns webfrank surfaces + psfx.c for one conditional): (1) sysResetService (sys/sysservice, real 18) \u2014 FL's run-47 record banks the full composed shape: 9-atom permutation + 2-row recolor, with the r3 lifetime-split as the cheapest refuting check; serve it (this makes sysservice 17/17 and FLIP-READY \u2014 say so prominently; the integrator flips at merge). (2) PlayerDoWeapTrail (psfx, real 24): execute the WITHHOLD CONDITION exactly as WR's record wrote it \u2014 accept NM's record's one untried source lever, RUN IT FIRST; if it closes source-exact -> STRICT, no rule; if it fails -> paste WR's banked byte-equal fragment with hashes re-derived -> EQUIVALENT. Either way the function closes; report which path. (3) T17's 11 ordered-datum CANDIDATE rows (the run-47 T17 record's next-lane hypothesis: re-screen on the ORDERED datum sequence \u2014 the comparison neither the multiset nor the permutation test makes); publish dispositions. Every ship: verify_datum_binding, refusal tests that FAIL without their guard, forced full replay per webfrank.py change, configure per json edit, both suites. Closes EQUIVALENT unless source lands; STRICT unmoved by rules. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:sysResetService",
+  "id": "work_claim.webfrank-48.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-03T19:19:29Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
