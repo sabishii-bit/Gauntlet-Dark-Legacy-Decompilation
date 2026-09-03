@@ -7458,6 +7458,7 @@ def law_corpus(
     residual: str | None = None,
     include_provisional: int = 0,
     rank: int = 1,
+    asserted_by: str | None = None,
 ) -> dict[str, Any]:
     """List the codegen-law corpus, newest first, with freshness and supersession.
 
@@ -7476,6 +7477,42 @@ def law_corpus(
     finds the laws and sibling attempt records whose recorded
     ``residual.signature`` shares mnemonics with it — "who else had this
     exact residual", which no facet could ask before.
+
+    ``asserted_by`` is THE INVALIDATION LINK (run-49 item 9). A law's
+    ``asserted_by`` names the code that mechanically asserts it, so when a
+    mechanism SHIPS or CHANGES, the laws resting on that code are the ones
+    whose grounds may have just moved — WF measured `memory_disambiguation`
+    clearing the SECOND ground of a standing refusal, and nothing in the
+    graph connected the two. This is that query: pass a file, a
+    ``path.py::symbol``, or a DIRECTORY prefix, and every law whose
+    ``asserted_by`` names it comes back with ``asserted_by_match`` saying
+    which entries matched.
+
+    Matching is by SUBSTRING, which the corpus forces and the calibration
+    settles. 245 of 469 ``asserted_by`` entries (52%) are not bare paths:
+    they carry ``::symbol`` suffixes, CLI flags, or parenthetical prose
+    ("tools/gdl/probe.py (four byte-exact/structural closures this run)").
+    Measured at 471abd4ca, equality vs substring:
+
+        tools/gdl/webfrank.py         5 of 17   (71% missed)
+        tools/gdl/probe.py           13 of 51   (75% missed)
+        memory_graph/core.py          7 of 20   (65% missed)
+        tools/gdl/fndiff.py          14 of 36   (61% missed)
+        config/GUNE5D/webfrank.json   5 of  7   (29% missed)
+
+    An invalidation sweep that misses the law whose grounds just moved has
+    failed at its one job, so recall wins; every match prints the entry that
+    produced it, which is what makes a false positive visible rather than
+    silent. A directory needle works for the same reason —
+    ``tools/gdl/composed_census/`` matches 79 records, which is the right
+    answer when a whole family ships.
+
+    NOT ranked by refusal language, deliberately. Marking the laws a shipped
+    mechanism could invalidate looked like the useful half until the
+    negative side was counted: of the rows each needle returns, 17 of 17
+    (webfrank.py), 46 of 51 (probe.py) and 19 of 20 (core.py) carry
+    necessity or refusal wording, so the flag separates almost nothing. It
+    is reported per row as ``necessity_language`` and decides no ordering.
     """
     ensure_database(root, db_path)
     explicit_limit = limit is not None
@@ -7623,6 +7660,28 @@ def law_corpus(
                 if row["token_specificity"] < top_specificity / 2)
             if top_specificity > 0 else 0)
 
+    # THE INVALIDATION LINK (run-49 item 9). Read once, for every candidate
+    # row, because the filter has to run BEFORE truncation — the existing
+    # falsifier/asserted_by pass runs after it and would filter a prefix.
+    asserted_index: dict[str, list[str]] = {}
+    if asserted_by:
+        needle = str(asserted_by).replace("\\", "/").lower().strip()
+        with closing(open_database(root, db_path)) as connection:
+            for extra in connection.execute(
+                "SELECT record_id, raw_json FROM record_ingest"
+            ).fetchall():
+                try:
+                    record = json.loads(extra["raw_json"])
+                except (TypeError, json.JSONDecodeError):
+                    continue
+                entries = _record_field(record, "asserted_by")
+                if not isinstance(entries, list):
+                    continue
+                hits = [str(item) for item in entries
+                        if needle in str(item).replace("\\", "/").lower()]
+                if hits:
+                    asserted_index[extra["record_id"]] = hits
+
     tokens = _query_tokens(query) if query else []
     # Per-term OR diagnostics (run 34 item 6). Silent AND-combining returned
     # 0 on a spread query like "reloc blind real naming" — every term is
@@ -7636,11 +7695,19 @@ def law_corpus(
     terms_by_id: dict[str, int] = {}
     selected = []
     for row in rows:
+        # asserted_by is a HARD filter, applied before every other signal:
+        # the question is "which laws rest on this code", and a law that
+        # does not name it is not an answer however well it matches a term.
+        if asserted_by and row["record_id"] not in asserted_index:
+            continue
         if not (query or residual):
-            selected.append((row, None))
+            selected.append(
+                (row, ["asserted-by"] if asserted_by else None))
             continue
         why: list[str] = []
         terms_matched: set[str] = set()
+        if asserted_by:
+            why.append("asserted-by")
         if query:
             lowered = query.lower()
             rid = (row["record_id"] or "").lower()
@@ -7709,6 +7776,14 @@ def law_corpus(
                 "query_terms_matched": terms_by_id.get(row["record_id"], 0),
             }
         )
+        if asserted_by:
+            laws[-1]["asserted_by_match"] = asserted_index.get(
+                row["record_id"], [])
+            # Reported, never ranked on — it separates almost nothing
+            # (17/17, 46/51, 19/20 on the three measured needles).
+            law_text = value if isinstance(value, str) else ""
+            laws[-1]["necessity_language"] = bool(
+                _NECESSITY_RE.search(f"{row['record_id']} {law_text}"))
 
     # --- run-32 evidence layer -------------------------------------------
     # Scores are attached AFTER text filtering and BEFORE truncation, so the
@@ -7759,7 +7834,7 @@ def law_corpus(
     hidden_provisional = 0
     provisional_retained = 0
     provisional_rows: list[dict[str, Any]] = []
-    targeted = bool(tag or query or residual)
+    targeted = bool(tag or query or residual or asserted_by)
     if targeted:
         provisional_retained = sum(
             1 for row in laws if row["status"] == "provisional")
@@ -7854,7 +7929,7 @@ def law_corpus(
     # over a mandatory screen is the "quieter screen nobody knew they ran"
     # failure the provisional-suppression comment above already names.
     query_previewed = (bool(query) and not full and not residual and not tag
-                       and not explicit_limit)
+                       and not asserted_by and not explicit_limit)
     query_matched_total = len(laws)
     if query_previewed:
         limit = QUERY_LAW_PREVIEW
@@ -7966,6 +8041,38 @@ def law_corpus(
             " necessity language as unscreened, not as proven."
         ),
     }
+    if asserted_by:
+        out["asserted_by_filter"] = asserted_by
+        # The index covers EVERY record; `laws` is the law-ish subset the
+        # corpus query selects. Reporting both stops the difference from
+        # being a silent absence: attempt records also carry asserted_by,
+        # and a mechanism change can invalidate one of those too.
+        out["asserted_by_records_total"] = len(asserted_index)
+        out["asserted_by_non_law_records"] = (
+            len(asserted_index) - sum(1 for row in out["laws"]
+                                      if row["id"] in asserted_index)
+            - truncated)
+        out["asserted_by_note"] = (
+            f"THE INVALIDATION LINK: every law here names `{asserted_by}` in"
+            " its `asserted_by`, i.e. this code is what mechanically asserts"
+            " it. When that code SHIPS or CHANGES, these are the laws whose"
+            " grounds may have just moved — WF measured a shipped"
+            " memory-disambiguation mechanism clearing the SECOND ground of a"
+            " standing refusal with nothing connecting the two. Read"
+            " `asserted_by_match` for the entry that matched: matching is by"
+            " SUBSTRING because 52% of the corpus's asserted_by entries carry"
+            " `::symbol` suffixes, CLI flags or parenthetical prose, and"
+            " equality missed 61-75% of the true set on every needle"
+            " measured. `necessity_language` is reported and NOT ranked on:"
+            " on the three measured needles 17/17, 46/51 and 19/20 rows carry"
+            " it, so it separates almost nothing and the list itself is the"
+            " deliverable — read each law."
+            f" `asserted_by_records_total` ({len(asserted_index)}) counts"
+            " EVERY record naming it; the rows above are the LAW-ish subset,"
+            " and `asserted_by_non_law_records` is the remainder — attempt"
+            " records carry asserted_by too, and a mechanism change can"
+            " invalidate one of those. Reach them with"
+            " `gdlmem.py find --query`.")
     if query:
         # DELIBERATELY NOT PREVIEWED. Pin `mechanism` prose is 9.7% of a
         # query payload's bytes and the densest derivation of a closed
@@ -10361,7 +10468,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 full=kw["full"], limit=kw["limit"],
                 residual=kw["residual"],
                 include_provisional=kw["include_provisional"],
-                rank=kw["rank"]),
+                rank=kw["rank"], asserted_by=kw["asserted_by"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="filter over id SLUG WORDS, scope, law text,"
@@ -10372,6 +10479,12 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                                   " the residual signature"),
                 SurfaceParam("tag", str, default=None,
                              help="filter by structured applicability tag"),
+                SurfaceParam("asserted_by", str, default=None,
+                             help="THE INVALIDATION LINK: laws whose"
+                                  " asserted_by names this file,"
+                                  " path.py::symbol, or directory prefix —"
+                                  " run it after shipping or changing a"
+                                  " mechanism to find the laws resting on it"),
                 SurfaceParam("full", int, default=0, maximum=1,
                              help="1 = inline complete law text"),
                 # Default must exceed the corpus: at 100, 36 of 136 laws

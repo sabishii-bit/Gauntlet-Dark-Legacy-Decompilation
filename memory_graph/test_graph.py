@@ -1933,6 +1933,86 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertEqual(result["truncated"], 0)
         self.assertEqual(result["query_matched_total"], result["count"])
 
+    # --- run-49 item 9: laws --asserted-by, the INVALIDATION LINK ---------
+    #
+    # A law's asserted_by names the code that mechanically asserts it, so
+    # when a mechanism SHIPS the laws resting on that code are the ones
+    # whose grounds may have just moved. WF measured a shipped
+    # memory-disambiguation mechanism clearing the SECOND ground of a
+    # standing refusal, with nothing in the graph connecting the two.
+    #
+    # MATCHING IS BY SUBSTRING, forced by the corpus: 245 of 469
+    # asserted_by entries (52%) are not bare paths -- they carry `::symbol`
+    # suffixes, CLI flags or parenthetical prose. Equality vs substring at
+    # 471abd4ca: tools/gdl/webfrank.py 5 of 17, tools/gdl/probe.py 13 of 51,
+    # memory_graph/core.py 7 of 20, tools/gdl/fndiff.py 14 of 36 --
+    # 61-75% missed. An invalidation sweep that misses the law whose grounds
+    # moved has failed at its one job, so recall wins and every row prints
+    # the entry that matched.
+    def test_a_bare_path_finds_its_laws(self):
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        ids = {row["id"] for row in result["laws"]}
+        self.assertIn(
+            "claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+            ".20260831.v1", ids)
+
+    def test_every_row_says_WHICH_entry_matched(self):
+        row = law_corpus(root=self.root,
+                         asserted_by="tools/gdl/webfrank.py")["laws"][0]
+        self.assertEqual(row["asserted_by_match"], ["tools/gdl/webfrank.py"])
+        self.assertIn("asserted-by", row["match"])
+
+    def test_a_directory_prefix_matches_a_whole_family(self):
+        """The right question when a family ships, not one file."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/")
+        self.assertTrue(result["laws"])
+
+    def test_a_needle_nothing_names_returns_an_empty_LIST_not_the_corpus(self):
+        result = law_corpus(root=self.root,
+                            asserted_by="tools/gdl/nosuchtool.py")
+        self.assertEqual(result["laws"], [])
+        self.assertEqual(result["count"], 0)
+
+    def test_the_filter_is_HARD_and_outranks_a_query_term(self):
+        """'which laws rest on this code' — a law that does not name it is
+        not an answer however well it matches a term."""
+        result = law_corpus("allocator", root=self.root,
+                            asserted_by="tools/gdl/nosuchtool.py")
+        self.assertEqual(result["laws"], [])
+
+    def test_matching_is_case_and_separator_insensitive(self):
+        for needle in ("TOOLS/GDL/WEBFRANK.PY", "tools\\gdl\\webfrank.py"):
+            self.assertTrue(
+                law_corpus(root=self.root, asserted_by=needle)["laws"], needle)
+
+    def test_necessity_language_is_reported_and_not_ranked_on(self):
+        """Measured 17/17, 46/51, 19/20 on the three live needles, so it
+        separates almost nothing; reporting it beats ordering by it."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        self.assertIn("necessity_language", result["laws"][0])
+        self.assertIn("NOT ranked on", result["asserted_by_note"])
+
+    def test_the_non_law_remainder_is_counted_not_silently_dropped(self):
+        """Attempt records carry asserted_by too, and a mechanism change can
+        invalidate one of those."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        self.assertGreaterEqual(result["asserted_by_records_total"],
+                                result["count"])
+        self.assertIn("asserted_by_non_law_records", result)
+
+    def test_the_filter_is_TARGETED_so_provisional_laws_are_retained(self):
+        """A filter that quietly drops matches turns 'not verified yet' into
+        'the graph is silent' — the rule the provisional policy states."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        self.assertEqual(result["hidden_provisional"], 0)
+
+    def test_the_query_preview_never_projects_an_asserted_by_result(self):
+        """asserted_by_match would be the first thing a projection dropped."""
+        result = law_corpus("live zero remat", root=self.root,
+                            asserted_by="tools/gdl/webfrank.py")
+        self.assertNotIn("query_selection_note", result)
+        self.assertIn("asserted_by_match", result["laws"][0])
+
     # --- laws --residual -------------------------------------------------
     def test_residual_signature_finds_sibling_records(self):
         result = law_corpus(root=self.root, residual="+1 addi -1 li")
