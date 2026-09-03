@@ -184,7 +184,7 @@ void cardExit(void) {
     } while (gCardMgr.result == -1);
 }
 
-static s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card) {
+static inline s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card) {
     CARDStat stat;
     CARDFileInfo info;
     u8 unused[8];

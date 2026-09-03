@@ -1181,7 +1181,7 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     return count > 0;
 }
 
-static f32 ClampPitchLow(f32 pitch, f32 bound)
+static inline f32 ClampPitchLow(f32 pitch, f32 bound)
 {
     if (pitch < bound) {
         return pitch;

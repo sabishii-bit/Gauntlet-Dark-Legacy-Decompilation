@@ -294,14 +294,14 @@ void adsArqDone(void) {
 
 /* 0x800D6588  raw ring -> cooked ring: wraps/segments the copy across the ring
  * boundary via memcpy, advances the cooked cursors.  Xbox: adsMoveRawToCooked. */
-static u32 adsBlockDivisor(u32 blocks) {
+static inline u32 adsBlockDivisor(u32 blocks) {
     if (blocks > 1) {
         return blocks;
     }
     return 1;
 }
 
-static u32 adsLimitAvailable(u32 available, u32 space) {
+static inline u32 adsLimitAvailable(u32 available, u32 space) {
     if (available < space) {
         return available;
     }
