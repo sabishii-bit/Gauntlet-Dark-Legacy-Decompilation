@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py (the per-function word counts quoted above)",
+    "tools/gdl/fnasm.py (--raw --diff, the aligned views each diagnosis was read from)"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "proposed",
+  "falsifier": "A promotion lane that closes 2 or more rules to STRICT by working the size-ranked queue from the small end. One counter-example run refutes the ranking claim; the eight-probe sample here is small and the law is filed `proposed` for that reason.",
+  "id": "claim.law.PP_the-smallest-webfrank-rules-are-the-worst-promotion-candidates.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T16:17:46Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "Ranking the promotion backlog by RULE SIZE selects against promotability. Measured 2026-09-03 over the live config/GUNE5D/webfrank.json (152 rules across 60 units): the five smallest rules attacked from source produced zero promotions in eight source probes, because a small rule means a small residual, and a small residual on an otherwise byte-identical function is by construction an allocator or scheduler tie-break with no source carrier. Probed: sysClearFlags (4 insns, 2 words - three statement spellings, all byte-identical), fn_800D967C (13 insns, 2 words - the named-temporary removal was byte-identical; the residual is MWCC's C++ virtual-dispatch r12 chain, a TU-shape task), getSinCos (27 insns, 14 words - the coefficient-order swap was byte-identical and the pool premise refuted by fndiff --datum), MBNewNode (68 insns, 23 words - declaration-position and opt_lifetimes both byte-identical), AllocFile (98 insns, 2 words - the statement-order swap REGRESSED, refuting the natural reading). The one rule that DID move was the largest single residual attacked, PointLineDist2D at 59 words, and it moved because its residual was misclassified rather than because it was small. Two better rankings, both computable without a build: (a) rules whose function shows an OPERAND-VALUE difference at any differing word (see claim.law.PP_a-register-only-verdict-cannot-see-a-reassociated-fp-product.20260903.v1) - those are source bugs, not tie-breaks; (b) rules whose function has no attempt record at all - 44 of the 152 live rules carry no `mechanism` note, and 5 of the 6 functions this lane touched had no per-function attempt record either, so the backlog's real debt is provenance, not size."
+}

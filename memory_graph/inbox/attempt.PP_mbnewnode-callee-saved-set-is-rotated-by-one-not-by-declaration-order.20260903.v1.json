@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Promote a 23-word copy_register_fields rule (no mechanism note, no prior attempt record) by moving the callee-saved assignment with the two recorded declaration-class levers.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - measured on the raw body object. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED and used to choose probe (1) - moving the dead pad relative to the live local is the cheapest form of that lever that does not change the pad's SIZE, and it was neutral. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED - it governs stack slots, and the residual here is entirely in callee-saved REGISTERS, so it does not decide this row.",
+    "probed_form": "(1) DECLARATION ORDER: `u8 unused[8];` then `MBTreeNode* node;` (HEAD) swapped to `MBTreeNode* node;` then `u8 unused[8];`. 23 differing words, unchanged. (2) ALLOCATOR PRAGMA: `#pragma opt_lifetimes on` immediately before the function and `#pragma opt_lifetimes reset` immediately after (the form mb_particle.c already uses around getNewDirConeShare/Unique). 23 differing words, unchanged. Two identical A/Bs; both reverted.",
+    "residual": "The rule stays; this record is its missing source-exhaustion provenance. game/mb/mb_tree carries exactly one rule, so a later close of this rotation deletes the whole unit entry from webfrank.json.",
+    "scope": "No source change retained. src/game/mb/mb_tree.c edited and restored; `git status` clean.",
+    "verification": "defake_gate baseline game/mb/mb_tree --at-head at commit de7b0412d (27 functions, 25 at real 0, source sha1 cccc9e1bb). Each probe measured from a fresh `ninja -j2 build/GUNE5D/src/game/mb/.postprocess/body/mb_tree.o` scored with `wf_word_diff.py`."
+  },
+  "coverage_range": "0x0:0x148 - whole body. The correspondence below was read from `fnasm.py game/mb/mb_tree MBNewNode --raw --diff` over all 68 instructions.",
+  "function": "function:MBNewNode",
+  "held_fixed": "The function signature, the frame size (48 in both streams) and the `u8 unused[8]` pad SIZE were held constant across both probes; only the declaration position and the pragma varied.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "If `savedregs.py game/mb/mb_tree MBNewNode` ever reports a FIRST-definition mismatch, the values are not the same four and this framing is wrong. Measured 2026-09-03: it reports ASSIGNMENT MATCHES on all four first definitions and explicitly warns that 3 later definitions per stream are outside its scope - the later definitions are where the whole 23-word residual lives, which is a good calibration case for that tool's scope line.",
+    "screened_against_target": "yes - both orderings and the live-range spans were read from the aligned raw view against retail bytes, and cross-checked with savedregs.py.",
+    "statement": "The two streams assign the SAME four values to the callee-saved set in a rotated order, and the rotation follows a different ranking rule, not a different declaration order. The four defining instructions, read from the aligned raw view: @0x10 target `mr. r28,r4` against ours `mr. r29,r4` (matrix); @0x14 target `addi r31,r3,0` against ours `addi r28,r3,0` (parent); @0x18 target `addi r29,r5,0` against ours `addi r30,r5,0` (type); @0x38 target `lwz r30,0(0) @lbl_80344EE0` against ours `lwz r31,0(0) @lbl_80344EE0` (node). So ours is exactly parameter/declaration order ascending - parent r28, matrix r29, type r30, node r31 - while retail is matrix r28, type r29, node r30, parent r31, i.e. parent (the LONGEST live range, @0x14 to @0xe8 `stw r31,120(r28)` in our colouring / `stw r30,120(r31)` in retail's) takes the highest register. A priority/live-range ranking is the mechanism to attack; a declaration permutation cannot express it because the parameter order is ABI-fixed and there is only one local."
+  },
+  "id": "attempt.PP_mbnewnode-callee-saved-set-is-rotated-by-one-not-by-declaration-order.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T16:18:25Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "68/68 insns, 23 differing words; a 4-cycle rotation of the callee-saved set r28-r31"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
