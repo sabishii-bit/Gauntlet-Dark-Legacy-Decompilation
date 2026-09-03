@@ -1123,6 +1123,15 @@ s32 do_mapscreen(s32 skip)
 }
 
 /* ================================================================== */
+/* The level's map-route descriptor, or NULL when the level has none. */
+static inline void* map_route_data(void* route)
+{
+    if (route != 0) {
+        return route;
+    }
+    return 0;
+}
+
 /* init_mapscreen (0x2E4) -- build all blits for the map screen.      */
 /* Structural best-effort; NonMatching.                               */
 /* ================================================================== */
@@ -1199,12 +1208,8 @@ s32 init_mapscreen(s32 timer, s32 movie)
     map_fade_frame = 0;
     map_fade_alpha = 0;
 
-    route = *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata));
-    if (route != 0) {
-        route = route;
-    } else {
-        route = 0;
-    }
+    route = map_route_data(
+        *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata)));
     if (movie == 0 && route != 0 && *(f32*)route >= lbl_80345A08) {
         sprintf((char*)base, lbl_80345AA4, (char*)gCurLevel + offsetof(level_data, name));
         strcat((char*)base, lbl_80345AAC);
