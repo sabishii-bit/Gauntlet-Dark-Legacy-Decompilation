@@ -26,6 +26,28 @@
 >    runs from (a worker regenerated the shared checkout's build graph
 >    this way; absolute script paths protect reads, not a script's own
 >    output).
+> 6a. `... | Select-Object -First N` on a PYTHON pipe makes the command
+>    report FAILURE. PowerShell stops the pipeline as soon as it has N
+>    objects, python dies on the broken pipe, and `$LASTEXITCODE` reads
+>    **-1** (255 to anything reading a byte) for a run that was fine.
+>    Reproduce with any repo tool that prints a long list:
+>    `python tools/gdl/nearmiss.py --min 90 | Select-Object -First 2;
+>    $LASTEXITCODE` -> **-1**; the same command with `-Last 2` -> 0.
+>    `-Last` buffers the whole stream and is safe; so is capturing first
+>    (`$o = python ...; $o | Select-Object -First 2`). It is also
+>    INTERMITTENT — a command that finishes writing before the pipeline
+>    stops exits 0 — so one clean observation does not mean you are safe.
+>    NEVER read an exit code through a `-First` pipe: that is a gate
+>    reporting a failure that did not happen.
+> 6b. `Select-String -Pattern 'A|B' -SimpleMatch` matches NOTHING.
+>    `-SimpleMatch` takes the pattern literally, so the alternation is
+>    searched for as the six characters `A|B` and the result is an empty
+>    set that reads exactly like "no hits, all clear". Measured on the
+>    suite-summary screen this file recommends: `'OK|FAILED' -SimpleMatch`
+>    = 0 rows, the same pattern as a REGEX = 2 rows, and `'FAILED'
+>    -SimpleMatch` = 1. Drop `-SimpleMatch` whenever the pattern contains
+>    `|`; keep it only for literals with regex metacharacters in them
+>    (`fn_800DACD8(+0x4)`), where it is the right tool.
 > 6. Adding a TU's FIRST rule to `config/GUNE5D/webfrank.json` does NOT
 >    create its WEBFRANK build edge — a plain `ninja` runs green with the
 >    rule silently unapplied (looks exactly like "the rule didn't work").
