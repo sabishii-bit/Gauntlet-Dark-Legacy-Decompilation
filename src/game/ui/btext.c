@@ -774,7 +774,7 @@ s32 DrawStringText(s32 x, s32 y, u32 flags, u32 color, s32 msg, s32 idx, ...)
     list = &((BTextPoolView*)font_info)->stringList;
     text = GetStringTextInline((BTextPoolView*)font_info, msg, idx, &font);
     if (text == 0) {
-        ErrorPrintf("DrawStringText: Msg %d idx %d > msg count\n", msg, idx);
+        ErrorPrintf("DrawStringText: Msg=%d idx=%d > max", msg, idx);
         return 0;
     }
     if ((s32)flags < 0 || ((s32)flags < 10 && (s32)font >= 10)) {

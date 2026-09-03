@@ -208,13 +208,17 @@ typedef struct CameraCollideScratch {
 #define CAM_F32(c, off) (*(f32*)((u8*)(c) + (off)))
 #define CAM_YAW_OFF 0xA8 /* yaw angle field used by camera_approach_yaw */
 
-/* angle wrapping constants (double, to mirror the sdata2 pool) */
-#define CAM_PI  3.141592653589793
-#define CAM_2PI 6.283185307179586
+/* angle wrapping constants (double, to mirror the sdata2 pool)
+ * The retail pool holds the 10-digit decimal literals, not full-precision
+ * pi: lbl_80345F58 = 0x400921FB54524550 (3.141592654) against
+ * 0x400921FB54442D18 (M_PI).  Nothing in the toolchain scores a pool
+ * datum, so the wrong spelling was invisible. */
+#define CAM_PI  3.141592654
+#define CAM_2PI 6.283185308
 /* per-frame turn/oscillation rates recovered from the sdata2 pool */
 #define CAM_TURN_RATE_2DEG 0.03489724 /* lbl_80346000 (~2 deg) */
 #define CAM_TURN_RATE_1DEG 0.01744862 /* lbl_80346068 (~1 deg) */
-#define SHAKE_FREQ         0.66313    /* lbl_80346028 */
+#define SHAKE_FREQ         0.6632251158444444 /* lbl_80346028 = 38 deg at CAM_PI */
 
 /* --- camera shake state (CAMERA.OBJ .sbss globals, names from PDB) --- */
 extern s32 shake_type;      /* 0x80344478 */
@@ -1860,11 +1864,11 @@ found_target_player:
         moveDelta[1] = dy;
         moveDelta[2] = dz;
 
-        if ((f64)distance >= 2.0) {
+        if ((f64)distance >= 1.0) {
             if ((f64)distance >= 15.0) {
                 divisorDouble = (f64)lbl_80345F14;
             }
-            scale = (f32)(2.0 / divisorDouble);
+            scale = (f32)(1.0 / divisorDouble);
             moveDelta[0] *= scale;
             moveDelta[1] *= scale;
             moveDelta[2] *= scale;
@@ -1917,7 +1921,7 @@ found_target_player:
     case 2:
         currentPitch = cam->pyr[0];
         if ((f64)currentPitch != 0.0) {
-            angleStep = (f32)(0.017453292522222223 * (f64)(u32)gFrameTicks);
+            angleStep = (f32)(0.05 * (f64)(u32)gFrameTicks);
             if (currentPitch < 0.0f) {
                 cam->pyr[0] = AddAngle(cam->pyr[0], angleStep);
                 if ((f64)cam->pyr[0] >= 0.0) cam->pyr[0] = 0.0f;

@@ -4095,7 +4095,7 @@ extern f32 lbl_80346384, lbl_803447D8;
 extern u8 lbl_8011A1B4[];
 f32 NormalVector(f32* v);
 f32 NormalVector2D(f32* v);
-f64 Random(f32 range);
+f32 Random(f32 range);
 s32 WeaponWallCollide();
 s32 fn_8005ED44();
 void SfxSetLight();
