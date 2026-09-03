@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TOOL lane (owns tools/gdl + memory_graph surfaces): run-41 amendment queue; one commit per item BEFORE the next; each item below is an OBSERVATION - reproduce it, derive your own discriminant, CALIBRATE before shipping (ids and bodies). (1) savedregs.py: blind to a register's SECOND lifetime and to volatile rows (two lanes measured the all-clear over-claiming; T11 added the banner - now build --per-web properly: per-lifetime correspondence, not first-defs). (2) wf_word_diff: --range 0xA:0xB (a hand grep under-matched and nearly violated discipline 8); exit code 0 on success-with-diffs (UE: every normal call reads as failure in chains). (3) probe --bank <tag>/--restore <tag>: named snapshots for multi-axis lanes (SA hand-rolled scratch snapshots + LastWriteTime touches). (4) Gate I: mask (attempt|claim)\\.[\\w.-]+ spans before scanning (record-id slugs w/ r0 trip it) and exempt ABI-register mentions (stmw base, LR temp) - CL measured 3 incidental firings. (5) probe NEUTRAL-IDENTICAL guidance: the prescriptive paragraph points AWAY from statement-level levers on frame work (CL: wrong direction 3x on MBCameraUpdate) - make the guidance class-conditional or drop the prescription, keep the digest fact. (6) arity screen tool: does any call site pass fewer args than the definition declares / is parameter k ever read (NM's init_enemy exact = the proven customer; externcheck/abicheck cover neither). (7) baseline-probe slot-map as a roster column (CL: both slot wins were visible in the baseline banner before reading source - defake_gate roster should carry it). (8) probe --revert item-9 residue: T11 fixed a real defect but CT's stated cause never reproduced - close the loop against CT's actual tree shape (nested-block decls) or record the non-reproduction w/ falsifier. (9) docs: --at-head fuzzy anchor flag in the tool list (NM burned a re-take); dtk lbl_-run note on pool-value comparisons (T11's 337-row false positive cause). Scoped tests between items, FULL suites per commit; ninja 'main.dol: OK'; expected verdict changes stated; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:TextHeightMLines",
+  "id": "work_claim.tool-queue-12.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T12",
+  "recorded_at": "2026-09-03T03:14:35Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
