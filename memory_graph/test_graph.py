@@ -4064,9 +4064,60 @@ class RegisterDefinitionGapTests(unittest.TestCase):
         work."""
         self.assertEqual([], self.gaps("r31 is the base.", self.CITED))
 
-    def test_an_instruction_with_no_anchor_does_not_discharge(self):
+    def test_an_instruction_with_no_anchor_no_longer_BLOCKS(self):
+        """Run-42 recalibration. This was the gate's dominant firing and it
+        is not the error the gate exists for: quoting `addi r18,r31,3136`
+        is reading the stream, whether or not an offset rode along. 29 of
+        the corpus's 33 gaps were exactly this."""
+        self.assertEqual([], self.gaps("r18 holds the base.",
+                                       "addi r18,r31,3136"))
         self.assertEqual(["r18"],
-                         self.gaps("r18 holds the base.", "addi r18,r31,3136"))
+                         core.register_anchor_gaps("r18 holds the base.",
+                                                   "addi r18,r31,3136"))
+
+    def test_an_anchored_citation_raises_no_advisory_either(self):
+        self.assertEqual([], core.register_anchor_gaps("r18 holds the base.",
+                                                       self.CITED))
+
+    def test_a_register_never_quoted_at_all_is_still_BLOCKED(self):
+        """The proven catch: run 37/38 named r20 in prose with no
+        instruction quoted anywhere, twice, on the same function."""
+        self.assertEqual(["r20"],
+                         self.gaps("r20 is the cached loop base.",
+                                   "we reordered the declarations"))
+        self.assertEqual([], core.register_anchor_gaps(
+            "r20 is the cached loop base.", "we reordered the decls"))
+
+    def test_an_stmw_base_names_a_save_RUN_not_a_register(self):
+        """`stmw r15,140(r1)` names the start of a contiguous save run, the
+        same thing `r15-r31` names; stmw does not DEFINE r15, so no
+        definition site for it can exist. Both live corpus rows are in
+        attempt.PC_do-players-inplace-update-and-symbol-unification
+        .20260902.v1, comparing our `stmw r15,140(r1)` against the target's
+        `stmw r16,136(r1)`."""
+        statement = ("Ours saves SEVENTEEN GPRs (`stmw r15,140(r1)`) against"
+                     " the target's SIXTEEN (`stmw r16,136(r1)`).")
+        self.assertEqual([], self.gaps(statement))
+        self.assertEqual([], core.register_anchor_gaps(statement, ""))
+
+    def test_a_record_id_slug_is_not_a_register_claim(self):
+        """A LATENT hazard with named carriers, measured run 42: ten of the
+        1814 accepted record ids carry a register-shaped token (the CL one
+        below, claim.law.r0-homed-address-temp-forces-the-indexed-store-form
+        .20260901.v1, attempt.towercheckmessages-r4-register-permutation-
+        drive.20260831.v1 and seven more) and twelve hypothesis statements
+        quote a record id. The sets have not intersected yet — 0 live
+        firings — so the mask prevents rather than repairs."""
+        statement = ("Per attempt.CL_print-n-of-m-in-place-multiply-frees-r0"
+                     "-for-the-pre-prologue-address.20260903.v1 the block"
+                     " placement is what moves.")
+        self.assertEqual([], self.gaps(statement))
+
+    def test_a_register_named_BESIDE_a_quoted_id_is_still_caught(self):
+        """The mask must blank the id, not the sentence around it."""
+        statement = ("Per claim.law.r0-homed-address-temp-forces-the-indexed"
+                     "-store-form.20260901.v1, r24 holds the cached base.")
+        self.assertEqual(["r24"], self.gaps(statement))
 
     def test_an_anchor_with_no_instruction_does_not_discharge(self):
         self.assertEqual(["r18"],

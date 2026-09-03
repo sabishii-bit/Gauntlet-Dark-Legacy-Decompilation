@@ -471,6 +471,29 @@ _DEFINITION_WINDOW = 140
 # alone.
 _ABI_FIXED_REGISTERS = frozenset({"r1", "r2", "r13"})
 
+# A RECORD ID is prose to a regex, and this corpus writes registers into
+# its slugs. Measured run 42 over 1814 accepted records: TEN ids carry a
+# register-shaped token — `attempt.CL_print-n-of-m-in-place-multiply-frees-
+# r0-for-the-pre-prologue-address.20260903.v1`,
+# `claim.law.r0-homed-address-temp-forces-the-indexed-store-form.20260901
+# .v1`, `attempt.towercheckmessages-r4-register-permutation-drive.20260831
+# .v1` and seven more — while TWELVE hypothesis statements quote a record
+# id. The two sets have not intersected yet (0 live firings), so this is a
+# LATENT hazard with named carriers rather than a measured one: the moment
+# a hypothesis cites the CL record by id, Gate I demands a definition site
+# for an `r0` that exists only in a filename.
+_RECORD_ID_SPAN_RE = re.compile(
+    r"\b(?:attempt|claim|evidence|entity|edge|work_claim|measurement)"
+    r"\.[\w.\-]+")
+
+# `stmw r15,140(r1)` names the BASE of a contiguous save run — the same
+# thing a range spelling names, written the way the assembler writes it.
+# stmw does not DEFINE r15, so no definition site for it can exist and the
+# demand is unsatisfiable. Measured: 2 of the corpus's 33 gaps (both in
+# attempt.PC_do-players-inplace-update-and-symbol-unification.20260902.v1,
+# comparing `stmw r15,140(r1)` against the target's `stmw r16,136(r1)`).
+_SAVE_RUN_BASE_RE = re.compile(r"\b(?:stmw|lmw)\s+([rf]\d+)\b")
+
 # A citation is an INSTRUCTION, so the token in front of the operands has to
 # be a real PPC mnemonic — otherwise ordinary prose ("the r20 web") sitting
 # near an offset would discharge the gate and it would assert nothing.
@@ -505,35 +528,71 @@ def _cited_instruction_spans(text, register):
     return [match.span() for match in pattern.finditer(text or "")]
 
 
-def register_definition_gaps(statement, record_text):
-    """Registers the hypothesis names with no instruction-level citation.
+def _named_registers(statement):
+    """The registers a hypothesis statement actually claims something about.
 
-    A register is DISCHARGED when the record quotes it inside a PPC
-    instruction sitting next to a stream anchor (`@0x334 addi rX,r31,3136`)
-    — the form a defs census produces. ABI-fixed registers and register
-    RANGES are excluded, having no single definition site to quote.
-
-    Pure over two strings so every branch is tested without a graph.
+    Three spans are masked before the scan, each because it names a
+    register that has no definition site to quote: a RANGE (`r16-r31`, a
+    save set), the BASE of an `stmw`/`lmw` run, and a RECORD ID — a slug is
+    prose to a regex and ten of this corpus's ids carry an `r0`.
     """
     if not isinstance(statement, str) or not statement.strip():
         return []
-    masked = _REGISTER_RANGE_RE.sub(
-        lambda match: " " * len(match.group(0)), statement)
-    named = sorted(set(_HYPOTHESIS_REGISTER_RE.findall(masked))
-                   - _ABI_FIXED_REGISTERS)
-    if not named:
-        return []
+
+    def blank(match):
+        return " " * len(match.group(0))
+    masked = _RECORD_ID_SPAN_RE.sub(blank, statement)
+    masked = _REGISTER_RANGE_RE.sub(blank, masked)
+    masked = _SAVE_RUN_BASE_RE.sub(blank, masked)
+    return sorted(set(_HYPOTHESIS_REGISTER_RE.findall(masked))
+                  - _ABI_FIXED_REGISTERS)
+
+
+def register_definition_gaps(statement, record_text):
+    """Registers the hypothesis names that the record never QUOTES at all.
+
+    This is the blocking half of Gate I, and it asks the narrow question the
+    gate was built for: did you read the stream for this register, or name
+    it from memory? A register is discharged by appearing inside a quoted
+    PPC instruction anywhere in the record.
+
+    IT NO LONGER REQUIRES A STREAM ANCHOR. Calibrated run 42 over the whole
+    accepted corpus: 15 records carrying a hypothesis would trip, on 33
+    register gaps — and 29 of those 33 quote the register inside a real
+    instruction and lack only an `@0x` within 140 characters. Two more were
+    `stmw` save-run bases (now masked). That left TWO genuine gaps: a 6%
+    precision on a blocking gate. The anchor is still worth having, so it
+    moved to `register_anchor_gaps`, which WARNS. The gate's proven catch is
+    unaffected: run 37/38's failure named r20 in prose with no instruction
+    quoted anywhere, which this still refuses.
+
+    Pure over two strings so every branch is tested without a graph.
+    """
+    text = record_text or ""
+    return [register for register in _named_registers(statement)
+            if not _cited_instruction_spans(text, register)]
+
+
+def register_anchor_gaps(statement, record_text):
+    """Registers quoted in an instruction but with no stream ANCHOR nearby.
+
+    The non-blocking half. An instruction citation says the stream was
+    read; the offset beside it says WHERE, which is what makes the citation
+    checkable by the next lane without re-deriving it. 29 of 33 corpus gaps
+    sit exactly here, which is why this warns rather than refuses.
+    """
     text = record_text or ""
     gaps = []
-    for register in named:
-        discharged = False
-        for start, end in _cited_instruction_spans(text, register):
-            window = text[max(0, start - _DEFINITION_WINDOW):
-                          end + _DEFINITION_WINDOW]
-            if _STREAM_ANCHOR_RE.search(window):
-                discharged = True
-                break
-        if not discharged:
+    for register in _named_registers(statement):
+        spans = _cited_instruction_spans(text, register)
+        if not spans:
+            continue                      # the blocking half owns this one
+        anchored = any(
+            _STREAM_ANCHOR_RE.search(
+                text[max(0, start - _DEFINITION_WINDOW):
+                     end + _DEFINITION_WINDOW])
+            for start, end in spans)
+        if not anchored:
             gaps.append(register)
     return gaps
 
@@ -5236,8 +5295,19 @@ def _apply_proposal_gates(
     # Scoped to `hypothesis` alone, because discipline 10b makes a recorded
     # hypothesis the next lane's MANDATORY STEP 1 — a wrong register there
     # is an instruction to go the wrong way, which is exactly what it cost
-    # twice. Register RANGES (`r16-r31`, a save set) are masked out: they
-    # name a set, not a register, and have no single definition site.
+    # twice. Three spans are masked out, each naming a register with no
+    # definition site to quote: a RANGE (`r16-r31`, a save set), the BASE of
+    # an `stmw`/`lmw` run, and a RECORD ID.
+    #
+    # RECALIBRATED run 42 against every accepted record. As shipped in run
+    # 39 the gate required a STREAM ANCHOR beside the citation, and that is
+    # what fired: 15 records carrying a hypothesis would trip on 33 register
+    # gaps, of which 29 quoted the register inside a real instruction and
+    # lacked only an `@0x` within 140 characters, and 2 more were `stmw`
+    # save-run bases — 2 genuine gaps out of 33, a 6% precision on a
+    # BLOCKING gate. The anchor requirement moved to an advisory warning
+    # below; the block now asks only whether the register was quoted in an
+    # instruction at all, which still refuses the shape that cost two runs.
     statement = _record_field(record, "hypothesis")
     if isinstance(statement, dict):
         statement = statement.get("statement")
@@ -5245,9 +5315,10 @@ def _apply_proposal_gates(
     if gaps:
         fail(
             "this hypothesis names the register(s)"
-            f" {', '.join(gaps)} but the record never quotes a DEFINITION"
-            " SITE for them — an instruction that WRITES the register,"
-            " beside the stream offset it sits at. A hypothesis is the next"
+            f" {', '.join(gaps)} but the record never quotes them inside a"
+            " PPC INSTRUCTION anywhere — the register is named from"
+            " inspection, not read out of the stream. A hypothesis is the"
+            " next"
             " lane's MANDATORY STEP 1 (discipline 10b), so a register named"
             " on inspection rather than on a defs census sends that lane the"
             " wrong way.\nMEASURED TWICE, on the same function: run 37's"
@@ -5266,6 +5337,19 @@ def _apply_proposal_gates(
             " is incidental to the idea, name the mechanism instead of the"
             " register; if you mean a save-set RANGE, spell it as a range"
             " (`r16-r31`), which this gate does not tax."
+        )
+    anchor_gaps = register_anchor_gaps(statement, text)
+    if anchor_gaps:
+        warnings.append(
+            "GATE I (advisory): the record quotes"
+            f" {', '.join(anchor_gaps)} inside a PPC instruction but no"
+            " stream OFFSET sits within 140 characters of the citation, so"
+            " the next lane cannot check it without re-deriving the census."
+            " Add the offset — `@0x22c addi r18,r31,3136`. This WARNS"
+            " rather than refuses because the corpus says the anchor is the"
+            " normal thing to omit: of 33 register gaps across 15 accepted"
+            " records, 29 were this shape and only 2 were a register named"
+            " with no instruction quoted anywhere."
         )
     return warnings
 
