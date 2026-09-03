@@ -449,34 +449,11 @@ extern void* __construct_new_array(void* block, void* ctor, void* dtor,
 extern void __destroy_new_array(void* block, void* dtor);
 
 /* --- little-endian container readers (parse the PC-format .avi header) ---
- * Defined at file-end in the original (callers see only a prototype), so they
- * are never auto-inlined; dont_inline reproduces that here. */
-#pragma dont_inline on
-u16 ReadU16LE(u8* p) {
-    union { u8 b[2]; u16 h; } u;
-    u.b[0] = p[1];
-    u.b[1] = p[0];
-    return u.h;
-}
-
-u32 ReadU32LE(u8* p) {
-    union { u8 b[4]; u32 w; } u;
-    u.b[0] = p[3];
-    u.b[1] = p[2];
-    u.b[2] = p[1];
-    u.b[3] = p[0];
-    return u.w;
-}
-
-u32 ReadF32LE(u8* p) {
-    union { u8 b[4]; u32 w; } u;
-    u.b[0] = p[3];
-    u.b[1] = p[2];
-    u.b[2] = p[1];
-    u.b[3] = p[0];
-    return u.w;
-}
-#pragma dont_inline off
+ * Defined at file-end; callers see only these prototypes, which is why MWCC
+ * never auto-inlines them. */
+u16 ReadU16LE(u8* p);
+u32 ReadU32LE(u8* p);
+u32 ReadF32LE(u8* p);
 
 /* --- VQ decode / GX present / file-stream bodies (parked NonMatching) --- */
 
@@ -2834,5 +2811,33 @@ Codec* DTextInitColorRamp(Codec* p) {
     return p;
 }
 #pragma cplusplus off
+
+/* --- little-endian container readers (parse the PC-format .avi header) ---
+ * Last three bodies in the TU's .text; every caller above sees only the
+ * prototype, so these are always called out of line. */
+u16 ReadU16LE(u8* p) {
+    union { u8 b[2]; u16 h; } u;
+    u.b[0] = p[1];
+    u.b[1] = p[0];
+    return u.h;
+}
+
+u32 ReadU32LE(u8* p) {
+    union { u8 b[4]; u32 w; } u;
+    u.b[0] = p[3];
+    u.b[1] = p[2];
+    u.b[2] = p[1];
+    u.b[3] = p[0];
+    return u.w;
+}
+
+u32 ReadF32LE(u8* p) {
+    union { u8 b[4]; u32 w; } u;
+    u.b[0] = p[3];
+    u.b[1] = p[2];
+    u.b[2] = p[1];
+    u.b[3] = p[0];
+    return u.w;
+}
 
 } /* extern "C" */
