@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_ordered_datum_screen.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "relocation",
+      "symbol-identity",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A DEFECT row from this screen where the datum pair's use sites do NOT follow a consistent register exchange and the aligned `fnasm --diff` view shows the two values reaching different consumers - i.e. a genuine transposition the register-field test called correctly for the right reason. One such row makes the discriminator sound-in-general rather than sound-under-a-precondition, and this law would then narrow to 'state the precondition' rather than 'test it'. Equally falsifying: a recount showing the twelve rows were not all consistent renamings at c8a28c3bb (the check is CV_scratch/cv_verify_rows.py's algorithm, reproduced in attempt.CV_ordered-datum-defect-queue-all-twelve-rows-refuted.20260903.v1 attributes.residual, ~40 lines over fndiff.parse with no build).",
+  "id": "claim.law.CV_an-ordered-datum-position-cannot-decide-a-transposition-across-differing-register-colourings.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T21:25:31Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-wf-ordered-datum-screen",
+  "valid_from": "2026-09-03",
+  "value": "A screen that decides 'wrong datum' from the REGISTER FIELD at an ordered relocation position is sound ONLY where the two streams share register colouring, and it must test that precondition rather than assume it. Where the colouring differs, a CONSISTENT EXCHANGE of two registers is indistinguishable from an exchange of their two datums, because the test reads a register NAME as an identity when it is an allocator choice. MEASURED, run 49 at c8a28c3bb: all 12 DEFECT rows of wf_ordered_datum_screen --sweep are consistent renamings, precision 0 of 12 on the positive side; 6 of the 8 TRANSPOSED functions the tool's own docstring uses as its positive control are among them, and es_named_reloc_census's TRANSPOSED verdict is literally 'datum multiset VALUE-EQUAL, labels ARE a permutation', which IS the definition of a consistent renaming - so the control set was selected FOR the artifact and the calibration measured agreement between two screens rather than against ground truth. The docstring's independent control (move_logic00's pi/2pi) is an FPR renaming: target f30=pi/f25=2pi against ours f29=pi/f30=2pi, with the arithmetic at 0x220-0x2d4 instruction-for-instruction identical under the exchange. THE SOUND QUESTIONS, in order of strength: (1) does one stream reference a scalar datum VALUE the other never references (a SET difference, prefix-aware per fndiff._datum_prefix_equal, and NOT a multiset difference - a count difference is a CSE fact: camera_mode_follow loads 0.6 three times in the target and once in ours, same value, same uses); (2) if a mirrored pair exists, is the target-to-ours map of the registers those datums LAND in a bijection over every site either datum appears, keyed by datum VALUE not NAME and with the ADDR16_HA half dropped. Order is a schedule fact; the register carrying a datum is an allocator fact; only the datum-to-use binding is a semantic one."
+}

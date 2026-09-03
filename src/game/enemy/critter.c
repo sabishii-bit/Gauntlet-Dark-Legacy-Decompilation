@@ -6276,7 +6276,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
 
     header = (u8 *)gCritterHeaders[type][subtype];
     if (header == NULL) {
-        ErrorPrintf("No Critter type %d subtype %d loaded\n", type, subtype);
+        ErrorPrintf("No Critter type %d subtype %d loaded", type, subtype);
         return NULL;
     }
     if (*(void **)(header + offsetof(CritterPackedType, atree)) == NULL) {
