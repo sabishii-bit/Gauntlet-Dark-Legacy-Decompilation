@@ -1307,6 +1307,55 @@ class NamedBankTests(unittest.TestCase):
         self.assertTrue(keep_consumes_transient_bank(["--no-bank"]))
 
 
+class BestBankTests(unittest.TestCase):
+    """Run-43 item 4: --revert-best.
+
+    The rolling snapshot follows the LAST banking verdict and NEUTRAL banks
+    too, so the bytes that actually scored best stop being reachable as soon
+    as any later probe banks — CL measured three hand Edits and ~60s per
+    recovery. The best bank is a reserved slot written only when the BEST
+    anchor moves onto the bytes just probed.
+    """
+
+    def test_the_reserved_tag_cannot_be_spelled_by_a_user(self):
+        """A user bank named `__best` would silently overwrite the slot
+        `--revert-best` restores."""
+        tag, error = probe.validate_tag(probe.BEST_BANK_TAG, "--bank")
+        self.assertIsNone(tag)
+        self.assertTrue(error)
+
+    def test_the_best_bank_has_its_own_path(self):
+        source = Path("src/game/mb/mb_camera.c")
+        self.assertNotEqual(
+            probe.snapshot_path("game/mb/mb_camera", source),
+            probe.snapshot_path("game/mb/mb_camera", source,
+                                probe.BEST_BANK_TAG))
+
+    def test_the_anchor_is_keyed_on_the_digest_not_on_real(self):
+        """A NEUTRAL probe ties `real` without BEING the best state, and
+        banking it as best would hand a later --revert-best wrong bytes."""
+        state = {"best_real": 12, "best_bytes": "aaa"}
+        self.assertTrue(probe.anchor_names_these_bytes(state, "aaa", 12))
+        self.assertFalse(probe.anchor_names_these_bytes(state, "bbb", 12))
+
+    def test_real_decides_only_when_no_digest_exists_on_either_side(self):
+        state = {"best_real": 12}
+        self.assertTrue(probe.anchor_names_these_bytes(state, None, 12))
+        self.assertFalse(probe.anchor_names_these_bytes(state, None, 13))
+        # One side has a digest and the other does not: undecidable, so no.
+        self.assertFalse(probe.anchor_names_these_bytes(state, "aaa", 12))
+
+    def test_a_state_with_no_best_anchor_banks_nothing(self):
+        self.assertFalse(probe.anchor_names_these_bytes({}, "aaa", 12))
+        self.assertFalse(probe.anchor_names_these_bytes({}, None, 12))
+
+    def test_revert_best_is_a_revert_for_the_transient_pin_bank(self):
+        self.assertFalse(keep_consumes_transient_bank(["--revert-best"]))
+        # ...and it is NOT matched by the plain --revert membership test,
+        # which is why it needed its own entry.
+        self.assertNotIn("--revert", ["--revert-best"])
+
+
 class NestedBlockHoistAttributionTests(unittest.TestCase):
     """Run-42 item 8: CT's stated `--revert` cause, on CT's ACTUAL tree.
 
