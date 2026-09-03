@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "attempt.FQ_mbworldtoscreen3d-the-instruction-census-refutes-the-missing-value-and-three-more-construct-classes-die.20260903.v1",
+    "attempt.FT_mbworldtoscreen3d-live-fp-census-refutes-the-pressure-premise-and-the-banked-viewport-local.20260903.v1",
+    "tools/gdl/slotdiff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "An added local on a slot-exact function whose probe moves `real` by something OTHER than the fixed toll while the --ops cluster list is unchanged, or one whose probe changes the instruction count or the opcode multiset at all -- either shows the declaration reached codegen rather than just the slot block. A function whose slot map is NOT already target-exact is outside the scope and is not a counterexample: there the frame delta is the residual and adding a local is a legitimate lever (claim.law.stack-slots-descend-in-declaration-order.20260831.v1).",
+  "id": "claim.law.FQ_on-a-slot-exact-function-an-added-local-buys-a-fixed-real-toll-and-measures-nothing.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T21:34:21Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "When a function's SLOT MAP already agrees with the target everywhere except a compiler-allocated save area, adding a local to probe an ALLOCATION question is a dead lever by construction: the declaration lands in the r1 local block, shifts every displacement below it, and buys a FIXED real toll while the instruction count, the opcode multiset and the whole --ops cluster list stay bit-for-bit what they were. The toll is not information about the residual -- it is the same number whatever local you add and wherever you put it -- and reading it as a REGRESSED verdict is reading a slot artifact as an allocator answer. Measured twice on MBWorldToScreen3D (game/mb/mb_camera.c) at c8a28c3bb, by two lanes, with two DIFFERENT locals in two DIFFERENT source positions: attempt.FT_mbworldtoscreen3d-live-fp-census-refutes-the-pressure-premise-and-the-banked-viewport-local.20260903.v1 probe 1 added `f32 xDepthScale;` above the yDenom block and measured real 84 -> 108 with insns T104/O102 and multiset delta `target-only: +1 lfd +1 stfd` unchanged and the IMMEDIATE rows going 6 -> 19; this lane added `f32 yOffset;` below yDepthScale, assigned after the `projected[0]` division, and measured real 84 -> 108 with insns T104/O102, the SAME multiset delta and the baseline's FOURTEEN --ops clusters reproduced verbatim. +24 both times. THE SCREEN, one command before the probe: run `probe.py <unit> <fn>` and read the slot map it prints under the SLOT-CLASS banner; if the only target-only and ours-only slots are the save-area home and its displaced LR reload, every add-a-local form on that function is already answered, and the probe budget belongs to a lever that leaves the local block byte-for-byte constant."
+}
