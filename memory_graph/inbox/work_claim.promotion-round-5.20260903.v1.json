@@ -2,7 +2,10 @@
   "attributes": {
     "integrator": "claude-fable-integrator",
     "owned_units": [
-      "game/ps2/ml_mem.c"
+      "game/ps2/ml_mem.c",
+      "game/sys/ml_mem.c",
+      "game/enemy/critter.c",
+      "game/game/combat.c"
     ],
     "scope": "PROMOTION lane round 5 - NEW EVIDENCE CLASS: savedregs now prints the pin paragraph (156 pins: 85% differ raw-vs-default, 54% FLIP the verdict - claim.law.T19_savedregs-default-read-reports-the-postprocessor-not-the-compiler-on-a-pinned-function.20260903.v1). Re-rank the backlog (t15_promotion_queue + t15_operand_provenance) PRIORITIZING pinned fns whose raw verdict flipped - a flipped verdict means every prior analysis of that fn may have fitted the postprocessor's table, not the compiler's (the DA defect class); their caps are candidates for cheap refutation. Seeds: AllocFile (ml_mem, 2w, latency-hiding pair - read its records first), then flipped-verdict rows by smallest raw word count WITH mechanism records. MBNewNode + InitAnim are CAPPED run 49 w/ named mechanisms (attempt.PR_mbnewnode-numbering-is-declaration-order-and-homing-position-is-first-use-order.20260903.v2; attempt.PR_initanim-load-destination-is-unreachable-from-the-expression-two-neutral-identicals.20260903.v2) - do NOT retry their dead axes; revisit only w/ a NEW lever the pin paragraph supplies. fn_800D967C belongs to the MP lane. Promotions DELETE rules same-commit + configure + forced replay; raw-body loop via probe --raw; fresh raw word count per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; extend owned_units at selection; claims --owns per unit. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
   },

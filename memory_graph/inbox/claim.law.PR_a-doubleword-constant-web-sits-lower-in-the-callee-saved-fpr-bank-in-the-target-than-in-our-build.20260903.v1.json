@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/savedregs.py::permutation",
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "config/GUNE5D/webfrank.json"
+  ],
+  "attributes": {
+    "law_screen": "claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 EXTENDED (its GPR width-class finding, restated for the FPR bank with the class ORDER as the differing variable). claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 SCREENED and does not explain the direction: CritterLineNodeColSub's `zero` is declared uninitialised and assigned separately, which should number it LATER, and it is numbered FIRST. claim.law.T19_savedregs-default-read-reports-the-postprocessor-not-the-compiler-on-a-pinned-function.20260903.v1 is the precondition -- every row here is a --raw read.",
+    "provenance": "Derived in the run-50 PROMOTION lane at 1370dce50 while re-ranking the promotion backlog on the new flipped-verdict evidence class. The 156-pin flip census was recomputed in-process through savedregs' IMPORTABLE CORE (first_definitions, correspondence, permutation) rather than 312 subprocesses, and reproduced the T19 law's numbers exactly: 156 of 156 pins decodable in both modes, 84 verdict flips, all in the same direction. The 6-row `lfd 0(0)` sub-census is a filter over that same table.",
+    "tags": [
+      "matching",
+      "register-web",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the census: `python tools/gdl/savedregs.py <unit> <fn> --raw` over the pins in config/GUNE5D/webfrank.json, and ONE pinned function where a moved FPR web whose role is `lfd 0(0)` sits at a HIGHER register in the target than in our build refutes the direction outright. Separately, any count-neutral source construct that moves CritterLineNodeColSub's `f64 zero` from f31 to f29 without changing the instruction count (75/75) or the frame (104) refutes the unreachability half, since the class boundary would then be source-addressable after all.",
+  "id": "claim.law.PR_a-doubleword-constant-web-sits-lower-in-the-callee-saved-fpr-bank-in-the-target-than-in-our-build.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T22:42:40Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "Where a webfrank-pinned function's --raw callee-saved correspondence shows a moved FPR web whose role is a doubleword constant load (`lfd fD,0(0)` off an EMB_SDA21 literal), the TARGET places that web at a STRICTLY LOWER callee-saved FPR than our build does -- never higher. Census at 1370dce50 over all 156 pins in config/GUNE5D/webfrank.json: 84 pins FLIP their savedregs verdict under --raw (the T19 law's population, reproduced exactly), 6 of those 84 carry an `lfd 0(0)` role on BOTH sides of a moved FPR, and in 6 of 6 the target's register number is lower: game/enemy/critter::CritterLineNodeColSub target f29 vs ours f31 (6 raw words), game/world/gauntworld::fn_8005FB48 target f29 vs ours f30 (22), game/enemy/critter::CritterLineRootColSub target f26 vs ours f28 (25), game/enemy/enemy::closest_enemy target f24 vs ours f26 (26), game/game/gamemain::fn_800511D0 target f21,f25 vs ours f24,f27 (41), game/enemy/enemy::do_enemies target f25,f28,f31 vs ours f26,f29 (172). Two of the six are the extreme case, with the target at the LOWEST and ours at the HIGHEST of the whole moved range. MECHANISM: MWCC hands callee-saved FPRs out downward from f31 and decides its CLASSES before declaration order is walked, exactly as claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 records for GPRs; what differs between the two builds here is the ORDER OF THE CLASSES, not the order inside either one. Our build allocates the f64-constant class first (highest registers) and the f32 parameter/local class after it; the target does the reverse. CONSEQUENCE, and the reason this is worth a law: a cross-class declaration reorder is byte-identical by that same law, so the declaration-list lever cannot reach this residual at all, and the width lever that WOULD change the class does not exist count-neutrally (an f32 spelling emits `lfs`, not `lfd`, which is an opcode change). Measured end to end on CritterLineNodeColSub, where the within-block reorder returned NEUTRAL-IDENTICAL at object digest 4e375f619e32 -- a proved class boundary, not a null probe -- while both constructs that DO reach codegen (deleting the local; sinking its assignment into the loop) took the raw residual from 6 words to 44 and 41. Classify a pinned FPR recolor of this shape as a class-order inversion, record it, and do not open a declaration-order matrix on it. NOTE ON VISIBILITY: all six are verdict FLIPS, so NONE of them is visible in savedregs' default read, which reports ASSIGNMENT MATCHES on every one -- this class was unobservable before the pin paragraph shipped."
+}
