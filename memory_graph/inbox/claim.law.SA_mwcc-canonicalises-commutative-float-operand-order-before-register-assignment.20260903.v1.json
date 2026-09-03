@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "run 41: `if (((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[0] != 0.0f)` respelled to `if (0.0f != ((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[0])` in game/game/player.c::PlayerProcessPowerups left the +0x0e50 row at O c0200000 / T c0000000 and the +0x0e64 row at O c00400e0 / T c02400e0, unchanged, with the total word count held at 24. run 40: the +0x03a4 `fadd f1,f1,f5` vs our `fadd f1,f5,f1` was recorded NEUTRAL-IDENTICAL under the same respell in attempt.SA_playerprocesspowerups-pool-literal-and-propagation-drive.20260902.v1."
+  ],
+  "attributes": {
+    "law_screen": "claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1 SCREENED - it governs whether a float zero is spelled as a literal or as its pool symbol, a different axis from operand ORDER, and it was honoured here (the respell kept the `0.0f` literal spelling on both sides). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and applied: the multiset read IDENTICAL through the whole probe, so the verdict was taken from the raw word list.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "scope": "Two independent observations, both inside game/game/player.c::PlayerProcessPowerups (offsets +0x3a4 and +0xe50/+0xe64), compiler mwcc-1.2.5n, under `#pragma opt_propagation off`. Same-TU evidence only - a second TU would strengthen it. It does NOT claim the surrounding FPR assignment is unreachable by any means, only that the SOURCE OPERAND ORDER is not the lever.",
+    "tags": [
+      "matching",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function where reversing the operands of a commutative float operation (`a + b` -> `b + a`, `a != 0.0f` -> `0.0f != a`, `a * b` -> `b * a`) changes the emitted instruction word. Reproduce with `tools/gdl/composed_census/wf_word_diff.py <unit> <fn> --list` before and after the respell and compare the row at the operation's offset. Note the law is stated for COMMUTATIVE operations only: it predicts nothing about `fsubs`/`fdivs` operand order, and it does not claim the two orders are semantically identical for NaN-signalling comparisons.",
+  "id": "claim.law.SA_mwcc-canonicalises-commutative-float-operand-order-before-register-assignment.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T01:29:00Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "Swapping the two operands of a commutative floating-point operation in C source does not move which FPR each operand lands in: MWCC canonicalises the operand order before register assignment, so the emitted word is unchanged. Measured for `fadd` (run 40) and for the `fcmpu` behind a float `!=` (run 41), in the same function, both NEUTRAL-IDENTICAL. Consequence for residual work: an FPR transposition sitting across a commutative float operator is NOT a source-order residual, and respelling it is a wasted probe - classify it as allocator variance on the first reading and spend the axis elsewhere."
+}
