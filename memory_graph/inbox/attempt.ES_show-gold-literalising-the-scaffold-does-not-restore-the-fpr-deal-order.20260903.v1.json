@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Apply the run-40 scaffold law to the two-constant callee-saved deal at +0x24/+0x28: delete the `f64 heightScale = lbl_803483B0;` staging local and write the literal 0.00390625 at its single use, so the compiler-generated s32->f64 bias regains the low callee-saved FPR.",
+  "attributes": {
+    "law_screen": "claim.law.NM_extern-scaffold-float-steals-the-low-callee-saved-fpr-from-the-generated-conversion-constants.20260902.v1 APPLIED as the mandated lever and MEASURED NOT SUFFICIENT here -- see residual. claim.law.SA_extern-spelling-of-a-pool-constant-moves-its-hoist-out-of-the-pool-order-deal.20260902.v1 SCREENED as the sibling law: our pool order is ALREADY the target's relative order, so the pool-order half of that law is satisfied and cannot be the discriminator. claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1 APPLIED: poolval reports lbl_803483B0 as .sdata2 f64 with bytes 3F 70 00 00 00 00 00 00, and 0.00390625 is 1/256, exactly representable and bit-identical on re-encode. claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1 SCREENED -- this is the f64 half the law warns about, and the result (neutral, not negative) is consistent with it. claim.law.pool-literal-substitution-is-per-function.20260831.v1 APPLIED as the arbitration rule and is why the neutral conversion was DISCARDED rather than kept.",
+    "laws_applied": "[\"claim.law.NM_extern-scaffold-float-steals-the-low-callee-saved-fpr-from-the-generated-conversion-constants.20260902.v1\", \"claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1\", \"claim.law.pool-literal-substitution-is-per-function.20260831.v1\"]",
+    "probed_form": "src/game/shop/shop.c: delete `f64 heightScale = lbl_803483B0;` from show_gold's declaration block, and rewrite `height = (f32)((f32)shown * heightScale);` as `height = (f32)((f32)shown * 0.00390625);`.",
+    "residual": "THE LEVER IS INSUFFICIENT ON THIS FUNCTION, and the evidence is specific enough to bound the law. Target's preheader is `lfd f30,@lbl_80348370` then `lfd f31,@lbl_803483B0`; poolval gives lbl_80348370 = 0x4330000080000000 (the s32->f64 bias) and lbl_803483B0 = 0.00390625, so target puts the BIAS in the low callee-saved FPR and the divisor above it. BEFORE the edit ours was `lfd f30,@lbl_803483B0` / `lfd f31,@@193` -- the scaffold local in f30, exactly the run-40 symptom. AFTER the edit ours is `lfd f30,@@222` / `lfd f31,@@193`, and pooldump --ours identifies @193 as the bias at .sdata2+0x0 and @222 as 0.00390625 at .sdata2+0x8. So both constants became anonymous as intended, our pool order (bias first, then the divisor) already MATCHES the target's address order -- and the deal order did NOT change: the divisor still takes f30 and the bias still f31. Deleting the named local is therefore NECESSARY-BUT-NOT-SUFFICIENT for the deal order; something else pins it here, most plausibly the surrounding addressing form, since the function's dominant residual is three target-only `add` instructions (target keeps loop base pointers in registers with `add r17,r6,r8` / `add r20,r6,r7` while we recompute with `addi r17,r4,128`), and that register pressure is what the FPR deal is scheduled around. NEXT LANE ON show_gold: close the addressing form first and re-probe the literalisation afterwards -- probes in this project are alignment-sensitive and this one is a candidate to flip once the three adds land.",
+    "scope": "NO SOURCE CHANGE RETAINED -- discarded with `probe.py game/shop/shop show_gold --discard`; defake_gate baseline game/shop/shop taken at commit 77b0aa9a4 (14 functions, 6 at real 0).",
+    "verification": "BASELINE probe.py game/shop/shop show_gold -> real 117, insns T148/O145, multiset 3t, fresh objdiff fuzzy 89.4459%. AFTER -> NEUTRAL real 117, counts and multiset unchanged, and the probe reported .comment and .sdata2 MOVED (the conversion adds an anonymous pool entry). Register roles read from `fnasm game/shop/shop show_gold 0x18:0x34 --diff` and the entry identities from `pooldump.py --ours game/shop/shop @222 @193`."
+  },
+  "function": "function:show_gold",
+  "held_fixed": "One variable: the SPELLING of the single loop-invariant constant. The declaration was deleted and its one use replaced by the literal in the same edit because they are the same change; nothing else moved -- the file-scope `extern f64 lbl_803483B0;` stays (webfrank-pinned show_piles still reads it at :617), the other locals, the loop shape and every other call are untouched.",
+  "id": "attempt.ES_show-gold-literalising-the-scaffold-does-not-restore-the-fpr-deal-order.20260903.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-03T01:54:12Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "addressing-mode",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset DIFFERS  target-only: +3 add  ours-only: (none)"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

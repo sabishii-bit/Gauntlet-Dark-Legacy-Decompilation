@@ -5346,7 +5346,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     }
     if (player_index >= 0 &&
         (f64)amount < *(volatile f64*)&lbl_80346810) {
-        amount = lbl_80346820;
+        amount = lbl_803468F0;
     }
 
     e->damage += amount;

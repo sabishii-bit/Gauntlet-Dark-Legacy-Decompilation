@@ -1,0 +1,16 @@
+{
+  "constraints": [],
+  "entrypoint": "python tools/gdl/composed_census/es_named_reloc_census.py [--out PATH]",
+  "id": "tool.es-named-reloc-census.20260903T015528Z.bded9f6e",
+  "kind": "tool",
+  "name": "es_named_reloc_census",
+  "purpose": "Image-wide census of pool/label relocation defects that NO score in this project can see: real drops every R_PPC line, --clean and reloc_set_delta both normalise lbl_* and @N to <local>, and objdiff fuzzy scored damage_enemy at 99.22 confirm every one against 'fnasm <unit> <fn> 0xA:0xB --diff' before editing. The tool pairs relocations only inside difflib EQUAL runs over register-erased instruction text - equal instruction COUNT is NOT alignment and an earlier count-only version fabricated a wrong-symbol row on MBOX_AllocModelMem (102/102 with a 2-instruction drift). It reports only lbl-vs-lbl pairs, so a permutation in which our side is an anonymous @N pool entry shows as WRONG or not at all - read the anonymous side with 'pooldump.py --ours <unit> @N' before believing a WRONG row. Section matters: a .sdata/.sbss/.bss label is a mutable global and must never be literalised (claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1).",
+  "recorded_at": "2026-09-03T01:55:28Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/es_named_reloc_census.py",
+  "status": "active",
+  "tool_key": "tool:es-named-reloc-census",
+  "tool_kind": "census",
+  "usage": [],
+  "valid_from": "2026-09-03T01:55:28+00:00"
+}

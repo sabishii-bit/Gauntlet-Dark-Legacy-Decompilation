@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Close the transposed pair of .sbss stores at the top of the function (target stores lbl_803448AC then lbl_803448A8, ours the reverse) by exchanging the two source assignment statements.",
+  "attributes": {
+    "law_screen": "claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 APPLIED as the detector (this function is a TRANSPOSED row of that census). claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 SCREENED and REFUTED for STORES to distinct .sbss globals -- see the residual note; the law is about loads and register numbering and does not extend to this pair. claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1 APPLIED as a NEGATIVE screen: poolval reports both lbl_803448A8 and lbl_803448AC as absent from the DOL (.sbss), i.e. genuinely mutable globals, so neither may be literalised and only their order was in play.",
+    "laws_applied": "[\"claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1\"]",
+    "probed_form": "src/game/world/tower.c:499-500, inside towerRecordLevelBeaten: `lbl_803448A8 = world; lbl_803448AC = level;` -> `lbl_803448AC = level; lbl_803448A8 = world;` (statement exchange only; the following `ResolveWorldData((level << 8) | (world & 0xFF), world);` unchanged).",
+    "residual": "real 48, and this probe DECIDES one axis of it in a single measurement. A NEUTRAL-IDENTICAL result on a pure statement exchange is categorical, not weak: the two stores never reached the scheduler as an ordered pair, so MWCC ordered them by something other than source position and NO further respelling of the same two statements can move them. The remaining 48 is a register renumbering across the loop body -- target {r8,r6,r7,r9,r10} against ours {r6,r11,r8,r9,r10} over the `lwz/addi/li/mulli/add/lhz/slw/and.` block at +0x8c..+0xb8 -- plus the two transposed stores, which on this evidence are downstream of that renumbering rather than its cause. NEXT LANE: do not re-run the statement exchange; attack the loop-body register webs instead.",
+    "scope": "NO SOURCE CHANGE RETAINED -- discarded with `probe.py game/world/tower towerRecordLevelBeaten --discard`, tree at HEAD.",
+    "verification": "BASELINE probe.py game/world/tower towerRecordLevelBeaten -> real 48, insns T79/O79, multiset 0t, fresh objdiff fuzzy 97.9747%. AFTER the exchange -> NEUTRAL-IDENTICAL: the object bytes did not move at all. Proof line emitted for citation: `NEUTRAL-IDENTICAL-PROOF unit=game/world/tower fn=towerRecordLevelBeaten bytes=a56917096d45 real=48 insns=T79/O79 multiset=0t head=bc713b923`. defake_gate baseline game/world/tower was taken at commit bc713b923 (36 functions, 32 at real 0) and the tree was restored before it could move."
+  },
+  "function": "function:towerRecordLevelBeaten",
+  "held_fixed": "ONE thing varied: the relative order of the two store statements. Everything else was held CONSTANT -- both right-hand sides (`world`, `level`), both target globals, the declaration list, the following ResolveWorldData call and its argument expression, and the whole loop body. The `(level << 8) | (world & 0xFF)` text in the quoted form is the unchanged neighbouring line, not a second edit.",
+  "id": "attempt.ES_tower-record-level-beaten-store-order-is-not-source-order.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T01:53:00Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (79/79)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
