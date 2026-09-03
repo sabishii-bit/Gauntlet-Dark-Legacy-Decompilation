@@ -17,6 +17,18 @@ is 'parked' or 'capped' (residuals already diagnosed as allocator-quirk
 walls). Default is to mark them [PARKED] rather than hide, so the queue stays
 honest.
 
+`--parked skip` HIDES rows, and it hides a lot of them: 142 of the 221 rows
+in the >= 90 band, including several above 99% (measured run 43). A row that
+vanishes for this reason used to leave no trace, which reads exactly like a
+tool dropping rows; the footer now prints the in-band total, the hidden
+count, and what "parked" was read from.
+
+Every row carries `rec=N`, the number of attempt records the memory graph
+holds for that function. AGENTS.md's close-lane screen ranks candidates by
+records-per-unmatched-function — rec=0 is genuinely unexplored, rec=5 is
+where five lanes already spent their probes — and the run-42 close lane had
+to reconstruct that column by hand.
+
 --residuals prints `real=N`, which is `fndiff --count`'s real (raw diff rows
 with every relocation line dropped) — the same number probe.py prints and the
 one work orders and attempt records quote — and RANKS on it. It used to print
@@ -40,12 +52,18 @@ from fndiff import (classify_function, count_real, normalized_reloc_lines,
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
-def load_parked():
-    """Names of functions with a current parked/capped graph attempt.
+def load_graph_facts():
+    """(parked names, {name: attempt-record count}) from the memory graph.
 
     Attempt history is immutable, so a re-triage or successful revisit records
     a new attempt that supersedes the old cap.  Only unsuperseded heads may
     suppress queue entries.
+
+    The COUNT is the second half (run-43 item 3).  AGENTS.md's close-lane
+    screen says to rank candidates by records-per-unmatched-function, and the
+    run-42 close lane had to reconstruct that by hand, one `gdlmem context`
+    per candidate: a zero-record row is genuinely unexplored, while a
+    five-record row is where five lanes already spent their probes.
     """
     sys.path.insert(0, str(REPO))
     try:
@@ -54,21 +72,31 @@ def load_parked():
         ensure_database(REPO)
         connection = open_database(REPO)
     except Exception as error:  # graph unavailable: honest empty cap set
-        print(f"nearmiss: memory graph unavailable ({error}); no parked caps",
-              file=sys.stderr)
-        return set()
+        print(f"nearmiss: memory graph unavailable ({error}); no parked caps"
+              " and no record counts", file=sys.stderr)
+        return set(), {}
     try:
-        rows = connection.execute(
+        parked = {row[0] for row in connection.execute(
             "SELECT e.name FROM attempt a"
             " JOIN entity e ON e.id = a.function_entity_id"
             " WHERE a.outcome IN ('parked', 'capped')"
             " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
             " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
             " AND newer.record_state = 'accepted')"
-        ).fetchall()
-        return {row[0] for row in rows}
+        ).fetchall()}
+        counts = {row[0]: row[1] for row in connection.execute(
+            "SELECT e.name, COUNT(*) FROM attempt a"
+            " JOIN entity e ON e.id = a.function_entity_id"
+            " GROUP BY e.name"
+        ).fetchall()}
+        return parked, counts
     finally:
         connection.close()
+
+
+def load_parked():
+    """Just the parked names — `lowmatch.py` and its tests import this."""
+    return load_graph_facts()[0]
 
 
 def residual_columns(target, base):
@@ -104,6 +132,27 @@ def format_residual(real, clean, category, residuals):
     return text + f" {category:<18}"
 
 
+def format_row(pct, size, residual, records, name, unit, tag):
+    return (f"{pct:6.2f}%  {size:5d}B{residual}  rec={records:<2d}"
+            f"  {name:<40} {unit}{tag}")
+
+
+def summary_line(shown, hidden, parked_total, minimum):
+    """The footer. A hidden row must be counted where it was hidden.
+
+    Before run 43 this printed only `shown` and then cited a `PARKED.txt`
+    the tool had not read since the parks moved into the memory graph, so
+    `--parked skip` dropping 142 of 221 rows looked exactly like a queue
+    tool losing rows.
+    """
+    return (f"--- {shown} near-miss fns (>= {minimum}%, < 100%)"
+            f" | {shown + hidden} in band"
+            f" | {hidden} hidden by --parked skip"
+            f" | {parked_total} functions carry a live parked/capped attempt"
+            f" record in the memory graph"
+            f" | rec=N is that function's attempt-record count ---")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -129,7 +178,7 @@ def main():
         print(f"no {REPORT} -- run with --refresh", file=sys.stderr)
         return 1
 
-    parked = load_parked()
+    parked, record_counts = load_graph_facts()
     rows = []
     for u in json.loads(REPORT.read_text()).get("units", []):
         unit = u.get("name", "").removeprefix("main/")
@@ -173,18 +222,19 @@ def main():
               " ranked on it. clean=N appears only when `fndiff --clean`'s"
               " differently-computed real disagrees, so a record quoting"
               " either can be matched to this row.")
-    shown = 0
+    shown = hidden = 0
     for pct, size, name, unit, real, category, clean in rows:
         tag = ""
         if name in parked:
             if args.parked == "skip":
+                hidden += 1
                 continue
             tag = "  [PARKED]"
         residual = format_residual(real, clean, category, args.residuals)
-        print(f"{pct:6.2f}%  {size:5d}B{residual}  {name:<40} {unit}{tag}")
+        print(format_row(pct, size, residual, record_counts.get(name, 0),
+                         name, unit, tag))
         shown += 1
-    print(f"--- {shown} near-miss fns (>= {args.min}%, < 100%)"
-          f"{'' if not parked else f' | {len(parked)} names in PARKED.txt'} ---")
+    print(summary_line(shown, hidden, len(parked), args.min))
     return 0
 
 
