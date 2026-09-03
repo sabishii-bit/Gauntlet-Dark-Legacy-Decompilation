@@ -55,7 +55,6 @@ from tools.gdl.webfrank import (
     _linked_address,
     _own_datum,
     _symbol_index,
-    _symbols,
 )
 
 
@@ -4650,6 +4649,40 @@ class DatumBindingTests(unittest.TestCase):
                 obj, sections, symbols, None,
                 symbol_addresses={"gThing": (".sbss", 0x803445C8)})
 
+    def test_dtk_disambiguation_suffix_is_the_same_name(self):
+        """camera.c's file-local `StandardCamera` is spelled
+        `StandardCamera_8002B828` in the extracted object because the name is
+        taken elsewhere in the image.  With equal addends these are one
+        symbol; calling it an unproven correspondence understated six camera
+        and btext rules' evidence when this screen was first written."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "StandardCamera", 0),
+             4: (self.SDA21, "gScrollModes", 0)},
+            {0: (self.SDA21, "StandardCamera_8002B828", 0),
+             4: (self.SDA21, "gScrollModes_80343BB0", 0)},
+            obj, sections, symbols, None)
+        self.assertEqual(levels["L1"], 2)
+
+    def test_the_suffix_reading_needs_the_base_name_to_match(self):
+        """`ProcCamera` is not `StandardCamera_8002B828` however the suffix
+        is spelled."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "ProcCamera", 0)},
+            {0: (self.SDA21, "StandardCamera_8002B828", 0)},
+            obj, sections, symbols, None)
+        self.assertEqual(levels["L1"], 0)
+        self.assertEqual(levels["L4"], 1)
+
+    def test_the_suffix_reading_needs_equal_addends(self):
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "sTable", 8)},
+            {0: (self.SDA21, "sTable_80240000", 0)},
+            obj, sections, symbols, None)
+        self.assertEqual(levels["L1"], 0)
+
     # ---- level 2: linked address ----
 
     def test_two_spellings_of_one_address_bind(self):
@@ -4714,6 +4747,27 @@ class DatumBindingTests(unittest.TestCase):
                 {0: (self.SDA21, "@705", 0)},
                 {0: (self.SDA21, "lbl_80346840", 0)},
                 obj, sections, symbols, image)
+
+    def test_a_non_dform_word_compares_over_our_symbols_own_size(self):
+        """`li r4,0` carrying an EMB_SDA21 relocation forms an ADDRESS; it
+        has no access width, so the span is our symbol's own size and the
+        comparison is a PREFIX of the target's (dtk names a whole contiguous
+        .rodata run with one label).  Rounding a 2-byte datum up to 4 read
+        past the end of .sdata2 and cost btext::DrawStringTextMLines its only
+        proven word."""
+        text = _words(0x38800000, BLR)          # li r4,0
+        obj = _elf_object(text, data=b"\xab\xcd\xee\xff",
+                          data_symbols=[("@212", 0, 2)])
+        sections = _sections(obj)
+        image = _FakeImage({0x80345CC0: b"\xab\xcd\x11\x22"})
+        levels = verify_datum_binding(
+            {0: (self.SDA21, "@212", 0)},
+            {0: (self.SDA21, "lbl_80345CC0", 0)},
+            [0x38800000, BLR],
+            our_data=obj, our_sections=sections,
+            our_symbols=_symbol_index(obj, sections), image=image,
+            function="fn")
+        self.assertEqual(levels["L3"], 1)
 
     def test_no_image_drops_to_the_correspondence_level(self):
         """Without the retail image a pool datum cannot be read, so the word

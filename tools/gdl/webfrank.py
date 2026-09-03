@@ -1888,6 +1888,7 @@ def verify_datum_binding(
     symbol_addresses: dict[str, tuple[str, int]] | None = None,
     image: "RetailImage | None" = None,
     function: str = "",
+    correspondence_out: list | None = None,
 ) -> dict[str, int]:
     """Prove every relocated word binds the DATUM the target binds.
 
@@ -1941,6 +1942,20 @@ def verify_datum_binding(
         if our_name == their_name and our_addend == their_addend:
             levels["L1"] += 1
             continue
+        # Same name, different spelling convention.  dtk appends a symbol's
+        # own address to disambiguate a file-local name that is taken
+        # elsewhere in the image, so camera.c's static `StandardCamera` is
+        # spelled `StandardCamera_8002B828` in the extracted object and
+        # `gScrollModes` is `gScrollModes_80343BB0`.  With equal addends
+        # these are one symbol, and calling it an unproven correspondence
+        # instead understates six rules' evidence.
+        suffix = _DTK_ADDRESS_SUFFIX.match(their_name)
+        if (
+            suffix and suffix.group(1) == our_name
+            and our_addend == their_addend
+        ):
+            levels["L1"] += 1
+            continue
         our_address = _linked_address(our_name, our_addend, symbol_addresses)
         their_address = _linked_address(
             their_name, their_addend, symbol_addresses)
@@ -1955,8 +1970,16 @@ def verify_datum_binding(
             continue
         span = width
         if span is None:
+            # Not a D-form access — an address-formation word (`li rN,0` with
+            # an EMB_SDA21 relocation, or an ADDR16_HA/LO pair).  There is no
+            # access width to use, so compare over OUR symbol's own size and
+            # let it be a prefix of the target's: dtk names a whole contiguous
+            # .rodata run with one label, so the target's object is routinely
+            # the longer of the two.  Rounding a 2-byte datum up to 4 read
+            # past the end of .sdata2 and cost btext::DrawStringTextMLines its
+            # only unproven word.
             symbol = our_symbols.get(our_name)
-            span = min(max(symbol.size if symbol else 4, 4), _DATUM_SPAN_CAP)
+            span = min((symbol.size if symbol else 0) or 4, _DATUM_SPAN_CAP)
         our_datum = _own_datum(
             our_data, our_sections, our_symbols, our_name, our_addend, span,
             symbol_addresses,
@@ -1976,6 +1999,12 @@ def verify_datum_binding(
                 )
             continue
         levels["L4"] += 1
+        if correspondence_out is not None:
+            # Which words rest on the weakest proof, so an audit can NAME
+            # them instead of reporting a count nobody can act on.
+            correspondence_out.append(
+                f"+0x{index * 4:x} {our_name}+{our_addend} vs "
+                f"{their_name}+{their_addend}")
         pair = (our_name, their_name)
         if deltas.setdefault(pair, our_addend - their_addend) != (
             our_addend - their_addend
@@ -4619,7 +4648,6 @@ def main() -> int:
     symbol_addresses = (
         load_symbol_addresses(symbols_path) if symbols_path.exists() else None
     )
-
 
     # MARK THE OBJECT WE FAIL TO WRITE, CLEAR IT WHEN WE DO (run-35 item 4).
     # Any refusal below — a pin body-hash assertion, a guard rejection, a
