@@ -12,12 +12,36 @@ existed — three workers lost a cycle to the mismatch; now both work):
   python tools/gdl/provision_worktree.py
       From the ROOT of an already-created worktree: provisions in place.
 
+  python tools/gdl/provision_worktree.py --resplit
+      Re-extract build/<VERSION>/obj/** from the retail DOL. See below.
+
 It copies the ignored build inputs from the main checkout (orig/ DOL +
 toolchain caches when present), verifies the retail sha1, runs
 configure.py, and runs the bootstrap ninja — failing loudly at the first
 broken step. This replaces the hand-rolled Copy-Item sequence that has
 now nested orig/ into orig/GUNE5D/GUNE5D twice across fleets (Copy-Item
 -Recurse into an existing directory nests instead of merging).
+
+`build/<VERSION>/obj/**` IS A DTK-SPLIT REFERENCE, NOT A BUILD ARTIFACT
+(run-49 item 8). Those 331 objects are extracted FROM the retail DOL by
+`dtk dol split` and are the TARGET side every comparison reads — fndiff,
+fnasm, datadiff --sections, regnorm, savedregs, webfrank. They live under
+build/ and are gitignored, so they look disposable, and they are not.
+
+MEASURED at cf375c09d: `build.ninja` references them on 223 lines and
+declares them as an OUTPUT on ZERO — the split rule's only declared output
+is `build/<VERSION>/config.json`, and obj/** is a side effect of it. So
+ninja cannot know one is missing. Deleting
+`build/GUNE5D/obj/dolphin/si/SIBios.o` and running a plain `ninja` leaves
+it missing AND stops the build ("subcommand failed"), while
+`datadiff.py --sections dolphin/si/SIBios` degrades to
+`SKIP --sections: missing [...]` — a comparison silently not made. That is
+the shape of the incident CU hit.
+
+RECOVERY, verified at the same commit: delete `config.json` so the split
+rule is out of date, then rebuild it — `--resplit` does exactly that and
+then re-runs the full ninja. The 331 files came back and the DOL gate
+printed `build/GUNE5D/main.dol: OK`.
 """
 
 import hashlib
@@ -49,8 +73,47 @@ def copy_tree_merge(src: Path, dst: Path):
             shutil.copy2(path, target)
 
 
+def resplit(here: Path):
+    """Force `dtk dol split` to re-extract build/<VERSION>/obj/**.
+
+    The split rule's only declared output is config.json, so removing that
+    is the supported way to make ninja re-run it — no hand-rolled dtk
+    invocation, which would have to re-derive the rule's arguments.
+    """
+    config = here / "build" / VERSION / "config.json"
+    objdir = here / "build" / VERSION / "obj"
+    before = sum(1 for p in objdir.rglob("*") if p.is_file()) \
+        if objdir.is_dir() else 0
+    if config.is_file():
+        config.unlink()
+        print(f"removed {config.relative_to(here)} so the split rule reruns")
+    step = ["ninja", str(Path("build") / VERSION / "config.json")]
+    print("::", " ".join(step))
+    if subprocess.run(step, cwd=here).returncode != 0:
+        fail("dtk split failed — obj/ was NOT re-extracted")
+    after = sum(1 for p in objdir.rglob("*") if p.is_file()) \
+        if objdir.is_dir() else 0
+    print(f"build/{VERSION}/obj: {before} file(s) -> {after}")
+    if not after:
+        fail(f"build/{VERSION}/obj is still empty after the split")
+    return before, after
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    if "--resplit" in sys.argv:
+        if args:
+            fail("usage: provision_worktree.py --resplit (no other arguments)")
+        here = Path.cwd()
+        if not (here / "configure.py").is_file():
+            fail(f"run from the worktree root (cwd: {here})")
+        resplit(here)
+        step = ["ninja", "-j2"]
+        print("::", " ".join(step))
+        if subprocess.run(step, cwd=here).returncode != 0:
+            fail("ninja failed after the resplit")
+        print("RESPLIT OK — obj/ re-extracted, build green")
+        return 0
     if len(args) == 2:
         path, branch = Path(args[0]), args[1]
         if not path.is_dir():

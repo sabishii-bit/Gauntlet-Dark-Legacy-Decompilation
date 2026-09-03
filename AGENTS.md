@@ -1043,6 +1043,44 @@ tools that take a unit built `build/GUNE5D/obj/{unit}.o` from raw argv, so
 a `.c` spelling produced `...y.c.o` and a MISSING OBJECT, which reads as
 "this function is not in the census" rather than as a spelling.
 
+**`build/GUNE5D/obj/**` IS A DTK-SPLIT REFERENCE, NOT A BUILD ARTIFACT
+(run-49 item 8).** Those 331 objects are extracted FROM the retail DOL by
+`dtk dol split`, and they are the TARGET side of every comparison in the
+project — fndiff, fnasm, datadiff `--sections`, regnorm, savedregs and
+webfrank all read them. They sit under `build/` and are gitignored, so they
+look disposable, and deleting one is not recoverable by rebuilding.
+MEASURED at cf375c09d: `build.ninja` references them on 223 lines and
+declares one as an OUTPUT on **zero** — the split rule's only declared
+output is `build/GUNE5D/config.json` and `obj/**` is a side effect of it, so
+ninja cannot know a file is missing. Deleting
+`build/GUNE5D/obj/dolphin/si/SIBios.o` and running a plain `ninja` leaves it
+missing AND stops the build (`subcommand failed`), while
+`datadiff.py --sections dolphin/si/SIBios` degrades to `SKIP --sections:
+missing [...]` — a comparison silently not made, which is the shape of the
+incident CU hit. RECOVERY is one command:
+`python tools/gdl/provision_worktree.py --resplit` (deletes `config.json` so
+the split rule reruns, re-extracts `obj/**`, prints the before/after file
+count, then runs the full ninja). Verified: 330 -> 331 files and
+`build/GUNE5D/main.dol: OK`. Never `git clean -x` a worktree for the same
+reason.
+
+**A HEADER-COMMENT CLAIM IS A HINT UNTIL IT CARRIES A DATE AND A
+FALSIFICATION COMMAND (run-49 item 8).** Residual-work discipline 4 says to
+read a TU's own header comments as free evidence — one carried a diagnosis
+two passes missed — and that stands. But a header comment is prose in a file
+nobody re-measures: run 48 met a confident, TU-WIDE, and WRONG claim
+carrying "do not grind", which is a veto with no scope, no measurement date
+and no way to be cleared — exactly the shape the `denial` record type exists
+to refuse (`DENIAL_FIELDS`; a denial must state scope, premise_measurement,
+expiry_check and falsifier). The convention, for both writers and readers:
+a header claim that would STOP someone gets a DATE and the COMMAND that
+would show it no longer holds, or it is a hint. Without those two things it
+carries no more authority than an unrecorded opinion — read it, screen it,
+and measure before you act on it, exactly as with any number quoted from a
+record (discipline 8's remeasure-by-default rule). If a header claim is
+worth vetoing on, it is worth a `denial` block in an attempt record, where
+`gdlmem` can rank it, age it and let a later lane clear it.
+
 **IMPORTABLE CORE (run-43 item 10).** A tool whose module docstring
 carries a line beginning `IMPORTABLE CORE:` names functions you may call
 IN-PROCESS: they are pure over parsed data, they never build, and
