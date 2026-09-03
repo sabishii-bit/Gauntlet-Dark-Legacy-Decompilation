@@ -1000,7 +1000,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     }
     bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
     romBank = *(u8**)(sAudioBankTable + 16)
-              + *(s32*)(bankEntry + partIdx * 4 + 28) * 44;
+              + ((AudioRomModeBankEntry*)bankEntry)->partRomBank[partIdx] * 44;
     handle = *(u16*)(romBank + 42);
     if (handle != 0 && handle != 0xFFFF) {
         /* already resident */
