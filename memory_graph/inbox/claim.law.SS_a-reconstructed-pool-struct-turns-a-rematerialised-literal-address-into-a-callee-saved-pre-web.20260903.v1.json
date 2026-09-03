@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "attempt.SS_healthmeterstart-pool-struct-member-hoists-into-a-callee-saved-register.20260903.v1, commit 873f7154d. Gates: defake_gate check game/boss/boss --rebuild = GATE OK (1 improved, no sibling row); full ninja -j2 = build/GUNE5D/main.dol: OK; whole-image Data held at 177572 / 2361748 (7.52%) and STRICT held at 56.63% (2578 fns) across the keep.",
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "pool-layout",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where splitting a loop-invariant pool-struct member into its own static object at the identical layout offset leaves the preheader hoist in place (proving the hoist is not member-expression-driven), or one where the target itself hoists a pool-struct member address into a callee-saved register across a loop (proving MWCC's choice is not object-granularity-driven at all). Either would be visible in one `fnasm <unit> <fn> --diff` with no build. The negative control already recorded here is the narrower falsifier for the spelling half: claim.law.SS_... predicts a cast cannot reach the decision, and the NEUTRAL-IDENTICAL proof line `bytes=c6fbae5521a1 real=130 insns=T113/O115 multiset=2t head=a19fb90ba` is that measurement.",
+  "id": "claim.law.SS_a-reconstructed-pool-struct-turns-a-rematerialised-literal-address-into-a-callee-saved-pre-web.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T06:33:10Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "When a .rodata string pool is reconstructed as ONE `static const struct` (the standard device in this project for restoring MWCC's sibling-pooling), a member of that struct used as a LOOP-INVARIANT argument is a struct-member address expression, and MWCC's partial-redundancy elimination hoists it into a CALLEE-SAVED register for the whole loop. The retail target, whose source referenced the same bytes as an independent object, rematerialises the address inline at each use as `addi rD,rBASE,<offset>` off the shared pool base. The two differ by one extra preheader `addi`, one extra callee-saved register (hence a wider stmw/lmw save set), and 8 bytes of frame \u2014 and the extra register buys nothing, because the hoisted value is consumed by a one-instruction `addi rD,rHOIST,0` copy that is exactly as long as the rematerialisation it replaced. THE FIX IS OBJECT GRANULARITY, NOT SPELLING: split the loop-used member out of the struct into its own `static const char <name>[N]` declared at the position that preserves the pool's byte layout, and reference it by its bare name. Verified on src/game/boss/boss.c::HealthMeterStart (2026-09-03, run 44): the two sprintf format strings were moved out of a `static const struct { char coin[3][12]; char errFmt[28]; char bgFmt[16]; char fgFmt[16]; } sBossStr` into two `static const char[16]` objects at the SAME offsets 64 and 80, leaving the .rodata bytes and every sibling function byte-identical. The hoist disappeared, our save set moved r20 -> r21 to equal the target's, our instruction count moved T113/O115 -> T113/O113 (COUNT PARITY, which moves the function out of the count-asymmetric class entirely), real fell 130 -> 24 and objdiff fuzzy rose 91.94 -> 98.74 in one edit. TWO NEGATIVE CONTROLS bound the mechanism, both measured on the same function: a `(char*)` cast on the same argument is NEUTRAL-IDENTICAL (it folds in the front end and never reaches the PRE decision), and the SIBLING member `errFmt`, used ONCE outside any loop, is emitted as `addi r3,r30,36` in both streams and needs no split \u2014 so it is loop-invariance, not struct membership as such, that arms the hoist. DIRECTIONAL WARNING: this cuts against the pooling advice these reconstruction structs carry in their own comments. The struct is still required for pool ORDER and for the shared base register; what must not be inside it is a member whose address is loop-invariant at a call site. The cheapest screen is the aligned view: a target-side `addi rD,rBASE,<const>` at a call inside a loop where ours has a preheader `addi rHOIST,rBASE,<const>` plus a `addi rD,rHOIST,0` copy."
+}
