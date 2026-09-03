@@ -139,6 +139,15 @@ docstring omitted it — the flags below all work):
                      words are accepted by both families so the one you type
                      is the one you get, and passing both is REFUSED rather
                      than resolved by whichever branch tests first.
+                     A function-scoped restore that does NOT fully arrive —
+                     any hunk of the bank lying OUTSIDE the named function
+                     survives, which every helper-lift produces — measures a
+                     franken-state, banks nothing, and EXITS 5. The number is
+                     still printed (the build was paid for) but under a NOT A
+                     VERDICT label, below the refusal: the old form led with a
+                     `READOUT  real N (insns ...)` headline shaped exactly
+                     like a verdict line and exited 0, and was read as a score
+                     of the banked state twice.
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -1516,16 +1525,38 @@ def franken_readout_refusal(fn, label, notes, real, insns, tok):
     — and nothing is banked from it. `--whole-file` makes the restore
     complete; a plain probe with no restore flag banks normally, because then
     the tree is only claiming to be itself.
+
+    RUN-47 ITEM 3, the residual half. Refusing in prose was not enough: BP
+    re-scored the wrong state TWICE with this text on screen. Reproduced at
+    65348245e on game/anim/atree::AtreeMatch, both partial shapes — a
+    helper-lift (a static helper hoisted to file scope) and a plain
+    sibling-body edit — and the two things a reader and a script go by both
+    said SUCCESS:
+
+      (a) the process exited 0. probe carries every OTHER refusal in its exit
+          code (`scoped_revert`'s straddling-hunk ValueError exits 1, an
+          unknown flag and a contradictory scope exit 2, a fuzzy readout with
+          no number exits 4), so a gate could not tell this refusal from a
+          banked probe. `--revert` already refuses correctly; this copies it.
+      (b) the headline read `READOUT   real 0 (insns T44/O44, multiset 0t)`
+          — the same shape, the same column and the same width as a real
+          verdict line (`BASELINE  real 0 (insns T44/O44, multiset 0t)`),
+          printed ABOVE the refusal. A worker scanning for the score finds a
+          score. The refusal now leads and the number is labelled as what it
+          is: a measurement of a state that exists nowhere.
     """
-    return (f"READOUT   real {real} (insns {insns}{tok})\n"
-            f"REFUSED TO BANK: the restore of {label} was FUNCTION-SCOPED and"
-            f" did not fully arrive — {notes}. What was just measured is a"
-            f" FRANKEN-STATE ({fn} from the bank, the rest of the TU from the"
-            " working tree), so no verdict, no BEST anchor and no fuzzy"
-            " anchor were written from it (an anchor cached this way"
-            " arbitrates every later probe on the function). Re-run with"
+    return (f"REFUSED (partial restore): the restore of {label} was"
+            f" FUNCTION-SCOPED and did not fully arrive — {notes}. What was"
+            f" just measured is a FRANKEN-STATE ({fn} from the bank, the rest"
+            " of the TU from the working tree), so NO verdict, NO BEST anchor"
+            " and NO fuzzy anchor were written from it (an anchor cached this"
+            " way arbitrates every later probe on the function). Re-run with"
             " --whole-file to restore the whole TU, or probe with no restore"
-            " flag to score the tree as it actually stands.")
+            " flag to score the tree as it actually stands.\n"
+            f"  NOT A VERDICT — real {real} (insns {insns}{tok}) measured on"
+            " the franken tree. The build was paid for, so the number is"
+            " printed; it describes a state that exists in no bank and in no"
+            f" commit. Exit code {PARTIAL_RESTORE_EXIT}.")
 
 
 def _parity(insns):
@@ -3876,6 +3907,16 @@ KNOWN_FLAGS = frozenset((
 # number.)
 FUZZY_NO_NUMBER_EXIT = 4
 
+# A function-scoped restore (--revert / --revert-best / --restore NAME) that
+# did NOT fully arrive: the tree measured afterwards is a franken-state and
+# nothing is banked from it. Run-47 item 3 — the refusal used to exit 0, so it
+# was indistinguishable from a banked probe to any script or gate, while
+# `scoped_revert`'s straddling-hunk refusal has always exited 1. Distinct from
+# 1 and 2 on purpose: nothing is WRONG with the invocation and no error
+# occurred; a state was measured and deliberately not banked, and a caller
+# that wants to branch on exactly that needs its own code.
+PARTIAL_RESTORE_EXIT = 5
+
 
 def unknown_flags(argv, known=KNOWN_FLAGS):
     """[(flag, [suggestions])] for every `--flag` this tool does not know."""
@@ -4299,7 +4340,11 @@ def main():
             fn, label, notes, real, insns,
             f", multiset {multiset_tokens}t"
             if multiset_tokens is not None else ""))
-        return 0
+        # The refusal carries in the EXIT CODE, not only in the prose
+        # (run-47 item 3). Exiting 0 made a refused readout and a banked
+        # probe the same event to every caller, and the readout headline
+        # was shaped like a verdict — measured twice in the field.
+        return PARTIAL_RESTORE_EXIT
 
     state = {}
     if state_file.exists():

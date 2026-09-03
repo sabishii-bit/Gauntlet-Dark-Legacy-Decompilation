@@ -2978,7 +2978,10 @@ class PartialRestoreTests(unittest.TestCase):
             "print_n_of_m", "the BEST-scoring banked state",
             "1 hunk(s) inside print_n_of_m reverted; 2 hunk(s) elsewhere in"
             " the TU left untouched", 16, "T68/O68", ", multiset 0t")
-        self.assertIn("REFUSED TO BANK", text)
+        # Run-47 item 3 renamed the headline from "REFUSED TO BANK" (which
+        # printed BELOW a verdict-shaped READOUT line) to a leading
+        # "REFUSED (partial restore)". The refusal it asserts is the same one.
+        self.assertIn("REFUSED (partial restore)", text)
         self.assertIn("print_n_of_m", text)
         self.assertIn("the BEST-scoring banked state", text)
         self.assertIn("2 hunk(s) elsewhere", text)
@@ -2986,10 +2989,19 @@ class PartialRestoreTests(unittest.TestCase):
 
     def test_the_refusal_still_reports_the_measurement(self):
         """The build was paid for; withholding the number too would just
-        make the lane re-run it."""
+        make the lane re-run it.
+
+        Run-47 item 3 moved the number BELOW the refusal and relabelled it.
+        It used to lead with `READOUT   real 16 (insns T68/O68, ...)` — the
+        same shape, column and width as a verdict line — and BP read a
+        franken readout as a score of the banked state twice with this very
+        text on screen. The number is still here; it is no longer the
+        headline, and it no longer looks like a verdict.
+        """
         text = probe.franken_readout_refusal(
             "f", "bank 'x'", "notes", 16, "T68/O68", ", multiset 0t")
-        self.assertTrue(text.startswith("READOUT   real 16"))
+        self.assertTrue(text.startswith("REFUSED (partial restore):"))
+        self.assertIn("NOT A VERDICT — real 16", text)
         self.assertIn("T68/O68", text)
         self.assertIn("multiset 0t", text)
 
