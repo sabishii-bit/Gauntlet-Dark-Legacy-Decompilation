@@ -58,7 +58,7 @@ VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
 def load_graph_facts():
-    """(parked names, {name: attempt-record count}) from the memory graph.
+    """(parked names, {name: count}, {name: evidence tier}).
 
     Attempt history is immutable, so a re-triage or successful revisit records
     a new attempt that supersedes the old cap.  Only unsuperseded heads may
@@ -69,6 +69,24 @@ def load_graph_facts():
     run-42 close lane had to reconstruct that by hand, one `gdlmem context`
     per candidate: a zero-record row is genuinely unexplored, while a
     five-record row is where five lanes already spent their probes.
+
+    THE TIER IS THE THIRD (run-45 item 9), because the count alone ranked a
+    ZERO-PROBE park as the best-explored function in the image.  A record
+    proves work was done only if it says WHAT was probed, so each function
+    gets the strongest evidence any of its records carries:
+
+      ``D``  a typed denial (`denial`: probed_form / falsifier /
+             premise_measurement) -- the axis is machine-screenable;
+      ``P``  a literal `probed_form` but no typed denial;
+      ``-``  records exist and NONE of them says what was probed: prose.
+
+    Measured over the live corpus at 56067bfae -- 466 functions carry attempt
+    records, of which 52 reach D, 140 reach P, and 274 (59%) are prose only.
+    Nine functions hold FIVE prose-only records each (AudioSetupBossStreams,
+    GetAnimAngXYZVal, InitEffects, PlayerMotion, WPitchMat3,
+    __dt__15MoviePlayerBaseFv, msgPost, pbWinSetup, sysResetService): on the
+    count alone those are the most-explored rows in the queue, and not one of
+    them records a probed form.
     """
     sys.path.insert(0, str(REPO))
     try:
@@ -79,7 +97,7 @@ def load_graph_facts():
     except Exception as error:  # graph unavailable: honest empty cap set
         print(f"nearmiss: memory graph unavailable ({error}); no parked caps"
               " and no record counts", file=sys.stderr)
-        return set(), {}
+        return set(), {}, {}
     try:
         parked = {row[0] for row in connection.execute(
             "SELECT e.name FROM attempt a"
@@ -89,14 +107,35 @@ def load_graph_facts():
             " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
             " AND newer.record_state = 'accepted')"
         ).fetchall()}
-        counts = {row[0]: row[1] for row in connection.execute(
-            "SELECT e.name, COUNT(*) FROM attempt a"
+        rows = connection.execute(
+            "SELECT e.name, COUNT(*),"
+            " SUM(CASE WHEN json_extract(r.raw_json,'$.denial') IS NOT NULL"
+            "          THEN 1 ELSE 0 END),"
+            " SUM(CASE WHEN json_extract(r.raw_json,"
+            "                            '$.attributes.probed_form')"
+            "            IS NOT NULL"
+            "        OR json_extract(r.raw_json,'$.probed_form') IS NOT NULL"
+            "          THEN 1 ELSE 0 END)"
+            " FROM attempt a"
             " JOIN entity e ON e.id = a.function_entity_id"
+            " JOIN record_ingest r ON r.record_id = a.record_id"
             " GROUP BY e.name"
-        ).fetchall()}
-        return parked, counts
+        ).fetchall()
+        counts = {name: total for name, total, _d, _p in rows}
+        tiers = {name: evidence_tier(denials, probed)
+                 for name, _total, denials, probed in rows}
+        return parked, counts, tiers
     finally:
         connection.close()
+
+
+def evidence_tier(denials, probed):
+    """The strongest evidence a function's attempt records carry."""
+    if denials:
+        return "D"
+    if probed:
+        return "P"
+    return "-"
 
 
 def load_parked():
@@ -137,8 +176,12 @@ def format_residual(real, clean, category, residuals):
     return text + f" {category:<18}"
 
 
-def format_row(pct, size, residual, records, name, unit, tag):
-    return (f"{pct:6.2f}%  {size:5d}B{residual}  rec={records:<2d}"
+def format_row(pct, size, residual, records, name, unit, tag, tier=""):
+    """One queue row. `rec=N` is the record COUNT and the letter after it is
+    the strongest EVIDENCE those records carry (see `load_graph_facts`): a
+    row reading `rec=5-` holds five records and not one probed form."""
+    stamp = f"{records}{tier if records else ''}"
+    return (f"{pct:6.2f}%  {size:5d}B{residual}  rec={stamp:<3}"
             f"  {name:<40} {unit}{tag}")
 
 
@@ -155,7 +198,10 @@ def summary_line(shown, hidden, parked_total, minimum):
             f" | {hidden} hidden by --parked skip"
             f" | {parked_total} functions carry a live parked/capped attempt"
             f" record in the memory graph"
-            f" | rec=N is that function's attempt-record count ---")
+            f" | rec=N is that function's attempt-record count, and the"
+            f" letter after it is the strongest evidence they carry:"
+            f" D typed denial, P probed_form, - prose only (rec=5- is five"
+            f" records that never say what was probed) ---")
 
 
 def main():
@@ -183,7 +229,7 @@ def main():
         print(f"no {REPORT} -- run with --refresh", file=sys.stderr)
         return 1
 
-    parked, record_counts = load_graph_facts()
+    parked, record_counts, record_tiers = load_graph_facts()
     rows = []
     for u in json.loads(REPORT.read_text()).get("units", []):
         unit = u.get("name", "").removeprefix("main/")
@@ -237,7 +283,7 @@ def main():
             tag = "  [PARKED]"
         residual = format_residual(real, clean, category, args.residuals)
         print(format_row(pct, size, residual, record_counts.get(name, 0),
-                         name, unit, tag))
+                         name, unit, tag, record_tiers.get(name, "")))
         shown += 1
     print(summary_line(shown, hidden, len(parked), args.min))
     return 0
