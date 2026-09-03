@@ -3745,6 +3745,24 @@ class TemplateCliOrderTests(unittest.TestCase):
             self.assertEqual(keys[:3], ["schema_version", "id", "kind"],
                              f"{kind} template head order")
 
+    def test_the_claim_subject_hint_names_every_resolvable_namespace(self):
+        """Run-44 item 5 (T13): the hint named `function:` and `tu:` while
+        `tool:`/`workflow:`/`project:` resolve too, and the only place that
+        was written down was the refusal you get AFTER guessing wrong.
+        T13 burned three refusals reaching for `tool:`. The template is
+        read FIRST, so it carries the directory.
+
+        Asserted against the same four the refusal enumerates
+        (`unknown_entity_message`), so the two cannot drift apart."""
+        subject = core.record_template("claim")["subject"]
+        for namespace in ("function:", "tu:", "tool:", "workflow:",
+                          "project:"):
+            self.assertIn(namespace, subject, namespace)
+        # The catalog key is not the filename — the specific thing T13 got
+        # wrong, and the reason naming the namespace alone is not enough.
+        self.assertIn("gdlmem.py tool", subject)
+        self.assertIn("tool:gdl-memory-graph", subject)
+
 
 class MissingAnchorTests(unittest.TestCase):
     """A record whose anchor file is gone is a REOPEN candidate.

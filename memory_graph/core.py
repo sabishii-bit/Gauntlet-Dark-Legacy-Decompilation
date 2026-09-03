@@ -4641,7 +4641,28 @@ def record_template(kind: str) -> dict[str, Any]:
             },
         },
         "claim": {
-            "subject": "<REQUIRED: entity key, e.g. function:name or tu:module>",
+            # Run-44 item 5 (from T13): this hint named TWO of the four
+            # namespaces that resolve, and the only place the other two were
+            # written down was `unknown_entity_message` — the refusal you get
+            # AFTER guessing wrong. T13 burned three refusals reaching
+            # `tool:`, which is the correct home for a law about how a TOOL
+            # behaves and which 130 records spell `project:gdl` instead
+            # because it was advertised-but-unresolvable before run 40. The
+            # template is what a lane reads FIRST, so it carries the
+            # directory now.
+            "subject": "<REQUIRED: entity key. FOUR namespaces resolve:"
+                       " (1) `function:<symbol>` naming one GameCube function;"
+                       " (2) `tu:<module>` naming an object — no `src/`"
+                       " prefix, the .c/.cpp suffix is optional;"
+                       " (3) `tool:<key>` / `workflow:<key>` for a law about"
+                       " how a TOOL or a WORKFLOW behaves — the key is the"
+                       " CATALOG's, printed as `tool_key` by `gdlmem.py tool"
+                       " <name>` (memory_graph/gdlmem.py is"
+                       " `tool:gdl-memory-graph`, not `tool:gdlmem`, and"
+                       " anything under composed_census carries the"
+                       " `tool:composed-census-` prefix);"
+                       " (4) any entity_key already in the graph, e.g."
+                       " `project:gdl`>",
             "predicate": "<REQUIRED: e.g. law|symbol_naming|opportunity>",
             "epistemic_state": "<REQUIRED: e.g. verified|proposed>",
             "value": "<REQUIRED unless 'object' is used: the claim statement>",
