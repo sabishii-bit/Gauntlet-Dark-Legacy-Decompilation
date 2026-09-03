@@ -7461,12 +7461,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     e->pyr[2] = zero;
     e->state = ACTIVE;
     e->endurance = 0;
-    /* The state argument is re-read from the field rather than passed as a
-     * literal 1: the target keeps one register live across the store and the
-     * call (`li r6,1` / `stw r6,180(r31)` / arg4 = r6).  Re-reading costs the
-     * single `lwz` that is this function's whole remaining diff, and every
-     * literal/shared-temporary spelling measured worse (attempt
-     * .enemy-c-deepscrutiny.20260830.v1: 43/43/35/51 real vs 27 here). */
     SetEnemyObj(e, type, level);
     if (level > 3) {
         level = 2;
@@ -7489,7 +7483,8 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         health = health * gCurLevel->ene_health;
     }
     if (type < E_NTYPES) {
-        health = (f32)(lbl_80346A28 * health * level);
+        f64 scaled = lbl_80346A28 * health;
+        health = (f32)(scaled * level);
     }
     fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
     if (e->objgrp.node != NULL) {
