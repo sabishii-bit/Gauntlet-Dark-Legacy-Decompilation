@@ -4226,14 +4226,110 @@ class HypothesisRefuterTests(unittest.TestCase):
             "attempt.t5-refuter-warning-probe.v1",
             "re-run and see whether the number moves")
         self.assertTrue(str(path).endswith(".json"))
-        self.assertEqual(len(warnings), 1)
-        self.assertIn("MANDATORY STEP 1", warnings[0])
+        # Selected by CONTENT, not by position or count: run-48 item 8 added
+        # a second, independent hypothesis warning on the same block, and a
+        # bare `len(warnings) == 1` made this test a tripwire for every later
+        # warning rather than for the one it is about.
+        refuter = [w for w in warnings
+                   if "cheapest_refuting_observation" in w]
+        self.assertEqual(len(refuter), 1)
+        self.assertIn("MANDATORY STEP 1", refuter[0])
 
     def test_a_sound_refuter_produces_no_warning_through_the_gate(self):
         _path, warnings = self._stage(
             "attempt.t5-refuter-clean-probe.v1",
             "drop the volatile qualifier and see if the reload survives")
-        self.assertEqual(warnings, [])
+        self.assertEqual(
+            [w for w in warnings if "cheapest_refuting_observation" in w], [])
+
+
+class HypothesisCountConsequenceTests(unittest.TestCase):
+    """T18 run-48 item 8: a hypothesis must say what it does to the COUNT.
+
+    AGENTS.md proposal gate 2 already makes an instruction count the deciding
+    fact for a postprocessor-class claim, and a HYPOTHESIS is discipline 10b's
+    MANDATORY STEP 1. A cure that changes the count is refutable in zero
+    register work: attempt.PR_distancetoclosestplayer-the-refinement-
+    constants-storage-class-owns-the-hoist.20260903.v2 records six probed
+    forms and TWO died on the count alone (123 vs 122 insns), with the record
+    saying so only in probed_form, after the builds were spent. Verified at
+    d240c67bf that the warning fires on that record's own hypothesis block.
+
+    IT IS ADVISORY BY CALIBRATION. Measured over all 2,034 records on disk:
+    183 carry a hypothesis and only 32 (17.5%) state any count consequence,
+    so a refusal would reject 151 accepted-corpus shapes.
+    """
+
+    def warn(self, **fields):
+        return core.hypothesis_count_consequence_warning(fields)
+
+    def test_a_count_free_hypothesis_is_warned_about(self):
+        text = self.warn(statement="reorder the two declarations",
+                         cheapest_refuting_observation="rebuild and diff",
+                         screened_against_target="no")
+        self.assertIsNotNone(text)
+        self.assertIn("INSTRUCTION-COUNT", text)
+        self.assertIn("count_consequence", text)
+
+    def test_an_explicit_count_consequence_silences_it(self):
+        self.assertIsNone(self.warn(
+            statement="reorder the two declarations",
+            count_consequence="count-neutral: 122/122 either way"))
+
+    def test_a_count_figure_anywhere_in_the_block_silences_it(self):
+        # The trigger is deliberately generous — a false warning taxes a
+        # correct record, which this corpus has measured twice.
+        self.assertIsNone(self.warn(
+            statement="the literal form is count-asymmetric at 123 vs 122"))
+        self.assertIsNone(self.warn(
+            statement="x", cheapest_refuting_observation="check T122/O122"))
+        self.assertIsNone(self.warn(statement="the cure adds an instruction"))
+        self.assertIsNone(self.warn(statement="count parity is held"))
+        self.assertIsNone(self.warn(statement="122 insns on both sides"))
+
+    def test_an_absent_or_untyped_block_is_not_judged(self):
+        self.assertIsNone(core.hypothesis_count_consequence_warning(None))
+        self.assertIsNone(core.hypothesis_count_consequence_warning("prose"))
+        self.assertIsNone(core.hypothesis_count_consequence_warning({}))
+        self.assertIsNone(core.hypothesis_count_consequence_warning(
+            {"statement": "", "cheapest_refuting_observation": None}))
+
+    def test_it_says_it_does_not_block(self):
+        text = self.warn(statement="reorder the two declarations")
+        self.assertIn("does NOT block", text)
+
+    def test_the_optional_field_is_not_in_the_required_shape(self):
+        # Adding it to HYPOTHESIS_FIELDS would invalidate the 151 accepted
+        # blocks that carry no count line, because that tuple is checked
+        # corpus-wide.
+        self.assertNotIn(core.HYPOTHESIS_COUNT_FIELD, core.HYPOTHESIS_FIELDS)
+
+    def test_the_template_asks_for_it(self):
+        template = json.dumps(core.record_template("attempt"))
+        self.assertIn("count_consequence", template)
+
+    def test_it_reaches_the_proposal_path_as_a_warning(self):
+        root = make_root(with_symbols=False)
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        original = core._probe_record_references
+        core._probe_record_references = lambda *args, **kwargs: None
+        try:
+            record = _attempt(
+                "attempt.t18-count-consequence-probe.v1", "function:test_fn",
+                outcome="parked", axis="declaration order",
+                hypothesis={
+                    "statement": "swap the two declarations",
+                    "cheapest_refuting_observation":
+                        "swap the declarations and rebuild",
+                    "screened_against_target": "no"},
+                attributes={"law_screen": "none applicable: tooling probe"})
+            warnings: list[str] = []
+            path = stage_record_proposal(record, root=root, dry_run=True,
+                                         warnings=warnings)
+            self.assertTrue(str(path).endswith(".json"))
+            self.assertTrue(any("INSTRUCTION-COUNT" in w for w in warnings))
+        finally:
+            core._probe_record_references = original
 
 
 class SupersessionScreenPerformanceTests(unittest.TestCase):
