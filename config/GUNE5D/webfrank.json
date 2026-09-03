@@ -3,6 +3,17 @@
   "units": {
     "game/ui/screensaver": [
       {
+        "function": "print_n_of_m",
+        "mechanism": "attempt.CL_print-n-of-m-a-loaded-local-outranks-a-parameter-copy-local.20260903.v2 (source-exhaustion provenance; supersedes attempt.CT_print-n-of-m-param-copy-local-numbering.20260903.v1 and attempt.parked.print-n-of-m.20260830.v1). The residual is a single r30/r31 transposition of one callee-saved PAIR: the node-copy local and the arrH[].d load. Target `@0x24 addi r31,r7,0` against ours `addi r30,r7,0`, and target `@0x58 lwz r30,548(r3)` against ours `lwz r31,548(r3)`, with every other callee-saved definition byte-identical (`@0x20 addi r26,r5,0`, `@0x50 lwz r29,536(r3)`, `@0x5c lwz r27,552(r3)`, `@0x60 add r28,r6,r0`). wf_word_diff reads 68 insns, DIFFERING WORDS = 8, MNEMONIC DIVERGENCE = 0, CLASS RECOLOR; webfrank_audit classifies it REGISTER_ONLY with 8 register-field edits at +0x24/+0x58/+0x94/+0xa0/+0xac/+0xb8/+0xe4/+0xf0. FOUR source lever classes are measured dead on the real object: declaration ORDER and declaration TYPE both returned NEUTRAL-IDENTICAL with the same object digest 38009029928d (the construct folds away in the front end, a stronger negative than a regression); STATEMENT POSITION of `nd = node;` took real 16 -> 20 and broke the multiset; LOCAL EXISTENCE -- passing the `node` parameter directly to both MBFontMsgSetAlpha calls -- took real 16 -> 32 and shifted the whole callee-saved bank. Datum bindings are proved by the screen this rule ships under.",
+        "before_sha256": "41923b6c9ca038518e822eaef2d690b469881e7fb720a646399408c522516df8",
+        "after_sha256": "08a1810964c7495ffc94700c76de47402ef58f8fa8fc7d4d98656df38276889f",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 68
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "end_inventory_panel",
         "mechanism": "attempt.HV_harvest-sweep-arrow-order.20260901.v1. PRE-PERMUTATION plus copy_register_fields, 39 atoms/fields, and the FIRST rule in game/ui/screensaver (the unit block and its WEBFRANK build edge are created with this commit -- configure.py is required or ninja runs green with the rule silently unapplied). The residual is a whole-function GPR renaming (real 64 of 67 instructions) composed with the same live-zero-remat word: the target seeds `li r29,0` at +0x18 and spends `addi r31,r29,0` at +0x28 for `i = 0`, while our stream emits two independent `li`. Source axes measured DEAD on the real object this run: (1) declaration order, moving `int i` ahead of `base`/`p` per the declaration-order law -- NEUTRAL-IDENTICAL, object bytes UNCHANGED, i.e. the edit folded away before codegen, which is a stronger negative than a regression; (2) fusing the base and the +928 displacement into one expression `(void**)(base + player * 16 + 928)` to force the target's in-place advance -- REGRESSED 64 -> 70. The renaming axis itself was already parked by attempt.parked.end-inventory-panel.20260830.v1 ('renum + base-const assoc', the four handle-free loops off lbl_80274600 at +928/992/736/592).",
         "before_sha256": "8748ebb9be0d1a8f8604cd948e83825def1b5efa30f51a6ed170ea1b73db53ce",
@@ -670,6 +681,17 @@
       }
     ],
     "game/enemy/critter": [
+    {
+      "function": "CritterGetTargetPlayers",
+      "mechanism": "attempt.CL_crittergettargetplayers-assignment-in-condition-splits-the-coalesced-clamp-carrier.20260903.v1 (source-exhaustion provenance; supersedes attempt.ES_critter-get-target-players-clamp-carrier-colours-with-the-divide-temp.20260903.v1 and attempt.critter-get-target-players-clamp-merge.20260903.v2). The whole residual is ONE consistent f0/f1 transposition downstream of a single decision: which FPR receives the second of two lfs loads. Target `@0x114 lfs f1,452(r3)` and `@0x118 lfs f0,444(r3)` then `@0x134 fdivs f0,f0,f1`; ours loads damage into f0 and base into f1 and divides `fdivs f1,f1,f0`. Everything after follows mechanically because MWCC writes the quotient into whichever register already holds the dividend -- the guard compare at 0x11c, the clamp compare at 0x138, the low-clamp fmr at 0x140, the high-clamp constant load at 0x148, the second compare at 0x14c, the pass-through fmr at 0x158 and the narrowing frsp at 0x15c are all the same swap. wf_word_diff: 128 insns, DIFFERING WORDS = 10, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, CLASS RECOLOR; fndiff --ops reports opcode streams identical; regnorm GENUINE structural rows 0. FOUR lever classes are measured dead against that one decision: declaration ORDER of the two f32 loads (twice, at two alignments, both NEUTRAL-IDENTICAL against object digest 246431a4be68), declaration WIDTH of the quotient/carrier pair (byte-identical object), declaration ORDER of the quotient/carrier pair (T128/O129, count parity lost), and STATEMENT ORDER of the two loads (byte-unchanged). ONE named source lever remains UNTRIED -- changing what the second load READS, so the two loads no longer originate in one addressing web -- and src/game/enemy/critter.c is claimed by another lane this run (work_claim.brink-leftovers.20260903.v1), so this rule is authored on the four measured-dead classes and that lever is left open rather than claimed as exhausted.",
+      "before_sha256": "786c2f06846ebdab28f219110b96ac74c41a8cf3587095cc44f4d5108f7fb6ca",
+      "after_sha256": "ed2c4408d22970a721e5095f8a735f2817731c806cfca78373e221b05697bdb8",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 128
+      },
+      "copy_register_fields": true
+    },
     {
       "function": "CritterLineRootColSub",
       "before_sha256": "a67792e802cc08319d9e4d7cb7b9f555740bde663620293e7a0e888fa6af7746",
