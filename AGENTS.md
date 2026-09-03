@@ -898,9 +898,14 @@ python tools/gdl/aritycheck.py [--verdict PHANTOM-CANDIDATE]  # parameter
     # externcheck ranks type CLASSES and abicheck models GPR/FPR sequence
     # assignment (discipline 16) — neither reads count, which is why
     # init_enemy's phantom 4th argument had to be found by hand. Zero
-    # builds. REMEASURE, never quote: the census moves as its own rows are
-    # worked. 4/15/42 at run 42; 1 PHANTOM-CANDIDATE / 14 KNR-SHORT-CALL /
-    # 42 UNREAD-TRAILING at ca4074cb1. A verdict is a place to look: both
+    # builds. THE CENSUS IS THE COMMAND, NOT A NUMBER: run it (its second
+    # line is the per-verdict tally) and quote THAT, because the population
+    # moves as its own rows are worked — 4/15/42 at run 42 became 1/14/42
+    # once the arity work landed, and both figures have been quoted into
+    # orders as if current. Stability is not the point either: measured at
+    # 0fd3bca5a the tally still reads 1/14/42, i.e. unchanged since
+    # ca4074cb1 — a live run is the only way to know which of those two
+    # things is true today. A verdict is a place to look: both
     # governing laws (NM_an-unread-trailing-parameter..., knr-extern-arity-
     # can-be-faithful-not-a-defect) are settled against the TARGET BYTES at
     # the call site. Every site now prints its CALLER, a WEBFRANK-PIN
