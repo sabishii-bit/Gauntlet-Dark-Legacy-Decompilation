@@ -1181,6 +1181,14 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     return count > 0;
 }
 
+static f32 ClampPitchLow(f32 pitch, f32 bound)
+{
+    if (pitch < bound) {
+        return pitch;
+    }
+    return bound;
+}
+
 /* Initialise and converge the standard camera.  A non-zero argument performs
  * the full player/trigger-camera setup; zero selects the lightweight reset
  * path used by UpdateCam's lazy initialisation. */
@@ -1196,8 +1204,6 @@ void fn_8006F16C(s32 initialise)
     f32* cbase;
     s32 result;
     f32 pitch;
-    f32 pitchc;
-    f32 bound;
     f64 yaw;
     s32 iterations;
     s32 successes;
@@ -1229,14 +1235,8 @@ void fn_8006F16C(s32 initialise)
         }
 
         if (lbl_80344768 > 1) {
-            pitchc = *camera;
-            bound = -((NcLevelData*)gCurLevel)->camera->minpitch;
-            if (pitchc < bound) {
-                goto keep_pitch;
-            }
-            pitchc = bound;
-        keep_pitch:
-            *camera = pitchc;
+            *camera = ClampPitchLow(
+                *camera, -((NcLevelData*)gCurLevel)->camera->minpitch);
         }
 
         yawv = lbl_80344A6C->yaw;
