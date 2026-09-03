@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "game/boss/boss.c declared `extern f64 Random(f64 a);` while the definition (game/ps2/ml_fmath.c:145) and all eight other declarations in the tree say `f32 Random(f32)`. The double prototype made every `Random(0.1f)` argument pool an f64 constant where the target loads an f32, which is what the census read as nine WRONG-POOL-VALUE rows in BossSpewCoins.",
+  "attributes": {
+    "generalisation": "abicheck's true-defect list holds more rows of the same f64-vs-f32 shape that would pool the wrong constant width at their call sites - MBPsysSetERate4 and MBPsysSetPSpeed are DEFINED with f64 parameters in mb_particle.c while critter.c, pmotion.c and psfx.c all declare them f32, and combat.c:4098 declares `f64 Random(f32 range)` (return type only). Each is a one-word candidate with the same measurement path: fix the prototype, gate, arbitrate on fresh fuzzy. Not attempted here - mb_particle's own pass was value-only and combat.c is a heavily pinned TU.",
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 SCREENED and this row REFUTES its usual framing for this case: the wrong pool WIDTH is not score-invisible at all, because an f64 argument constant also changes the load and the conversion around it - fixing it moved real 137 -> 121 and fuzzy 90.23% -> 93.12%. A pool-value census row can therefore be a matching lead, not only a correctness one. claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 SCREENED: BossSpewCoins is real 157, so its positional pairing is untrustworthy; the decision was made on the VALUE MULTISET (target holds f32 0x3DCCCCCD nine times, ours held the f64 0x3FB99999A0000000 nine times) plus the prototype disagreement, never on the row positions. AGENTS.md discipline 16 followed: `tools/gdl/abicheck.py` run, which lists this exact shape ('definition reads f32, caller writes f64' family) among its 31 true defect rows.",
+    "laws_applied": "[\"claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1\"]",
+    "residual": "boss.c keeps three flagged functions, none of them this class: ProcessSpewItems (7 rows that are a one-position SHIFT of the target's sequence - our stream has one extra pool relocation before them, so the pairing is displaced, not wrong), HealthMeterUpdate (1 row, real 275), HealthMeterStart (a two-row lbl_80345B60/B64 TRANSPOSITION, which is reloc-symbol work and belongs to the lane holding work_claim.reloc-defect-fixes.20260903.v1).",
+    "scope": "src/game/boss/boss.c line 92 only - one word, f64 -> f32 on both the return type and the parameter. Commit b71570ad9.",
+    "verification": "`defake_gate.py baseline game/boss/boss.c` at de7c22480 then `check --rebuild` = GATE OK with IMPROVED-CARRIER BossSpewCoins real 137 -> 121; the gate warned that the opcode multiset moved at equal counts and demanded fuzzy arbitration, so a full `ninja -j2` was run (prints `build/GUNE5D/main.dol: OK`) and `tools/gdl/fuzzy.py game/boss/boss.c BossSpewCoins` read 93.1190% against the baseline's recorded 90.23291%. Both arbiters agree; no sibling in boss.c regressed. BossSpewCoins now carries zero pool-defect rows."
+  },
+  "function": "function:BossSpewCoins",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Run `python tools/gdl/pooldump.py --ours game/mb/mb_particle` and check whether the f32-declared call sites in critter.c/pmotion.c/psfx.c actually pool a DOUBLE for their arguments. If those TUs already pool f32 constants, the disagreement is register-identical and cost-free, and there is nothing to win.",
+    "screened_against_target": "no - only boss.c's Random was carried through to a measurement this pass; the other prototype rows were read out of abicheck and not probed.",
+    "statement": "Correcting the remaining f64-vs-f32 prototype rows abicheck already lists (MBPsysSetERate4 / MBPsysSetPSpeed in mb_particle.c, `f64 Random(f32)` in combat.c:4098) will clear pool-width defects and move real the same way boss.c's did."
+  },
+  "id": "attempt.CQ_boss-random-prototype-width.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T03:58:07Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

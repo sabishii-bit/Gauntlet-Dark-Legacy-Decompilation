@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py game/enemy/enemy.c move_logic00 --clean",
+    "tools/gdl/fnasm.py game/enemy/enemy.c move_logic00 --ours --raw",
+    "build/binutils/powerpc-eabi-objdump.exe -dr --start-address=0x28f8 --stop-address=0x2970 --section=.text"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "register-web",
+      "pool-layout"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Disassemble build/GUNE5D/src/game/enemy/enemy.o and its .postprocess/body twin at move_logic00+0x1dc/+0x1e4/+0x220/+0x228 and show that the raw-to-final register map is the same at the definitions and at the uses (i.e. raw f29 maps to one register everywhere). That would mean the rotation is a consistent bijection after all and the binding is sound. Equivalently: link a Matching build of game/enemy/enemy and show `build/GUNE5D/main.dol: OK` still holds - if the postprocessed object's linked bytes match retail, this law is wrong.",
+  "id": "claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T03:58:48Z",
+  "schema_version": 1,
+  "subject": "function:move_logic00",
+  "valid_from": "2026-09-03",
+  "value": "A WebFrank `copy_register_fields` rule REWRITES REGISTER FIELDS AND LEAVES RELOCATIONS WHERE THEY ARE, so when the rule's renaming ROTATES the homes of two pooled constants the postprocessed object binds each register to the WRONG datum, and no gate in the project can see it. game/enemy/enemy::move_logic00 is a shipped instance today, and its rule's own `unproven_recolor_audit` note names the mechanism ('FP constant-web routing residual: rotated lfd web homes (+0x1dc-0x1f4) cross the renaming; byte-equal to retail and individually reviewed 2026-08-24') while drawing the opposite conclusion.\n\nWHAT THE THREE OBJECTS SAY, all read this run at commit b71570ad9 with no source edit in between.\n\nRAW (the compiler's own output, build/GUNE5D/src/game/enemy/.postprocess/body/enemy.o, move_logic00 at 0x2724):\n  +0x1dc  lfd f29,@705   @705 = 400921fb54524550 = 3.141592654\n  +0x1e4  lfd f30,@706   @706 = 401921fb54524550 = 6.283185308\n  +0x220  fcmpo cr0,f27,f29     <- compares against PI\n  +0x228  fsub  f1,f27,f30      <- subtracts TWO PI\nThat is exactly what src/game/enemy/enemy.c:1950 spells: `if (cand > 3.141592654) nv = cand - 6.283185308;`.\n\nFINAL (post-WebFrank, build/GUNE5D/src/game/enemy/enemy.o, same offsets):\n  +0x1dc  lfd f25,@705   still PI\n  +0x1e4  lfd f30,@706   still TWO PI\n  +0x220  fcmpo cr0,f29,f30     <- now compares against TWO PI\n  +0x228  fsub  f1,f29,f25      <- now subtracts PI\nThe renaming maps raw f29 to f25 at the DEFINITION and raw f29 to f30 at the USE. One register cannot map to two registers under a bijection; nothing redefines f29 (raw) or f25 (final) between the load and the use, checked by objdump over 0x2900-0x2944.\n\nTARGET (retail, decoded from the LINKED image, not from a diff view: 0x80046D30 = CB229128 = lfd f25,-28376(r2) and 0x80046D38 = CBC29120 = lfd f30,-28384(r2); r2 resolves from either symbol, both agree on _SDA2_BASE_ = 0x8034D720):\n  f25 = 0x80346848 = 6.283185308, f30 = 0x80346840 = 3.141592654 - i.e. retail compares PI and subtracts TWO PI, like the raw object and like our source.\n\nCONSEQUENCES. (a) The postprocessed function is NOT dataflow-equivalent to the compiler output: it computes `if (cand > 2pi) cand - pi` where every other artefact computes `if (cand > pi) cand - 2pi`. The class ceiling is 'allocator/scheduler variance under a proven compiler'; a rotation that changes which constant a register holds is outside it. (b) The audit note's claim of byte-equality is true only of the unlinked .text words. After LINKING the two objects differ: the retail word at +0x1dc is `lfd f25,-28376(r2)` and ours would be `lfd f25,-28384(r2)`, because the displacement comes from the relocation the rule did not move. So the EQUIVALENT credit this function carries is not merely a semantic claim, it is a byte claim that fails at link time. (c) The T11 census row for move_logic00 ('the two constants are SWAPPED') is REAL as an observation and its implied source cure is REFUTED: the value multiset of the raw object equals the target's exactly, so there is nothing to fix in enemy.c. Swapping the literals there was probed this run and is wrong twice over - it breaks the source semantics AND the rule aborts on the changed body hash.\n\nPOPULATION, measured, not assumed: of the 71 functions carrying pool-defect rows at run 41, exactly one is (webfrank-pinned AND real 0 AND value-multiset-equal), and that is move_logic00. Seven rules tree-wide carry `unproven_recolor_audit`; two of the other six describe crossed or rotated homes in the same language (critter::CritterResolveMultipleTargets 'whole-function web renumbering with crossed homes'; pb_texture::fn_800C72DC 'swapped lwzx address roles') and are the first places to look for a second instance, but neither shows a pool-defect row today so neither is proven."
+}
