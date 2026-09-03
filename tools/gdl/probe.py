@@ -1368,6 +1368,145 @@ def rebuild_after_restore(unit, why):
     return False
 
 
+# Everything in the per-function state that describes the PREVIOUS probe,
+# i.e. every field a later probe reads as "what the tree was before this
+# one". A restore that returns early leaves all of them describing a state
+# that no longer exists anywhere.
+PREV_STATE_KEYS = ("last_real", "last_insns", "last_multiset", "last_bytes",
+                   "last_data", "last_immediates", "last_words", "last_fuzzy",
+                   "last_fuzzy_bytes", "last_verdict", "count_class")
+
+
+def _load_state(state_file):
+    if not state_file.exists():
+        return {}
+    try:
+        loaded = json.loads(state_file.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def invalidate_prev_state(state_file, why):
+    """Drop the PREV comparison base rather than leave it describing a
+    state that was just thrown away.
+
+    Fail-closed half of `rescore_after_restore` below: used when the tree
+    was restored but NOT re-measured (`--no-rebuild`, or a build/score that
+    failed). Silence with a stale base is the defect; an absent base makes
+    the next probe's first line a BASELINE, which is true.
+    """
+    state = _load_state(state_file)
+    dropped = [key for key in PREV_STATE_KEYS if key in state]
+    if not dropped:
+        return []
+    for key in dropped:
+        state.pop(key, None)
+    state_file.write_text(json.dumps(state), encoding="utf-8")
+    print(f"[{why}: the tree was restored but NOT re-measured, so the PREV"
+          " comparison base is DROPPED rather than left describing the"
+          f" discarded probe ({len(dropped)} field(s)). The next probe reads"
+          " as a first probe of the restored tree.]")
+    return dropped
+
+
+def rescore_after_restore(unit, fn, state_file, why):
+    """Re-measure the restored tree and refresh the state read against it.
+
+    THE DEFECT (run-49 item 2, FT). `--discard` restores the source, rebuilds
+    the object and RETURNS. The per-function state still holds the DISCARDED
+    probe's numbers, so the next probe computes every transition against a
+    state that no longer exists anywhere — and `count_class_line` is a
+    TRANSITION report, so an edit that lost count parity and was then
+    discarded makes the next probe of the clean tree announce
+    `COUNT-PARITY GAINED insns T682/O680 -> T682/O682`. Nothing was gained;
+    the tree went back to where it started. FT read that banner as a class
+    change.
+
+    `--revert` never had this: it falls through to main()'s own build and
+    re-score, so its state is refreshed before anything reads it. This is
+    that re-score, for the paths that return early.
+
+    No verdict and no banking. A discard is not a probe of an edit: there is
+    nothing to classify, and banking would move the revert point onto HEAD.
+    The point is only that the numbers a later probe compares against
+    describe the tree that is actually here.
+    """
+    fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
+    real, insns = score_function(unit, fn, fn_stripped, [])
+    if real is None:
+        print(f"[{why}: could not re-score {fn} after the restore — fndiff"
+              " --count named no such function in the rebuilt object.]")
+        invalidate_prev_state(state_file, why)
+        return None
+    ops_output, multiset_tokens = None, (0 if real == 0 else None)
+    if real > 0:
+        ops_output = subprocess.run(
+            [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
+             "--ops", "--no-build"], capture_output=True, text=True).stdout
+        for line in ops_output.splitlines():
+            if "opcode multiset: IDENTICAL" in line:
+                multiset_tokens = 0
+                break
+            if "opcode multiset: DIFFERS" in line:
+                multiset_tokens = sum(
+                    int(n) for n in re.findall(r"[+-](\d+) ", line))
+                break
+    state = _load_state(state_file)
+    prev_real, prev_insns = state.get("last_real"), state.get("last_insns")
+    # The banner the NEXT probe would have printed against the discarded
+    # state. Naming it is the whole point: a suppressed false class change
+    # is invisible, and this is the one line that proves it was suppressed.
+    ghost = count_class_line(prev_insns, insns)
+    tok = f", multiset {multiset_tokens}t" if multiset_tokens is not None else ""
+    readout = (f"RESTORED  real {real} (insns {insns}{tok}) — re-scored after"
+               f" {why}; no verdict computed, nothing banked")
+    print(readout)
+    if prev_real is not None or prev_insns is not None:
+        print(f"[PREV comparison base refreshed: real {prev_real} -> {real},"
+              f" insns {prev_insns} -> {insns}. Every later probe's deltas and"
+              " transition banners are now read against the RESTORED tree, not"
+              " against the discarded probe.]")
+    if ghost:
+        print("[SUPPRESSED, false: the next probe would otherwise have"
+              f" printed `{ghost.split(':')[0]}` — a transition computed"
+              " between the discarded probe and this tree, which is not a"
+              " transition anything went through.]")
+    state["last_real"] = real
+    state["last_insns"] = insns
+    state["last_multiset"] = multiset_tokens
+    # `last_bytes` is deliberately DROPPED, not refreshed. It means "the
+    # object bytes of the previous PROBE", and a restore is not a probe of an
+    # edit: banking it makes the next probe find prev_digest == digest and
+    # annotate its NEUTRAL as NEUTRAL-IDENTICAL — "the edit FOLDED AWAY
+    # before codegen" — about an edit that does not exist. Measured on
+    # game/world/camera::camera_mode_dest while building this fix: refreshing
+    # it traded one false banner for another. Absent, the next probe reads as
+    # the first probe of the restored tree, which is what it is.
+    state.pop("last_bytes", None)
+    state["last_data"] = data_digest(unit)
+    immediates = immediate_row_count(ops_output)
+    if immediates is None:
+        state.pop("last_immediates", None)
+    else:
+        state["last_immediates"] = immediates
+    # A RE-SCORE replays `last_verdict` verbatim; leaving the discarded
+    # probe's verdict there would replay a verdict about bytes that are gone.
+    state["last_verdict"] = readout
+    # Fuzzy and the raw word count are measured by other modes and are not
+    # re-measured here, so they are DROPPED rather than left stale.
+    for key in ("last_fuzzy", "last_fuzzy_bytes", "last_words", "count_class"):
+        state.pop(key, None)
+    best_real = state.get("best_real")
+    state_file.write_text(json.dumps(state), encoding="utf-8")
+    if best_real is not None and best_real != real:
+        print(f"[NOTE: the BEST anchor (real {best_real}) is untouched by a"
+              " discard and may still describe the edit you just discarded —"
+              " the next probe is classified against it. `--reset` re-anchors"
+              " if that is not what you want.]")
+    return real
+
+
 def head_bytes(source):
     """The committed bytes of ``source`` at HEAD, or None when unavailable."""
     shown = subprocess.run(["git", "show", f"HEAD:{source.as_posix()}"],
@@ -4620,8 +4759,13 @@ def main():
                 print(f"discarded (function-scoped): {source} — {notes}")
                 restore_transient_pins(unit)
                 warn_outside_edits(source, None)
-                if "--no-rebuild" not in sys.argv:
-                    rebuild_after_restore(unit, "--discard --function")
+                if "--no-rebuild" in sys.argv:
+                    invalidate_prev_state(state_file, "--discard --function")
+                elif rebuild_after_restore(unit, "--discard --function"):
+                    rescore_after_restore(unit, fn, state_file,
+                                          "--discard --function")
+                else:
+                    invalidate_prev_state(state_file, "--discard --function")
                 return 0
         source.write_bytes(head_bytes_now)
         print(f"discarded: {source} restored to HEAD (whole file —"
@@ -4629,8 +4773,12 @@ def main():
         restore_transient_pins(unit)
         # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
         warn_outside_edits(source, None)
-        if "--no-rebuild" not in sys.argv:
-            rebuild_after_restore(unit, "--discard")
+        if "--no-rebuild" in sys.argv:
+            invalidate_prev_state(state_file, "--discard")
+        elif rebuild_after_restore(unit, "--discard"):
+            rescore_after_restore(unit, fn, state_file, "--discard")
+        else:
+            invalidate_prev_state(state_file, "--discard")
         return 0
     # NAMED BANKS (run-42 item 3). The rolling snapshot is one slot that
     # every banking verdict overwrites, so a multi-axis lane had nowhere to
@@ -4704,8 +4852,16 @@ def main():
         restore_transient_pins(unit)
         warn_pin_drift(unit, base)
         warn_outside_edits(source, None)
-        if "--no-rebuild" not in sys.argv:
-            rebuild_after_restore(unit, "--revert-baseline")
+        # Same early-return class as --discard, same stale PREV state: this
+        # path is the second of the two rebuild_after_restore callers its own
+        # docstring names, and `--revert` (the third restore) is already
+        # covered because it falls through to main()'s build and re-score.
+        if "--no-rebuild" in sys.argv:
+            invalidate_prev_state(state_file, "--revert-baseline")
+        elif rebuild_after_restore(unit, "--revert-baseline"):
+            rescore_after_restore(unit, fn, state_file, "--revert-baseline")
+        else:
+            invalidate_prev_state(state_file, "--revert-baseline")
         return 0
     # Set by the revert path when the restore left file-scope items that are
     # not the snapshot's (run-44 item 1) — read again at BUILD FAILED, which
