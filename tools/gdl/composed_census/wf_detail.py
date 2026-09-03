@@ -3,13 +3,22 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, ".."))
-sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
+# RULE-17 PROMOTION DAMAGE, fixed run 43 (item 9). Written in a scratch
+# directory at the repo root, this said ROOT = HERE/".." and then inserted
+# ROOT/"tools/gdl" — which, once promoted INTO tools/gdl/composed_census,
+# resolves to tools/gdl/tools/gdl. `import webfrank` raised
+# ModuleNotFoundError from every directory, and the tool had been dead ever
+# since. Six files in this directory carried the identical two lines:
+# wf_detail, wf_dump, wf_dcs_screen, wf_recolor_probe, wf_sim, wf_web.
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+sys.path.insert(0, os.path.dirname(HERE))       # tools/gdl
 import webfrank as wf  # noqa: E402
+from fndiff import unit_key  # noqa: E402
 from wf_census import our_path, functions, OBJ, classify  # noqa: E402
 
 
 def load(unit, name):
+    unit = unit_key(unit)   # run-43 item 8: accept the core tools' `.c` form
     op, is_raw = our_path(unit)
     odata = bytearray(open(op, "rb").read())
     tdata = bytearray(open(os.path.join(OBJ, unit + ".o"), "rb").read())
@@ -23,6 +32,10 @@ def load(unit, name):
 
 
 def main():
+    if len(sys.argv) < 3:
+        raise SystemExit(
+            "usage: wf_detail.py <unit> <function>   "
+            "(e.g. game/enemy/enemy move_logic00; the .c spelling works too)")
     unit, name = sys.argv[1], sys.argv[2]
     ours, tgt, is_raw = load(unit, name)
     print(f"{unit}::{name}  insns={len(ours)//4}  raw_body={is_raw}")

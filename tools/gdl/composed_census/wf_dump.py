@@ -3,13 +3,19 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, ".."))
-sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
+# Rule-17 promotion damage; see the note in wf_detail.py (run-43 item 9).
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+sys.path.insert(0, os.path.dirname(HERE))       # tools/gdl
 import webfrank as wf  # noqa: E402
 from wf_detail import load  # noqa: E402
 
 
 def main():
+    if len(sys.argv) < 5:
+        raise SystemExit(
+            "usage: wf_dump.py <unit> <function> <lo> <hi>   "
+            "(e.g. game/enemy/enemy move_logic00 0 0x40; offsets are"
+            " function-relative and take 0x forms)")
     unit, name = sys.argv[1], sys.argv[2]
     lo = int(sys.argv[3], 0)
     hi = int(sys.argv[4], 0)
