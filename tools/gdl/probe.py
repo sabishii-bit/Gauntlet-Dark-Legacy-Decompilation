@@ -2367,6 +2367,92 @@ def tu_scope_changes(head_text, cur_text):
     return changes
 
 
+def coupled_scope_survivors(snap_text, restored_text):
+    """File-scope items a function-scoped revert could NOT put back.
+
+    Run-44 item 1, reproduced at ca4074cb1 before this was written. probe's
+    snapshot and probe's TU-SCOPE GATE disagree about what an edit IS: the
+    gate already itemizes file-scope declarations, storage classes and
+    pragmas (`file_scope_items`), while `scoped_revert` restores only the
+    hunks lying inside the named function and reports the rest as "N hunk(s)
+    elsewhere in the TU left untouched". Every prototype or arity edit is
+    two-site by construction — a declaration plus its call — so the revert
+    routinely restores HALF of one.
+
+    Reproduction, verbatim: in src/game/pb/pb_diag.c change line 216 from
+    `extern s32 RandInt(void);` to `extern s32 RandInt(s32 n);` AND line 329
+    from `RandInt()` to `RandInt(gDiag_D58)`, then
+    `probe.py game/pb/pb_diag pbDiagDrawAudio --revert`. The call came back,
+    the declaration did not, and the re-scoring build died with
+    "function call 'RandInt()' does not match 'RandInt(long)' / Too many
+    errors printed, aborting program / ninja: build stopped" — which reads
+    as a broken compiler, not as an incomplete revert
+    (claim.AR_probe-revert-restored-half-a-two-site-edit-and-aritycheck-
+    needs-a-pin-column.20260903.v1).
+
+    The discriminant is SNAPSHOT-relative, not HEAD-relative. probe's
+    existing `warn_outside_edits` compares the tree against HEAD and says
+    the file still differs by +1/-1 — true on every multi-function session
+    and silent about WHAT survived; it printed exactly that in the
+    reproduction and the build failure buried it. What decides whether the
+    re-score describes the banked state is whether the file-scope items the
+    body is compiled against are the SNAPSHOT's, and `tu_scope_changes`
+    already answers that over any two texts.
+
+    Base rate, measured over the last 250 commits (T14_scratch census, 70
+    single-TU source edits): 56 body-only (this stays silent by
+    construction) and 14 with a file-scope change — 12 of those 14 are
+    `decl changed` / `fndef changed` / `decl ADDED` (Random f64->f32,
+    SetEnemyObj's arity, DoTexMods' parameter) and 4 are `pragma ADDED`.
+    So it fires on at most 20% of reverts, and the class it fires on is the
+    prototype/arity family this defect is aimed at.
+    """
+    return tu_scope_changes(snap_text, restored_text)
+
+
+def partial_revert_scope_warning(fn, changes, whole_file=False):
+    """What to say when a revert left a coupled file-scope half, or "".
+
+    Pure over the change list so both sides of the calibration are decided
+    without a tree: an empty list — the body-only case, four fifths of all
+    single-TU edits — returns "" and costs nothing.
+    """
+    if not changes:
+        return ""
+    lines = [
+        "REVERT LEFT A COUPLED FILE-SCOPE HALF — the tree you are about to"
+        " score is NOT the state that was banked:",
+        f"  {len(changes)} file-scope item(s) differ from the snapshot"
+        f" {fn} was just restored from. A function-scoped revert reaches"
+        f" only hunks INSIDE {fn}, so the other half of a two-site edit"
+        " (a prototype, an arity, a storage class, a pragma) stays live and"
+        " the restored body is now compiled against declarations it was"
+        " never measured under:",
+    ]
+    lines.extend(f"    {category}: {description}"
+                 for category, description in changes)
+    lines.append(
+        "  If the build below FAILS, this is why — not your compiler or"
+        " environment. Take the whole edit back with `--revert"
+        " --whole-file`, or undo the surviving half with git; if the"
+        " surviving half is deliberate, the score below is a measurement of"
+        " the PAIR, not of the snapshot.")
+    if whole_file:
+        # --whole-file restored everything, so a non-empty list here means
+        # the snapshot itself disagrees with the tree for some other reason.
+        lines[0] = ("WHOLE-FILE RESTORE DID NOT REPRODUCE THE SNAPSHOT'S"
+                    " FILE-SCOPE ITEMS — report this, it should be"
+                    " impossible:")
+    return "\n".join(lines)
+
+
+COUPLED_SCOPE_BUILD_NOTE = (
+    "BUILD FAILED, AND THE REVERT ABOVE LEFT A COUPLED FILE-SCOPE HALF."
+    " Read that block first: an incomplete revert is far more likely than a"
+    " broken toolchain here, and the two look identical from the compiler"
+    " error alone (measured: `RandInt()` against `RandInt(long)`).")
+
+
 # A REGRESSION whose reason names one of these is the loss of a BYTE-EXACT
 # function — the STRICT column, and the only thing the project's progress
 # number counts as matched. defake_gate.compare writes these three phrasings
@@ -3614,6 +3700,10 @@ def main():
         if "--no-rebuild" not in sys.argv:
             rebuild_after_restore(unit, "--revert-baseline")
         return 0
+    # Set by the revert path when the restore left file-scope items that are
+    # not the snapshot's (run-44 item 1) — read again at BUILD FAILED, which
+    # is where the defect actually surfaced.
+    coupled_scope = False
     if "--revert" in sys.argv or restore_tag:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
@@ -3690,6 +3780,15 @@ def main():
                 source.write_bytes(new_text.encode("latin-1"))
                 print(f"restored {fn} to {snap_label} — {notes};"
                       " re-scoring:")
+            # The kept hunks are reported as a COUNT ("N hunk(s) elsewhere in
+            # the TU left untouched"), which says nothing about whether they
+            # are coupled to the body just restored. Ask the TU-scope
+            # itemizer, which probe already owns (run-44 item 1).
+            scope_note = partial_revert_scope_warning(
+                fn, coupled_scope_survivors(snap_text, new_text))
+            if scope_note:
+                coupled_scope = True
+                print(scope_note)
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
         # A pin re-derived with --transient IS restorable, and is restored
@@ -3733,6 +3832,8 @@ def main():
         ["ninja", object_target], capture_output=True, text=True,
     )
     if build.returncode != 0:
+        if coupled_scope:
+            print(COUPLED_SCOPE_BUILD_NOTE)
         print("BUILD FAILED:")
         print((build.stdout + build.stderr).strip()[-1500:])
         return 1

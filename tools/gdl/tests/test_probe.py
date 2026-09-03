@@ -2251,6 +2251,107 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out.count("\n"), out.count("\r\n"))
 
 
+class CoupledScopeSurvivorTests(unittest.TestCase):
+    """Run-44 item 1: a scoped revert restoring HALF a two-site edit.
+
+    Two-sided by construction. The POSITIVE side is the prototype/arity
+    shape AR measured (decl + call, reproduced at ca4074cb1 on
+    src/game/pb/pb_diag.c: `RandInt(void)` -> `RandInt(s32 n)` with the call
+    inside pbDiagDrawAudio). The NEGATIVE side is every edit that lives in
+    function BODIES — 56 of the 70 single-TU source edits in the last 250
+    commits — where the warning must be silent, because a message that
+    fires on four fifths of reverts is a message nobody reads.
+    """
+
+    PROTO = """\
+#include "game.h"
+
+extern int RandInt(void);
+
+void alpha(Player* p)
+{
+    p->x = RandInt();
+}
+
+void beta(Player* p)
+{
+    p->z = 3;
+}
+"""
+
+    def survivors(self, snapshot, restored):
+        return probe.coupled_scope_survivors(snapshot, restored)
+
+    # --- positives ---------------------------------------------------
+
+    def test_arity_decl_survives_a_function_scoped_revert(self):
+        edited = (self.PROTO
+                  .replace("extern int RandInt(void);",
+                           "extern int RandInt(int n);")
+                  .replace("RandInt();", "RandInt(p->y);"))
+        restored, notes = scoped_revert(self.PROTO, edited, "alpha")
+        self.assertIn("RandInt();", restored)        # the call came back
+        self.assertIn("RandInt(int n)", restored)    # the decl did not
+        self.assertIn("1 hunk(s) elsewhere", notes)
+        changes = self.survivors(self.PROTO, restored)
+        self.assertEqual(1, len(changes))
+        self.assertEqual("decl changed", changes[0][0])
+        self.assertIn("RandInt(int n)", changes[0][1])
+
+    def test_warning_names_the_surviving_item_and_the_remedy(self):
+        changes = [("decl changed",
+                    "extern int RandInt(void)  ->  extern int RandInt(int n)")]
+        text = probe.partial_revert_scope_warning("alpha", changes)
+        self.assertIn("COUPLED FILE-SCOPE HALF", text)
+        self.assertIn("RandInt(int n)", text)
+        self.assertIn("--whole-file", text)
+
+    def test_storage_class_half_is_a_positive_too(self):
+        """The nine-byte-exact-functions lever (PC's storage-class law) is
+        file-scope, so reverting a body while it survives measures the
+        pair, not the snapshot."""
+        edited = self.PROTO.replace("extern int RandInt(void);",
+                                    "static int RandInt(void);")
+        changes = self.survivors(self.PROTO, edited)
+        self.assertEqual(1, len(changes))
+        self.assertEqual("storage-class/linkage", changes[0][0])
+
+    def test_pragma_half_is_a_positive(self):
+        edited = self.PROTO.replace('#include "game.h"',
+                                    '#include "game.h"\n#pragma peephole off')
+        self.assertTrue(self.survivors(self.PROTO, edited))
+
+    # --- negatives ---------------------------------------------------
+
+    def test_sibling_body_edit_is_silent(self):
+        """The common multi-function session: beta's in-progress work is
+        kept by the revert and is NOT a coupled half."""
+        edited = self.PROTO.replace("p->z = 3;", "p->z = 77;")
+        restored, notes = scoped_revert(self.PROTO, edited, "alpha")
+        self.assertIn("1 hunk(s) elsewhere", notes)
+        self.assertEqual([], self.survivors(self.PROTO, restored))
+        self.assertEqual("", probe.partial_revert_scope_warning(
+            "alpha", self.survivors(self.PROTO, restored)))
+
+    def test_body_only_edit_inside_the_function_is_silent(self):
+        edited = self.PROTO.replace("p->x = RandInt();", "p->x = 0;")
+        restored, _ = scoped_revert(self.PROTO, edited, "alpha")
+        self.assertEqual(self.PROTO, restored)
+        self.assertEqual([], self.survivors(self.PROTO, restored))
+
+    def test_comment_and_whitespace_noise_outside_a_function_is_silent(self):
+        edited = (self.PROTO
+                  .replace("extern int RandInt(void);",
+                           "extern  int\n    RandInt(void);   /* rng */"))
+        self.assertEqual([], self.survivors(self.PROTO, edited))
+
+    def test_empty_change_list_produces_no_text(self):
+        self.assertEqual("", probe.partial_revert_scope_warning("alpha", []))
+
+    def test_build_note_names_the_incomplete_revert_not_the_toolchain(self):
+        self.assertIn("incomplete revert", probe.COUPLED_SCOPE_BUILD_NOTE)
+
+
 class CountParityClassTests(unittest.TestCase):
     """T10 run-40 item 8: a count change is a CLASS change, not a score."""
 
