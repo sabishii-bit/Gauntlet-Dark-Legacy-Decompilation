@@ -1464,7 +1464,8 @@ void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node)
     /* cfg is arrH[style] read from a base shifted -0x210 (528): the row's
      * name/width/height fields (arrH[style].name/width/height, +0x00/+0x1C/
      * +0x20) are unused here, only x/y/scale/d/e are read. */
-    cfg = base + style * 0x24;
+    style *= 0x24;
+    cfg = base + style;
     scale = *(f32*)(cfg + offsetof(PanelConfigBlob, arrH[0].scale));
     yr = *(s32*)(cfg + offsetof(PanelConfigBlob, arrH[0].y));
     d = *(s32*)(cfg + offsetof(PanelConfigBlob, arrH[0].d));

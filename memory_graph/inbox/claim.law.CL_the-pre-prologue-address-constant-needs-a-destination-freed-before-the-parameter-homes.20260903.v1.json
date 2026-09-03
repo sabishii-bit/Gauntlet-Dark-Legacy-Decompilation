@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py",
+    "tools/gdl/probe.py"
+  ],
+  "attributes": {
+    "evidence": "attempt.CL_print-n-of-m-in-place-multiply-frees-r0-for-the-pre-prologue-address.20260903.v1 (probes A, B and C, with the aligned entry view before and after each). The same entry shape is live and UNCLOSED on DoGoodWizard (attempt.CL_dogoodwizard-bottom-pad-closes-the-slot-shift-and-the-constant-order-is-declaration-bound.20260903.v1), where the ordering half was reachable by declaration order but the free-register half was not found - that function is the law's first out-of-sample test.",
+    "tags": [
+      "entry-schedule",
+      "register-web",
+      "sda-global",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose ADDR16_LO sits below the prologue while its destination register is provably free before the parameter homes (read the defs census: the register has no definition between function entry and the LO), or one where forcing an unrelated first-block operation into a self-destructive two-address form frees a register and the LO still does not hoist. Either is decidable from `tools/gdl/fnasm.py <unit> <fn> 0x0:0x40 --diff` plus one build.",
+  "id": "claim.law.CL_the-pre-prologue-address-constant-needs-a-destination-freed-before-the-parameter-homes.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T01:45:05Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "When a target function completes an ADDR16_HA/ADDR16_LO address constant ABOVE its `stwu` while ours emits the same LO below the prologue, the mechanism is the DESTINATION REGISTER, not the spelling of the address. Two facts, both measured on print_n_of_m (game/ui/screensaver): (1) the LO's destination is the register of the FIRST parameter drained into the callee-saved bank, so the addi carries a write-after-read hazard against that drain and the scheduler cannot lift it above the prologue - reordering which parameter is drained first MOVES the destination with it and does not free the hoist (probing a copy-local for the third parameter moved the destination from r5 to r7 and regressed real 22 -> 26); (2) the hoist happens exactly when the destination is instead a register already free before the homes - in the target, the one the link-register spill vacates. The lever is therefore not another spelling of the address but a construct that makes some OTHER value in the first block take the register the allocator is currently holding, freeing a low register for the constant. On print_n_of_m the winning form was to make an array-index multiply an in-place update of its own parameter (`style *= 0x24;` then `cfg = base + style;` in place of `cfg = base + style * 0x24;`), which forces the target's `mulli r3,r3,36` self-destructive form instead of our `mulli r0,r3,36`; the freed register went to the address constant, the hazard vanished, and `addi r0,r8,0 @lbl_8011D568(ADDR16_LO)` was scheduled at 0x10, above `stwu r1,-136(r1)`, exactly as the target does. Real 22 -> 16, fuzzy 96.25 -> 99.41, closing a cluster capped since 2026-08-26. COROLLARY, measured in the same pass and pointing the opposite way to the intuition: the separate local ASSIGNMENT statement is what hoists the HA half in the first place, so DELETING the address local and writing the global into the use expression sinks BOTH halves below the prologue (real 22 -> 28). Do not treat 'inline the address' as a simplification of this residual."
+}
