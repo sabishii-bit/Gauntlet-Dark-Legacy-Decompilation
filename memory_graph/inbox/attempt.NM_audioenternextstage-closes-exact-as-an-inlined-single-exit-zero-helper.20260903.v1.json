@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Fourth revisit of the unfused conditional-over-unconditional pair at +0x38, at the NEW TU alignment the v3 cap's own expiry_check invited: lift the entry-selection guard into a static inline helper whose exits are `return`s, then give the helper a SINGLE `return 0;` exit so both failure paths share one `li r3,0`.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 SCREENED and APPLIED via its corollary (lift into a helper that returns and let it inline). The law's FOLDS list already covered the goto/switch/empty-then family, and the superseded v3 record had separately measured the `||`, `&&` and ternary carriers at real 13/29/34 -- so the only untried construct class was the inline-return join, which is what this record executes. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 SCREENED: counts were EQUAL at T50/O50 before and stayed equal at the keep, and probe's COUNT-PARITY warning correctly fired on the losing probe (a) which took ours to 51. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED and APPLIED at the call site: the old body's `int idx` and `int entry_id` locals were removed with the switch they served.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "PROBE (a), REGRESSED real 4 -> 15, insns T50/O51, --ops `target-only: +2 blt / ours-only: -2 bge -1 li`, reverted. Helper with TWO early exits:\n\nstatic inline u8* sSoundDataEntry(int idx) {\n    u8* e;\n    if (idx < 0) { return 0; }\n    e = *(u8**)(gWorldData + 44) + idx * 24;\n    if (*(s32*)(e + offsetof(struct sound_data, idx)) < 0) { return 0; }\n    return e;\n}\n\nMWCC did NOT tail-merge the two `return 0;` sites: the first materialised its own `li r3,0` plus a branch at +0x1c (--ops `O[7:10]@1c-28=['bge','li','b']` against `T[7:8]@1c-20=['blt']`), so ours gained an instruction and lost count parity.\n\nPROBE (b), KEPT, byte-exact. Same helper with a SINGLE trailing zero exit -- the failure paths fall out of the guarded block instead of each returning:\n\nstatic inline u8* sSoundDataEntry(int idx) {\n    if (idx >= 0) {\n        u8* e = *(u8**)(gWorldData + 44) + idx * 24;\n        if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {\n            return e;\n        }\n    }\n    return 0;\n}\n\nCall site: `u8* entry = sSoundDataEntry(level->entersnd);` replacing the `switch (entry_id) { case 0: goto valid_entry; default: ... }` carrier a prior probe had left in the tree.",
+    "residual": "None. Recording the DISCRIMINANT for the next lane, because it is not in the law: lifting a guard into an inlined helper is necessary but not sufficient -- the number of `return 0;` SITES decides whether the helper's zero exit tail-merges. Two early `return 0;`s produced two zero materialisations (probe a, real 15); one trailing `return 0;` produced the target's single shared `li r3,0` at +0x40 reached by both `blt`s (probe b, real 0). The aligned view names the shape to aim at: `blt ->40` at +0x1c, `blt ->40` at +0x38, `b ->44` at +0x3c, `li r3,0` at +0x40, `cmplwi r3,0` at +0x44.",
+    "scope": "src/game/sound/sounds_evt.c::AudioEnterNextStage plus the new file-local helper. game/sound/sounds_evt stays Object(NonMatching).",
+    "verification": "defake_gate.py baseline game/sound/sounds_evt --at-head anchored to commit 6bea67bf4, source sha1 798bd064a (118 functions, 116 at real 0). probe.py game/sound/sounds_evt AudioEnterNextStage --ops: BASELINE real 4 (insns T50/O50, multiset 4t, cluster `replace T[14:16]@38-40=['blt','b'] O[14:16]@38-40=['beq','bge']`) -> probe (a) real 15 -> probe (b) IMPROVED real 4 -> 0, insns exact, multiset 0t, FRESH objdiff fuzzy 98.6000% -> 100.0000%. TU-scope gate cross-checked against the anchored baseline: no byte-exact sibling lost. Full `ninja -j2` prints `build/GUNE5D/main.dol: OK`. Image: STRICT 56.67% (2582 fns) -> 56.69% (2583 fns), EQUIVALENT 11.02% (151) unchanged, All matched 67.70% -> 67.71%, Data held at 177572 (7.52%). Commit 41340abd2 'Match AudioEnterNextStage'."
+  },
+  "function": "function:AudioEnterNextStage",
+  "held_fixed": "The call-site expression `level->entersnd` and the whole `if (entry != 0)` consumer block were held byte-for-byte constant across both probes; only the helper's INTERNAL exit structure varied (two early `return 0;` vs one trailing `return 0;`).",
+  "id": "attempt.NM_audioenternextstage-closes-exact-as-an-inlined-single-exit-zero-helper.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:17:07Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "no-residual: real 0, insns exact, multiset 0t"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.NM_audioenternextstage-or-and-ternary-carriers-both-lose-to-the-goto-join.20260903.v1",
+  "valid_from": "2026-09-03"
+}
