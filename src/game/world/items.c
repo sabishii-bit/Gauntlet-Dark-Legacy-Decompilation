@@ -317,6 +317,7 @@ extern f32   sLogic12Distance;
 extern f64   sArrowFloorYOffset;     /* 0.5 */
 extern f32   sArrowFloorRadius;
 extern s32   sShownMilestones;   /* milestone shown idx */
+extern s32   lbl_80344800;       /* free-running frame counter (gamemain.c) */
 extern s32   sShownCameras;   /* cameras shown idx */
 extern s32   sNumMilestones;   /* milestone count */
 extern s32   sNumTriggerCameras;   /* camera count */
@@ -2524,7 +2525,7 @@ void update_player_milestone(struct Player* player_ptr)
                 u8* m = runtime + milestone_index * 0x68;
 
                 if (*(void**)(m + 0x3E74) != NULL) {
-                    if ((sShownMilestones & (1 << i)) != 0) {
+                    if ((lbl_80344800 & (1 << i)) != 0) {
                         MBTreeClearFlags(*(void**)(m + 0x3E74), 2, 0);
                     } else {
                         MBTreeSetFlags(*(void**)(m + 0x3E74), 2, 0);
