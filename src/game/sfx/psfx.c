@@ -185,11 +185,11 @@ void PlayerDoWeapTrail(PlayerTrailState* player)
 {
     f32 matrix[16];
     u8 unused[12];
-    s32 minimumIndex = 0;
-    s32 maximumIndex = 0;
     s32 minimumAlpha = 255;
     s32 maximumAlpha = 0;
-    s32 lastIndex = player->lastTrail;
+    s32 minimumIndex = 0;
+    s32 maximumIndex = 0;
+    s32 lastIndex;
     void** slot;
     s32 offset;
     s32 index;
@@ -201,14 +201,11 @@ void PlayerDoWeapTrail(PlayerTrailState* player)
     f32 dy;
     f32 dz;
 
-    if (player->activeNode == NULL) {
-        goto done;
-    }
-    if (gFrameTicks == 0) {
-        goto done;
+    lastIndex = player->lastTrail;
+    if (player->activeNode == NULL || gFrameTicks == 0) {
+        return;
     }
 
-ticks_active:
     if (lastIndex >= 0 || player->trailActive != 0) {
                 index = 0;
                 offset = 0;
@@ -241,11 +238,9 @@ ticks_active:
                     offset += 4;
                 }
 
-                offset = lastIndex * 4;
                 while (lastIndex >= 0 &&
                        player->trails[lastIndex] == NULL) {
                     lastIndex--;
-                    offset -= 4;
                 }
                 player->lastTrail = lastIndex;
 
@@ -281,8 +276,6 @@ ticks_active:
                     }
                 }
     }
-done:
-    ;
 }
 extern f32 lbl_80347DA4;
 extern f32 lbl_80347DA8;
@@ -395,6 +388,17 @@ typedef struct plyr_damage {
 s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other);
 void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
 
+/* Reduce a frame offset modulo the row's repeat rate; offsets shorter than one
+ * period are already in range. */
+static inline f32 PlyrSfxWrapTime(f32 frac, f32 rate)
+{
+    if (__fabs(rate) > __fabs(frac)) {
+        return frac;
+    }
+    frac = frac - rate * (f32)(s64)(u64)(frac / rate);
+    return frac;
+}
+
 /* 0x80089350 - run one player-sfx sequence row for the [t0,t1) frame window,
  * chaining to the linked row when done. */
 void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
@@ -408,7 +412,6 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     u32 mask;
     f32 sf;
     f32 ef;
-    f32 frac;
     f32 rate;
     f32 scale;
     f32 k;
@@ -504,10 +507,10 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                     n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
                                            lbl_80347DAC);
                 } else {
-                    f64 kx;
-                    f64 ky;
                     f32 acc;
                     f64 kone;
+                    f64 ky;
+                    f64 kx;
                     acc = lbl_80347DA0;
                     kx = lbl_80347DD0;
                     ky = lbl_80347DD8;
@@ -528,11 +531,7 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
             } else {
                 rate = *(f32*)(row + offsetof(plyr_damage, delay));
                 if ((f64)rate > lbl_80347DC0) {
-                    frac = t1 - sf;
-                    if (!(__fabs(rate) > __fabs(frac))) {
-                        frac = frac - rate * (f32)(s64)(u64)(frac / rate);
-                    }
-                    if ((s32)frac != 0) {
+                    if ((s32)PlyrSfxWrapTime(t1 - sf, rate) != 0) {
                         break;
                     }
                 }

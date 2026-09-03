@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Close the +0x3a0 branch pair (target `ble ->3a8` + `b ->3b8`, ours a single `bgt ->3b8`) by lifting the frame-offset modulo guard into a static inline helper whose returns join at the consumer.",
+  "attributes": {
+    "law_screen": "claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1 APPLIED and CONFIRMED: the recognition rule held exactly -- the target's `b ->3b8` lands on `fctiwz f0,f27`, a block that CONSUMES the value the fallthrough at 0x3a8 computes, and the join register f27 is the destination VARIABLE's register and not the ABI return f1, which the law names as the precondition for the lift to pay. Its TWO-STAGE RETURN MERGE sub-clause APPLIED verbatim (assign to the parameter, then return the parameter). claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 APPLIED: the first lift shifted the whole stack frame by 4 (buf moved from 40(r1) to 44(r1)) and deleting the caller's now-orphaned `f32 frac;` put it back. claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 APPLIED to the FPR class here, not the GPR class.",
+    "laws_applied": "[\"claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\", \"claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1\"]",
+    "probed_form": "KEEP part 1: `static inline f32 PlyrSfxWrapTime(f32 frac, f32 rate) { if (__fabs(rate) > __fabs(frac)) { return frac; } frac = frac - rate * (f32)(s64)(u64)(frac / rate); return frac; }` defined before PlyrSfxDoDamage, replacing `frac = t1 - sf; if (!(__fabs(rate) > __fabs(frac))) { frac = frac - rate * (f32)(s64)(u64)(frac / rate); } if ((s32)frac != 0) { break; }` with `if ((s32)PlyrSfxWrapTime(t1 - sf, rate) != 0) { break; }`. KEEP part 2: deleted the caller's `f32 frac;` declaration (real 175 -> 141; the stack-offset immediates at +0x2c0/+0x2d8/+0x30c/+0x314/+0x32c all returned to the target's). KEEP part 3: reversed the inner-block declaration order from `f64 kx; f64 ky; f32 acc; f64 kone;` to `f32 acc; f64 kone; f64 ky; f64 kx;` (real 141 -> 125; acc and kone stopped mismatching). NEGATIVE, NEUTRAL-IDENTICAL (byte hash 761aa2bb8e82 unchanged): spelling the loop's YawVec3 first argument `((Player*)p)->mat + 8` instead of `&((Player*)p)->mat[8]`. NEGATIVE (real 125 -> 171): hoisting `f64 kx; f64 ky;` out of the inner block to function scope declared immediately after `f32 conv[2];`.",
+    "residual": "ONE cluster and it is NOT the branch pair and NOT caused by this edit: `insert T[188:188]@2f0-2f0=[] O[188:189]@2f0-2f4=['addi']`, our build hoisting the loop-invariant `addi r24,r27,52` (= &((Player*)p)->mat[8]) into the `sf == ef` else-arm's loop PREHEADER while the target recomputes `addi r3,r27,52` inside the loop at +0x304. That hoist is in the BASELINE object too -- at T355/O355 it was cancelling the missing branch pair, which is exactly why the baseline read count parity and this better state does not. COUNT PARITY IS THEREFORE LOST -- instruction counts are 356/355 (ours/target) -- and the function is outside every postprocessor class until the hoist is closed, because a count-asymmetric residual is unreachable by every class. Also outstanding: an FPR two-web transposition, target f28/f29 holding the incoming t0/t1 and f26/f27 holding kx/ky, ours exactly reversed.",
+    "scope": "src/game/sfx/psfx.c::PlyrSfxDoDamage plus the new file-scope static inline helper. Committed as 25a30491d.",
+    "verification": "`probe.py game/sfx/psfx PlyrSfxDoDamage --ops` BASELINE real 88, insns T355/O355, multiset 4t, FRESH FUZZY 98.7577%. Final: real 125, insns T355/O356, multiset 1t, FRESH FUZZY 99.2084%, regnorm genuine structural rows 2 -> 1. The keep was taken through the CONFLICT arbiter deliberately: `defake_gate.py check game/sfx/psfx --arbitrate` reports `ARBITRATED PlyrSfxDoDamage real 88 -> 125 BUT genuine structural rows 2 -> 1 FELL ... ACCEPTED`. Full `ninja -j2` prints `build/GUNE5D/main.dol: OK` and PROGRESS Data held at 178704 bytes. `powerpc-eabi-nm build/GUNE5D/src/game/sfx/psfx.o` shows no symbol for PlyrSfxWrapTime, i.e. `static inline` suppressed the standalone body as the law's clause (b) requires."
+  },
+  "function": "function:PlyrSfxDoDamage",
+  "held_fixed": "Every probe held the whole function outside the two named regions byte-identical; the declaration-order probes varied ONLY the order of the four inner-block locals in the `sf == ef` else-arm, with their initialising statements and every use unchanged.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Any FPR-order probe that fixes the t0/t1 vs kx/ky transposition and leaves `addi r24,r27,52` still in the preheader kills the coupling, and the hoist is then its own independent axis.",
+    "screened_against_target": "yes -- `savedregs.py game/sfx/psfx PlyrSfxDoDamage` shows every GPR row matching EXCEPT r24 (target `addi r25,r4,0 @pmissile_sfxidx` at +0x484, ours `addi r24,r27,52` at +0x2f0), and the four FPR rows f29/f28/f27/f26 all flagged DIFFERENT ROLE. The coupling itself is not probed.",
+    "statement": "The +0x2f0 LICM hoist is the count-parity blocker and it is a REGISTER-AVAILABILITY effect, not a spelling: MWCC hoists `&p->mat[8]` into r24 because r24 is free in that preheader, and the target's allocator has it live. The cheapest source lever left is therefore the FPR declaration order, not the address expression -- landing the t0/t1 pair on f28/f29 changes which callee-saved registers the else-arm needs and may take r24 with it. Probe FPR orders before probing the addi again."
+  },
+  "id": "attempt.BP_plyrsfxdodamage-fmod-guard-lift-closes-the-pair-and-exposes-a-pre-existing-licm-hoist.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T17:45:36Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "constant-hoist",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: (none)  ours-only: -1 addi"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

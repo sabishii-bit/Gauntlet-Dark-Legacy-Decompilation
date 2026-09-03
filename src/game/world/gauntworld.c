@@ -1734,6 +1734,28 @@ extern void fn_8009DAF8(void);
 
 /* 0x8005E90C - resolve an item's world-record binding: reroll random slots,
  * spawn the linked pickup/chest contents, seed timers and child algorithm. */
+/* Index of the keyring row in the level's item table, or -1 when the level has
+ * no keyring. */
+static inline s32 find_keyring_row(iteminfo* q, u8* world)
+{
+    s32 i;
+
+    for (i = 0; i < *(s32*)(world + 116); i++, q++) {
+        iteminfodata* qdata = &q->item;
+        if (strcmp(sKeyringName, qdata->desc) != 0) {
+            continue;
+        }
+        if (q->type != 1) {
+            continue;
+        }
+        if (qdata->subtype != 2) {
+            continue;
+        }
+        return i;
+    }
+    return -1;
+}
+
 void fn_8005E90C(Item* item, s32* inst)
 {
     iteminfo** tblp;
@@ -1743,10 +1765,9 @@ void fn_8005E90C(Item* item, s32* inst)
     Item* result;
     s32 idx;
     s32 delta;
-    s32 i;
     u32 fl;
     s32 t;
-    u8 unused[16];
+    u8 unused[12];
 
     idx = *(s16*)&item->data[0];
     info = item->info;
@@ -1798,24 +1819,8 @@ void fn_8005E90C(Item* item, s32* inst)
         switch (row->item.subtype) {
         case 2:
             if (*(s16*)&item->data[16] > 1) {
-                iteminfo* q = *tblp;
                 u8* world = (u8*)&gWorldInfo;
-                for (i = 0; i < *(s32*)(world + 116); i++, q++) {
-                    iteminfodata* qdata = &q->item;
-                    if (strcmp(sKeyringName, qdata->desc) != 0) {
-                        continue;
-                    }
-                    if (q->type != 1) {
-                        continue;
-                    }
-                    if (qdata->subtype != 2) {
-                        continue;
-                    }
-                    goto keyring_found;
-                }
-                i = -1;
-keyring_found:
-                row = *tblp + i;
+                row = *tblp + find_keyring_row(*tblp, world);
             }
             break;
         }

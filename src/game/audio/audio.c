@@ -928,6 +928,20 @@ s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
  * file, issues sndCmd4 with an AudioLoadComplete callback (retrying up to 10000
  * times, then FatalError), and -- for waitLevel < 2 -- drains until the load
  * finishes.  Returns 1 (or 2 already-loaded), 0 on failure. */
+/* First queue slot whose descriptor is free, or -1 when all four are busy. */
+static inline s32 AudioFreeQueueSlot(u8* state)
+{
+    s32 slot;
+    s32 off;
+
+    for (slot = 0, off = slot; slot < 4; slot++, off += 36) {
+        if (*(s32*)(state + off + 1176) < 0) {
+            return slot;
+        }
+    }
+    return -1;
+}
+
 s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
 {
     char name[64];
@@ -956,13 +970,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     if (lbl_803442A4 == 0) {
         AudioStreamStop();
     }
-    for (slot = 0; slot < 4; slot++) {
-        if (*(s32*)(state + slot * 36 + 1176) < 0) {
-            goto gotSlot;
-        }
-    }
-    slot = -1;
-gotSlot:
+    slot = AudioFreeQueueSlot(state);
     if (slot < 0) {
         return 0;
     }

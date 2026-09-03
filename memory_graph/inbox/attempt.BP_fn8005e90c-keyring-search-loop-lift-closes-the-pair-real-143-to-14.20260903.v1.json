@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Execute the branch-pair law's PART 2 cure that the prior record's statement-level denial explicitly does NOT cover: lift the keyring search loop into a static inline helper returning the index, leaving the caller a single assignment.",
+  "attributes": {
+    "law_screen": "attempt.GT_fn8005e90c-search-loop-branch-fusion-folds-before-codegen.20260902.v1 carries a TYPED DENIAL whose scope is 'statement-level goto/continue placement as an axis ... It does NOT deny the conditional-expression-in-the-computed-value class'. The inline-helper lift is outside that scope, so the denial was not violated; its expiry_check (`fndiff --ops`, the `replace T[120:122]=['bne','b'] O=['beq']` cluster) was run first and still held at real 143. claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2 PART 2 APPLIED -- this is its FindWORLDOBJ case, a search loop whose result is an index. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 APPLIED twice. Trap 15b (pin position-sensitivity) APPLIED: the count change aborted the build on the downstream permutation pin fn_8005FDA8 and was repaired with the sanctioned tool, not worked around.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\"]",
+    "probed_form": "KEEP: `static inline s32 find_keyring_row(iteminfo* q, u8* world) { s32 i; for (i = 0; i < *(s32*)(world + 116); i++, q++) { iteminfodata* qdata = &q->item; if (strcmp(sKeyringName, qdata->desc) != 0) { continue; } if (q->type != 1) { continue; } if (qdata->subtype != 2) { continue; } return i; } return -1; }` replacing the inline for-loop, its `goto keyring_found; } i = -1; keyring_found:` tail and the outer `s32 i;` declaration, with the caller reading `row = *tblp + find_keyring_row(*tblp, world);`. The pad `u8 unused[16]` was resized to `[12]`. INTERMEDIATE NEGATIVE, worth recording because it is a clean A/B on ONE argument: passing the loop bound BY VALUE as `s32 count` and writing `for (i = 0; i < count; i++, q++)` closed the pair but HOISTED the bound -- our object gained `lwz r24,116(r3)` in the preheader at +0x1ac where the target reloads it inside the loop at +0x1f0, and fresh fuzzy FELL 95.9407 -> 95.8296 even at real 52. Passing the POINTER and leaving the load in the loop condition took it to real 24 and fuzzy 96.8481.",
+    "residual": "Two pure-reorder clusters at an IDENTICAL multiset. (1) @0x4c-0x60: our build hoists `li r0,240` and `divw r5,r3,r0` into the while-loop preheader, ahead of the `b ->b4` loop-entry jump, where the target emits `li r0,240` / `lwz r4,4(r29)` / `divw r3,r5,r0` INSIDE the body -- the loop-invariant `t = delta / 240;` is LICM'd for us and not for retail, the same shape as PlyrSfxDoDamage's +0x2f0 hoist. (2) @0x240-0x248: one `lwz` emitted one instruction earlier than the target's. Neither is a count or multiset delta.",
+    "scope": "src/game/world/gauntworld.c::fn_8005E90C plus the new file-scope static inline helper, and two relocation hashes in config/GUNE5D/webfrank.json for the fn_8005FDA8 pin. Committed as 739f56483.",
+    "verification": "`probe.py game/world/gauntworld fn_8005E90C --ops` BASELINE real 143, insns T270/O269, multiset 3t, FRESH FUZZY 95.9407%. Final: real 14, insns T270/O270 (COUNT PARITY GAINED), opcode multiset IDENTICAL, FRESH FUZZY 96.8667%. The pin repair is `probe.py game/world/gauntworld fn_8005FDA8 --rederive-pin`, which reported `BODY HASHES ALL UNCHANGED: this is a pure symbol-table renumbering` and `proved: 21 by name, 0 by address, 2 by datum, 0 on the pool correspondence alone` before pasting. `defake_gate.py check game/world/gauntworld --rebuild` GATE OK (1 improved). Full `ninja -j2` prints `build/GUNE5D/main.dol: OK`; PROGRESS Data held at 178704 bytes. `powerpc-eabi-nm build/GUNE5D/src/game/world/gauntworld.o` returns no symbol for find_keyring_row, so the `static inline` was fully expanded."
+  },
+  "function": "function:fn_8005E90C",
+  "held_fixed": "The three probes varied only the helper's SIGNATURE and the outer function's pad size; the loop body's three guards, the `row = *tblp + <index>` consumer and every other statement in fn_8005E90C were held byte-identical throughout.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "If the census finds the hoist in only these two functions, it is local register availability rather than a systematic difference, and the right response is per-function pressure work instead of a class.",
+    "screened_against_target": "yes -- `fnasm game/world/gauntworld fn_8005E90C 0x40:0x70 --diff` shows the target's `b ->b4` at +0x50 with `li r0,240` and `divw r3,r5,r0` after it, against ours at +0x4c/+0x54 before the `b ->b4` at +0x58. Not probed: no source form was tried against the hoist in this function.",
+    "statement": "The two remaining clusters are the SAME mechanism as PlyrSfxDoDamage's leftover: MWCC hoisting a loop-invariant computation our source expresses inside a loop. Both survived every spelling this run touched, so the next lane should treat 'our LICM hoists what retail's does not' as one cross-function axis and census it -- count how many of the 21 unworked branch-pair rows carry a preheader-vs-body cluster after their pair is closed, before spending another per-function probe on it."
+  },
+  "id": "attempt.BP_fn8005e90c-keyring-search-loop-lift-closes-the-pair-real-143-to-14.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T17:45:22Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL 270/270; 2 reorder clusters at @0x4c-0x60 and @0x240-0x248"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
