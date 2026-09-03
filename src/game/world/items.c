@@ -1058,19 +1058,15 @@ double DistanceToClosestPlayer(f32* position)
 
                 if (distance > sItemZero) {
                     f64 estimate = __frsqrte(distance);
-                    estimate = sArrowFloorYOffset * estimate *
-                               (sNewtonThree -
-                                estimate * estimate * distance);
-                    estimate = sArrowFloorYOffset * estimate *
-                               (sNewtonThree -
-                                estimate * estimate * distance);
-                    estimate = sArrowFloorYOffset * estimate *
-                               (sNewtonThree -
-                                estimate * estimate * distance);
+                    estimate = 0.5 * estimate *
+                               (3.0 - estimate * estimate * distance);
+                    estimate = 0.5 * estimate *
+                               (3.0 - estimate * estimate * distance);
+                    estimate = 0.5 * estimate *
+                               (3.0 - estimate * estimate * distance);
                     root = (f32)(distance *
-                                 (sArrowFloorYOffset * estimate *
-                                  (sNewtonThree -
-                                   estimate * estimate * distance)));
+                                 (0.5 * estimate *
+                                  (3.0 - estimate * estimate * distance)));
                     distance = root;
                 }
                 if (distance < best) {
