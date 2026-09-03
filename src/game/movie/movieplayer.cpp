@@ -1153,9 +1153,17 @@ public:
     virtual void decode(u32 context, u32 bitmap);
     virtual void v2();
     virtual void v3();
-    virtual void v4();
+    virtual void v4(u8* call, s32 flags);
     virtual void close();
 };
+
+/* fn_800DA6A4 dispatches slot 4, but stays a C-mode function: compiled as
+ * C++ its `return frameIndex < frameCount` becomes a bool and MWCC adds a
+ * zero-extending clrlwi the target does not have (measured 159 -> 160
+ * instructions).  The call goes through this inline instead. */
+static inline void MovieCodecV4(u8* codec, u8* call, s32 flags) {
+    ((MovieCodec*)codec)->v4(call, flags);
+}
 
 extern "C" void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
     register u32 arg3;
@@ -1861,11 +1869,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
         *(u32*)(movie + offsetof(MovieState, fileFormat.sizeImage)) = chunk[4];
         *(u32*)(movie + offsetof(MovieState, decodeCall.chunk)) = chunk[8];
         *(s32*)(movie + offsetof(MovieState, decodeCall.destination)) = decodeFrame;
-        {
-            register void (*decode)(u8*, u8*, s32) =
-                *(void (**)(u8*, u8*, s32))(*(u32*)(movie + offsetof(MovieState, decoderVtable)) + 0x18);
-            decode(movie + 0x150, movie + 0x11C, 0);
-        }
+        MovieCodecV4(movie + 0x150, movie + 0x11C, 0);
         fn_800DB29C((MovieChunkStream*)(movie + 0x20));
     }
 done:
