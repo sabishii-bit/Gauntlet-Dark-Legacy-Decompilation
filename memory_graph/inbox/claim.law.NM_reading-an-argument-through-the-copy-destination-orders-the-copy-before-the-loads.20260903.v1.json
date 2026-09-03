@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/world/gauntworld fn_8005E90C --ops",
+    "tools/gdl/fndiff.py game/world/gauntworld fn_8005E90C --clean"
+  ],
+  "attributes": {
+    "tags": [
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A call whose argument is read through a copy destination and whose copy is STILL emitted after the argument loads, or one where reading through the destination changes the load's base register from the copy source to the copy destination (which would make the lever change bytes rather than positions, and would show copy propagation is not the mechanism). Either is one `fnasm <unit> <fn> <range> --diff` away.",
+  "id": "claim.law.NM_reading-an-argument-through-the-copy-destination-orders-the-copy-before-the-loads.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T18:36:44Z",
+  "schema_version": 1,
+  "subject": "function:fn_8005E90C",
+  "valid_from": "2026-09-03",
+  "value": "When a call's argument is a field of a value that was just copied into a second local (`result = newItem; f(newItem->m, ...)`), MWCC is free to schedule that argument's load ABOVE the copy, because the load and the copy are independent. Spelling the argument through the COPY DESTINATION instead (`result->m`) creates a source-level dependence that forces the `mr` to be emitted FIRST, while copy propagation still lets the load address off the copy SOURCE register -- so the emitted load is byte-identical (`lwz r3,100(r24)`, not r30) and only its POSITION moves. This is a position lever that costs nothing: no extra local, no frame change, no register change, one identifier. Measured on fn_8005E90C's MBNodeSetParent call: ours emitted `lwz r3,100(r24)` / `mr r30,r24` / `lwz r4,228(r27)` at @0x240-0x248 against the target's `mr r30,r24` / `lwz r4,228(r27)` / `lwz r3,100(r24)`; changing `newItem->objgrp.node` to `result->objgrp.node` took the function from real 2 to real 0 (fresh objdiff fuzzy 99.2185% -> 100.0000%) with no other edit. The weaker sibling form -- hoisting the SECOND argument into its own local, `parent = *(void**)&item->data[8];` -- also reaches codegen but only moves that load above the `mr` (ours became `lwz r4` / `mr` / `lwz r3`), leaving real 2 and costing a fabricated temporary, so the copy-destination read is the form to reach for."
+}
