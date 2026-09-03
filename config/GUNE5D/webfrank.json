@@ -744,12 +744,23 @@
         "function": "CritterResolveMultipleTargets",
         "before_sha256": "aa900ce7a9017394126cce19298bc130850f5356d20f7ac4f45f71c138a108cb",
         "after_sha256": "c9a716df57842e310244967d3b3469842a990436e65d0210a35ff9d5fff11458",
-        "unproven_recolor_audit": "Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.' The audit escape is removed and replaced by a machine proof. attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1 measured what was still missing after its datum screen: 'The datum screen closes the catastrophic sub-case for all of them -- a wrong constant bound -- but a use-side value crossing among NON-RELOCATED registers remains unproven in those six.' That crossing is exactly what verify_value_equality_recolor now proves here. claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 named this the one unproven pin its image-wide sweep retires: '111 insns, is served TODAY by copy_register_fields + unproven_recolor_audit ... The closure PROVES it with 4 substitutions, 0 exchanges, byte-equal.' Reproduced this run through the real apply_patch: four declared substitutions, +0x48 g29->g5, +0x19c g30->g28, +0x1a0 g29->g5, +0x1a8 g30->g28, and the narrow relation refuses the same rule with '+0x1a8: use of g30 is not value-equal to g28'. The census's staging IS the build's staging for this rule (no permutation, no form stage), so the two agree by construction. verify_datum_binding proves 5 bindings by name; 2 words rest on the pool correspondence alone (uninitialised data), which is the pre-existing state this rule does not change.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 111
         },
-        "copy_register_fields": true
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "Two independent constant loads of one literal per stream, feeding four uses across a crossed-home web. Machine-proved with the constant-equality closure; every escape is declared and fails closed on an undeclared or stale declaration.",
+          "constant_equality": true,
+          "substitutions": [
+            {"at": "0x48", "bank": "g", "ours": 29, "target": 5},
+            {"at": "0x19c", "bank": "g", "ours": 30, "target": 28},
+            {"at": "0x1a0", "bank": "g", "ours": 29, "target": 5},
+            {"at": "0x1a8", "bank": "g", "ours": 30, "target": 28}
+          ],
+          "compare_exchanges": []
+        }
       },
       {
         "function": "CritterLineNodeColSub",
