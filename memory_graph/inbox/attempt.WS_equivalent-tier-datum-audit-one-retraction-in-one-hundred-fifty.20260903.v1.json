@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Re-verify the linked-displacement soundness of EVERY webfrank-served function against the retail image (the CQ method, mechanised), retract any credit whose binding fails, and report the STRICT/EQUIVALENT delta honestly.",
+  "attributes": {
+    "law_screen": "claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1 APPLIED and CONFIRMED mechanically: its move_logic00 decode reproduces exactly (+0x1dc our @705 = 400921fb54524550 against retail lbl_80346848 = 401921fb54524550; +0x1e4 the reverse), and the audit finds it is the ONLY instance in 150. claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1 APPLIED as the reason no existing score could see this: every affected function reads real 0 by construction. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED: irrelevant here, both streams are 244/244. AGENTS.md discipline 3's PREFIX rule for pool entries APPLIED to the non-D-form span choice. AGENTS.md hard rule 'calibrate every new gate against the live corpus before shipping it' APPLIED and it is the finding of the run: the uncalibrated screen reported 14 mismatches on a corpus containing 1.",
+    "laws_applied": "[\"claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1\", \"claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1\"]",
+    "residual": "SIX rules still rest on the pool correspondence alone, and SIX still carry unproven_recolor_audit, which suppresses verify_consistent_recolor. The datum screen closes the catastrophic sub-case for all of them -- a wrong constant bound -- but a use-side value crossing among NON-RELOCATED registers remains unproven in those six. That is not the CQ class and was the standing state before this run; it is named here so it is not mistaken for closed.",
+    "scope": "tools/gdl/webfrank.py (verify_datum_binding, RetailImage, _function_text_relocations_full, _linked_address, _own_datum, _symbol_index), tools/gdl/tests/test_webfrank.py (+30 tests), tools/gdl/composed_census/wf_rederive_pin.py, tools/gdl/composed_census/ws_datum_tier_audit.py (new), configure.py (the webfrank edge takes --image and depends on it), config/GUNE5D/webfrank.json (move_logic00's rule REMOVED). Commits 65ca9e3b6, 64b180f90, e91685458.",
+    "verification": "THE TABLE, from `python tools/gdl/composed_census/ws_datum_tier_audit.py` at commit e91685458: 149 rules audited, 143 fully proved (levels 1-3), 6 decided only at the pool correspondence, 0 mismatches. Word-level: 3960 decided by name, 10 by address, 384 by datum, 21 by correspondence. All 21 correspondence words are uninitialised .bss references (atree::fn_8001267C, enemy::do_enemies, enemy::fn_8004646C, controls::do_vibe, controls::InitControls, mb_particle::MBPsysSetDebugNode), where a byte comparison is vacuous by construction and the proof is a one-to-one name correspondence with a consistent addend delta. Before this run all 4375 of those decisions were unexamined. THE RETRACTION: game/enemy/enemy::move_logic00's rule removed; EQUIVALENT 10.92% (148 fns) -> 10.83% (147), matched 67.55% -> 67.46%, code bytes -976 which is the function's size exactly, STRICT UNCHANGED at 56.63% (2578 fns), All fuzzy 98.49% unchanged. Its residual is now visible again: REGISTER_ONLY, real 114 (raw 128), 244/244 insns, opcode multiset IDENTICAL. Gates: forced full replay (touch webfrank.py, full ninja -j2) prints build/GUNE5D/main.dol: OK with every remaining rule replaying under the new screen, on all three commits; python -m unittest discover tools/gdl/tests 1229 OK; python -m memory_graph.test_graph 336 OK."
+  },
+  "function": "function:move_logic00",
+  "id": "attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T05:19:07Z",
+  "residual": {
+    "capability_needed": "a relocation PERMUTATION that moves a relocation onto the word its rotated home now occupies; refused this run as a class question for the integrator",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (244/244); insns T244/O244; real 114 (raw 128)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "copy_register_fields, verify_consistent_recolor, verify_relocation_binding and the new verify_datum_binding were run against all 150 pre-existing rules by rebuilding every WEBFRANK edge (touch webfrank.py, full ninja). unproven_recolor_audit was inspected on all 7 rules carrying it but not re-derived. verify_value_equality_recolor ran only where a rule declares it (2 rules)."
+}

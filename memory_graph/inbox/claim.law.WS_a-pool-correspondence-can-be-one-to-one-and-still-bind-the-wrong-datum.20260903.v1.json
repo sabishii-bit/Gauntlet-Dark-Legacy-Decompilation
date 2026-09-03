@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py verify_datum_binding",
+    "tools/gdl/composed_census/ws_datum_tier_audit.py",
+    "tools/gdl/tests/test_webfrank.py DatumBindingTests",
+    "tools/gdl/tests/test_webfrank.py LinkedAddressTests",
+    "tools/gdl/tests/test_webfrank.py OwnDatumTests",
+    "tools/gdl/tests/test_webfrank.py DatumBindingApplyPatchTests"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "pool-layout"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a shipped webfrank rule whose postprocessed object binds a relocated word to a datum the retail image does not hold there, and which `python tools/gdl/composed_census/ws_datum_tier_audit.py` reports as OK. Equivalently, exhibit a word the screen decides at L1 or L2 whose two names resolve to different linked addresses.",
+  "id": "claim.law.WS_a-pool-correspondence-can-be-one-to-one-and-still-bind-the-wrong-datum.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T05:18:31Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A ONE-TO-ONE POOL CORRESPONDENCE IS NOT A BINDING PROOF, AND UNTIL RUN 43 IT WAS THE ONLY ONE WEBFRANK HAD. verify_relocation_binding requires our `@N` labels and the target's `lbl_XXXXXXXX` labels to form a consistent bijection across a window. That forbids an EXCHANGE between two relocations. It says nothing about WHICH DATUM each end of the correspondence holds: `@705 -> lbl_80346848` together with `@706 -> lbl_80346840` is perfectly one-to-one and has pi and 2pi swapped. This is why claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1's instance shipped for ten days with every gate green.\n\nTHE FIX, shipped this run in tools/gdl/webfrank.py as verify_datum_binding, run unconditionally at the END of apply_patch and fail-closed. Every word relocated on BOTH sides is decided at the first of four levels that applies. L1 NAME: our symbol and addend equal the target's, OR the target's name is ours plus dtk's `_<address>` disambiguation suffix with an equal addend. L2 ADDRESS: both sides resolve through the split map to a linked address, which must be equal. L3 DATUM: our datum's linked bytes against the retail DOL's bytes at the target label's address, over the width the instruction accesses (or, for an address-formation word with no access width, over our symbol's own size, as a PREFIX of the target's). L4 CORRESPONDENCE: neither side yields an address or bytes, which in the live corpus means uninitialised .bss only; the names must then be one-to-one AND every pair of references to one name pair must sit at the same addend delta.\n\nTWO CALIBRATION FINDINGS, each of which made the screen call SOUND rules broken before it was fixed, and each of which is a trap for anyone building a similar screen.\n\n(1) OUR ANONYMOUS POOL LABELS ARE LOCAL AND MUST NEVER BE RESOLVED THROUGH THE SPLIT MAP. config/GUNE5D/symbols.txt carries dtk's OWN `@13` (.data:0x8023AA18), `@41` (.sdata:0x803440B0) and `@73` (.data:0x8023BB30) for OTHER translation units. Matching our object's `@13` to that entry by spelling is a name collision dressed as a proof; it read six rules across game/sfx/sfx, game/world/newcam and game/crt/vsprintf as crossed.\n\n(2) A DATUM THAT IS ITSELF RELOCATED MUST BE RESOLVED BEFORE IT IS COMPARED. A jumptable in our object is zeroes plus R_PPC_ADDR32 entries against the enclosing function; the retail image holds linked pointers. Comparing the two directly called five more rules broken (critter::CritterDoTexmodNode, enemy::gendir_8004FBC8, mb_font::MBRenderText, tower::TowerCheckMessages, crt::vsprintf). Each covered word must first be replaced by `split-map address of the referenced symbol + addend`; that recovers the real linked value and the comparison then passes. Verified on critter::CritterDoTexmodNode: our nine addends 0x26c/0x20c/0x24c/0x254/0x264/0x254/0x254/0x26c/0x25c against the function's own address 0x8003D0A4 reproduce retail's jumptable_8011AF20 word for word.\n\nWithout both fixes the screen reports 14 mismatches on a corpus containing exactly one. With them it reports one. That is the measurement that says a screen must be calibrated against the live corpus before it is believed, in either direction."
+}
