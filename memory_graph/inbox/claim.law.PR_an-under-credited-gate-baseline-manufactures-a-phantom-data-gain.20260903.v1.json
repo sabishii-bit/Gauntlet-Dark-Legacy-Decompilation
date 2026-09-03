@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py (baseline / check --update-improved: the +52 and the keep instruction)",
+    "tools/gdl/datadiff.py game/mb/mb_tree --sections (the independent section view: HEAD `SIZE target 0x34 vs ours 0x33 <- FLIP BLOCKER`)",
+    "build/GUNE5D/report.json units[].measures.matched_data (the accounting the PROGRESS Data: line reports)"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "defake",
+      "relocation",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A unit where defake_gate's baseline per-section matched count equals report.json's `matched_data` for that unit AND a data-symbol edit produces the same sign from both. That would show the baseline is priced in the image's units and this inversion was specific to mb_tree. Check directly: `defake_gate.py baseline <unit> --at-head` against `units[].measures.matched_data` in build/GUNE5D/report.json for the same unit and commit, before and after the edit.",
+  "id": "claim.law.PR_an-under-credited-gate-baseline-manufactures-a-phantom-data-gain.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T21:21:18Z",
+  "schema_version": 1,
+  "subject": "tool:defake-gate",
+  "valid_from": "2026-09-03",
+  "value": "UNDER-CREDITING IS NOT THE SAFE DIRECTION FOR A GATE THAT PRICES A DELTA. claim.law.T18_a-gate-that-nets-matched-data-per-byte-cannot-see-an-all-or-nothing-section-loss.20260903.v1 measured that defake_gate's per-byte data accounting OVER-credits on 91 units, named an 18-unit class where it UNDER-credits instead (objdiff credits data at SYMBOL granularity and RESOLVES RELOCATIONS, while the gate compares raw bytes), and concluded 'A gate must under-credit rather than manufacture a pass'. That conclusion is correct for a verdict on an ABSOLUTE state and WRONG for a delta, which is what `check` actually reports: an under-credited BASELINE manufactures a phantom GAIN the moment a lane repairs the raw bytes, and the gate then instructs the lane to bank a loss. This is the same failure T18 describes, relocated from the verdict to the baseline, and it is the direction T18 called safe.\n\nMEASURED END TO END on game/mb/mb_tree at c8a28c3bb, one section, both accountings, both directions:\n  HEAD, image        report.json main/game/mb/mb_tree matched_data=432 total_data=432 (100%)\n                     PROGRESS `Data: 178856 / 2361748 bytes (7.57%)`\n  HEAD, gate         `defake_gate.py baseline game/mb/mb_tree --at-head` prints\n                     `DATA baseline: 380/432 matched bytes; .rodata 0/52` - the gate scores\n                     the SAME section 0/52 that the image scores 52/52\n  the edit           name the anonymous pool literal: `const char lbl_801160D4[16] = \"Too many nodes\";`\n                     plus both `FatalError(lbl_801160D4, 0x804000);` call sites\n  gate verdict       `DATA-CHANGED __sections__ matched DATA bytes: .rodata 0->52 of 52 (+52 B).\n                     NET +52 B of matched Data gained`, two `RELOC-TOWARD-TARGET` rows reading\n                     `this is a relocation REPAIR, not a regression; keep it and re-anchor with\n                     --update-improved`, and `GATE OK (2 improved)`\n  image verdict      full ninja, `main.dol: OK`, PROGRESS `Data: 178804` and report.json\n                     matched_data=380 - a LOSS of 52 bytes\n  restored           full ninja at HEAD returns Data 178856 and matched_data=432\nThe gate reported +52 on a change the project metric scores -52: not an overstatement, a SIGN INVERSION, and it shipped with an explicit instruction to bank it.\n\nWHY THE RELOCATION HALF DOES NOT RESCUE IT. Both `RELOC-TOWARD-TARGET` rows are individually TRUE - our new `lbl_801160D4` really does match target reloc[9] and reloc[10] in MBNewNode and reloc[7]/reloc[8] in MBCreateNode, exactly as claim.law.PR_defake-gate-compares-relocation-names-while-fndiff-relocs-resolves-them.20260903.v1 describes. A true relocation repair and a data regression are independent, and the gate summed them into one `GATE OK (2 improved)`. Per-function .text verdicts cannot see data at all, so nothing else in the loop contradicted it.\n\nTHE RULE FOR LANES, until the gate is fixed: a keep that adds, renames or resizes ANY data symbol is arbitrated on a full `ninja` PROGRESS `Data:` line before and after, never on defake_gate's DATA-CHANGED row. The two-build cost is the price of the only accounting the project reports. THE RULE FOR THE TOOL: price the baseline in the measure's own units, or refuse to print a data delta at all - a delta between two accountings is not a measurement of anything."
+}

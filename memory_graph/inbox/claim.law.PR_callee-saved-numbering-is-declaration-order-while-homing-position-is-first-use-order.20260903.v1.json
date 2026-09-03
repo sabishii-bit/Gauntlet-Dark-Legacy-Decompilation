@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py --raw (NEUTRAL-IDENTICAL-PROOF line; body hash d85dd457c484 for the coalesced-copy half)",
+    "tools/gdl/fnasm.py game/mb/mb_tree MBNewNode --raw --diff (the aligned view both halves were read from)"
+  ],
+  "attributes": {
+    "tags": [
+      "register-web",
+      "decl-order",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function where a pure statement-order edit (no declaration change, no count change) moves which value lands in which callee-saved register. That would show numbering is keyed to use order after all and this law's separation is wrong. Also falsified by any source form that keeps MBNewNode at 68/68 and moves `parent` off r28 - most cheaply, a redundant self-assignment `parent = parent;` re-ranking it at first ASSIGNMENT rather than declaration, which is the untried idea banked in attempt.PR_mbnewnode-numbering-is-declaration-order-and-homing-position-is-first-use-order.20260903.v2 and is refutable by reading +0x14 in one build.",
+  "id": "claim.law.PR_callee-saved-numbering-is-declaration-order-while-homing-position-is-first-use-order.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T21:21:17Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "CALLEE-SAVED NUMBERING AND CALLEE-SAVED HOMING POSITION ARE TWO DIFFERENT RULES WITH TWO DIFFERENT KEYS, AND ONLY ONE OF THEM IS A SOURCE VARIABLE. Numbering (which value gets r28 vs r31) is keyed to DECLARATION ORDER - parameters in ABI order, then locals in declaration order, assigned ascending from the lowest callee-saved register. Homing POSITION (where in the prologue region the `mr`/`addi` that parks a parameter is emitted) follows FIRST-USE order and moves freely with statement order. A lane that reorders statements to chase a register rotation is therefore editing the wrong rule, and will see the diff move without the numbers moving.\n\nSEPARATED IN ONE PROBE, on game/mb/mb_tree::MBNewNode at c8a28c3bb (68/68 instructions, 23 raw differing words, a clean 4-cycle rotation of r28-r31). Swapping the two independent guard statements `if (matrix == 0) matrix = gIdentityMatrix;` and `if (type == 0) type = 1;`:\n  HOMING MOVED   ours +0x10 `mr. r29,r4` / +0x18 `addi r30,r5,0`  ->  +0x10 `mr. r30,r5` / +0x18 `addi r29,r4,0`\n                 (type is now homed first, matching the new first-use order)\n  NUMBERING DID NOT MOVE   parent r28, matrix r29, type r30, node r31 - before AND after\n  cost           23 -> 27 raw words, CLASS RECOLOR -> SCHEDULE-REORDER, 6 mnemonic divergences\nThe homing rule is what the statement order buys; the numbering rule is what the rotation needs, and it did not budge.\n\nTHE COROLLARY THAT DECIDES TRACTABILITY. Because the key is declaration order and a parameter's position in that order is ABI-fixed, a rotation that requires moving a PARAMETER's rank is not source-reachable by ordering edits at all. MBNewNode is the clean case: our ascending set r28,r29,r30,r31 = parent,matrix,type,node is exactly declaration order, and retail's = matrix,type,node,parent is that same list with parameter 1 moved to the END - i.e. retail's colouring is what our source would produce if `parent` were declared last, which no legal edit to a three-parameter signature can express.\n\nAND THE OBVIOUS WAY ROUND IT DOES NOT WORK: aliasing the parameter to a later-declared local is COALESCED away before codegen. Measured in the same pass - adding `MBTreeNode* p;` after `node`, `p = parent;` as the first statement, and reading `p` at all five parent uses produced NEUTRAL-IDENTICAL, body hash d85dd457c484 unchanged. A copy does not mint a web, so it cannot mint a declaration rank.\n\nRELATION TO THE WIDTH-CLASS LAW. claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 puts a width class AHEAD of declaration order. This law is that law's second key, measured directly on a row where the width class cannot discriminate: all four of MBNewNode's webs are 32-bit (MBTreeNode*, const f32*, s32, MBTreeNode*), the tie falls through, and declaration order alone predicts our colouring exactly. The two laws compose - width class first, declaration order second - and neither is moved by statement order."
+}
