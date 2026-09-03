@@ -4583,11 +4583,25 @@ void CritterRotate(Critter *c, CritterMove *move)
 }
 /* 0x8003B1CC -- select the critter's current target/node and refresh the
  * world-space movement matrix used by the active move. */
+static void *CritterMoveColNode(Critter *c, s32 nodeIndex)
+{
+    void *node;
+    void *candidate;
+
+    node = c->anim;
+    if (nodeIndex < 0) {
+        return node;
+    }
+    candidate = ((void **)((u8 *)c->anodes + nodeIndex * 0x28))[0];
+    if (candidate == NULL) {
+        candidate = node;
+    }
+    return candidate;
+}
+
 s32 CritterMoveSetup(Critter *c, CritterMove *move)
 {
     f32 *target;
-    void *node;
-    void *candidate;
     s32 nodeIndex;
     s16 currentMove;
     s16 queuedTarget;
@@ -4618,16 +4632,7 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
         }
 
         nodeIndex = move->node;
-        node = c->anim;
-        if (nodeIndex >= 0) {
-            candidate = ((void **)((u8 *)c->anodes +
-                                   nodeIndex * 0x28))[0];
-            if (candidate == NULL) {
-                candidate = node;
-            }
-            node = candidate;
-        }
-        c->obj_d0 = node;
+        c->obj_d0 = CritterMoveColNode(c, nodeIndex);
     }
 
     c->moveMatrix[0] = c->moveOrigin[0];
