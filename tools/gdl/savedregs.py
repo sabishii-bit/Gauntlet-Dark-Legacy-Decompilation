@@ -45,7 +45,19 @@ IS our r19 range — same role, same position, a PERMUTATION; and the
 target's r19 loop pointer lives in VOLATILE r12 in ours — an ESCAPE the
 callee-saved bank cannot see from the inside. Verdicts are `in place`,
 `PERMUTED rA->rB`, `ESCAPED rA->rB` (ours failed to promote), `INTRUDER`
-(ours over-promoted a volatile role) and `UNPAIRED`.
+(ours over-promoted a volatile role), `UNPAIRED` and — since run 48 —
+`UNRESOLVED`.
+
+`UNRESOLVED` IS A REFUSAL, NOT A RESIDUAL CLASS (run-48 item 6). Pairing is
+by ROLE, and a role is a short string: `li 0` is every zero-initialisation
+in the function. Where the role's candidates sit in more than one register
+and NONE of them sits at the aligned position, the old code returned the
+nearest one AS A REGISTER MAPPING, and a confident wrong attribution of
+exactly that kind carried a whole hypothesis. Measured live on
+game/anim/action::DoPlayerAction: the target's `@0x88 li r19,0` has two
+candidates, r24 and r18, BOTH 24 aligned rows away — the row now says so
+instead of naming r24. Calibrated over 17,688 live-range rows: 98 rows in 52
+functions (0.55%) refuse; 17,590 keep their verdict.
 
 READING IT. The rows are ordered by FIRST DEFINITION in each stream, which
 is the order the allocator handed the registers out. A row whose two
@@ -65,7 +77,8 @@ fnasm.parse_fn. If an object is missing it says so rather than building one,
 because a build here would silently rescore the thing you are reading.
 
 IMPORTABLE CORE: parse_instruction, first_definitions, all_definitions,
-lifetime_pairs, correspondence, permutation, format_table — all pure over
+lifetime_pairs, correspondence, permutation, format_table, in_window,
+contenders, is_ambiguous, unresolved_note — all pure over
 decoded row lists, no build and no printing, and importing this module has
 no side effects. Call them in-process for a sweep instead of one subprocess
 per function (run-43 item 10; the convention is documented in AGENTS.md).
@@ -392,6 +405,101 @@ def _definition_index(rows, target_rows, our_rows, ours):
     return out
 
 
+def in_window(candidates, position, window=LIFETIME_WINDOW):
+    """The candidates within `window` aligned rows of `position`."""
+    return [c for c in candidates if abs(c[0] - position) <= window]
+
+
+def contenders(near, position):
+    """The candidates tied at the MINIMUM aligned distance from `position`."""
+    if not near:
+        return []
+    best = min(abs(c[0] - position) for c in near)
+    return [c for c in near if abs(c[0] - position) == best]
+
+
+def is_ambiguous(near, position):
+    """Do the CLOSEST candidates disagree about the ANSWER? (run-48 item 6)
+
+    THE DEFECT. Phase 2 pairs a live range by ROLE and then takes the NEAREST
+    candidate, and a role is a short string: `li 0` is the role of every
+    zero-initialisation in the function. On game/movie/movieplayer::
+    fn_800D8BCC the ordinal pairing put the target's `add r19,r12,r0` against
+    our `li r19,0` — two unrelated ranges — and the run-42 rewrite fixed the
+    PAIRING while leaving the tie-break: where several equally-plausible
+    candidates sit inside the window, the nearest one was reported as a
+    verdict carrying a register mapping, and NM fitted a whole hypothesis to
+    one such attribution.
+
+    THE DISCRIMINANT IS DISTANCE ZERO, and it was CHOSEN FROM THREE
+    MEASURED CANDIDATES rather than reasoned to. Distance 0 means the two
+    definitions sit at the SAME position in the opcode-sequence alignment —
+    the alignment's own answer, not a proximity ranking. So a UNIQUE
+    candidate at distance 0 decides the row; with none (or with two at zero
+    in different registers), any register disagreement inside the window is
+    a choice made by proximity alone, and that is a guess.
+
+    THE NEGATIVE SIDE PICKED THIS. Swept over every live-range row in the
+    tree (17,688 rows, 2,998 function pairs) at bb44ef4ab:
+      A  tie-at-the-minimum only        3 rows / 3 fns (0.02%) — too narrow;
+                                        an exact numeric tie is an accident,
+                                        and 95 pure-proximity mappings
+                                        survive it
+      B  distance-0-decisive (SHIPPED) 98 rows / 52 fns (0.55%) — PERMUTED
+                                        1365->1327, ESCAPED 228->195,
+                                        INTRUDER 158->134
+      C  any window disagreement      389 rows / 115 fns (2.20%) — REFUTED
+                                        by the corpus: it turns all four of
+                                        the rows the accepted law
+                                        claim.law.T12_pairing-callee-saved-
+                                        definitions-by-ordinal-within-a-
+                                        register-fails-exactly-when-a-
+                                        lifetime-moves.20260903.v1 names in
+                                        its expiry check (`--per-web` must
+                                        keep naming r21->r19 x2 and
+                                        r19->r12 x2) into refusals, and
+                                        `fnasm game/movie/movieplayer
+                                        fn_800D8BCC 0x1c0:0x260 --diff`
+                                        shows all four are CORRECT (target
+                                        `1c4 li r21,0` against our `1c4 li
+                                        r19,0`, and the whole r21 range at
+                                        `22c`/`23c`/`240` against our r19
+                                        range at the same offsets). Each has
+                                        a UNIQUE candidate at distance 0 with
+                                        its alternatives 4, 1, 22 and 1 rows
+                                        further out.
+    A and B both keep that law's four rows; C refuses measurements, which is
+    the opposite failure to the one this item is about.
+    """
+    at_zero = {candidate[1] for candidate in near
+               if candidate[0] == position}
+    if len(at_zero) == 1:
+        return False
+    return len({candidate[1] for candidate in near}) > 1
+
+
+def unresolved_note(anchor, near):
+    """Why a row is UNRESOLVED, naming every candidate and its distance."""
+    tied = contenders(near, anchor[0])
+    distance = abs(tied[0][0] - anchor[0]) if tied else 0
+    options = ", ".join(
+        f"{candidate[1]} ({abs(candidate[0] - anchor[0])} aligned rows away)"
+        for candidate in sorted(near, key=lambda c: abs(c[0] - anchor[0])))
+    zero = {c[1] for c in near if c[0] == anchor[0]}
+    why = ("no candidate sits at the aligned position at all, so only"
+           f" proximity separates them (nearest is {distance} row(s) away)"
+           if not zero else
+           f"{len(zero)} candidates share the aligned position, in different"
+           " registers")
+    return (f"role `{web_role(anchor[2][1])}` matches {len(near)} candidate"
+            f" definition(s) in {len({c[1] for c in near})} different"
+            f" registers, and {why} — {options}. A choice among these would"
+            " be a proximity GUESS, not a measurement, so no mapping is"
+            " claimed here. Decide it from the aligned view"
+            " (`fnasm <unit> <fn> 0xA:0xB --diff`) before quoting a"
+            " permutation.")
+
+
 def lifetime_pairs(target_rows, our_rows):
     """[(label, target_row|None, our_row|None, verdict, note)] per LIVE RANGE.
 
@@ -438,7 +546,8 @@ def lifetime_pairs(target_rows, our_rows):
             used_o.add(id(o_def[2]))
         anchor = o_def if (anchor_ours or t_def is None) else t_def
         if (t_def is not None and o_def is not None
-                and verdict not in ("in place", "DIFFERENT ROLE")):
+                and verdict not in ("in place", "DIFFERENT ROLE",
+                                    "UNRESOLVED")):
             # The window sweep says ESCAPED/INTRUDER counts depend on how far
             # the pairing is allowed to reach, so every such row carries its
             # reach and the reader can discount a distant one.
@@ -468,10 +577,14 @@ def lifetime_pairs(target_rows, our_rows):
     for t_def in t_saved:
         if id(t_def[2]) in used_t:
             continue
-        match = nearest([o for o in o_defs
-                         if web_role(o[2][1]) == web_role(t_def[2][1])],
-                        t_def[0])
-        if match is None or abs(match[0] - t_def[0]) > LIFETIME_WINDOW:
+        free = [o for o in o_defs if id(o[2]) not in used_o
+                and web_role(o[2][1]) == web_role(t_def[2][1])]
+        near = in_window(free, t_def[0])
+        if not near:
+            continue
+        match = min(near, key=lambda c: abs(c[0] - t_def[0]))
+        if is_ambiguous(near, t_def[0]):
+            take(t_def, match, "UNRESOLVED", unresolved_note(t_def, near))
             continue
         if match[1] in CALLEE_SAVED:
             take(t_def, match, f"PERMUTED {t_def[1]}->{match[1]}",
@@ -485,9 +598,13 @@ def lifetime_pairs(target_rows, our_rows):
         free = [t for t in t_defs
                 if id(t[2]) not in used_t
                 and web_role(t[2][1]) == web_role(o_def[2][1])]
-        match = (min(free, key=lambda c: abs(c[0] - o_def[0]))
-                 if free else None)
-        if match is None or abs(match[0] - o_def[0]) > LIFETIME_WINDOW:
+        near = in_window(free, o_def[0])
+        if not near:
+            continue
+        match = min(near, key=lambda c: abs(c[0] - o_def[0]))
+        if is_ambiguous(near, o_def[0]):
+            take(match, o_def, "UNRESOLVED", unresolved_note(o_def, near),
+                 anchor_ours=True)
             continue
         take(match, o_def, f"INTRUDER {o_def[1]} (target uses {match[1]})",
              "same role, ours promotes a range the target keeps volatile",
@@ -536,12 +653,15 @@ def lifetime_pairs(target_rows, our_rows):
 def lifetime_summary(pairs):
     """{verdict-class: count} plus the permutation/escape mappings."""
     counts = {"in place": 0, "permuted": 0, "escaped": 0,
-              "intruder": 0, "unpaired": 0, "different role": 0}
+              "intruder": 0, "unpaired": 0, "different role": 0,
+              "unresolved": 0}
     maps = {"permuted": {}, "escaped": {}, "intruder": {}}
     for _label, _t, _o, verdict, _note in pairs:
         head = verdict.split()[0]
         if verdict == "in place":
             counts["in place"] += 1
+        elif head == "UNRESOLVED":
+            counts["unresolved"] += 1
         elif head == "DIFFERENT":
             counts["different role"] += 1
         elif head in ("PERMUTED", "ESCAPED"):
@@ -673,6 +793,21 @@ def scope_banner(target_rows, our_rows, registers, lpairs,
                " Ours spends a callee-saved register where the target uses"
                " a volatile — the save set is paying for a range that does"
                " not need it."))
+    if counts["unresolved"]:
+        # RUN-48 ITEM 6. These rows used to carry a register mapping chosen
+        # by proximity among several equally-plausible candidates sharing one
+        # short role string (`li 0` is every zero-initialisation in the
+        # function). A confident wrong attribution of exactly that kind
+        # carried a whole hypothesis, so the tie is now REPORTED rather than
+        # broken.
+        lines.append(
+            f"  UNRESOLVED LIVE RANGE(S): {counts['unresolved']} — the role"
+            " matches several candidate definitions in DIFFERENT registers"
+            " inside the pairing window, so no mapping is claimed. These are"
+            " NOT clean rows and NOT permutations; each names its candidates"
+            " with their distances, and the aligned view"
+            " (`fnasm <unit> <fn> 0xA:0xB --diff`) decides them. Never quote"
+            " a permutation from one of these.")
     if counts["unpaired"]:
         lines.append(
             f"  UNPAIRED LIVE RANGE(S): {counts['unpaired']} — one stream"
