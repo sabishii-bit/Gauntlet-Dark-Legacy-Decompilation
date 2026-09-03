@@ -190,6 +190,19 @@ docstring omitted it — the flags below all work):
   --scaffold-all     print EVERY scaffold row (the census is otherwise
                      capped at 20, and a TU whose scaffold runs past the
                      cut could not be audited from the loop at all)
+  --no-reloc-screen  skip the RELOC-SYMBOL screen a BASELINE runs (below)
+
+Every BASELINE verdict — that is, the FIRST probe of a function — runs the
+RELOC-SYMBOL screen and says which of four things it measured: mismatching
+rows, clean, NOT COMPARABLE, or not run (count-asymmetric). Two globals both
+reachable through EMB_SDA21 share the instruction word `lwz rD,0(rB)`, so
+reading the WRONG one moves no number this tool prints — not `real`, not the
+multiset, not fuzzy (claim.law.SA_a-wrong-global-that-shares-an-instruction-
+word-is-invisible-to-every-score-including-the-word-count.20260902.v1). Seven
+such bugs have been found here and the seventh surfaced only when someone sat
+down to write the function's PARK RECORD, after the work was over. Calibrated
+at 65348245e over every built pair: 11 flagged, 2,825 clean, 47 not
+comparable, 115 count-asymmetric; median 17ms.
 
 Two semantics every worker must know before trusting --revert as an undo:
 (1) NEUTRAL probes BANK TOO (they may be verified-neutral work worth
@@ -2016,6 +2029,111 @@ def genuine_row_count(unit, fn):
         return None
 
 
+def reloc_symbol_screen(unit, fn):
+    """The wrong-global screen, as a dict, for the FIRST probe of a function.
+
+    Run-47 item 2. claim.law.SA_a-wrong-global-that-shares-an-instruction-
+    word-is-invisible-to-every-score-including-the-word-count.20260902.v1:
+    when two globals are both EMB_SDA21-reachable the instruction word is
+    `lwz rD,0(rB)` in BOTH streams and only the RELOCATION names the symbol,
+    so `real`, the opcode multiset, objdiff fuzzy and wf_word_diff's own
+    word count are all blind to reading the wrong one. Seven such bugs have
+    been found in this project and the SEVENTH surfaced only when someone sat
+    down to write a PARK RECORD — after the function had been probed,
+    measured and given up on. A screen that only runs at park time is a
+    screen that runs after the decisions it should have informed.
+
+    This calls wf_word_diff's `reloc_symbol_mismatches` rather than
+    re-deriving it: that function already resolves symbols to ADDRESSES (so a
+    rename cancels), compares only offsets whose WORDS are identical and
+    whose reloc TYPES agree, drops anonymous pool entries to fndiff --clean,
+    and marks a row PAIRING UNRELIABLE when the mnemonics near it disagree.
+
+    `status` is one of:
+      rows            -- mismatching relocations found (print every row)
+      clean           -- comparable, nothing found
+      not-comparable  -- a relocation table could not be paired: UNSCREENED,
+                         never "clean" (47 functions in this tree)
+      count-asymmetric-- the two streams differ in instruction count, so no
+                         offset pairing exists at all (115 functions)
+      unavailable     -- objects missing or the census module did not import
+    """
+    try:
+        sys.path.insert(0, str(TOOLS))
+        sys.path.insert(0, str(TOOLS / "composed_census"))
+        import wf_word_diff
+    except Exception:
+        return {"status": "unavailable", "rows": []}
+    try:
+        _kind, ours, tgt = wf_word_diff.word_streams(unit, fn)
+    except SystemExit:
+        return {"status": "count-asymmetric", "rows": []}
+    except Exception:
+        return {"status": "unavailable", "rows": []}
+    try:
+        rows = wf_word_diff.reloc_symbol_mismatches(unit, fn, ours, tgt)
+    except Exception:
+        return {"status": "unavailable", "rows": []}
+    if rows is None:
+        return {"status": "not-comparable", "rows": []}
+    if not rows:
+        return {"status": "clean", "rows": [],
+                "compared": len(ours) // 4}
+    return {"status": "rows", "rows": rows}
+
+
+def format_reloc_screen(result):
+    """The line(s) a first probe prints for the wrong-global screen, or None.
+
+    Calibrated over every function pair built in this tree at 65348245e:
+    11 flagged (4 with an index-aligned row), 2,825 comparable and clean,
+    47 not comparable, 115 count-asymmetric. The clean case gets ONE line, not
+    silence: an absence a worker cannot distinguish from "nobody looked" is
+    the failure this item exists to fix, and the loud form would bury the
+    verdict on 2,825 of 2,998 functions (the scaffold census was demoted for
+    exactly that, run-37 item 7). Screen cost, measured over the same sweep:
+    median 17ms, p95 86ms, max 163ms per function -- against a probe that
+    runs a ninja build.
+    """
+    status = result["status"]
+    if status == "clean":
+        return ("[RELOC-SYMBOL SCREEN: clean — every instruction whose word"
+                " matches also relocates the SAME symbol. This is the"
+                " wrong-global class, which `real`, the multiset and fuzzy"
+                " are all blind to; it is now MEASURED absent here, not"
+                " unexamined.]")
+    if status == "not-comparable":
+        return ("[RELOC-SYMBOL SCREEN: NOT COMPARABLE — a relocation table"
+                " could not be paired against these words, so the"
+                " wrong-global class is UNSCREENED here, not absent. Read the"
+                " symbol column of `fnasm <unit> <fn> --diff` before"
+                " believing a zero residual.]")
+    if status == "count-asymmetric":
+        return ("[RELOC-SYMBOL SCREEN: not run — the two streams differ in"
+                " instruction count, so no offset pairing exists. Re-run this"
+                " probe once the counts agree; the wrong-global class is"
+                " UNSCREENED until then.]")
+    if status != "rows":
+        return None
+    rows = result["rows"]
+    firm = sum(1 for row in rows if row[3])
+    out = [f"RELOC-SYMBOL MISMATCH: {len(rows)} instruction(s) ({firm}"
+           " index-aligned) whose WORD is identical in both streams relocate"
+           " a DIFFERENT symbol. NO number on the verdict line moves when one"
+           " of these is fixed — PlayerProcessPowerups read the wrong SDA21"
+           " global and every count stayed identical before and after"
+           " (claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-"
+           "invisible-to-every-score-including-the-word-count.20260902.v1)."
+           " Read every row BEFORE working the residual, not at park time."]
+    for offset, t_sym, o_sym, aligned in rows:
+        out.append(f"    +{offset:#06x}  target {t_sym}   ours {o_sym}"
+                   + ("" if aligned else
+                      "   [PAIRING UNRELIABLE: mnemonics disagree nearby, so"
+                      " these two offsets need not be the same instruction —"
+                      " confirm with `fnasm <unit> <fn> 0xA:0xB --diff`]"))
+    return "\n".join(out)
+
+
 BEST_KEYS = ("best_real", "best_multiset", "best_insns", "best_bytes",
              "best_fuzzy")
 
@@ -3739,7 +3857,8 @@ KNOWN_FLAGS = frozenset((
     "--accept-fuzzy-loss", "--apply", "--arbitrate", "--bank", "--count",
     "--discard", "--force-stale-revert", "--function", "--fuzzy", "--help",
     "--ignore-claim", "--list-banks", "--no-bank", "--no-build",
-    "--no-fuzzy-gate", "--no-rebuild", "--no-slots", "--no-tu-gate",
+    "--no-fuzzy-gate", "--no-rebuild", "--no-reloc-screen", "--no-slots",
+    "--no-tu-gate",
     "--numstat", "--ops", "--raw", "--rebase-best", "--rebaseline",
     "--rederive-pin", "--reset", "--restore", "--revert",
     "--revert-baseline", "--revert-best", "--scaffold", "--scaffold-all",
@@ -4446,6 +4565,22 @@ def main():
     # (or the existing --scaffold/--scaffold-all), and a BASELINE prints a
     # ONE-LINE pointer so the audit obligation is still announced rather
     # than silently dropped (run-37 item 7).
+    # THE WRONG-GLOBAL SCREEN, on the FIRST probe of every function (run-47
+    # item 2). Seven wrong-global bugs have been found in this project and the
+    # SEVENTH surfaced only at PARK-RECORD time — after the function had been
+    # probed, measured and given up on — because no score sees a relocation:
+    # two EMB_SDA21 globals share the instruction word, so `real`, the opcode
+    # multiset, objdiff fuzzy and wf_word_diff's own word count are identical
+    # before and after the fix. A BASELINE verdict is exactly "the first probe
+    # of this function", which is the last moment the answer can still steer
+    # the work instead of explaining it. Calibrated at 65348245e over every
+    # built function pair: 11 flagged, 2,825 clean, 47 not comparable, 115
+    # count-asymmetric; median cost 17ms against a probe that runs a build.
+    if verdict.startswith("BASELINE") and "--no-reloc-screen" not in sys.argv:
+        screen = format_reloc_screen(reloc_symbol_screen(unit, fn))
+        if screen:
+            print(screen)
+
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
                      or "--verbose" in sys.argv)
     if want_scaffold and source is not None:
