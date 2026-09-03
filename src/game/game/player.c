@@ -5409,7 +5409,9 @@ void PlayerProcessPowerups(void* vp) {
                 fresh = 0;
             }
             if (fresh != 0 && p->weaphold_atree != NULL) {
-                s32 tier = p->level / 10;
+                s32 tier = p->level;
+
+                tier /= 10;
                 *(f32*)((u8*)*(void**)p->weaphold_atree + 0x30) =
                     ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[0];
                 *(f32*)((u8*)*(void**)p->weaphold_atree + 0x34) =

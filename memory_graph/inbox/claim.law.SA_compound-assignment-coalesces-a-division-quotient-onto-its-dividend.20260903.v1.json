@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "python tools/gdl/composed_census/wf_word_diff.py game/game/player.c PlayerProcessPowerups --list at commits 7300fe688 and e77ef10ed: the +0x0ddc row reads O 7ce523d6 (divw r7,r5,r4) before and O 7cc623d6 (divw r6,r6,r4) after, against T 7c6303d6 (divw r3,r3,r0); the +0x0df0 row follows it from O 1c67000c (mulli r3,r7,12) to O 1c66000c (mulli r3,r6,12)."
+  ],
+  "attributes": {
+    "law_screen": "claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 SCREENED - this law is the third axis that one does not cover: neither declaration order nor assignment order moved this register, and the split-vs-compound assignment FORM did. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 SCREENED - it is about materialising a constant twice rather than copying it, and the mechanism here is the opposite direction (a value dying into its own destination); this law does not overturn it but names a case where a coalescing choice IS source-reachable.",
+    "laws_applied": "[]",
+    "scope": "Measured in one function, game/game/player.c::PlayerProcessPowerups, at src/game/game/player.c:5412-5414, under `#pragma opt_propagation off`. Established as INDEPENDENT of that pragma by a separate probe: with the pragma and its frame compensation removed, the twelve +0xdc0..+0xdf0 words were byte-identical to the pragma-on state, so the coalescing is a property of the statement form and not of the propagation setting. Two further axes were measured and did NOT reproduce the effect, which bounds the law: moving the declaration to an enclosing block while keeping the divide in the initialiser was byte-identical to the initialiser form (so it is the ASSIGNMENT form, not the declaration position, that decides), and dissolving the local entirely so the divide is a common subexpression lost count parity with six extra divw (so CSE does not fold a division here at all).",
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where `x /= K` and `x = y / K` compile to the same divw operand triple, or where the compound form allocates the fresh destination and the initialiser form coalesces. Reproduce with: write both forms of the same division, build the owning object, and read the divw word at the aligned offset with `tools/gdl/composed_census/wf_word_diff.py <unit> <fn> --list`. Also falsified if the coalescing is shown to depend on the surrounding pragma state rather than on the statement form - it was measured here to be independent of `#pragma opt_propagation`, but that is one function's evidence.",
+  "id": "claim.law.SA_compound-assignment-coalesces-a-division-quotient-onto-its-dividend.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T01:28:59Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "For MWCC PPC, `T x = <expr>; x /= K;` and `T x = <expr> / K;` are NOT the same allocation. The compound form makes the quotient COALESCE onto the dividend's register (`divw rN,rN,rK`); the divide-in-the-initialiser form allocates a FRESH destination beyond the block's existing scratch set (`divw rM,rN,rK` with rM new). The difference is worth one whole scratch register in the surrounding block, and it changes the residual CLASS even when it changes no score: with the fresh destination our stream held six distinct registers over a region where the target held five, so no permutation-class postprocessor rule could apply to it at all; with the compound form both streams hold exactly five and the target->ours mapping becomes a bijection. Screen this BEFORE concluding that a division block is allocator-internal, and state which of the two forms a park was measured in."
+}
