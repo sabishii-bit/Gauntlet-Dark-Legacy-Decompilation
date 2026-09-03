@@ -614,7 +614,7 @@ MBBLIT* MBNewTempBlit(int a, int b, int c, int d, int e) {
 }
 
 /* Per-frame temporary solid quad (256-entry ring, 0x24 stride). */
-void* MBNewTempQuad(int a, int b) {
+void* MBNewTempQuad(void) {
     u8* q;
     if (tempQuadCount >= MB_TEMPQUAD_MAX) {
         FatalError(str_TooManyQuads, 0x800000);
@@ -1342,7 +1342,7 @@ s32 mbBlitCalcLight(s32 x, s32 y) {
     return (s32)(f32)output;
 }
 
-void mbBlitSetPage(int page) {
+void mbBlitSetPage(void) {
     lbl_80343EA4 = -1;
     lbl_80343EA8 = -1;
     lbl_80343EAC = -1;

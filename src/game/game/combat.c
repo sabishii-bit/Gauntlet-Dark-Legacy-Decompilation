@@ -3296,11 +3296,12 @@ typedef struct DebugNameTables {
 } DebugNameTables;
 
 /*
- * screen_limitation -- debug overlay printing camera camIdx's world position,
- * attention, orientation, distance and its camera-/attention-mode names.  Gated
+ * screen_limitation -- debug overlay printing the active camera's world
+ * position, attention, orientation, distance and its camera-/attention-mode
+ * names.  The camera is selected by lbl_8034453C, not by a parameter.  Gated
  * by the debug flag (sFlags & 1); no effect in a normal build.
  */
-void screen_limitation(s32 camIdx)
+void screen_limitation(void)
 {
     Camera* cam;
     DebugNameTables* debugNames = (DebugNameTables*)lbl_80118B60;
