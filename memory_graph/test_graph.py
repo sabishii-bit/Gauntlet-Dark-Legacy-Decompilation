@@ -1103,6 +1103,129 @@ class ProposalGateTests(unittest.TestCase):
                         "probed_form": "swapped the two locals"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate M (run-49 item 5): a dead scratch-path command --------------
+    #
+    # T18 found an accepted record whose denial.expiry_check named only a
+    # lane scratch script. AGENTS.md rule 17 keeps `XX_scratch/` untracked
+    # and per-worktree, so the command is dead the moment the worktree is
+    # removed and the record reads as falsifiable while being unfalsifiable
+    # by anyone else. It stood that way for a full run.
+    #
+    # TWO-SIDED, at 4beafddf7 over all 574 command-bearing typed fields in
+    # records/ + inbox/: 7 name a *_scratch/ path, 6 of those ALSO name a
+    # runnable repo command, 1 is genuinely dead, 567 name no scratch path.
+    # A gate keyed on the scratch path alone would be wrong on 6 of 7 (86%).
+    DENIAL = {
+        "scope": "this function, this alignment",
+        "premise_measurement": "real 84, multiset IDENTICAL, 3 words differ",
+        "falsifier": "any source form that closes the branch displacement",
+    }
+
+    def denial_attempt(self, rid, expiry_check, **fields):
+        denial = dict(self.DENIAL, expiry_check=expiry_check, **fields)
+        return _attempt(rid, "function:test_fn", outcome="parked",
+                        denial=denial,
+                        attributes={"law_screen": "none applicable: test"})
+
+    def test_an_expiry_check_rooted_only_in_lane_scratch_is_refused(self):
+        record = self.denial_attempt(
+            "attempt.dead-expiry.v1",
+            "python MC_scratch/mc_valeq.py game/sys/memcard"
+            " drawMemCardMessage (gates A/B/C in one call, all through"
+            " shipped webfrank code). If gate C ever harvests a non-empty"
+            " substitution list this denial is void.")
+        with self.assertRaisesRegex(MemoryGraphError, "DEAD COMMAND"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_the_refusal_names_all_three_ways_to_discharge_it(self):
+        record = self.denial_attempt("attempt.dead-expiry2.v1",
+                                     "python XX_scratch/x.py foo")
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("composed_census", message)
+        self.assertIn("beside it", message)
+
+    # The negative side, one test per escape the corpus actually uses.
+    def test_a_scratch_path_beside_a_repo_path_is_accepted(self):
+        record = self.denial_attempt(
+            "attempt.live-expiry-repo.v1",
+            "python MC_scratch/mc_screen_rest.py, or directly: python"
+            " tools/gdl/unabsorbed.py game/sys/memcard and read"
+            " check_prefs_loaded's class.")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_a_scratch_path_beside_a_build_path_is_accepted(self):
+        record = self.denial_attempt(
+            "attempt.live-expiry-build.v1",
+            "python MF_scratch/mf_bsslayout.py (or"
+            " `build/binutils/powerpc-eabi-objdump.exe -t"
+            " build/GUNE5D/src/game/anim/.postprocess/body/atree.o`)")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_a_scratch_path_beside_a_backticked_tool_name_is_accepted(self):
+        """WR's form: '(or `wf_word_diff` for the count)'. The tool
+        vocabulary is read from tools/gdl at gate time, so it cannot go
+        stale as tools are promoted or renamed."""
+        record = self.denial_attempt(
+            "attempt.live-expiry-tool.v1",
+            "`python WR_scratch/wr_wordscreen.py game/boss/bosscam"
+            " LimitCamVal2` (or `wf_word_diff` for the count)")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_an_ordinary_expiry_check_is_untouched(self):
+        """567 of the 574 measured fields are this shape."""
+        record = self.denial_attempt(
+            "attempt.live-expiry-plain.v1",
+            "python tools/gdl/probe.py game/audio/audio AudioLoadPart --ops")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_the_gate_covers_every_command_bearing_typed_field(self):
+        """premise_measurement and falsifier promise commands too, and one
+        of the seven measured scratch fields is a premise_measurement."""
+        self.assertEqual(
+            set(core.COMMAND_BEARING_FIELDS),
+            {("denial", "expiry_check"), ("denial", "falsifier"),
+             ("denial", "premise_measurement"),
+             ("hypothesis", "cheapest_refuting_observation")})
+
+    def test_a_dead_premise_measurement_is_refused_too(self):
+        record = self.denial_attempt(
+            "attempt.dead-premise.v1",
+            "python tools/gdl/probe.py game/x y --ops",
+            premise_measurement="python WS_scratch/ws_make_perm_rule.py"
+                                " game/world/items AddItemInstList")
+        with self.assertRaisesRegex(MemoryGraphError,
+                                    "premise_measurement"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_the_classifier_is_directly_callable_and_names_the_path(self):
+        self.assertEqual(
+            core.dead_scratch_command("python MC_scratch/mc_valeq.py foo"),
+            "MC_scratch/")
+        self.assertIsNone(core.dead_scratch_command(""))
+        self.assertIsNone(core.dead_scratch_command(None))
+        self.assertIsNone(core.dead_scratch_command("ninja build/x.o"))
+
+    def test_a_bare_script_name_outside_scratch_counts_as_reachable(self):
+        self.assertIsNone(core.dead_scratch_command(
+            "python AA_scratch/a.py, or run wf_rederive_pin.py from the"
+            " repo root"))
+
+    def test_a_bare_tool_word_in_PROSE_does_not_count(self):
+        """'all through shipped webfrank code' names no command — this is
+        the distinction that separates the one true positive from the six
+        false ones, so backticks are required deliberately."""
+        self.assertEqual(
+            core.dead_scratch_command(
+                "python MC_scratch/mc_valeq.py foo (all through shipped"
+                " webfrank code)"),
+            "MC_scratch/")
+
     # --- run-39 item 7: the cap-STRENGTHENING path ------------------------
     # AGENTS.md's alignment-sensitivity rule is written entirely for the case
     # where a re-probed cap FLIPS. The other outcome is evidence too, and the

@@ -234,6 +234,38 @@ LAW_STATUS_NOTES = {
 # re-checkable by somebody else.
 DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
 
+# Gate M (run-49 item 5). The four typed fields that promise a COMMAND a
+# later lane can run. Each is the mechanism by which a denial or a hypothesis
+# stops being immortal, so a command nobody can run is the same failure as
+# having no command at all — worse, because the record reads as falsifiable.
+COMMAND_BEARING_FIELDS = (
+    ("denial", "expiry_check"),
+    ("denial", "falsifier"),
+    ("denial", "premise_measurement"),
+    ("hypothesis", "cheapest_refuting_observation"),
+)
+# A lane scratch directory is UNTRACKED and per-worktree by AGENTS.md rule 17
+# ("Lane scratch directories stay UNTRACKED ... never `git add` your
+# XX_scratch/"), so a command rooted there is dead the moment its lane's
+# worktree is removed. This is the only path class that is dead BY
+# CONSTRUCTION rather than by accident.
+_LANE_SCRATCH_RE = re.compile(r"\b[A-Za-z0-9]{1,12}_scratch[\\/]", re.I)
+# What makes a field still runnable. Any ONE of these is enough.
+_REPO_DIR_RE = re.compile(
+    r"\b(?:tools|memory_graph|build|config|src|include|research|orig)[\\/]",
+    re.I)
+_REPO_BARE_RE = re.compile(r"\b(?:ninja|gdlmem|configure\.py)\b", re.I)
+# A bare `<name>.py` with no directory in front of it — "run wf_word_diff.py"
+# — is reachable; one INSIDE a scratch path is not, and the lookbehind is
+# what separates them.
+_BARE_SCRIPT_RE = re.compile(r"(?<![\w\\/])([A-Za-z0-9_]+)\.py\b")
+# A BACKTICKED tool name, which is how the corpus writes an alternative
+# command: "(or `wf_word_diff` for the count)". Backticks are required
+# deliberately — matching bare tool basenames anywhere in the prose accepts
+# "all through shipped webfrank code", which names no command at all and is
+# exactly the record this gate exists to refuse.
+_BACKTICK_RE = re.compile(r"`([^`]*)`")
+
 # A HYPOTHESIS is discipline 10b's payload: the untried idea a record ends on,
 # which becomes the next lane's MANDATORY step 1. Prose hypotheses are
 # extracted by phrase match today, which is a guess; the typed form is exact
@@ -4653,7 +4685,13 @@ def record_template(kind: str) -> dict[str, Any]:
                                        " command and its numbers>",
                 "expiry_check": "<REQUIRED if present: the COMMAND a later"
                                 " lane runs to see whether this still holds."
-                                " A denial with no expiry check is immortal>",
+                                " A denial with no expiry check is immortal;"
+                                " one rooted in YOUR_scratch/ is refused"
+                                " (gate M) because that directory is"
+                                " untracked and per-worktree — promote the"
+                                " script, name the shipped tool it wraps, or"
+                                " put the repo-reachable equivalent beside"
+                                " it>",
                 "falsifier": "<REQUIRED if present: what evidence would"
                              " DISPROVE the denial>",
             },
@@ -4822,6 +4860,65 @@ def _mechanism_terms(text: str) -> set[str]:
     """Content words in ``text`` that could name a mechanism."""
     return {token.lower() for token in _TOKEN_RE.findall(text or "")
             if len(token) >= 4 and token.lower() not in _HYPOTHESIS_STOPWORDS}
+
+
+_TOOL_BASENAME_CACHE: dict[str, frozenset[str]] = {}
+
+
+def repo_tool_basenames(root: Path = REPO_ROOT) -> frozenset[str]:
+    """Every runnable tool basename under tools/gdl, cached per root.
+
+    Read from the filesystem rather than listed here so the vocabulary
+    cannot go stale as tools are added, promoted or renamed. 176 names at
+    4beafddf7 (tools/gdl plus tools/gdl/composed_census).
+    """
+    key = str(root)
+    cached = _TOOL_BASENAME_CACHE.get(key)
+    if cached is not None:
+        return cached
+    names: set[str] = set()
+    tools = Path(root) / "tools" / "gdl"
+    for directory in (tools, tools / "composed_census"):
+        try:
+            names.update(path.stem for path in directory.glob("*.py"))
+        except OSError:
+            continue
+    frozen = frozenset(names)
+    _TOOL_BASENAME_CACHE[key] = frozen
+    return frozen
+
+
+def dead_scratch_command(text: Any, root: Path = REPO_ROOT) -> str | None:
+    """The lane-scratch path making ``text`` unrunnable, or None.
+
+    A command rooted in a `<LANE>_scratch/` directory is dead BY
+    CONSTRUCTION: AGENTS.md rule 17 keeps those directories untracked and
+    per-worktree, so the script is gone the moment the lane's worktree is
+    removed — and a denial whose expiry_check is such a command reads as
+    falsifiable while being unfalsifiable by anyone else.
+
+    Returns None when the SAME field also names something a later lane can
+    actually run: a repo directory path, a bare `<name>.py`, `ninja` /
+    `gdlmem` / `configure.py`, or a BACKTICKED tools/gdl basename (which is
+    how the corpus writes an alternative: "(or `wf_word_diff` for the
+    count)"). That fallback test is the whole gate, not a refinement of it —
+    see the calibration in `_apply_proposal_gates` Gate M.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return None
+    hit = _LANE_SCRATCH_RE.search(text)
+    if not hit:
+        return None
+    if _REPO_DIR_RE.search(text) or _REPO_BARE_RE.search(text):
+        return None
+    if _BARE_SCRIPT_RE.search(text):
+        return None
+    names = repo_tool_basenames(root)
+    for quoted in _BACKTICK_RE.findall(text):
+        for token in re.split(r"[\s(),;]+", quoted):
+            if token.removesuffix(".py") in names:
+                return None
+    return hit.group(0)
 
 
 def hypothesis_refuter_warning(hypothesis: Any) -> str | None:
@@ -5469,6 +5566,63 @@ def _apply_proposal_gates(
                 " SAY SO with the span: a partial table with its bounds is"
                 " useful evidence; the same table without them is a trap."
             )
+
+    # Gate M (run-49 item 5, from T18). A typed field that PROMISES a command
+    # a later lane can run, but names only a `<LANE>_scratch/` script, is a
+    # dead command by construction: AGENTS.md rule 17 keeps those directories
+    # untracked and per-worktree, so the script is gone with the worktree.
+    # The record then reads as falsifiable while nobody but its author could
+    # ever falsify it — T18 found exactly one such record and it stood
+    # unfalsifiable for a whole run.
+    #
+    # TWO-SIDED CALIBRATION at 4beafddf7, over all 574 command-bearing typed
+    # fields in records/ and inbox/ (125 denial.expiry_check, 125
+    # denial.falsifier, 125 denial.premise_measurement, 199
+    # hypothesis.cheapest_refuting_observation):
+    #
+    #   name a *_scratch/ path                          7
+    #   ... of which ALSO name a runnable repo command   6   <- NOT refused
+    #   ... genuinely dead                               1   <- refused
+    #   name no scratch path at all                    567   <- untouched
+    #
+    # The negative half decided the design. A gate that refused on the
+    # scratch path alone would refuse 7 and be WRONG on 6 of them (86%): four
+    # of those name `tools/gdl/...` outright, one names
+    # `build/binutils/powerpc-eabi-objdump.exe`, and one offers "(or
+    # `wf_word_diff` for the count)". Reading the would-be-refused SET, not
+    # its size, is what showed that — the run-44 lesson applied again. The
+    # one refusal is
+    # attempt.MC_drawmemcardmessage-every-existing-class-refuses-including-
+    # value-equality.20260902.v1, whose only escape hatch is the prose "all
+    # through shipped webfrank code", which names no command.
+    for block, field in COMMAND_BEARING_FIELDS:
+        value = _record_field(record, block)
+        if not isinstance(value, dict):
+            continue
+        scratch = dead_scratch_command(value.get(field))
+        if not scratch:
+            continue
+        fail(
+            f"{block}.{field} names only a lane scratch path"
+            f" ({scratch}...) — that is a DEAD COMMAND by construction."
+            " AGENTS.md rule 17 keeps `XX_scratch/` untracked and"
+            " per-worktree, so the script is gone the moment your worktree"
+            " is removed, and this record would read as falsifiable while"
+            " nobody else could ever run the check. T18 found one such"
+            " record standing unfalsifiable for a full run"
+            " (attempt.MC_drawmemcardmessage-every-existing-class-refuses-"
+            "including-value-equality.20260902.v1)."
+            "\nDISCHARGE IT any of three ways, all of which the corpus"
+            " already uses: (a) PROMOTE the script to"
+            " tools/gdl/composed_census/ (lane-prefixed name, repo-root"
+            " paths, run it once from the repo root first) and cite that"
+            " path; (b) name the shipped tool the script wraps, e.g."
+            " `python tools/gdl/composed_census/wf_word_diff.py <unit>"
+            " <fn>`; (c) keep the scratch command as the convenience form"
+            " and add the repo-reachable equivalent beside it — six of the"
+            " seven scratch-naming fields in the corpus already do exactly"
+            " that, and none of them is refused here."
+        )
 
     # Gate C. A park that changed several things at once and does not say
     # which variable it held fixed reads as a veto on every axis it touched.
