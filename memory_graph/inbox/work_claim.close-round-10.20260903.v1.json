@@ -2,7 +2,10 @@
   "attributes": {
     "integrator": "claude-fable-integrator",
     "owned_units": [
-      "game/pb/dbgtext.c"
+      "game/pb/dbgtext.c",
+      "game/ui/btext.c",
+      "game/enemy/critter.c",
+      "game/mb/mb_model.c"
     ],
     "scope": "CLOSE lane round 10: (1) FLAGSHIP: fn_800C03E0 (dbgtext, real 484 / fuzzy 95.4388 / T433-O433 / 4t / 6 clusters @c2a55aa7a - attempt.NC_fn800c03e0-a-missing-textx-local-and-a-spurious-row-pointer-copy.20260903.v1 has the block map: mode3 0x60-0x250, mode2 0x254-0x3b8, mode5 0x3c0-0x41c, mode1 0x41c-0x57c, mode4 0x580-0x67c); continue the census nearest-first; COUNT PARITY IS A HARD PRECONDITION on this -Cpp_exceptions TU (one extra insn = -84 B extabindex, measured); closing it unblocks the dbgtext flip - if it closes, run the flip screen as STEP 0 (the run-49 doctrine) and flip via finish_tu w/ full ninja + retail sha1. (2) Then the fresh roster - CAUTION: nearmiss real is contaminated by data-position rows until T20's column lands (write_health_and_items real 68 = an 840-byte rodata offset); check the aligned view for reloc-addend dominance BEFORE spending a probe cycle; verify inherited residual signatures' CLUSTER LISTS live at HEAD (the run-49 AudioLoadPart stale-carrier lesson), not just word counts. dcsReadCalls (1 surplus prologue mr) + ControllerMessageBox (peephole-ON proven) carry fresh NC records - read before touching. Extend owned_units at selection; claims --owns per unit; byte-exact or typed park; one commit per landed fn; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; defake baseline per TU. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
   },

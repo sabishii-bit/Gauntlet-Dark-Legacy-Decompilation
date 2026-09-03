@@ -878,9 +878,10 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
         }
         if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
             for (j = 0; j < ((CritterPackedType *)c->hdr)->colCount; j++) {
-                node = (u8 *)c + offsetof(Critter, hitnodes) +
-                       j * sizeof(CritterHitNode);
-                if (*(void **)(node + offsetof(CritterHitNode, active)) == NULL) {
+                u8 *hn = (u8 *)c + j * sizeof(CritterHitNode);
+                node = hn + offsetof(Critter, hitnodes);
+                if (*(void **)(hn + (offsetof(Critter, hitnodes) +
+                                     offsetof(CritterHitNode, active))) == NULL) {
                     continue;
                 }
                 if (*(f32 *)(node + offsetof(CritterHitNode, activeFrom)) >=
