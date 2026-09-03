@@ -1307,6 +1307,154 @@ class NamedBankTests(unittest.TestCase):
         self.assertTrue(keep_consumes_transient_bank(["--no-bank"]))
 
 
+class NestedBlockHoistAttributionTests(unittest.TestCase):
+    """Run-42 item 8: CT's stated `--revert` cause, on CT's ACTUAL tree.
+
+    T11 fixed a real defect in `discard_refusal` (an outside COUNT printed
+    against a list that also held straddling hunks) but recorded that CT's
+    STATED cause never reproduced — "three constructed nested-block
+    declaration hoists ... all attributed every hunk INSIDE the function",
+    and "whether the original observation had a third cause is unresolved
+    and needs the CT lane's actual tree to settle"
+    (attempt.T11_tool-queue-11-ten-items-with-three-calibration-narrowings
+    .20260903.v1).
+
+    The tree below is MBCameraUpdate as it stood at 503a6a186, the commit
+    attempt.CT_mbcameraupdate-statement-order-drive.20260903.v1 records —
+    the artificial block with `int dstOffset = 0;` and a shadowing
+    `f32 z`, and the do-loop body's own `int srcOffset` / `int col`. The
+    hoists are CT's probes B and D verbatim. Every one attributes INSIDE.
+
+    FALSIFIER for the refutation this encodes: any source shape in this
+    repository for which `restore_scope_counts` returns a `straddling`
+    row. None has been found — T11's three constructed cases, CT's two real
+    probes, and a third hoist that moves the artificial block's own brace
+    lines all attribute inside, while a sibling edit attributes outside.
+    """
+
+    TREE = '''void MBWorldToScreen(f32* dst, f32* world)
+{
+    dst[2] = dst[3];
+    dst[3] = lbl_80348B20;
+}
+
+/* 0x800B582C - MBCameraUpdate : per-frame MB camera / projection setup. */
+void MBCameraUpdate(f32* position, f32* matrix)
+{
+    f32* saved = lbl_8029E378;
+    int row;
+    f32* view3 = &camera[41];
+    f32 z;
+
+    CopyMat3(matrix, copied);
+
+    row = 0;
+    {
+        int dstOffset = 0;
+        f32 z = lbl_80348B3C;
+
+        do {
+            int srcOffset = row * 4;
+            int col;
+
+            for (col = 0; col < 3; col++) {
+                *(f32*)((u8*)view3 + dstOffset + col * 4) =
+                    *(f32*)((u8*)matrix + srcOffset + col * 16);
+            }
+            *(f32*)((u8*)view3 + dstOffset + 12) = z;
+            row++;
+            dstOffset += 16;
+        } while (row < 3);
+    }
+    view3[15] = lbl_80348B20;
+}
+'''
+
+    def counts(self, current):
+        return probe.restore_scope_counts(self.TREE, current,
+                                          "MBCameraUpdate")
+
+    def test_ct_probe_D_hoist_is_attributed_inside(self):
+        """`int srcOffset;` and `int col;` hoisted from the do-loop body to
+        the enclosing block's declaration list."""
+        current = self.TREE.replace(
+            "        do {\n"
+            "            int srcOffset = row * 4;\n"
+            "            int col;\n",
+            "        int srcOffset;\n"
+            "        int col;\n\n"
+            "        do {\n"
+            "            srcOffset = row * 4;\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(0, outside)
+        self.assertEqual([], entangled)
+
+    def test_ct_probe_B_hoist_is_attributed_inside(self):
+        """`row = 0;` moved across the artificial block's brace."""
+        current = self.TREE.replace(
+            "    row = 0;\n"
+            "    {\n"
+            "        int dstOffset = 0;\n",
+            "    {\n"
+            "        int dstOffset;\n\n"
+            "        row = 0;\n"
+            "        dstOffset = 0;\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(0, outside)
+        self.assertEqual([], entangled)
+
+    def test_moving_the_blocks_own_brace_lines_is_attributed_inside(self):
+        """The shape the previous docstring PREDICTED would straddle."""
+        current = self.TREE.replace(
+            "    row = 0;\n"
+            "    {\n"
+            "        int dstOffset = 0;\n"
+            "        f32 z = lbl_80348B3C;\n\n"
+            "        do {\n",
+            "    row = 0;\n"
+            "    dstOffset = 0;\n"
+            "    z = lbl_80348B3C;\n"
+            "    {\n"
+            "        do {\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(0, outside)
+        self.assertEqual([], entangled)
+
+    def test_a_sibling_edit_is_still_attributed_outside(self):
+        """The control: the attribution is not simply saying INSIDE to
+        everything."""
+        current = self.TREE.replace("    dst[2] = dst[3];",
+                                    "    dst[2] = dst[3]; /* x */")
+        inside, outside, entangled = self.counts(current)
+        self.assertEqual(0, inside)
+        self.assertEqual(1, outside)
+        self.assertEqual(["outside"], [row[0] for row in entangled])
+
+    def test_a_hoist_beside_a_sibling_edit_separates_the_two(self):
+        """The state a --discard actually refuses in: work inside AND
+        outside at once."""
+        current = self.TREE.replace(
+            "    dst[2] = dst[3];", "    dst[2] = dst[3]; /* x */").replace(
+            "        do {\n"
+            "            int srcOffset = row * 4;\n"
+            "            int col;\n",
+            "        int srcOffset;\n"
+            "        int col;\n\n"
+            "        do {\n"
+            "            srcOffset = row * 4;\n")
+        inside, outside, entangled = self.counts(current)
+        self.assertGreater(inside, 0)
+        self.assertEqual(1, outside)
+        self.assertEqual(["outside"], [row[0] for row in entangled])
+        text = probe.discard_refusal("MBCameraUpdate", "game/mb/mb_camera",
+                                     inside, outside, entangled)
+        self.assertIn("1 uncommitted hunk(s) lie OUTSIDE", text)
+        self.assertNotIn("STRADDLE", text)
+
+
 class RescoreGuardTests(unittest.TestCase):
     BASE = {"best_real": 48, "best_multiset": 4, "last_real": 65,
             "last_insns": "T116/O115", "last_multiset": 3,

@@ -1498,9 +1498,7 @@ def discard_refusal(fn, unit, inside, outside, entangled):
     TWO CLASSES, REPORTED SEPARATELY (run-41 item 9). `restore_scope_counts`
     returns OUTSIDE and STRADDLING hunks in one list while counting only the
     outside ones, and this text used to print the outside COUNT against the
-    whole LIST. On a hunk that crosses the boundary — which is what a
-    declaration hoist out of a nested block produces when it moves the
-    function's own bracing lines — it read, verbatim:
+    whole LIST. On a hunk that crosses the boundary it read, verbatim:
 
         0 uncommitted hunk(s) in this TU lie OUTSIDE alpha
         (straddling L12-L13)
@@ -1509,6 +1507,20 @@ def discard_refusal(fn, unit, inside, outside, entangled):
     `--discard --function` as the remedy, which probe's own control flow
     refuses again for exactly that hunk. Both numbers now come from the list
     they describe, and only the remedies that can actually run are offered.
+
+    WHAT PRODUCES A STRADDLING HUNK IS STILL AN OPEN QUESTION (run-42 item
+    8). This docstring used to answer it — "which is what a declaration
+    hoist out of a nested block produces when it moves the function's own
+    bracing lines" — inheriting the CT lane's stated cause. That cause is
+    now REFUTED against CT's own tree: replayed on
+    src/game/mb/mb_camera.c at 503a6a186, CT's probes B and D (and a
+    third hoist that moves the artificial block's brace lines) each
+    attribute EVERY hunk INSIDE MBCameraUpdate — 2, 3 and 2 inside, zero
+    outside, zero straddling — while a sibling edit in the same file is
+    correctly attributed outside. T11's constructed cases said the same
+    thing; CT's real tree now says it too. The straddling CLASS is real and
+    the suite's own fixture exercises it; what SOURCE SHAPE produces one in
+    this codebase is unknown, and no example has been found.
     """
     outside_spans = [row for row in entangled if row[0] == "outside"]
     straddling = [row for row in entangled if row[0] == "straddling"]
