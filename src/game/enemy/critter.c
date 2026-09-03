@@ -3643,11 +3643,11 @@ void CritterUpdateCounters(Critter *c)
 /* 0x800396A4 -- run the compact golem/general AI path. */
 s32 CritterGolemAI(Critter *c)
 {
+    s32 mt;
     CritterMove *move0;
     CritterMove *move;
     CritterMove *nm;
     Critter *child;
-    s32 mt;
     s32 i;
     f32 speed;
     f32 ratio;
