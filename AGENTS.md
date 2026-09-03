@@ -408,7 +408,20 @@ one, and supersede the law if your target contradicts it.
    required once per commit, not once per edit. (Run-36 note: the
    suite now runs ~17s, but editing any `tools/gdl/*.py` invalidates
    the graph DB fingerprint, so the NEXT graph-suite run pays a ~19s
-   rebuild — a timing swing, not flakiness.)
+   rebuild — a timing swing, not flakiness.) **`python -m
+   memory_graph.test_graph --changed` decides that per-commit run from
+   the paths git reports** (`--since <ref>` compares a range instead of
+   the working tree): it runs the full suite when anything under
+   `memory_graph/`, `tools/gdl/`, `config/GUNE5D/` or
+   `research/xbox_symbols/` changed and skips otherwise, printing both
+   sides of the comparison. Those four roots are the MEASURED input set
+   (instrumented run: 2,164 repo paths read, nothing under `src/`,
+   `include/`, `configure.py` or `AGENTS.md`) — the intuitive "did I
+   touch a memory_graph file?" reading is NOT the discriminant and would
+   have wrongly skipped 17 of the last 60 commits, because every
+   `tools/gdl` source is a graph build input and `config/GUNE5D/
+   webfrank.json` feeds law/pin queries. Over those 60 commits the
+   sound gate skips 30, worth ~20 minutes.
 14. **A guard's refusal is a measurement of the guard, not only of the
    function.** Two coarse guards each refused a provable function
    while failing correctly by their own logic (blanket relocation
