@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Arity family, run 43: (1) pass the DoTexMods argument the target materialises in r3 at the call; (2) correct the gControllerButtons mask at screensaver.c:795 from bit 0 to bit 32 after the aligned view showed the target ANDing the FIRST word with 1.",
+  "attributes": {
+    "law_screen": "claim.law.NM_an-unread-trailing-parameter-is-invisible-in-the-callee-and-costs-the-caller-an-instruction.20260903.v1 APPLIED IN MIRROR IMAGE: the law's proven direction is a caller paying for a PHANTOM argument, and this row is the opposite configuration - a caller MISSING an argument the target does materialise, which the KNR law's own test names as the genuine-arity-bug branch. claim.law.knr-extern-arity-can-be-faithful-not-a-defect.20260831.v1 APPLIED and DECIDED THE ROW: its test is 'read the target disassembly at the call site and look for setup of the argument register the extra parameter would occupy'; the target at ScreenSaver@0x140 reads `lwz r3,@sPowerupsBuf` immediately before `bl DoTexMods` while ours read `lwz r0`, so the target DOES set the argument register and the short call was a genuine defect, not faithful 2001 source. claim.T12_arity-census-the-unread-trailing-parameter-class-sized-for-the-first-time.20260903.v1 supplied the row (KNR-SHORT-CALL DoTexMods, short call at src/game/ui/screensaver.c:811).",
+    "laws_applied": "[\"claim.law.knr-extern-arity-can-be-faithful-not-a-defect.20260831.v1\", \"claim.law.NM_an-unread-trailing-parameter-is-invisible-in-the-callee-and-costs-the-caller-an-instruction.20260903.v1\"]",
+    "probed_form": "screensaver.c:756 `void DoTexMods(void);` -> `void DoTexMods(void* seq);` and screensaver.c:811 `DoTexMods();` -> `DoTexMods(sPowerupsBuf);` (the callee is game/anim/atree.c:256 `void DoTexMods(atreeseq* seq)`, which reads seq 3x). Second edit: screensaver.c:795 `if ((gControllerButtons & 1) != 0)` -> `if ((gControllerButtons & 0x100000000LL) != 0)`.",
+    "residual": "real 38, T116/O116, opcode multiset IDENTICAL, pure reorder. One cluster remains: the loop preamble at @0x64-0x7c, where ours emits lis/addi/add/mtctr before `li r4,0` and the target emits `li r4,0` first, then mtctr/add/lis, then the addi at 0x78. Schedule-class, address-constant hoist ordering; not touched, no axis probed. SEPARATE AND UNCURED: every gControllerButtons reference in this TU carries a relocation-identity difference - the target relocates the second word against the distinct split symbol `sFlags` (config/GUNE5D/symbols.txt: gControllerButtons = .sbss:0x803445C8 size 0x4, sFlags = .sbss:0x803445CC size 0x4) while our `extern s64 gControllerButtons` emits `@gControllerButtons+0x4`. Same bytes, different reloc symbol; it appears in ScreenSaver, ServeFireScroll (twice) and ControllerMessageBox and is invisible to every score.",
+    "scope": "src/game/ui/screensaver.c only (2 commits: f1834059c the argument, 1b98e9997 the mask). game/anim/atree.c was NOT edited - the callee already had the right signature; the defect was entirely caller-side.",
+    "verification": "defake_gate baseline game/ui/screensaver.c --at-head anchored at commit 7e2052c72, source sha1 5eb5467fa. probe.py game/ui/screensaver ScreenSaver: BASELINE real 52 (T116/O116, multiset 0t), fresh objdiff fuzzy 94.3362; after the argument IMPROVED real 52 -> 48, fresh fuzzy 94.4224; after the mask IMPROVED real 48 -> 38, fresh fuzzy 94.6983. Count parity T116/O116 HELD unchanged across both edits, so both keeps were arbitrated on FRESH fuzzy per AGENTS.md discipline 9c, not on real. defake_gate check --rebuild: GATE OK (1 improved), no byte-exact sibling lost. Full `ninja -j2` printed `build/GUNE5D/main.dol: OK` after each commit. The mask edit ALSO removed the function's only two IMMEDIATE rows (T[44]@b0 `li r0,1` vs O `li r4,0`; T[46]@b8 `li r4,0` vs O `li r3,1`); the opcode multiset went from 'IDENTICAL but 2 IMMEDIATE words differ - NOT pure reorder' to plain 'IDENTICAL -- pure reorder'."
+  },
+  "function": "function:ScreenSaver",
+  "id": "attempt.AR_screensaver-two-closes-a-missing-argument-and-a-high-word-mask.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T04:53:29Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "insert T[25:25]@64-64=[] O[25:29]@64-74=['lis', 'addi', 'add', 'mtctr'] / delete T[26:29]@68-74=['mtctr', 'add', 'lis'] O[30:30]@78-78=[] / delete T[30:31]@78-7c=['addi'] O[31:31]@7c-7c=[]"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
