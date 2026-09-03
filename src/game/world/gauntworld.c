@@ -1764,10 +1764,9 @@ void fn_8005E90C(Item* item, s32* inst)
     Item* child;
     Item* result;
     s32 idx;
-    s32 delta;
     u32 fl;
     s32 t;
-    u8 unused[12];
+    u8 unused[24];
 
     idx = *(s16*)&item->data[0];
     info = item->info;
@@ -1777,11 +1776,10 @@ void fn_8005E90C(Item* item, s32* inst)
     } else {
         return;
     }
-    delta = (s32)((u8*)item - (u8*)sItems);
     while (row->type == -1) {
         s32 n = row->item.subtype;
         s32 r;
-        t = delta / 240;
+        t = ((u8*)item - (u8*)sItems) / 240;
         if (n != 0) {
             r = ((sItemRandSeed >> 5) + t) % (u32)n;
         } else {
@@ -1832,7 +1830,7 @@ void fn_8005E90C(Item* item, s32* inst)
         newItem = NewItemPtr_800642C8();
         SetItem(newItem, NULL, row, gIdentityMatrix);
         result = newItem;
-        MBNodeSetParent(newItem->objgrp.node, *(void**)&item->data[8]);
+        MBNodeSetParent(result->objgrp.node, *(void**)&item->data[8]);
         *(Item**)&item->data[12] = newItem;
         *(Item**)&newItem->data[12] = item;
         newItem->opener = (s8)(inst != NULL ? *inst : -1);
