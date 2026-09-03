@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/datadiff.py",
+    "tools/gdl/finish_tu.py",
+    "config/GUNE5D/splits.txt"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A splits.txt claim ending at a non-4-byte-aligned address whose following range is UNCLAIMED and which dtk nevertheless splits successfully (`ninja` reaching the SPLIT step green) would disprove the alignment half. A datadiff run reporting `OK` on a section with nonzero claim slack, or a finish_tu.py run that flips a TU whose datadiff exits 1, would disprove the pipeline half.",
+  "id": "claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-some-claim-slack-is-structural.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T16:25:17Z",
+  "schema_version": 1,
+  "subject": "tool:finish-tu",
+  "valid_from": "2026-09-03",
+  "value": "claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1's fix procedure ('shrink the splits.txt end to the object's true extent') is only reachable when the NEXT unit in the section is itself CLAIMED. When the neighbouring range is unclaimed, dtk auto-generates a split at the shrunken end address and hard-fails `Invalid alignment for split: auto_NN_<addr>_<section>` unless that address is 4-byte aligned, so a data section whose object extent is not 4-aligned CANNOT be claimed exactly. Measured on game/anim/atree.c 2026-09-03: .rodata object extent 0x17B ending at 0x801108FB (odd) was rejected, 0x801108FC accepted with 1 byte of zero slack; .sdata2 extent 0x16 ending at 0x8034585E (2-aligned) was rejected, 0x80345860 accepted with 2 bytes of slack; .sbss ending at 0x803441EC was accepted with ZERO slack once symbols.txt's natreelists size was shrunk 0x8 -> 0x4 per the parent law. The mb_font counterexample that motivated the parent law is the claimed-neighbour case: its .rodata legitimately ends at the odd 0x80115D6F because game/mb/mb_lights.c claims 0x80115D70. CONSEQUENCE FOR THE FLIP PIPELINE: tools/gdl/datadiff.py scores ANY nonzero claim slack as a section MISMATCH and exits 1, and tools/gdl/finish_tu.py refuses to flip on that exit code with 'data bytes differ from DOL ... wrong constants or emission order never link green' -- which is false for this shape, since every compared byte is equal and the slack is zero-filled link padding. The condition is not rare: `datadiff.py --matching --no-deadstrip` reports zero-slack rows on roughly forty ALREADY-Matching, already-green units (zlib/inflate, MSL/printf, dolphin/os/OSAlloc, dolphin/gx/GXAttr, game/crt/vsprintf and more), so finish_tu today cannot flip a TU of a class it has already shipped many members of."
+}

@@ -526,7 +526,7 @@ s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
 
 s32 AnimateATree(atree* tree, s32 sequence, s32 last)
 {
-    return DoAnimateTree(0.0f, tree, sequence, 0, last, 1);
+    return DoAnimateTree(sAtreeZero, tree, sequence, 0, last, 1);
 }
 
 /* DoAnimateTree: animation-tree evaluation main (AnimateTree / WorldVector /
@@ -1345,7 +1345,7 @@ anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
             (AtreeNodeDef*)((u8*)definition->nodes + definitionOffset);
 
         if (nodeDefinition->parent >= i) {
-            FatalError("NODE HAS PARENT >= NODE", 0x804060);
+            FatalError("NODE HAS PARENT > NODE", 0x804060);
         }
 
         if (nodeDefinition->parent >= 0) {

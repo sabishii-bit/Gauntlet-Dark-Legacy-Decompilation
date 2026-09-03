@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.AF_run45-image-wide-flip-candidate-screen.20260903.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-03T16:25:18Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "Image-wide flip screen, 2026-09-03 at commit 73493c234, run TWO independent ways with the SAME verdict. (a) objdiff screen: of 55 NonMatching units in configure.py, exactly THREE had report.json matched_code == total_code -- game/anim/atree.c (36 fns, 11632 code bytes), game/mb/mb_font.c (24 fns, 4660), game/mb/mb_poly.c (11 fns, 2804). (b) fndiff screen over every NonMatching unit (`fndiff <unit> --clean --no-build`, counting functions whose status is not EXACT / MATCH (pool-name noise only) / MATCH-MODULO-RELOC-NAMING): the SAME three and no others. The plausible premise that the objdiff screen undercounts because reloc-naming functions score below 100 was therefore REFUTED on this corpus -- both screens returned the identical candidate set. mb_font and mb_poly were audited and flipped (linked 28.90% -> 29.59%, 202 -> 204 files); atree is blocked per attempt.AF_atree-is-flip-ready-except-that-globalizing-its-bss-moves-a-pinned-body.20260903.v1. THE FOLLOW-ON QUEUE is the six units that are ONE function from the same state, with their data readiness measured in the same pass: game/ps2/ml_fmath.c 45 fns, only WPitchMat3 open (STRUCTURAL real 4, `+1 lfsu / -1 lfs` at +0x6c plus one IMMEDIATE row `stfs f0,0(r4)` vs `stfs f0,8(r4)` at +0x84), claimcheck ok and .sdata2 100% -- DATA FULLY READY, the single highest-value flip on the board; game/audio/dcsdrv.c 3 fns, dcsHandleRequest open (STRUCTURAL 148), .data 0xB8 100%, data ready; game/pb/dbgtext.c 12 fns, fn_800C03E0 open (STRUCTURAL 554), no data sections at all, data ready; game/sys/sysservice.c 17 fns, sysResetService open (SCHEDULE_CANDIDATE 24), .rodata carries 0x3 zero claim slack; game/pb/pb_frame.c 14 fns, pbFrameMode open (STRUCTURAL 397), claimcheck notes .text obj 0x1ee4 > claim 0x1ee0; game/mb/mb_camera.c 6 fns, MBWorldToScreen3D open (STRUCTURAL 84), claimcheck ERROR -- object emits .sdata2 0x8 with nothing claimed, so this one needs a data claim as well as the function."
+}

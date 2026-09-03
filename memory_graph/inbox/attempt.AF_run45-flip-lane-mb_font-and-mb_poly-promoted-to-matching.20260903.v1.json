@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Whole-object promotion audit (text + relocations + .data/.rodata/.sdata2 + BSS/common + extab/extabindex) of every NonMatching TU whose .text is fully matched, then flip via tools/gdl/finish_tu.py under the full-link sha1 gate.",
+  "attributes": {
+    "law_screen": "claim.law.bss-reverse-declaration-order.20260829.v1 SCREENED and APPLIED as a check: mb_poly emits .bss 0x5300 + .sbss 0x18 and datadiff reports both 'size equal (bss)' against the splits claim, so no COMMON reordering is present; no BSS declaration was added or moved by this lane. claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1 SCREENED: neither mb_font nor mb_poly reports claim slack (datadiff prints 'OK 0xN bytes compared' for every initialized section), so the law's failure shape is absent from both. claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 SCREENED via fndiff --clean: the only reloc residual in either TU is anonymous-pool-vs-named-symbol SPELLING (POOL-KIND-EQUAL rows), with zero POOL-DEFECT rows and zero WRONG-DATUM rows. claim.law.CV_pinned-residuals-are-unreachable-across-the-local-mwcc-archive SCREENED for reporting: mb_font ships two WebFrank pins (MBRenderText, MBNewFont) so its promotion is EQUIVALENT-tier for those two of 24 functions; mb_poly has no pins and is fully STRICT.",
+    "laws_applied": "[\"claim.law.bss-reverse-declaration-order.20260829.v1\", \"claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1\"]",
+    "probed_form": "no source edit in either TU; the only change is configure.py Object(NonMatching,...) -> Object(Matching,...) applied by tools/gdl/finish_tu.py.",
+    "residual": "none in these two TUs. mb_font's MBRenderText remains a WebFrank-served function and is therefore promotion debt under the run-45 directive: closing it source-exact would delete its rule.",
+    "scope": "configure.py only. Commits 1e787a02d 'Match game/mb/mb_font.c' and 47ec5953c 'Match game/mb/mb_poly.c' on branch claude/atree-flip-20260904.",
+    "verification": "Per TU, before the flip: claimcheck ok (mb_font .data 0x54 .rodata 0x87 .sdata2 0x44 .text 0x1234 extab 0x30 extabindex 0x48; mb_poly .bss 0x5300 .rodata 0x4b .sbss 0x18 .sdata2 0x40 .text 0xaf4 extab 0x40 extabindex 0x60); datadiff 100% on every initialized section; defake_gate.py baseline --at-head at commit b8b146891 reported 24/24 and 11/11 functions at real 0 (source sha1 060f788ed and 27d8ec27d). finish_tu.py ran configure.py + ninja -j2 with build/GUNE5D/ok deleted first and printed GREEN: sha1 verified for both. Full `ninja` after both flips prints build/GUNE5D/main.dol: OK and doldiff.py reports 'DOL matches (1 expected clean_extab diff suppressed)'. PROGRESS moved All linked 28.90% (202/326 files) -> 29.59% (204/326), Game Code linked 12.11% (47/102) -> 12.97% (49/102); STRICT 56.66% + EQUIVALENT 11.02% both unchanged, because a flip moves LINKED files and not matched code."
+  },
+  "function": "tu:game/mb/mb_font",
+  "id": "attempt.AF_run45-flip-lane-mb_font-and-mb_poly-promoted-to-matching.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:25:15Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-03",
+    "signature": "no-residual: every function EXACT / MATCH (pool-name noise only) / MATCH-MODULO-RELOC-NAMING under fndiff --clean"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
