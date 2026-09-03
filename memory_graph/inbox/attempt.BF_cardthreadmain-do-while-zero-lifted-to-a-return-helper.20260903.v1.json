@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Replace the CARDCMD_READ case's `do { ... if (res < 0) break; ... } while (0)` with a static helper whose early exits are `return res;`, then close the follow-on count and frame deltas.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (cure) and its `do { ... break; } while (0)` FOLDS clause CONFIRMED -- that is exactly the form this TU carried. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED: inside the helper, allocation follows declaration order ASCENDING (measured both ways -- `[info, stat, unused]` gives info@12/stat@32, `[stat, info, unused]` gives stat@12/info@120), which is the OPPOSITE of what the same declarations produced when they lived in the switch-case block. No webfrank pin exists for game/sys/cardutil.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\", \"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\"]",
+    "probed_form": "KEPT: `static s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card) { CARDStat stat; CARDFileInfo info; u8 unused[8]; s32 res; u32 length; res = CARDGetStatus(chan, fileNo, &stat); if (res < 0) { return res; } res = CARDFastOpen(chan, fileNo, &info); if (res < 0) { return res; } length = stat.length; card->mgr.totalXfer = length; res = CARDRead(&info, data, length, 0); CARDClose(&info); return res; }` plus `u8 unused[8];` added as cardThreadMain's FIRST local (that pad alone restored frame 208 -> the target's 216) and the shared `length` temp (it removed the caller's re-load of card->mgr.totalXfer for CARDRead's third argument).\nREVERTED, all three measured against the same aligned view: (a) a SECOND dead pad declared FIRST inside the helper (`u8 unusedLow[8];`) -- frame unchanged at 208, the pad never reached codegen; (b) widening the helper's own pad to `u8 unused[16]` -- frame unchanged at 208, same elision; (c) wrapping the helper's body in a nested compound statement with the declarations inside it -- reached codegen but SCRAMBLED the offsets (info@12/stat@32) instead of shifting them.",
+    "residual": "9 aligned IMMEDIATE rows, no opcode divergence at all. FIVE are one fact: the locals start at r1+12 in our build and at r1+20 in the target, so `addi r5,r1,20`/`addi r5,r1,128`/`lwz r5,52(r1)`/two `addi r3,r1,128` all read 8 low. FOUR are a two-web recolor of the pointer inits: target `addi r27,r31,808` / `addi r26,r31,836`, ours `addi r26,r31,808` / `addi r27,r31,836` (r26 and r27 transposed; the r29/r30 rows follow).",
+    "scope": "src/game/sys/cardutil.c only; commit 7486ca105.",
+    "verification": "probe.py game/sys/cardutil cardThreadMain --ops: BASELINE real 43 (T133/O130, multiset 13t, fuzzy 94.8947%) -> IMPROVED real 20, COUNT PARITY GAINED T133/O133, opcode multiset IDENTICAL, FRESH fuzzy 99.7444%. defake_gate check game/sys/cardutil (baseline anchored 45bef0f86): GATE OK (1 improved). Full ninja printed `build/GUNE5D/main.dol: OK`."
+  },
+  "function": "function:cardThreadMain",
+  "held_fixed": "The cardDoRead helper body and its call site were held FIXED while the local DECLARATION ORDER inside it, the extra pad, and the caller's pad were varied one at a time.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Dump every `bl` target in the retail cardThreadMain and its prototype arity (`python tools/gdl/fnasm.py game/sys/cardutil cardThreadMain` + `python tools/gdl/aritycheck.py`): if no call in the function can carry more than two stack words under any prototype, the parameter-area reading is wrong and the 8 bytes are a local after all.",
+    "screened_against_target": "no -- I derived the 12-vs-4 parameter-area figure from the frame arithmetic (target 216 = 12 + stat 108 + info 20 + 8 + 8 + 60 saved; ours 208 with locals starting at 12) but never enumerated the call arities.",
+    "statement": "The 8 low bytes are NOT a dead pad -- three pad spellings were measured dead (see probed_form) because MWCC places unreferenced locals at the TOP of the frame. r1+8..r1+20 is 12 bytes of OUTGOING PARAMETER AREA in the target against 4 in ours, so the missing 8 belongs to a CALL, not to a declaration: find the call in cardThreadMain whose argument list reserves three stack words in the retail build and does not in ours."
+  },
+  "id": "attempt.BF_cardthreadmain-do-while-zero-lifted-to-a-return-helper.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:32:51Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "frame-slot",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +2 b +2 bge +2 cmpwi +2 mr  ours-only: -2 blt -1 lwz -2 mr."
+  },
+  "residual_class": "STACK_LAYOUT",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

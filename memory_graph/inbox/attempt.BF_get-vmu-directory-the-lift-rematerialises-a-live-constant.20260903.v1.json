@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Lift the `if ((u8) beginSaveCacheTransaction() != 1) { success = 0; }` guard into a static helper with an early `return success;` so its branch pair stops folding.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED -- the cure WORKS on the branch (the `+1 b +1 bne / -1 beq` signature is gone) and is still not worth keeping, see residual. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED and it is the binding constraint here. No webfrank pin covers get_vmu_directory in game/sys/memcard.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\", \"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\"]",
+    "probed_form": "(1) `static int checkSaveCacheTransaction(int success) { if ((u8) beginSaveCacheTransaction() == 1) { return success; } return 0; }`, defined after `#pragma opt_common_subs off` so the caller's pragma state covers it, replacing the two-line `if (...) { success = 0; }`.\n(2) the same with `register int success` as the parameter -- object bytes IDENTICAL to (1).",
+    "residual": "The lift closes the branch and costs two instructions to a CONSTANT it cannot keep live. Target: `bne ->50; b ->54; 50: li r30,0; 54: cmpwi r30,0` -- `success` stays in r30, already holding 1 from before the call, and the success path emits nothing. Ours after the lift: `bne ->54; li r0,1; b ->58; 54: li r0,0; 58: mr. r30,r0` -- MWCC constant-folded `success == 1` into the inlined return and had to materialise it, so the inline's phi register is a fresh r0 and the caller pays a `mr.`. The function's other four clusters (paired addis/addi address-expression scheduling at +0x68 and +0xf4) are the pre-existing park and were not touched.",
+    "scope": "src/game/sys/memcard.c probed and fully reverted; nothing committed.",
+    "verification": "probe.py game/sys/memcard get_vmu_directory --arbitrate: BANKED real 65 fuzzy 92.7155% vs CURRENT real 71 fuzzy 92.1983%, DELTA real +6 fuzzy -0.5172, ARBITER: fuzzy FELL -- REVERT. Reverted with `git checkout --`; `git status --short` clean apart from the untracked LANE_LOCK."
+  },
+  "function": "function:get_vmu_directory",
+  "held_fixed": "The helper's control flow and its call site `success = checkSaveCacheTransaction(success);` were held FIXED; only the parameter's storage class varied between the two probes.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/fnasm.py game/sys/memcard get_vmu_directory 0x0:0x40` -- if the target materialises the constant 1 into r30 with its own `li r30,1` before the mask test, then `success` IS a known 1 in the retail build too and no source spelling can remove the fold.",
+    "screened_against_target": "no -- I read the target only from +0x38 onward and never checked how r30 acquires its 1.",
+    "statement": "This row is only closable if `success` is NOT a compile-time 1 at the guard. It is 1 only because of the `int success = 1;` initialiser three statements earlier, which also feeds the `lbl_80343C78 & (success << bit)` test. Recover what the retail source actually spelled there -- if the mask test reads a literal `1 << bit` and `success` is initialised from something opaque (or later, after the mask test), the constant disappears and the same helper should coalesce into r30."
+  },
+  "id": "attempt.BF_get-vmu-directory-the-lift-rematerialises-a-live-constant.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T16:32:54Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 b +1 bne  ours-only: -1 beq"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

@@ -184,8 +184,31 @@ void cardExit(void) {
     } while (gCardMgr.result == -1);
 }
 
+static inline s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card) {
+    CARDStat stat;
+    CARDFileInfo info;
+    u8 unused[8];
+    s32 res;
+    u32 length;
+
+    res = CARDGetStatus(chan, fileNo, &stat);
+    if (res < 0) {
+        return res;
+    }
+    res = CARDFastOpen(chan, fileNo, &info);
+    if (res < 0) {
+        return res;
+    }
+    length = stat.length;
+    card->mgr.totalXfer = length;
+    res = CARDRead(&info, data, length, 0);
+    CARDClose(&info);
+    return res;
+}
+
 /* 0x800DC2C0 - the "Cardutilmainloop" worker thread */
 static void* cardThreadMain(void* arg) {
+    u8 unused[8];
     CardMgrBuf* card = (CardMgrBuf*)gCardBuf;
     OSMutex* mutex2 = &card->mgr.mutex2;
     s32* command = &card->mgr.command;
@@ -238,23 +261,9 @@ static void* cardThreadMain(void* arg) {
         case CARDCMD_DELETE:
             res = cardDoDelete(chan, fileNo);
             break;
-        case CARDCMD_READ: {
-            CARDFileInfo info;
-            CARDStat stat;
-            u8 unused[8];
-            do {
-                res = CARDGetStatus(chan, fileNo, &stat);
-                if (res < 0)
-                    break;
-                res = CARDFastOpen(chan, fileNo, &info);
-                if (res < 0)
-                    break;
-                card->mgr.totalXfer = stat.length;
-                res = CARDRead(&info, data, card->mgr.totalXfer, 0);
-                CARDClose(&info);
-            } while (0);
+        case CARDCMD_READ:
+            res = cardDoRead(chan, fileNo, data, card);
             break;
-        }
         case CARDCMD_WRITE:
             /* the WRITE command carries a CARDStat* in the param1 ("fileNo")
              * slot; the payload buffer travels in param2. */

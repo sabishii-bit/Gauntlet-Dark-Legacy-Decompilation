@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Re-run the return-blocks-fusion census live at run 45, rank its customers by fndiff `real` ascending with the run's claimed TUs excluded, and screen the work order's seeded first row.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 is the census's own law; this record reports its live population and the REFUTATION of the work order's seed. No other law applies to a census.",
+    "residual": "DISPOSITION this run -- CLOSED BYTE-EXACT 2: CritterMoveSetup (real 7 -> 0; duplicate, NM closed it independently), adsMoveRawToCooked (real 74 -> 0). IMPROVED AND COMMITTED 3: fn_8006F16C (35 -> 4), cardThreadMain (43 -> 20), LimitCamVal2 (58 -> 52). CAPPED WITH A TYPED RECORD 3: get_vmu_directory, sndFxStartVoice, WorldOpen. REFUTED 1: AudioSetupLevelStreams. HANDED BACK TO NM BY THE RELAY 1: CritterAnimate (probed here too, same measured boundary NM reports: the lift closes the pair and the inline result lands in the wrong register). UNWORKED 31.\nTHE ORDER'S SEED IS REFUTED TWICE. (a) DoEnemyAction is in game/anim/action.c, NOT game/enemy/enemy.c as the order states -- `gdlmem context DoEnemyAction` returns module game/anim/action.c and the probe unit is game/anim/action. (b) It is NOT a branch-pair customer at all: it appears in no row of the live census, and its run-44 record (attempt.NM_doenemyaction-entry-block-ordering-class-does-not-reach-codegen.20260903.v1) documents a SCHEDULE prologue-ordering residual, not this family. I ran that record's own expiry_check anyway: `python tools/gdl/probe.py game/anim/action DoEnemyAction --ops` gives BASELINE real 2, insns T482/O482, multiset 0t, with the two clusters still at @0x28-0x30 -- the denial has NOT expired and the seed was correctly left alone.",
+    "scope": "No source change. Ranking script kept UNTRACKED at BF_scratch/bf_rank.py (it wraps nm_branchpair_census.py's own loader plus one `fndiff --count` per unit); census side files written under build/GUNE5D/BF_census/.",
+    "verification": "`python tools/gdl/composed_census/nm_branchpair_census.py diff --out build/GUNE5D/BF_census` at commit b8b146891 reports 47 functions where the target carries more branch-over-one+b sites than ours -- exactly the figure the law predicted after run 44's four closures, so the tool and the law's population clause both replay. 44 rows survive the claimed-TU screen at dispatch (SetItem = WP's game/world/items, FindWORLDOBJ = NM's game/world/world, AudioEnterNextStage = NM's game/sound/sounds_evt; game/world/btricol = PP and game/anim/atree = AF contribute no rows), and the mid-run integrator relay closed game/enemy/critter to this lane too, taking a further 5 rows (CritterMoveSetup, CritterAnimate, CritterAnimInterrupt, CritterBossAI, CritterDamage) to NM and leaving 39."
+  },
+  "function": "tu:game/audio/adstream",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Compute the column over the 42 unclaimed rows from the two files already written under build/GUNE5D/BF_census/ plus one `fndiff --count` per unit -- zero builds. If the rows where delta equals the site count include any of this run's four caps, the column does not separate them.",
+    "screened_against_target": "no -- the correlation is read off this lane's own nine worked rows, which is too few to be more than a hypothesis, and it has not been computed over the other 33.",
+    "statement": "The census ranks by SITE COUNT and this lane ranked by `real`, but neither predicts profitability: the one row that closed byte-exact on the first probe (CritterMoveSetup, real 7) and the one that closed after four (adsMoveRawToCooked, real 74) sit at opposite ends of the `real` ordering, while the middle of the ranking produced the two caps. The predictive column is INSTRUCTION-COUNT DELTA MINUS SITE COUNT: a row where target-minus-ours insns EQUALS the missing-site count has the branch pair as its ONLY residual (adsMoveRawToCooked: 173-171 = 2 = 2 sites, closed exact; cardThreadMain: 133-130 = 3 vs 2 sites, closed to a pure slot residual), and a row where they disagree is carrying something else. Add that column to nm_branchpair_census.py and re-rank."
+  },
+  "id": "attempt.BF_branchpair-census-rerun-45-rows-ranked-and-the-seed-refuted.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:32:51Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

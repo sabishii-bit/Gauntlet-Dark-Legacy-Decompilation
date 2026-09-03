@@ -1811,6 +1811,17 @@ void GameCameraInit(void) {
 /* Shared scalar camera-value clamp.  Advance `value` toward `target` with a
  * bounded velocity and acceleration, optionally treating the values as
  * wrapped angles. */
+static inline f32 ClampCamVal(f32 value, f32 lo, f32 hi)
+{
+    if (value < lo) {
+        return lo;
+    }
+    if (value > hi) {
+        return hi;
+    }
+    return value;
+}
+
 static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
                         f32 maxVelocity, f32 acceleration, f32 stopScale,
                         f32* velocity, s32 wrapAngle) {
@@ -1880,12 +1891,7 @@ static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
             }
         }
 
-        if (!(target < minVelocity)) {
-            if (!(target > maxVelocity)) {
-                maxVelocity = target;
-            }
-            minVelocity = maxVelocity;
-        }
+        minVelocity = ClampCamVal(target, minVelocity, maxVelocity);
     }
 
     *velocity = minVelocity;

@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Close both unfused branch pairs in the min/max velocity clamp by lifting the nested `if (!(target < minVelocity)) { if (!(target > maxVelocity)) ... }` into a static helper with two early `return`s.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (cure). attempt.limitcamval2-positive-condition-cror-regression.20260830.v1 screened -- it is an UNGATED-PROSE-DENIAL against rewriting the double-negated conditions to POSITIVE form, and I did NOT do that: the helper keeps `<` and `>` polarity exactly as the target compares. Its cror hazard is real and I reproduced it independently in fn_8006F16C the same run. No webfrank pin covers LimitCamVal2 in game/boss/bosscam.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "KEPT: `static f32 ClampCamVal(f32 value, f32 lo, f32 hi) { if (value < lo) { return lo; } if (value > hi) { return hi; } return value; }` replacing the nested `if (!(target < minVelocity)) { if (!(target > maxVelocity)) { maxVelocity = target; } minVelocity = maxVelocity; }` with `minVelocity = ClampCamVal(target, minVelocity, maxVelocity);`.\nREVERTED: the two-stage merge spelling `... if (value > hi) { return hi; } hi = value; return hi;` -- the same edit that took adsMoveRawToCooked to real 0 REGRESSED here, real 52 -> 66, by moving the frame/slot map.",
+    "residual": "Two clusters, and the KEPT state's slot map is already exact: `python tools/gdl/slotdiff.py game/boss/bosscam LimitCamVal2` reports `frame: target 72  ours 72   saves: target (no stmw)  ours (no stmw)` and `== LimitCamVal2: target 4 slots, ours 4 -> SLOT MAP IDENTICAL`, so neither cluster is a slot delta. (1) The `return value` path routes through the wrong merge register: target `@0x13c ble ->144` / `@0x140 b ->148` / `@0x144 fmr f4,f2` / `@0x148 fmr f3,f4` (two-stage -- the value passes through the hi register f4 first); ours `@0x13c ble ->148` / `@0x140 fmr f3,f4` / `@0x144 b ->14c` / `@0x148 fmr f3,f0` (direct into f3). (2) The epilogue `@0x150 addi r1,r1,72` sits BEFORE the tail `lfs f0,@gClockFrameStep` / `fmadds f1,f3,f0,f1` in the target and after them in ours (`@0x158 addi r1,r1,72`).",
+    "scope": "src/game/boss/bosscam.c only; commit 45bef0f86.",
+    "verification": "probe.py game/boss/bosscam LimitCamVal2 --ops: BASELINE real 58 (T88/O86, multiset 6t, fuzzy 91.1932%) -> IMPROVED real 52, insns T88/O88, opcode multiset IDENTICAL (88/88), FRESH fuzzy 91.3636%. defake_gate check game/boss/bosscam (baseline anchored 398fc89c5): GATE OK (1 improved). Full ninja printed `build/GUNE5D/main.dol: OK`; image Data held at 177572 bytes / 7.52%."
+  },
+  "function": "function:LimitCamVal2",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/probe.py game/boss/bosscam LimitCamVal2 --ops --slots` on the two-stage form: if its slot map is IDENTICAL to the kept state's and real still rises, the frame was never the cause and the two-stage reading is wrong.",
+    "screened_against_target": "yes -- the target's two-stage merge is read directly from `fnasm game/boss/bosscam LimitCamVal2 0x12c:0x160 --diff`; what is NOT screened is whether any spelling of it holds the frame at 72.",
+    "statement": "The two-stage merge IS the right shape here (the target's `fmr f4,f2` then `fmr f3,f4` says so literally) -- it regressed only because spelling it as `hi = value; return hi;` moved the frame. Re-probe it with the frame HELD: keep the helper's parameter list and add the 8-byte pad the regression revealed, or express the two-stage merge in the CALLER (`maxVelocity = ClampCamValHigh(target, maxVelocity); minVelocity = ...`) so no new helper local is created at all."
+  },
+  "id": "attempt.BF_limitcamval2-both-branch-pairs-close-on-a-clamp-helper.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:32:54Z",
+  "residual": {
+    "capability_needed": "instruction_permutation",
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +2 b +1 bge +1 ble  ours-only: -1 bgt -1 blt"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

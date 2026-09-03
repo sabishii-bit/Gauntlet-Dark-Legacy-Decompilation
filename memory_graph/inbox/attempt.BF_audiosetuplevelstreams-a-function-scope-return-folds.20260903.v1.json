@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "Apply the return-blocks-fusion cure to the `if (sMusicSubState < 2 && sCurMusicVol > 3) return;` guard, whose target form is the unfused `ble ->60; b ->2f8` pair.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED AND FOUND INSUFFICIENT -- see the denial below. No webfrank pin covers AudioSetupLevelStreams.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "(a) tree form, unchanged: `if (sMusicSubState < 2 && sCurMusicVol > 3) { return; }`\n(b) `if (sMusicSubState < 2) { if (sCurMusicVol > 3) { return; } }`\n(c) `if (sMusicSubState >= 2) { goto vol_ok; } if (sCurMusicVol <= 3) { goto vol_ok; } return; vol_ok:;`",
+    "residual": "Unchanged from baseline: real 52, insns T195/O195, multiset 8t. Besides the branch pair the function carries a prologue addi/mr pair, an add+lha vs addi+lhax addressing cluster at +0x1dc, a clrlwi/lhz swap at +0x190 and a spare `li` at +0x27c -- none of them touched here.",
+    "scope": "src/game/sound/sounds.c probed and fully reverted; nothing committed.",
+    "verification": "`python tools/gdl/fndiff.py game/sound/sounds AudioSetupLevelStreams --ops --rebuild` after each spelling: the cluster `replace T[22:24]@58-60=['ble','b']  O[23:24]@5c-60=['bgt']` and the whole 8-token multiset were BYTE-FOR-BYTE unchanged across (a), (b) and (c). Working tree restored with `git checkout --`; `git status --short` clean apart from the untracked LANE_LOCK."
+  },
+  "denial": {
+    "expiry_check": "`python tools/gdl/fndiff.py game/sound/sounds AudioSetupLevelStreams --ops --rebuild` -- if the cluster `replace T[22:24]@58-60=['ble','b'] O[23:24]@5c-60=['bgt']` is gone, or the surrounding clusters have moved, this denial has expired and the axis is worth re-probing at the new alignment.",
+    "falsifier": "Any source edit confined to that `if` statement that changes the object bytes at all. Every form tried was NEUTRAL-IDENTICAL, so a single byte-moving edit inside it refutes the categorical reading and reopens the axis.",
+    "premise_measurement": "The premise under test was the run-44 law's discriminator, 'a then-block that leaves the function is never folded'. Here the then-block leaves the function and IS folded. `python tools/gdl/fnasm.py game/sound/sounds AudioSetupLevelStreams 0x2f0:0x30c` shows 0x2f8 is the epilogue itself (`lmw r28,40(r1)` / `lwz r0,60(r1)` / `addi r1,r1,56` / `mtlr r0` / `blr`), so the target's `b ->2f8` is a plain return -- and all three source spellings of that return produced our single folded `bgt ->2f8`, with the object bytes identical across them.",
+    "scope": "ONE axis on ONE function: the source-level spelling of the `return` at src/game/sound/sounds.c:563 as a route to the unfused `ble ->60; b ->2f8` pair. It denies nothing about this function's other four residual clusters, and nothing about the helper-lift cure in functions where the branch target is an INLINE merge rather than the epilogue. It does NOT reclassify the function into the postprocessor work class and makes no eligibility claim either way; for the record the counts are 195/195 (ours/target) both before and after every probe here, so the count-asymmetry bar is not what is in question."
+  },
+  "function": "function:AudioSetupLevelStreams",
+  "held_fixed": "Everything outside the single `if` statement at src/game/sound/sounds.c:563 was held constant across all three spellings; no declaration, no other statement and no pragma was touched.",
+  "id": "attempt.BF_audiosetuplevelstreams-a-function-scope-return-folds.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T16:32:50Z",
+  "refutes": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 add +1 b +1 ble +1 lha  ours-only: -1 addi -1 bgt -1 lhax -1 li"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

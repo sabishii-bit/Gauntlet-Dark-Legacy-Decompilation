@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Branch-pair sweep row 1 (census real ascending): lift the anode lookup guarded by `if (nodeIndex >= 0)` into a static helper whose negative-index exit is a `return`, per the return-blocks-fusion cure.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (the cure, verbatim: return then-block). claim.law.lwzu-idiom-web-retention: not applicable, no load-update idiom in the region. claim.law.stack-slots-descend-in-declaration-order: applicable only as a check -- no slot moved. webfrank pins for game/enemy/critter screened (CritterGetTargetPlayers, CritterLineRootColSub, CritterResolveMultipleTargets, CritterLineNodeColSub, CritterLookForCriticalMove, CritterLineCollide, CritterDoTexmodNode, ProcessCritter): CritterMoveSetup is not pinned and the full ninja replayed every pin.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "static void *CritterMoveColNode(Critter *c, s32 nodeIndex)\n{\n    void *node;\n    void *candidate;\n\n    node = c->anim;\n    if (nodeIndex < 0) {\n        return node;\n    }\n    candidate = ((void **)((u8 *)c->anodes + nodeIndex * 0x28))[0];\n    if (candidate == NULL) {\n        candidate = node;\n    }\n    return candidate;\n}\n-- call site: `c->obj_d0 = CritterMoveColNode(c, nodeIndex);`",
+    "residual": "None -- byte-exact.",
+    "scope": "src/game/enemy/critter.c only; commit 5efd9f904. DUPLICATE CLOSE: the NM lane independently closed the same function in the same run (integrator relay 2026-09-03); take NM's version, which spells the helper `static inline` per its law v2. This record is kept for the mechanism, not for a second exact.",
+    "verification": "probe.py game/enemy/critter CritterMoveSetup --ops: IMPROVED real 7 -> 0, insns exact 77/77, multiset 0t, FRESH fuzzy 98.5714% -> 100.0000%. defake_gate check game/enemy/critter (baseline anchored b8b146891): GATE OK (1 improved), no byte-exact sibling lost. datadiff --sections: only .comment/extabindex moved (the new static's index entry); full ninja printed `build/GUNE5D/main.dol: OK` and the image PROGRESS Data line held at 177572 bytes / 7.52%. STRICT matched 56.66% (2581 fns) -> 56.69% (2582 fns)."
+  },
+  "function": "function:CritterMoveSetup",
+  "id": "attempt.BF_crittermovesetup-return-then-block-helper-closes-exact.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:32:52Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 b +1 bge  ours-only: -1 blt"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
