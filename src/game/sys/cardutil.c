@@ -162,6 +162,7 @@ static CardMgr gCardMgr;   /* @0x80321A70 */
 #define M (((CardMgrBuf*)gCardBuf)->mgr)
 
 /* handlers */
+static void* cardThreadMain(void* arg, s32 arg2, s32 arg3);
 static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data);
 static s32 cardDoLoad(s32 chan, void* dirBuf);
 static s32 cardDoDelete(s32 chan, s32 fileNo);
@@ -202,6 +203,37 @@ static inline s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card)
     res = CARDRead(&info, data, length, 0);
     CARDClose(&info);
     return res;
+}
+
+/* 0x800DC1F4 - init sync objects, spawn the worker, wait until it's idle */
+void cardStart(s32 chan, s32 fileNo, void* data) {
+    u8 unused[8];
+    OSInitMutex(&M.mutex);
+    OSInitMutex(&M.mutex2);
+    OSInitCond(&M.cond);
+    OSCreateThread((OSThread*)gCardBuf, (void* (*)(void*))cardThreadMain, NULL,
+                   (void*)chan, fileNo, (s32)data, 1);
+    OSResumeThread((OSThread*)gCardBuf);
+    do {
+        VIWaitForRetrace();
+    } while (M.result == -1);
+}
+
+static inline BOOL cardResultPending(s32 value, s32* result) {
+    *result = value;
+    return value == -1;
+}
+
+/* 0x800DC280 - block until the worker has a result */
+s32 cardWaitResult(void) {
+    register CardMgr* m = &gCardMgr;
+    s32 r;
+    s32 value;
+    do {
+        VIWaitForRetrace();
+        value = m->result;
+    } while (cardResultPending(value, &r));
+    return r;
 }
 
 /* 0x800DC2C0 - the "Cardutilmainloop" worker thread.  Three declared
@@ -290,37 +322,6 @@ static void* cardThreadMain(void* arg, s32 arg2, s32 arg3) {
         OSUnlockMutex(&card->mgr.mutex);
     }
     return NULL;
-}
-
-/* 0x800DC1F4 - init sync objects, spawn the worker, wait until it's idle */
-void cardStart(s32 chan, s32 fileNo, void* data) {
-    u8 unused[8];
-    OSInitMutex(&M.mutex);
-    OSInitMutex(&M.mutex2);
-    OSInitCond(&M.cond);
-    OSCreateThread((OSThread*)gCardBuf, (void* (*)(void*))cardThreadMain, NULL,
-                   (void*)chan, fileNo, (s32)data, 1);
-    OSResumeThread((OSThread*)gCardBuf);
-    do {
-        VIWaitForRetrace();
-    } while (M.result == -1);
-}
-
-static inline BOOL cardResultPending(s32 value, s32* result) {
-    *result = value;
-    return value == -1;
-}
-
-/* 0x800DC280 - block until the worker has a result */
-s32 cardWaitResult(void) {
-    register CardMgr* m = &gCardMgr;
-    s32 r;
-    s32 value;
-    do {
-        VIWaitForRetrace();
-        value = m->result;
-    } while (cardResultPending(value, &r));
-    return r;
 }
 
 /* command wrappers 0x800DC4D4..0x800DC5C4 */
@@ -466,10 +467,10 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
     }
     *(u32*)(e + 0x5ab0) = 0;
     if (stat->bannerFormat != 0 || stat->iconFormat != 0) {
-        s32 iconCount;
-        s32 ciCount;
-        int spShift;
         int fmtShift;
+        int spShift;
+        s32 ciCount;
+        s32 iconCount;
 
         memmove(e, (u8*)data + stat->iconAddr, stat->offsetData - stat->iconAddr);
         DCFlushRange(e, stat->offsetData - stat->iconAddr);
@@ -506,8 +507,8 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
                 *(u32*)(e + 0x5aec + dstOff) =
                     ((u32*)e)[srcIndex + (0x5aec / sizeof(u32))];
                 *(u32*)(e + 0x5ab0) += sp << 2;
-                shift -= 2;
                 srcIndex--;
+                shift -= 2;
                 dstOff += 4;
             }
         }

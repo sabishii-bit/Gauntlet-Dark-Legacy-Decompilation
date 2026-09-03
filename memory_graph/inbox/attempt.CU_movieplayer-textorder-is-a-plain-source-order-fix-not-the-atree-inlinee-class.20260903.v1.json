@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "T17's textorder gate flagged game/movie/movieplayer MISORDERED (it passes claimcheck and datadiff). Derive the misordered group and test whether SOURCE reordering fixes it, and whether it shares atree's blocker (target emits inlinees AFTER inliners while our MWCC needs defined-before to inline).",
+  "attributes": {
+    "law_screen": "claim.law.pointer-walk-array-index-regression.20260830.v1 APPLIED (fn_800D8BCC: the walked-pointer-vs-array-index axis is exactly this law's pattern; the array form fixed the store and cost a zero-remat, which is the law's stated hazard direction). claim.law.recomputed-index-array-form-safe.20260831.v2 SCREENED, NOT APPLICABLE: the store index here is a loop IV, not a recomputed index. claim.law.offsetof-fused-immediate-counter.20260830.v1 SCREENED, NOT APPLICABLE: no offsetof form and no fused per-field counter in either loop. claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match APPLIED IN REVERSE (cardutil: the text-order fix GAINED extab bytes; same Data channel, opposite sign). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED: cardDoWrite's multiset read IDENTICAL while two same-opcode IMMEDIATE words differed, which is why the wf_word_diff per-word decode, not the multiset, decided the class. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED, ADJACENT: this session measured the VOLATILE analogue (declaration order, not scope, orders the loop-web colouring) and records it separately rather than widening the stack-slot law.",
+    "probed_form": "The three little-endian container readers were DEFINED at file top (lines 451-479) under `#pragma dont_inline on` / `#pragma dont_inline off`. Replaced that block with three prototypes -- `u16 ReadU16LE(u8* p); u32 ReadU32LE(u8* p); u32 ReadF32LE(u8* p);` -- and moved the three bodies verbatim to file end, after the last `#pragma cplusplus off` and before the closing `} /* extern \"C\" */`. The dont_inline pragma pair was DELETED, not moved: with the definitions at file end no caller can see a body, so nothing can be auto-inlined and the pragma is redundant.",
+    "residual": "None for the order screen. The TU keeps its 11 non-exact functions; this record does not touch them.",
+    "scope": "src/game/movie/movieplayer.cpp only; function-definition move plus prototypes. No semantic change.",
+    "verification": "textorder.py game/movie/movieplayer.cpp: MISORDERED (1 group @ position 0) -> ORDER-OK (52 shared .text functions, 0 target-only, 0 ours-only), exit 0. defake_gate.py check game/movie/movieplayer.cpp --rebuild = GATE OK, zero functions changed score (baseline anchored to commit c3f3aea99, source sha1 89bdf2412). Full `ninja -j2` prints `build/GUNE5D/main.dol: OK`; all 8 webfrank pins in this TU replayed (287 instruction atoms/fields total, unchanged). `git diff --check HEAD` exit 0. Commit 83ffdefb2."
+  },
+  "function": "tu:game/movie/movieplayer",
+  "id": "attempt.CU_movieplayer-textorder-is-a-plain-source-order-fix-not-the-atree-inlinee-class.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T19:48:29Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

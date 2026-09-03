@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Same T17 textorder screen on game/sys/cardutil: derive the misordered group, test a SOURCE reorder, and check whether the atree inlinee-emission mechanism is shared.",
+  "attributes": {
+    "law_screen": "claim.law.pointer-walk-array-index-regression.20260830.v1 APPLIED (fn_800D8BCC: the walked-pointer-vs-array-index axis is exactly this law's pattern; the array form fixed the store and cost a zero-remat, which is the law's stated hazard direction). claim.law.recomputed-index-array-form-safe.20260831.v2 SCREENED, NOT APPLICABLE: the store index here is a loop IV, not a recomputed index. claim.law.offsetof-fused-immediate-counter.20260830.v1 SCREENED, NOT APPLICABLE: no offsetof form and no fused per-field counter in either loop. claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match APPLIED IN REVERSE (cardutil: the text-order fix GAINED extab bytes; same Data channel, opposite sign). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED: cardDoWrite's multiset read IDENTICAL while two same-opcode IMMEDIATE words differed, which is why the wf_word_diff per-word decode, not the multiset, decided the class. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED, ADJACENT: this session measured the VOLATILE analogue (declaration order, not scope, orders the loop-web colouring) and records it separately rather than widening the stack-slot law.",
+    "probed_form": "textorder named ONE group @ position 2: target order `cardStart cardWaitResult cardThreadMain`, ours `cardThreadMain cardStart cardWaitResult`. Moved the whole `static void* cardThreadMain(void* arg, s32 arg2, s32 arg3)` block (its leading comment through its closing brace, 88 lines) from before cardStart to after cardWaitResult, and added `static void* cardThreadMain(void* arg, s32 arg2, s32 arg3);` to the existing static-handler forward-declaration block. cardThreadMain is taken only BY ADDRESS (`OSCreateThread((OSThread*)gCardBuf, (void* (*)(void*))cardThreadMain, ...)`), so it is never an inline candidate and the move is codegen-neutral. The static inline helper cardDoRead, which cardThreadMain inlines, still precedes it and was NOT moved.",
+    "residual": "extabindex remains 215 of 216 (1 byte). Not chased: no .text arbiter sees it and the order screen is now clean.",
+    "scope": "src/game/sys/cardutil.c only; one function definition moved plus one forward declaration.",
+    "verification": "The TU's own header comments carried the answer before any build (AGENTS.md residual-work discipline 4): cardStart is annotated 0x800DC1F4, cardWaitResult 0x800DC280, cardThreadMain 0x800DC2C0 -- the target address order IS the source order. textorder.py game/sys/cardutil.c: MISORDERED -> ORDER-OK (23 shared .text functions, 0 target-only, 0 ours-only), exit 0. defake_gate check --rebuild = GATE OK, no function changed score, and DATA-CHANGED reported extab 141->144 of 144 (+3 B) and extabindex 210->215 of 216 (+5 B), NET +8 B matched Data. Full ninja prints `build/GUNE5D/main.dol: OK`. `git diff --check HEAD` exit 0. Commit 6a4cb1a82."
+  },
+  "function": "tu:game/sys/cardutil",
+  "id": "attempt.CU_cardutil-textorder-rotation-fix-also-recovers-eight-extab-bytes.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T19:48:30Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
