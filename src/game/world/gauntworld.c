@@ -5888,7 +5888,7 @@ s32 fn_8005A868(s32 player)
     i++;
     while (i < 6) {
         DrawTextKeepScale(lbl_80346DB4, (u16)x - 4, 340, 7, white,
-                          (u8*)"");
+                          (u8*)"_");
         i++;
         x += 18;
     }
