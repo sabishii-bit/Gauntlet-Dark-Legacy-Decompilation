@@ -365,7 +365,7 @@ s32 fn_800C03E0(s32 mode)
         for (k = 0, i = 0; k < 3; k++, i += 12) {
             quad = MBNewTempQuad();
             mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
-            mbBlitProject(quad, j, 2);
+            mbBlitProject(quad, 2, j);
             MBBlitSetColor(quad, 0xFFFFFF);
         }
     }
@@ -422,7 +422,7 @@ s32 fn_800C03E0(s32 mode)
         for (k = 0, i = 0; k < 6; k++, i += 6) {
             quad = MBNewTempQuad();
             mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
-            mbBlitProject(quad, j, 2);
+            mbBlitProject(quad, 2, j);
             MBBlitSetColor(quad, 0xFFFFFF);
         }
     }
@@ -509,7 +509,7 @@ s32 fn_800C03E0(s32 mode)
         for (k = 0, i = 0; k < 6; k++, i += 6) {
             quad = MBNewTempQuad();
             mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
-            mbBlitProject(quad, j, 2);
+            mbBlitProject(quad, 2, j);
             MBBlitSetColor(quad, 0xFFFFFF);
         }
     }
