@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py --slots (the SLOTS DIFFER / SLOT MAP IDENTICAL verdict)",
+    "tools/gdl/fndiff.py --ops (the constant-delta same-opcode IMMEDIATE rows)",
+    "tools/gdl/aritycheck.py (parameter COUNT, the census this screen belongs beside)"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "param-retype",
+      "decl-order",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A callee holding r1-relative locals whose local displacements do NOT move when a trailing unread parameter is added to or removed from its definition; or a function whose frame-bottom gap is not (declared parameter count x 4) bytes. Re-run: `python tools/gdl/probe.py game/sys/cardutil cardThreadMain --ops --slots` must report SLOT MAP IDENTICAL and real 0 at three declared parameters, and dropping arg3 must reintroduce a constant 4-byte displacement delta on every r1-relative row.",
+  "id": "claim.law.NM_a-missing-trailing-parameter-is-visible-in-the-callee-as-a-frame-bottom-shift.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T17:21:05Z",
+  "refutes": "claim.law.NM_an-unread-trailing-parameter-is-invisible-in-the-callee-and-costs-the-caller-an-instruction.20260903.v1",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "MWCC GC 1.2.5, PPC EABI. REFINEMENT AND PARTIAL REFUTATION of claim.law.NM_an-unread-trailing-parameter-is-invisible-in-the-callee-and-costs-the-caller-an-instruction.20260903.v1, whose clause 'a parameter that is never read emits no prologue code, so the callee can measure byte-EXACT at either arity and its own bytes can never settle the question' is FALSE for every callee that holds an r1-relative local. MWCC reserves a PARAMETER SAVE AREA of 4 bytes per DECLARED parameter at r1+8, immediately above the 8-byte linkage area, whether or not the parameter is ever read and whether or not it is ever spilled there. The local block starts on top of that area, so declaring one parameter too FEW shifts EVERY r1-relative local displacement DOWN by 4 bytes per missing parameter while leaving the instruction stream otherwise identical. THE TELL, and it is a zero-build screen: `fndiff --ops` reports the streams as multiset-IDENTICAL with a run of same-opcode IMMEDIATE rows whose target-minus-ours displacement delta is CONSTANT and a multiple of 4 (`addi r5,r1,20` vs `addi r5,r1,12`, `lwz r5,52(r1)` vs `lwz r5,44(r1)`, `addi r3,r1,128` vs `addi r3,r1,120`), and `probe --slots` reports 'SLOTS DIFFER' with the target-only and ours-only slot lists differing by that same constant. DIVIDE THE CONSTANT BY 4: that is the number of missing DECLARED parameters, and it is read from the callee's own bytes with no caller and no PDB. MEASURED on game/sys/cardutil::cardThreadMain (attempt.NM_cardthreadmain-closes-exact-on-a-three-parameter-save-area-and-a-decl-init-split.20260903.v1): five IMMEDIATE rows all 8 low, one declared parameter (`void* arg`) against the target's three, and re-declaring it `static void* cardThreadMain(void* arg, s32 arg2, s32 arg3)` moved the locals from r1+12/44/120 to the target's r1+20/52/128 and took the function from real 10 to real 0, fuzzy 100.0000%, in one build. DO NOT REACH FOR A PAD FIRST. The frame TOTAL can already be correct while the distribution is wrong, and an unreferenced local pad cannot fix it: MWCC places unreferenced locals at the TOP of the local area, so a `u8 unused[8];` declared FIRST in the function still lands above every referenced local and buys frame size without moving a single displacement (the predecessor record measured three pad spellings dead for exactly this reason, and one of them was carrying the frame from 208 to the target's 216 while all five displacement rows stayed wrong). The pad and the arity are ANTAGONISTIC bookkeeping for the same 8 bytes: adding the third parameter required DELETING the pad in the same edit, or the frame would have gone to 224. COROLLARY for the predecessor law's caller-side direction, which stands unchanged: the two laws together mean an arity disagreement is decidable from EITHER side -- a phantom trailing parameter costs the CALLER an argument-materialising instruction, and a missing one costs the CALLEE a frame-bottom shift; a function with no stack locals is the only case where the callee really is blind."
+}
