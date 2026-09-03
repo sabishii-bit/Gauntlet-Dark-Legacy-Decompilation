@@ -1446,8 +1446,8 @@ void PlayerControls(void)
 
                     lbl_80240E10[i * 2 + 1] = 0;
                     lbl_80240E10[i * 2] = 0;
-                    pad = lbl_8011A258[i];
                     if (lbl_803445E0 == 0) {
+                        pad = lbl_8011A258[i];
                         memset(act, 0, 6);
                         scePadSetActDirect(pad / 4, pad & 3, act);
                     }

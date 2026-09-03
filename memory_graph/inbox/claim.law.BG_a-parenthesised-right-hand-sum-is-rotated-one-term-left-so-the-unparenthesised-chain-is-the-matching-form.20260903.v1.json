@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "scope": "MWCC GC 1.2.5, cflags_demo (-Cpp_exceptions on, -O4 -inline auto). Population measured: THREE parenthesised right-hand int sums in one function, all three cured by the same paren removal; ONE five-term chain measured NOT cured by term order, twice, at two alignments. Practical use: read the target's two `add` rows at a sum seam -- the OUTER addend names which source term MWCC evaluated first, and if that is the term you wrote first, your source needs no parentheses.",
+    "tags": [
+      "matching",
+      "cse",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "An MWCC GC 1.2.5 -O4 compile in which `X + (Y + Z)` over three int operands emits the add of Y and Z first and then adds X -- i.e. honours the parentheses -- or one in which dropping the parentheses does not move the emitted add tree at all. Re-check with `python tools/gdl/fnasm.py game/pb/pb_frame.c pbFrameMode 0x6a0:0x6b8 --diff` beside src/game/pb/pb_frame.c lines 528-532: if those `add` rows stop agreeing with the target after an unrelated edit, the grouping is not the discriminant here.",
+  "id": "claim.law.BG_a-parenthesised-right-hand-sum-is-rotated-one-term-left-so-the-unparenthesised-chain-is-the-matching-form.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T23:02:35Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "MWCC GC 1.2.5 (-O4, cflags_demo) re-associates a three-term integer sum by rotating the FIRST-EVALUATED addend to the OUTERMOST add. Consequence, measured both ways in pbFrameMode (game/pb/pb_frame.c) at 667235fec: source `X + (Y + Z)` emits `Y + (Z + X)` -- MWCC evaluates the parenthesised group first, so Y becomes the outer addend -- while the UNPARENTHESISED left-associative `X + Y + Z` emits `X + (Y + Z)`, which is the shape the parentheses were written to request. The parenthesised form is therefore exactly one rotation AWAY from its own reading, and when the target shows `add rD,rY,rZ` followed by `add rD2,rX,rD` the MATCHING source is the chain with NO parentheses. Verbatim measurement: pb_frame.c line 530 `((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) + (lbl_80344FA4 + lbl_80344FAC)` emitted `@0x6a4 rlwinm r10,r8,28,20,31` / `@0x6ac add r10,r9,r10` / `@0x6b4 add r8,r8,r10` = FA4 + (FAC + field), against the TARGET's `@0x6a8 rlwinm r8,r0,28,20,31` / `@0x6b0 add r9,r11,r9` / `@0x6b4 add r8,r8,r9` = field + (FA4 + FAC). Dropping the parentheses at that site plus the two `+ (lbl_80344FA8 + xoff)` sites (lines 532 and 546) took pbFrameMode from real 253 / FUZZY (fresh report) 97.6587% to real 131 / FUZZY 98.1962% in ONE build. The payoff is far larger than the four add rows because those two seams were pinning a 67-row scratch/callee-saved RECOLOR: the target holds lbl_80344FB0 in r12 (`@0x630 lwz r12,0(0)`) and we held it in r11, and the whole 0x630-0x7a4 renaming block collapsed with the grouping. SCOPE LIMIT, measured: the rotation is NOT curable by term ORDER on a longer chain -- the five-term `A + B + lbl_80344FA4 + lbl_80344FAC + 1` at lines 541-544 rotates A to the outside, and swapping its first two addends fixes the lhz load order while leaving the rotation intact, reproduced at two different alignments (real 253 -> 255 at run 49; real 131 -> 133 at 667235fec)."
+}

@@ -527,9 +527,9 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
             ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o1_display))))->hi =
                 ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
-                (lbl_80344FA4 + lbl_80344FAC);
+                lbl_80344FA4 + lbl_80344FAC;
             ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o1_display))))->b =
-                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + lbl_80344FA8 + xoff;
             ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 4)))->hi =
                 ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
             ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 4)))->b =
@@ -543,7 +543,7 @@ void pbFrameMode(s32 mode, s32 flag)
                 ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF) +
                 lbl_80344FA4 + lbl_80344FAC + 1;
             ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->b =
-                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + lbl_80344FA8 + xoff;
             ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->hi =
                 ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
             ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->b =
