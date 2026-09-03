@@ -477,22 +477,22 @@ static f32 getSinCos(f32 ang, f32* sinOut) {
     f32 a2;
     f32 at;
 
-    s = (f32)(0.5 - ang);
-    if (ang > 0.5) {
-        ang = (f32)(1.0 - ang);
+    s = (f32)(1.570796327 - ang);
+    if (ang > 1.570796327) {
+        ang = (f32)(3.141592654 - ang);
     }
     s2 = s * s;
     a2 = ang * ang;
-    negative = -0.16f;
-    coefficient = 0.008f;
+    negative = 0.008333334f;
+    coefficient = -0.0001984127f;
     st = s2 * coefficient;
     at = a2 * coefficient;
     coefficient = negative + st;
     negative = negative + at;
     coefficient = s2 * coefficient;
     st = a2 * negative;
-    negative = 1.0f + coefficient;
-    coefficient = a2 * (1.0f + st);
+    negative = -0.16666667f + coefficient;
+    coefficient = a2 * (-0.16666667f + st);
     negative = s2 * negative;
     *sinOut = s * negative + s;
     return ang * coefficient + ang;
