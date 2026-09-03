@@ -246,14 +246,13 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
         s32 best = mgr[first];
         u8* p = mgr + j;
         u64 locks = lbl_803450E0;
-        s32 z2 = 0;
         u8* hp;
         u32 old;
         s32 hi;
         u32 lo;
 
         for (; j < last; j++, p++) {
-            if ((locks & __shl2i(0, 1, j)) == z2) {
+            if ((locks & __shl2i(0, 1, j)) == 0) {
                 if (*p > best) {
                     best = *p;
                     first = j;

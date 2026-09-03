@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/slotdiff.py",
+    "tools/gdl/composed_census/sl_slot_census.py"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A frame-only SLOT row (no exclusive local slots) on which deleting a scaffold constant scalar moves the frame by 0 or by 4 rather than 8, or on which deleting a fully register-resident alias closes 8 - measured with `tools/gdl/slotdiff.py <unit> <fn>` on a clean tree before and after the single deletion, with `probe.py <unit> <fn>` confirming the object actually rebuilt. Equally falsifying: an added `u8 _probe8[8]` that moves a responsive frame by 8 rather than 16.",
+  "id": "claim.law.SL_a-frame-only-slot-row-is-shed-by-deleting-a-homed-scaffold-scalar-not-by-declaration-count.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T05:05:08Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A `frame tgt/ours` row in defake_gate roster's SLOT column whose slot map shows NO exclusive LOCAL slots - only the uniform save-base and linkage displacements moving together - is dead nominal local area, and it is NOT proportional to declaration count. Measured on six functions across five TUs in one pass (run 43, MWCC GC/1.2.5): deleting ONE scaffold constant scalar - a local declared only to hold a constant and then used as an assignment or comparison operand - closed exactly 8 frame bytes and took the slot map from SLOTS DIFFER to SLOT MAP IDENTICAL in TWO of two attempts (game/audio/dcs VagParseHeader's `s32 zero` 152->144; game/pb/pb_texture fn_800C6BB4's `s32 z2 = 0` 72->64), and deleting a SINGLE-USE derived local did the same on a third (game/sfx/sfx fn_80093918's `s32 cp` 120->112), while deleting FULLY REGISTER-RESIDENT locals closed ZERO bytes in two of two (game/sound/sounds AudioWithName's `s32 (*T16)[16]` plus `int flag` left the frame at 72 and cost real +24; game/sfx/sfx StartExplosion's `struct mbnode* n2` left the frame at 200 with real flat). THE CHARGE IS DOUBLE FOR ANYTHING HOMED: an added `u8 _probe8[8]` moved AudioWithName's frame 72 -> 88, sixteen bytes for an eight-byte declaration - once as placement and once as nominal area, which is the same double charge claim.law.CL_a-dead-pads-double-frame-charge-is-paid-back-by-shrinking-an-unobservable-sibling-array.20260903.v1 describes from the pad side. PROCEDURE, in order, for any frame-only SLOT row: (1) run the 8-byte ruler to prove the frame is source-responsive at all - it can be responsive even where declaration deletion is inert; (2) audit for an UNREFERENCED pad first, because a pad on an over-sized frame is 8 free bytes in the wrong direction (StartExplosion still carried `u8 _spare[8]` while its frame was 48 bytes too large); (3) delete a scaffold constant scalar; (4) only then consider aliases, and expect them to cost real without paying frame. COROLLARY for inline expansions: where the surplus is a multiple of 4 and the function inlines the same helper at N sites, the charge is N per-site parameter HOMES, and the cure is to give the N sites one carrier - reusing an existing f32 PARAMETER worked where a shared local paid only half (AudioWithName 72 -> 64 with a shared `f32 r`, then 64 -> 56 exact when the parameter `vol` carried it instead)."
+}

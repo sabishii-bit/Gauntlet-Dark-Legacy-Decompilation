@@ -1519,11 +1519,9 @@ s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version) {
 /* 0x800D415C  parse a VAG sample header */
 #pragma opt_lifetimes off
 s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
-    s32 zero;
     s32 result;
     u32 word;
 
-    zero = 0;
     result = 0;
     word = header[0];
     {
@@ -1532,7 +1530,7 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
         signature[1] = (word >> 16) & 0xFF;
         signature[2] = (word >> 8) & 0xFF;
         signature[3] = word & 0xFF;
-        sample->predScale = zero;
+        sample->predScale = 0;
 
         if (strncmp(signature, "pGAV", 4) == 0) {
             *(u32*)(sample->length = (u32)&sample->swappedLength) =
@@ -1545,10 +1543,10 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
         } else {
             printf("DCSERROR: ");
             printf("VagParseHeader NOT A VAG!\n");
-            sample->sampleRate = zero;
+            sample->sampleRate = 0;
             result = -1;
-            sample->length = zero;
-            sample->swappedLength = zero;
+            sample->length = 0;
+            sample->swappedLength = 0;
         }
     }
 

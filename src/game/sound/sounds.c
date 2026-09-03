@@ -197,32 +197,36 @@ void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
     }
 
     if (id >= 0) {
-        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, id, -1.0f, vol, 224, track, 2))) {
+        vol = (good_wiz_state > 2) ? 0.0f
+                                 : sndFxQueAddEx(1, id, -1.0f, vol, 224, track, 2);
+        if (vol != lbl_803484B0) {
             vol = -1.0f;
         } else {
             return;
         }
     }
     if (a >= 0) {
-        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, a, -1.0f, vol, 224, track, 2))) {
+        vol = (good_wiz_state > 2) ? 0.0f
+                                 : sndFxQueAddEx(1, a, -1.0f, vol, 224, track, 2);
+        if (vol != lbl_803484B0) {
             vol = -1.0f;
         } else {
             return;
         }
     }
     if (b >= 0) {
-        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, b, -1.0f, vol, 224, track, 2))) {
+        vol = (good_wiz_state > 2) ? 0.0f
+                                 : sndFxQueAddEx(1, b, -1.0f, vol, 224, track, 2);
+        if (vol != lbl_803484B0) {
             vol = -1.0f;
         } else {
             return;
         }
     }
     if (s4 >= 0) {
-        if (AudioFloatNotZero((good_wiz_state > 2) ? 0.0f
-                                : sndFxQueAddEx(1, s4, -1.0f, vol, 224, track, 2))) {
+        vol = (good_wiz_state > 2) ? 0.0f
+                                 : sndFxQueAddEx(1, s4, -1.0f, vol, 224, track, 2);
+        if (vol != lbl_803484B0) {
             vol = -1.0f;
         } else {
             return;

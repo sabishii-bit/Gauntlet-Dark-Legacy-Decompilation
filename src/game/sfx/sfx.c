@@ -1660,7 +1660,6 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     s32 t;
     s32 i;
     f32 v[3];
-    u8 _spare[8];
 
     t = type;
     if (type == 29) {
@@ -1896,7 +1895,6 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
     s32 ret;
     u32 flags;
     s32 pi;
-    s32 cp;
     f32* cp3;
     volatile f32 v[3];
 
@@ -1936,8 +1934,7 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
         e->owner = player + 1;
     }
     pi = ((Player*)gPlayers)[player].class_id;
-    cp = tbl->colorpick[pi];
-    cp3 = tbl->colors[cp];
+    cp3 = tbl->colors[tbl->colorpick[pi]];
     if (idx >= 0) {
         u8* e3 = fx + idx * 240;
         *(f32*)(e3 + 2992) = 3.0f;

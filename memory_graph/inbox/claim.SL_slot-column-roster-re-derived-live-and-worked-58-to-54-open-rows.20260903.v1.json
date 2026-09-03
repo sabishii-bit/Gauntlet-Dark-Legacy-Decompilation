@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.SL_slot-column-roster-re-derived-live-and-worked-58-to-54-open-rows.20260903.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-03T05:05:08Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "The frame/slot family was RE-DERIVED LIVE at run 43 rather than inherited: `tools/gdl/composed_census/sl_slot_census.py` (promoted this run, commit 298909e3e) runs defake_gate roster's two `fndiff.parse` calls per unit over every unit with both objects on disk and prints the whole family in one call. At commit 9eb99ec5c it measured 257 units / 3032 functions compared / 58 open rows flagged / 0 pinned rows flagged, reproducing attempt.T12_tool-queue-12-nine-items-one-refuted-cause-one-latent-hazard.20260903.v1's calibration figure exactly. The class split is 17 rows carrying a save-set delta, 26 carrying a frame delta (11 of them carry BOTH, so 15 are frame-only, which is T12's split), and 26 exclusive-slot-only. FRAME ROWS, |delta| ascending, as measured: MBCameraUpdate 40/48; sDvdReadSync 48/56; VagParseHeader 144/152; EnablePlayerControls 32/24; DisablePlayerControls 32/24; fn_80093918 112/120; RegisterItemWobj 88/96; MBWorldToScreen3D 136/128; HealthMeterStart 128/136; fn_800C6BB4 64/72; set_hidden_player 176/184; fn_80062A00 120/128; get_cam_wpos 208/216; do_shopping 176/168; do_players 256/264; do_player_select 176/168; AudioWithName 56/72; ScreenSaverUpdateWeap 216/200; HealthMeterUpdate 64/80; CritterCollidePlayers 144/176; WorldCollide 256/216; StartExplosion 160/208; draw_inventory_panel 200/256; ControlsUpdate 192/248; CritterBossAI 240/304; PlayerMotion 632/832. After this lane's five keeps the same command measures 54 open rows and 22 frame rows: VagParseHeader, fn_80093918, AudioWithName and fn_800C6BB4 have LEFT the family entirely (frame exact and SLOT MAP IDENTICAL on all four), and StartExplosion moved 208 -> 200. A CLASSIFICATION CORRECTION the column itself cannot make: a row carrying BOTH `save` and `frame` is usually a save-set row wearing a frame label, because the frame difference is exactly the extra save-area words - verified on EnablePlayerControls/DisablePlayerControls (8 bytes = two extra callee-saved GPRs) and on RegisterItemWobj (4 of its 8 bytes are the seventh saved GPR). Rank the frame-ONLY rows first."
+}
