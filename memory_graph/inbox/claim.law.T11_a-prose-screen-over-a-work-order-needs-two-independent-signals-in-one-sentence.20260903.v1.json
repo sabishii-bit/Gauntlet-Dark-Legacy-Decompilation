@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py",
+    "memory_graph/test_graph.py",
+    "git:533f4068f"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "batch-gating",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A single-signal prose screen over this corpus's work_claim or attempt scopes that calibrates at usable precision \u2014 run it over every version of every work_claim in `git log --all` (361 today) and report its firings with a judgement on each. If one signal reaches acceptable precision on some other question, this law is scoped too widely and should be narrowed to ownership screening rather than dropped.",
+  "id": "claim.law.T11_a-prose-screen-over-a-work-order-needs-two-independent-signals-in-one-sentence.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T02:44:12Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A screen that reads a work order's free prose fires on the wrong thing when it keys on ONE word class, because every word this project's orders use carries two meanings at once. Requiring TWO independent signals in the SAME sentence is what makes such a screen shippable, and the difference is two orders of magnitude in precision.\n\nMEASURED over every version of every work_claim in this repository's history (361 versions, `git log --all`), building the run-41 gate that refuses a claim anchored inside a TU its own scope hands to another lane:\n  WITHHOLDING WORDS ALONE (VETO / excluding / skip / 'do not touch'): 9 firings, of which 8 were CORRECT orders. A lane that owns a TU and vetoes ONE function inside it \u2014 'damage_enemy P6 = VETO', 'do not touch LinkItemTriggers', 'fn_800D860C fuzzy-vetoed' \u2014 is the normal healthy shape of an order, not a conflict. 89% false.\n  OWNERSHIP WORDS ALONE (own / owned / claim / belongs to): 16 firings, nearly all false. 'You own both sides', '(owns webfrank.py + tests)', and \u2014 the decisive one \u2014 every `claim.law.\u2026` citation in the corpus contains the word `claim`, so the corpus's own citation convention is an inexhaustible false-positive generator for any screen matching that stem.\n  BOTH, IN ONE SENTENCE, with the owner named as a LANE CODE rather than by the bare verb: 1 firing in 361, and it is the real one \u2014 work_claim.sched-census-t2.20260902.v1 anchored function:CritterDoSfx while its own scope read 'SA/SB own PlayerProcessPowerups, fn_800DACD8, do_enemies, CritterTranslate - VETO those', and CritterDoSfx lives in game/enemy/critter.c, the same TU as the withheld CritterTranslate. TU ownership is whole-TU by this project's own rule, so the anchor pointed that lane at a TU the order had already given away, and nothing checked it.\n\nWHY THE CONJUNCTION IS THE RIGHT SHAPE AND NOT A TUNED THRESHOLD: the two signals answer different questions. The withholding word says work is being kept back; the ownership attribution says WHO is keeping it. Only their conjunction distinguishes 'someone else has this TU' from 'I have this TU and this one function inside it is a wall', and those two have opposite consequences for a lane. A threshold on either signal alone cannot separate them at any setting, because both populations use the same vocabulary.\n\nSCOPE: prose screens over ORDERS. It does not claim anything about screens over measured fields, and it does not claim two signals are always enough \u2014 it claims one is demonstrably not, on this corpus, twice. It is the ownership-screening instance of claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1, and it exists because that calibration is what caught both wrong cuts before either shipped."
+}
