@@ -541,6 +541,8 @@ s32 do_player_select(void)
         s32 costume = *(s32*)(pl + offsetof(Player, class_id));
         s32 st;
         u8* menu;
+        u8* slot;
+        s32 act;
 
         if (lbl_80344BB0 != 0) {
             allIdle = 0;
@@ -555,12 +557,14 @@ s32 do_player_select(void)
             switch (*(u32*)(pl + offsetof(Player, motion_state))) {
             case 0: /* top select menu */
                 *(s32*)(pl + offsetof(Player, motion_state_save)) = *(s32*)(pl + offsetof(Player, motion_state));
-                menu = page + moff + 712;
                 if (gControllerButtons & 4) {
                     *(s32*)(pl + offsetof(Player, state)) = 3;
                     strcpy((char*)(pl + offsetof(Player, name)), lbl_80347F40);
                 } else {
-                    if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                    slot = page + moff;
+                    act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                    menu = slot + 712;
+                    if (act == 0) {
                         setup_sel_menu(i, 0);
                         if (vmu_directory_exists() >= 2 && saveExists() != 0) {
                             u8* base = *(u8**)(menu + offsetof(OptMenuLayout, items));
@@ -616,8 +620,10 @@ s32 do_player_select(void)
                 break;
             case 1: { /* load/save menu */
                 *(s32*)(pl + offsetof(Player, motion_state_save)) = *(s32*)(pl + offsetof(Player, motion_state));
-                menu = page + moff + 712;
-                if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                slot = page + moff;
+                act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                menu = slot + 712;
+                if (act == 0) {
                     setup_sel_menu(i, 1);
                     if (vmu_directory_exists() < 2 || saveExists() == 0) {
                         u8* base = *(u8**)(menu + offsetof(OptMenuLayout, items));
@@ -749,10 +755,12 @@ s32 do_player_select(void)
                 break;
             }
             case 2: /* change-character confirm */
-                menu = page + moff + 712;
                 switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
-                    if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                    slot = page + moff;
+                    act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                    menu = slot + 712;
+                    if (act == 0) {
                         setup_sel_menu(i, 15);
                     }
                     show_optmenu(menu);
@@ -782,10 +790,12 @@ s32 do_player_select(void)
                 }
                 break;
             case 5: /* pick a memory card (load) */
-                menu = page + moff + 712;
                 switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
-                    if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                    slot = page + moff;
+                    act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                    menu = slot + 712;
+                    if (act == 0) {
                         setup_sel_menu(i, 15);
                     }
                     show_optmenu(menu);
@@ -804,7 +814,10 @@ s32 do_player_select(void)
                     break;
                 }
                 if (*(s32*)(pl + offsetof(Player, sel_step)) != 0) {
-                    if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                    slot = page + moff;
+                    act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                    menu = slot + 712;
+                    if (act == 0) {
                         setup_sel_menu(i, 5);
                     }
                     *(s32*)(menu + offsetof(OptMenuLayout, num_items)) = 0;
@@ -873,8 +886,10 @@ s32 do_player_select(void)
                 }
                 break;
             case 8: /* pick a save file (load) */
-                menu = page + moff + 712;
-                if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                slot = page + moff;
+                act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                menu = slot + 712;
+                if (act == 0) {
                     setup_sel_menu(i, 8);
                 }
                 *(s32*)(menu + offsetof(OptMenuLayout, num_items)) = 0;
@@ -964,8 +979,10 @@ s32 do_player_select(void)
                 break;
             }
             case 10: /* pick a memory card (save) */
-                menu = page + moff + 712;
-                if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                slot = page + moff;
+                act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                menu = slot + 712;
+                if (act == 0) {
                     setup_sel_menu(i, 10);
                 }
                 *(s32*)(menu + offsetof(OptMenuLayout, num_items)) = 0;
@@ -1054,10 +1071,12 @@ s32 do_player_select(void)
             case 11:
             case 12: {
                 s32 t = *(s32*)(pl + offsetof(Player, sel_step));
-                menu = page + moff + 712;
                 switch (t) {
                 case 0:
-                    if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                    slot = page + moff;
+                    act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                    menu = slot + 712;
+                    if (act == 0) {
                         setup_sel_menu(i, 15);
                     }
                     show_optmenu(menu);
@@ -1182,8 +1201,10 @@ s32 do_player_select(void)
                 break;
             }
             case 13: /* pick a save slot (save target) */
-                menu = page + moff + 712;
-                if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                slot = page + moff;
+                act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                menu = slot + 712;
+                if (act == 0) {
                     setup_sel_menu(i, 13);
                 }
                 show_optmenu(menu);
@@ -1212,7 +1233,6 @@ s32 do_player_select(void)
                 break;
             case 14: { /* write-file progress */
                 s32 t = *(s32*)(pl + offsetof(Player, sel_step));
-                menu = page + moff + 712;
                 switch (t) {
                 case 0:
                     if (*(s32*)(lbl_80274578 + *(s32*)(pl + offsetof(Player, sel_card_chan)) * 132 +
@@ -1220,7 +1240,10 @@ s32 do_player_select(void)
                                 *(s32*)(pl + offsetof(Player, sel_save_file)) * 16) < 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
-                        if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
+                        slot = page + moff;
+                        act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
+                        menu = slot + 712;
+                        if (act == 0) {
                             setup_sel_menu(i, 15);
                         }
                         show_optmenu(menu);
@@ -1263,11 +1286,14 @@ s32 do_player_select(void)
                             *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                             *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                             setup_sel_menu(i, *(s32*)(pl + offsetof(Player, motion_state)));
+                            slot = page + moff;
                             {
-                                u8* base = *(u8**)(menu + offsetof(OptMenuLayout, items));
+                                u8* base = *(u8**)(slot + (712 + offsetof(OptMenuLayout, items)));
                                 s32 k = 0;
                                 s32 off = k;
                                 s32 found = -1;
+
+                                menu = slot + 712;
                                 for (;;) {
                                     u8* en = base + off;
                                     if (*(u32*)en == 0) {
