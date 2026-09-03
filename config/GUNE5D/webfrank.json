@@ -849,17 +849,6 @@
         "copy_register_fields": true
       },
       {
-        "function": "move_logic00",
-        "before_sha256": "db7842f97a97bc4a3b34f81848187b13ad3341faa6ddb32d5b75dc553490999b",
-        "after_sha256": "5e3b5746aa9c1741eb15e3fdd5882093e0dcae66e1cad6517619e95f28a75ca0",
-        "unproven_recolor_audit": "FP constant-web routing residual: rotated lfd web homes (+0x1dc-0x1f4) cross the renaming; byte-equal to retail and individually reviewed 2026-08-24.",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 244
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "move_logic02",
         "before_sha256": "c9d1c4aad8932187f4406292f3c568e0678922b0dd6880b4bab1679f492a9cd4",
         "after_sha256": "66d09afa92eab01ef93873d8d08efd318267948f95f28ef8fe2b869987614eca",

@@ -49,8 +49,13 @@ from tools.gdl.webfrank import (
     register_slot_mask,
     unpermute_target_windows,
     verify_consistent_recolor,
+    verify_datum_binding,
     verify_relocation_binding,
     verify_value_equality_recolor,
+    _linked_address,
+    _own_datum,
+    _symbol_index,
+    _symbols,
 )
 
 
@@ -2598,7 +2603,8 @@ class PostRecolorPermutationTests(unittest.TestCase):
 
 
 def _elf_object(text, *, function="fn", value=0, relocations=(),
-                extra_symbols=()):
+                extra_symbols=(), data=b"", data_symbols=(),
+                data_relocations=()):
     """Build a minimal ELF32 big-endian relocatable object in memory.
 
     Exists so `apply_patch` itself can be tested.  Every other test in this
@@ -2617,9 +2623,23 @@ def _elf_object(text, *, function="fn", value=0, relocations=(),
     .strtab.  `relocations` are (function-relative offset, symbol name, type,
     addend) and are stored at `value + offset`, the section-relative form
     _function_text_relocations reads back.
+
+    `data`/`data_symbols`/`data_relocations` add an optional PROGBITS `.data`
+    section carrying constant-pool objects, so the datum screen can be tested
+    against real bytes rather than only against names.  It is appended LAST so
+    every existing section index, sh_link and sh_info is untouched: `.data` is
+    section 6 and its `.rela.data` is section 7.  `data_symbols` are (name,
+    section-relative offset, size); `data_relocations` are (section-relative
+    offset, symbol name, type, addend).
     """
     names = [name for name, _v, _s, _n in extra_symbols]
     for _offset, symbol, _type, _addend in relocations:
+        if symbol not in names and symbol != function:
+            names.append(symbol)
+    for name, _offset, _size in data_symbols:
+        if name not in names and name != function:
+            names.append(name)
+    for _offset, symbol, _type, _addend in data_relocations:
         if symbol not in names and symbol != function:
             names.append(symbol)
 
@@ -2640,7 +2660,13 @@ def _elf_object(text, *, function="fn", value=0, relocations=(),
         symbol_index[name] = len(symtab) // 16
         symtab += struct.pack(">IIIBBH", string_at[name], sym_value, size,
                               0x11, 0, shndx)
-    for _offset, name, _type, _addend in relocations:
+    for name, sym_value, size in data_symbols:
+        symbol_index[name] = len(symtab) // 16
+        symtab += struct.pack(">IIIBBH", string_at[name], sym_value, size,
+                              0x11, 0, 6)
+    for _offset, name, _type, _addend in (
+        list(relocations) + list(data_relocations)
+    ):
         if name in symbol_index:
             continue
         symbol_index[name] = len(symtab) // 16
@@ -2650,9 +2676,15 @@ def _elf_object(text, *, function="fn", value=0, relocations=(),
     for offset, name, kind, addend in relocations:
         rela += struct.pack(">IIi", value + offset,
                             (symbol_index[name] << 8) | kind, addend)
+    data_rela = bytearray()
+    for offset, name, kind, addend in data_relocations:
+        data_rela += struct.pack(">IIi", offset,
+                                 (symbol_index[name] << 8) | kind, addend)
 
     section_names = [b"", b".text", b".rela.text", b".symtab", b".strtab",
                      b".shstrtab"]
+    if data or data_symbols:
+        section_names += [b".data", b".rela.data"]
     shstrtab = bytearray(b"\0")
     shstr_at = []
     for name in section_names:
@@ -2668,6 +2700,8 @@ def _elf_object(text, *, function="fn", value=0, relocations=(),
     # test the value == 0 case.
     blobs = [bytes(value) + bytes(text), bytes(rela), bytes(symtab),
              bytes(strtab), bytes(shstrtab)]
+    if data or data_symbols:
+        blobs += [bytes(data), bytes(data_rela)]
     offsets = []
     cursor = 52
     for blob in blobs:
@@ -2687,6 +2721,11 @@ def _elf_object(text, *, function="fn", value=0, relocations=(),
         (shstr_at[4], 3, 0, 0, offsets[3], len(blobs[3]), 0, 0, 1, 0),
         (shstr_at[5], 3, 0, 0, offsets[4], len(blobs[4]), 0, 0, 1, 0),
     ]
+    if data or data_symbols:
+        headers.append(
+            (shstr_at[6], 1, 3, 0, offsets[5], len(blobs[5]), 0, 0, 4, 0))
+        headers.append(
+            (shstr_at[7], 4, 0, 0, offsets[6], len(blobs[6]), 3, 6, 4, 12))
 
     data = bytearray(b"\x7fELF\x01\x02\x01" + bytes(9))
     data += struct.pack(">HHIIIIIHHHHHH",
@@ -4443,6 +4482,378 @@ class StaleObjectMarkerTests(unittest.TestCase):
         self.assertTrue(self.obj.exists())
         self.assertFalse(self.marker.exists())
         self.assertEqual(fndiff.stale_object_warning(self.obj), "")
+
+
+class _FakeImage:
+    """A RetailImage stand-in: linked address -> bytes, no DOL needed."""
+
+    def __init__(self, contents):
+        self.contents = dict(contents)
+
+    def read(self, address, length):
+        for base, blob in self.contents.items():
+            if base <= address and address + length <= base + len(blob):
+                return blob[address - base:address - base + length]
+        return None
+
+
+class LinkedAddressTests(unittest.TestCase):
+    """`_linked_address`: where a relocation's symbol lands after the link."""
+
+    MAP = {
+        "gControllerButtons": (".sbss", 0x803445C8),
+        "sFlags": (".sbss", 0x803445CC),
+        # The split map really does carry dtk's OWN anonymous pool names for
+        # other translation units; these three are copied verbatim from
+        # config/GUNE5D/symbols.txt.
+        "@13": (".data", 0x8023AA18),
+        "@41": (".sdata", 0x803440B0),
+    }
+
+    def test_addend_is_part_of_the_address(self):
+        self.assertEqual(
+            _linked_address("gControllerButtons", 4, self.MAP), 0x803445CC)
+        self.assertEqual(_linked_address("sFlags", 0, self.MAP), 0x803445CC)
+
+    def test_our_pool_label_is_never_resolved_through_the_split_map(self):
+        """Our `@13` is LOCAL to our object; the split map's `@13` belongs to
+        a different translation unit entirely.  Matching them by spelling is
+        a name collision dressed as a proof — it read three sound sfx rules
+        (StartComboFX, SuicideExplosion, StartBagFX) as broken when this
+        screen was first calibrated against the live corpus."""
+        self.assertIsNone(_linked_address("@13", 0, self.MAP))
+        self.assertIsNone(_linked_address("@41", 0, self.MAP))
+
+    def test_dtk_address_suffix_is_an_address(self):
+        """dtk disambiguates a file-local symbol whose name is taken
+        elsewhere by appending its own address, so camera.c's static
+        `StandardCamera` is spelled `StandardCamera_8002B828`."""
+        self.assertEqual(
+            _linked_address("StandardCamera_8002B828", 0, {}), 0x8002B828)
+        self.assertEqual(
+            _linked_address("lbl_80346848", 0, {}), 0x80346848)
+
+    def test_split_map_wins_over_a_suffix_reading(self):
+        mapping = {"foo_80001234": (".text", 0x80009999)}
+        self.assertEqual(
+            _linked_address("foo_80001234", 0, mapping), 0x80009999)
+
+    def test_unknown_name_without_a_suffix_is_unresolved(self):
+        self.assertIsNone(_linked_address("gNodeStackTop", 0, self.MAP))
+
+
+class OwnDatumTests(unittest.TestCase):
+    """`_own_datum`: the LINKED bytes our own object will place at a symbol."""
+
+    PI = bytes.fromhex("400921fb54524550")
+    TWO_PI = bytes.fromhex("401921fb54524550")
+
+    def _object(self, **kwargs):
+        obj = _elf_object(_words(BLR), **kwargs)
+        return obj, _sections(obj), _symbol_index(obj, _sections(obj))
+
+    def test_plain_constant_is_read_back(self):
+        obj, sections, symbols = self._object(
+            data=self.PI + self.TWO_PI,
+            data_symbols=[("@705", 0, 8), ("@706", 8, 8)])
+        self.assertEqual(
+            _own_datum(obj, sections, symbols, "@705", 0, 8, {}), self.PI)
+        self.assertEqual(
+            _own_datum(obj, sections, symbols, "@706", 0, 8, {}), self.TWO_PI)
+
+    def test_addend_offsets_into_the_datum(self):
+        obj, sections, symbols = self._object(
+            data=self.PI + self.TWO_PI, data_symbols=[("@705", 0, 16)])
+        self.assertEqual(
+            _own_datum(obj, sections, symbols, "@705", 8, 8, {}), self.TWO_PI)
+
+    def test_a_relocated_pointer_table_resolves_to_linked_pointers(self):
+        """A jumptable is zeroes plus R_PPC_ADDR32 entries against the
+        enclosing function; comparing the ZEROES against retail's pointers
+        called five sound rules broken.  Each covered word must be resolved
+        to `split-map address + addend` before any comparison."""
+        obj, sections, symbols = self._object(
+            data=bytes(8), data_symbols=[("@2918", 0, 8)],
+            data_relocations=[(0, "CritterDoTexmodNode", 1, 0x26C),
+                              (4, "CritterDoTexmodNode", 1, 0x20C)])
+        mapping = {"CritterDoTexmodNode": (".text", 0x8003D0A4)}
+        self.assertEqual(
+            _own_datum(obj, sections, symbols, "@2918", 0, 8, mapping),
+            bytes.fromhex("8003d3108003d2b0"))
+
+    def test_an_unresolvable_relocation_refuses_rather_than_guessing(self):
+        obj, sections, symbols = self._object(
+            data=bytes(4), data_symbols=[("@1", 0, 4)],
+            data_relocations=[(0, "who_knows", 1, 0)])
+        self.assertIsNone(_own_datum(obj, sections, symbols, "@1", 0, 4, {}))
+
+    def test_an_undefined_symbol_has_no_own_datum(self):
+        obj, sections, symbols = self._object(
+            relocations=[(0x0, "anExtern", 109, 0)])
+        self.assertIsNone(
+            _own_datum(obj, sections, symbols, "anExtern", 0, 4, {}))
+
+    def test_reading_past_the_section_refuses(self):
+        obj, sections, symbols = self._object(
+            data=self.PI, data_symbols=[("@705", 0, 8)])
+        self.assertIsNone(
+            _own_datum(obj, sections, symbols, "@705", 0, 64, {}))
+
+
+class DatumBindingTests(unittest.TestCase):
+    """`verify_datum_binding`, the screen claim.law.CQ_copy-register-fields-
+    can-rotate-constant-load-homes-without-their-relocations.20260903.v1 says
+    nothing in the project was performing.
+
+    `verify_relocation_binding` proves the pool correspondence is one-to-one,
+    which forbids an EXCHANGE but says nothing about WHICH datum each end of
+    the correspondence holds.  `@705 -> lbl_80346848` with
+    `@706 -> lbl_80346840` is perfectly one-to-one and has pi and 2pi swapped.
+    """
+
+    SDA21 = 109
+    LFD_F25 = 0xCB200000       # lfd f25,0(0)  — the SDA placeholder base
+    LFD_F30 = 0xCBC00000       # lfd f30,0(0)
+    PI = bytes.fromhex("400921fb54524550")
+    TWO_PI = bytes.fromhex("401921fb54524550")
+
+    def _pool_object(self, first, second):
+        text = _words(self.LFD_F25, self.LFD_F30, BLR)
+        obj = _elf_object(text, data=first + second,
+                          data_symbols=[("@705", 0, 8), ("@706", 8, 8)])
+        return obj, _sections(obj), _symbol_index(obj, _sections(obj))
+
+    def _call(self, ours, theirs, obj, sections, symbols, image, **kwargs):
+        return verify_datum_binding(
+            ours, theirs,
+            [self.LFD_F25, self.LFD_F30, BLR],
+            our_data=obj, our_sections=sections, our_symbols=symbols,
+            image=image, function="fn", **kwargs)
+
+    # ---- level 1: exact name and addend ----
+
+    def test_identical_name_and_addend_binds_by_name(self):
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "gGlobal", 0)},
+            {0: (self.SDA21, "gGlobal", 0)},
+            obj, sections, symbols, None)
+        self.assertEqual(levels["L1"], 1)
+
+    def test_same_name_different_addend_is_not_level_one(self):
+        """Two fields of one struct are two different bindings."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        with self.assertRaisesRegex(ValueError, "0x803445c8.*0x803445cc"):
+            self._call(
+                {0: (self.SDA21, "gThing", 0)},
+                {0: (self.SDA21, "gThing", 4)},
+                obj, sections, symbols, None,
+                symbol_addresses={"gThing": (".sbss", 0x803445C8)})
+
+    # ---- level 2: linked address ----
+
+    def test_two_spellings_of_one_address_bind(self):
+        """game/game/gamemain::fn_80054E78 relocates against
+        `gControllerButtons+4` where the target relocates against `sFlags+0`;
+        both are 0x803445CC and the binding is sound."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "gControllerButtons", 4)},
+            {0: (self.SDA21, "sFlags", 0)},
+            obj, sections, symbols, None,
+            symbol_addresses={"gControllerButtons": (".sbss", 0x803445C8),
+                              "sFlags": (".sbss", 0x803445CC)})
+        self.assertEqual(levels["L2"], 1)
+
+    def test_different_addresses_fail_closed(self):
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        with self.assertRaisesRegex(ValueError, "datum binding.*0x803445c8"):
+            self._call(
+                {0: (self.SDA21, "gControllerButtons", 0)},
+                {0: (self.SDA21, "sFlags", 0)},
+                obj, sections, symbols, None,
+                symbol_addresses={"gControllerButtons": (".sbss", 0x803445C8),
+                                  "sFlags": (".sbss", 0x803445CC)})
+
+    # ---- level 3: the datum itself ----
+
+    def test_matching_constants_bind(self):
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        image = _FakeImage({0x80346840: self.PI, 0x80346848: self.TWO_PI})
+        levels = self._call(
+            {0: (self.SDA21, "@705", 0), 4: (self.SDA21, "@706", 0)},
+            {0: (self.SDA21, "lbl_80346840", 0),
+             4: (self.SDA21, "lbl_80346848", 0)},
+            obj, sections, symbols, image)
+        self.assertEqual(levels["L3"], 2)
+
+    def test_rotated_constant_homes_fail_closed(self):
+        """THE move_logic00 DEFECT, in miniature.  The correspondence
+        @705->lbl_80346848 / @706->lbl_80346840 is one-to-one, the text is
+        byte-identical to the target, and the two constants are swapped: our
+        f25 would load pi where retail's f25 loads 2pi."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        image = _FakeImage({0x80346840: self.PI, 0x80346848: self.TWO_PI})
+        with self.assertRaisesRegex(
+            ValueError, "did not move with the register field"
+        ):
+            self._call(
+                {0: (self.SDA21, "@705", 0), 4: (self.SDA21, "@706", 0)},
+                {0: (self.SDA21, "lbl_80346848", 0),
+                 4: (self.SDA21, "lbl_80346840", 0)},
+                obj, sections, symbols, image)
+
+    def test_the_comparison_uses_the_access_width(self):
+        """An `lfd` reads eight bytes; two constants agreeing in their first
+        four are still two different constants."""
+        near = bytes.fromhex("400921fb00000000")
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        image = _FakeImage({0x80346840: near})
+        with self.assertRaisesRegex(ValueError, "datum binding"):
+            self._call(
+                {0: (self.SDA21, "@705", 0)},
+                {0: (self.SDA21, "lbl_80346840", 0)},
+                obj, sections, symbols, image)
+
+    def test_no_image_drops_to_the_correspondence_level(self):
+        """Without the retail image a pool datum cannot be read, so the word
+        falls back to the weaker one-to-one proof rather than passing
+        silently as if it had been checked."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "@705", 0), 4: (self.SDA21, "@706", 0)},
+            {0: (self.SDA21, "lbl_80346848", 0),
+             4: (self.SDA21, "lbl_80346840", 0)},
+            obj, sections, symbols, None)
+        self.assertEqual(levels["L4"], 2)
+        self.assertEqual(levels["L3"], 0)
+
+    # ---- level 4: correspondence over uninitialised data ----
+
+    def test_crossed_correspondence_fails_closed(self):
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        with self.assertRaisesRegex(ValueError, "corresponds to both"):
+            self._call(
+                {0: (self.SDA21, "gNodeStackTop", 0),
+                 4: (self.SDA21, "gNodeStackTop", 0)},
+                {0: (self.SDA21, "lbl_803451BC", 0),
+                 4: (self.SDA21, "lbl_803451C0", 0)},
+                obj, sections, symbols, None)
+
+    def test_two_of_ours_meeting_one_target_label_fails_closed(self):
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        with self.assertRaisesRegex(ValueError, "corresponds to both"):
+            self._call(
+                {0: (self.SDA21, "gNodeStackTop", 0),
+                 4: (self.SDA21, "gNodeStackInit", 0)},
+                {0: (self.SDA21, "lbl_803451BC", 0),
+                 4: (self.SDA21, "lbl_803451BC", 0)},
+                obj, sections, symbols, None)
+
+    def test_an_inconsistent_addend_delta_fails_closed(self):
+        """Two references to one uninitialised object must sit the same
+        distance apart in both, or one has been moved onto a different
+        member and no byte comparison can see it."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        with self.assertRaisesRegex(ValueError, "not the same field"):
+            self._call(
+                {0: (self.SDA21, "sTable", 0), 4: (self.SDA21, "sTable", 8)},
+                {0: (self.SDA21, "lbl_802407B8", 0),
+                 4: (self.SDA21, "lbl_802407B8", 4)},
+                obj, sections, symbols, None)
+
+    def test_a_consistent_addend_delta_is_accepted(self):
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "sTable", 4), 4: (self.SDA21, "sTable", 8)},
+            {0: (self.SDA21, "lbl_802407B8", 0),
+             4: (self.SDA21, "lbl_802407B8", 4)},
+            obj, sections, symbols, None)
+        self.assertEqual(levels["L4"], 2)
+
+    # ---- scope ----
+
+    def test_a_word_relocated_on_one_side_only_is_left_to_other_guards(self):
+        """Presence/absence is verify_relocation_binding's question; this
+        screen decides only what a word BINDS, and must not double-refuse a
+        case that guard already models (dtk bakes an address our object
+        still carries as a relocation)."""
+        obj, sections, symbols = self._pool_object(self.PI, self.TWO_PI)
+        levels = self._call(
+            {0: (self.SDA21, "@705", 0)}, {}, obj, sections, symbols, None)
+        self.assertEqual(sum(levels.values()), 0)
+
+
+class DatumBindingApplyPatchTests(unittest.TestCase):
+    """The screen reached through `apply_patch`, where it actually ships."""
+
+    SDA21 = 109
+    LFD_F25 = 0xCB200000
+    LFD_F30 = 0xCBC00000
+    LFD_F27 = 0xCB600000
+    PI = bytes.fromhex("400921fb54524550")
+    TWO_PI = bytes.fromhex("401921fb54524550")
+
+    def _pair(self, target_relocations):
+        """Ours loads @705 then @706; the recolor rewrites f27 to f30 so the
+        text reaches the target.  The relocations do not move."""
+        ours_text = _words(self.LFD_F25, self.LFD_F27, BLR)
+        target_text = _words(self.LFD_F25, self.LFD_F30, BLR)
+        ours = _elf_object(
+            ours_text, data=self.PI + self.TWO_PI,
+            data_symbols=[("@705", 0, 8), ("@706", 8, 8)],
+            relocations=[(0x2, "@705", self.SDA21, 0),
+                         (0x6, "@706", self.SDA21, 0)])
+        target = _elf_object(target_text,
+                             relocations=target_relocations)
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours_text),
+            "after_sha256": _sha256(target_text),
+            "copy_register_fields": True,
+        }
+        return ours, target, patch
+
+    def test_a_rule_whose_constants_are_rotated_is_refused(self):
+        ours, target, patch = self._pair(
+            [(0x0, "lbl_80346848", self.SDA21, 0),
+             (0x4, "lbl_80346840", self.SDA21, 0)])
+        image = _FakeImage({0x80346840: self.PI, 0x80346848: self.TWO_PI})
+        with self.assertRaisesRegex(
+            ValueError, "did not move with the register field"
+        ):
+            apply_patch(ours, patch, bytes(target), None, image)
+
+    def test_a_rule_whose_constants_agree_is_applied(self):
+        ours, target, patch = self._pair(
+            [(0x0, "lbl_80346840", self.SDA21, 0),
+             (0x4, "lbl_80346848", self.SDA21, 0)])
+        image = _FakeImage({0x80346840: self.PI, 0x80346848: self.TWO_PI})
+        _before, after, changed = apply_patch(
+            ours, patch, bytes(target), None, image)
+        self.assertEqual(after, patch["after_sha256"])
+        self.assertGreater(changed, 0)
+
+
+class RetailImageRequiredTests(unittest.TestCase):
+    """`main` refuses to run a rule without the image the screen reads."""
+
+    def test_a_missing_image_refuses_before_any_rule_is_applied(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "webfrank.json"
+            config.write_text(
+                json.dumps({"units": {"game/x/y": [{"function": "fn"}]}}),
+                encoding="utf-8")
+            source = Path(tmp) / "in.o"
+            source.write_bytes(bytes(_elf_object(_words(BLR))))
+            output = Path(tmp) / "out.o"
+            argv = ["webfrank.py", str(source), str(output), str(config),
+                    "game/x/y"]
+            with mock.patch.object(sys, "argv", argv):
+                with self.assertRaises(SystemExit) as caught:
+                    webfrank_main()
+            self.assertIn("retail image", str(caught.exception))
+            self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":

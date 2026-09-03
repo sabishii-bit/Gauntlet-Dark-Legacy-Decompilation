@@ -1705,6 +1705,300 @@ def load_symbol_addresses(path) -> dict[str, tuple[str, int]]:
     return addresses
 
 
+SHT_NOBITS = 8
+R_PPC_ADDR32 = 1
+# dtk disambiguates a file-local symbol whose name is taken elsewhere in the
+# image by appending its own address, so the target spells camera.c's static
+# `StandardCamera` as `StandardCamera_8002B828`.  The suffix IS the address.
+_DTK_ADDRESS_SUFFIX = re.compile(r"^(.+)_([0-9A-Fa-f]{6,8})$")
+# The widest datum a name-only (non-D-form) reference is compared over.
+_DATUM_SPAN_CAP = 256
+
+
+class RetailImage:
+    """Byte reader over the retail DOL, addressed by LINKED address.
+
+    The target object's pool labels are UNDEF externs — dtk splits .rodata
+    into its own `auto_*_rodata.o` objects — so the only place the bytes a
+    target relocation will bind actually exist is the retail image.  This is
+    the same file `provision_worktree.py` verifies by SHA-1 and the same one
+    the split is taken from; reading it introduces no new authority.
+    """
+
+    def __init__(self, path):
+        blob = Path(path).read_bytes()
+        self.path = str(path)
+        self.segments = []
+        for index in range(18):          # 7 text + 11 data segments
+            offset = _u32(blob, 0x00 + 4 * index)
+            address = _u32(blob, 0x48 + 4 * index)
+            size = _u32(blob, 0x90 + 4 * index)
+            if size:
+                self.segments.append((address, size, offset))
+        self._blob = blob
+
+    def read(self, address: int, length: int) -> bytes | None:
+        for start, size, offset in self.segments:
+            if start <= address and address + length <= start + size:
+                at = offset + (address - start)
+                return self._blob[at:at + length]
+        return None
+
+
+def _function_text_relocations_full(
+    data: bytes | bytearray, sections: list[Section],
+    text_index: int, fn_start: int, fn_end: int,
+) -> dict[int, tuple[int, str, int]]:
+    """As `_function_text_relocations`, but keeping the ADDEND.
+
+    The addend is what makes `gControllerButtons+4` and `sFlags+0` decidable:
+    they are two spellings of one linked address, and a comparison that drops
+    the addend can only see two different names.
+    """
+    full: dict[int, tuple[int, str, int]] = {}
+    symtabs = [s for s in sections if s.section_type == SHT_SYMTAB]
+    strtab = sections[symtabs[0].link] if symtabs else None
+    for rela in sections:
+        if rela.section_type != SHT_RELA or rela.info != text_index:
+            continue
+        item = rela.entry_size or 12
+        for position in range(rela.offset, rela.offset + rela.size, item):
+            r_offset, r_info, r_addend = struct.unpack_from(
+                ">IIi", data, position)
+            if not fn_start <= r_offset < fn_end:
+                continue
+            name = ""
+            if symtabs:
+                entry = symtabs[0].entry_size or 16
+                name_at = _u32(data, symtabs[0].offset + (r_info >> 8) * entry)
+                if name_at:
+                    name = _cstring(data, strtab.offset + name_at)
+            full[r_offset - fn_start] = (r_info & 0xFF, name, r_addend)
+    return full
+
+
+def _symbol_index(
+    data: bytes | bytearray, sections: list[Section],
+) -> dict[str, Symbol]:
+    """name -> symbol, preferring a DEFINED entry over an undefined one.
+
+    A name can appear twice in one symbol table; picking whichever came first
+    would read an UNDEF entry for a datum the object actually defines and turn
+    a provable binding into an unprovable one.
+    """
+    index: dict[str, Symbol] = {}
+    for symbol in _symbols(data, sections):
+        existing = index.get(symbol.name)
+        if existing is None or (
+            existing.section_index == 0 and symbol.section_index != 0
+        ):
+            index[symbol.name] = symbol
+    return index
+
+
+def _linked_address(
+    name: str, addend: int,
+    symbol_addresses: dict[str, tuple[str, int]] | None,
+) -> int | None:
+    """The address `name + addend` will occupy in the linked image, or None.
+
+    Our own anonymous pool labels are refused outright.  They are LOCAL to the
+    object, while the split map carries dtk's own `@13`, `@41` and `@73` for
+    OTHER translation units — resolving ours by spelling is a name collision
+    dressed as a proof, and it read three sound sfx rules as broken when this
+    screen was first calibrated.
+    """
+    if _OUR_POOL_LABEL.match(name):
+        return None
+    if symbol_addresses:
+        known = symbol_addresses.get(name)
+        if known is not None:
+            return known[1] + addend
+    suffix = _DTK_ADDRESS_SUFFIX.match(name)
+    if suffix:
+        try:
+            return int(suffix.group(2), 16) + addend
+        except ValueError:
+            return None
+    return None
+
+
+def _own_datum(
+    data: bytes | bytearray, sections: list[Section],
+    symbols: dict[str, Symbol], name: str, addend: int, span: int,
+    symbol_addresses: dict[str, tuple[str, int]] | None,
+) -> bytes | None:
+    """The LINKED bytes our object will place at `name + addend`, or None.
+
+    Words covered by an `R_PPC_ADDR32` relocation are replaced by the value
+    the linker will store there, so a jumptable — 0x24 of zeroes plus nine
+    relocations against the enclosing function — compares as the pointers it
+    becomes and not as the zeroes it is on disk.
+    """
+    symbol = symbols.get(name)
+    if symbol is None or symbol.section_index == 0:
+        return None
+    if symbol.section_index >= len(sections):
+        return None
+    section = sections[symbol.section_index]
+    if section.section_type == SHT_NOBITS:
+        return None                      # uninitialised: nothing to compare
+    low = symbol.value + addend
+    if low < 0 or low + span > section.size:
+        return None
+    blob = bytearray(data[section.offset + low:section.offset + low + span])
+    if len(blob) != span:
+        return None
+    for rela in sections:
+        if rela.section_type != SHT_RELA or rela.info != symbol.section_index:
+            continue
+        item = rela.entry_size or 12
+        symtabs = [s for s in sections if s.section_type == SHT_SYMTAB]
+        if not symtabs:
+            return None
+        strtab = sections[symtabs[0].link]
+        entry = symtabs[0].entry_size or 16
+        for position in range(rela.offset, rela.offset + rela.size, item):
+            r_offset, r_info, r_addend = struct.unpack_from(
+                ">IIi", data, position)
+            if not low <= r_offset < low + span:
+                continue
+            if r_info & 0xFF != R_PPC_ADDR32:
+                return None              # unmodelled: refuse to guess
+            name_at = _u32(data, symtabs[0].offset + (r_info >> 8) * entry)
+            referenced = (_cstring(data, strtab.offset + name_at)
+                          if name_at else "")
+            if not referenced:
+                return None              # section symbol: not resolvable here
+            address = _linked_address(referenced, r_addend, symbol_addresses)
+            if address is None:
+                return None
+            struct.pack_into(">I", blob, r_offset - low, address)
+    return bytes(blob)
+
+
+def verify_datum_binding(
+    our_relocations: dict[int, tuple[int, str, int]],
+    target_relocations: dict[int, tuple[int, str, int]],
+    words: list[int],
+    *,
+    our_data: bytes | bytearray,
+    our_sections: list[Section],
+    our_symbols: dict[str, Symbol],
+    symbol_addresses: dict[str, tuple[str, int]] | None = None,
+    image: "RetailImage | None" = None,
+    function: str = "",
+) -> dict[str, int]:
+    """Prove every relocated word binds the DATUM the target binds.
+
+    `verify_relocation_binding` proves the pool correspondence is one-to-one.
+    That forbids an EXCHANGE between two relocations, but it says nothing
+    about WHICH datum each end of a correspondence holds: `@705 -> lbl_...48`
+    together with `@706 -> lbl_...40` is a perfectly one-to-one map whose two
+    constants are swapped.  `copy_register_fields` rewrites register fields
+    and leaves relocations where they are, so when the renaming rotates the
+    homes of two pooled constants the postprocessed object is text-identical
+    to the target and binds each register to the WRONG datum — and the linked
+    displacement differs, so it is a BYTE claim that fails at link time, not
+    merely a semantic one.  Nothing in the project could see it: fndiff real,
+    the opcode multiset, objdiff fuzzy and every webfrank guard report EXACT.
+
+    claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-
+    their-relocations.20260903.v1
+
+    Four proof levels, tried in order; the first that applies decides the word.
+
+      L1 NAME     our symbol and addend equal the target's.
+      L2 ADDRESS  both sides resolve to a linked address; they must be equal.
+      L3 DATUM    our datum's linked bytes against the retail image's bytes at
+                  the target label's address, over the width the instruction
+                  actually accesses.
+      L4 CORRESP  neither side yields an address or bytes — an uninitialised
+                  .bss local, where a byte comparison is vacuous.  The names
+                  must then form a one-to-one correspondence AND every pair of
+                  references to one name pair must sit at the same addend
+                  delta, or one reference has been moved onto a different
+                  member of the same object.
+
+    Returns the per-level counts so a caller can report how each word was
+    decided.  Raises ValueError on the first disagreement.
+    """
+    levels = {"L1": 0, "L2": 0, "L3": 0, "L4": 0}
+    forward: dict[str, str] = {}
+    backward: dict[str, str] = {}
+    deltas: dict[tuple[str, str], int] = {}
+    ours = {offset // 4: entry for offset, entry in our_relocations.items()}
+    theirs = {
+        offset // 4: entry for offset, entry in target_relocations.items()
+    }
+    for index in sorted(set(ours) & set(theirs)):
+        if not 0 <= index < len(words):
+            continue
+        word = words[index]
+        width = _ACCESS_WIDTH.get(word >> 26)
+        _, our_name, our_addend = ours[index]
+        _, their_name, their_addend = theirs[index]
+        if our_name == their_name and our_addend == their_addend:
+            levels["L1"] += 1
+            continue
+        our_address = _linked_address(our_name, our_addend, symbol_addresses)
+        their_address = _linked_address(
+            their_name, their_addend, symbol_addresses)
+        if our_address is not None and their_address is not None:
+            levels["L2"] += 1
+            if our_address != their_address:
+                raise ValueError(
+                    f"datum binding: word +0x{index * 4:x} binds {our_name}"
+                    f"+{our_addend} = 0x{our_address:x} but the target binds "
+                    f"{their_name}+{their_addend} = 0x{their_address:x}"
+                )
+            continue
+        span = width
+        if span is None:
+            symbol = our_symbols.get(our_name)
+            span = min(max(symbol.size if symbol else 4, 4), _DATUM_SPAN_CAP)
+        our_datum = _own_datum(
+            our_data, our_sections, our_symbols, our_name, our_addend, span,
+            symbol_addresses,
+        )
+        their_datum = (
+            image.read(their_address, span)
+            if image is not None and their_address is not None else None
+        )
+        if our_datum is not None and their_datum is not None:
+            levels["L3"] += 1
+            if our_datum != their_datum:
+                raise ValueError(
+                    f"datum binding: word +0x{index * 4:x} binds {our_name} = "
+                    f"{our_datum.hex()} but the target's {their_name} holds "
+                    f"{their_datum.hex()} in the retail image — the relocation "
+                    f"did not move with the register field"
+                )
+            continue
+        levels["L4"] += 1
+        pair = (our_name, their_name)
+        if deltas.setdefault(pair, our_addend - their_addend) != (
+            our_addend - their_addend
+        ):
+            raise ValueError(
+                f"datum binding: word +0x{index * 4:x} references "
+                f"{our_name}/{their_name} at addend delta "
+                f"{our_addend - their_addend}, but an earlier word used "
+                f"{deltas[pair]} — the two are not the same field"
+            )
+        if forward.setdefault(our_name, their_name) != their_name:
+            raise ValueError(
+                f"datum binding: word +0x{index * 4:x}: {our_name} "
+                f"corresponds to both {forward[our_name]} and {their_name}"
+            )
+        if backward.setdefault(their_name, our_name) != our_name:
+            raise ValueError(
+                f"datum binding: word +0x{index * 4:x}: target {their_name} "
+                f"corresponds to both {backward[their_name]} and {our_name}"
+            )
+    return levels
+
+
 def resolve_memory_locations(
     function: bytes,
     declarations,
@@ -3446,6 +3740,7 @@ def copy_register_fields(current: bytes, target: bytes) -> tuple[bytes, int]:
 def apply_patch(
     data: bytearray, patch: dict, target_data: bytes | None = None,
     symbol_addresses: dict[str, tuple[str, int]] | None = None,
+    image: "RetailImage | None" = None,
 ) -> tuple[str, str, int]:
     sections = _sections(data)
     symbol = _find_symbol(data, sections, patch["function"])
@@ -4222,6 +4517,45 @@ def apply_patch(
                         f"ending at +0x{exit_index * 4:x} in the {label} "
                         f"function"
                     )
+
+    # THE DATUM SCREEN, run last so it sees the object every stage produced.
+    # Every stage above proves something about the TEXT; none proved that the
+    # relocations still bind what the target's bind, and copy_register_fields
+    # can rotate two constant-load homes without moving their relocations
+    # (claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-
+    # without-their-relocations.20260903.v1: move_logic00 shipped for ten days
+    # computing `if cand > 2pi then cand - pi` against a retail that computes
+    # `if cand > pi then cand - 2pi`, byte-identical in .text throughout).
+    # It is unconditional and fail-closed: a rule that cannot prove its
+    # bindings does not ship.
+    if target_data is not None:
+        binding_sections = _sections(target_data)
+        binding_symbol = _find_symbol(
+            target_data, binding_sections, symbol.name)
+        final_relocations = _function_text_relocations_full(
+            data, sections, symbol.section_index,
+            symbol.value, symbol.value + symbol.size,
+        )
+        binding_relocations = _function_text_relocations_full(
+            target_data, binding_sections, binding_symbol.section_index,
+            binding_symbol.value, binding_symbol.value + binding_symbol.size,
+        )
+        levels = verify_datum_binding(
+            final_relocations, binding_relocations,
+            [_u32(final_function, offset)
+             for offset in range(0, len(final_function), 4)],
+            our_data=data, our_sections=sections,
+            our_symbols=_symbol_index(data, sections),
+            symbol_addresses=symbol_addresses, image=image,
+            function=symbol.name,
+        )
+        if levels["L4"]:
+            print(
+                f"WEBFRANK {symbol.name}: datum binding proved "
+                f"(name {levels['L1']}, address {levels['L2']}, datum "
+                f"{levels['L3']}); {levels['L4']} word(s) rest on the pool "
+                f"correspondence alone (uninitialised data)"
+            )
     return before, after, changed
 
 
@@ -4275,12 +4609,17 @@ def main() -> int:
         "--symbols", type=Path, default=None,
         help="split map used to prove two SDA globals do not alias "
              "(default: symbols.txt beside the config)")
+    parser.add_argument(
+        "--image", type=Path, default=None,
+        help="retail DOL, used to read the bytes a target relocation binds "
+             "(default: orig/<version>/sys/main.dol beside the config)")
     args = parser.parse_args()
 
     symbols_path = args.symbols or (args.config.parent / "symbols.txt")
     symbol_addresses = (
         load_symbol_addresses(symbols_path) if symbols_path.exists() else None
     )
+
 
     # MARK THE OBJECT WE FAIL TO WRITE, CLEAR IT WHEN WE DO (run-35 item 4).
     # Any refusal below — a pin body-hash assertion, a guard rejection, a
@@ -4317,6 +4656,20 @@ def main() -> int:
     if not patches:
         raise KeyError(f"no webfrank configuration for {args.unit!r}")
 
+    # The datum screen reads the bytes a TARGET relocation binds, and the only
+    # place those exist is the retail image: dtk splits .rodata into separate
+    # `auto_*_rodata.o` objects, so the target object carries its pool labels
+    # as UNDEF externs.  Refuse up front rather than silently degrading every
+    # rule to the weaker correspondence proof — a screen that quietly stops
+    # screening is how claim.law.CQ_copy-register-fields-can-rotate-constant-
+    # load-homes-without-their-relocations shipped for ten days.  Resolved
+    # only once there is a rule to apply, so a unit with no rules still
+    # passes its object through.
+    image_path = args.image or (
+        args.config.parent.parent.parent
+        / "orig" / args.config.parent.name / "sys" / "main.dol"
+    )
+
     data = bytearray(args.input.read_bytes())
     target_data = args.target.read_bytes() if args.target else None
     total = 0
@@ -4324,10 +4677,20 @@ def main() -> int:
     # the FUNCTION, and the loop variable does not survive the except.
     failing = None
     try:
+        # Inside the try, because a missing image is a REFUSAL like any
+        # other: it leaves the previous object on disk under a name every
+        # reader trusts, so it has to leave the stale marker too.
+        if not image_path.exists():
+            raise SystemExit(
+                f"webfrank: retail image {image_path} is missing, so "
+                f"relocation datum bindings cannot be proved; run "
+                f"python tools/gdl/provision_worktree.py, or pass --image"
+            )
+        image = RetailImage(image_path)
         for patch in patches:
             failing = patch.get("function")
             _, _, changed = apply_patch(data, patch, target_data,
-                                        symbol_addresses)
+                                        symbol_addresses, image)
             total += changed
             print(
                 f"WEBFRANK {patch['function']}: "
