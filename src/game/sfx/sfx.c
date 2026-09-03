@@ -758,11 +758,11 @@ s32 StartGemFX(f32* pos, s32 sel)
     u32 fla = 0x80880;
 
     if (sel == 0x400) {
-        ret = StartFXSubGutsP(page, FX_GET_RUNE, pos, 0, fla, lbl_80348068);
+        ret = StartFXSubGutsP(page, FX_GET_RUNE, pos, 0, fla, 0.0f);
     } else if (sel == 0x100) {
-        ret = StartFXSubGutsP(page, FX_GET_GARG, pos, 0, fla, lbl_80348068);
+        ret = StartFXSubGutsP(page, FX_GET_GARG, pos, 0, fla, 0.0f);
     } else {
-        ret = StartFXSubGutsP(page, sel + 69, pos, 0, fla, lbl_80348068);
+        ret = StartFXSubGutsP(page, sel + 69, pos, 0, fla, 0.0f);
     }
     return ret;
 }
