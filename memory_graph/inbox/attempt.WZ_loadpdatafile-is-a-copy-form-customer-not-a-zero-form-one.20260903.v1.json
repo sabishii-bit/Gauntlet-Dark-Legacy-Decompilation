@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Serve the customer the run-40 census banked for the shipped equivalent_zero_form class, and find that the class it needs is the OLDER equivalent_copy_form composed with a 2-atom permutation and copy_register_fields.",
+  "attributes": {
+    "law_screen": "claim.law.WF_live-zero-family-straddles-the-copy-form-boundary-and-only-half-of-it-needed-a-new-class.20260902.v1 APPLIED and DECISIVE: it says the live-zero family splits by what OUR word is, and instructs a census to count exact WORD PAIRS rather than the family label. Counting the pair here (ours `li r29,0` 3ba00000 against the target's `addi r28,r23,0` 3b970000, i.e. a constant load against a register copy) puts this site on the EXISTING equivalent_copy_form side, so the run-40 census's equivalent_zero_form framing is refuted at exactly the point the law predicts a family-label screen fails. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED as the class-level source-unreachability proof (twelve functions, eight TUs). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED: the RAW word count (17 of 88) was remeasured live with wf_word_diff.py at 7300fe688, not inherited from the record. claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED and PASSED: 88/88. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 SCREENED and NOT NEEDED here -- the [0x118,0x120) window carries no relocation in either object (both region hashes are the empty-payload hash e3b0c442..., checked and not assumed). claim.law.webfrank-pinned-function-source-freeze.20260831.v1 and 15b APPLIED: src/game/sfx/psfx.c is now source-frozen at this function; the rule changes no literal and no instruction count, so the TU's anonymous pool population and the downstream DoPlyrSfxSub pin are untouched (the full ninja replayed both).",
+    "laws_applied": "[\"claim.law.WF_live-zero-family-straddles-the-copy-form-boundary-and-only-half-of-it-needed-a-new-class.20260902.v1\", \"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "NO SOURCE EDIT. src/game/sfx/psfx.c is byte-unchanged; the whole change is one config/GUNE5D/webfrank.json rule under game/sfx/psfx. The source axes were spent by the superseded record, which measured and recorded as do-not-retry: the old offset/sizePtr form (89 insns, real 97), explicit global-base locals (90, real 86), typed headers[index] (91, real 41), a separate second offset (88, real 36), and the pointer-zero spelling / chained initialization / nested scope trio (all invariant at 88, real 32).",
+    "residual": "None. The function is byte-identical to the target through the postprocessor. THE MECHANISM, so a reader need not re-derive it: the second loop's two seeds are TRANSPOSED, not merely recoloured. Ours emits the byte-offset induction seed `li r29,0` at +0x118 then the stored-zero seed `li r22,0` at +0x11c; the target emits the stored zero first (`addi r28,r23,0`, copying the zero `li r23,0` seeded at +0x114) and the induction seed second (`li r29,0`). Without the [0x118,0x120) transposition the recolor is provably INCONSISTENT -- our r29, defined at +0x118 and read at +0x124 `add r24,r31,r29` and +0x144, would have to map to the target's r28 at its definition and to r29 at its uses -- so the permutation is load-bearing rather than cosmetic. After it, `constant_dataflow_recolor` naming OUR r23 re-encodes our word to `addi r22,r23,0` (the target's ENCODING around our register), and the remaining 16 words are two disjoint callee-saved transpositions in the first loop (ours g28/g26 against g26/g28, ours g24/g25 against g25/g24) plus the second loop's own webs, all completed by copy_register_fields and machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape.",
+    "scope": "config/GUNE5D/webfrank.json only (one new rule under game/sfx/psfx). tools/gdl/webfrank.py is UNCHANGED -- no new class, no widened guard, no forced-full-replay obligation beyond the ordinary full build.",
+    "verification": "COUNT PARITY QUOTED AS THE DECIDING FACT: insns 88/88 (ours/target). RAW DIFFERING WORDS = 17 of 88, MNEMONIC DIVERGENCE = 0 (tools/gdl/composed_census/wf_word_diff.py, measured live at 7300fe688). The rule was proved through the real webfrank.apply_patch against the extracted retail object BEFORE it was written into webfrank.json, output bytes == target bytes (tools/gdl/composed_census/wz_derive.py, re-runnable from the repo root). After `python configure.py` + full `ninja -j2`: `WEBFRANK LoadPdataFile: adjusted 19 instruction atoms/fields` appears, `build/GUNE5D/main.dol: OK`, and every pre-existing WebFrank rule replayed in the same build. `fndiff --clean` = EXACT, 0 real diff lines. `defake_gate check game/sfx/psfx` = GATE OK. Both suites green (`python -m unittest discover tools/gdl/tests` 1060 tests OK; `python -m memory_graph.test_graph` 318 tests OK). EQUIVALENT tier, and STRICT did not move: 56.52% (2576 fns) before and after; EQUIVALENT 10.00% (143 fns) -> 10.09% (145 fns) across this lane's two closes."
+  },
+  "describes_denial_of": "attempt.loadpdatafile-record-alias-closure.20260829.v1",
+  "function": "function:LoadPdataFile",
+  "id": "attempt.WZ_loadpdatafile-is-a-copy-form-customer-not-a-zero-form-one.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T01:32:17Z",
+  "refutes": "claim.NM_close-lane-candidate-census-and-the-two-live-zero-customers-run-40.20260902.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-03",
+    "signature": "closed -- was 'insns 88/88 (ours/target, COUNT PARITY); RAW DIFFERING WORDS = 17 of 88, MNEMONIC DIVERGENCE 0; 1 ops cluster, opcode multiset +1 addi / -1 li; real 32'"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.loadpdatafile-record-alias-closure.20260829.v1",
+  "valid_from": "2026-09-03",
+  "verifiers_run": [
+    "instruction_permutation (permute_instruction_atoms + check_permutation_dependences + verify_relocation_binding)",
+    "equivalent_copy_form / constant_dataflow_recolor (prove_constant_dataflow)",
+    "copy_register_fields",
+    "verify_consistent_recolor"
+  ],
+  "windows_tried": [
+    "0x118:0x120:1,0"
+  ]
+}
