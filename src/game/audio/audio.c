@@ -946,25 +946,21 @@ static inline s32 AudioFreeQueueSlot(u8* state)
  * while audio is suspended. */
 static inline s32 AudioLoadPoll(void)
 {
-    s32 cur;
+    s32 j;
 
     if (sAudioSuspend != 0) {
-        cur = 0;
-    } else {
-        s32 j;
-
-        lbl_803442A8 = 0;
-        sndSysUpdate(lbl_80345950);
-        if (sAudioMute != 0) {
-            lbl_803442B4++;
-            for (j = 10000; j != 0; j--) {
-            }
-        } else {
-            lbl_803442B4 = 0;
-        }
-        cur = sAudioMute;
+        return 0;
     }
-    return cur;
+    lbl_803442A8 = 0;
+    sndSysUpdate(lbl_80345950);
+    if (sAudioMute != 0) {
+        lbl_803442B4++;
+        for (j = 10000; j != 0; j--) {
+        }
+    } else {
+        lbl_803442B4 = 0;
+    }
+    return sAudioMute;
 }
 
 s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
