@@ -4578,7 +4578,7 @@ s32 set_hidden_player(void* vp) {
                 PF(p, offsetof(Player, item_body_hi), s32) = (s32)cheat->value;
                 break;
             default:
-                PlayerAddPowerup(cheat->value, 1.0f, p,
+                PlayerAddPowerup(cheat->value, -1.0f, p,
                                  cheat->type, cheat->mask);
                 if (cheat->type == 9) {
                     PF(p, offsetof(Player, flags), u32) |= cheat->mask;
