@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/claimscope.py (--index, --self, <unit>)",
+    "memory_graph/gdlmem.py claims --owns <path> (structured_verdict / ownership_coverage)",
+    "tools/gdl/tests/test_t16_claimscope.py",
+    "memory_graph/test_graph.py OwnedUnitsTests"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the sweep this record is built on -- `gdlmem.py claims --owns <unit>` over every path `src/**/*.c` yields -- against the run's live claims. The law dies if the prose screen's firings are mostly correct: that is, if the units it returns a claim for are units some scope actually names. It also dies if a claim's `attributes.owned_units` list is measured producing a foreign-ownership verdict for a unit no claim lists (`python tools/gdl/claimscope.py <unit>` reporting `foreign` with an empty owners list is a bug, not a refutation; a WRONG owner is the refutation).",
+  "id": "claim.law.T16_a-work-claim-scope-prose-is-not-machine-screenable-ownership.20260903.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-03T17:54:42Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A work_claim's `attributes.scope` PROSE cannot be used as an ownership screen by any tool, and the substring screen behind `gdlmem.py claims --owns` must not be promoted to a refusal. MEASURED at c621fcbac against run 46's six live claims, over all 250 units under `src/`: the screen returns at least one claim for 20 units, and 17 of those 20 (85%) are units no scope names. The failures are not near-misses, they are word collisions with the workflow boilerplate every scope carries: `game/sys/main.c` matches FIVE of the six claims on the word `main`, which every scope contains because every scope ends with the gate line `main.dol: OK`; `game/ui/select.c` matches the TOOL lane on `Select`, from `Select-Object` in a shell note; `MSL/mem.c` matches four; `game/world/items.c` matches the TOOL lane on `items` from `9 items`. It is also blind to NEGATION, which is worse than noisy: the branch-pair lane's scope names the flip lane's three TUs (`MF owns ml_fmath/atree/pb_diag`) precisely in order to EXCLUDE them, and the screen reports it as their CO-OWNER -- on the positive side of the same sweep, 6 of 6 explicitly named units were found, but with 3 false co-owners, all three from that one negation. THE FIX IS A SEPARATE CHANNEL, not a better matcher: `attributes.owned_units`, a list of repo-relative unit paths or directory prefixes, normalized on read (`src/` prefix, `.c`/`.cpp` suffix and backslashes all collapse). Fixtured on the same six claims with every list declared, the structured screen fires 3 to 6 times per lane with ZERO false positives and ZERO misses, and directory entries (`tools/gdl`) protect their files by path SEGMENT, so `tools/gd` does not cover `tools/gdl/probe.py`. THE COVERAGE HALF IS THE PART THAT DECIDES WHETHER IT PROTECTS ANYONE: 0 of the 6 run-46 claims carried the field at dispatch, so on the day it shipped the screen was INERT. A claim with no list makes every unit UNDECIDABLE, never free -- `probe.py` and `defake_gate.py` warn and proceed there, and refuse (exit 3) only on a structured foreign hit, which is why the refusal cannot false-positive by construction. An order that omits `owned_units` silently disarms the protection for the whole fleet; `gdlmem.py claims` reports `ownership_coverage` so that omission is visible rather than inferred."
+}

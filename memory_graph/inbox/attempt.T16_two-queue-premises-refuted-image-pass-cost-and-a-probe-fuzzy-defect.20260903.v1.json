@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Reproduce, before building anything, the two run-46 tool-queue items whose premises were inherited as prose: (5) 'every census re-parses from scratch -- 6 image passes at 2-4 min each' and (8) 'probe --fuzzy on CONFLICT exits 255 with no number'.",
+  "attributes": {
+    "law_screen": "none applicable: these are tool-behaviour premises, not codegen. The governing WORKFLOW rules are AGENTS.md's 'a tool-queue item's brief must include the one-command symptom reproduction' and 'queue items state the OBSERVATION, never the cure AND never the cause' -- both were followed by this lane and both premises died on contact, which is the rule working.",
+    "probed_form": "Timed, from the repo root, capture-form (never through a Select-Object pipe): t15_operand_provenance.py 13.2s (image-wide) and 12.9s (--pinned); webfrank_audit.py 11.1s; lowmatch.py --max 20 6.4s; nearmiss.py --min 90 6.0s / 6.2s / 6.5s on three consecutive runs; t15_whoemits.py frsqrte 3.1s; mt_region_census.py game 0.4s. fndiff.parse over the first 40 of 310 objects under build/GUNE5D/src: 0.66s first pass, 0.52s for an identical second pass in the same process (5.1s extrapolated per full-image pass). For item 8: `$o = python tools/gdl/probe.py zlib/inflate inflate --fuzzy 2>&1; $LASTEXITCODE` -> 0, output ends `FUZZY (fresh report): 100.0000%`; the SAME command as `python tools/gdl/probe.py zlib/inflate inflate --fuzzy 2>&1 | Select-Object -First 2; $LASTEXITCODE` -> -1, and the FUZZY line is not in the output.",
+    "residual": "What the items were RIGHT about was kept and shipped, which is why this record is `negative` and not a dead end. Item 5's real observation (nothing below fndiff.parse was cached, and it spawns TWO objdumps per call) became an identity-keyed per-process memo in fndiff.objdump -- keyed on (path, flags, mtime_ns, size), because probe BUILDS an object and then reads it in the same process and a path-keyed memo would have served it pre-build bytes. The same key was added to fndiff's pre-existing _SECTION_CACHE, which was path-keyed and had that exact staleness hole. No on-disk cross-process cache was built: at 0.4s to 13.2s per pass there is no demand to justify the staleness surface (AGENTS.md's demand-census rule at the class level). Item 8's real defect was a DIFFERENT one, found while reproducing: probe parses flags by membership testing, so an unrecognised flag was silently dropped -- `probe.py zlib/inflate inflate --revert-bset --no-build` exited 0 having run an ordinary probe and BANKED a BASELINE, i.e. a mistyped revert overwrote the state it was meant to restore. probe now refuses unknown flags with a did-you-mean, refuses --function together with --whole-file (the two restore families take OPPOSITE defaults for those words), and exits 4 rather than 0 when --fuzzy produces no number. The KNOWN_FLAGS list is calibrated both ways: every one of the 37 flags is accepted, and the screen caught a phantom `--ops-arbitrated` that probe's own docstring advertised and probe has never implemented.",
+    "verification": "Both refutations are one-command reproductions and were re-measured after the item-5 change landed (repeat pass 0.52s -> 0.07s, and nearmiss re-timed at 6.3/6.2/6.5s to confirm a one-off 10.2s reading was fleet build contention, not a regression)."
+  },
+  "denial": {
+    "expiry_check": "Re-time the same seven commands from the repo root in capture form. If any exceeds ~60s the cache premise is live again and the demand census should be redone; the probe half expires only if a captured (unpiped) `probe --fuzzy` is measured exiting 255.",
+    "falsifier": "A census tool in tools/gdl or tools/gdl/composed_census measured taking minutes on a warm tree kills the first denial. A captured, unpiped `probe.py <unit> <fn> --fuzzy` exiting 255 kills the second.",
+    "premise_measurement": "Seven image passes timed at 0.4s-13.2s (commands and numbers in attributes.probed_form); probe --fuzzy captured exits 0 and prints its number, and exits -1 with the number truncated only when piped through PowerShell `Select-Object -First`.",
+    "scope": "The two premises above ONLY: image-pass cost as a justification for a cross-process parsed-object cache, and probe --fuzzy as the cause of a 255-with-no-number reading. Neither denial covers the underlying items' real findings, which were both shipped."
+  },
+  "function": "project:gdl",
+  "held_fixed": "Both premises were measured on the UNCHANGED tree at c621fcbac/ea9341850 before any edit of the tool in question; the item-5 timings were re-taken after the change with the same commands.",
+  "id": "attempt.T16_two-queue-premises-refuted-image-pass-cost-and-a-probe-fuzzy-defect.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T17:56:26Z",
+  "refutes": "work_claim.tool-queue-16.20260903.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-03",
+    "signature": "no-residual"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
