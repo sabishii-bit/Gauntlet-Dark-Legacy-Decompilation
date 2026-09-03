@@ -3,6 +3,17 @@
   "units": {
     "game/ui/screensaver": [
       {
+        "function": "print_n_of_m",
+        "mechanism": "attempt.CL_print-n-of-m-a-loaded-local-outranks-a-parameter-copy-local.20260903.v2 (source-exhaustion provenance; supersedes attempt.CT_print-n-of-m-param-copy-local-numbering.20260903.v1 and attempt.parked.print-n-of-m.20260830.v1). The residual is a single r30/r31 transposition of one callee-saved PAIR: the node-copy local and the arrH[].d load. Target `@0x24 addi r31,r7,0` against ours `addi r30,r7,0`, and target `@0x58 lwz r30,548(r3)` against ours `lwz r31,548(r3)`, with every other callee-saved definition byte-identical (`@0x20 addi r26,r5,0`, `@0x50 lwz r29,536(r3)`, `@0x5c lwz r27,552(r3)`, `@0x60 add r28,r6,r0`). wf_word_diff reads 68 insns, DIFFERING WORDS = 8, MNEMONIC DIVERGENCE = 0, CLASS RECOLOR; webfrank_audit classifies it REGISTER_ONLY with 8 register-field edits at +0x24/+0x58/+0x94/+0xa0/+0xac/+0xb8/+0xe4/+0xf0. FOUR source lever classes are measured dead on the real object: declaration ORDER and declaration TYPE both returned NEUTRAL-IDENTICAL with the same object digest 38009029928d (the construct folds away in the front end, a stronger negative than a regression); STATEMENT POSITION of `nd = node;` took real 16 -> 20 and broke the multiset; LOCAL EXISTENCE -- passing the `node` parameter directly to both MBFontMsgSetAlpha calls -- took real 16 -> 32 and shifted the whole callee-saved bank. Datum bindings are proved by the screen this rule ships under.",
+        "before_sha256": "41923b6c9ca038518e822eaef2d690b469881e7fb720a646399408c522516df8",
+        "after_sha256": "08a1810964c7495ffc94700c76de47402ef58f8fa8fc7d4d98656df38276889f",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 68
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "end_inventory_panel",
         "mechanism": "attempt.HV_harvest-sweep-arrow-order.20260901.v1. PRE-PERMUTATION plus copy_register_fields, 39 atoms/fields, and the FIRST rule in game/ui/screensaver (the unit block and its WEBFRANK build edge are created with this commit -- configure.py is required or ninja runs green with the rule silently unapplied). The residual is a whole-function GPR renaming (real 64 of 67 instructions) composed with the same live-zero-remat word: the target seeds `li r29,0` at +0x18 and spends `addi r31,r29,0` at +0x28 for `i = 0`, while our stream emits two independent `li`. Source axes measured DEAD on the real object this run: (1) declaration order, moving `int i` ahead of `base`/`p` per the declaration-order law -- NEUTRAL-IDENTICAL, object bytes UNCHANGED, i.e. the edit folded away before codegen, which is a stronger negative than a regression; (2) fusing the base and the +928 displacement into one expression `(void**)(base + player * 16 + 928)` to force the target's in-place advance -- REGRESSED 64 -> 70. The renaming axis itself was already parked by attempt.parked.end-inventory-panel.20260830.v1 ('renum + base-const assoc', the four handle-free loops off lbl_80274600 at +928/992/736/592).",
         "before_sha256": "8748ebb9be0d1a8f8604cd948e83825def1b5efa30f51a6ed170ea1b73db53ce",
@@ -671,6 +682,17 @@
     ],
     "game/enemy/critter": [
     {
+      "function": "CritterGetTargetPlayers",
+      "mechanism": "attempt.CL_crittergettargetplayers-assignment-in-condition-splits-the-coalesced-clamp-carrier.20260903.v1 (source-exhaustion provenance; supersedes attempt.ES_critter-get-target-players-clamp-carrier-colours-with-the-divide-temp.20260903.v1 and attempt.critter-get-target-players-clamp-merge.20260903.v2). The whole residual is ONE consistent f0/f1 transposition downstream of a single decision: which FPR receives the second of two lfs loads. Target `@0x114 lfs f1,452(r3)` and `@0x118 lfs f0,444(r3)` then `@0x134 fdivs f0,f0,f1`; ours loads damage into f0 and base into f1 and divides `fdivs f1,f1,f0`. Everything after follows mechanically because MWCC writes the quotient into whichever register already holds the dividend -- the guard compare at 0x11c, the clamp compare at 0x138, the low-clamp fmr at 0x140, the high-clamp constant load at 0x148, the second compare at 0x14c, the pass-through fmr at 0x158 and the narrowing frsp at 0x15c are all the same swap. wf_word_diff: 128 insns, DIFFERING WORDS = 10, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, CLASS RECOLOR; fndiff --ops reports opcode streams identical; regnorm GENUINE structural rows 0. FOUR lever classes are measured dead against that one decision: declaration ORDER of the two f32 loads (twice, at two alignments, both NEUTRAL-IDENTICAL against object digest 246431a4be68), declaration WIDTH of the quotient/carrier pair (byte-identical object), declaration ORDER of the quotient/carrier pair (T128/O129, count parity lost), and STATEMENT ORDER of the two loads (byte-unchanged). ONE named source lever remains UNTRIED -- changing what the second load READS, so the two loads no longer originate in one addressing web -- and src/game/enemy/critter.c is claimed by another lane this run (work_claim.brink-leftovers.20260903.v1), so this rule is authored on the four measured-dead classes and that lever is left open rather than claimed as exhausted.",
+      "before_sha256": "786c2f06846ebdab28f219110b96ac74c41a8cf3587095cc44f4d5108f7fb6ca",
+      "after_sha256": "ed2c4408d22970a721e5095f8a735f2817731c806cfca78373e221b05697bdb8",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 128
+      },
+      "copy_register_fields": true
+    },
+    {
       "function": "CritterLineRootColSub",
       "before_sha256": "a67792e802cc08319d9e4d7cb7b9f555740bde663620293e7a0e888fa6af7746",
       "after_sha256": "b6e19382237934e8be20e87042d1a2b05b6a70ff84338ad83ecdb2663adda62b",
@@ -845,17 +867,6 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 105
-        },
-        "copy_register_fields": true
-      },
-      {
-        "function": "move_logic00",
-        "before_sha256": "db7842f97a97bc4a3b34f81848187b13ad3341faa6ddb32d5b75dc553490999b",
-        "after_sha256": "5e3b5746aa9c1741eb15e3fdd5882093e0dcae66e1cad6517619e95f28a75ca0",
-        "unproven_recolor_audit": "FP constant-web routing residual: rotated lfd web homes (+0x1dc-0x1f4) cross the renaming; byte-equal to retail and individually reviewed 2026-08-24.",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 244
         },
         "copy_register_fields": true
       },
@@ -1415,6 +1426,39 @@
           "classification": "REGISTER_ONLY",
           "instructions": 152
         },
+        "copy_register_fields": true
+      }
+    ],
+    "game/mb/mb_camera": [
+      {
+        "function": "MBCameraUpdate",
+        "mechanism": "attempt.CL_mbcameraupdate-frame-40-is-source-reachable-and-exclusive-with-the-exact-band.20260903.v2, executing the CLASS decision that record referred to the integrator. The function had two reachable source states and they are in DIFFERENT postprocessor classes: state (i) `dstOffset = row * 16; srcOffset = row * 4;` gave a byte-exact scratch band at frame 48, real 10, fuzzy 99.9685%, but its residual was five aligned IMMEDIATE frame words -- stack-layout words no shipped class can touch, so state (i) could never be finished by a rule. State (ii), PROBE C, makes dstOffset an accumulator (`dstOffset = 0;` before the do-loop, `dstOffset += 16;` after `row++;`) and reaches frame 40/40 with SLOT MAP IDENTICAL at 159/159 and an IDENTICAL opcode multiset, at the sanctioned cost of 0.80 fuzzy and 24 real. Reproduced this run exactly: probe.py real 10 -> 34, insns T159/O159, multiset 0t, slotdiff SLOT MAP IDENTICAL. The residual is then a consistent seven-cycle GPR rotation (r3->r4->r5->r6->r7->r8->r9->r3, read at each definition site: `@0x178 li r8,0` -> `li r9,0`, `@0x1ac add r6,r30,r3` -> `add r7,r30,r4`, `@0x1b4 li r4,0` -> `li r5,0`, `@0x1d4 addi r8,r8,1` -> `addi r9,r9,1`) plus TWO transpositions, not the one the record quoted: the induction updates at +0x1e4/+0x1ec (`addi r9,r9,16`/`addi r3,r3,4` against target's `addi r4,r4,4`/`addi r3,r3,16` -- an IMMEDIATE difference at an aligned same-opcode position, so no recolor can reach it) AND the two loop seeds at +0x17c/+0x184 (`li r3,0`/`li r9,0` against target's `li r3,0`/`li r4,0`). Each is a 3-atom window whose middle atom is a store the two moving atoms neither read nor write: `stfs f0,48(r27)` at +0x180 touches f0/r27, and `stfsx f0,r31,r4` at +0x1e8 touches f0/r31/r4, while the moving atoms define only r3 and r9. check_permutation_dependences accepts both in its strictest form with no exit_dead escape, and the composition reaches the target BYTE-EQUAL. Source exhaustion for the offset-derivation lever class is PROBE A/B/C/D in the record's probed_form; the record's remaining untried axis (MWCC's outgoing-parameter area) belonged to state (i) and is moot now that the frame is exact.",
+        "before_sha256": "0d30323e8686e79b2a8d43dfd20d2c0498a3280d9bb2c253fdef4b3d4eb511a6",
+        "after_sha256": "0817ecee229ed97f5e213b403f70a0a072f3c10e590503e4bd9d644bb6175fd3",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 159
+        },
+        "instruction_permutation": [
+          {
+            "start": "0x17c",
+            "end": "0x188",
+            "order": [2, 1, 0],
+            "before_sha256": "5a2023b0eee9cdd4f3200a37cc7bbb09fdfd8218559844257a3ec7711a188d11",
+            "after_sha256": "5f45fa235d32cf56afd58a7b09873372eda7b68dad9ab1f31ab76cc4eb9d35a7",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x1e4",
+            "end": "0x1f0",
+            "order": [2, 1, 0],
+            "before_sha256": "1b8a22f68161829996be222836097f31b442b33b6d0b068bc4b238b5b94efde2",
+            "after_sha256": "c38306ba379d52c2f250f10fffadf3716cdadb1ef23a1ae2d9f261ae5268a766",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
         "copy_register_fields": true
       }
     ],

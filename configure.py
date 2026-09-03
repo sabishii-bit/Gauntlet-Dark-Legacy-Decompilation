@@ -833,7 +833,7 @@ config.custom_build_rules = [
     },
     {
         "name": "webfrank",
-        "command": "$python tools/gdl/webfrank.py $in $out $webfrank_config $webfrank_unit --target $webfrank_target",
+        "command": "$python tools/gdl/webfrank.py $in $out $webfrank_config $webfrank_unit --target $webfrank_target --image $webfrank_image",
         "description": "WEBFRANK $out",
     },
     {
@@ -854,6 +854,12 @@ config.custom_build_rules = [
 ]
 webfrank_config = Path(f"config/{config.version}/webfrank.json")
 webfrank_units = json.loads(webfrank_config.read_text(encoding="utf-8"))["units"]
+# The retail image webfrank's datum screen reads: dtk splits .rodata into its
+# own `auto_*_rodata.o` objects, so a target relocation's pool label is an
+# UNDEF extern and the bytes it binds exist only here.  The extracted target
+# objects each webfrank edge already depends on are split out of this same
+# file, so requiring it adds no new precondition to a matching build.
+webfrank_image = f"orig/{config.version}/sys/main.dol"
 config.object_postprocesses = {}
 
 # Exact-match postprocessors intentionally depend on extracted retail objects
@@ -867,11 +873,13 @@ if not config.non_matching:
                 "tools/gdl/webfrank.py",
                 str(webfrank_config),
                 f"build/{config.version}/obj/{unit}.o",
+                webfrank_image,
             ],
             "variables": {
                 "webfrank_config": str(webfrank_config),
                 "webfrank_unit": unit,
                 "webfrank_target": f"build/{config.version}/obj/{unit}.o",
+                "webfrank_image": webfrank_image,
             },
         }
         for unit in webfrank_units

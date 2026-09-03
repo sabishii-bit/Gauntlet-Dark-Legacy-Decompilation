@@ -1,0 +1,40 @@
+{
+  "attempted_axis": "Serve the filed instruction_permutation customer: move the two preheader `li` atoms from the top of the entry block to their target position, a single window, no recolor needed.",
+  "attributes": {
+    "law_screen": "attempt.NM_additeminstlist-index-form-induction.20260903.v1 supplies the source-exhaustion provenance and is CONFIRMED live (its residual reproduces exactly). claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED, not applicable: 100/100. claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1 SCREENED: one window is all this needs, so the schema limit is not the blocker. AGENTS.md discipline 14 (a guard's refusal is a measurement of the GUARD) APPLIED and is the content of this record. AGENTS.md 'Commissioning a postprocessor CAPABILITY requires a DEMAND CENSUS FIRST' APPLIED and is why nothing was built: the census is NOT run and the demand is 1 measured customer, so the gate is unmet.",
+    "laws_applied": "[\"claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1\"]",
+    "probed_form": "The window is our +0x18..+0x60 (18 atoms) with order [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,0,1], i.e. atoms 0 and 1 (`li r29,0` and `li r26,0`) move from the head of the window to its tail and every other atom shifts up by two. The permuted region is BYTE-EQUAL to the target region -- verified before the guard ran -- so the window and the order are right and only the guard stands between this and an exact close.",
+    "residual": "4 real rows / 18 raw words, unchanged. The function is one guard clause away from exact and the guard is correct to refuse as written.",
+    "scope": "No source or config change. One window derived and run through the real apply_patch; refused; nothing retained.",
+    "verification": "REFUSAL, verbatim: `ValueError: instruction permutation region contains a control op`. WHAT FIRED: tools/gdl/webfrank.py permute_instruction_atoms, the per-atom loop that raises if `_is_control_instruction` holds for ANY atom in the region, before check_permutation_dependences is called at all. WHICH WORDS: `bl SetPlayerVars` at our +0x34 and `bl AllocMem` at our +0x48; both are inside the window and both must be, because the two moving atoms start before them and end after them, so no sub-window avoids them. WOULD A FINER CHECK PASS: yes. The two moving atoms are `li r29,0` and `li r26,0`. They read nothing, touch no memory, are non-control, and write only r29 and r26, which are NONVOLATILE under the PPC EABI -- a callee may not receive a value in them and must restore them, so no interposed call can observe or disturb either. The aligned view at 0x14:0x68 shows the intervening words touch r0, r3, r4, r24, r25, r27, r28, r30 and r31 and never r29 or r26, so there is no RAW, WAR or WAW hazard either. The calls themselves do not move relative to any non-moving atom. THE SOURCE SIDE IS EXHAUSTED, not the blocker: attempt.NM_additeminstlist-index-form-induction.20260903.v1 records five literal forms across both the initializer-position and induction-form mechanisms, establishing that holding the callee-saved ranking forces top-of-block emission (2 probes, real 4) and moving the emission to the preheader demotes `i` and the IV below the loop-invariant address hoists (3 probes, real 36 each, two of them byte-identical objects)."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/world/items AddItemInstList  (reopen if the class ever stops reading SCHEDULE-REORDER at 100/100, or if permute_instruction_atoms gains a call-crossing mode)",
+    "falsifier": "Any composition of shipped webfrank modes that reaches AddItemInstList's target bytes without a permutation window containing a `bl`. Equivalently, any source form measuring real 0..3 at 100/100 insns, which is attempt.NM_additeminstlist-index-form-induction.20260903.v1's own refuting observation.",
+    "premise_measurement": "`python WS_scratch/ws_make_perm_rule.py game/world/items AddItemInstList 0x18 0x60 2,3,...,17,0,1` prints `permuted region == target region: True` and then `REFUSED: ValueError: instruction permutation region contains a control op`. Baseline `fndiff --ops`: target 100 insns, ours 100, opcode multiset IDENTICAL, two clusters (insert O[6:8]@18-20 = ['li','li'], delete T[22:24]@58-60 = ['li','li']).",
+    "scope": "The BLANKET per-atom control-op refusal in permute_instruction_atoms only, as it applies to AddItemInstList's single 18-atom window. It does NOT deny the function, does NOT deny the window or the order (both verified byte-equal), and does NOT assert the finer check is sound enough to ship -- that is a capability question with an unmet census gate, not a measurement."
+  },
+  "function": "function:AddItemInstList",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Find one shipped or candidate window in which an atom that satisfies the transparency definition above still changes behaviour when moved across a `bl` -- e.g. a `bl` to a function reached through a jumptable whose callee is not modelled, or a setjmp/longjmp-style callee that reads a nonvolatile it never saved. One counterexample kills the mode; if none exists, the mode is sound and the remaining question is only whether it has customers.",
+    "screened_against_target": "yes -- the window's permuted bytes were compared against the target region and are EQUAL, and the aligned view at 0x14:0x68 was read on both streams to confirm nothing between the two `bl`s reads or writes r29 or r26. What has NOT been done is the DEMAND CENSUS: this record names exactly ONE customer, and AGENTS.md requires the unpark payoff to be counted image-wide before any such capability is commissioned. Treat 1 as a lower bound, not as the census.",
+    "statement": "A narrow, audited call-crossing mode for permute_instruction_atoms would close this: instead of refusing any region containing a control atom, refuse only when a MOVING atom crosses a control atom AND that atom is not provably transparent to the call. Transparency has a small, checkable definition -- the atom reads no resource, touches no memory, is itself non-control, and every register it writes is nonvolatile (r14-r31, f14-f31) -- and it is the same ABI argument webfrank already ships as `dominating_def_across_calls`, which lanes CT and LZ independently converged on rather than baking the assumption in silently. The control atoms themselves must additionally be required to keep their relative order and to move only by the displacement the non-crossing atoms impose."
+  },
+  "id": "attempt.WS_additeminstlist-blocked-by-the-blanket-control-op-refusal.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T05:20:40Z",
+  "residual": {
+    "capability_needed": "instruction_permutation across an interposed call: an atom that writes only NONVOLATILE registers, reads nothing, touches no memory and is non-control may cross a `bl` that does not move",
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (100/100); insns T100/O100; 2 ops clusters; RAW DIFFERING WORDS = 18, MNEMONIC DIVERGENCE = 13, RELOC-SYMBOL MISMATCH = 0"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "instruction_permutation (permute_instruction_atoms) -- REFUSED before check_permutation_dependences was reached. copy_register_fields, verify_consistent_recolor, verify_value_equality_recolor and verify_relocation_binding were NOT run and are NOT needed: the residual is a pure reorder with every register already agreeing, so the permutation is the whole rule.",
+  "windows_tried": [
+    "0x18:0x60:2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,0,1"
+  ]
+}
