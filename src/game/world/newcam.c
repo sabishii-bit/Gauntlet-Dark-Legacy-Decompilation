@@ -1282,7 +1282,7 @@ void fn_8006F16C(s32 initialise)
         }
     } else {
         CamReset(lbl_80344A6C);
-        fn_8006F418(lbl_80344A6C, (f32*)lbl_80344A70);
+        fn_8006F418(lbl_80344A6C, CurTransmitter);
     }
 }
 

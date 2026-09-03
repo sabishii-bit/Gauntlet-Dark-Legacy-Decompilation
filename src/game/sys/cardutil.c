@@ -19,8 +19,6 @@
  *     private `...bss.0` alias used for gCardBuf.
  *   cardSubmitCommand - target recomputes &M.mutex at the unlock instead of
  *     caching it, so it needs one fewer saved register (CSE/regalloc).
- *   cardThreadMain - 133/133 insns; remaining diffs are mr-vs-`addi r,r,0`
- *     move selection and record-form compares (regalloc), no source lever.
  *   cardDoWrite/cardDoLoad - stack slots aligned; residual is icon-offset
  *     strength-reduction + regalloc; gCardBuf overlay shows as a `...bss.0`
  *     reloc in fndiff (false positive, byte-identical).
@@ -206,21 +204,30 @@ static inline s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card)
     return res;
 }
 
-/* 0x800DC2C0 - the "Cardutilmainloop" worker thread */
-static void* cardThreadMain(void* arg) {
-    u8 unused[8];
+/* 0x800DC2C0 - the "Cardutilmainloop" worker thread.  Three declared
+ * parameters: the target reserves 12 bytes of parameter save area at r1+8,
+ * which is what places the locals at r1+20; only the first is used, and
+ * OSCreateThread takes the address through a cast. */
+static void* cardThreadMain(void* arg, s32 arg2, s32 arg3) {
     CardMgrBuf* card = (CardMgrBuf*)gCardBuf;
-    OSMutex* mutex2 = &card->mgr.mutex2;
-    s32* command = &card->mgr.command;
-    BOOL quit = FALSE;
-    s32* freeFiles = &card->mgr.freeFiles;
-    OSCond* cond = &card->mgr.cond;
-    s32* freeBytes = &card->mgr.freeBytes;
+    OSMutex* mutex2;
+    s32* command;
+    BOOL quit;
+    s32* freeFiles;
+    s32* freeBytes;
+    OSCond* cond;
     void* data;
     s32 chan;
     s32 res;
     s32 cmdType, fileNo;
     (void)arg;
+
+    cond = &card->mgr.cond;
+    mutex2 = &card->mgr.mutex2;
+    freeFiles = &card->mgr.freeFiles;
+    freeBytes = &card->mgr.freeBytes;
+    command = &card->mgr.command;
+    quit = FALSE;
 
     while (!quit) {
         OSLockMutex(&card->mgr.mutex);

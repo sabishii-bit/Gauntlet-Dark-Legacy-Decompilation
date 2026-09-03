@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py --ops (the same-opcode IMMEDIATE rows that carry both the register and the displacement)",
+    "tools/gdl/fnasm.py <unit> <fn> 0x0:0x48 --diff (the aligned prologue view the orders are read from)"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "register-web",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A block of same-base pointer initialisers whose emission order does NOT follow the assignment statements after the declaration/assignment split, or whose callee-saved colouring moves when only the assignment order is changed. Re-run: `python tools/gdl/fnasm.py game/sys/cardutil cardThreadMain 0x0:0x48 --diff` must show the five `addi rN,r31,<disp>` rows byte-identical at the split form, and folding any one initialiser back into its declaration must move either its register or its position.",
+  "id": "claim.law.NM_declaration-order-colours-callee-saved-registers-while-assignment-order-sets-emission-order.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T17:21:06Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "MWCC GC 1.2.5. A block of locals initialised from the same base pointer carries TWO INDEPENDENT ORDERS, and a declaration-with-initialiser welds them together so that no reordering can satisfy both at once. (1) The CALLEE-SAVED COLOUR of each local ascends with its DECLARATION position within its allocation class. (2) The EMISSION ORDER of the initialising instructions follows the order of the ASSIGNMENTS. Splitting `T x = e;` into a bare declaration plus a later `x = e;` statement SEPARATES the two, and that separation is the lever. MEASURED on game/sys/cardutil::cardThreadMain, five pointers off one base (offsets 808 cond / 816 command / 836 freeBytes / 840 freeFiles / 856 mutex2), three builds: with declarations-with-initialisers in the order mutex2, command, freeFiles, cond, freeBytes the five `addi rN,r31,<disp>` were emitted in exactly that order and the low class coloured freeFiles=r25, cond=r26, freeBytes=r27 -- ascending declaration position. Reordering to cond first put the EMISSION order right (four IMMEDIATE rows closed, 9 -> 5) and broke the colouring (840 moved r25 -> r26), so `real` ROSE 20 -> 22 while the eligibility-deciding immediate count FELL: the contradiction is the proof that the two orders are separate, and `real` is the metric that hides it. Reordering instead to freeFiles, freeBytes, cond gave the target's colouring exactly (r25/r26/r27) and left three emission positions wrong (real 14). Keeping THAT declaration order and moving every initialiser into its own assignment statement, written in the target's emission order cond, mutex2, freeFiles, freeBytes, command, made the whole prologue byte-identical (real 10, and the function closed exact on the next axis). PRACTICAL FORM: read the target's emission order off the aligned view, read its colouring off the same rows, and if the two disagree with any single permutation of the declarations, split declaration from assignment -- declarations in COLOUR order, assignments in EMISSION order. SCOPE AND BOUNDARY: this is about which register and which slot an initialiser lands in, not about whether a copy survives. It does NOT contradict claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1, whose measured non-cure (b) -- splitting a declaration-with-initialiser into a bare declaration plus an assignment is NEUTRAL -- was about a SCALAR COPY between two same-scope names, which folds in the front end before either order exists. Here the split is applied to five DISTINCT address computations, each of which must reach codegen anyway, and it moves them."
+}
