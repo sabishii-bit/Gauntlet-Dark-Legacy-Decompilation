@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "src/game/sfx/sfx.c lines 905-911 and 2154-2161 (the two relocated comments, quoted verbatim above)",
+    "attempt.PR_startcombofx-its-park-was-already-written-in-a-source-header-comment.20260903.v1",
+    "attempt.PR_fn80094164-its-park-and-its-do-not-rerun-were-already-in-a-source-comment.20260903.v1",
+    "attempt.PR_doanimation-promoted-the-byte-swap-or-operand-order-picks-the-temp-pair.20260903.v1 (the converse: same column, no comment, promoted on probe one)"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "postprocessor",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A census over the remaining 60-odd rules whose mechanism cites no record id, checking each function's source file for a header comment, that finds essentially none - i.e. a comment-provenance rate near zero outside sfx.c. That would make this a fact about one file's authoring habit rather than a project-wide medium problem, and the rule would shrink to 'grep sfx.c'. Conversely, evidence that `gdlmem` DOES index source comments would remove the medium problem entirely. Measured 2026-09-03: it does not. `gdlmem search \"open-coded hybrid\"` - a phrase that appears verbatim in sfx.c:910 and nowhere else in the corpus - returned exactly ONE row, and that row is this lane's own relocation record, proposed minutes earlier; before the relocation the same query returned nothing at all. The graph indexes records, and a source comment is not a record.",
+  "id": "claim.law.PR_a-rule-with-no-attempt-record-is-not-a-function-with-no-source-work.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T17:32:00Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "THE PROVENANCE BACKLOG IS PARTLY A MEDIUM PROBLEM, NOT A WORK PROBLEM, and a promotion queue ranked on record ABSENCE will send lanes to re-derive work that is already written down where no census reads. claim.T15_promotion-queue-roster-153-rules-151-functions-and-the-provenance-backlog.20260903.v1 named nine rules whose functions carry NO attempt record at all and called them 'the cleanest instances of the failure mode the [Mandatory result] policy names'. Working that roster on 2026-09-03 measured the following split of the nine. THREE (AllocFile, sysClearFlags, MBNewNode) had genuinely never been probed and were probed by the PP lane on 2026-09-03. TWO (game/sfx/sfx::StartComboFX, game/sfx/sfx::fn_80094164) had already been worked THOROUGHLY and the results written into SOURCE HEADER COMMENTS, in the same file, directly above the function: sfx.c:905-911 records 'PARKED: renum in the color-region mulli (r25 vs r24) and second guts cluster (r22/r23/r26 rotation). Exhausted: type-local staging (adds mr), plain-Guts (remat lis), open-coded hybrid (worse).' and sfx.c:2154-2161 records a five-register correspondence, three exhausted axes with their individual failure modes, and the literal instruction 'Do not re-run.' That is better provenance than many graph records carry - a named mechanism, per-axis failure causes, and a do-not-retry - and it is invisible to `gdlmem context`, `gdlmem brief`, `gdlmem find`, and to the promotion census's `attempt records: 0` column, all of which read the graph and none of which read src/*.c. THREE (DoAnimation, DoWorldAnimation, fn_80051480) had no record and no comment and were probed fresh in this lane. So the ratio measured on the only nine-function population where it has been checked is 2/9 relocation debt against 6/9 genuine work, with one (DistanceToClosestPlayer) classified without a probe.\n\nTHE OPERATIONAL RULE, in the order it pays: before spending the first probe on any function whose census column says 'no attempt record', GREP THE FUNCTION'S OWN SOURCE FILE for a header comment above its definition. It costs one command, it is AGENTS.md discipline 4 ('the TU's own header comments - one carried the correct diagnosis two passes missed') applied to provenance rather than to diagnosis, and on this roster it would have saved two functions' worth of probing. When the comment is found, the deliverable is to RELOCATE it into a graph record rather than to re-measure it - but relocate it honestly: a comment does not record what its pass HELD FIXED, so relocated axes must be filed as separate single-axis negatives whose joint behaviour was never measured, never as a joint veto (AGENTS.md discipline 6, the btricol case).\n\nTHE CONVERSE, which is the part that makes this a law and not an anecdote: the zero-record column is still the RIGHT ranking to work, and this lane's one PROMOTION came out of it. DoAnimation had neither record nor comment, was 8 words, and closed to STRICT on the FIRST source probe - which also refutes the size half of claim.law.PP_the-smallest-webfrank-rules-are-the-worst-promotion-candidates.20260903.v1 on its own stated falsifier terms, since that law predicted small rules would not promote. The column is not wrong; it is measuring the graph and being read as if it measured the project."
+}

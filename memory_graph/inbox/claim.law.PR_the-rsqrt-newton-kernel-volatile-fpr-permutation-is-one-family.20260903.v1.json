@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/t15_operand_provenance.py (the PROVENANCE-CONSISTENT verdict every member carries, which is what distinguishes this family from PointLineDist2D's separate association bug)",
+    "tools/gdl/composed_census/wf_word_diff.py (the per-member word counts quoted above)",
+    "tools/gdl/fnasm.py --raw --diff (the aligned views every register correspondence was read from)",
+    "attempt.PP_pointlinedist2d-the-reassociated-product-was-a-real-source-bug.20260903.v1",
+    "attempt.PR_fn80051480-the-loop-carried-fpr-accumulator-is-a-second-pointlinedist2d.20260903.v1",
+    "attempt.PR_distancetoclosestplayer-third-member-of-the-rsqrt-volatile-fpr-family.20260903.v1"
+  ],
+  "attributes": {
+    "tags": [
+      "register-web",
+      "matching",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A fourth member whose residual closes on axis (a), (b) or (c) - any of the three declared dead here - which would show the deadness is per-function alignment rather than a property of the kernel. Or, on the other side: a source form that closes ANY of the three members, which would immediately make the family's shared structure worth re-testing on the other two before they are re-probed independently.",
+  "id": "claim.law.PR_the-rsqrt-newton-kernel-volatile-fpr-permutation-is-one-family.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T17:32:01Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "THE FOUR-ITERATION NEWTON-RAPHSON RECIPROCAL-SQUARE-ROOT KERNEL PRODUCES ONE RECURRING RESIDUAL, and it should be worked as a family rather than one function at a time, because the cheap axes are already dead on every member. THREE MEASURED MEMBERS as of 2026-09-03, all at equal instruction counts with zero mnemonic divergence and all PROVENANCE-CONSISTENT under tools/gdl/composed_census/t15_operand_provenance.py: game/world/btricol::PointLineDist2D (107/107, 59 differing words, attempt.PP_pointlinedist2d-the-reassociated-product-was-a-real-source-bug.20260903.v1), game/game/gamemain::fn_80051480 (58/58, 40 words) and game/world/items::DistanceToClosestPlayer (122/122, 42 words). Every member's residual is a permutation of VOLATILE FPRs around the kernel; every member's callee-saved and integer halves are already byte-exact.\n\nWHAT IS DEAD, measured on more than one member and therefore transferable: (a) the `register` storage class on the accumulator - byte-identical on PointLineDist2D (`length`) and byte-identical again on fn_80051480 (`best_dist`), and the second is the stronger instance because there the register-qualified variable IS the value the residual is about; (b) block-scope versus function-scope declaration of the kernel's f32 temps - byte-identical on PointLineDist2D (the hoisted dx/dz pairs) and byte-identical on fn_80051480 (the hoisted d/dx/dy/dz); (c) the operand order of the commutative products inside the kernel - MWCC canonicalises them, measured on PointLineDist2D's dot product and re-confirmed on InitAnim's outer multiply in a different TU (attempt.PR_initanim-the-inner-multiply-follows-source-order-and-the-outer-is-canonicalised.20260903.v1).\n\nWHAT IS NOT THE FAMILY, and must be checked per member before assuming it is: the ASSOCIATION of the refinement products. PointLineDist2D really did carry a reassociated product - `lbl - length * guess * guess` where retail has `guess * guess * length` - and that was a genuine IEEE-visible source bug. It DOES NOT RECUR: both later members were checked by hand against the retail bytes at every fmul and fnmsub in the kernel and both already spell it retail's way (fn_80051480 `@0x78 fnmsub f1,f6,f1,f3` against ours `@0x78 fnmsub f0,f5,f0,f2`, both `three - d*(g*g)`; DistanceToClosestPlayer likewise at `@0x98` and `@0x174`). So the association check is a per-member obligation with a 1-in-3 hit rate, not a family property.\n\nWHERE THE MEMBERS DIVERGE, which is where the next probe belongs: the residual is NOT the same sub-problem in each. In fn_80051480 the whole 40 words reduce to which register carries the LOOP-CARRIED MINIMUM - retail reserves f0 across the loop and we use f0 as scratch. In DistanceToClosestPlayer the accumulator is f31 and AGREES in both streams, and the divergence is instead in the pre-loop CONSTANT HOIST (retail hoists the two f64 refinement constants into f3/f2, we hoist them into f5/f4). In PointLineDist2D the parked next step is a pressure asymmetry (retail eleven FPRs against our ten) that is measured ABSENT in fn_80051480 (nine against nine), so it is not a family property either. The family gives you the dead axes for free; the live axis has to be re-derived from the aligned view each time."
+}
