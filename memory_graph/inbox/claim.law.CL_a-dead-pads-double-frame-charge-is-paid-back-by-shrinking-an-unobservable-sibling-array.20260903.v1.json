@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/slotdiff.py",
+    "tools/gdl/probe.py"
+  ],
+  "attributes": {
+    "evidence": "attempt.CL_stringtextwidthsub-compensating-pair-closes-the-slot-map-two-lanes-called-shut.20260903.v1 (the pad-plus-shrink pair, real 86 -> 78, SLOT MAP IDENTICAL, frame held at 248) and attempt.CL_dogoodwizard-bottom-pad-closes-the-slot-shift-and-the-constant-order-is-declaration-bound.20260903.v1 (the pad-growth half, real 138 -> 122, frame held at 48). The refuted prior reading is attempt.bb-stringtextwidthsub-param-floor-refuted-pad-axis-closed.20260901.v1, whose four measurements are all reproduced and none of which is wrong on its own terms.",
+    "tags": [
+      "decl-order",
+      "matching",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose local block is displaced by one slot quantum at an agreeing frame size, carrying a sibling local whose size is unobservable in both streams, where the pad-plus-shrink pair still fails to land the block - or, in the other direction, any measurement showing that shrinking such an array also refunds nominal area (which would make the two ledgers one and the arithmetic above wrong). Both are decidable from `tools/gdl/slotdiff.py <unit> <fn>` plus one build: read the frame line and the exclusive-slot rows, not `real`.",
+  "id": "claim.law.CL_a-dead-pads-double-frame-charge-is-paid-back-by-shrinking-an-unobservable-sibling-array.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T01:45:04Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "When a function's local block is displaced by a whole slot quantum and the frame size already AGREES with target, the bottom-anchored pad lever places the block correctly but overshoots the frame, because a dead declaration is charged twice (claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1): once where it is placed and once as nominal area. The overshoot is NOT a reason to close the pad axis. Pay it back on the PLACEMENT side, inside the same declaration block, by shrinking a sibling local whose size is not observable in either instruction stream - typically a scratch array only ever referenced through its base address, whose upper bound is set by the save area and whose exact extent the target therefore never reveals. Placement bytes and nominal bytes are separate ledgers: shrinking an array refunds placement only, so an N-byte dead pad is exactly cancelled by an N-byte array reduction plus the N nominal bytes the pad itself contributes, and the block lands shifted with the frame unchanged. Measured on StringTextWidthSub (game/ui/btext), where a 4-byte pad plus an 8-byte reduction of a base-address-only buffer moved both array bases onto target and returned the frame to 248, taking the function from real 86 to real 78 and from SLOTS DIFFER (2T/2O exclusive) to SLOT MAP IDENTICAL - an axis two consecutive lanes had recorded as CLOSED after four measurements, every one of which varied the pad while holding the rest of the declaration block fixed. The corollary for the CORPUS, not just for MWCC: a park whose measurements all hold the same second variable constant has not closed a two-variable axis, however many of them there are (AGENTS.md discipline 6). The refund is per-DECLARATION, not per-byte, in the other direction too: GROWING an existing pad costs only its added bytes (DoGoodWizard's `u8 unused[8]` widened to [12] cost 4 frame bytes and shifted the block by 4 with the frame unchanged at 48), while ADDING a new pad costs double, and REMOVING a register-allocated scalar declaration refunds nothing at all (measured this run, the mirror of the predecessor's finding that adding one contributes nothing)."
+}
