@@ -2954,5 +2954,78 @@ class TuScopeGateTests(unittest.TestCase):
             self.assertEqual(self.BANKED, state)
 
 
+class StaleBestAnchorTests(unittest.TestCase):
+    """Run-45 item 4: a BEST anchor left behind by an earlier SESSION.
+
+    The gate state persists across commits while the anchor inside it is a
+    within-session high-water mark, so a lane arriving at a committed, clean
+    tree was scored against the last session's number -- a stale best 130
+    made states BYTE-IDENTICAL TO HEAD read CONFLICT and REGRESSED, i.e. the
+    tool reported the project's own retained result as a regression.
+    """
+
+    OLD = {"best_real": 130, "best_multiset": 4, "best_insns": "T68/O68",
+           "best_head": "aaaaaaaaa1111", "last_real": 130,
+           "last_insns": "T68/O68", "last_multiset": 4}
+
+    def test_a_clean_tree_at_a_later_commit_resets_the_anchor(self):
+        reason = probe.stale_best_anchor(self.OLD, "bbbbbbbbb2222", True)
+        self.assertIn("commits landed since it was banked", reason)
+
+    def test_the_same_commit_is_a_live_anchor_and_never_resets(self):
+        """Within one session the anchor is the session's comparison."""
+        self.assertIsNone(
+            probe.stale_best_anchor(self.OLD, "aaaaaaaaa1111", True))
+
+    def test_an_edited_tree_never_resets_however_old_the_anchor(self):
+        """With an uncommitted edit present, HEAD is not what is measured."""
+        self.assertIsNone(
+            probe.stale_best_anchor(self.OLD, "bbbbbbbbb2222", False))
+
+    def test_an_unstamped_anchor_on_a_clean_tree_resets(self):
+        state = {key: value for key, value in self.OLD.items()
+                 if key != "best_head"}
+        self.assertIn("no commit stamp",
+                      probe.stale_best_anchor(state, "bbbbbbbbb2222", True))
+
+    def test_a_state_with_no_anchor_has_nothing_to_reset(self):
+        self.assertIsNone(probe.stale_best_anchor({}, "bbbbbbbbb2222", True))
+
+    def test_the_reset_turns_the_regression_into_a_baseline(self):
+        """The defect, end to end: real 150 against a stale best 130."""
+        stale, _ = classify(self.OLD, 150, "T68/O68", 4,
+                            head="bbbbbbbbb2222", tu_at_head=False)
+        self.assertTrue(stale.startswith("REGRESSED"), stale)
+        fixed, state = classify(self.OLD, 150, "T68/O68", 4,
+                                head="bbbbbbbbb2222", tu_at_head=True)
+        self.assertTrue(fixed.startswith("BASELINE"), fixed)
+        self.assertIn("BEST ANCHOR RESET", fixed)
+        self.assertIn("130", fixed)
+        self.assertEqual(state["best_real"], 150)
+        self.assertEqual(state["best_head"], "bbbbbbbbb2222")
+
+    def test_the_reset_names_the_recovery_bank(self):
+        verdict, _ = classify(self.OLD, 150, "T68/O68", 4,
+                              head="bbbbbbbbb2222", tu_at_head=True)
+        self.assertIn(probe.BEST_BANK_TAG, verdict)
+
+    def test_the_rescore_guard_cannot_repeat_a_stale_anchored_verdict(self):
+        """Otherwise the guard would re-emit the very verdict being fixed."""
+        state = dict(self.OLD, last_bytes="d1", last_verdict="CONFLICT  old")
+        verdict, _ = classify(state, 130, "T68/O68", 4, digest="d1",
+                              source_changed=False, head="bbbbbbbbb2222",
+                              tu_at_head=True)
+        self.assertNotIn("RE-SCORE", verdict)
+        self.assertTrue(verdict.startswith("BASELINE"), verdict)
+
+    def test_banking_stamps_the_commit_so_the_next_session_can_tell(self):
+        _verdict, state = classify({}, 120, "T68/O68", 4, head="ccc333")
+        self.assertEqual(state["best_head"], "ccc333")
+
+    def test_a_bank_with_no_head_available_stamps_nothing(self):
+        _verdict, state = classify({"best_head": "old"}, 120, "T68/O68", 4)
+        self.assertNotIn("best_head", state)
+
+
 if __name__ == "__main__":
     unittest.main()
