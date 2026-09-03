@@ -791,6 +791,28 @@
     ],
     "game/enemy/enemy": [
     {
+      "function": "do_enemies",
+      "before_sha256": "e23d8d5165fb2b4882b259880ced46d62ffde2a296836e5326c73cbebce9c692",
+      "after_sha256": "496689ed51b163f65a163060bac8bb9f600d98b449beb7c4102c606d67ef568d",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 568
+      },
+      "mechanism": "Executes the MANDATORY STEP-1 hypothesis of attempt.SB_do-enemies-neighbour-statement-closes-entry-schedule-window.20260902.v1 verbatim ('run copy_register_fields and verify_consistent_recolor over the 172 renaming rows and author a WebFrank recolor pin'), which also supplies the source-exhaustion provenance together with attempt.DE_do-enemies-schedule-window-and-group-swap.20260901.v1 (three probed_form axes, typed denial on the declaration-order lever) and attempt.do-enemies-store-reassociation-closure.20260831.v1. Measured run 42 at c117e66da: 568/568, opcode streams identical, `wf_word_diff.py game/enemy/enemy.c do_enemies` reports 172 DIFFERING WORDS, MNEMONIC DIVERGENCE 0, RELOC-SYMBOL MISMATCH 0. The residual is the whole-function callee-saved permutation SB named: GPR {r28,r29,r30} permuted between the streams and an FPR mirror over f25..f31. 171 of the 172 words are proved by the strict position-consistent renaming; the record's prediction that verify_consistent_recolor alone would carry the function is REFUTED by one word. At +0x734 both streams load lbl_803447D8 into f0 with a byte-identical instruction, and at +0x738 the target writes `fcmpu cr0,f26,f0` where ours writes `fcmpu cr0,f0,f30` - our f30 holds what the target's f26 holds, so the compare reads its operands exchanged. cr0's only consumer is the `beq ->7bc` at +0x73c; the operand exchange swaps FL and FG and leaves FE and FU untouched, and _compare_exchange_is_semantics_preserving discharges that mechanically. substitutions is empty. SB's other flagged row, the +0x138 `lfd f1` binding lbl_803468D0 in the target and an anonymous pool entry in ours, is a relocation-SYMBOL difference on words that already agree; this rule does not touch relocations and the row is outside wf_word_diff's mismatch count (reset_sel_menu precedent).",
+      "copy_register_fields": true,
+      "value_equality_recolor": {
+        "audit": "One escape, declared: the fcmpu at +0x738 reads its two operands exchanged because the compared pair is homed in f26/f0 in the target and f0/f30 in ours. No substitutions.",
+        "compare_exchanges": [
+          {
+            "at": "0x738",
+            "bank": "f",
+            "ours": [0, 30],
+            "target": [26, 0]
+          }
+        ]
+      }
+    },
+    {
       "function": "fn_8004646C",
       "before_sha256": "d3c3b670d3014fb59e53dc22a081e1138f6465c05f8efba0b89608975bd96f4a",
       "after_sha256": "6d8e2555909caaf2424c4834bfff7efd8fba1ecb64379f06ea23f278056e4ff4",
