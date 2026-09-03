@@ -507,8 +507,8 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
                 *(u32*)(e + 0x5aec + dstOff) =
                     ((u32*)e)[srcIndex + (0x5aec / sizeof(u32))];
                 *(u32*)(e + 0x5ab0) += sp << 2;
-                shift -= 2;
                 srcIndex--;
+                shift -= 2;
                 dstOff += 4;
             }
         }
