@@ -495,10 +495,7 @@ void HealthMeterUpdate(f32 v, int meter) {
     flags = HealthMeter65C[meter];
     flags2 = HealthMeter668[meter];
     if (HealthMeterNPieces[meter] == 2) {
-        if (HealthMeterFG[meter][0] == 0) {
-            return;
-        }
-        if (HealthMeterFG[meter][1] == 0) {
+        if (HealthMeterFG[meter][0] == 0 || HealthMeterFG[meter][1] == 0) {
             return;
         }
         pct = (f32)(2.0 * (HealthMeterValue[meter] / HealthMeterMaxValue[meter]));
@@ -523,7 +520,7 @@ void HealthMeterUpdate(f32 v, int meter) {
         }
         mbBlitProject(HealthMeterFG[meter][1], a2, 0);
         mbBlitSetupVerts(HealthMeterFG[meter][1], -1.0f,
-                         (f32)(0.00390625 * (f32)a2), -1.0f, -1.0f);
+                         (f32)(0.00390625 * a2), -1.0f, -1.0f);
     } else {
         if (HealthMeterFG[meter][0] == 0) {
             return;
@@ -534,17 +531,17 @@ void HealthMeterUpdate(f32 v, int meter) {
             cv = (f32)((HealthMeterValue[meter] / HealthMeterMaxValue[meter]) *
                        (f32)(256 - (flags + flags2)));
         }
-        mbBlitProject(HealthMeterFG[meter][0], (int)cv, 0);
+        a1 = (int)cv;
+        mbBlitProject(HealthMeterFG[meter][0], a1, 0);
         mbBlitSetupVerts(HealthMeterFG[meter][0], -1.0f,
-                         (f32)(0.00390625 * (f32)(int)cv), -1.0f, -1.0f);
+                         (f32)(0.00390625 * a1), -1.0f, -1.0f);
     }
     for (i = 0; i < HealthMeterNPieces[meter]; i++) {
-        void* blit = HealthMeterBG[meter][i];
-        if (blit != 0) {
+        if (HealthMeterBG[meter][i] != 0) {
             if (*(s16*)((char*)gBossObj + offsetof(BossCritterView, pausecnt)) > 0) {
-                MBBlitSetColor(blit, 0xff8080ff);
+                MBBlitSetColor(HealthMeterBG[meter][i], 0xff8080ff);
             } else {
-                MBBlitSetColor(blit, 0xffffffff);
+                MBBlitSetColor(HealthMeterBG[meter][i], 0xffffffff);
             }
         }
     }
