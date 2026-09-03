@@ -3839,8 +3839,8 @@ static void UpdateFXStreak(Effect* e, f32* pos)
     side = (f32)(0.8 * e->streakscale);
     tail = (f32)(0.1 * e->streakscale);
     back = t;
-    if (t > (f32)(0.4999999995 * e->streakscale)) {
-        back = (f32)(0.4999999995 * e->streakscale);
+    if (t > (f32)(0.49999999949999996 * e->streakscale)) {
+        back = (f32)(0.49999999949999996 * e->streakscale);
     }
 
     v[0] = e->vel[0];
