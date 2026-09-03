@@ -1136,12 +1136,25 @@ void fn_800D9648(u32* param_1, MovieDecodeCall* param_2) {
     fn_800D93D4(param_1, param_2->flags, arg1, arg2, arg3, arg4);
 }
 
+/* The codec's virtual interface, as the target's own call sites describe it.
+ * Metrowerks places the vtable pointer AFTER the class's data members, which
+ * is why every dispatch here loads it from +0x20 of the object (the same
+ * placement the Codec destructors' `stw r0,32(this)` establishes above), and
+ * why the codec embedded in MovieState at +336 has its vtable word at +368.
+ * Slots are named only where this TU calls them: the dispatch word is
+ * `8 + 4*slot`, so decode is slot 1 (+12, fn_800D967C) and close is slot 5
+ * (+28, fn_800DA60C).  Declared, never defined: the implementations and the
+ * vtable itself live in the codec's own translation unit. */
 #pragma cplusplus on
-class MovieDecodeSink {
+class MovieCodec {
 public:
     u32 _00[8];
     virtual void v0();
     virtual void decode(u32 context, u32 bitmap);
+    virtual void v2();
+    virtual void v3();
+    virtual void v4();
+    virtual void close();
 };
 
 extern "C" void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
@@ -1150,7 +1163,7 @@ extern "C" void fn_800D967C(register int param_1, register MovieDecodeCall* para
 
     arg3 = param_2->bitmap;
     arg2 = param_2->context;
-    ((MovieDecodeSink*)param_1)->decode(arg2, arg3);
+    ((MovieCodec*)param_1)->decode(arg2, arg3);
 }
 #pragma cplusplus off
 
@@ -1749,13 +1762,9 @@ void fn_800DBA80(u8* dec, s32 fd);
 void __dl__FPv(void* p);
 void __dla__FPv(void* p);
 
-typedef struct MovieCloseVTable {
-    u8 pad[28];
-    void (*close)(u8*);
-} MovieCloseVTable;
-
+#pragma cplusplus on
 #pragma dont_inline on
-void fn_800DA60C(register u8* m)
+extern "C" void fn_800DA60C(register u8* m)
 {
     register u8* strm;
     register u8* self = m;
@@ -1771,7 +1780,7 @@ void fn_800DA60C(register u8* m)
         }
         *(u32*)(self + offsetof(MovieState, audio)) = 0;
     }
-    (*(MovieCloseVTable**)(self + offsetof(MovieState, decoderVtable)))->close(self + 336);
+    ((MovieCodec*)(self + 336))->close();
     fn_800DBA80(self + 32, *(s32*)(self + offsetof(MovieState, fd)));
     if (*(s32*)(self + offsetof(MovieState, fd)) != 0) {
         sceClose(*(s32*)(self + offsetof(MovieState, fd)));
@@ -1779,6 +1788,7 @@ void fn_800DA60C(register u8* m)
     *(s32*)(self + offsetof(MovieState, fd)) = 0;
 }
 #pragma dont_inline off
+#pragma cplusplus off
 
 /* Advance the VQ stream by one presentation interval and prime its audio. */
 u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
