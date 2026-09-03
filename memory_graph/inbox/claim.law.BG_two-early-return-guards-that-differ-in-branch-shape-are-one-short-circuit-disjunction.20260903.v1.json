@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "scope": "MWCC GC 1.2.5, cflags_demo family. One measured instance with a measured NEGATIVE alternative (the explicit-else form) beside it, so the discriminant is the disjunction and not merely 'restructure the guard'.",
+    "tags": [
+      "matching",
+      "switch-form",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose target shows the `beq ->epilogue` / `bne ->body` + `b ->epilogue` asymmetry and where the disjunction form does NOT reproduce it \u2014 or, in the other direction, a source `if (A || B) return;` that compiles to two identical `beq ->epilogue` branches under the same cflags. Re-check with `python tools/gdl/fnasm.py game/boss/boss HealthMeterUpdate 0xd0:0xf8 --diff`; if the target's second test stops carrying its own `b`, the shape has moved and this law's premise is gone.",
+  "id": "claim.law.BG_two-early-return-guards-that-differ-in-branch-shape-are-one-short-circuit-disjunction.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T21:29:16Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "When a target tests two conditions in a row and the FIRST emits a direct conditional branch to the epilogue while the SECOND emits `bcc <body>` followed by an unconditional `b <epilogue>`, the source is ONE short-circuit disjunction guarding one early return, not two independent early-return statements. The asymmetry is a branch-to-branch fold: MWCC lays out `if (A || B) return;` as `bcond ->THEN` / <second test> / `bcond-inverse ->ENDIF` / THEN: `b <epilogue>`, then folds the FIRST branch through the THEN block's own unconditional branch, which rewrites it to point at the epilogue and leaves the `b` behind as the second test's false edge. Measured on HealthMeterUpdate (boss.c) at 68bfaf80b: the target has `@0xd8 cmplwi r3,0` / `@0xdc beq ->388` and `@0xe8 cmplwi r0,0` / `@0xec bne ->f4` / `@0xf0 b ->388` where 0x388 is `lmw r25,36(r1)`; two separate `if (x == 0) return;` statements produce `beq ->epilogue` BOTH times (ours, -1 beq +1 bne +1 b against target), and wrapping the body in an explicit `else` after the first return does NOT reproduce it because MWCC folds that else away. Rewriting the pair as `if (a == 0 || b == 0) { return; }` reproduced the target's three instructions exactly and took the function's ops clusters from 2 to 1."
+}

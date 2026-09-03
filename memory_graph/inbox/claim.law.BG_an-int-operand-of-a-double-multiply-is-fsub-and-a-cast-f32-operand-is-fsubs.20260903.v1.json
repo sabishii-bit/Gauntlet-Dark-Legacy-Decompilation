@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py",
+    "tools/gdl/fnasm.py"
+  ],
+  "attributes": {
+    "scope": "MWCC GC 1.2.5, cflags_demo-family (-O4 -inline auto, -fp hardware, -fp_contract on). Population measured: 3 sites in one function, 2 of them uncast in the target, 1 cast.",
+    "tags": [
+      "matching",
+      "param-retype",
+      "alias-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function where the same `0.00390625 * <int>` shape emits `fsub` with an explicit `(f32)` on the int operand, or `fsubs` without one, under the same cflags. Re-check with `python tools/gdl/fnasm.py game/boss/boss HealthMeterUpdate 0x210:0x220 --diff` (cast site, fsubs) against `... 0x260:0x268 --diff` (uncast site, fsub); if the two sites stop disagreeing after an unrelated edit, the discriminant is not the cast.",
+  "id": "claim.law.BG_an-int-operand-of-a-double-multiply-is-fsub-and-a-cast-f32-operand-is-fsubs.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T21:29:15Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "In the signed-int-to-float magic sequence (`xoris rN,rN,32768` / `lis r0,17200` / two `stw` / `lfd`), the SUBTRACT that finishes the conversion is `fsub` when the int feeds a double-typed expression directly and `fsubs` when the source casts it to f32 first. So a lone `+N fsub / -N fsubs` token pair in an fndiff --ops multiset is a CAST-WIDTH defect at a named source site, not schedule or register noise, and the cure is adding or removing one `(f32)`. Measured on HealthMeterUpdate (boss.c) at c8a28c3bb, where `(f32)(0.00390625 * (f32)a1)` and `(f32)(0.00390625 * a2)` sit in the same function against the same double constant lbl_80345B50: the target emits `@0x218 fsubs f0,f0,f2` for the cast site and `@0x264 fsub f0,f0,f2` / `@0x31c fsub f0,f0,f2` for the two uncast sites, and dropping the `(f32)` at exactly those two closed both rows. The asymmetry is real source, not a compiler mood: the third site keeps its cast and keeps its fsubs."
+}
