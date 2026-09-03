@@ -792,7 +792,7 @@ void ScreenSaver(void)
                 lbl_80344A48 = 0;
             }
         }
-        if ((gControllerButtons & 1) != 0) {
+        if ((gControllerButtons & 0x100000000LL) != 0) {
             lbl_80344A48 = 36000;
         }
         if ((u32)lbl_80344A48 < 36000) {
