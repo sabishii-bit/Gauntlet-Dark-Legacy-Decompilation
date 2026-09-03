@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/audio/dcsdrv.c",
+      "game/pb/dbgtext.c",
+      "game/sys/sysservice.c",
+      "game/pb/pb_frame.c",
+      "game/mb/mb_camera.c"
+    ],
+    "scope": "FLIP lane round 2, the AF follow-on queue (its run-45 candidate records carry data-readiness per TU): dcsdrv (3 fns, .data 100%), dbgtext (12 fns, no data), sysservice, pb_frame, mb_camera (its missing .sdata2 claim is DERIVED in AF's record: start 0x80348B30 end 0x80348B38; MBCameraUpdate closed real 0 run 43). Per TU: (1) fndiff --clean every fn live - close remaining open fns if within reach (3-attempt cap each) or record the blockers; (2) FULL flip audit incl. the NEW text-order check (fingerprint #4 - T17 is building the tool; until it lands, two objdump -t dumps compared by hand, the MF recipe); (3) data claims (af_data_base_census emits paste-ready splits); (4) flip via finish_tu (the zero-slack gate is live - claim.law slack rows are DATA-DEBT not blockers). Full ninja + retail sha1 after EVERY flip; a broken link reverts immediately; defake baseline per TU; pins screened (sysservice + mb_camera carry rules - a flip does NOT delete rules, EQUIVALENT fns link via their postprocessed objects). Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:MBCameraUpdate",
+  "id": "work_claim.flip-audit-2.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-FL",
+  "recorded_at": "2026-09-03T18:09:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl/webfrank.py",
+      "config/GUNE5D/webfrank.json"
+    ],
+    "scope": "POSTPROCESSOR lane (sole owner of webfrank surfaces): serve the run-46 rule requests, existing classes only, decode verdicts derived live per word: (1) LimitCamVal2 (boss/bosscam, real 52, count parity, multiset IDENTICAL 88/88 - NM's record documents the compensating pair and retained the ELIGIBLE state deliberately; its rule request is the lane's flagship). (2) fn_8006F16C (world/newcam, real 4: NM's request = equivalent_zero_form composed with a one-atom permutation - the lwz hoist is a consequence of the remat). (3) fn_8005E90C (world/gauntworld, real 14, multiset IDENTICAL, parity - BP's record; screen all words). (4) PlayerDoWeapTrail (sfx/psfx, real 24, 0t) + pbDiagDrawSoundRow (pb/pb_diag, 4-cycle rotated by one - MF's record) + cardDoWrite (sys/cardutil, 2 IMMEDIATE rows at +0x3b8/+0x3c0 - NM's run-44 note): screen each; serve what proves; instrumented refusals otherwise (verifiers_run + windows_tried; remember the provenance screen is a lower bound - run the WG complement on anything you are about to prove). Every ship: verify_datum_binding, refusal tests that FAIL without their guard, forced full replay per webfrank.py change, configure per json edit, both suites. Closes EQUIVALENT; STRICT unmoved by rules. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:LimitCamVal2",
+  "id": "work_claim.rule-service-47.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WR",
+  "recorded_at": "2026-09-03T18:09:32Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

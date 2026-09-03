@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/world/gauntworld.c",
+      "game/sfx/psfx.c"
+    ],
+    "scope": "CLOSE lane round 7 (rounds 2/4/5/6 = 2+3+3+1 STRICT): seeds at the brink from run 46: fn_8005E90C (gauntworld, real 14, parity, multiset IDENTICAL - if source closes it the WR rule request becomes moot, coordinate via records; one push), PlayerDoWeapTrail (psfx, real 24, 0t - same note). Then the fresh roster (real-ranked, parked visible, records read behind rec= counts; run expiry checks; typed DO-NOT-RETRY respected). Extend owned_units as you select (resolve TUs at selection time, report them, cross-check claims --owns). Diagnosis verification first; aligned view before hypotheses; a record whose screened_against_target starts with 'no' gets its refuting observation as literal step 1. Byte-exact (STRICT) or typed park; one commit per landed fn; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; defake baseline per TU; gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:fn_8005E90C",
+  "id": "work_claim.nearmiss-round-7.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NM",
+  "recorded_at": "2026-09-03T18:09:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
