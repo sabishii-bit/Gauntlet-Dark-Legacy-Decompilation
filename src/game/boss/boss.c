@@ -233,14 +233,12 @@ void BossInit(void);
 static const struct {
     char coin[3][12];
     char errFmt[28];
-    char bgFmt[16];
-    char fgFmt[16];
 } sBossStr = {
     { "COIN_BRONZE", "COIN_SILVER", "COIN_GOLD" },
     "Too many health meters: %d",
-    "%s%sMETER_BG%d",
-    "%s%sMETER_FG%d",
 };
+static const char sBossBgFmt[16] = "%s%sMETER_BG%d";
+static const char sBossFgFmt[16] = "%s%sMETER_FG%d";
 
 /* Pin the .bss block to declaration order: touch every array in address
  * order BEFORE the real functions so first-use order == decl order.  This
@@ -562,15 +560,15 @@ int HealthMeterStart(f32 v, char* name, int n, int p, int x, int y, int flag) {
         HealthMeterX = HealthMeterNextX;
         HealthMeterNextX = HealthMeterNextX + p;
         for (i = 0; i < n; i++) {
-            sprintf(buf, sBossStr.bgFmt, name,
-                    (*name == 0) ? &lbl_80345B64 : &lbl_80345B60, i + 1);
+            sprintf(buf, sBossBgFmt, name,
+                    (*name != 0) ? &lbl_80345B60 : &lbl_80345B64, i + 1);
             HealthMeterBG[num][i] = MBNewBlit(buf, HealthMeterX + i * 256, lbl_80343B70);
             MBBlitSetAlpha(HealthMeterBG[num][i], 112);
         }
     }
     for (i = 0; i < n; i++) {
-        sprintf(buf, sBossStr.fgFmt, name,
-                (*name == 0) ? &lbl_80345B64 : &lbl_80345B60, i + 1);
+        sprintf(buf, sBossFgFmt, name,
+                (*name != 0) ? &lbl_80345B60 : &lbl_80345B64, i + 1);
         HealthMeterFG[num][i] = MBNewBlit(buf, HealthMeterX + i * 256, lbl_80343B70);
         MBBlitSetAlpha(HealthMeterFG[num][i], 112);
     }
