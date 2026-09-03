@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "memory_graph/core.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "metrics",
+      "workflow",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A shipped WebFrank rule of any class whose covered function has different target and ours instruction counts, or a `wf_word_diff.py` invocation that returns a windowed word count for such a function. Either would show the gate is per-window rather than per-function. Check with `python tools/gdl/composed_census/wf_word_diff.py <unit> <fn> --range 0xA:0xB --list` on any count-asymmetric function.",
+  "id": "claim.law.DP_a-permutation-class-lead-on-a-count-asymmetric-function-is-refuted-by-its-own-signature-before-any-build.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T06:34:33Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A record that banks a postprocessor permutation-class lead over a WINDOW of a function whose WHOLE-FUNCTION instruction counts differ is refuted by its own quoted residual signature, and the refutation costs zero builds. `wf_word_diff.py` is the instrument such a lead names, and on a count-asymmetric function it returns no word count at all \u2014 for do_players it answers 'count-asymmetric (1172 vs 1174 insns) - outside every postprocessor class by construction' for the whole function AND for every `--range` window requested, so the mandated 'read the raw differing word count inside +0xA..+0xB' step cannot be executed even in principle. The windowed reading is not a smaller version of the whole-function reading; the tool refuses to produce one, because postprocessor candidacy is decided at function granularity. AGENTS.md proposal gate 2 already requires N/N counts on any postprocessor-class reclassification; this law extends the same screen to a HYPOTHESIS that merely proposes the class, and makes the screen runnable by the record's own author: if the record's `residual.signature` contains `insns Tx/Oy` with x != y, no permutation, recolor or composed lead over any window of that function is authorable until the count deficit closes, and the honest next step is source work on the count, not a rule."
+}

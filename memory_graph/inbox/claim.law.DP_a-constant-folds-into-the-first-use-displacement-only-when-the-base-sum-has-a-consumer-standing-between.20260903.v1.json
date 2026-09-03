@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/fnasm.py",
+    "src/game/ui/select.c"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "index-form",
+      "cse",
+      "alias-form",
+      "offsetof-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A site where `p = base + index + K` compiles to `add` then `addi` with NO consumer of the base sum between them, or where parenthesisation or commutative operand reorder alone changes the emitted grouping. Either would show the grouping is not consumer-decided. Reproduce the negative half in zero builds against the two DISCARDED probes recorded in attempt.DP_do-player-select-the-base-consumer-decides-the-index-versus-displacement-fold.20260903.v1 (PROBE S7, statement split, and PROBE S8, operand swap), each of which read real 1207 / insns O1886 / multiset 9t / fuzzy 97.6578 \u2014 identical to the unedited state on every printed number.",
+  "id": "claim.law.DP_a-constant-folds-into-the-first-use-displacement-only-when-the-base-sum-has-a-consumer-standing-between.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T06:34:32Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "For `p = base + index + K` where base is a pointer local, index an integer local and K a compile-time constant, MWCC decides the operand grouping BEFORE codegen and no spelling of the SAME expression can change it: it emits `addi rT,index,K` then `add rP,base,rT`, and both parenthesisation (`(base + index) + K`) and commutative operand order (`index + base + K`) are byte-identical no-ops. The grouping flips to the target-side form \u2014 `add rP,base,index` then a displacement load `lwz rD,(K+F)(rP)` then `addi rP,rP,K` \u2014 ONLY when the base sum acquires a CONSUMER standing between the sum and the pointer's completion, and it takes all three of these together: (a) the consumer must be rooted at the base sum with the constant folded into ONE literal, i.e. `*(T*)(slot + (K + F))`, not `*(T*)(p + F)` and not `*(T*)(base + index + K + F)` (the latter re-exposes `base + index + K` as a subexpression and CSE simply rebuilds the pointer); (b) the consumer must stand BEFORE the pointer's completion in source order, or MWCC materialises the pointer first and keeps two registers live; (c) the pointer must be a DISTINCT variable assigned from the base local (`p = slot + K`), never a self-update of it (`p = slot; ...; p += K`) \u2014 the self-update is value-numbered back to `slot + K` and folded into every later use, deleting the `addi` and converting every downstream `mr rN,rP` into `addi rN,slot,K`. Measured on do_player_select at ten sites: the three-part form closed thirteen multiset tokens to nine and moved fuzzy 96.6218 -> 97.6578, while (a) alone read 96.5560, (a)+(b) without (c) read 96.3241 with four instructions LOST, and the two neutral spelling probes were byte-identical."
+}
