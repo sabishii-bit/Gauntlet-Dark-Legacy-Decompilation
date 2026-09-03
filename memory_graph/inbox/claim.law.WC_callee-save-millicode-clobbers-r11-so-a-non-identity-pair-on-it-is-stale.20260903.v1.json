@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py::verify_value_equality_recolor",
+    "tools/gdl/tests/test_webfrank.py::ConstantEqualityClosureTests::test_millicode_drops_the_r11_save_area_pointer",
+    "tools/gdl/tests/test_webfrank.py::ConstantEqualityClosureTests::test_restgpr_drops_the_constants_it_restores",
+    "tools/gdl/tests/test_webfrank.py::ConstantEqualityClosureTests::test_savegpr_preserves_the_constant_bindings"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Evidence that MWCC's millicode does NOT touch r11 - e.g. a disassembly of `_savegpr_25`/`_restgpr_25` in this image showing the save area addressed without r11 - would make the retirement unnecessary (though still sound). Conversely, a value-equality rule that needs a non-identity r11 pair to survive a millicode call would be evidence the retirement is too strong; none exists in the corpus today. Run `python tools/gdl/composed_census/wc_control_check.py` (or any equivalent replay of every value_equality_recolor rule) and check whether any rule's NARROW and CLOSED declaration demands differ from its shipped declarations.",
+  "id": "claim.law.WC_callee-save-millicode-clobbers-r11-so-a-non-identity-pair-on-it-is-stale.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T06:42:49Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "A CALL TO MWCC'S CALLEE-SAVE MILLICODE (`_savegpr_N` / `_restgpr_N` / the FPR forms) CLOBBERS r11, SO ANY value-equality PAIR (11, t) WITH t != 11 IS FALSE AFTER IT AND MUST BE RETIRED - and until 2026-09-03 verify_value_equality_recolor did not retire it.\n\nMECHANISM. webfrank's `_helper_call` recognises the millicode by name and the relation loop takes a SEPARATE branch for it, on the correct ground that millicode preserves every register except the save range it restores. The branch handled the restore range and nothing else. The volatile drop that would have caught r11 - r11 is in `_CALL_VOLATILE` - runs only in the `helper is None` branch, i.e. only for a NORMAL call. So a pair binding our r11 to some other target register survived a millicode call untouched, while the millicode was walking the save area through r11 in both streams.\n\nHOW IT SURFACED, and why it is worth a law rather than a changelog line. It was found by a REFUSAL TEST that failed, not by reading the code. The constant-equality closure shipped this run drops r11's literal binding across millicode, and a test asserting that the drop makes the mode refuse a hand-built body FAILED: the mode proved it anyway. The trace showed why - the closure seeds the relation at each word from the constant maps, and a seed that is TRUE at the call word propagates forward inside the RELATION, which nothing then retires. The constant map was conservative and the relation was not, so the conservative half was invisible. A refusal test that passes for the wrong reason would have hidden this permanently; the one that failed is what found it.\n\nTHE FIX, and its direction. The millicode branch now runs `_relation_define(relation, 'g', 11, 11)` and `_map_define(renaming, ('g',11), 11)` unconditionally, retiring every (11,*) and (*,11) pair and re-establishing the identity that both streams' millicode does leave standing. This is a NARROWING: it can only make the mode refuse more, never accept more, so it cannot launder anything. Measured against the live corpus: all 5 pre-existing `value_equality_recolor` rules (CameraSupervisor 18 subs / 2 exchanges, do_enemies, fn_800C031C, PlayerProcessPowerups, InitControls) prove with IDENTICAL declaration demands before and after, and a forced full replay of every WEBFRANK edge prints build/GUNE5D/main.dol: OK.\n\nSCOPE. The same reasoning applies to the `rest` range in the constant map, which is dropped for the same reason; the shipped relation already handled the restore range. It does NOT extend to a normal call, which the volatile drop already covers in both directions."
+}

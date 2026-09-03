@@ -744,12 +744,23 @@
         "function": "CritterResolveMultipleTargets",
         "before_sha256": "aa900ce7a9017394126cce19298bc130850f5356d20f7ac4f45f71c138a108cb",
         "after_sha256": "c9a716df57842e310244967d3b3469842a990436e65d0210a35ff9d5fff11458",
-        "unproven_recolor_audit": "Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.' The audit escape is removed and replaced by a machine proof. attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1 measured what was still missing after its datum screen: 'The datum screen closes the catastrophic sub-case for all of them -- a wrong constant bound -- but a use-side value crossing among NON-RELOCATED registers remains unproven in those six.' That crossing is exactly what verify_value_equality_recolor now proves here. claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 named this the one unproven pin its image-wide sweep retires: '111 insns, is served TODAY by copy_register_fields + unproven_recolor_audit ... The closure PROVES it with 4 substitutions, 0 exchanges, byte-equal.' Reproduced this run through the real apply_patch: four declared substitutions, +0x48 g29->g5, +0x19c g30->g28, +0x1a0 g29->g5, +0x1a8 g30->g28, and the narrow relation refuses the same rule with '+0x1a8: use of g30 is not value-equal to g28'. The census's staging IS the build's staging for this rule (no permutation, no form stage), so the two agree by construction. verify_datum_binding proves 5 bindings by name; 2 words rest on the pool correspondence alone (uninitialised data), which is the pre-existing state this rule does not change.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 111
         },
-        "copy_register_fields": true
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "Two independent constant loads of one literal per stream, feeding four uses across a crossed-home web. Machine-proved with the constant-equality closure; every escape is declared and fails closed on an undeclared or stale declaration.",
+          "constant_equality": true,
+          "substitutions": [
+            {"at": "0x48", "bank": "g", "ours": 29, "target": 5},
+            {"at": "0x19c", "bank": "g", "ours": 30, "target": 28},
+            {"at": "0x1a0", "bank": "g", "ours": 29, "target": 5},
+            {"at": "0x1a8", "bank": "g", "ours": 30, "target": 28}
+          ],
+          "compare_exchanges": []
+        }
       },
       {
         "function": "CritterLineNodeColSub",
@@ -1421,12 +1432,39 @@
         "function": "sceRead",
         "before_sha256": "9353cba5c0431258cb246b75fd4c37024d394b5afb14e319c284dc5da2a0fa86",
         "after_sha256": "9b1a33745a5e5986a20bfb8227837ca77638e51c91f8ee76852db29fda2ee4bf",
-        "unproven_recolor_audit": "Copy-propagation residual: retail compares the original register where raw compares its copy (raw addi r5,r29,0 then cmpwi r5 at +0x98/+0xa8 vs retail cmpwi r29); dataflow-equivalent by inspection 2026-08-25.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Copy-propagation residual: retail compares the original register where raw compares its copy (raw addi r5,r29,0 then cmpwi r5 at +0x98/+0xa8 vs retail cmpwi r29); dataflow-equivalent by inspection 2026-08-25.' The escape is removed and replaced by machine proofs, and the residual turned out to be TWO mechanisms, not one. (1) The note's own mechanism is proved as it stands: verify_value_equality_recolor's copy closure relates our r5 to the target's r29 at +0xa8 because our r5 is a value-preserving copy of our r29, and that is the single declared substitution below. (2) The note is SILENT about the second obstruction, and it is not a recolor at all. At +0x118 ours emits `mr r3,r27` where the target emits `mr r5,r29`, and at +0x120 ours emits `addi r5,r29,0` where the target emits `addi r3,r27,0`: the same two register copies in the OPPOSITE ORDER, with the two encodings staying at their own positions. Modelled as a 3-atom instruction_permutation over [0x118,0x124) with order [2,1,0] -- the two copies transposed across the independent `lwz r4,4(r28)` at +0x11c, which writes r4 and reads r28 and shares nothing with either copy -- followed by two `unconditional` equivalent_copy_form edits at +0x118 (our `addi r5,r29,0` against the target's `mr r5,r29`) and +0x120 (our `mr r3,r27` against the target's `addi r3,r27,0`), each a copy/copy site whose destination AND source already agree, so neither is a disguised recolor. The window carries no relocations, so both relocation hashes are the empty-window hash. The remaining 10 differing words are register-field-only and are closed by copy_register_fields under the proof below. Derived and verified by replaying every stage in order through webfrank.apply_patch against the retail bytes: BYTE-EQUAL, and check_permutation_dependences accepts the order. verify_datum_binding runs on this rule as on every other.",
         "audit": {
           "classification": "REGISTER_ONLY",
-          "instructions": 152
+          "instructions": 152,
+          "permuted_instructions": 3
         },
-        "copy_register_fields": true
+        "instruction_permutation": {
+          "start": "0x118",
+          "end": "0x124",
+          "order": [2, 1, 0],
+          "before_sha256": "534f8f7ad8e748283841ec66f86417fcfbbd73470948561f1a42008750f5d43b",
+          "after_sha256": "c89029f9e2a261296d744687de69254851be4bff28671e9698d11c9ca2df4a5c",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x118",
+            "proof": "unconditional"
+          },
+          {
+            "at": "0x120",
+            "proof": "unconditional"
+          }
+        ],
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "One copy-closure escape: our r5 is a value-preserving copy of our r29, and the target compares r29 directly at +0xa8. Machine-proved by the shipped relation with no constant-equality closure needed; the escape is declared and fails closed on an undeclared or stale declaration.",
+          "substitutions": [
+            {"at": "0xa8", "bank": "g", "ours": 5, "target": 29}
+          ],
+          "compare_exchanges": []
+        }
       }
     ],
     "game/mb/mb_camera": [
@@ -2166,9 +2204,9 @@
         "function": "vsprintf",
         "before_sha256": "078d9aa441476b7e80cee5c0983c5c9664f34176abf7a9878cda7d9141b7945b",
         "after_sha256": "68ca006330bb48265c63c0cc350efa492146ea9374748ddecf82a1a160282331",
-        "unproven_recolor_audit": "Crossed mr-form moves: raw addi/or copies attach to swapped destinations in the prologue (+0x28-0x44), so the shipped shape-aligned permutation leaves a dataflow crossing; prologue verified equivalent by inspection 2026-08-25; individually reviewed 2026-08-24.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the rule's before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Crossed mr-form moves: raw addi/or copies attach to swapped destinations in the prologue (+0x28-0x44), so the shipped shape-aligned permutation leaves a dataflow crossing; prologue verified equivalent by inspection 2026-08-25; individually reviewed 2026-08-24.' The escape is removed and NOTHING replaces it: verify_consistent_recolor now proves the rule outright, with no value_equality_recolor and no audit. The note's diagnosis was exact and its cure was one atom short. The shipped order sent source atom 1 (`mr r28,r5`) to +0x34 and source atom 0 (`addi r27,r4,0`) to +0x40, which is the crossing the note names: at +0x34 our `mr r28,r5` faced the target's `mr r27,r4` and at +0x40 our `addi r27,r4,0` faced the target's `addi r28,r5,0`, so the register stage was asked to renumber two live webs into each other. Exchanging those two destinations -- order index 3 takes source 0 and index 6 takes source 1, every other destination unchanged -- puts each copy under the target word with the SAME destination and the SAME source, leaving a pure ENCODING difference at each: +0x34 our `addi r27,r4,0` against the target's `mr r27,r4`, +0x40 our `mr r28,r5` against the target's `addi r28,r5,0`. Both are copy/copy sites whose destination and source already agree, so `unconditional` equivalent_copy_form applies and neither is a disguised recolor. The two exchanged atoms are independent (one writes r27 reading r4, the other writes r28 reading r5) and neither is relocated, so both window relocation hashes are unchanged from the shipped rule; only the permutation's after_sha256 moves. check_permutation_dependences accepts the new order, and the whole rule replays byte-equal through webfrank.apply_patch. verify_datum_binding proves 43 bindings by name; 8 words rest on the pool correspondence alone (uninitialised data), the pre-existing state this rule does not change.",
         "audit": {
-          "classification": "SCHEDULE_CANDIDATE",
+          "classification": "SCHEDULE",
           "instructions": 665,
           "permuted_instructions": 18,
           "register_field_instructions": 12
@@ -2176,12 +2214,22 @@
         "instruction_permutation": {
           "start": "0x28",
           "end": "0x70",
-          "order": [10, 13, 14, 1, 17, 2, 0, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16],
+          "order": [10, 13, 14, 0, 17, 2, 1, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16],
           "before_sha256": "526ec89477e2ae0caffa832150f5bfc8f4bad4e258e3a7651479c227ac0ad33e",
-          "after_sha256": "2831f0966a36779b82a76707253f51467b50df9287dbda1b6bf2611a926acf2c",
+          "after_sha256": "5650fe988fc50db47b1f64cb6f93664410ed8a2e3762e4a681d69207b27d8150",
           "before_relocations_sha256": "f1fef90b49032be7572927b4493d2b7bfc5a19aa492e79975cb9fcc9fb0c44bf",
           "after_relocations_sha256": "623b769e054c71d5d60ef18d141820e45ce7454aa4945f740ead3b200603a537"
         },
+        "equivalent_copy_form": [
+          {
+            "at": "0x34",
+            "proof": "unconditional"
+          },
+          {
+            "at": "0x40",
+            "proof": "unconditional"
+          }
+        ],
         "copy_register_fields": true
       }
     ],
@@ -3212,6 +3260,43 @@
             "proof": "unconditional"
           }
         ]
+      }
+    ],
+    "game/ui/attract": [
+      {
+        "function": "scroll_credits",
+        "before_sha256": "cd549bd010f876a2a2c13b0f72cd190ed950d47d026ef0a8bd663aea88fd17b6",
+        "after_sha256": "df8018dbf64a59d0a109bfa1cae77d0dc46cced47258d179344d5faeb8cc8cc3",
+        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.WR_scroll-credits-needs-a-constant-equality-closure-and-nothing-else.20260903.v1 (outcome capped, residual_class REGISTER_ONLY, typed denial with premise_measurement and expiry_check). That record's denial scope says the cap is 'the EXISTING webfrank class set for scroll_credits, and only that ... it does not deny the postprocessor path once the constant-equality closure named in claim.WR_constant-equality-closure-class-proposal.20260903.v1 is adjudicated'; the closure is the mode this rule opts into. DEMAND: claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 screened 2842 paired functions and named this one of exactly two real payoff rows, the only unpinned one. RESIDUAL, from the record verbatim: 'opcode multiset IDENTICAL (148/148); RAW DIFFERING WORDS = 52 ... MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no'. TWO STAGES. (1) FORM, two sites, +0xe4 and +0x174, structurally identical because the block is duplicated: target `li r27,0` against our `addi r26,r25,0`, with our r25 holding 0 from an immediately preceding `li r25,0` that is byte-identical in both streams. The copy-versus-constant direction is the one claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1 names, and `constant_dataflow_inverse_recolor` is the mode equivalent_copy_form itself accepts at both sites; each re-encodes our word to `li r26,0` and leaves the r26-vs-r27 difference to the recolor. Both sites were detected by DECODED COPY FORM rather than by the encoding-level regfield label, per claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1. (2) RECOLOR, copy_register_fields proved by verify_value_equality_recolor with the constant-equality closure. Six uses need our r25 to correspond to the target's r27 or our r26 to the target's r25; both registers provably hold literal 0, but they were materialised by INDEPENDENT `li` instructions, which the relation's copy closure cannot relate. The declared substitutions +0xfc, +0x15c, +0x168, +0x18c, +0x1ec, +0x1f8 are exactly the six the predecessor record's premise_measurement lists. WITHOUT the closure this same rule refuses with '+0xfc: use of g25 is not value-equal to g27' (measured this run), which is why `constant_equality` is declared: apply_patch refuses the opt-in as unnecessary if the narrow relation ever proves it alone. Datum bindings are proved by the screen this rule ships under.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 148,
+          "differing_words": 52
+        },
+        "copy_register_fields": true,
+        "equivalent_copy_form": [
+          {
+            "at": "0xe4",
+            "proof": "constant_dataflow_inverse_recolor"
+          },
+          {
+            "at": "0x174",
+            "proof": "constant_dataflow_inverse_recolor"
+          }
+        ],
+        "value_equality_recolor": {
+          "audit": "Two independent constant loads of literal 0, one per stream, feeding six uses. Machine-proved by verify_value_equality_recolor with the constant-equality closure; every escape below is declared and fails closed on an undeclared or stale declaration.",
+          "constant_equality": true,
+          "substitutions": [
+            {"at": "0xfc", "bank": "g", "ours": 25, "target": 27},
+            {"at": "0x15c", "bank": "g", "ours": 26, "target": 25},
+            {"at": "0x168", "bank": "g", "ours": 25, "target": 27},
+            {"at": "0x18c", "bank": "g", "ours": 25, "target": 27},
+            {"at": "0x1ec", "bank": "g", "ours": 26, "target": 25},
+            {"at": "0x1f8", "bank": "g", "ours": 25, "target": 27}
+          ],
+          "compare_exchanges": []
+        }
       }
     ]
   }

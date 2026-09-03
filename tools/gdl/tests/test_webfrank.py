@@ -22,6 +22,7 @@ from tools.gdl.webfrank import (
     _parse_int,
     _ppc_mask,
     _prove_call_preserves_source,
+    _constant_transfer,
     _relocation_cannot_write,
     _relocation_sha256,
     _sha256,
@@ -3401,6 +3402,176 @@ class ValueEqualityRecolorTests(unittest.TestCase):
         verify_value_equality_recolor(current, target)
 
 
+# --- the constant-equality closure ------------------------------------------
+#
+# scroll_credits' shape, minimised.  Both streams load literal 0 into a
+# register with an INDEPENDENT `li`; neither stream copies, so the copy
+# closure above relates nothing and the later use of our r25 against the
+# target's r27 is refused however obviously equal the two registers are.
+# claim.WR_constant-equality-closure-class-proposal.20260903.v1
+LI_R25_0 = 0x3B200000        # li r25,0   (byte-identical in both streams)
+LI_R26_0 = 0x3B400000        # li r26,0   ours
+LI_R26_5 = 0x3B400005        # li r26,5   ours, a DIFFERENT literal
+LI_R7_0 = 0x38E00000         # li r7,0    (volatile)
+LI_R11_0 = 0x39600000        # li r11,0   (the millicode save-area pointer)
+ADD_R5_R5_R25 = 0x7CA5CA14   # add r5,r5,r25
+ADD_R5_R5_R27 = 0x7CA5DA14   # add r5,r5,r27
+ADD_R5_R5_R7 = 0x7CA53A14    # add r5,r5,r7
+ADD_R5_R5_R11 = 0x7CA55A14   # add r5,r5,r11
+ADD_R25_R5_R5 = 0x7F252A14   # add r25,r5,r5  — redefines the constant home
+STMW_R30_R1 = 0xBFC10000     # stmw r30,0(r1) — a register RANGE, unmodelled
+LMW_R25_R1 = 0xBB210008      # lmw r25,8(r1)  — reloads r25-r31 from the frame
+
+
+class ConstantEqualityClosureTests(unittest.TestCase):
+    """Seeding the value-equality relation from per-stream constant maps.
+
+    The relation's invariant is "our a and the target's b hold the same value
+    here".  Two registers holding one literal satisfy it, so a constant map is
+    a second sound SOURCE for the same relation rather than a wider notion of
+    equivalence — but it IS a widening of what proves, so it is opt-in per
+    rule and off by default.  Every test below comes in a two-sided pair: the
+    shape the closure serves, and the shape it must still refuse.
+    """
+
+    #  0x0  li r25,0        (identical)
+    #  0x4  li r26,0    /   li r27,0
+    #  0x8  add r5,r5,r25 / add r5,r5,r27      <- the refused use
+    OURS = _words(LI_R25_0, LI_R26_0, ADD_R5_R5_R25, BLR)
+    TARGET = _words(LI_R25_0, LI_R27_0, ADD_R5_R5_R27, BLR)
+    SUBSTITUTION = [_substitution("0x8", "g", 25, 27)]
+
+    def test_strict_checker_refuses_the_independent_constant_loads(self):
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(self.OURS, self.TARGET)
+
+    def test_closure_is_off_by_default(self):
+        # The whole reason the mode is opt-in: the shipped relation must be
+        # bit-for-bit what it was, so no existing rule's proof can move.
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                self.OURS, self.TARGET, substitutions=self.SUBSTITUTION)
+
+    def test_closure_proves_two_independent_loads_of_one_literal(self):
+        verify_value_equality_recolor(
+            self.OURS, self.TARGET, substitutions=self.SUBSTITUTION,
+            constant_equality=True)
+
+    def test_the_closure_still_declares_every_escape_it_takes(self):
+        with self.assertRaisesRegex(ValueError, "undeclared value-equality"):
+            verify_value_equality_recolor(
+                self.OURS, self.TARGET, constant_equality=True)
+
+    def test_different_literals_are_not_value_equal(self):
+        # Identical shape, but our r26 loads 5 where the target's r27 loads 5
+        # and our r25 still holds 0: the closure keys on the VALUE, not on
+        # "both words are constant loads".
+        ours = _words(LI_R25_0, LI_R26_5, ADD_R5_R5_R25, BLR)
+        target = _words(LI_R25_0, LI_R27_5, ADD_R5_R5_R27, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target, substitutions=self.SUBSTITUTION,
+                constant_equality=True)
+
+    def test_a_relocated_constant_load_is_not_a_literal(self):
+        # `addi rD,0,x@l` decodes as a constant load and is an ADDRESS HALF,
+        # not a literal — the same exclusion _value_preserving_copy already
+        # makes for the copy closure.
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                self.OURS, self.TARGET, relocated_offsets={0x0},
+                substitutions=self.SUBSTITUTION, constant_equality=True)
+
+    def test_a_redefinition_kills_the_constant_binding(self):
+        # `add r25,r5,r5` in BOTH streams between the load and the use: our
+        # r25 no longer holds the literal the target's r27 still holds, so
+        # nothing may be seeded from it.
+        ours = _words(LI_R25_0, LI_R26_0, ADD_R25_R5_R5, ADD_R5_R5_R25, BLR)
+        target = _words(LI_R25_0, LI_R27_0, ADD_R25_R5_R5, ADD_R5_R5_R27, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                substitutions=[_substitution("0xc", "g", 25, 27)],
+                constant_equality=True)
+
+    def test_an_unmodelled_write_set_drops_the_whole_constant_map(self):
+        # stmw names a register RANGE, so instruction_operands refuses to
+        # decode it; the map fails closed on the whole state rather than
+        # assuming the word wrote nothing.
+        self.assertEqual(
+            _constant_transfer(STMW_R30_R1, 2, set(), {25: 0, 26: 0}), {})
+
+    def test_lmw_kills_the_constants_it_loads(self):
+        # `lmw r25,8(r1)` reloads r25-r31 from the frame, so the literals
+        # they held are gone.  The relation's own lmw handling resets those
+        # registers to the identity; without the map drop the next word would
+        # simply re-seed the dead pair from the stale constants.
+        ours = _words(LI_R25_0, LI_R26_0, LMW_R25_R1, ADD_R5_R5_R25, BLR)
+        target = _words(LI_R25_0, LI_R27_0, LMW_R25_R1, ADD_R5_R5_R27, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                substitutions=[_substitution("0xc", "g", 25, 27)],
+                constant_equality=True)
+
+    # --- calls -------------------------------------------------------------
+    #
+    #  0x0  li r3,0         (identical)
+    #  0x4  li r6,0     /   li r7,0
+    #  0x8  bl ...          (present only in the CALL variant)
+    #  0xc  add r5,r5,r3 /  add r5,r5,r7
+    CALL_OURS = _words(LI_R3_0, LI_R6_0, BL, ADD_R5_R5_R3, BLR)
+    CALL_TARGET = _words(LI_R3_0, LI_R7_0, BL, ADD_R5_R5_R7, BLR)
+    CALL_SUBSTITUTION = [_substitution("0xc", "g", 3, 7)]
+
+    def test_without_the_call_the_volatile_constants_relate(self):
+        ours = _words(LI_R3_0, LI_R6_0, ADD_R5_R5_R3, BLR)
+        target = _words(LI_R3_0, LI_R7_0, ADD_R5_R5_R7, BLR)
+        verify_value_equality_recolor(
+            ours, target, substitutions=[_substitution("0x8", "g", 3, 7)],
+            constant_equality=True)
+
+    def test_a_call_drops_every_volatile_constant(self):
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                self.CALL_OURS, self.CALL_TARGET,
+                relocated_offsets={0x8}, call_targets={0x8: "callee"},
+                substitutions=self.CALL_SUBSTITUTION, constant_equality=True)
+
+    # --- callee-save millicode ---------------------------------------------
+    MILLI_OURS = _words(LI_R25_0, LI_R26_0, BL, ADD_R5_R5_R25, BLR)
+    MILLI_TARGET = _words(LI_R25_0, LI_R27_0, BL, ADD_R5_R5_R27, BLR)
+    MILLI_SUBSTITUTION = [_substitution("0xc", "g", 25, 27)]
+
+    def test_savegpr_preserves_the_constant_bindings(self):
+        verify_value_equality_recolor(
+            self.MILLI_OURS, self.MILLI_TARGET,
+            relocated_offsets={0x8}, call_targets={0x8: "_savegpr_25"},
+            substitutions=self.MILLI_SUBSTITUTION, constant_equality=True)
+
+    def test_restgpr_drops_the_constants_it_restores(self):
+        # The restored register holds whatever the CALLER saved, not the
+        # literal that happened to sit in it before the restore.  Without this
+        # drop the identical body above proves, which is the unsoundness.
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                self.MILLI_OURS, self.MILLI_TARGET,
+                relocated_offsets={0x8}, call_targets={0x8: "_restgpr_25"},
+                substitutions=self.MILLI_SUBSTITUTION, constant_equality=True)
+
+    def test_millicode_drops_the_r11_save_area_pointer(self):
+        # Millicode walks the save area through r11, so a literal binding on
+        # r11 is stale across it even for the PRESERVING half of the pair.
+        ours = _words(LI_R11_0, LI_R26_0, BL, ADD_R5_R5_R11, BLR)
+        target = _words(LI_R11_0, LI_R27_0, BL, ADD_R5_R5_R27, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                relocated_offsets={0x8}, call_targets={0x8: "_savegpr_25"},
+                substitutions=[_substitution("0xc", "g", 11, 27)],
+                constant_equality=True)
+
+
 class CompareOperandExchangeTests(unittest.TestCase):
     """fcmpu/fcmpo with its two operands exchanged.
 
@@ -3543,6 +3714,70 @@ class ValueEqualityApplyPatchTests(unittest.TestCase):
             "start": "0x0", "end": "0x8", "order": [1, 0]})
         with self.assertRaisesRegex(ValueError, "post-recolor permutation"):
             apply_patch(data, patch, bytes(target_data))
+
+
+class ConstantEqualityApplyPatchTests(unittest.TestCase):
+    """The constant-equality closure's opt-in, wired through apply_patch."""
+
+    OURS = (LI_R25_0, LI_R26_0, ADD_R5_R5_R25, BLR)
+    TARGET = (LI_R25_0, LI_R27_0, ADD_R5_R5_R27, BLR)
+
+    def build(self, ours_words, target_words):
+        ours = _words(*ours_words)
+        target = _words(*target_words)
+        return _elf_object(ours), _elf_object(target), ours, target
+
+    def patch(self, ours, target, value_equality):
+        return {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "copy_register_fields": True,
+            "value_equality_recolor": value_equality,
+        }
+
+    def test_opt_in_reaches_the_target_through_apply_patch(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        before, after, changed = apply_patch(data, self.patch(ours, target, {
+            "audit": "test",
+            "constant_equality": True,
+            "substitutions": [_substitution("0x8", "g", 25, 27)],
+        }), bytes(target_data))
+        self.assertEqual(before, _sha256(ours))
+        self.assertEqual(after, _sha256(target))
+        self.assertEqual(changed, 2)
+
+    def test_without_the_opt_in_the_same_rule_fails_the_build(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            apply_patch(data, self.patch(ours, target, {
+                "audit": "test",
+                "substitutions": [_substitution("0x8", "g", 25, 27)],
+            }), bytes(target_data))
+
+    def test_opt_in_declared_but_unnecessary_fails_the_build(self):
+        # The anti-rot discipline the strict-succeeds refusal already carries,
+        # one level down: a rule may not rest on the closure once the shipped
+        # relation alone proves it.  ValueEqualityApplyPatchTests' fixture is
+        # exactly such a body (a root-to-copy use the copy closure reaches).
+        ours = _words(FMR_F5_F4, FSUBS_F6_F6_F4, BLR)
+        target = _words(FMR_F5_F4, FSUBS_F6_F6_F5, BLR)
+        data, target_data = _elf_object(ours), _elf_object(target)
+        with self.assertRaisesRegex(ValueError, "succeeds without the closure"):
+            apply_patch(data, self.patch(ours, target, {
+                "audit": "test",
+                "constant_equality": True,
+                "substitutions": [_substitution("0x4", "f", 4, 5)],
+            }), bytes(target_data))
+
+    def test_opt_in_must_be_a_boolean(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        with self.assertRaisesRegex(ValueError, "boolean opt-in"):
+            apply_patch(data, self.patch(ours, target, {
+                "audit": "test",
+                "constant_equality": "yes please",
+                "substitutions": [_substitution("0x8", "g", 25, 27)],
+            }), bytes(target_data))
 
 
 # --- the range-proof (redundant-mask) class ---------------------------------
