@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/datadiff.py",
+    "tools/gdl/probe.py",
+    "tools/gdl/tests/test_t20_extab_and_empty_sections.py"
+  ],
+  "attributes": {
+    "scope": "MWCC GC 1.2.5 family under this project's dtk split. It is a statement about where the exception tables LIVE (the link, not the object), not about their contents; it says nothing about whether a given TU's tables match.",
+    "tags": [
+      "metrics",
+      "build-hygiene",
+      "workflow",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any `objdump -h` on a file under build/GUNE5D/obj/ or build/GUNE5D/src/ that lists a section whose name contains `extab`. One such object makes the object-level screen live again and this law narrows to 'no object carried one at run-50 HEAD'. Equally falsifying: a report unit whose extab-family section size disagrees with the linked image's, which would mean report.json is not the authority either.",
+  "id": "claim.law.T20_exception-tables-live-only-in-the-link-so-no-object-carries-them.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T23:27:03Z",
+  "schema_version": 1,
+  "subject": "tool:datadiff",
+  "valid_from": "2026-09-03",
+  "value": "THE EABI EXCEPTION TABLES ARE A LINK-LEVEL ARTIFACT AND NO COMPILED OR SPLIT OBJECT CARRIES THEM, so every object-level screen for `extab`/`extabindex` is dead code and objdiff's report is the only place their bytes are measurable. MEASURED image-wide at run-50 HEAD over all 257 paired units (tools/gdl scratch census, `datadiff.section_sizes` on both sides of every pair): ZERO target objects and ZERO of our objects carry an extab-family section under ANY spelling, while 95 of the report's units carry one. The section names objdump reports are exactly {.text, .comment, .note.split, .bss, .sbss, .data, .sdata, .rodata, .sdata2, .init, .ctors, .dtors} on the target side and the same minus .note.split on ours. CONSEQUENCE 1, the shipped defect this closes: `datadiff.py --sections` probed for the section names `extab` and `extabindex` spelled WITHOUT a leading dot (splits.txt's spelling), while `section_sizes` reads `objdump -h` and every key it can produce starts with a dot -- so the probes were dead twice over, and fixing the spelling would have changed nothing. They are removed rather than respelled, and the extab readout now comes from build/GUNE5D/report.json. CONSEQUENCE 2, for matching lanes: on a -Cpp_exceptions TU an instruction-COUNT change relocates every exception range, so a count-parity transition is also a DATA event whose byte figure is the unit's extabindex size (game/pb/dbgtext: extab 56 B at 100%, extabindex 84 B at 100% -- the `-84 B` a run-49 lane could only obtain by running defake_gate afterwards). probe.py now prints that figure on a COUNT-PARITY GAINED/LOST banner and datadiff --sections prints the sections. CONSEQUENCE 3, for record authors: an attempt claiming a TU's exception tables are intact or broken cannot cite an object dump for it, because the object has nothing to dump."
+}
