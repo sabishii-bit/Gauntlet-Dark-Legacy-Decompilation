@@ -4064,6 +4064,94 @@ def unknown_entity_message(key: str, namespaces, suggestions) -> str:
     return "\n".join(lines)
 
 
+# A sentence fires only when it does BOTH things: attribute ownership to
+# ANOTHER LANE, and withhold the named work. Two calibration passes over all
+# 361 work_claim versions in this repository's history set that conjunction:
+#
+#   veto words alone (VETO / excluding / skip / "do not touch") fired on 9
+#   claims of which 8 were correct orders — a lane that owns a TU and vetoes
+#   ONE function inside it ("damage_enemy P6 = VETO", "do not touch
+#   LinkItemTriggers", "fn_800D860C fuzzy-vetoed") is the normal healthy
+#   shape, an 89% false-positive rate;
+#
+#   ownership words alone fired on 16, nearly all false: "You own both
+#   sides", "(owns webfrank.py + tests)", and every `claim.law.…` citation
+#   in the corpus contains the word `claim`.
+#
+# What made run-40's miss a miss is that BOTH were present at once: "SA/SB
+# own PlayerProcessPowerups, fn_800DACD8, do_enemies, CritterTranslate -
+# VETO those". Owner attribution is required to name a LANE CODE, not just
+# to use the word "own".
+_OTHER_OWNER_RE = re.compile(
+    r"(?:\b[A-Z]{2,3}(?:\s*/\s*[A-Z]{2,3})*\s+owns?\b"
+    r"|\bowned by\b|\bclaimed by\b|\bpending\s+[A-Z]{2,3}\b"
+    r"|\bowns? theirs\b)")
+_WITHHELD_RE = re.compile(
+    r"(?:\bVETO\b|\bvetoe?[ds]?\b|\bEXCLUD|\bexclud|\bskip(?:ping)?\b"
+    r"|\bdo not touch\b|\bhands? off\b)")
+_SENTENCE_SPLIT_RE = re.compile(r"[.;\n]|(?<=\))\s+(?=[A-Z])")
+_IDENTIFIER_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]{3,}\b")
+
+
+def work_claim_anchor_veto(record: dict[str, Any],
+                           connection: sqlite3.Connection) -> str | None:
+    """Message when a work_claim's anchor sits inside a TU its scope vetoes.
+
+    Run-41 item 8, from an integrator miss in run 40:
+    `work_claim.sched-census-t2.20260902.v1` anchored
+    `function:CritterDoSfx` while its own scope read "SA/SB own
+    PlayerProcessPowerups, fn_800DACD8, do_enemies, CritterTranslate - VETO
+    those" — and CritterDoSfx lives in game/enemy/critter.c, the same TU as
+    the vetoed CritterTranslate. TU ownership is whole-TU by the project's
+    own rule (MWCC pools, declaration order and register allocation couple a
+    TU), so the anchor pointed the lane straight at a TU the order had
+    already given away, and nothing checked it.
+
+    The check is narrow on purpose, and calibration is what set the width:
+    only a sentence that hands the function to ANOTHER OWNER counts, and only
+    a name the symbol table resolves to a GameCube function counts. A lane
+    that owns a TU and vetoes one function inside it — the normal shape — is
+    silent, and so is a scope with no ownership language.
+    """
+    if record.get("kind") != "work_claim":
+        return None
+    anchor = record.get("function")
+    if not isinstance(anchor, str) or not anchor.startswith("function:"):
+        return None
+    anchor_name = anchor[len("function:"):]
+    anchor_tu = _module_for_function(connection, anchor_name)
+    if not anchor_tu:
+        return None
+    scope = _record_field(record, "scope")
+    if not isinstance(scope, str) or not scope.strip():
+        return None
+    for sentence in _SENTENCE_SPLIT_RE.split(scope):
+        if not (_OTHER_OWNER_RE.search(sentence)
+                and _WITHHELD_RE.search(sentence)):
+            continue
+        for candidate in _IDENTIFIER_RE.findall(sentence):
+            if candidate.lower() == anchor_name.lower():
+                continue
+            other_tu = _module_for_function(connection, candidate)
+            if other_tu and other_tu == anchor_tu:
+                return (
+                    f"the work_claim anchors function:{anchor_name}, which"
+                    f" lives in {anchor_tu} — the same TU as {candidate},"
+                    " which this order's own scope hands to another owner: "
+                    + " ".join(sentence.split())[:240]
+                    + ". TU ownership is whole-TU (MWCC pools, declaration"
+                    " order and register allocation couple a TU), so this"
+                    " anchor points the lane at a TU the order has already"
+                    " given away. Anchor the claim on a function in a TU"
+                    " the scope actually leaves open, or correct the"
+                    " ownership note."
+                    " Run-40's work_claim.sched-census-t2.20260902.v1"
+                    " shipped with exactly this shape"
+                    " (function:CritterDoSfx against a vetoed"
+                    " CritterTranslate, both game/enemy/critter.c).")
+    return None
+
+
 def _probe_record_references(
     record: dict[str, Any], root: Path, db_path: Path | None = None,
     connection: sqlite3.Connection | None = None,
@@ -5411,6 +5499,20 @@ def stage_record_proposal(
             _probe_record_references(record, root)
         except MemoryGraphError as error:
             fail(str(error))
+    if record.get("kind") == "work_claim":
+        # Run-41 item 8. Runs after the reference probe, which has already
+        # ensured the database, so the lookup is a read on a warm file.
+        try:
+            connection = open_database(root)
+        except Exception:                       # no DB: silence, not a guess
+            connection = None
+        if connection is not None:
+            try:
+                conflict = work_claim_anchor_veto(record, connection)
+            finally:
+                connection.close()
+            if conflict:
+                fail(conflict)
     record_id = record["id"]
     in_place_resolved = in_place.resolve() if in_place is not None else None
     # Gate J's denial sources are collected in THIS pass, not a second one:
