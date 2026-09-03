@@ -213,6 +213,16 @@ down to write the function's PARK RECORD, after the work was over. Calibrated
 at 65348245e over every built pair: 11 flagged, 2,825 clean, 47 not
 comparable, 115 count-asymmetric; median 17ms.
 
+When the opcode multiset is IDENTICAL and `real` is not zero, the verdict was
+decided by `real` ALONE — and `real` counts differing WORDS, so a register
+recolour rippling through forty instructions swamps the single word a wrong
+LITERAL occupies. probe then prints an IMMEDIATE-ROW ARBITER line: how many
+positions have a matching opcode and a differing literal, and how that count
+moved since the last probe. That is the number NM had to tally by hand, on a
+function where `real` said REVERT on the probe that unlocked the exact. It is
+silent when the count is zero and was zero before: 2,844 functions are
+multiset-IDENTICAL in this tree and 33 of them carry IMMEDIATE rows.
+
 Two semantics every worker must know before trusting --revert as an undo:
 (1) NEUTRAL probes BANK TOO (they may be verified-neutral work worth
 keeping), so after a neutral probe --revert restores that neutral edit,
@@ -2058,6 +2068,80 @@ def genuine_row_count(unit, fn):
         return len(result.genuine), rows
     except Exception:
         return None
+
+
+IMMEDIATE_COUNT_RE = re.compile(r"^\s+(\d+) IMMEDIATE row\(s\):")
+
+
+def immediate_row_count(ops_output):
+    """How many IMMEDIATE rows `fndiff --ops` reported, or None.
+
+    An IMMEDIATE row is a position where the OPCODE agrees and a LITERAL does
+    not. Those rows live inside the matcher's EQUAL runs, so no cluster covers
+    them and — this is the whole point — the opcode multiset cannot see them
+    either. fndiff prints the count on its own summary line; this reads that
+    rather than re-deriving it, so probe and fndiff can never quote two
+    different numbers for one question.
+    """
+    if not ops_output:
+        return None
+    for line in ops_output.splitlines():
+        match = IMMEDIATE_COUNT_RE.match(line)
+        if match:
+            return int(match.group(1))
+    # --ops always runs immediate_deltas; no summary line means zero rows.
+    return 0 if "opcode multiset:" in ops_output else None
+
+
+def immediate_arbiter_line(immediates, previous, real, prev_real):
+    """The arbiter line for a multiset-IDENTICAL residual, or None.
+
+    Run-47 item 5. When the opcode multiset is IDENTICAL, probe's verdict is
+    computed from `real` and a token count that is structurally zero, and the
+    headline says "pure reorder, schedule-class residual". `real` counts
+    DIFFERING WORDS, so a register recolour rippling through forty
+    instructions swamps the one word a wrong literal occupies: NM had to
+    tally the IMMEDIATE rows BY HAND, and `real` said REVERT on the probe
+    that unlocked the exact. The IMMEDIATE count is the number that actually
+    moves when a literal is fixed, and it is the one number this loop never
+    printed.
+
+    Silent when there is nothing to arbitrate (no IMMEDIATE rows now and none
+    before): a function whose residual is genuinely pure recolour must not
+    carry a line about literals. Calibrated at e05f39017 over every built
+    pair: 2,844 functions are multiset-IDENTICAL and 33 of them carry
+    IMMEDIATE rows, so the line is silent on 99% of the class it guards.
+    """
+    if immediates is None:
+        return None
+    if not immediates and not previous:
+        return None
+    if previous is None:
+        return (f"IMMEDIATE-ROW ARBITER: {immediates} row(s) where the OPCODE"
+                " agrees and a LITERAL does not. The opcode multiset is"
+                " IDENTICAL, so the verdict above was decided by `real` —"
+                " which counts differing WORDS, and a register recolour"
+                " rippling through forty instructions swamps the single word"
+                " a wrong literal occupies. Arbitrate a literal fix on THIS"
+                " count, not on `real` (`fndiff <unit> <fn> --ops` lists"
+                " every row).")
+    delta = immediates - previous
+    direction = ("UNCHANGED" if delta == 0
+                 else f"{delta:+d} vs the last probe's {previous}")
+    note = ""
+    if delta < 0 and prev_real is not None and real > prev_real:
+        note = (" — `real` ROSE while the IMMEDIATE count FELL. That is the"
+                " shape NM measured: the verdict advises a revert on the"
+                " probe that closed a literal. Read the --ops rows before"
+                " reverting.")
+    elif delta > 0:
+        note = (" — an IMMEDIATE row APPEARED. A same-opcode literal"
+                " difference is an eligibility-deciding word, not schedule"
+                " noise; no postprocessor class reaches it.")
+    return (f"IMMEDIATE-ROW ARBITER: {immediates} row(s) ({direction}) where"
+            " the OPCODE agrees and a LITERAL does not. The opcode multiset"
+            " is IDENTICAL, so `real` alone decided the verdict above and"
+            " `real` cannot separate a literal from a recolour." + note)
 
 
 def reloc_symbol_screen(unit, fn):
@@ -4352,6 +4436,15 @@ def main():
     prev_tokens = state.get("last_multiset")
     prev_insns = state.get("last_insns")
     prev_digest = state.get("last_bytes")
+    # The IMMEDIATE-row count (run-47 item 5), read from the --ops dump probe
+    # already captured. It is banked beside `real` so the NEXT probe can print
+    # a DELTA: on a multiset-IDENTICAL residual that delta is the only number
+    # that moves when a literal is fixed.
+    prev_immediates = state.get("last_immediates")
+    prev_real = state.get("last_real")
+    immediates = immediate_row_count(ops_output)
+    if immediates is not None:
+        state["last_immediates"] = immediates
     # Both digests read the object that was actually SCORED, so under --raw
     # the re-score guard and NEUTRAL-IDENTICAL describe the same bytes the
     # verdict does.
@@ -4554,6 +4647,16 @@ def main():
     if state.get("count_class"):
         print(state["count_class"])
     print(verdict)
+    # THE IMMEDIATE-ROW ARBITER (run-47 item 5), directly under the verdict it
+    # qualifies. Only for a multiset-IDENTICAL residual: there the verdict is
+    # `real` alone, `real` counts differing WORDS, and the one word a wrong
+    # literal occupies is invisible beside a register recolour. Silent unless
+    # the count is nonzero now or was last time.
+    if multiset_tokens == 0 and real > 0:
+        arbiter = immediate_arbiter_line(
+            immediates, prev_immediates, real, prev_real)
+        if arbiter:
+            print(arbiter)
     # The DATA column, printed alongside EVERY verdict (run 34 item 1): the
     # verdict above scores the INSTRUCTION STREAM ONLY, so a moved non-text
     # section — a widened save area losing its .extab match, a corrected pool
