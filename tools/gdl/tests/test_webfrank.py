@@ -3572,6 +3572,132 @@ class ConstantEqualityClosureTests(unittest.TestCase):
                 constant_equality=True)
 
 
+# --- the commutative-exchange ZERO-FIELD refinement --------------------------
+#
+# fn_800C72DC's +0x9c shape, minimised.  `lwzx` is in _COMMUTATIVE_31 with
+# shifts (16, 11): RA carries the RA|0 encoding rule and RB does not, so
+# EA = RA + RB is symmetric exactly while RA is nonzero on both sides.  Two
+# tests inside the exchange path were keyed on operand POSITION where that
+# rule is keyed on the FIELD, and refused a provable crossing whenever a plain
+# GPR0 turned up in an RB slot.
+# claim.WC_commutative-exchange-zero-field-precision-proposal.20260903.v1
+ADDI_R7_R6_4 = 0x38E60004      # addi r7,r6,4    ours, the +0x90 definition
+ADDI_R0_R6_4 = 0x38060004      # addi r0,r6,4    target's, into GPR0
+ADDI_R28_R6_4 = 0x3B860004     # addi r28,r6,4   target's, into a callee-saved
+ADDI_R5_R6_8 = 0x38A60008      # addi r5,r6,8
+ADDI_R7_R6_8 = 0x38E60008      # addi r7,r6,8
+LI_R30_0 = 0x3BC00000          # li r30,0        ours, the +0x24 loop counter
+LI_R28_0 = 0x3B800000          # li r28,0        target's same counter
+LWZX_R7_R7_R30 = 0x7CE7F02E    # lwzx r7,r7,r30  ours, RA=7  RB=30
+LWZX_R7_R28_R0 = 0x7CFC002E    # lwzx r7,r28,r0  target's, RA=28 RB=0
+LWZX_R7_0_R28 = 0x7CE0E02E     # lwzx r7,0,r28   RA=0: NO base register
+LWZX_R7_0_R30 = 0x7CE0F02E     # lwzx r7,0,r30   RA=0: NO base register
+LWZX_R7_R7_R0 = 0x7CE7002E     # lwzx r7,r7,r0   RA=7, RB=GPR0
+LWZX_R7_R28_R5 = 0x7CFC282E    # lwzx r7,r28,r5  RA=28 RB=5
+
+
+class CommutativeExchangeZeroFieldTests(unittest.TestCase):
+    """The RA|0 flag follows the FIELD, not the position a value lands in.
+
+    Every test is two-sided.  The first pair is the shape the refinement
+    serves; the rest are the shapes it must still refuse, and each of those
+    FAILS (proves) if its half of the guard is removed:
+
+      * `test_a_genuine_absent_base_register_on_either_side_is_refused` is
+        the class the guard exists for: RA=0 means the literal 0, so
+        `lwzx rD,0,rB` computes rB while `lwzx rD,rA,0` computes rA + GPR0.
+        Measured honestly, these two bodies are refused REDUNDANTLY -- with
+        the per-field RA|0 test deleted the relation check refuses them
+        anyway, with `use of g7 is not value-equal to g0` -- so they pin the
+        refusal and its message, and are the negative control that the
+        refinement did not widen them, rather than a single-guard test.
+      * `test_deleting_the_zero_gate_admits_an_unsound_crossing` pins the
+        `zero_involved` gate itself, on the one shape where the gate rather
+        than the travelling flag is what refuses: our RB is GPR0 and the
+        target has no base register at all, so ours computes `rA + GPR0`
+        and the target computes `rB`.  Delete the gate and it proves.
+      * `test_the_flag_travels_with_the_value_across_the_remap` pins the
+        `remap_zero_none` half.  Drop it and the body proves, because the
+        RB slot's own flag (clear) would govern an expected value that came
+        from the target's RA.  The refusal is conservative rather than a
+        caught unsoundness, which is the correct direction for a guard.
+
+    Each "delete X and it proves" above is measured, not asserted:
+    `python tools/gdl/composed_census/wp_guard_two_sided.py` prints the four
+    bodies against the shipped transfer and against one variant per deleted
+    guard.  Only two of the four flip, which is why that table exists.
+    """
+
+    #  0x0  li r30,0      /  li r28,0        the loop counter
+    #  0x4  addi r7,r6,4  /  addi r0,r6,4    the base, into GPR0 on the target
+    #  0x8  lwzx r7,r7,r30 / lwzx r7,r28,r0  <- the crossing
+    OURS = _words(LI_R30_0, ADDI_R7_R6_4, LWZX_R7_R7_R30, BLR)
+    TARGET = _words(LI_R28_0, ADDI_R0_R6_4, LWZX_R7_R28_R0, BLR)
+
+    def test_strict_checker_refuses_the_crossed_index_operands(self):
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(self.OURS, self.TARGET)
+
+    def test_the_crossing_proves_with_no_declarations(self):
+        # Our r7 corresponds to the target's r0 and our r30 to its r28, both
+        # bound one word earlier, so the exchange needs no substitution at
+        # all.  Before the refinement this refused with
+        # `+0x8: use of g7 is not value-equal to g28` — the target's RB held
+        # a plain GPR0 and vetoed a crossing it had nothing to do with.
+        verify_value_equality_recolor(self.OURS, self.TARGET)
+
+    def test_a_genuine_absent_base_register_on_either_side_is_refused(self):
+        # RA=0 on ONE side only: the encodings are not exchangeable and the
+        # guard must fail closed, in both directions.
+        target_no_base = _words(LI_R28_0, ADDI_R28_R6_4, LWZX_R7_0_R28, BLR)
+        with self.assertRaisesRegex(
+                ValueError, r"base register presence differs \(g7 vs g0\)"):
+            verify_value_equality_recolor(self.OURS, target_no_base)
+        ours_no_base = _words(LI_R30_0, ADDI_R7_R6_4, LWZX_R7_0_R30, BLR)
+        with self.assertRaisesRegex(
+                ValueError, r"base register presence differs \(g0 vs g28\)"):
+            verify_value_equality_recolor(ours_no_base, self.TARGET)
+
+    def test_deleting_the_zero_gate_admits_an_unsound_crossing(self):
+        #  0x0  addi r7,r6,4  /  addi r28,r6,4
+        #  0x4  lwzx r7,r7,r0 /  lwzx r7,0,r28
+        # Ours computes r7 + GPR0; the target has NO base register and
+        # computes r28.  The crossed pairs are both in the relation --
+        # (g7,g28) from the definition and (g0,g0) from the entry identity --
+        # so without the `zero_involved` gate the exchange is taken, the
+        # travelling flag lands on our RB where cur and expected are both 0,
+        # and the body proves.  It must not: the two are equal only if GPR0
+        # happens to hold zero, which PowerPC does not guarantee for an RB
+        # slot.  This is the gate's own load-bearing case.
+        ours = _words(ADDI_R7_R6_4, LWZX_R7_R7_R0, BLR)
+        target = _words(ADDI_R28_R6_4, LWZX_R7_0_R28, BLR)
+        with self.assertRaisesRegex(
+                ValueError, r"base register presence differs \(g7 vs g0\)"):
+            verify_value_equality_recolor(ours, target)
+
+    def test_the_flag_travels_with_the_value_across_the_remap(self):
+        #  0x0  addi r0,r6,4  /  addi r28,r6,4
+        #  0x4  addi r7,r6,8  /  addi r5,r6,8
+        #  0x8  lwzx r7,r7,r0 /  lwzx r7,r28,r5
+        # The crossing is licensed (our r7 ~ target r5, our r0 ~ target r28)
+        # and taken, and OUR RB then holds 0 while the expected value that
+        # lands there came from the target's RA.  The travelling flag makes
+        # the RA|0 test fire on that field and refuse.
+        ours = _words(ADDI_R0_R6_4, ADDI_R7_R6_8, LWZX_R7_R7_R0, BLR)
+        target = _words(ADDI_R28_R6_4, ADDI_R5_R6_8, LWZX_R7_R28_R5, BLR)
+        with self.assertRaisesRegex(
+                ValueError, r"base register presence differs \(g0 vs g28\)"):
+            verify_value_equality_recolor(ours, target)
+
+    def test_an_unflagged_zero_alone_never_licenses_a_crossing(self):
+        # The refinement widens ONLY the zero test.  With no relation binding
+        # the crossed pairs, the same GPR0-in-RB shape must still refuse.
+        ours = _words(LI_R30_0, LWZX_R7_R7_R30, BLR)
+        target = _words(LI_R28_0, LWZX_R7_R28_R0, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(ours, target)
+
+
 class CompareOperandExchangeTests(unittest.TestCase):
     """fcmpu/fcmpo with its two operands exchanged.
 

@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py (_value_equality_transfer, the zero_involved gate and remap_zero_none)",
+    "tools/gdl/tests/test_webfrank.py (CommutativeExchangeZeroFieldTests, 6 tests)",
+    "tools/gdl/composed_census/wp_zerofield_census.py (the legacy-vs-shipped image-wide control)",
+    "tools/gdl/composed_census/wc_control_check.py (the 9-rule regression gate)"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "index-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any PowerPC form in `instruction_operands` where a field marked `zero_none=False` nevertheless gives register number 0 a non-register meaning, or where a `zero_none=True` field's 0 is an ordinary GPR -- either would make the field flag the wrong key and the refinement unsound. Concretely: run `python tools/gdl/composed_census/wp_zerofield_census.py` and inspect any row whose shipped column PROVES while the legacy column refuses with `base register presence differs`; today there is exactly one payoff row and it refuses on a value-equality use, not on base-register presence. A second falsifier is behavioural: if `python tools/gdl/composed_census/wc_control_check.py` ever reports a value-equality rule whose declarations moved, the refinement widened something it was not supposed to.",
+  "id": "claim.law.WP_the-ra-zero-flag-belongs-to-the-field-not-to-the-position-a-value-lands-in.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T16:10:04Z",
+  "schema_version": 1,
+  "subject": "tool:webfrank",
+  "valid_from": "2026-09-03",
+  "value": "SHIPPED GUARD REFINEMENT, run 45, inside the value-equality ceiling. In webfrank's commutative-exchange path the RA|0 encoding rule must be keyed on the FIELD that carries it, never on the operand POSITION a value occupies or lands in. Two tests were keyed on position and each refused a provable crossing for it.\n\nWHAT THE ENCODING ACTUALLY SAYS. For an indexed form such as `lwzx rD,rA,rB` the effective address is RA + RB and is symmetric -- but ONLY while RA is nonzero, because the RA field alone gives 0 the meaning 'no base register': `lwzx rD,0,rB` computes rB while `lwzx rD,rA,0` computes rA + GPR0. The RB field has no such rule and a 0 there is an ordinary GPR. So the exchange is sound exactly when neither side's RA field holds 0, and a 0 anywhere else is irrelevant.\n\nTHE TWO POSITION-KEYED TESTS, both now field-keyed. (a) `zero_involved = (zero_1 or zero_2) and 0 in (cur_1, cur_2, tgt_1, tgt_2)` ORed the two fields' flags and then looked for a zero in ANY of the four operand values, so a plain GPR0 sitting in an unflagged RB slot vetoed an exchange it had nothing to do with. It is now `(zero_1 and 0 in (cur_1, tgt_1)) or (zero_2 and 0 in (cur_2, tgt_2))`. (b) after a crossed remap IS taken, the RA|0 presence test was applied with the DESTINATION position's flag, so an expected value that arrived from the RB slot was read as 'the target has no base register here'. A `remap_zero_none` now travels beside `remap` so the flag follows the field the value came FROM.\n\nTHIS IS A PRECISION FIX, NOT A WIDENING OF WHAT 'EQUAL' MEANS. The relation, its invariant, the copy closure, the constant-equality closure, the declaration discipline and every other guard are untouched; one encoding-level test stopped firing on an encoding it does not describe. Where the travelling flag lands on a field whose own encoding IS flagged, it fires and refuses -- conservatively, which is the correct direction for a guard.\n\nMEASURED PAYOFF AND THE NEGATIVE CONTROL, both halves. Image-wide over 2845 paired functions (288 differing, 187 structurally out of scope, 101 fully screened): the refinement is the FIRST proving column for exactly ONE row, game/pb/pb_texture::fn_800C72DC, which it proves with ZERO declared substitutions and which it converts from an `unproven_recolor_audit` pin into a machine-proved one. 89 rows are proved by an earlier column and NOT ONE moves its verdict or its declaration counts. 11 rows are proved by no column, and two of them -- game/enemy/critter::CritterLoadDone at +0x98 and CritterLoadStartNext at +0xe0 -- still refuse with `base register presence differs (g3 vs g0)`, which is the class the flag exists for still failing closed on live corpus data.\n\nA COROLLARY WORTH ITS OWN LINE, measured while writing the tests. A refusal can be REDUNDANT, and 'this test guards that body' is a claim to check rather than assume: the two synthetic RA=0 bodies are refused by the RA|0 presence test AND, with that test deleted, by the value-equality relation check anyway. Only two of the four bodies flip when their guard is removed. A guard test that never flips is a regression pin on a message, not evidence that the guard is load-bearing, and the difference is visible only by actually deleting the guard and re-running -- which is what the two-sided rule asks for and what a docstring asserting it will otherwise get wrong."
+}
