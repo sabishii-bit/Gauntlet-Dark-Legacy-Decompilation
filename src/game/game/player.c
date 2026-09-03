@@ -2961,13 +2961,13 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             if (hf & 0x200) {
                 if (dir != NULL) {
                     red = atan2(dir[0], dir[2]) - p->move_yaw;
-                    if (red > 3.141592653589793) {
-                        red = red - 6.283185307179586;
-                    } else if (red <= -3.141592653589793) {
-                        red = red + 6.283185307179586;
+                    if (red > 3.141592654) {
+                        red = red - 6.283185308;
+                    } else if (red <= -3.141592654) {
+                        red = red + 6.283185308;
                     }
-                    if ((f32)red > -1.5707963267948966 &&
-                        (f32)red < 1.5707963267948966) {
+                    if ((f32)red > -1.570796327 &&
+                        (f32)red < 1.570796327) {
                         reduced_dmg = 0.0f;
                     } else {
                         reduced_dmg = dmg * 0.25;
