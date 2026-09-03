@@ -241,7 +241,7 @@ void DoGoodWizard(void)
     s32 c;
     s32 frame2;
     f32 pos[3];
-    u8 unused[8];
+    u8 unused[12];
     void* node;
 
     {
