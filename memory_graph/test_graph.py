@@ -3101,6 +3101,78 @@ class OwnedUnitsTests(unittest.TestCase):
         self.assertEqual(result["owned_units_conflicts"],
                          {"game/anim/atree": ["worker-mf", "worker-nm"]})
         self.assertIn("game/ps2/ml_fmath", result["owned_units_index"])
+        # NEGATIVE side of the run-54 item-8 change: an exact duplicate is a
+        # conflict and NOT also reported as a nesting.
+        self.assertEqual(result["owned_units_nesting"], [])
+
+    def _carve_out(self):
+        """A lane carving one file out of another lane's directory prefix."""
+        _write(self.root / "memory_graph" / "inbox" / "wc4.json", {
+            "schema_version": 1, "id": "work_claim.t24.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-t24", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "tool lane",
+                           "owned_units": ["tools/gdl", "memory_graph"]},
+        })
+        _write(self.root / "memory_graph" / "inbox" / "wc5.json", {
+            "schema_version": 1, "id": "work_claim.wv.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-wv", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "postprocessor lane",
+                           "owned_units": ["tools/gdl/webfrank.py"]},
+        })
+        build_database(self.root)
+
+    def test_a_nested_entry_is_reported_and_is_not_a_conflict(self):
+        """Run-54 item 8: the exact-key comparison cannot see a prefix.
+
+        Reproduced live at 221fdc4cc: `gdlmem claims` printed
+        `owned_units_conflicts: {}` while its own index carried
+        `tools/gdl -> [T24]` and `tools/gdl/webfrank.py -> [WV]`.
+        """
+        self._carve_out()
+        result = work_claims(root=self.root)
+        self.assertEqual(result["owned_units_conflicts"], {})
+        self.assertEqual(len(result["owned_units_nesting"]), 1)
+        row = result["owned_units_nesting"][0]
+        self.assertEqual((row["outer"], row["outer_owner"]),
+                         ("tools/gdl", "worker-t24"))
+        self.assertEqual((row["inner"], row["inner_owner"]),
+                         ("tools/gdl/webfrank.py", "worker-wv"))
+
+    def test_the_narrower_grant_decides_the_owns_verdict(self):
+        self._carve_out()
+        result = work_claims(root=self.root, owns="tools/gdl/webfrank.py")
+        self.assertEqual(result["structured_owners"], ["worker-wv"])
+        self.assertEqual(result["verdict"], "OWNED by worker-wv")
+        outranked = [c for c in result["claims"]
+                     if c["owner"] == "worker-t24"]
+        self.assertEqual([c["decides"] for c in outranked], [False])
+        self.assertIn("WIDER entry", result["outranked_note"])
+
+    def test_the_prefix_owner_still_owns_the_rest_of_the_directory(self):
+        # NEGATIVE side: specificity must not hand the whole prefix away.
+        self._carve_out()
+        result = work_claims(root=self.root, owns="tools/gdl/probe.py")
+        self.assertEqual(result["structured_owners"], ["worker-t24"])
+        self.assertEqual(result["verdict"], "OWNED by worker-t24")
+        self.assertNotIn("outranked_note", result)
+
+    def test_an_exact_tie_leaves_both_owners_deciding(self):
+        # NEGATIVE side: equal specificity is a real collision, not something
+        # to resolve away.
+        self._carve_out()
+        _write(self.root / "memory_graph" / "inbox" / "wc6.json", {
+            "schema_version": 1, "id": "work_claim.t23.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-t23", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "twin tool lane",
+                           "owned_units": ["tools/gdl"]},
+        })
+        build_database(self.root)
+        result = work_claims(root=self.root, owns="tools/gdl/probe.py")
+        self.assertEqual(result["structured_owners"],
+                         ["worker-t23", "worker-t24"])
 
 
 class SupersessionLineageDedupTests(unittest.TestCase):

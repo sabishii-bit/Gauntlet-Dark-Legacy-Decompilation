@@ -8930,6 +8930,45 @@ def owned_unit_covers(entry: str, unit: str) -> bool:
     return unit == entry or unit.startswith(entry + "/")
 
 
+def owned_unit_nesting(pairs: list[tuple[str, str]]) -> list[dict[str, str]]:
+    """Cross-owner NESTED `owned_units` entries, from (owner, entry) pairs.
+
+    `owned_units_conflicts` groups entries by string equality, so an entry
+    sitting INSIDE another lane's directory prefix reads as two unrelated
+    index keys and the overlap is reported nowhere. Reproduced live at
+    221fdc4cc: `gdlmem claims` printed `owned_units_conflicts: {}` while its
+    own index carried `tools/gdl -> [claude-fleet-worker-T24]` and
+    `tools/gdl/webfrank.py -> [claude-fleet-worker-WV]`.
+
+    A nesting is NOT reported as a conflict. It is a carve-out — the tools
+    resolve it most-specific-first — and this fleet creates it deliberately
+    every run (measured over all 48 historical work_claims carrying the
+    field: the same tool-lane/postprocessor-lane nesting recurs under eight
+    distinct lane ids across 2026-09-03 and 2026-09-04). Folding it into
+    `conflicts` would raise a false collision on standing fleet structure.
+    Same-owner nesting is not reported at all.
+    """
+    out: list[dict[str, str]] = []
+    for index, (owner_a, entry_a) in enumerate(pairs):
+        for owner_b, entry_b in pairs[index + 1:]:
+            if owner_a == owner_b or entry_a == entry_b:
+                continue
+            if owned_unit_covers(entry_a, entry_b):
+                outer, inner = (owner_a, entry_a), (owner_b, entry_b)
+            elif owned_unit_covers(entry_b, entry_a):
+                outer, inner = (owner_b, entry_b), (owner_a, entry_a)
+            else:
+                continue
+            out.append({
+                "outer": outer[1], "outer_owner": outer[0],
+                "inner": inner[1], "inner_owner": inner[0],
+                "resolution": (f"{inner[1]} resolves to {inner[0]} (the more"
+                               f" specific entry); {outer[0]} keeps the rest"
+                               f" of {outer[1]}"),
+            })
+    return out
+
+
 def validate_owned_units(record: dict[str, Any]) -> list[str]:
     """Refusal messages for a malformed `attributes.owned_units`.
 
@@ -9043,8 +9082,16 @@ def work_claims(
             for entry in units:
                 unit_index.setdefault(entry, []).append(row["owner"])
         match = None
+        reach = None
         if owns:
-            structured = any(owned_unit_covers(entry, owns) for entry in units)
+            # How NARROW is this claim's grant over the queried path? The
+            # longest covering entry wins (run-54 item 8): a lane that carves
+            # `tools/gdl/webfrank.py` out of another lane's `tools/gdl` is the
+            # owner of that file, and reporting both as owners contradicts the
+            # screen probe.py and defake_gate.py actually enforce.
+            reach = max((len(normalize_owned_unit(entry)) for entry in units
+                         if owned_unit_covers(entry, owns)), default=None)
+            structured = reach is not None
             needle = owns.replace("\\", "/").strip().lower()
             haystack = " ".join(filter(None, (
                 str(row["scope"] or ""), str(row["function"] or ""),
@@ -9068,6 +9115,7 @@ def work_claims(
                 "scope": row["scope"],
                 "owned_units": units,
                 **({"match": match} if match else {}),
+                **({"_reach": reach} if reach is not None else {}),
             }
         )
     result = {
@@ -9102,11 +9150,30 @@ def work_claims(
             u: sorted(set(o)) for u, o in sorted(unit_index.items())
             if len(set(o)) > 1
         },
+        # The exact-key comparison above cannot see a prefix overlap
+        # (run-54 item 8); a nesting is a carve-out, reported separately and
+        # advisory, never folded into the conflicts above.
+        "owned_units_nesting": owned_unit_nesting(
+            [(owner, entry) for entry, owners in unit_index.items()
+             for owner in dict.fromkeys(owners)]),
     }
     if owns:
         result["owns_query"] = owns
-        structured = [c for c in claims if c.get("match") == "owned_units"]
+        covering = [c for c in claims if c.get("match") == "owned_units"]
+        # MOST SPECIFIC GRANT DECIDES (run-54 item 8). Reproduced at
+        # 221fdc4cc: `claims --owns tools/gdl/webfrank.py` answered
+        # "OWNED by claude-fleet-worker-T24, claude-fleet-worker-WV" for a
+        # path this run's orders give to WV alone, because both a prefix and
+        # the file inside it "cover" it. A wider claim is demoted to
+        # "decides": false, exactly as a prose-only hit is; an exact TIE (two
+        # lanes listing the same entry) leaves both deciding, which is the
+        # case that really is a collision.
+        finest = max((c["_reach"] for c in covering), default=None)
+        structured = [c for c in covering if c["_reach"] == finest]
+        outranked = [c for c in covering if c["_reach"] != finest]
         prose_only = [c for c in claims if c.get("match") == "scope_prose"]
+        for claim in claims:
+            claim.pop("_reach", None)
         # FREE is only sound when EVERY active claim is decidable. One claim
         # without a list leaves the whole question open, however many others
         # carry one -- reporting FREE there would be the exact false all-clear
@@ -9142,6 +9209,19 @@ def work_claims(
             result["verdict_basis"] = "owned_units"
             for claim in prose_only:
                 claim["decides"] = False
+            for claim in outranked:
+                claim["decides"] = False
+            if outranked:
+                result["outranked_note"] = (
+                    f"{len(outranked)} claim(s) cover this path through a"
+                    " WIDER entry and are outranked by a more specific one;"
+                    " they decide nothing here and carry \"decides\": false."
+                    " A longer owned_units entry is a narrower grant, and"
+                    " claimscope.py / probe.py / defake_gate.py resolve the"
+                    " same way, so this verdict is the one they enforce."
+                    " Outranked: "
+                    + ", ".join(f"{c['owner']} ({c['id']})"
+                                for c in outranked))
             if prose_only:
                 result["scope_prose_note"] = (
                     f"{len(prose_only)} claim(s) matched the SCOPE PROSE only"
