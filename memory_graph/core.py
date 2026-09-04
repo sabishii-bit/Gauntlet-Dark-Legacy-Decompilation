@@ -9430,9 +9430,29 @@ def find_records(
         sql += " AND r.record_kind = ?"
         params.append(kind)
     if function:
+        # THREE SPELLINGS, because the corpus anchors records on more than
+        # one kind of entity (run-51 item 9b). Six accepted tool-lane attempt
+        # records carry `function: "project:gdl"` — a PROJECT anchor in the
+        # function field — and `find --function` matched neither
+        # `project:gdl` (the argument was split on ':' and rebuilt as
+        # `function:gdl`) nor `gdl`. Both spellings returned
+        # `"count": 0`, which reads as "no such record" and is how a lane
+        # loses its own predecessors: T9, T16, T17, T19, T20 and
+        # WF_t17-ordered-datum-rescreen were all unreachable by this facet.
+        #   1. `function:<name>`  the ordinary anchor
+        #   2. the argument VERBATIM, for a caller that pastes the field
+        #   3. any entity whose suffix after ':' is <name>, for a caller who
+        #      types the bare word
+        # Clause 3 CANNOT merge two entities today: measured over all 572
+        # entities (87 of them non-`function:` prefixed), suffix collisions
+        # with a function name number ZERO. Re-run that census before
+        # widening it further.
         name = function.split(":", 1)[-1]
-        sql += " AND fe.entity_key = ?"
-        params.append(f"function:{name}")
+        sql += (" AND (fe.entity_key = ? OR fe.entity_key = ?"
+                "      OR (fe.entity_key NOT LIKE 'function:%'"
+                "          AND substr(fe.entity_key,"
+                "                     instr(fe.entity_key, ':') + 1) = ?))")
+        params.extend([f"function:{name}", function, name])
     if tu:
         sql += " AND bm.object_name LIKE ?"
         params.append(f"%{tu}%")
