@@ -1993,8 +1993,66 @@ def normalize_unit(unit):
     return unit
 
 
+KNOWN_FLAGS = {
+    "--arbiter", "--arbitrate", "--at-head", "--bank-arbitrated", "--build",
+    "--ignore-claim", "--rebase-best", "--rebuild", "--rename",
+    "--update-improved",
+}
+
+# `--arbitrate` ACCEPTS a CONFLICT; `--arbiter fuzzy` MEASURES one. They
+# are one token apart and mean opposite things, so a near-miss on either
+# gets told which is which rather than a bare suggestion list.
+ARBITER_NOTE = (
+    "  NOTE: `--arbiter fuzzy` MEASURES (it rebuilds the report and prints"
+    " the fuzzy a REGRESSION would override); `--arbitrate` ACCEPTS the"
+    " CONFLICT and moves the anchor. Passing the wrong one silently did the"
+    " other thing.")
+
+
+def unknown_flags(argv, known=KNOWN_FLAGS):
+    """[(flag, [suggestions])] for every `--flag` this tool does not know.
+
+    RUN-52 ITEM 3, and it is a sibling-call-site finding: run 46 closed
+    exactly this hole in probe.py ("probe swallowed unknown flags 45
+    runs") and left the tool probe is alternated with in the same loop
+    open. `main()` builds its positional list as
+    `[a for a in sys.argv[1:] if not a.startswith("--")]` and tests every
+    flag by membership, so an unrecognised one is DROPPED IN SILENCE.
+    Measured at da7eee6c7: `defake_gate.py check game/enemy/critter
+    --arbitrate-fuzzy --nonsense` printed `GATE OK` and exited 0 with both
+    flags discarded — the gate ran without the arbiter a lane believed it
+    had asked for. Calibrated on the negative side over every defake_gate
+    invocation in tools/gdl (sources, tests and this docstring): the five
+    spellings that appear -- --rebuild, --update-improved, --arbiter,
+    --bank-arbitrated=, --at-head -- are all in the set above, so the
+    refusal costs zero working call sites.
+    """
+    import difflib
+    out = []
+    for token in argv:
+        if not token.startswith("--") or token == "--":
+            continue
+        name = token.split("=", 1)[0]
+        if name in known:
+            continue
+        out.append((token, difflib.get_close_matches(name, sorted(known), 3)))
+    return out
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    unknown = unknown_flags(sys.argv[1:])
+    if unknown:
+        for flag, close in unknown:
+            hint = f"  did you mean {', '.join(close)}?" if close else ""
+            print(f"unknown flag {flag}{hint}")
+        print("REFUSED: this gate tests flags by membership, so an"
+              " unrecognised one used to be dropped in silence — the check"
+              " then ran WITHOUT the arbiter or the rebuild you asked for"
+              " and printed a verdict for a different question.")
+        if any(f.startswith("--arbit") for f, _c in unknown):
+            print(ARBITER_NOTE)
+        return 2
     update_improved = "--update-improved" in sys.argv
     rebuild = "--rebuild" in sys.argv or "--build" in sys.argv
     # ONE DECISION, TWO SPELLINGS (run-43 item 6). probe.py spells "accept
