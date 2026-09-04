@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/slotdiff.py",
+    "tools/gdl/fndiff.py",
+    "tools/gdl/composed_census/wf_word_diff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "store-placement",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any source form on any function that reaches the cast form's block floor while HOLDING instruction-count parity, or that pays the ADDR16_LO home copy with no cast anywhere in the address expression. Concretely on the recorded instance: `python tools/gdl/slotdiff.py game/pb/pb_error fn_800C1174` printing no TARGET-ONLY slot 16 / OURS-ONLY slot 20 row while `python tools/gdl/fndiff.py game/pb/pb_error fn_800C1174 --ops` prints T150/O150. The five probed forms and their verbatim results are in attempt.WF_fn800c1174-the-block-floor-and-the-home-copy-are-one-cast-driven-mechanism-so-pb-error-cannot-flip.20260904.v1.",
+  "id": "claim.law.WF_the-block-floor-and-the-addrlo-home-copy-are-one-cast-driven-mechanism-not-two.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T16:23:39Z",
+  "schema_version": 1,
+  "subject": "function:fn_800C1174",
+  "valid_from": "2026-09-04",
+  "value": "INSTRUCTION COUNTS, the deciding fact for the postprocessor-class half of this law: the cast-free endpoint measures 150/150 (ours/target) and the cast endpoint measures 151/150 (ours/target), on game/pb/pb_error.c::fn_800C1174. The count-parity endpoint is inside the count gate and still unservable for a different reason (its residual is IMMEDIATE words); the floor-exact endpoint is count-asymmetric at 151/150 and is therefore outside every postprocessor class by construction. For an MWCC address materialisation of a file-scope aggregate into a callee-saved pointer local, the local-block FLOOR and the ADDR16_LO HOME COPY are ONE mechanism with two opposite-signed effects, and the discriminant is whether a pointer CAST sits in the address expression - not the extern's declared type. Measured on game/pb/pb_error.c::fn_800C1174 across five forms with the body held constant: CAST PRESENT (`(PBErrorBlock*)&arrayExtern`, `(PBErrorBlock*)structExtern.leadingArray`, or a redundant `(PBErrorBlock*)(u8*)&structExtern`) gives block floor 16 - a slot map IDENTICAL to the target on every slot - and pays one surplus `mr` at T150/O151. CAST ABSENT (`&structObject`, `&unionObject.member`, or an `T[1]` array decay) gives floor 20, count parity T150/O150, and two IMMEDIATE rows `addi rD,r1,16` vs `addi rD,r1,20`. The two effects have never been observed apart. THE PRACTICAL CONSEQUENCE: this pair is a postprocessor DEAD END in both directions, because the floor endpoint is count-asymmetric and the count-parity endpoint's residual is IMMEDIATE words, and neither is inside any shipped webfrank class - so a function in this shape must be closed at source or not at all. THE METHOD CONSEQUENCE, which is the transferable half: two candidate drivers that always co-vary in the forms tried are ONE confound, and the way to separate them is a form that changes the suspected driver ALONE - here, adding a semantically redundant cast to the already-winning struct-object form, which flipped the codegen regime and proved the type was never the driver."
+}
