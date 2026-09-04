@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "owned_units": [
+      "game/world/world"
+    ],
+    "scope": "RUN-57H exact-close lane for game/world/world.c, currently 20/23 functions exact with no WebFrank pins. Fresh briefing at f9b6b94db: WorldSaveInitState is count-parity with only 2 unabsorbed operand words at 97.65%; StartWorldLoad is 97.34% count-asymmetric; LoadWorldDone is 98.75% count-asymmetric. First exact-close WorldSaveInitState by rederiving the two-word mechanism and screening its existing attempts/laws. Mandatory next hypothesis for LoadWorldDone is the newest typed WorldInfo* view local initialized at the relevant +228 access so the base and struct pointer share a web; distinguish it from vetoed declaration/extern-retype axes. For StartWorldLoad, use the recorded same-width numbering carrier or another genuinely new allocator-demand axis, not the refuted extern type/save-timing explanation. Resolve the measured two data blockers from live datadiff evidence, then flip the TU if all three functions close. Exact outcomes required; sound guarded rules only after source exhaustion/count parity. Record via scratch+propose-record, commit milestones with -F and explicit paths, full gates, never push."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:WorldSaveInitState",
+  "id": "work_claim.codex-r57-world.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-r57-world",
+  "recorded_at": "2026-09-04T19:14:46Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
