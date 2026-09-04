@@ -117,6 +117,14 @@ This mode links raw compiler output. It deliberately bypasses Frank, WebFrank,
 P6Frank, and every other retail-target/hash-dependent object rewrite so edited
 source remains usable as a normal mod build.
 
+One target-independent ELF visibility fixup runs in both build modes for
+`game/anim/atree.c`: GC 1.2.5 needs four cross-TU state objects to retain
+internal linkage while compiling in order to reproduce the retail BSS layout,
+so the build promotes those existing object symbols (and names the existing
+zero literal `sAtreeZero`) after compilation. It does not rewrite code, data,
+relocations, or addresses; it only restores the public symbol bindings used by
+`pb_diag.c`, and therefore remains compatible with edited/modded source.
+
 To print decompilation progress:
 
 ```sh

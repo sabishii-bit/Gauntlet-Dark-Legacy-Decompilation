@@ -1,0 +1,23 @@
+{
+  "constraints": [
+    "Requires either one defined sAtreeZero or exactly one local STT_OBJECT in .sdata2 with size 4 and zero bytes; ambiguous or missing candidates fail closed.",
+    "Requires natreelists, atree_handles, atree_scroll, and whichatree to exist as defined local symbols before promotion and as global symbols after promotion.",
+    "Only renames or promotes existing ELF symbols; it does not change code, data, relocations, or addresses."
+  ],
+  "entrypoint": "python tools/gdl/atree_exports.py",
+  "id": "tool.atree-exports.20260904T180623Z.60730437",
+  "kind": "tool",
+  "name": "atree-exports",
+  "purpose": "Target-independent, fail-closed ELF symbol visibility restoration for atree's retail cross-TU interface without changing section, relocation, or address bytes.",
+  "recorded_at": "2026-09-04T18:06:23Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/atree_exports.py",
+  "status": "active_guarded",
+  "tool_key": "tool:atree-exports",
+  "tool_kind": "object-postprocessor",
+  "usage": [
+    "Matching build: run after WebFrank on atree.o to name its existing anonymous zero datum sAtreeZero and promote the four atree state symbols plus sAtreeZero to global binding.",
+    "Non-matching build: run without WebFrank so mod builds retain the same cross-TU interface while all target-dependent instruction postprocessing remains bypassed."
+  ],
+  "valid_from": "2026-09-04T18:06:23+00:00"
+}

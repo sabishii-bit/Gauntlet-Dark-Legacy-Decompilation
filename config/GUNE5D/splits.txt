@@ -38,7 +38,7 @@ game/anim/atree.c:
 	.data       start:0x80118128 end:0x80118188
 	.bss        start:0x8023CFA0 end:0x8023D1E0
 	.sbss       start:0x803441C0 end:0x803441EC
-	.sdata2     start:0x80345848 end:0x8034584C
+	.sdata2     start:0x80345848 end:0x80345860
 
 game/ui/attract.c:
 	extab       start:0x80005678 end:0x800056E8

@@ -427,7 +427,7 @@ config.libs = [
             Object(NonMatching, "game/world/worldcol.c", cflags=cflags_demo),
             Object(Matching, "game/anim/anim.c", cflags=cflags_demo),
             Object(Matching, "game/anim/anim_play.c", cflags=cflags_demo),
-            Object(NonMatching, "game/anim/atree.c", cflags=cflags_demo),
+            Object(Matching, "game/anim/atree.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/auxanim.c", cflags=cflags_demo),
             Object(NonMatching, "game/anim/action.c", cflags=cflags_demo),
             Object(Matching, "game/sys/main.c", cflags=cflags_demo),
@@ -837,6 +837,16 @@ config.custom_build_rules = [
         "description": "WEBFRANK $out",
     },
     {
+        "name": "webfrank_globalize_atree",
+        "command": "$python tools/gdl/atree_exports.py $in $out --objcopy $atree_objcopy --webfrank-config $webfrank_config --webfrank-unit $webfrank_unit --target $webfrank_target --image $webfrank_image",
+        "description": "WEBFRANK+EXPORT $out",
+    },
+    {
+        "name": "globalize_atree",
+        "command": "$python tools/gdl/atree_exports.py $in $out --objcopy $atree_objcopy",
+        "description": "EXPORT $out",
+    },
+    {
         "name": "p6frank",
         "command": "$python tools/gdl/p6frank.py $in $out $p6frank_config $p6frank_unit --target $p6frank_target",
         "description": "P6FRANK $out",
@@ -884,6 +894,33 @@ if not config.non_matching:
         }
         for unit in webfrank_units
     }
+
+# Retail exposes four atree-owned arrays/scalars to pb_diag even though GC
+# 1.2.5 must compile them with internal linkage to reproduce retail's BSS
+# declaration order and instruction selection.  It likewise emits the zero
+# datum first as anonymous @190 while atree's other functions name that same
+# address sAtreeZero.  Promoting/renaming only those ELF symbols leaves every
+# section byte and relocation untouched.  Run the same target-independent
+# fixup in editable/non-matching builds so mods retain the cross-TU interface
+# while bypassing all retail-byte postprocessing.
+atree_export_unit = "game/anim/atree"
+binutils_dir = config.binutils_path or config.build_dir / "binutils"
+atree_objcopy = binutils_dir / (
+    "powerpc-eabi-objcopy.exe" if is_windows() else "powerpc-eabi-objcopy"
+)
+atree_export_vars = {"atree_objcopy": atree_objcopy}
+if config.non_matching:
+    config.object_postprocesses[atree_export_unit] = {
+        "rule": "globalize_atree",
+        "implicit": ["tools/gdl/atree_exports.py", atree_objcopy],
+        "variables": atree_export_vars,
+    }
+else:
+    atree_postprocess = config.object_postprocesses[atree_export_unit]
+    atree_postprocess["rule"] = "webfrank_globalize_atree"
+    atree_postprocess["implicit"].append("tools/gdl/atree_exports.py")
+    atree_postprocess["implicit"].append(atree_objcopy)
+    atree_postprocess["variables"].update(atree_export_vars)
 p6frank_config = Path(f"config/{config.version}/p6frank.json")
 p6frank_units = json.loads(p6frank_config.read_text(encoding="utf-8"))["units"]
 if not config.non_matching:

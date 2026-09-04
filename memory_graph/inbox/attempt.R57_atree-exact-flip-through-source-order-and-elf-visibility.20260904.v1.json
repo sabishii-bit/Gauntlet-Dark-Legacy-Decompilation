@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Exact whole-TU flip by restoring retail function/data order in C, retaining the compiler's anonymous zero pool datum, and restoring the retail cross-TU ELF bindings without changing bytes.",
+  "attributes": {
+    "law_screen": "claim.law.bss-reverse-declaration-order.20260829.v1 SCREENED; MF's atree refinement showed this compiler emits these globals by first-use topology, so the retained source keeps the four storage objects static and in the measured declaration/use topology. claim.law.inline-and-deadstrip-rules.20260829.v1 APPLIED: private inline helpers were placed immediately before their callers so reordering public definitions changed target order without changing bodies. claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 APPLIED in refined form: source-owned late definitions preserve the retail bias and dummy-name relocations, while the tool names the compiler's existing anonymous zero object instead of introducing a duplicate literal. claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-some-claim-slack-is-structural.20260903.v1 APPLIED: the atree .sdata2 claim ends at aligned 0x80345860 and its final two zero bytes are structural slack. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED: DoAnimateTreeFrame, fn_8001267C, AtreeInitSub, and fn_80011BBC bodies were not edited; existing fail-closed pins revalidated in the full build.",
+    "laws_applied": "[\"claim.law.inline-and-deadstrip-rules.20260829.v1\", \"claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1\", \"claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-some-claim-slack-is-structural.20260903.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "probed_form": "Retained source/order form: place AtreeFindNode before AtreeFindNodeIdx and place AtreeInitLists, AtreeListLock, AtreeAlloc, AtreeSetEmpty in target order, with each source-order-sensitive private inline helper immediately before its caller; define sAtreeFrameRoundBias and sAtreeDummyName after their uses; retain sAtreeZero as the compiler-emitted anonymous 0.0f datum. Retained object-interface form: tools/gdl/atree_exports.py parses the big-endian ELF, requires the four defined state objects to be local, discovers exactly one local 4-byte zero .sdata2 object (or a defined sAtreeZero), then uses objcopy only to rename/promote those existing symbols and verifies the output bindings. Refuted pb_diag consumer probe: deriving the four state addresses from whichatree reduced O568 to O566 and worsened real 252 to 338, so it was reverted.",
+    "residual": "NONE in atree code, data, order, or linkage. The final two .sdata2 claim bytes are aligned zero-fill slack and advisory, not target data. The exported-symbol restoration is target-independent ELF metadata only and runs in both matching and mod builds. The refutes edge is narrow: MF correctly measured that ordinary global C definitions cannot reproduce retail BSS order; this result refutes only its resulting whole-TU flip veto by decoupling storage layout from binding visibility.",
+    "scope": "src/game/anim/atree.c (definition order and late datum definitions), config/GUNE5D/splits.txt (aligned atree .sdata2 ownership), configure.py (matching and non-matching atree export edges and Object(Matching)), tools/gdl/atree_exports.py plus tests, and README.md documentation. src/game/pb/pb_diag.c has no retained change.",
+    "verification": "finish_tu.py succeeded: atree data .bss 0x240, .data 0x60, .rodata 0x17b, .sbss 0x2c, .sdata2 0x16, .text 0x2d70, extab 0xe8, extabindex 0x15c; order exact for 36 shared functions with zero target-only or ours-only; exact build green. fndiff --clean reports all 36 functions exact or pool-name-only real 0. datadiff reports .data 0x60 exact, .sdata2 0x16 exact through target bytes with two zero slack bytes, .bss 0x240 and .sbss 0x2c exact, and zero blockers. Full matching ninja prints build/GUNE5D/main.dol: OK. A full configure.py --non-matching plus ninja links successfully with ATREE_EXPORTS and no WebFrank/P6 edge. tools/gdl/tests/test_atree_exports.py passes all four fail-closed tests."
+  },
+  "function": "tu:game/anim/atree",
+  "held_fixed": "All moved public-function bodies and all four WebFrank-pinned function bodies were held byte-for-byte fixed while definition order, private inline-helper placement, pool ownership, split ownership, and ELF symbol binding were varied. Compiler flags and target bytes were unchanged.",
+  "id": "attempt.R57_atree-exact-flip-through-source-order-and-elf-visibility.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T18:07:31Z",
+  "refutes": "attempt.MF_atree-global-linkage-cannot-reproduce-retail-bss-order-and-the-text-order-is-wrong-too.20260903.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "no residual: 36/36 functions exact, section data exact or zero-slack advisory, target order exact"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

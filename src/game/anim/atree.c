@@ -1683,4 +1683,9 @@ animdata* AnimDataNodeNew(void)
     return &AnimDataList[i];
 }
 
+/* Keep these definitions after their uses: MWCC then preserves the external
+ * datum loads used by retail instead of folding them into anonymous pools. */
+const f64 sAtreeFrameRoundBias = 0.5;
+DECL_SECT(".sdata2") const char sAtreeDummyName[] = "DUMMY";
+
 #undef STUB
