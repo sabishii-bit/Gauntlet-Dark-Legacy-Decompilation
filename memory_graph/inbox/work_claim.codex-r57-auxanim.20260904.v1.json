@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "owned_units": [
+      "game/g3d/auxanim"
+    ],
+    "scope": "RUN-57D exact-close lane for game/g3d/auxanim.c, the only open TU in game/g3d. Fresh region census at 743dbb6ac: 8/10 functions exact, no unclaimed text gaps, no WebFrank pins. Work both InitOAnimList and DoTexModSeqSub toward exact and flip the TU. Mandatory step 1: reproduce the newest PF diagnoses before any new probe. For InitOAnimList, local areas and frame are identical; the sole mechanism is allocator demand for a loop-invariant -1 in a sixth callee-saved register, so do not retry pad/frame/declaration/walking-cursor axes. For DoTexModSeqSub, confirm the surviving stw/fcmpo scheduling placement and case -5 FP live-range coloring, then test a genuinely new statement-shape/live-range axis rather than declaration/scope/count respellings. Screen webfrank.json before editing, context/xbox each function, query laws by live residual, retain only verified monotonic changes, and continue distinct axes until exact or a single named compiler mechanism is proven under the exact-match mandate. Record via scratch+propose-record, commit milestones with -F and explicit paths, full gates, never push."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:DoTexModSeqSub",
+  "id": "work_claim.codex-r57-auxanim.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-r57-auxanim",
+  "recorded_at": "2026-09-04T18:24:19Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "owned_units": [
+      "game/world/worldcol"
+    ],
+    "scope": "RUN-57E exact-close lane for game/world/worldcol.c. Fresh region census at 743dbb6ac: 12/15 functions exact, no unclaimed text gaps; current open functions are SlideAlongWall, WorldCollide, and PointLineColl, while CTriListCollide is already pinned and its source is frozen. Mandatory step 1 is the newest open SlideAlongWall hypothesis: remove vx as an entry cache, reread vel[0] directly in the penetration expression, and only then establish vx at the absolute-value chain; distinguish this from the vetoed prior volatile-pool-reread form. Also pursue the small PointLineColl operand residual first-class for an exact function closure, then WorldCollide, with context/xbox and residual-law screens before edits. Never edit pinned CTriListCollide. Continue genuinely distinct axes until exact outcomes or one named compiler mechanism per survivor; sound guarded WebFrank is allowed only after source exhaustion and count parity. Record via scratch+propose-record, commit milestones with -F and explicit paths, full gates, never push."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:SlideAlongWall",
+  "id": "work_claim.codex-r57-worldcol.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-r57-worldcol",
+  "recorded_at": "2026-09-04T18:24:20Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
