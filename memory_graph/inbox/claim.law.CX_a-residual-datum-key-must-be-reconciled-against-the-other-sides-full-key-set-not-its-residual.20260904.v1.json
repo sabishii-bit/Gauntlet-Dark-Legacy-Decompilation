@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/cr_datum_screen.py (the independent byte-keyed arbiter; VALUE-EQUAL on all six rows, with and without --raw)",
+    "tools/gdl/composed_census/cv_scalar_datum_sweep.py (cancel_prefixes -- the one-sided form this law is about)",
+    "tools/gdl/fndiff.py (_datum_prefix_equal, datum_key, datum_multiset_screen)",
+    "tools/gdl/poolval.py (reads the retail .sdata2 bytes behind a label)",
+    "tools/gdl/datadiff.py --sections (prices the symbol-size over-claim as zero-filled claim slack)"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "relocation",
+      "pool-layout",
+      "symbol-identity",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python tools/gdl/composed_census/cr_datum_screen.py <unit> <fn>` on any row the two-sided filter drops (today: pb_tree::pbTreeTraverse, pb_tree::pbTraverseDrawObjects, sfx::SuicideExplosion, sfx::StartMagicFX, sfx::StartExplosion, sounds::AudioBuildMusicName). A VALUE-DELTA verdict on any of them disproves this law for that row -- the whole-function byte-keyed multiset would then be finding a datum difference the two-sided prefix filter is wrongly cancelling. The law also dies if a two-sided reconciliation is measured ADDING a row (it is a strict filter: the A/B measured 'ADDED by the two-sided filter: (none)'), or if a target-only key is exhibited whose prefix partner in our full key set belongs to a DIFFERENT storage address, which would mean prefix-equality is too coarse a reconciliation and the key must carry the resolved address.",
+  "id": "claim.law.CX_a-residual-datum-key-must-be-reconciled-against-the-other-sides-full-key-set-not-its-residual.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T00:57:24Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-cv-scalar-datum-sweep",
+  "valid_from": "2026-09-04",
+  "value": "A GRANULARITY (PREFIX) FILTER THAT RECONCILES ONE SIDE'S RESIDUAL AGAINST THE OTHER SIDE'S RESIDUAL CANCELS ALMOST NOTHING, BECAUSE THE PREFIX PARTNER IS USUALLY A DATUM BOTH SIDES READ AND THEREFORE SITS IN NEITHER RESIDUAL. Measured at 0f4151839 on cv_scalar_datum_sweep.py, whose cancel_prefixes() walks only_ours x only_target: the shipped one-sided form reports 12 findings image-wide and the two-sided form -- drop a residual key when ANY key in the other side's FULL set is prefix-equal to it -- reports 6, adding none. Every one of the six it drops is a real-0-or-low-real row that had been read as a wrong constant, and all six are one of two granularity shapes. SHAPE A, a symbol-size over-claim on a STORE destination: pb_tree::pbTreeTraverse and pb_tree::pbTraverseDrawObjects both flag 'target-only 0xBF80000000000000 (f64 -0.0078125)', which is config/GUNE5D/symbols.txt line 7966 'alpha_tree_dist = .sdata:0x80343FA8; size:0x8 data:float' claiming eight bytes over a four-byte float plus four bytes of end-of-section zero slack (datadiff --sections prices it: '.sdata: SIZE target 0x20 vs ours 0x1C ... the target's extra bytes are ZERO over an identical head'). The site is 'stfs f0,0(0) @alpha_tree_dist' -- IDENTICAL on both sides -- and the value stored, f0, is loaded two instructions earlier from lbl_80348FE8 (ours '@2'), 0xBF800000 f32 -1.0 on both sides. The rendered 'f64 -0.0078125' is a value nothing in the image ever loads. SHAPE B, our anonymous pool entry against retail's differently-sized shared datum: sfx::SuicideExplosion, sfx::StartMagicFX and sfx::StartExplosion all flag 'ours-only 0x00000000 (f32 0.0)' where poolval.py 0x80348068 reads 'lbl_80348068 @0x80348068 .sdata2 size 0x5 / bytes 00 00 00 00 00 / f32 0.0' -- both sides load 0.0f, ours from a fresh 4-byte anonymous entry and retail from the 5-byte shared zero; sounds::AudioBuildMusicName is the mirror image, our one 8-byte '@313' 0xFFFFFFFFFFFFFFFF against retail's two 4-byte lbl_80348450/lbl_80348454. In EVERY case the shorter datum's key is present in the other side's set -- as a SECOND, correctly-paired relocation of the same function -- so it never enters the residual the filter looks in. TWO CONSEQUENCES. (1) For any screen with set-or-multiset semantics plus a reconciliation filter, the filter's domain must be the other side's FULL key set; the residual is the wrong domain and the error is silent, presenting as high-confidence findings at the exact rank (real 0) the tool advertises as its most valuable. (2) A screen that keys STORE destinations as constants is measuring a writable global's INITIALIZER, not a value the function reads: claim.law.CS_wrong-constant-detection-needs-two-detectors-and-three-artifact-filters.20260901.v1 had already excluded that class from cs_constsweep.py by measurement ('the remaining unhandled EMB_SDA21 sites are stw/stfs STORES ... a writable runtime global rather than a constant') and cv_scalar_datum_sweep re-admitted it. Either fix alone kills both pb_tree rows, so they must be evaluated separately. ARBITER: the byte-keyed whole-function multiset screen claim.law.CR_a-reloc-census-row-is-an-order-artifact-until-the-whole-function-datum-multiset-says-otherwise.20260903.v1 ships (cr_datum_screen.py) reads VALUE-EQUAL on all six dropped rows and disagreed with the sweep on every one of them; when two datum screens disagree, the one that reconciles on BYTES over the whole function wins."
+}
