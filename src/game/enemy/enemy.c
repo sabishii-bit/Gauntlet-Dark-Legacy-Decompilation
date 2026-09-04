@@ -5967,9 +5967,9 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     s32 i;
     s32 r;
     Enemy* e;
-    f32 v[3];
-    f32 out[3];
     f32 startv[3];
+    f32 out[3];
+    f32 v[3];
 
     if (gGameMode == MA_HSTABLE) {
         return -1;
