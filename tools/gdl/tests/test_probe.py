@@ -1331,6 +1331,61 @@ class BestBankTests(unittest.TestCase):
             probe.snapshot_path("game/mb/mb_camera", source,
                                 probe.BEST_BANK_TAG))
 
+    def test_an_external_rewrite_tells_the_caller_to_re_read(self):
+        """Run-54 item 9: MP's next Edit after a clean --discard re-applied
+        the pre-discard content plus the new change, because an edit tool
+        matches against the content it last READ and nothing said the file
+        had moved underneath it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "y.c"
+            path.write_bytes(b"int a;\nint b;\n")
+            before = b"int a;\n"
+            out = io.StringIO()
+            stdout, sys.stdout = sys.stdout, out
+            try:
+                moved = probe.announce_external_rewrite(path, before,
+                                                        "--discard")
+            finally:
+                sys.stdout = stdout
+            self.assertTrue(moved)
+            text = out.getvalue()
+            self.assertIn("FILE REWRITTEN ON DISK by --discard", text)
+            self.assertIn("RE-READ IT BEFORE YOUR NEXT EDIT", text)
+            self.assertIn("14 bytes (was 7)", text)
+
+    def test_a_restore_that_moved_nothing_says_nothing(self):
+        """NEGATIVE side: "NOTHING DISCARDED" and "nothing to restore: the
+        bank IS the current working tree" are the most frequent outcomes of
+        these flags, and a stale-view warning there is pure noise."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "y.c"
+            path.write_bytes(b"int a;\n")
+            out = io.StringIO()
+            stdout, sys.stdout = sys.stdout, out
+            try:
+                moved = probe.announce_external_rewrite(path, b"int a;\n",
+                                                        "--discard")
+            finally:
+                sys.stdout = stdout
+            self.assertFalse(moved)
+            self.assertEqual(out.getvalue(), "")
+
+    def test_every_source_rewriting_path_announces(self):
+        """The mechanical falsifier: a new restore path that writes `source`
+        without announcing is the same hole one flag over."""
+        text = Path(probe.__file__).read_text(encoding="utf-8")
+        writes = [line for line in text.splitlines()
+                  if "source.write_bytes(" in line
+                  or "copyfile(snap, source)" in line
+                  or "copyfile(base, source)" in line]
+        announces = text.count("announce_external_rewrite(")
+        # 7 write sites: 5 caller-visible restores (announced) + the 2 in the
+        # arbitration path, which restores the caller's own bytes and must
+        # NOT announce. The helper's definition and its own call sites make
+        # up the announce count.
+        self.assertEqual(len(writes), 7, writes)
+        self.assertGreaterEqual(announces, 6)
+
     def test_the_best_bank_is_keyed_per_FUNCTION(self):
         """Run-54 item 3a: probe STATE is per function, the bank was per unit.
 

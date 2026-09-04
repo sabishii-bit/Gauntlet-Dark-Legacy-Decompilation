@@ -710,6 +710,26 @@ one, and supersede the law if your target contradicts it.
    `except (Exception, SystemExit)` — or a separate `except SystemExit`
    with its own verdict, which is what probe does — never the blanket form
    alone.
+21. **A TOOL THAT RESTORES A SOURCE FILE MAKES YOUR EDITOR'S VIEW STALE, AND
+   YOUR NEXT EDIT WILL UNDO THE RESTORE.** An edit tool matches against the
+   content it last READ; probe's restore family rewrites the file on disk
+   behind it. Measured run 53 (MP): after a clean `probe --discard`, the next
+   Edit re-applied the pre-discard content PLUS the new change — the discard
+   was silently undone by the edit that followed it, and nothing in the
+   output said the file had moved. Five probe flags do this to `src/`:
+   `--discard` (whole-file and `--function`), `--revert`, `--restore NAME`,
+   `--revert-best` and `--revert-baseline`; `--rederive-pin` does it to
+   `config/GUNE5D/webfrank.json`. THE RULE: **RE-READ the file after any of
+   them before your next edit** — not because the tool is unreliable, but
+   because your view is. Since run 54 probe prints
+   `[FILE REWRITTEN ON DISK by <flag>: ... RE-READ IT BEFORE YOUR NEXT
+   EDIT]` with the new size and sha1 whenever the bytes actually move (and
+   deliberately says nothing on the no-op paths, `NOTHING DISCARDED` and
+   `nothing to restore`, which are the common outcomes). Treat that line as
+   a hard stop on editing from memory. This is the same class as discipline
+   7's `Copy-Item` mtime hazard and discipline 18's probe `--discard`
+   layers: an operation whose effect reaches further than the layer that
+   performed it.
 
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.

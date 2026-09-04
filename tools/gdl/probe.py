@@ -420,6 +420,7 @@ WARN instead of silently measuring a partial swap.
 """
 
 import difflib
+import hashlib
 import json
 import re
 import shutil
@@ -2131,6 +2132,39 @@ def scoped_revert(snap_text, cur_text, fn):
     notes = (f"{reverted} hunk(s) inside {fn} reverted;"
              f" {kept} hunk(s) elsewhere in the TU left untouched")
     return "".join(out), notes
+
+
+def announce_external_rewrite(source, before, action):
+    """Say that THIS TOOL rewrote the file, so a stale editor view is wrong.
+
+    RUN-54 ITEM 9. Every restore path here rewrites the working source
+    OUTSIDE whatever editor the caller is using, and an agent's edit tool
+    matches against the content it last READ. MP reported the consequence
+    after a clean `--discard`: the next Edit re-applied the pre-discard
+    content plus the new change — the discard was undone by the very edit
+    that followed it, silently, because nothing told the caller its view was
+    stale. probe printed `discarded: ...` and moved on.
+
+    Prints only when the bytes actually MOVED. The no-op paths — "NOTHING
+    DISCARDED", "nothing to restore: the bank IS the current working tree" —
+    are the most frequent outcomes of these flags, and a warning there would
+    be noise on exactly the invocations that changed nothing. Five call
+    sites, all of them the ones that write `source`: `--discard` whole-file
+    and `--function`, `--revert-baseline`, and the `--revert` / `--restore` /
+    `--revert-best` family in both scopes. The two writes in the arbitration
+    path are deliberately NOT announced: it restores the caller's own bytes
+    before returning, so the file leaves that call exactly as it arrived.
+    """
+    after = source.read_bytes()
+    if after == before:
+        return False
+    print(f"[FILE REWRITTEN ON DISK by {action}: {source} is now"
+          f" {len(after)} bytes (was {len(before)}),"
+          f" sha1 {hashlib.sha1(after).hexdigest()[:12]}."
+          " YOUR EDITOR'S VIEW OF THIS FILE IS NOW STALE — RE-READ IT BEFORE"
+          " YOUR NEXT EDIT. An edit matched against the pre-restore content"
+          " re-applies what this call just took out.]")
+    return True
 
 
 def restore_is_partial(snap_text, restored_text):
@@ -5363,7 +5397,10 @@ def main():
                     print(f"cannot discard --function: {error}")
                     return 1
                 declined = new_text == source.read_bytes().decode("latin-1")
+                before_bytes = source.read_bytes()
                 source.write_bytes(new_text.encode("latin-1"))
+                announce_external_rewrite(source, before_bytes,
+                                          "--discard --function")
                 if declined:
                     print(f"NOTHING DISCARDED: {source} is unchanged —"
                           f" {notes}. This invocation reverted nothing: every"
@@ -5385,8 +5422,10 @@ def main():
                 return NOTHING_RESTORED_EXIT if declined else 0
         # The same question one level out: a whole-file discard of a tree
         # that already IS HEAD reverted nothing either, and said "discarded".
-        declined = source.read_bytes() == head_bytes_now
+        before_bytes = source.read_bytes()
+        declined = before_bytes == head_bytes_now
         source.write_bytes(head_bytes_now)
+        announce_external_rewrite(source, before_bytes, "--discard")
         if declined:
             print(f"NOTHING DISCARDED: {source} already matches HEAD —"
                   " this TU carries no uncommitted source change. (Header"
@@ -5471,7 +5510,9 @@ def main():
             return 1
         if guard_stale_restore(base, source, "session baseline"):
             return 1
+        before_bytes = source.read_bytes()
         shutil.copyfile(base, source)
+        announce_external_rewrite(source, before_bytes, "--revert-baseline")
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
         restore_transient_pins(unit)
@@ -5553,7 +5594,11 @@ def main():
                   " discard an uncommitted neutral edit, use git"
                   " (`git status` / `git checkout -- <file>`); re-scoring:")
         elif "--whole-file" in sys.argv:
+            before_bytes = source.read_bytes()
             shutil.copyfile(snap, source)
+            announce_external_rewrite(
+                source, before_bytes,
+                f"a --whole-file restore of {snap_label}")
             print(f"restored {source} to {snap_label} —"
                   " --whole-file: uncommitted work on OTHER functions in"
                   " this TU since that bank is GONE; re-scoring:")
@@ -5580,7 +5625,11 @@ def main():
                       " (--whole-file would take those changes back too);"
                       " re-scoring:")
             else:
+                before_bytes = source.read_bytes()
                 source.write_bytes(new_text.encode("latin-1"))
+                announce_external_rewrite(
+                    source, before_bytes,
+                    f"a function-scoped restore of {snap_label}")
                 print(f"restored {fn} to {snap_label} — {notes};"
                       " re-scoring:")
             # The kept hunks are reported as a COUNT ("N hunk(s) elsewhere in
