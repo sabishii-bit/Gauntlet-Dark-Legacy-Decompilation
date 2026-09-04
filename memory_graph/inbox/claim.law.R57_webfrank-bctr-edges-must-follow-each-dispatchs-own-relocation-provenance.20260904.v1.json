@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py",
+    "tools/gdl/tests/test_webfrank.py::PerBctrJumptableTests",
+    "config/GUNE5D/webfrank.json#game/anim/action",
+    "git:e84570085"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "switch-form",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A checked-in positive fixture or retail function whose exact relocation/dataflow provenance satisfies every stated condition yet the recovered per-bctr target map differs from the linker-resolved control flow, or an adversarial fixture in tools/gdl/tests/test_webfrank.py that the implementation accepts despite ambiguous, malformed, overlapping, incomplete, cross-function, or target/current-disagreeing provenance.",
+  "id": "claim.law.R57_webfrank-bctr-edges-must-follow-each-dispatchs-own-relocation-provenance.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T20:05:47Z",
+  "schema_version": 1,
+  "subject": "tool:webfrank",
+  "valid_from": "2026-09-04",
+  "value": "A WebFrank CFG proof for a function containing multiple bctr sites must not give every site the union of every address-taken target in the function. Each bctr is soundly refined only when its own immediate lwzx -> mtctr -> bctr chain traces exactly one load base through an unbroken same-basic-block ADDR16_LO/ADDR16_HA pair naming one defined, aligned, non-empty table; every word in that table must carry exactly one R_PPC_ADDR32 relocation resolving inside the current function. Missing, ambiguous, duplicate, overlapping, incomplete, wrong-type, cross-function, or target/current-disagreeing provenance must refuse. Measured on DoPlayerAction: the old union connected the first dispatch to blocks reachable only from two later switches, bypassed a real +0x1320 definition, and produced a false value-equality refusal; per-dispatch maps for the three sites removed only those impossible edges, after which the verifier exposed three genuine source semantic errors and finally proved the 1765/1765 closure."
+}

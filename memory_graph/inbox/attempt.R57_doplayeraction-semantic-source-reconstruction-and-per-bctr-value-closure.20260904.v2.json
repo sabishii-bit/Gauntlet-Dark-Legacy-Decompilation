@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Continue exact-count source reconstruction until the value-equality verifier finds no semantic disagreement, then close only the remaining copy-form plus allocator topology with a per-dispatch jump-table CFG proof.",
+  "attributes": {
+    "axis_log": "After the v1 milestone, the live source path improved fresh fuzzy 98.0782 -> 98.8074 and raw real 1820 -> 970 while preserving 1765/1765. Strict recolor remained insufficient because one value is independently replicated into several homes. A function-wide union of all three jump tables caused false verifier paths; the new per-bctr proof maps +0x138, +0x136c, and +0x1500 only to the relocation-complete table loaded by that dispatch. The resulting rule reaches BYTE-EQUAL after 17 verifier refusal rounds with 98 explicit value-equality substitutions.",
+    "law_screen": "The complete core-screen corpus (54 laws) was fetched fresh. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED: every retained source edit preserved 1765/1765 before postprocessing. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED: parity satisfied its necessary boundary. claim.LZ_webfrank-equivalent-copy-form-edit-class.20260901.v1 APPLIED at +0x18 after the target/ours copy values were rederived. claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 APPLIED only after strict renaming refused the replicated-value topology. claim.law.webfrank-cfg-entry-pseudotarget-false-negative.20260831.v1 APPLIED AS DIAGNOSIS: a coarse computed-branch target set can fabricate CFG paths, but this function required the narrower per-bctr refinement because it has three distinct tables. claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1 APPLIED: all residual measurements used the raw postprocess body and the final link gate was separate. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 APPLIED: relocation and full-datum gates were run independently. No core-screen law contradicted the retained source forms or guarded closure.",
+    "laws_applied": "[\"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\", \"claim.LZ_webfrank-equivalent-copy-form-edit-class.20260901.v1\", \"claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1\", \"claim.law.webfrank-cfg-entry-pseudotarget-false-negative.20260831.v1\", \"claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1\", \"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\"]",
+    "probed_form": "RETAINED source axes include distinct act/cur/next value identities; repeatCount compute-then-copy; act-before-mode assignment chronology in switch arms; direct weaphold_node member accesses; PlayerDef member reads; seq raw-copy-before-clamp; typed hud_flags accesses; adv-result compute-then-store; and target debug vararg identities. The strengthened verifier then REFUSED at +0xb50/+0xc7c until four outer conditions used next instead of cur, REFUSED at +0xc9c until the inner condition used cur instead of next, and REFUSED at +0x194 until the second controller test repeated `(gControllerButtons & 0x10) != 0` rather than testing the full u64. Those are source corrections, not postprocessor assumptions.",
+    "residual": "No linked-code or data blocker remains. The raw compiler body intentionally remains a guarded equivalent residual: one copy-form word and 404 register-field words. The matching build is byte-exact; the non-matching/mod build continues to bypass WebFrank.",
+    "scope": "src/game/anim/action.c::DoPlayerAction, config/GUNE5D/webfrank.json#game/anim/action, and the fail-closed WebFrank per-bctr proof/tests in commit e84570085; TU flip in 57c795879.",
+    "verification": "Raw wf_word_diff: 1765/1765, 405 differing words, 404 REGFIELD-ONLY plus one +0x18 copy-form opcode. wc_ve_derive: BYTE-EQUAL after 17 refusal rounds. wr_try_rule --from-config at FULL retail datum strength: BYTE-EQUAL. fndiff --clean after processing: MATCH-MODULO-RELOC-NAMING; --relocs set delta clean (121/121) and --datum VALUE-EQUAL. All five action functions are exact or benign relocation/pool-name spelling only. textorder ORDER-OK. datadiff --sections: 0 blockers; .data/.sdata2 100%, extab/extabindex 100%, two-byte zero .rodata claim slack advisory. configure+ninja prints build/GUNE5D/main.dol: OK. python -m unittest discover tools/gdl/tests -b: all green (2194 run, 4 skipped)."
+  },
+  "function": "function:DoPlayerAction",
+  "held_fixed": "Compiler, flags, all other translation units, and all DoPlayerAction source outside each named single-axis probe were held fixed; the final verifier was rerun after every retained semantic edit.",
+  "id": "attempt.R57_doplayeraction-semantic-source-reconstruction-and-per-bctr-value-closure.20260904.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T20:05:46Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "+1 addi -1 mr; target/ours 1765/1765; raw 405 differing words (404 register-field-only)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.R57_doplayeraction-act-carrier-and-data-reconstruction.20260904.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "equivalent_copy_form",
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_value_equality_recolor",
+    "verify_relocation_binding",
+    "per_bctr_jumptable_edges",
+    "verify_datum_binding"
+  ]
+}

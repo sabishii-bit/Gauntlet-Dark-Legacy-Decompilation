@@ -1,0 +1,39 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "tools/gdl/webfrank.py",
+      "tools/gdl/tests/test_webfrank.py",
+      "tools/gdl/rule_derive.py",
+      "config/GUNE5D/webfrank.json",
+      "git:e84570085"
+    ],
+    "matching_build_only": true
+  },
+  "constraints": [
+    "Every rule must be individually audited and fail closed on source, compiler, relocation, datum, or hash drift.",
+    "REGISTER_ONLY rules require form-aware differing-word validation and consistent-renaming proof; value-equality widening must explicitly declare every substitution or comparison exchange; explicitly unproven deep-allocator rules must retain their warning and audit note.",
+    "per_bctr_jumptable_edges is opt-in and requires every bctr to trace exactly one same-basic-block ADDR16_HA/LO -> lwzx -> mtctr chain to a relocation-complete table; ambiguity, missing slots, overlap, wrong relocation types, out-of-function targets, and target/current map disagreement refuse.",
+    "copy_alias_register_fields is restricted to target-bound use-only GPR fields whose old and new registers are CFG-must-equal at the site; RA-zero, destination/read-write fields, unsupported transfers, and whole-word target mismatches refuse.",
+    "Instruction permutations require dependency-audited independent straight-line atoms, relocation-preserving bijection, and dead-final-write proof.",
+    "Never broaden a rule or use WebFrank for unproved structural, immediate, branch, ABI, semantic, relocation-payload, or data differences.",
+    "The non-matching/mod build bypasses WebFrank completely."
+  ],
+  "entrypoint": "python tools/gdl/webfrank.py",
+  "id": "tool.webfrank-per-bctr-cfg.20260904.v3",
+  "kind": "tool",
+  "name": "WebFrank",
+  "purpose": "Fail-closed matching-build correction for individually proven register allocation, value-equality, copy-alias use-field, and exceptional audited instruction-permutation residuals.",
+  "recorded_at": "2026-09-04T20:05:48Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/webfrank.py",
+  "status": "active_guarded",
+  "supersedes": "tool.webfrank-copy-alias.20260904.v2",
+  "tool_key": "tool:webfrank",
+  "tool_kind": "postprocessor",
+  "usage": [
+    "Run tools/gdl/webfrank_audit.py against raw postprocess bodies before proposing a rule.",
+    "Use per_bctr_jumptable_edges only when the ordinary conservative CFG union creates cross-table paths in a multiple-bctr function and both objects carry exact relocation provenance.",
+    "Treat a passing build rule as matching evidence only after full object, relocation, datum, test-suite, and linked-DOL gates pass."
+  ],
+  "valid_from": "2026-09-04"
+}
