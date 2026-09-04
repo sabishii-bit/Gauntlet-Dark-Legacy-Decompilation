@@ -1049,7 +1049,54 @@ def compare(baseline, current, renames=None, resolve=None,
             # passed this gate, ninja, AND the DOL sha1 end-to-end. When
             # the opcode multiset changed at equal counts, the win must
             # be arbitrated on fuzzy from a FRESH report before banking.
-            if (base.get("opset") and cur.get("opset")
+            # COUNT PARITY IS CHECKED BEFORE THE CARRIER (run-55 item 6,
+            # from MC): "defake_gate arbitrates regressions but reports
+            # improvements bare ... IMPROVED writeGauntletSave real 137 ->
+            # 108 unqualified - that row is a fuzzy regression and a parity
+            # loss". The carrier arbiter above it cannot fire on that row by
+            # construction: it REQUIRES `base.ti == cur.ti and base.bi ==
+            # cur.bi`, i.e. counts that did not move, which is exactly what
+            # a parity loss is not. So the one row shape the count-parity
+            # law governs was the one shape reaching the bare IMPROVED arm.
+            #
+            # claim.law.insn-count-parity-outranks-local-opcode-fidelity
+            # .20260831.v1 is the law, and probe's own arbiter already
+            # prints `ARBITER: COUNT PARITY LOST -- REVERT` for it — two
+            # tools in one loop, disagreeing about the same edit.
+            #
+            # The trigger is the parity GAP WIDENING, not `ti != bi`: a
+            # function already off parity is not made worse by an edit that
+            # leaves the gap where it was, and flagging those would fire on
+            # every improvement to the 114 functions listed below.
+            # CALIBRATED at f0b1b3fe1 over the 3,032 built function pairs:
+            # 2,918 are at count parity (ti == bi) and 114 are off it. So
+            # the population that can LOSE parity is 96% of the image —
+            # this is not a corner — while the rows that could be
+            # false-flagged by a cruder `ti != bi` test are the 114, and
+            # they are excluded by the gap comparison rather than by luck.
+            # Like IMPROVED-CARRIER, this verdict is NOT in the bankable
+            # `improved` set, so `--update-improved` cannot anchor it.
+            base_gap = (None if base.get("ti") is None
+                        or base.get("bi") is None
+                        else abs(base["ti"] - base["bi"]))
+            cur_gap = (None if cur.get("ti") is None or cur.get("bi") is None
+                       else abs(cur["ti"] - cur["bi"]))
+            if base_gap is not None and cur_gap is not None \
+                    and cur_gap > base_gap:
+                verdicts.append(
+                    (name, "IMPROVED-PARITY-LOST",
+                     f"real {base_real} -> {cur_real} BUT the instruction"
+                     f" counts went {base['ti']}/{base['bi']} ->"
+                     f" {cur['ti']}/{cur['bi']} (target/ours; parity gap"
+                     f" {base_gap} -> {cur_gap}). Count parity OUTRANKS a"
+                     " local real win"
+                     " (claim.law.insn-count-parity-outranks-local-opcode-"
+                     "fidelity.20260831.v1), and probe's arbiter calls this"
+                     " `COUNT PARITY LOST -- REVERT`. Arbitrate on fuzzy"
+                     " from a fresh report before banking; this row is NOT"
+                     " bankable with --update-improved")
+                )
+            elif (base.get("opset") and cur.get("opset")
                     and base["opset"] != cur["opset"]
                     and base.get("ti") == cur.get("ti")
                     and base.get("bi") == cur.get("bi")):
