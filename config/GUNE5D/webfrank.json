@@ -1705,22 +1705,6 @@
           "instructions": 119
         },
         "copy_register_fields": true
-      }
-    ],
-    "game/game/gamemain": [
-      {
-        "function": "fn_80054E78",
-        "mechanism": "attempt.HV_fn80054e78-source-first-then-close.20260901.v1. equivalent_copy_form at +0x154 with proof `constant_dataflow_recolor`, our_source r29, plus copy_register_fields; 19 atoms/fields total (1 form site + 18 register fields). LIVE-ZERO-REMAT: the target spells `addi r30,r29,0` (= `mr r30,r29`) where our build emits `li r30,0`, rematerialising the loop's `off = 0` out of the function's shared zero web instead of a fresh literal. That web is `li r29,0` at +0xf4 and it feeds five sites (+0x100 and,, +0x108/+0x10c xor, +0x154, +0x16c stw) -- our build already builds the same web and already matches at +0x16c, so the allocation is identical and the single differing word is a rematerialise-or-copy choice, not a source shape. THIS RULE IS ONLY LICENSED BY THE SOURCE PASS RUN FIRST: the predecessor record deliberately WITHHELD it for want of provenance, and three distinct source axes were then measured on the real object -- (1) splitting the for-init to `off = 0;` before the loop, NEUTRAL at real 36; (2) a shared `s32 none = 0` feeding both `off` and the `*(u32*)q = 0` store, REGRESSED 36 -> 66; (3) swapping the init order to `for (off = 0, i = 0; ...)`, NEUTRAL at real 36. Consistent with claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and with both CAPPED members of the family in game/audio/audio.c. Shipping this rule ALSO required a separate SEMANTIC fix in the same commit range: the call at +0x28c bound `fn_8009FCA8` where the target binds `DoAudioTallySFX` -- two genuinely distinct functions in sounds_evt.c -- so the function only reaches `fndiff --clean` MATCH once the callee is corrected. defake_gate called that relocation delta a benign NAMING-DRIFT with 'resolved addresses unchanged', which is a false-benign on a real wrong-callee bug.",
-        "before_sha256": "2943fe531ef794ba0c3ff88954fc31afb402480e81fb9ecafa6ebcb44f1bc39f",
-        "after_sha256": "c3a712c58e2efdaa7a3c655045352848cad93e169bd82c969c001165d084dba3",
-        "equivalent_copy_form": [
-          {
-            "at": "0x154",
-            "proof": "constant_dataflow_recolor",
-            "our_source": 29
-          }
-        ],
-        "copy_register_fields": true
       },
       {
         "function": "fn_80051480",
@@ -1742,6 +1726,22 @@
           "classification": "REGISTER_ONLY",
           "instructions": 172
         },
+        "copy_register_fields": true
+      }
+    ],
+    "game/game/gamemain": [
+      {
+        "function": "fn_80054E78",
+        "mechanism": "attempt.HV_fn80054e78-source-first-then-close.20260901.v1. equivalent_copy_form at +0x154 with proof `constant_dataflow_recolor`, our_source r29, plus copy_register_fields; 19 atoms/fields total (1 form site + 18 register fields). LIVE-ZERO-REMAT: the target spells `addi r30,r29,0` (= `mr r30,r29`) where our build emits `li r30,0`, rematerialising the loop's `off = 0` out of the function's shared zero web instead of a fresh literal. That web is `li r29,0` at +0xf4 and it feeds five sites (+0x100 and,, +0x108/+0x10c xor, +0x154, +0x16c stw) -- our build already builds the same web and already matches at +0x16c, so the allocation is identical and the single differing word is a rematerialise-or-copy choice, not a source shape. THIS RULE IS ONLY LICENSED BY THE SOURCE PASS RUN FIRST: the predecessor record deliberately WITHHELD it for want of provenance, and three distinct source axes were then measured on the real object -- (1) splitting the for-init to `off = 0;` before the loop, NEUTRAL at real 36; (2) a shared `s32 none = 0` feeding both `off` and the `*(u32*)q = 0` store, REGRESSED 36 -> 66; (3) swapping the init order to `for (off = 0, i = 0; ...)`, NEUTRAL at real 36. Consistent with claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and with both CAPPED members of the family in game/audio/audio.c. Shipping this rule ALSO required a separate SEMANTIC fix in the same commit range: the call at +0x28c bound `fn_8009FCA8` where the target binds `DoAudioTallySFX` -- two genuinely distinct functions in sounds_evt.c -- so the function only reaches `fndiff --clean` MATCH once the callee is corrected. defake_gate called that relocation delta a benign NAMING-DRIFT with 'resolved addresses unchanged', which is a false-benign on a real wrong-callee bug.",
+        "before_sha256": "2943fe531ef794ba0c3ff88954fc31afb402480e81fb9ecafa6ebcb44f1bc39f",
+        "after_sha256": "c3a712c58e2efdaa7a3c655045352848cad93e169bd82c969c001165d084dba3",
+        "equivalent_copy_form": [
+          {
+            "at": "0x154",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 29
+          }
+        ],
         "copy_register_fields": true
       }
     ],

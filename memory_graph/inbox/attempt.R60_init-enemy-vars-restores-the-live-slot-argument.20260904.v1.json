@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Recover the call argument omitted by the old unprototyped cross-TU source while relocating the function to its verified enemy TU.",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 screened: callees and datum bindings matter beyond raw words. The earlier attempt.init-enemy-vars-reconstruction.20260831.v1 was read and its table-spelling, branch-spelling and loop-shape negative axes were not retried. No compiler-unreachability law is used to justify this change.",
+    "probed_form": "format_brain(); -> format_brain(slot); under the existing void format_brain(s32 index) declaration in enemy.c. No other source expression in this body is changed, apart from the table's zero-offset Row36 view required by the merged declarations.",
+    "residual": "The original recorded address-form and branch-shape residuals remain open at this new alignment. This update adds a source-level argument fact and does not erase the earlier reconstruction attempt's negative axis history.",
+    "verification": "Read all208 target instructions with fnasm.py. At +0x4 the target consumes slot in `mulli r6,r3,916`; no intervening instruction writes r3 before +0x254 `bl format_brain`. format_brain begins +0x4 `mulli r4,r3,916`, corroborating the forwarded index. The old source's no-argument call did not represent that live value. Installed fndiff --count: T208/O209 real131. Fresh successful report: fuzzy91.9183->93.0481; raw before/after count209/209 with65 changed words; slotdiff frame40 and SLOT MAP IDENTICAL. Full ninja checksum and both test suites green. This is still not an exact function."
+  },
+  "function": "function:init_enemy_vars",
+  "held_fixed": "All stores, comparisons, floating operations and other calls in init_enemy_vars. The dependency on incoming slot is made explicit; no new calculation or game-behavior fix is introduced beyond reproducing the target call.",
+  "id": "attempt.R60_init-enemy-vars-restores-the-live-slot-argument.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T23:10:46Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

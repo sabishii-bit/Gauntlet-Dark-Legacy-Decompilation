@@ -5,13 +5,8 @@
 #include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/player.h"
-/* game/item.h is deliberately NOT included: it declares `extern Item* sItems;`
- * while this TU declares its own `extern u8* sItems;` (line ~1434), so pulling
- * the header in forces a whole-TU retype of every sItems walk.  That retype is
- * governed by claim.law.noop-cast-on-array-decay-not-neutral (the neutralising
- * `(u8*)` cast is not free) and is not worth the risk here for six sites, so
- * the item / lookout / milestone record offsets below are spelled as named
- * constants that quote item.h's layout instead. */
+/* item.h is included at the loading/targeting tail, after the existing
+ * byte-walk code. The Item pointer is forward-declared for that earlier use. */
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -20,8 +15,8 @@
 /* Gauntlet Dark Legacy enemy module (Xbox ENEMY.OBJ / enemy.c).
  *
  * ENEMY.OBJ is a single very large translation unit.  On the GameCube build it
- * occupies one contiguous .text run, 0x800444C0 - 0x80050054, sitting between
- * dynobjgrid.c (ends 0x800444C0) and gamemain.c (starts 0x80050054).  This file
+ * occupies one contiguous .text run, 0x800444C0 - 0x800520CC, sitting between
+ * dynobjgrid.c (ends 0x800444C0) and gamemain.c (starts 0x800520CC).  This file
  * remains wired NonMatching while its large bodies are recovered incrementally;
  * dtk substitutes the original DOL bytes until the complete object is ready.
  * Per-function byte matching is used throughout so each recovered slice can be
@@ -110,8 +105,7 @@
  *   plus small state/timer pokes: fn_8004CFAC, fn_8004D030, fn_8004DB3C,
  *   adjust_msidx, enemy_update, fn_8004F1DC, check_vacancy.
  *
- * Matching is intentionally not attempted here (high mismatch accepted); this
- * file exists to carry the symbol map and keep the tree green.
+ * The complete TU must match code and data before being linked from source.
  */
 
 /* --- enemy record array + counts (module data) ---
@@ -244,6 +238,7 @@ typedef struct EnemyPlayerView {
 typedef union EnemyPlayerArray {
     f32 words[4][3287];
     EnemyPlayerView view[4];
+    Player players[4]; /* Canonical view used by the restored targeting tail. */
 } EnemyPlayerArray;
 extern EnemyPlayerArray gPlayers; /* 0x80275AE0: four 0x335C player records */
 #define gPlayerWords gPlayers.words
@@ -356,8 +351,8 @@ extern f64 lbl_80346948;        /* 4.0 */
  * neutral, restructuring the expression is not - see init_enemy).
  *
  * Evidence:
- *   +1808 (elem 452) -> Enemy.hht     via gamemain.c init_enemy_vars
- *   +1944 (elem 486) -> Enemy.rad     via gamemain.c init_enemy_vars
+ *   +1808 (elem 452) -> Enemy.hht     via init_enemy_vars
+ *   +1944 (elem 486) -> Enemy.rad     via init_enemy_vars
  *   +2080 (elem 520) -> Enemy.attn_offset[1]  (init_enemy, `lfs f0,2080(r8)`)
  *   +2216 (elem 554) -> Enemy.coll_offset[1]  (init_enemy, `lfs f0,2216(r8)`)
  *   +2760 (elem 690) -> base health, scaled by gCurLevel->ene_health in BOTH
@@ -453,7 +448,8 @@ extern s32 fn_8004C8CC(f32* pos, s32 index);   /* wall/object clearance probe */
 extern s32 FastWallCollide(f32* from, f32* to, void* hit, s32 mode); /* ray wall probe */
 extern s32 fn_8004CE38(Enemy* e);   /* 0x8004CE38 left/right look-ahead probe dir */
 extern void fn_80051568(s32 index); /* 0x80051568 guard-target refresh */
-extern u8* sItems;                  /* item array base (stride 0xF0) */
+struct Item;
+extern struct Item* sItems;                  /* item array base (stride 0xF0) */
 extern f32 lbl_8011C0C4[];    /* 0x8011C0C4 wander search-angle offsets */
 extern f32 lbl_8011C0A4[];    /* 0x8011C0A4 corner search-angle offsets */
 extern f32 lbl_8011C084[];    /* 0x8011C084 guard corner search-angle offsets */
@@ -533,7 +529,8 @@ extern s32 find_neighbor_milestone(s32 ms, s32 nth); /* 0x8004C9DC */
 extern int sprintf(char* buf, const char* fmt, ...);
 extern int toupper(int c);
 extern char* fn_80057ACC(s32 slot);                 /* current-level tag string */
-extern struct item* PlaceItem(s32 a, s32 b, char* name, s32 c);
+struct Item;
+extern struct Item* PlaceItem(s32 a, s32 b, char* name, void* c);
 extern void StartBagFX(f32* pos, struct item* ip, f32 z); /* toss carried item */
 extern void AddItemSub(struct item* ip);           /* commit placed item */
 extern void del_target(f32* worldmat);               /* release camera target */
@@ -3125,7 +3122,7 @@ void move_logic08(s32 index)
     }
     fn_80051568(index);
     if (e->guard_closest >= 0) {
-        lbl_80344720 = get_yaw((f32*)(sItems + e->guard_closest * 240 + 52),
+        lbl_80344720 = get_yaw((f32*)((u8*)sItems + e->guard_closest * 240 + 52),
                                &e->objgrp.worldmat[3][0]);
     } else {
         s16 c = e->closest;
@@ -6944,7 +6941,7 @@ void kill_enemy(s32 index)
             for (p = buf; *p != 0; p++) {
                 *p = toupper(*p);
             }
-            item = PlaceItem(1, 16, buf, 0);
+            item = (struct item*)PlaceItem(1, 16, buf, 0);
             break;
         }
     }
@@ -7612,3 +7609,1313 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     }
 }
 #pragma opt_propagation reset
+
+/* Enemy loading, targeting and milestone tail: recovered TU ownership. */
+#include "game/item.h"
+typedef struct Row36 {
+    s32 f0;      /* 0x00 key   */
+    s32 f4;      /* 0x04       */
+    s32 _a[3];   /* 0x08       */
+    s32 f14;     /* 0x14       */
+    s32 _b[3];   /* 0x18       */
+} Row36;
+typedef struct MilestoneParam {
+    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
+    f32 pos[3];       /* 0x40 */
+    u8  _pad4C[4];
+    f32 saved_pos[3]; /* 0x50 */
+    u8  _pad5C[4];
+    s32 handle;       /* 0x60 */
+    s32 active;       /* 0x64 */
+} MilestoneParam;
+typedef struct MilestonePool {
+    u8 _000[0xF4];
+    s32 slots[128];
+} MilestonePool;
+extern s32  lbl_802577CC[];
+extern s32   lbl_8034476C;
+extern s32   gNumPlayers;
+extern s32   lbl_80344760;
+extern s32   lbl_80344738;
+extern s32   lbl_80344750;
+extern s32   lbl_8034474C;
+extern s32   gSceneRoot;
+extern f32   lbl_80346A80;
+extern f32   gIdentityMatrix[];
+extern f32   lbl_80346A7C;
+extern void* sGoodWizObj;
+extern char* lbl_8011BFF8[];
+extern u8    lbl_80126EC0[];
+DECL_SECT(".sdata2") extern const char lbl_80346770[];
+extern s32   stricmp(const char* a, const char* b);
+extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
+extern s32   fn_80011BBC(void* model, const char* name, void* atreeOut,
+                         const char* work, s32 workSize);
+extern void  InitActions(void* atree, void* actionList, void* actionTable);
+extern void* MBOX_NewObject(const char* name, f32* matrix, void* parent, u32 flags);
+extern void* MBOX_ReallyFindObject(const char* name, s32 type1, s32 type2, s32 exact);
+extern void* MBNewObject(void* object, f32* matrix, void* parent, u32 flags);
+extern s32   lbl_80344800;
+extern s32   lbl_802577AC[];
+extern char  lbl_801124EC[];
+extern void  InitEnemyMissiles(s32 idx);
+extern s32   fn_8005A1EC(const char* name, void** outData);
+extern s32   LoadModel(const char* name, void** outData, s32 initTexMods, s32 model);
+extern void  FatalErrorf(const char* fmt, ...);
+extern void  InitTexMods(void* tex, s32 arg1);
+extern f64 lbl_80346A70;
+extern f32 lbl_80346A78;
+extern f32 gDefaultPlayerPosition[3];
+extern char lbl_80112518[];
+extern char lbl_80343BF8[5];
+extern f64 lbl_80346A88;
+extern void StartEnemyGrid(f32* pos, f32 radius);
+extern s32 NextGridEnemy(void);
+extern void fn_800520C8(void);
+static char sBossGenName[] = "BOSSGEN";
+extern s32 fn_80051480(f32* pos);
+extern char* fn_80051E1C(s32 world, s32 lvl, s32 flag);
+#define DIST3(dst, av, bv, kZ, kH, kT)     {         f32 dy_ = (av)[1] - (bv)[1];         f32 dx_ = (av)[0] - (bv)[0];         f32 dz_ = (av)[2] - (bv)[2];         (dst) = dx_ * dx_ + dy_ * dy_;         (dst) = dz_ * dz_ + (dst);         if ((dst) > (kZ)) {             volatile f32 tmp_;             f64 y_ = __frsqrte((dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             tmp_ = (f32)((dst) * ((kH) * y_ * ((kT) - y_ * y_ * (dst))));             (dst) = tmp_;         }     }
+
+static s32 PlayersAverageLevel(void)
+{
+    s32* player = (s32*)gPlayers.players;
+    s32 activePlayers = 0;
+    s32 totalLevel = 0;
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        if (player[58] == 1) {
+            activePlayers++;
+            totalLevel += player[3273];
+        }
+        player += 3287;
+    }
+    if (activePlayers == 0) {
+        return 1;
+    }
+    return totalLevel / activePlayers;
+}
+
+static char* findWorldName(s32 world)
+{
+    s32 off = 0;
+    s32 i;
+
+    for (i = 0; i < 44; i++) {
+        u8* e = (u8*)((Row36*)lbl_8011AF48) + off;
+        if (world == *(s32*)e) {
+            return (char*)(e + 4);
+        }
+        off += 36;
+    }
+    return 0;
+}
+
+void init_enemy_vars(s32 slot, s32 spew, f32 scale)
+{
+    u8* e;
+    Enemy* enemy;
+    u8* tbl;
+    s32 i4;
+    f32 z;
+    f32 z2;
+    f32 t;
+    f32 hi;
+    f32 lo;
+    f32 spd;
+    f32 ht;
+    f32 t2;
+    f32 hi2;
+    f32 lo2;
+    s32 tier;
+    s32 ty;
+    u8* row;
+    f32 fv;
+    s16 sv;
+
+    e = (u8*)gEnemies + slot * 916;
+    enemy = (Enemy*)e;
+    tbl = (u8*)((Row36*)lbl_8011AF48);
+    z = lbl_80346820;
+    enemy->skinfx.nframes = z;
+    enemy->next_enemy = -1;
+    enemy->prev_enemy = -1;
+    enemy->action = 0;
+    enemy->attack_timer = 0;
+    enemy->stun_timer = 0;
+    enemy->prev_closest = -1;
+    enemy->closest = -1;
+    enemy->sight = (f32)(lbl_80346A70 * gCurLevel->ene_visrad);
+    fv = lbl_803468F0;
+    enemy->close_dist = fv;
+    enemy->actual_dist = fv;
+    row = tbl + *(s32*)e * 4;
+    enemy->hht = (f32)(lbl_80346830 * ((f32*)row)[452]);
+    row = tbl + *(s32*)e * 4;
+    enemy->rad = ((f32*)row)[486];
+    enemy->area = 0;
+    enemy->coll_pnum = -1;
+    enemy->coll_enenum = -1;
+    enemy->coll_ip = NULL;
+    enemy->floor_wobj = NULL;
+    enemy->count = 0;
+    enemy->moved = 0;
+    enemy->stopped = 0;
+    enemy->attack_index = -1;
+    enemy->attack_count = 0;
+    enemy->attack_flag = 0;
+    enemy->damage = z;
+    enemy->damagetype = 0;
+    for (i4 = 0; i4 < 20; i4 += 4) {
+        *(f32*)(e + i4 + 692) = z;
+    }
+    z2 = lbl_80346820;
+    enemy->damagedir[0] = z2;
+    enemy->damagedir[1] = z2;
+    enemy->damagedir[2] = z2;
+    enemy->pushed[0] = z2;
+    enemy->pushed[1] = z2;
+    enemy->pushed[2] = z2;
+    enemy->pushang = z2;
+    enemy->push_cnt = 0;
+    enemy->generator = NULL;
+    enemy->anim_done = -1;
+    enemy->idle_time = lbl_803468F0;
+    enemy->idle_secs = z2;
+    enemy->idle_frac = z2;
+    enemy->damage_count = 0;
+    row = tbl + *(s32*)e * 4;
+    t = gCurLevel->ene_health * ((f32*)row)[690];
+    hi = (f32)(lbl_80346A30 * t);
+    lo = (f32)(lbl_80346A28 * t);
+    tier = 0;
+    if (scale > hi) {
+        tier = 3;
+    } else if (scale > lo) {
+        tier = 2;
+    } else if (scale > z2) {
+        tier = 1;
+    }
+    enemy->org_lvl = (s16)tier;
+    enemy->mode2 = 0;
+    enemy->mode1 = 0;
+    enemy->flag2 = 0;
+    enemy->flag1 = 0;
+    enemy->counter2 = 0;
+    enemy->counter1 = 0;
+    enemy->recognized = 0;
+    enemy->skip_itemcol = 0;
+    enemy->prev_dir = lbl_80346A78;
+    fv = lbl_80346820;
+    enemy->zspd = fv;
+    enemy->xspd = fv;
+    enemy->visible = 1;
+    enemy->visactive = 1;
+    enemy->gotitem = NULL;
+    enemy->specialfx = -1;
+    enemy->alpha = 0;
+    if (spew == 1) {
+        spew = 0;
+    }
+    if (spew == 10) {
+        spew = 7;
+    }
+    if (spew < 0 || spew > 31) {
+        row = tbl + *(s32*)e * 4;
+        enemy->algorithm = (s16)((s32*)row)[894];
+    } else {
+        enemy->algorithm = (s16)spew;
+    }
+    sv = enemy->algorithm;
+    enemy->old_ai = sv;
+    enemy->prev_ai = sv;
+    /* Retail keeps the incoming slot in r3 through this call (+0x254). */
+    format_brain(slot);
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.invspeed = (f32)(lbl_80346810 / ((f32*)row)[588]);
+    ty = *(s32*)e;
+    row = tbl + ty * 4;
+    t2 = gCurLevel->ene_health * ((f32*)row)[690];
+    ht = enemy->health;
+    hi2 = (f32)(lbl_80346A30 * t2);
+    lo2 = (f32)(lbl_80346A28 * t2);
+    spd = gCurLevel->ene_damage * ((f32*)row)[622];
+    if (!(ht > hi2)) {
+        if (ty != 30) {
+            if (ht > lo2) {
+                spd = (f32)(lbl_80346A30 * spd);
+            } else {
+                spd = (f32)(lbl_80346A28 * spd);
+            }
+        }
+    }
+    enemy->atts.fight = spd;
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.armor = ((f32*)row)[656];
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.damagetype = ((s32*)row)[928];
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.armortype = ((s32*)row)[962];
+}
+
+void format_brain(s32 index)
+{
+    Enemy* enemy = &gEnemies[index];
+
+    enemy->view = lbl_80346A7C;
+    enemy->ai_flags = 0;
+
+    switch (enemy->algorithm) {
+    case 0:
+        enemy->route = 1;
+        enemy->collided = 0;
+        break;
+    case 3:
+        enemy->route = 1;
+        enemy->collided = 0;
+        enemy->counter1 = 0;
+        enemy->counter2 = -1;
+        enemy->flag2 = 0;
+        break;
+    case 2:
+    case 4:
+        enemy->play = 0;
+        enemy->ai_flags |= 1;
+        break;
+    case 5:
+    case 6:
+        enemy->ai_flags |= 1;
+        break;
+    case 7:
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        break;
+    case 8:
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        enemy->guard_mode = 0;
+        enemy->guard_closest = -1;
+        enemy->guard_dist = lbl_803468B0;
+        break;
+    case 9:
+        enemy->daction = 0;
+        enemy->ai_flags |= 5;
+        break;
+    case 10:
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        break;
+    case 11:
+        enemy->ai_flags |= 7;
+        break;
+    case 12: {
+        f32 zero = lbl_80346820;
+        enemy->dest[0] = zero;
+        enemy->dest[1] = zero;
+        enemy->dest[2] = zero;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        break;
+    }
+    case 13:
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        break;
+    case 14:
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        enemy->counter1 = 0;
+        break;
+    case 16:
+    case 23:
+        enemy->flag2 = RandInt(10);
+        enemy->counter1 = 0;
+        break;
+    case 17:
+    case 26:
+        enemy->flag2 = RandInt(10);
+        enemy->counter1 = 0;
+        break;
+    case 20:
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        break;
+    case 21:
+        enemy->counter1 = 0;
+        break;
+    case 24:
+        enemy->counter1 = 0;
+        break;
+    case 27:
+        enemy->route = 1;
+        enemy->collided = 0;
+        break;
+    case 28:
+    case 29:
+    case 31:
+        enemy->flag2 = RandInt(30);
+        enemy->counter1 = 0;
+        enemy->counter2 = 0;
+        break;
+    case 30:
+        enemy->route = 1;
+        enemy->collided = 0;
+        enemy->counter1 = RandInt(60) + 60;
+        break;
+    }
+
+    enemy->count = 0;
+    enemy->dead_end = 0;
+    enemy->plr_ms = -1;
+    enemy->ms_idx = 0;
+    enemy->max_msidx = 4;
+    enemy->watchdog = 0;
+    enemy->lv = PlayersAverageLevel();
+    enemy->operation_speed = 8;
+    enemy->operation_count = RandInt(enemy->operation_speed);
+}
+
+void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
+{
+    void* object;
+    s32 shadowObject;
+    s32 shadowLevel;
+
+    if (enemy->type == 27) {
+        SfxDeleteParented(enemy->objgrp.node, 0, -1);
+    }
+    if (enemy->atree.root != 0) {
+        AtreeDelete(&enemy->atree.root);
+    }
+    if (enemy->objgrp.node != 0) {
+        lbl_80344734 = 1;
+        MBRemoveNode(enemy->objgrp.node, 0);
+        lbl_80344734 = 0;
+    }
+    enemy->atree.root = 0;
+    enemy->objgrp.node = 0;
+    enemy->flooroffset = lbl_80346820;
+
+    if (type == 31) {
+        enemy->atree.root = (void*)fn_80011BBC(
+            sGoodWizObj, lbl_80346770, &enemy->atree.root, lbl_80346770, 2048);
+        enemy->flooroffset = lbl_80346A80;
+    } else if (((void**)gWadAtreeHeaders)[type] != 0) {
+        char* name = fn_80051E1C(type, level, 0);
+        enemy->atree.root = (void*)fn_80011BBC(
+            ((void**)gWadAtreeHeaders)[type], name, &enemy->atree.root, name, 2048);
+    }
+
+    if (enemy->atree.root != 0) {
+        enemy->objgrp.node = MBNewNode(lbl_8034473C,
+                                      (void*)gIdentityMatrix, 1);
+        MBNodeSetParent(*(void**)enemy->atree.root, enemy->objgrp.node);
+        InitActions(&enemy->atree.root, enemy->actionlist, lbl_80126EC0);
+    } else {
+        InitActions(0, enemy->actionlist, lbl_80126EC0);
+    }
+
+    if (enemy->objgrp.node == 0) {
+        char* name = fn_80051E1C(type, level, 1);
+        enemy->objgrp.node = MBOX_NewObject(name, (f32*)gIdentityMatrix,
+                                            (void*)lbl_8034473C, 0);
+        MBTreeSetFlags(enemy->objgrp.node, 2048, 0);
+    }
+
+    if (enemy->shadow != 0) {
+        MBRemoveNode(enemy->shadow, 0);
+        enemy->shadow = 0;
+    }
+
+    if (enemy->type != 30 && enemy->type != 0 &&
+        enemy->type != 31 && enemy->type != 21) {
+        shadowObject = lbl_802512B0[type];
+        if (level < 1) {
+            shadowLevel = 1;
+        } else if (level > 3) {
+            shadowLevel = 3;
+        } else {
+            shadowLevel = level;
+        }
+        level = shadowLevel - 1;
+        object = MBOX_ReallyFindObject(lbl_8011BFF8[level],
+                                       shadowObject, shadowObject, 1);
+        enemy->shadow = MBNewObject(object, (f32*)gIdentityMatrix, 0, 2176);
+        ((MBObject*)enemy->shadow)->zsort_add = lbl_80346A80;
+        ((MBObject*)enemy->shadow)->zmod = -32;
+    }
+}
+
+/* Keep the per-index resource base shared by the two table reads. */
+#pragma dont_inline on
+#pragma opt_propagation off
+void fn_800508A0(void)
+{
+    s32* pool = lbl_80250E00;
+    s32 i;
+    s32 idx;
+    u8 unused[8];
+
+    for (i = 0; i < lbl_8034471C; i++) {
+        s32* index_row = pool + i;
+        s32* resource_row;
+        idx = index_row[8];
+        resource_row = pool + idx;
+        if ((void*)resource_row[345] != 0) {
+            InitTexMods((void*)resource_row[345], resource_row[300]);
+        }
+    }
+}
+#pragma opt_propagation reset
+#pragma dont_inline off
+
+void fn_80050910(s32 arg0)
+{
+    lbl_802511FC[arg0] = -lbl_802511FC[arg0];
+    InitEnemyMissiles(arg0);
+}
+
+void AllocEnemy(s32 id, s32 model)
+{
+    char buf[68];
+    u8 unused[4];
+    char* fmt = ((char*)lbl_80112370);
+    Row36* tbl = ((Row36*)lbl_8011AF48);
+    s32* pool = lbl_80250E00;
+    char* name;
+    s32 i;
+
+    lbl_8034471C++;
+    if (lbl_8034471C > 8) {
+        FatalErrorf(fmt + 284, lbl_8034471C, 8);
+    }
+    pool[7 + lbl_8034471C] = id;
+
+    if (id == E_GOLEM || id == E_GENERAL) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt1;
+            }
+        }
+        name = 0;
+alloc_fmt1:
+        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+    } else if (id == E_GARGOYLE) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt2;
+            }
+        }
+        name = 0;
+alloc_fmt2:
+        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+    } else if (model == 4) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt3;
+            }
+        }
+        name = 0;
+alloc_fmt3:
+        sprintf(buf, fmt + 336, name);
+    } else if (model > 10) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt4;
+            }
+        }
+        name = 0;
+alloc_fmt4:
+        sprintf(buf, fmt + 352, name, model - 10);
+    } else {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto alloc_fmt5;
+            }
+        }
+        name = 0;
+alloc_fmt5:
+        sprintf(buf, fmt + 368, name);
+    }
+
+    id <<= 2;
+    *(s32*)((u8*)&pool[300] + id) =
+        fn_8005A1EC(buf, (void**)((u8*)&pool[345] + id));
+    *(s32*)((u8*)&pool[255] + id) = -model;
+}
+
+void LoadEnemy(s32 id, s32 model)
+{
+    char buf[68];
+    u8 unused[4];
+    char* fmt = ((char*)lbl_80112370);
+    Row36* tbl = ((Row36*)lbl_8011AF48);
+    s32* pool = lbl_80250E00;
+    char* name;
+    s32 i;
+    s32 offset;
+
+    lbl_8034471C++;
+    if (lbl_8034471C > 8) {
+        FatalErrorf(fmt + 284, lbl_8034471C, 8);
+    }
+    pool[7 + lbl_8034471C] = id;
+
+    if (id == E_GOLEM || id == E_GENERAL) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt1;
+            }
+        }
+        name = 0;
+load_fmt1:
+        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+    } else if (id == E_GARGOYLE) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt2;
+            }
+        }
+        name = 0;
+load_fmt2:
+        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+    } else if (model == 4) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt3;
+            }
+        }
+        name = 0;
+load_fmt3:
+        sprintf(buf, fmt + 336, name);
+    } else if (model > 10) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt4;
+            }
+        }
+        name = 0;
+load_fmt4:
+        sprintf(buf, fmt + 352, name, model - 10);
+    } else {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto load_fmt5;
+            }
+        }
+        name = 0;
+load_fmt5:
+        sprintf(buf, fmt + 368, name);
+    }
+
+    offset = id << 2;
+    *(s32*)((u8*)&pool[300] + offset) =
+        LoadModel(buf, ((void**)&pool[345]) + id, 0, -1);
+    *(s32*)((u8*)&pool[255] + offset) = model;
+    InitEnemyMissiles(id);
+}
+
+void fn_80050DD8(char* buf, s32 id, s32 qty)
+{
+    char* fmt = ((char*)lbl_80112370);
+    Row36* tbl = ((Row36*)lbl_8011AF48);
+    char* name;
+    s32 i;
+
+    if (id == E_GOLEM || id == E_GENERAL) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto f1;
+            }
+        }
+        name = 0;
+f1:
+        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+    } else if (id == E_GARGOYLE) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto f2;
+            }
+        }
+        name = 0;
+f2:
+        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+    } else if (qty == 4) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto f3;
+            }
+        }
+        name = 0;
+f3:
+        sprintf(buf, fmt + 336, name);
+    } else if (qty > 10) {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto f4;
+            }
+        }
+        name = 0;
+f4:
+        sprintf(buf, fmt + 352, name, qty - 10);
+    } else {
+        for (i = 0; i < 44; i++) {
+            if (id == tbl[i].f0) {
+                name = (char*)&tbl[i].f4;
+                goto f5;
+            }
+        }
+        name = 0;
+f5:
+        sprintf(buf, fmt + 368, name);
+    }
+}
+
+s32 GetEnemyType(s32 w, s32 l)
+{
+    s32 result = w;
+
+    if (w == 3) {
+        result = lbl_802577AC[1];
+    }
+    if ((u32)(w - 4) <= 1) {
+        if (l >= 4 && lbl_802577AC[4] >= 0) {
+            result = lbl_802577AC[4];
+        } else if (lbl_802577AC[2] >= 0) {
+            result = lbl_802577AC[2];
+        } else if (lbl_802577AC[3] >= 0) {
+            result = lbl_802577AC[3];
+        }
+    }
+    if (result == -1) {
+        char* name;
+        s32 i;
+        for (i = 0; i < 44; i++) {
+            if (w == ((Row36*)lbl_8011AF48)[i].f0) {
+                name = (char*)&((Row36*)lbl_8011AF48)[i].f4;
+                goto have_name;
+            }
+        }
+        name = 0;
+have_name:
+        ErrorPrintf(lbl_801124EC, name);
+    }
+    return result;
+}
+
+void fn_800510A4(void)
+{
+    s32* pool = lbl_80250E00;
+    Enemy* e = (Enemy*)((u8*)pool + 3608);   /* = gEnemies */
+    f32 fv = lbl_80346820;
+    s32 i;
+
+    for (i = 0; i < 25; i++) {
+        e->state = 0;
+        e->objgrp.node = 0;
+        e->objgrp.flags = 2;
+        e->flooroffset = fv;
+        e->atree.root = 0;
+        e->shadow = 0;
+        e++;
+    }
+    lbl_8034473C = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+    gNumEnemies = gCurLevel->maxenemies;
+    lbl_80344740 = 0;
+    lbl_80344748 = -1;
+    lbl_80344750 = -1;
+    lbl_8034474C = 0;
+    for (i = 0; i < 256; i++) {
+        pool[390 + i] = 0;   /* +0x618 */
+        pool[646 + i] = 0;   /* +0xA18 */
+    }
+}
+
+void fn_80051164(void)
+{
+    s32* p = lbl_80250E00;
+    s32 i;
+
+    for (i = 0; i < 45; i++) {
+        p[345 + i] = 0;
+        p[300 + i] = -1;
+        p[255 + i] = 0;
+    }
+    for (i = 0; i < 8; i++) {
+        p[8 + i] = -1;
+    }
+    lbl_8034471C = 0;
+    lbl_80344738 = -1;
+}
+
+#pragma opt_common_subs off
+#pragma opt_propagation off
+s32 fn_800511D0(s32 arg0, f32 arg1)
+{
+    u8 unusedHi[12];
+    f32 pos[3];
+    f32 ad;
+    volatile f32 tmp;
+    f32 t1;
+    f32 t2;
+    f32 bestDist;
+    f32 secondDist;
+    f32 bestDy;
+    f32 secondDy;
+    f32 tolerance;
+    f64 kThree;
+    f64 kHalf;
+    f32 kZero;
+    f64 k2Pi;
+    f64 kNegPi;
+    f64 kPi;
+    f32 base;
+    s32 second;
+    s32 milestone;
+    u8* m;
+    s32 i;
+    s32 best;
+    u8 unusedLo[28];
+
+    bestDist = lbl_803468B0;
+    best = -1;
+    secondDist = bestDist;
+    bestDy = bestDist;
+    second = -1;
+    secondDy = bestDist;
+    tolerance = arg1;
+    milestone = arg0;
+    if (milestone < 0) {
+        return milestone;
+    }
+
+    m = sMilestones + milestone * 104;
+    pos[0] = *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
+    pos[1] = *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
+    pos[2] = *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
+    {
+        f32 x = *(f32*)(m + offsetof(MilestoneParam, matrix[10]));
+        f32 r = atan2(*(f32*)(m + offsetof(MilestoneParam, matrix[8])), x);
+        f64 p = lbl_80346840;
+        f32 a = (f32)(p + r);
+        f64 t;
+        if (a > p) {
+            t = a - lbl_80346848;
+        } else if (a <= lbl_80346850) {
+            t = lbl_80346848 + a;
+        } else {
+            t = a;
+        }
+        base = (f32)t;
+    }
+
+    kZero = lbl_80346820;
+    kHalf = lbl_80346830;
+    kThree = lbl_803468B8;
+    kNegPi = lbl_80346850;
+    k2Pi = lbl_80346848;
+    kPi = lbl_80346840;
+    {
+        u8* m0 = sMilestones;
+        m = m0;
+    }
+    for (i = 0; i < sNumMilestones; i++, m += 104) {
+        f32 d;
+        f64 nd;
+        f32 dx;
+        f32 dy;
+        f32 dz;
+        f32 dist;
+
+        if (i == milestone) {
+            continue;
+        }
+        d = get_yaw((f32*)(m + 48), pos) - base;
+        if (d > kPi) {
+            nd = d - k2Pi;
+        } else if (d <= kNegPi) {
+            nd = k2Pi + d;
+        } else {
+            nd = d;
+        }
+        ad = (f32)nd;
+        *(u32*)&ad &= 0x7FFFFFFF;
+        if (ad <= tolerance) {
+            dy = *(f32*)(m + offsetof(MilestoneParam, matrix[13])) - pos[1];
+            dx = *(f32*)(m + offsetof(MilestoneParam, matrix[12])) - pos[0];
+            dz = *(f32*)(m + offsetof(MilestoneParam, matrix[14])) - pos[2];
+            dist = dx * dx + dy * dy;
+            dist = dz * dz + dist;
+            if (dist > kZero) {
+                f64 y = __frsqrte(dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                y = kHalf * y * (kThree - y * y * dist);
+                tmp = (f32)(dist * (kHalf * y * (kThree - y * y * dist)));
+                dist = tmp;
+            }
+            if (dist < bestDist) {
+                t1 = dy;
+                secondDist = bestDist;
+                second = best;
+                secondDy = bestDy;
+                *(u32*)&t1 &= 0x7FFFFFFF;
+                bestDist = dist;
+                best = i;
+                bestDy = t1;
+            } else if (dist < secondDist) {
+                t2 = dy;
+                secondDist = dist;
+                second = i;
+                *(u32*)&t2 &= 0x7FFFFFFF;
+                secondDy = t2;
+            }
+        }
+    }
+
+    if (bestDy > secondDy) {
+        best = second;
+    }
+    if (best < 0) {
+        if ((gControllerButtons & 0x10) != 0) {
+            ErrorPrintf(lbl_80112518, milestone);
+        }
+        best = milestone;
+    }
+    return best;
+}
+#pragma opt_propagation reset
+#pragma opt_common_subs on
+
+s32 fn_80051480(f32* pos)
+{
+    u8 unused[16];
+    s32 best_idx = -1;
+    register f32 best_dist = lbl_803468B0;
+    u8* node = sMilestones;
+    s32 i;
+
+    for (i = 0; i < sNumMilestones; i++, node += 104) {
+        f32 d;
+        f32 dx;
+        f32 dy;
+        f32 dz;
+
+        dy = pos[1] - *(f32*)(node + offsetof(MilestoneParam, matrix[13]));
+        dx = pos[0] - *(f32*)(node + offsetof(MilestoneParam, matrix[12]));
+        dz = pos[2] - *(f32*)(node + offsetof(MilestoneParam, matrix[14]));
+        d = dx * dx + dy * dy;
+        d = dz * dz + d;
+
+        if (d > 0.0f) {
+            volatile f32 tmp;
+            f64 y = __frsqrte(d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            tmp = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
+            d = tmp;
+        }
+        if (d < best_dist) {
+            best_idx = i;
+            best_dist = d;
+        }
+    }
+    return best_idx;
+}
+
+void fn_80051568(s32 index)
+{
+    u8* e = (u8*)gEnemies + index * 916;
+    s32 i;
+    Item* it;
+    iteminfo* hdr;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist2;
+    f64 kHalf;
+    f32 kZero;
+    f64 kThree;
+    u8 _spare[24];
+    u8 unused[8];
+
+    if (*(s16*)(e + offsetof(Enemy, closest)) >= 0 &&
+        *(f32*)(e + offsetof(Enemy, actual_dist)) <= lbl_80346A88) {
+        *(s32*)(e + offsetof(Enemy, guard_mode)) = 0;
+        *(s32*)(e + offsetof(Enemy, guard_closest)) = -1;
+        *(f32*)(e + offsetof(Enemy, guard_dist)) = lbl_803468B0;
+        return;
+    }
+    if (*(s32*)(e + offsetof(Enemy, guard_mode)) != 0) {
+        return;
+    }
+    StartEnemyGrid((f32*)(e + offsetof(Enemy, objgrp.worldmat[3])), lbl_803469D4);
+    kZero = lbl_80346820;
+    kHalf = lbl_80346830;
+    kThree = lbl_803468B8;
+    while ((i = NextGridEnemy()) >= 0) {
+        it = &sItems[i];
+        hdr = it->info;
+        if (it->active == -1) {
+            continue;
+        }
+        if (hdr->type != 2) {
+            continue;
+        }
+        if (it->minoff != 0) {
+            continue;
+        }
+        dx = it->objgrp.worldmat[3][0] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][0]));
+        dy = it->objgrp.worldmat[3][1] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1]));
+        dz = it->objgrp.worldmat[3][2] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][2]));
+        dist2 = dx * dx + dy * dy + dz * dz;
+        if (dist2 > kZero) {
+            volatile f32 tmp;
+            f64 y = __frsqrte(dist2);
+            y = kHalf * y * (kThree - y * y * dist2);
+            y = kHalf * y * (kThree - y * y * dist2);
+            y = kHalf * y * (kThree - y * y * dist2);
+            dist2 = (f32)(dist2 * (kHalf * y * (kThree - y * y * dist2)));
+            tmp = dist2;
+            dist2 = tmp;
+        }
+        if (dist2 < *(f32*)(e + offsetof(Enemy, guard_dist))) {
+            *(f32*)(e + offsetof(Enemy, guard_dist)) = dist2;
+            *(s32*)(e + offsetof(Enemy, guard_closest)) = i;
+            *(s32*)(e + offsetof(Enemy, guard_mode)) = 1;
+        }
+    }
+}
+
+void fn_800516F8(s32 slot)
+{
+    u8 unused[44];
+    f32 ad;
+    u8* p;
+    u8* e;
+    s32 i;
+    s32 t;
+    f64 kK;
+    f64 kThree;
+    f64 kHalf;
+    f32 kZero;
+    f32 dist;
+    f64 kPi;
+    f32 range;
+    f32 bestSpecial;
+    u8 padLo[4];
+
+    e = (u8*)gEnemies + slot * 916;
+    bestSpecial = lbl_803468B0;
+
+    for (i = 0, p = (u8*)gPlayers.players; i < 4; i++, p += 13148) {
+        if (*(s32*)(p + offsetof(Player, state)) == 1) {
+            break;
+        }
+    }
+    if (i >= 4) {
+        *(s16*)(e + offsetof(Enemy, recognized)) = 0;
+    }
+
+    t = lbl_80344B24;
+    if (t >= 0 && gPlayers.players[t].state == ACTIVE &&
+        !(gPlayers.players[t].flags & 4) &&
+        !(*(s32*)e == 30 && (gPlayers.players[t].shield_flags & 0x80000))) {
+        u8* q;
+        *(s16*)(e + offsetof(Enemy, prev_closest)) = *(s16*)(e + offsetof(Enemy, closest));
+        *(s16*)(e + offsetof(Enemy, closest)) = (s16)lbl_80344B24;
+        q = (u8*)gPlayers.players + lbl_80344B24 * 13148;
+        {
+            f32 fd;
+            if (*(s16*)(q + offsetof(Player, field_A1C)) > 2) {
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, mikey_coll_pos)),
+                      lbl_80346820, lbl_80346830, lbl_803468B8);
+            } else {
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
+                      lbl_80346820, lbl_80346830, lbl_803468B8);
+            }
+            *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
+        }
+        *(f32*)(e + offsetof(Enemy, close_dist)) = *(f32*)(e + offsetof(Enemy, actual_dist)) +
+                           *(f32*)((u8*)gPlayers.players + lbl_80344B24 * 13148 + 2600);
+    } else {
+        s32 go = 1;
+        s32 cur;
+        if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + offsetof(Enemy, closest)) >= 0) {
+            go = 0;
+        }
+        cur = *(s16*)(e + offsetof(Enemy, closest));
+        if ((s16)cur >= 0 &&
+            gPlayers.players[cur].state != ACTIVE) {
+            go = -1;
+        }
+        if (go != 0) {
+            f32 big;
+            *(s16*)(e + offsetof(Enemy, prev_closest)) = (s16)cur;
+            *(s16*)(e + offsetof(Enemy, closest)) = -1;
+            big = lbl_803468B0;
+            *(f32*)(e + offsetof(Enemy, close_dist)) = big;
+            *(f32*)(e + offsetof(Enemy, actual_dist)) = big;
+            if (*(s32*)e == 30) {
+                *(s32*)(e + offsetof(Enemy, counter2)) = -1;
+            }
+            kPi = lbl_80346840;
+            kK = lbl_80346870;
+            kZero = lbl_80346820;
+            kHalf = lbl_80346830;
+            kThree = lbl_803468B8;
+            {
+                for (; i < 4; i++, p += 13148) {
+                    if (*(s32*)(p + offsetof(Player, state)) != 1) {
+                        continue;
+                    }
+                    if (*(u32*)(p + offsetof(Player, flags)) & 4) {
+                        continue;
+                    }
+                    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, mikey_coll_pos)),
+                              kZero, kHalf, kThree);
+                    } else {
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
+                              kZero, kHalf, kThree);
+                    }
+                    range = dist;
+                    if (range > *(f32*)(e + offsetof(Enemy, sight))) {
+                        continue;
+                    }
+                    if (*(s32*)e == 30 && (*(u32*)(p + offsetof(Player, shield_flags)) & 0x80000)) {
+                        if (range < bestSpecial) {
+                            bestSpecial = range;
+                            *(s32*)(e + offsetof(Enemy, counter2)) = i;
+                        }
+                        continue;
+                    }
+                    if (range > kK * *(f32*)(e + offsetof(Enemy, rad))) {
+                        range += *(f32*)(p + 2600);
+                    }
+                    if (!(range < *(f32*)(e + offsetof(Enemy, close_dist)))) {
+                        continue;
+                    }
+                    if (*(f32*)(e + offsetof(Enemy, view)) < kPi) {
+                        ad = get_yaw((f32*)(p + offsetof(Player, effectpos)), (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos))) -
+                             *(f32*)(e + offsetof(Enemy, pyr) + 4);
+                        *(u32*)&ad &= 0x7FFFFFFF;
+                        if (ad > *(f32*)(e + offsetof(Enemy, view))) {
+                            continue;
+                        }
+                    }
+                    *(f32*)(e + offsetof(Enemy, close_dist)) = range;
+                    *(f32*)(e + offsetof(Enemy, actual_dist)) = dist;
+                    *(s16*)(e + offsetof(Enemy, closest)) = (s16)i;
+                }
+            }
+        }
+    }
+
+    if (*(s16*)(e + offsetof(Enemy, closest)) >= 0) {
+        if (*(f32*)(e + offsetof(Enemy, actual_dist)) <= *(f32*)(e + offsetof(Enemy, sight))) {
+            Player* base;
+            *(s16*)(e + offsetof(Enemy, recognized)) = 1;
+            base = gPlayers.players;
+            (*(s32*)((u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148 + 2596))++;
+            {
+                u8* r = (u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148;
+                *(f32*)(r + 2600) = (f32)(*(f32*)(r + 2600) + lbl_80346868);
+            }
+        }
+    } else {
+        f32 big = lbl_803468B0;
+        *(f32*)(e + offsetof(Enemy, actual_dist)) = big;
+        *(f32*)(e + offsetof(Enemy, close_dist)) = big;
+    }
+}
+
+void fn_80051C78(void)
+{
+    MilestonePool* mp = (MilestonePool*)lbl_80250E00;
+    u8 unused[16];
+    s32 best;
+    s32 cur;
+    s32 i;
+
+    for (i = 0; i < 128; i++) {
+        mp->slots[i] = -1;
+    }
+    lbl_80344724 = 0;
+    best = -1;
+
+    {
+        f32 bestDist = lbl_803468B0;
+        u8* m = sMilestones;
+
+        for (i = 0; i < sNumMilestones; i++, m += 0x68) {
+            f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
+            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
+            f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
+            f32 d2 = dx * dx + dy * dy;
+
+            d2 = dz * dz + d2;
+            if (d2 > 0.0f) {
+                volatile f32 tmp;
+                f64 y = __frsqrte(d2);
+                y = 0.5 * y * (3.0 - y * y * d2);
+                y = 0.5 * y * (3.0 - y * y * d2);
+                y = 0.5 * y * (3.0 - y * y * d2);
+                tmp = (f32)(d2 * (0.5 * y * (3.0 - y * y * d2)));
+                d2 = tmp;
+            }
+            if (d2 < bestDist) {
+                best = i;
+                bestDist = d2;
+            }
+        }
+    }
+
+    cur = best;
+    for (;;) {
+        s32 count = lbl_80344724;
+        s32 prev = cur;
+        s32 k;
+
+        lbl_80344724 = count + 1;
+        mp->slots[count] = cur;
+        cur = fn_800511D0(cur, lbl_80346984);
+        count = lbl_80344724;
+        for (k = 0; k < count; k++) {
+            if (mp->slots[k] == cur) {
+                break;
+            }
+        }
+        if (k < count) {
+            break;
+        }
+        if (prev == cur) {
+            break;
+        }
+    }
+}
+
+char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
+{
+    s32 n;
+    u32 i;
+    char* buf;
+
+    buf = (char*)lbl_80250E00;
+    if (lvl == 0) {
+        n = 1;
+    } else {
+        n = lvl;
+    }
+    if (lvl >= 4) {
+        goto chk8;
+    }
+    goto plain;
+chk8:
+    if (lvl >= 8) {
+        goto plain;
+    }
+    goto lettered;
+plain:
+    sprintf(buf, "%s%d", findWorldName(world));
+    goto suffix;
+lettered:
+    sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+suffix:
+    if (flag != 0) {
+        strcat(buf, "L1");
+    }
+    for (i = 0; i < strlen(buf); i++) {
+        buf[i] = toupper(buf[i]);
+    }
+    return buf;
+}
+
+void* EnemyTypePrefix(s32 id)
+{
+    s32 i;
+
+    for (i = 0; i < 44; i++) {
+        if (((Row36*)lbl_8011AF48)[i].f0 == id) {
+            return &((Row36*)lbl_8011AF48)[i].f14;
+        }
+    }
+    return 0;
+}
+
+void* EnemyTypeDesc(s32 id)
+{
+    s32 i;
+
+    for (i = 0; i < 44; i++) {
+        if (((Row36*)lbl_8011AF48)[i].f0 == id) {
+            return &((Row36*)lbl_8011AF48)[i].f4;
+        }
+    }
+    return 0;
+}
+
+s32 EnemyDescType(const char* name)
+{
+    u32 i;
+
+    if (stricmp(name, sBossGenName) == 0) {
+        s32 t = lbl_802577CC[0];
+        if (t != gBossType) {
+            return t;
+        }
+        return -1;
+    }
+    for (i = 0; i < 44; i++) {
+        if (stricmp(name, (char*)&((Row36*)lbl_8011AF48)[i].f4) == 0) {
+            return ((Row36*)lbl_8011AF48)[i].f0;
+        }
+    }
+    return -1;
+}
+
+#pragma dont_inline on
+void fn_8005207C(s32 arg0, s32 arg1, s32 arg2)
+{
+    lbl_8034476C = arg0;
+    if (arg1 < 0) {
+        arg1 = 0;
+    } else if (arg1 > 4) {
+        arg1 = 4;
+    }
+    lbl_80344768 = arg1;
+    if (gGameOptions[3] == 0) {
+        gNumPlayers = arg0;
+    } else {
+        gNumPlayers = gGameOptions[3];
+    }
+    lbl_80344760 = arg2;
+}
+#pragma dont_inline off
+
+void fn_800520C8(void)
+{
+}

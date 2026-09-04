@@ -79,7 +79,7 @@ class NamedTargetSymbolTests(unittest.TestCase):
         """
         sections = af.census("game/enemy/enemy")["sections"]
         self.assertEqual(sections[".data"]["splits_line"].split(),
-                         [".data", "start:0x8011C0EC", "end:0x8011C27C"])
+                         [".data", "start:0x8011C0EC", "end:0x8011C2FC"])
         self.assertEqual(sections[".bss"]["splits_line"].split(),
                          [".bss", "start:0x80250E00", "end:0x80257590"])
         self.assertEqual(sections[".bss"]["end_rounded_up_to"], "gEnemies")

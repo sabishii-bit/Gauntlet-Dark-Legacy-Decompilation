@@ -178,10 +178,10 @@ class RawWordResidualSpellings(unittest.TestCase):
         # word_streams raises SystemExit, which is a BaseException: the old
         # blanket `except Exception` never caught it, so the fallback line
         # the docstring promises was unreachable and the probe died instead.
-        unit, fn = "game/game/gamemain", "fn_80051C78"
-        if not (REPO / "build" / "GUNE5D" / "src" / "game" / "game"
-                / ".postprocess" / "body" / "gamemain.o").exists():
-            self.skipTest("needs a built gamemain raw body")
+        unit, fn = "game/enemy/enemy", "fn_80051C78"
+        if not (REPO / "build" / "GUNE5D" / "src" / "game" / "enemy"
+                / ".postprocess" / "body" / "enemy.o").exists():
+            self.skipTest("needs a built enemy raw body")
         self.assertIsNone(probe.raw_word_residual(
             unit, fn, probe.strip_dtk_suffix(fn)))
 
