@@ -1,0 +1,41 @@
+{
+  "attempted_axis": "Apply the mandatory shared-exit CFG diagnosis, then exhaust distinct source-level lifetime, scope, alias, declaration, indexing, and condition forms for the sole surviving target-only copy",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v3 applied: the mandatory shared-exit form removed the two beq+b pairs and left one clean copy residual. claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1 applied as a boundary: this pointer dies inside one if-arm and is not join-live, so function-scope, while-scope, nested-block, and second-name aliases all folded or reproduced the missing copy. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 applied decisively: T149/O148 is outside every sanctioned WebFrank class. claim.LZ_copy-form-taxonomy-and-payoff-inversion.20260901.v1 screened: this is the target-has-copy inverse polarity, but its source levers did not reach parity here. claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 and the declaration-order laws were screened; all pointer declaration permutations only rotated saved-register colors and left O148. The complete core-screen corpus from `gdlmem.py brief game/world/dynobjgrid` was screened; no offset, pool, EH, parameter, branch-pair, or relocation law applies to the surviving single count delta.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v3\",\"claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1\",\"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "RETAINED shared exit: after WorldObjCollide, `ret=ExitCollisionEarly(); if(ret) goto exit;`; after each cell list, `ret=ExitCollisionEarly(); if(ret) break;`; after NextDynGrid, `if(!ret) break;`; final `exit: return ret;`. REVERTED copy axes: all declaration orders of `s16* e; DynObj* d; WorldObj* o;`; moving d/e declarations into the while and nested if blocks; `DynObj* checked=d;` aliases at function, while, and inner-block scope; raw `(DynObj*)((u8*)dynobj_list + e[0]*68)` addressing; named s16 and s32 obj_idx locals; assigning d inside the mark condition; direct `dynobj_list[e[0]].mark` conditions; `WorldInfo* world=&gWorldInfo`; register-qualified d; volatile pointee d; assignment-in-condition; mixed address spellings; an inline identity helper; and opt_propagation spelling. The direct-condition family reached T149/O149 only by changing retail's addi/lhz addressing into ours `addi` plus `lhzx`, a new structural cluster, so it was rejected rather than mistaken for parity.",
+    "residual": "One named compiler mechanism remains: retail splits the DynObj pointer's live range across the mark comparison with `addi r6,r3,0` and uses r6 for the following stores/loads; our MWCC coalesces the pre- and post-compare homes in r3 and deletes the copy. This is instruction-count-asymmetric allocator live-range splitting, not a recolor or permutation.",
+    "scope": "src/game/world/dynobjgrid.c::WorldDynCollide only; shared-exit source retained in 8780c52f9, every copy-split probe reverted.",
+    "verification": "Fresh probe readout: fuzzy 98.9597%, real 41, T149/O148. fndiff --ops: sole target-only +1 addi. slotdiff: frame target/ours 144/144 and all 15 r1 slots identical. wf_word_diff: COUNT-ASYMMETRIC, no eligible word residual. Full ninja prints build/GUNE5D/main.dol: OK; CreateDynobjGrid, NextDynGrid, and InitDynobjGrid remain exact; datadiff previously measured the claimed .sdata2 range byte-exact with zero blockers."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/dynobjgrid WorldDynCollide --ops",
+    "falsifier": "Raw compiler output reaches T149/O149 with the retail addi copy and without a new opcode cluster, or a later compiler/postprocessor capability can soundly insert an instruction while proving full CFG and relocation equivalence.",
+    "premise_measurement": "python tools/gdl/fndiff.py game/world/dynobjgrid WorldDynCollide --ops reports target 149/ours 148 and target-only +1 addi; python tools/gdl/composed_census/wf_word_diff.py reports COUNT-ASYMMETRIC and therefore no postprocessor word residual. The aligned stream is retail `+0x164 lhz r0,66(r3); +0x168 addi r6,r3,0; +0x16c cmpw r0,r5`, while ours has the same load and compare with no intervening copy and retains r3 through the following stores/loads.",
+    "scope": "WorldDynCollide's sole target-only +0x168 pointer-copy residual at the shared-exit source state in commit 8780c52f9; this denies WebFrank eligibility and the measured alias/scope/declaration/direct-condition source forms, not every future compiler-reachable AST."
+  },
+  "function": "function:WorldDynCollide",
+  "held_fixed": "WorldDynCollide's semantics, exact 0x90 frame and r1 slot map, function signature, helper calls, exact NextDynGrid/InitDynobjGrid siblings, and all TU data sections were held fixed while source topology around the DynObj pointer was varied.",
+  "id": "attempt.R57_worlddyncollide-shared-exit-close-and-copy-split-cap.20260904.v3",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T19:28:01Z",
+  "reproductions": [
+    {
+      "alignment": "The mandatory shared-exit rewrite removed both early-out branch-pair clusters and changed ours from 150 to 148 instructions, moving every downstream offset and leaving the copy as the only opcode-multiset delta.",
+      "at": "8780c52f9",
+      "command": "python tools/gdl/fndiff.py game/world/dynobjgrid WorldDynCollide --ops",
+      "result": "Copy residual reproduced at the new alignment: target 149/ours 148, target-only +1 addi, no ours-only opcode."
+    }
+  ],
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: +1 addi ours-only: (none); insns T149/O148"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.NV_worlddyncollide-joint-probe-and-peephole-refutation.20260901.v2",
+  "valid_from": "2026-09-04"
+}
