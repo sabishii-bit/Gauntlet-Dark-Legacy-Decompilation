@@ -154,7 +154,6 @@ void fn_800C13CC(void)
     u32 zero;
     u8 image[164];
     s32 off;
-    char* file;
     u32 i;
 
     for (zero = 0; zero < 1024; zero++) {
@@ -164,7 +163,6 @@ void fn_800C13CC(void)
 
     i = 0;
     off = 0;
-    file = lbl_801164C0;
     do {
         sceGsSetDefLoadImage(image, (s16)off, 4, 0, 0, 0, 32, 32);
         if (lbl_80343EE8 != 0) {
@@ -172,7 +170,7 @@ void fn_800C13CC(void)
         }
         sceGsExecLoadImage(image, pixels);
         if (lbl_80343EEC != 0) {
-            fn_800C1148(0, 0, file);
+            fn_800C1148(0, 0, lbl_801164C0);
         }
         i++;
         off += 16;
