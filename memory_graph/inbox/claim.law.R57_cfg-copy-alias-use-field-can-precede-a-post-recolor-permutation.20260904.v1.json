@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py",
+    "tools/gdl/tests/test_webfrank.py",
+    "tools/gdl/rule_derive.py",
+    "config/GUNE5D/webfrank.json",
+    "git:0f2c2873be21a728d545f6aa04febfbafe1ab6a7"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "postprocessor",
+      "register-web",
+      "alias-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any adversarial case accepted by apply_copy_alias_register_fields despite a missing, bypassed, or overwritten copy; an RA-zero field; a destination/read-write field; a non-register target difference; an unsupported proof mode; or a rewritten word unequal to the target intermediate. These cases are mechanically pinned in tools/gdl/tests/test_webfrank.py and the implementation lives in tools/gdl/webfrank.py.",
+  "id": "claim.law.R57_cfg-copy-alias-use-field-can-precede-a-post-recolor-permutation.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T19:18:04Z",
+  "schema_version": 1,
+  "subject": "tool:webfrank",
+  "valid_from": "2026-09-04",
+  "value": "A copy-alias register-field edit is sound only when form-aware decoding identifies a target-bound use-only GPR field, RA-zero semantics do not apply, the rewritten whole word equals the unpermuted target intermediate, and forward CFG must-equality proves the old and new registers equal on every path reaching the site. Such a proved edit may precede a post-recolor permutation because the existing dependence and relocation guards then audit the window in the target colouring. Definitions must retire aliases, CFG joins must intersect them, calls must retire volatile aliases, and unsupported transfer forms must clear the relation."
+}

@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Close the source-exhausted two-word entry residual with a CFG-proven copy-alias register-field rewrite followed by a dependence-audited post-recolor permutation.",
+  "attributes": {
+    "law_screen": "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 REPRODUCED as not controlling this function by the superseded record's byte-identical probe. claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 REPRODUCED as not controlling this function by its byte-identical identity split. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED: the 482/482 streams had an identical opcode multiset but two displaced words. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED as a refusal: the ordinary pre-recolor permutation is illegal because addi overwrites r3 before the moved lwz. claim.law.WF_a-permutation-illegal-in-both-colourings-can-still-be-split-across-the-recolor.20260903.v1 APPLIED: proving the use-field alias first makes the post-recolor permutation legal. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and PASSED at 482/482.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.WF_a-permutation-illegal-in-both-colourings-can-still-be-split-across-the-recolor.20260903.v1\"]",
+    "probed_form": "NO SOURCE EDIT. The superseded record exhausted statement order, declaration-initializer placement, and variable-identity split. The retained config rule declares `copy_alias_register_fields: [{at: 0x28, shift: 16, from: 3, to: 27, proof: cfg_copy_equality}]` then `post_recolor_permutation: {start: 0x28, end: 0x30, order: [1,0]}`.",
+    "residual": "None in code or relocation binding: WebFrank output is byte-identical. The fndiff clean display contains only anonymous-local versus named-symbol spelling for four pool references and explicitly reports 0 non-reloc real rows.",
+    "scope": "config/GUNE5D/webfrank.json plus the narrowly authorized WebFrank proof implementation/tests in commit 0f2c2873be21a728d545f6aa04febfbafe1ab6a7; src/game/anim/action.c::DoEnemyAction unchanged.",
+    "verification": "DECIDING COUNT PARITY: target/ours 482/482 before closure, raw real 2 with identical opcode multiset and zero relocation mismatch. wr_try_rule.py reported BYTE-EQUAL at FULL datum strength. After configure/build, fndiff.py --clean reports 0 non-relocation real rows (only anonymous-local spelling), fndiff.py --relocs reports IDENTICAL 20/20, wf_ordered_datum_screen.py reports BENIGN/identical sequence. python -m unittest discover tools/gdl/tests -b: 2188 green, skipped=4. Full ninja prints build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:DoEnemyAction",
+  "held_fixed": "The compiled source body and all words outside +0x28:+0x30 were held fixed; the first stage changes only the lwz RA field and the second stage only orders the same two instruction atoms.",
+  "id": "attempt.R57_doenemyaction-copy-alias-post-permutation-exact-close.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:18:03Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "closed -- was opcode multiset IDENTICAL (482/482); insert T[10:10]@28-28=[] O[10:11]@28-2c=['lwz'] [SHIFTABLE]; delete T[11:12]@2c-30=['lwz'] O[12:12]@30-30=[]"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.NM_doenemyaction-entry-block-ordering-class-does-not-reach-codegen.20260903.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "copy_alias_register_fields / cfg_copy_equality",
+    "form-aware decode and target-intermediate whole-word binding",
+    "post_recolor_permutation / permute_instruction_atoms",
+    "check_permutation_dependences",
+    "verify_relocation_binding",
+    "verify_datum_binding"
+  ],
+  "windows_tried": [
+    "post-recolor 0x28:0x30:1,0"
+  ]
+}

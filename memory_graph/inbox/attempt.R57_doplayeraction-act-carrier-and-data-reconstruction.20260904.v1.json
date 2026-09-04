@@ -1,0 +1,36 @@
+{
+  "attempted_axis": "Reconstruct the target's early act carrier, zero-initialization chronology, first-switch coverage, retail condition literal, and TU rodata claim; re-probe the prior repeat-count paired-temp cap at the new alignment.",
+  "attributes": {
+    "axis_log": "RETAINED early act carrier: real 1850->1820 and fresh fuzzy +0.1592, with target +0x40 addi r31,r26,0 exact. RETAINED declaration initializer split: real 1852->1850 and fresh fuzzy +0.4249 at that alignment. RETAINED 0x6D/0x6E no-op cases: first-switch bound exact and .data 0x850/0x850 100%. RETAINED <=7 literal from target asm: one immediate corrected. RETAINED six-space string and aligned rodata split: datum value-equal, 2-byte zero claim slack only. REPRODUCED NEGATIVE repeatCount paired temp at new alignment: 1765/1766, real 2161. PRIOR CAPS PRESERVED: mbobj scratch, dance consumer, hud_flags typed/member conversion, and adv-result store hoist.",
+    "law_screen": "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 APPLIED: splitting mode/didt/frame declaration initializers moved zero-init chronology and improved fresh fuzzy. claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 APPLIED: assigning act immediately from next and using that distinct carrier in the four early predicates made the target `addi r31,r26,0` and its uses exact. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED: fresh fndiff --ops still shows 13 structural clusters despite near-parity. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED: retained edits preserve 1765/1765, while the re-probed repeatCount form was rejected at 1765/1766. claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination SCREENED: action_names before node/defs reaches codegen and improves source/emission chronology, but does not close the eight saved-register role mismatches. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 APPLIED: the debug literal and rodata range were checked with datum/datadiff rather than score. claim.law.offsetof-rename-preserves-protected-web.20260830.v1 SCREENED and NOT APPLIED because the accepted action TU pilot measured the hud_flags member-form family as a regression.",
+    "laws_applied": "[\"claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1\", \"claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1\", \"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\", \"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\"]",
+    "probed_form": "RETAINED: `act = next;` immediately after the next/cur loads, with the four pre-switch next predicates consuming act; declaration-only `s32 mode; s32 didt; u32 frame;` followed by `mode = 0; didt = 0; frame = 0;`; first-switch `case 0x6D: case 0x6E: break;`; retail `cur >= 0x77 && cur <= 7`; debug format with six trailing spaces; .rodata claim 0x80115810:0x80115860. NEGATIVE/REVERTED: local `repeatCount = (act == 0x94) ? 2 : 1; rpt = repeatCount;`.",
+    "residual": "Exact not reached. The remaining measured mechanism is still structural web topology: 13 fndiff clusters, six mnemonic-count differences, 42 aligned immediate rows, and eight first-definition saved-register role mismatches. The largest named clusters are the +0xbac/+0xbd8 dance branch-pair lowering, +0x120c hud_flags/address materialization, and +0x1330 adv-result store placement; accepted and freshly reproduced caps bar their already-tried source forms, so a future lane needs genuinely new joint source axes rather than a recolor rule.",
+    "scope": "src/game/anim/action.c::DoPlayerAction and config/GUNE5D/splits.txt in commit 391dcfe1822cc7f08eceabaed4d99b4da2f30839.",
+    "verification": "Fresh probe.py --fuzzy: 98.0782% (was 97.4929), real 1820 (was 1852), target/ours 1765/1765, multiset 6t (was 8t). slotdiff: frame 104/104 and 9-slot map identical. savedregs: stmw r18/r18. datadiff --sections: .data 0x850 100%, .sdata2 0xA0 100%, extab/extabindex 100%, .rodata identical 0x4E-byte head with two bytes zero claim slack, 0 blockers. Full ninja prints build/GUNE5D/main.dol: OK. python -m unittest discover tools/gdl/tests -b: 2188 green, skipped=4."
+  },
+  "function": "function:DoPlayerAction",
+  "held_fixed": "All DoPlayerAction source outside the named declaration/initialization, early act-use, switch-case, condition-literal, and debug-string sites was held constant; all other action.c functions and all build flags were held constant.",
+  "id": "attempt.R57_doplayeraction-act-carrier-and-data-reconstruction.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:18:06Z",
+  "reproductions": [
+    {
+      "alignment": "The early act carrier, initialization chronology, and switch-table coverage moved since the 2026-08-30 cap; raw real improved 1852 to 1820 and fuzzy 97.4929 to 98.0782.",
+      "at": "2026-09-04 / commit 391dcfe1822cc7f08eceabaed4d99b4da2f30839 parent state",
+      "command": "python tools/gdl/probe.py game/anim/action DoPlayerAction after introducing a local repeatCount for the 0x94 ? 2 : 1 assignment",
+      "result": "The negative reproduced: target/ours moved from 1765/1765 to 1765/1766, real 1820 to 2161, opcode multiset 6t to 7t, and extabindex moved. Probe fully reverted."
+    }
+  ],
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "+1 addi +2 bne -2 beq -1 stw; target/ours 1765/1765; 13 clusters; real 1820"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.doplayeraction-mwcc-shape-closure.20260830.v1",
+  "valid_from": "2026-09-04"
+}

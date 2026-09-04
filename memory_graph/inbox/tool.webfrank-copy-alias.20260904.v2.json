@@ -1,0 +1,39 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "tools/gdl/webfrank.py",
+      "tools/gdl/webfrank_audit.py",
+      "config/GUNE5D/webfrank.json",
+      "tools/gdl/tests/test_webfrank.py",
+      "tools/gdl/rule_derive.py",
+      "git:0f2c2873be21a728d545f6aa04febfbafe1ab6a7"
+    ],
+    "matching_build_only": true
+  },
+  "constraints": [
+    "Every rule must be individually audited and fail closed on source, compiler, relocation, datum, or hash drift.",
+    "REGISTER_ONLY rules require form-aware differing-word validation and consistent-renaming proof; explicitly unproven deep-allocator rules must retain their warning and audit note.",
+    "copy_alias_register_fields is restricted to target-bound use-only GPR fields whose old and new registers are CFG-must-equal at the site; RA-zero, destination/read-write fields, unsupported transfers, and whole-word target mismatches refuse.",
+    "Instruction permutations require dependency-audited independent straight-line atoms, relocation-preserving bijection, and dead-final-write proof.",
+    "Never broaden a rule or use WebFrank for structural, immediate, branch, ABI, semantic, relocation-payload, or data differences.",
+    "The non-matching/mod build bypasses WebFrank completely."
+  ],
+  "entrypoint": "python tools/gdl/webfrank.py",
+  "id": "tool.webfrank-copy-alias.20260904.v2",
+  "kind": "tool",
+  "name": "WebFrank",
+  "purpose": "Fail-closed matching-build correction for individually proven register allocation, copy-alias use-field, and exceptional audited instruction-permutation residuals.",
+  "recorded_at": "2026-09-04T19:18:05Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/webfrank.py",
+  "status": "active_guarded",
+  "supersedes": "tool.webfrank.20260829.v1",
+  "tool_key": "tool:webfrank",
+  "tool_kind": "postprocessor",
+  "usage": [
+    "Run tools/gdl/webfrank_audit.py against raw postprocess bodies before proposing a rule.",
+    "Use copy_alias_register_fields only after source exhaustion, exact count parity, and a rederived aligned-word diagnosis; it may compose only with a post-recolor permutation, not a second recolor stage.",
+    "Treat a passing build rule as matching evidence only after full object, relocation, datum, test-suite, and linked-DOL gates pass."
+  ],
+  "valid_from": "2026-09-04"
+}
