@@ -202,8 +202,22 @@ def _strip_dtk(name):
 
 
 def run_objdump(args, obj):
+    """Fail-closed, like `fndiff.objdump` (run-52 item 9's sibling screen).
+
+    This module reimplements the dump rather than importing fndiff's, so it
+    inherited the same defect: returning `.stdout` unconditionally made a
+    missing object or a bad flag produce `''`, which `parse_code` reads as
+    a file with no functions — an empty census that looks like a clean one.
+    """
     r = subprocess.run([str(OBJDUMP)] + args + [str(obj)],
                        capture_output=True, text=True)
+    if r.returncode != 0:
+        first = (r.stderr.strip().splitlines() or ["(no stderr)"])[0]
+        raise RuntimeError(
+            f"objdump exited {r.returncode} and produced no dump:"
+            f" {OBJDUMP} {' '.join(args)} {obj}\n  {first}\n"
+            "  An empty result here would read as an object with no"
+            " functions; it is not a measurement at all.")
     return r.stdout
 
 

@@ -30,14 +30,29 @@ import fndiff  # noqa: E402
 
 
 class FakeRun:
-    def __init__(self):
+    """A CompletedProcess double.
+
+    `returncode`/`stderr` are part of the contract since run-52 item 9:
+    `objdump()` is fail-closed and raises `ObjdumpFailed` on a nonzero
+    exit, so a double that models only `stdout` describes a subprocess
+    interface that no longer exists. `returncode` defaults to 0 (the
+    memo tests are about caching, not failure) and is settable per
+    instance for the failure cases below.
+    """
+
+    def __init__(self, returncode=0, stderr=""):
         self.calls = []
+        self.returncode = returncode
+        self.stderr = stderr
 
     def __call__(self, argv, **kwargs):
         self.calls.append(tuple(argv))
+        outer = self
 
         class Result:
-            stdout = "dump-%d" % len(self.calls)
+            stdout = "dump-%d" % len(outer.calls)
+            returncode = outer.returncode
+            stderr = outer.stderr
         return Result()
 
 
