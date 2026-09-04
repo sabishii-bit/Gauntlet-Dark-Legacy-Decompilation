@@ -864,9 +864,9 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     radius = ((CritterPackedType *)c->hdr)->wallRadius;
     height = ((CritterPackedType *)c->hdr)->radius;
     result = lbl_80346480;
-    center[0] = c->pos[0] + delta[0];
-    center[1] = c->pos[1] + delta[1];
-    center[2] = c->pos[2] + delta[2];
+    center[0] = cpos[0] + delta[0];
+    center[1] = cpos[1] + delta[1];
+    center[2] = cpos[2] + delta[2];
     StartEnemyGrid(center, radius);
     dzero = lbl_80346488;
     zerof = lbl_80346470;
