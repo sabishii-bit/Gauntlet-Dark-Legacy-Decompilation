@@ -1070,16 +1070,6 @@
         "copy_register_fields": true
       },
       {
-        "function": "DoWorldAnimation",
-        "before_sha256": "eb1d3bbe9f55641bca737789c158eb2cd9f7fc334da026e592a232daea6d5a3e",
-        "after_sha256": "7a07a28661203a8548af9187abac6702c59a21a1cecba8c10d28761ccc78018e",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 63
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "fn_80051480",
         "before_sha256": "40a5fe27b46c6b21170b836c6a8c14e959ab02d9642d0bd8745b78e9071fae42",
         "after_sha256": "79c7c3b5eaac4d5a8fcd56049b26a84fb57819d973aaabadeeac137953931153",
@@ -2479,6 +2469,16 @@
     ],
     "game/world/gauntworld": [
       {
+        "function": "DoWorldAnimation",
+        "before_sha256": "eb1d3bbe9f55641bca737789c158eb2cd9f7fc334da026e592a232daea6d5a3e",
+        "after_sha256": "7a07a28661203a8548af9187abac6702c59a21a1cecba8c10d28761ccc78018e",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 63
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_8005FB48",
         "before_sha256": "2452e42c1d7457630545abce051877dfe6c7fa77ad97a9457e98225a98007e02",
         "after_sha256": "4f54a75732119478f1c3a9409fe341bda0a7fa55c43568811aff6d2cba645e2b",
@@ -2494,8 +2494,8 @@
           "order": [4, 3, 0, 1, 2, 5],
           "before_sha256": "4b6541e84928b44aae6882d2de9d1ed6abff73797716e87fd256b927d16a5078",
           "after_sha256": "e2bf5e784b44ab34b988166b117d2afa4464a286f798a4f2ebdc0b6545a385ca",
-          "before_relocations_sha256": "af8f8d5a3e75230d0996710e6caa26c5ad2812fb77609c414651c73d06f4cc20",
-          "after_relocations_sha256": "f6cd7ca58cbb0ac90da15194bc4798857fd7fbc4e9535d365848a48469089615"
+          "before_relocations_sha256": "d6878cf306585e4b972e015c0b281480aff6830b62351fe19b62523b548c6fbb",
+          "after_relocations_sha256": "7789315ad82211fa0d77ede30f9c71edd078147996866eb1a550d220a167db4d"
         },
         "copy_register_fields": true
       },
@@ -2533,8 +2533,8 @@
           ],
           "before_sha256": "9825dfed11307fa54e4dc1d85fe4e15aa1036ac714c4c805b4ea8ca1e976232c",
           "after_sha256": "bb94f17f7f444bad28a698ed338494430b1afed42bd1aa667c18d0133d7f9563",
-          "before_relocations_sha256": "830a465b5e05794a87effea71f4f41d27d3d4fd304311dd27ca0161446be2950",
-          "after_relocations_sha256": "110d72aa36a4c6d0a319ab87411ff050c994cc5084b102356b5b02f93a8c5dcf"
+          "before_relocations_sha256": "dfebade3d19e98beda6481f4d09d923824a7859ca0f724250712ff3a1987a7a7",
+          "after_relocations_sha256": "5acbf832c7c8351737c6c215c484c92eefdb03cffe176f26134f6786932897c8"
         },
         "memory_disambiguation": {
           "audit": "The three EMB_SDA21 accesses in this window address globals the split map places at .sbss 0x80344194, .sdata2 0x80346F50 and .sbss 0x80344190 — pairwise disjoint 4-byte ranges, so the store may cross the load. The two pool loads at +0xf0/+0xf8 and the two lha at +0x120/+0x128 are NOT declared and stay may-alias-everything.",

@@ -1,5 +1,6 @@
 #include "types.h"
 #include "game/camera.h"
+#include "game/critter.h"
 #include "game/dyngrid.h"
 #include "game/effect.h"
 #include "game/enemy.h"
@@ -238,7 +239,8 @@ extern void* AllocMem(int size);
 extern void* AllocFile();
 extern void  MLMReadFile(const char* dev, const char* path, int size, void* dst);
 extern int   FatalErrorf(const char* fmt, ...);  /* ErrorPrintf-style logger  */
-extern int   fn_80057F44();                      /* world-registry hook       */
+/* fn_80057F44 (world-registry hook) is defined in this TU below; its
+ * prototype sits with the 0x80055CB8 block's declarations. */
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern int   ErrorPrintf(const char* fmt, ...);
 extern int   strcmp(const char* lhs, const char* rhs);
@@ -283,7 +285,8 @@ extern s32   PlayerHasShard(s32 player, s32 shard);
 
 /* ---- module data (real names from symbols.txt) --------------------------- */
 extern s32   sWorldLevelTable[]; /* 0x8011C3C0 base; adjacent world tables    */
-extern s32   sWorldDataTypes[];  /* 0x8011C4A8 per-realm world-data type ids  */
+/* sWorldDataTypes (0x8011C4A8) is declared with its real 0x2C-stride record
+ * type below, beside the block that reads its fields. */
 extern s32   sCurWorldType;      /* 0x80343C28 cached resolved realm type     */
 extern s32   sFirstWorldId;      /* 0x80343C2C first loaded realm id (<<8)    */
 extern s32   sCurWorldIndex;     /* 0x80344844 index into type table          */
@@ -352,6 +355,1841 @@ static inline f32 WorldSwapF(f32 v)
 #define WSWAP16(p, off) *(u16*)((p) + (off)) = WorldSwap16(*(u16*)((p) + (off)))
 #define WSWAP32(p, off) *(u32*)((p) + (off)) = WorldSwap32(*(u32*)((p) + (off)))
 #define WSWAPF(p, off)  *(f32*)((p) + (off)) = WorldSwapF(*(f32*)((p) + (off)))
+
+/* ---- declarations the 0x80055CB8..0x80058078 block needs (ported with it
+ * from game/game/gamemain.c, where the split map used to hold it) -------- */
+
+/* NOTE: gamemain.c carried private `WorldDataNav`/`WorldLevelNav` views of
+ * the world-data header and its level array.  This TU already owns the same
+ * two records, fully typed and byte-verified, as `WorldData`/`WorldLevel`
+ * above (curLevel 0x16, numLevels 0x18, levels 0x1C; flags 0x00, flags2
+ * 0x04), so the ported block uses those and the duplicate views are gone. */
+
+typedef struct FogData {
+    u8  type;         /* 0x00 fog mode                     */
+    u8  color[3];     /* 0x01 packed RGB                   */
+    f32 intensity;    /* 0x04                              */
+    f32 density;      /* 0x08                              */
+    f32 min;          /* 0x0C                              */
+    f32 max;          /* 0x10 (also reached as gCurLevel+0x80) */
+    f32 nearw;        /* 0x14                              */
+    f32 farw;         /* 0x18                              */
+} FogData;            /* 0x1C */
+
+/* 44-byte per-realm world-data descriptor table (0x8011... via ADDR16). */
+typedef struct WorldDataType {
+    s32 type;        /* 0x00 realm type id            */
+    u8  _04[11];
+    u8  letter;      /* 0x0F display letter           */
+    s32 available;   /* 0x10 world data is loaded     */
+    s32 f20;         /* 0x14 associated world value    */
+    s32 _b[4];       /* 0x18                          */
+    s32 attractLevel;/* 0x28 attract-mode level index */
+} WorldDataType;                   /* size 0x2C (44) */
+extern WorldDataType sWorldDataTypes[];
+extern s32  sCurWorldIndex;        /* 0x80344844 */
+
+/* Flat views of the big module globals (avoids header coupling). */
+extern s32  lbl_80250E00[];        /* enemy/texmod pool base             */
+extern s32  lbl_802511FC[];        /* per-index sign-flip table          */
+typedef struct Row36 {
+    s32 f0;      /* 0x00 key   */
+    s32 f4;      /* 0x04       */
+    s32 _a[3];   /* 0x08       */
+    s32 f14;     /* 0x14       */
+    s32 _b[3];   /* 0x18       */
+} Row36;                           /* size 0x24 (36) */
+extern Row36 lbl_8011AF48[];       /* 44-entry, stride 36 lookup table   */
+extern s32  lbl_80257640[];        /* 4-entry threshold table            */
+extern void* lbl_80257630[];       /* two thermometer blits at [1],[2]   */
+extern u8    lbl_802575C0[];
+/* gGameOptions is a byte-offset view in this TU; the block below uses the
+ * same *(s32*)(gGameOptions + N) form as the rest of the file. */
+extern u8    gGameOptions[];
+extern s32  lbl_802577CC[];        /* 8 keys                             */
+extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
+
+/* SDA-relative scalars (all in .sdata/.sbss). */
+extern s32   lbl_80343C0C;
+extern s32   lbl_803441B0;
+extern s32   lbl_803441B4;
+extern s32   lbl_803441B8;
+extern s32   lbl_803443BC;
+extern s32   lbl_80344738;
+extern void* lbl_803447B0;
+extern s32   lbl_802512B0[];
+extern s32   toupper(s32 c);
+extern s32   DoWorldAnimSub(void* track, void* animdata, void* animBase);
+extern void  SfxDeleteParented(void* node, s32 arg1, s32 player);
+extern s32   lbl_80344DA4;
+extern s32   lbl_80344DA0;
+extern void  AtreeInitLists(s32 arg0);
+extern void  bulletproof_printf(const char* fmt, ...);
+extern void  serve_busy(s32 arg0);
+extern void  LoadItems(void);
+extern void  MBCompVertScaleAddUV(s32 a, s32 b, f32 x, f32 y, f32 z,
+                                  f32 u, f32 v);
+extern void  InitItems(void);
+extern s32   good_wiz_state;
+extern s32   sWorldDataConst;      /* 0x80344848 */
+extern s32   sMusicTrackHi;        /* 0x803448D8 */
+extern s32   lbl_803447A4;
+extern f32   lbl_80346BE4;
+extern f32   lbl_80346BE8;
+extern f32   lbl_80346BEC;
+extern f32   lbl_80346BF0;
+extern f32   lbl_80346BF4;
+extern s32   BytesFree(void);
+extern void  MBBlitSetAlpha(void* blit, s32 a);
+extern s32   fn_80093BC0(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g, f32 h);
+extern void  SfxSetDamage(s32 a, s32 b, s32 c, f32 d, f32 e, f32 f);
+extern void  ScaleFX(s32 a, f32 b, f32 c, f32 d);
+extern void  AudioWorldExplosion(s32 a);
+
+typedef struct EffectInfoEntry {
+    void* f0;
+    s32 f4;
+    s32 f8;
+} EffectInfoEntry;                 /* size 12 */
+extern EffectInfoEntry EffectInfo[];
+
+/* Byte offsets of the individual string literals inside the pooled .rodata
+ * constant object lbl_80112788 (0x80112788, size 0x24C).  Each entry is a
+ * NUL-terminated literal padded to a 4-byte boundary; the values below are
+ * read from the retail image.  Only the boss .wad names consumed by
+ * init_next_level_8005638C are named here. */
+enum {
+    STR_LEVELS_LEVEL_S = 0,    /* "levels/level%s" */
+    STR_DRAGON_WAD     = 16,   /* "dragon.wad"  */
+    STR_CHIMERA_WAD    = 28,   /* "chimera.wad" */
+    STR_DJINN_WAD      = 40,   /* "djinn.wad"   */
+    STR_DRIDER_WAD     = 52,   /* "drider.wad"  */
+    STR_PBOSS_WAD      = 64,   /* "pboss.wad"   */
+    STR_YETI_WAD       = 76,   /* "yeti.wad"    */
+    STR_LICH_WAD       = 88,   /* "lich.wad"    */
+    STR_WRAITH_WAD     = 100,  /* "wraith.wad"  */
+    STR_SKORNE1_WAD    = 112,  /* "skorne1.wad" */
+    STR_SKORNE2_WAD    = 124,  /* "skorne2.wad" */
+    STR_GARM_WAD       = 136,  /* "garm.wad"    */
+    STR_GOLEMI_WAD     = 148,  /* "golemI.wad"  */
+    STR_GOLEMF_WAD     = 160,  /* "golemF.wad"  */
+    STR_GOLEM_WAD      = 172,  /* "golem.wad"   */
+    STR_GENERAL_WAD    = 184,  /* "general.wad" */
+    STR_GAR_S_WAD      = 196   /* "gar_%s.wad"  */
+};
+extern char  lbl_80257680[];       /* per-level enemy type table; also the
+                                    * path scratch buffer further down */
+typedef struct WorldMemTable {
+    u8  _0[140];
+    s32 sizes[8];     /* 0x8C */
+    u8  _1[160];
+    s32 typeids[8];   /* 0x14C */
+} WorldMemTable;
+extern s32   lbl_80344850;
+extern s32   lbl_80344854;
+extern s32   lbl_80344858;
+extern s32   lbl_8034485C;
+extern s32   lbl_80343C30;
+extern s32   lbl_80344870;
+extern u32   lbl_80344874;
+extern s32*  lbl_80344878;
+extern s32   lbl_80344D80;
+extern s32   lbl_80344D84;
+extern s32   lbl_80344D88;
+extern s32   dbgTextEnable;
+extern s32   mlmMemUsed;
+extern void  WorldLoadModelDone(void* world);
+extern s32   WorldLoadModelStart(void);
+extern s32   StartWorldLoad(s32 arg0);
+extern s32   StartLoadWorldAnim(void* world);
+extern s32   FinishLoadWorldAnim(void);
+extern void  MBOX_BGLoadModelStart(char* name, void* model);
+extern s32   MBOX_BGLoadModelDone(void);
+extern s32*  StartFileRead(char* wad, const char* name, s32 mode, s32 size,
+                           void* dest, void* callback);
+extern s32   CritterLoadStartNext(void);
+extern s32   CritterLoadDone(s32 maxBytes);
+extern void  LoadWeapons(void);
+extern s32   lbl_80344768;
+extern void* gWadAtreeHeaders[];
+extern u32   pbLoad;
+extern s32   lbl_803447B8;
+extern s32   gScriptedCameraState;
+extern char* lbl_8011B578[];       /* category name-string table */
+extern s32   lbl_802577AC[];
+extern void  CreateDynobjGrid(void);
+extern void  SetupDynGrid(void);
+extern void  MBTreeClearFlags(void* node, s32 flags, s32 arg2);
+extern void  MBTreeSetAlpha(void* node, s32 alpha, s32 arg2);
+extern void  AudioGeneratorDies(f32* pos, s32 gen);
+extern void* AtreeInit(void* hdr, void* atree, s32 a, s32 flags);
+extern s32   MBOX_FindTexture_Err(const char* name, void** out, s32 flag);
+extern void  add_got_it(s32 player, s32 subtype, s32 count);
+extern s32   damage_player(s32 i, f32 dmg, s32 mode, u32 flags,
+                           f32* direction);
+extern void  AudioFootstep(s32 n);
+extern void  TowerNeedGargItemsMsg(s32 who, s32 slot);
+extern u8*   CritterNewInst(s32 type, s32 sub, void* mat);
+extern s32   did_generate(void* w, s32 a);
+extern s32   fn_80057F44(s32 code, s32 mask);
+void ResolveWorldData(int worldlevel);   /* defined below in this TU */
+s32  LoadModel(const char* name, void** outData, s32 initTexMods, s32 model);
+void FatalError(const char* msg, int code);
+
+/* Forward declarations inside this block (target .text order puts some
+ * callers ahead of their callees). */
+void* fn_80057ACC(s32 key);
+void  PrintWorldMemSizes(void);
+s32   GetEnemySubtype(s32 type);
+s32   InLevel(const char* tag);
+s32   LevelLetter(s32 arg0);
+s32   NextAttractWave(s32 level);
+s32   PrevWorldLevel(s32 waveMask);
+s32   NextWorldLevel(s32 waveMask);
+s32   WorldExplosion(s32 arg0);
+s32   fn_80055F68(s32 arg0, s32 arg1);
+s32   fn_80056698(s32 arg0, s32 arg1);
+void  fn_8005636C(s32* s);
+void  fn_80057024(void);
+s32   fn_80057BC8(s32 type);
+u32   FindWave(const s8* s);
+void* LevelItemDesc(void);
+void* WorldItemDesc(void);
+void  GetEnemyTypes(void);
+void  DoWorldAnimation(void);
+void  WorldObjectExplode(void* node, s32 arg1);
+s32   init_next_level_8005638C(s32 arg0);
+
+/* Functions that stayed in game/game/gamemain.c (GAMEMAIN.OBJ) and are
+ * called from this block. */
+extern void  AllocEnemy(s32 id, s32 model);
+extern void  LoadEnemy(s32 id, s32 model);
+extern void  fn_800508A0(void);
+extern void  fn_80050910(s32 arg0);
+extern void  fn_80050DD8(char* buf, s32 id, s32 qty);
+extern void  LockModels(s32 arg0);
+extern void  TransitionBlitShow(s32 arg0);
+extern void  fn_800552A4(f32 total, f32 current);
+
+/* 0x8005638C -- build the "levels/level%s" path and load a level. */
+extern u32  lbl_803448D0;
+extern s32  lbl_803448CC;
+extern s32  lbl_803448C8;
+extern s32  lbl_803448C4;
+extern s32  LoadWorldDone(void* name);
+extern void CritterLoadFile(const char* wad, const char* name);
+extern void CritterLoadAllTypes(s32 arg0);
+
+/* 0x80057024 -- world initializer (enemies/effects/critters; level start). */
+extern f32  sMusicFadeBase;
+extern f32  lbl_80346C94;
+extern f64  lbl_80346C98;
+extern f64  lbl_80346C60;
+extern f32  lbl_80346C68;
+extern f32  lbl_80346C90;
+extern f32  lbl_80346C30;
+extern f32  lbl_80346CB0;
+extern f32  lbl_80346CB4;
+extern f32  lbl_80346BF0;
+extern f32  lbl_80346BE0;
+extern f32  gPlayerStartYaw;
+extern f32  sLevelAmbientScale;
+extern s32  gBoss398;
+extern s32  gNumType7Items;
+extern f32  lbl_80344860;
+extern f32  lbl_80344864;
+extern s32  lbl_80344868;
+extern f32  lbl_80344880;
+extern s32  lbl_803447FC;
+extern s32  lbl_803447F8;
+extern s32  lbl_8034489C;
+extern f32  lbl_80344898;
+extern s32  lbl_80344894;
+extern s32  lbl_80344890;
+extern s32  lbl_8034488C;
+extern s32  lbl_8034484C;
+extern s32  lbl_8034486C;
+extern s32  lbl_80344884;
+extern s32  lbl_8023E558[];
+extern f32  gDefaultPlayerPosition[3];
+extern s32  towerGetRuneNearStat(s32 player, s32 world);
+extern void WorldSaveInitState(void);
+extern char* strcpy(char* dst, const char* src);
+extern f32  Random(f32 range);
+extern void AddItemInstList(void);
+extern void AddLocatorInstList(void);
+extern void InitDynGrid(f32 a, f32 b);
+extern void fn_8005D04C(void);
+extern void SumnerInit(void);
+extern void mini_inventory_setup(void);
+extern void AppendBigapePowerupsToScene(void);
+extern void SetupWeaponPowerupTexMods(void);
+extern void SetupItemTexMods(void);
+extern void DoPlayerTexMods(s32 idx);
+extern void InitEffects(void);
+extern void InitItemInfoData(void);
+extern void CritterInitAllMoves(void);
+
+extern f64  lbl_80346C10;
+extern f64  lbl_80346C38;
+extern f64  lbl_80346C18;
+extern f64  lbl_80346C20;
+extern f64  lbl_80346C28;
+extern f64  lbl_80346C40;
+extern f64  lbl_80346C58;
+extern f64  lbl_80346C70;
+extern f64  lbl_80346C78;
+extern f64  lbl_80346C88;
+extern f32  lbl_80346C4C;
+extern f32  lbl_80346C50;
+extern f32  lbl_80346C80;
+extern f32  lbl_80346C84;
+extern s32  lbl_803447B4;
+extern void* lbl_803447B0;
+extern u8*  gBossObj;
+extern s32  gBossDead;
+extern f32  gClockTime;
+extern Effect Effects[]; /* live fx pool, stride 0xF0 (game/effect.h) */
+extern void DoGoodWizard(void);
+extern void ProcessSpewItems(void);
+extern s32  CamGetPlayerAvgPos(f32* pos, s32 mode);
+extern void StartEnterFX(f32* pos);
+extern void fn_8009D288(f32* pos);
+extern void fn_80067AE0(f32 a, f32 b);
+extern s32  sndFxQueUpdate(void);
+extern void* MBOX_FindObject(char* name);
+extern s32  DeleteEffect(s32 idx, s32 mode);
+extern void fn_8009C9DC(s32 mode, void* pos);
+
+/* 0x8005773C - build the per-level enemy-type track table from the current
+ * level's 6 type slots: resolve each to its world-data entry (0x18 stride),
+ * arm its audio streams, synthesise a boss slot (0x1e) when the level calls
+ * for one, resolve missing subtypes, build the subtype->type reverse map, and
+ * apply the easy-difficulty (< 2) type substitutions. */
+extern void AudioClearActiveTracks(void);
+extern void AudioSetupBossStreams(s32 idx, void* data);
+extern char lbl_801129D4[];
+
+typedef struct EnemyTypeRow {
+    u8 pad0[0xEC];
+    u8* ent;
+    u8 pad1[0x1C];
+    s32 subtype;
+    u8 pad2[0x1C];
+    s32 reverse;
+    u8 pad3[0x1C];
+    s32 type;
+} EnemyTypeRow;
+
+typedef struct WorldTypeNav {
+    s32 worldId;
+    u8 _04[12];
+    s32 loaded;
+    s32 numLevels;
+    u8 _18[16];
+    s32 nextLevel;
+} WorldTypeNav;
+
+typedef struct WorldLevelTableNav {
+    u8 _000[232];
+    WorldTypeNav worlds[15];
+} WorldLevelTableNav;
+
+/* 0x80057F44 - validate/normalize a world+level code, resolve it, and walk
+ * forward until a level matching the wave mask is found */
+extern s32 sCurWorldType;
+extern char lbl_801129F8[];   /* "couldn't find world data" fatal fmt */
+
+extern u8    sMilestones[];
+void world_update(void);
+
+/* ==========================================================================
+ * .text 0x80055CB8 - 0x80058078: the 24 functions the split map used to
+ * assign to game/game/gamemain.c.  They are gauntworld.obj's, not
+ * GAMEMAIN.OBJ's, and they are emitted here in TARGET .text ORDER.
+ *
+ * Evidence (measured 2026-09-04, all four axes agree and none is the PDB
+ * name link):
+ *   .text      the run 0x80055CB8..0x80058078 is contiguous and butts
+ *              directly onto ResolveWorldData below it.
+ *   extabindex the same run's entries are contiguous at
+ *              0x80009D00..0x80009F70 (DoWorldAnimation .. fn_80057F44).
+ *   extab      their tables are contiguous at 0x80006320..0x80006388.
+ *   .rodata    every function in the run that reads a string reads
+ *              0x80112788 or above; no function of the real GAMEMAIN.OBJ
+ *              block ever reads above 0x8011277C ("THERMCOL").
+ *   .sdata2    the run's pool entries are 0x80346BE0..0x80346CB4 and they
+ *              INTERLEAVE with ResolveWorldDataPointers' (0x80346BE0,
+ *              0x80346C70) -- one object's pool, not two.
+ * The verdict on init_next_level_8005638C (the one contradiction the run-55
+ * finding left open) and the per-function evidence are recorded as
+ * claim.SM_init-next-level-is-gauntworlds-not-gamemains-and-the-verdict-rests-
+ * on-four-retail-byte-axes-not-the-pdb-name.20260904.v1 (2026-09-04).
+ * Falsify with:
+ *   python tools/gdl/fuzzy.py game/world/gauntworld
+ *   python tools/gdl/textorder.py game/world/gauntworld
+ * ========================================================================== */
+
+static s32 worldAnimIndexMatches(s32 entry, s32 index)
+{
+    return entry == index;
+}
+
+/* 0x80055CB8 -- find the worldanim bound to a given world object. */
+s16* FindWobjWanim(void* wobj)
+{
+    s32 idx = ((s32)wobj - (s32)gWorldInfo.wobjs) / 60;   /* stride 60 */
+    u8* wa = (u8*)gWorldInfo.worldanims;
+
+    s32 i;
+
+    for (i = 0; i < gWorldInfo.nworldanims; i++) {
+        if (worldAnimIndexMatches(*(s16*)(wa + i * 16), idx)) {
+            return (s16*)(wa + i * 16);
+        }
+    }
+    return 0;
+}
+
+/* Advance every active world-object animation track. */
+void DoWorldAnimation(void)
+{
+    u8* data_off;
+    u8* track_off;
+    s32* count;
+    s32* header;
+    s32 i;
+    u8* anim_base;
+
+    if ((void*)gWorldInfo.atreelist != NULL) {
+        DoTexMods((void*)gWorldInfo.atreelist);
+    }
+    if ((lbl_80344768 > 0 || (gGameMode & MODE_GROUP_ATTRACT) != 0) &&
+        (lbl_803443BC <= 10 || lbl_803443BC >= 100000) &&
+        gWorldInfo.nworldanims != 0 && (void*)gWorldInfo.animheader != NULL) {
+        count = &gWorldInfo.nworldanims;
+        header = (s32*)gWorldInfo.animheader;
+        anim_base = (u8*)header[3];
+        i = 0;
+        data_off = NULL;
+        track_off = NULL;
+        lbl_803441B8 = header[0];
+        lbl_803441B4 = header[1];
+        lbl_803441B0 = header[2];
+        while (i < *count) {
+            u8* track = (u8*)gWorldInfo.worldanims + (u32)track_off;
+            if (*(u32*)(track + 12) != 0) {
+                DoWorldAnimSub(track, (u8*)gWorldInfo.animdata + (u32)data_off, anim_base);
+            }
+            i++;
+            data_off += 160;
+            track_off += 16;
+        }
+    }
+}
+
+/* 0x80055E04 -- run WorldExplosion, then flag a scene-node subtree. */
+void WorldObjectExplode(void* node, s32 arg1)
+{
+    s32* n = (s32*)node;
+
+    WorldExplosion(arg1);
+    while (n != 0) {
+        MBTreeSetFlags((void*)n[10], 2, 0);   /* +0x28 */
+        n[4] |= 0x10000000;                   /* +0x10 */
+        n = (s32*)n[6];                       /* +0x18 next */
+    }
+}
+
+/* 0x80055E60 -- spawn the level-transition effect for the current music. */
+s32 WorldExplosion(s32 arg0)
+{
+    f32 f31;
+    f32 f30;
+    s32 fxid;
+    s32 result;
+    s32 dmg;
+
+    f30 = lbl_80346BE0;
+    switch (sMusicTrackHi) {
+    case 9:
+    case 11:
+        f31 = lbl_80346BE4;
+        fxid = 94;
+        dmg = 2048;
+        break;
+    default:
+        f31 = lbl_80346BE8;
+        fxid = -1;
+        f30 = lbl_80346BEC;
+        dmg = 0;
+        break;
+    }
+    if (fxid < 0 || EffectInfo[fxid].f0 == 0) {
+        fxid = 22;
+        dmg = 33;
+    }
+    result = fn_80093BC0(fxid, arg0, 0, 43, 0, 4, 0, lbl_80346BF0);
+    SfxSetDamage(result, dmg, 0, lbl_80346BF4, f31, lbl_80346BF0);
+    ScaleFX(result, f30, lbl_80346BE0, f30);
+    AudioWorldExplosion(arg0);
+    return result;
+}
+
+/* 0x80055F68 -- asynchronous world/model/atree/critter load state machine. */
+#pragma dont_inline on
+s32 fn_80055F68(s32 arg0, s32 arg1)
+{
+    register u8* table = (u8*)lbl_80257680;
+    char name[264];
+    volatile u8 unused[4];
+    s32 type;
+    s32 qty;
+    s32 size;
+
+    if (lbl_80343C30 < 0) {
+        return -1;
+    }
+    if (arg1 < 0) {
+        if (lbl_80343C30 != 0) {
+            return 0;
+        }
+        return 1;
+    }
+
+    if (lbl_80343C30 == 12) goto state12;
+    if (lbl_80343C30 >= 12) goto dispatch_high;
+    if (lbl_80343C30 == 4) goto state4;
+    if (lbl_80343C30 >= 4) goto dispatch_mid;
+    if (lbl_80343C30 == 1) goto state1;
+    if (lbl_80343C30 >= 1) goto dispatch_low;
+    if (lbl_80343C30 >= 0) goto state0;
+    goto invalid;
+
+dispatch_low:
+    if (lbl_80343C30 >= 3) goto state3;
+    goto state2;
+
+dispatch_mid:
+    if (lbl_80343C30 == 10) goto state10;
+    if (lbl_80343C30 >= 10) goto state11;
+    if (lbl_80343C30 >= 6) goto invalid;
+    goto state5;
+
+dispatch_high:
+    if (lbl_80343C30 == 21) goto state21;
+    if (lbl_80343C30 >= 21) goto dispatch_very_high;
+    if (lbl_80343C30 == 14) goto state14;
+    if (lbl_80343C30 < 14) goto state13;
+    if (lbl_80343C30 >= 20) goto state20;
+    goto invalid;
+
+dispatch_very_high:
+    if (lbl_80343C30 == 100) goto invalid;
+    if (lbl_80343C30 >= 100) goto invalid;
+    if (lbl_80343C30 == 30) goto state30;
+    goto invalid;
+
+state0:
+    WorldLoadModelDone(table + 0xAC);
+    lbl_80343C30 = 1;
+    goto done;
+
+state1:
+    if (WorldLoadModelStart() != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 2;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state2:
+    if (StartWorldLoad(arg1) != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 3;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state3:
+    if (StartLoadWorldAnim(table + 0xAC) != 0) {
+        lbl_80343C30 = 4;
+    } else {
+        lbl_80343C30 = 5;
+    }
+    goto done;
+
+state4:
+    if (FinishLoadWorldAnim() != 0) {
+        lbl_80343C30 = 5;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state5:
+    lbl_80343C30 = 10;
+state10:
+    type = *(s32*)(table + offsetof(EnemyTypeRow, type) + lbl_80344870 * 4);
+    arg1 = type;
+    if (type >= 0) {
+        qty = *(s32*)(table + offsetof(EnemyTypeRow, subtype) +
+                      lbl_80344870 * 4);
+        fn_80050DD8(name, arg1, qty);
+        MBOX_BGLoadModelStart(name, (void*)lbl_802512B0[arg1]);
+        lbl_80343C30 = 11;
+    } else {
+        lbl_80343C30 = 14;
+    }
+    goto done;
+
+state11:
+    if (MBOX_BGLoadModelDone() != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 12;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state12:
+    {
+        type = *(s32*)(table + offsetof(EnemyTypeRow, type) +
+                       lbl_80344870 * 4);
+        if (gWadAtreeHeaders[type] != 0) {
+            qty = *(s32*)(table + offsetof(EnemyTypeRow, subtype) +
+                          lbl_80344870 * 4);
+            fn_80050DD8(name, type, qty);
+            size = FileSize(name, "anim");
+            lbl_80344878 = StartFileRead(name, "anim", 0, size,
+                                         gWadAtreeHeaders[type], fn_8005636C);
+            lbl_80343C30 = 13;
+        } else {
+            lbl_80343C30 = 14;
+        }
+    }
+    goto done;
+
+state13:
+    if (lbl_80344878[4] != 0) {
+        EnemyTypeRow* entry;
+
+        lbl_80344878[4] = -1;
+        entry = (EnemyTypeRow*)table;
+        entry = (EnemyTypeRow*)((u8*)entry + lbl_80344870 * 4);
+        type = entry->type;
+        fn_8001267C(gWadAtreeHeaders[type], lbl_802512B0[type], -1);
+        lbl_80343C30 = arg1 != 0 ? 100 : 14;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state14:
+    {
+        s32 next;
+        EnemyTypeRow* entry = (EnemyTypeRow*)table;
+
+        entry = (EnemyTypeRow*)((u8*)entry + lbl_80344870 * 4);
+        type = entry->type;
+    if (type >= 0) {
+        fn_80050910(type);
+    }
+        next = lbl_80344870 + 1;
+        lbl_80344870 = next;
+    if (next >= 8) {
+        lbl_80343C30 = 20;
+    } else {
+        lbl_80343C30 = 10;
+    }
+    }
+    goto done;
+
+state20:
+    if (CritterLoadStartNext() != 0) {
+        lbl_80343C30 = 21;
+    } else {
+        lbl_80343C30 = 30;
+    }
+    goto done;
+
+state21:
+    if (CritterLoadDone(0) != 0) {
+        lbl_80343C30 = arg1 != 0 ? 100 : 20;
+        lbl_80344874 = pbLoad;
+    }
+    goto done;
+
+state30:
+    lbl_80343C30 = 100;
+    goto done;
+
+invalid:
+    lbl_80343C30 = -1;
+    return 1;
+done:
+    return 0;
+}
+#pragma dont_inline reset
+
+/* 0x8005636C -- advance a two-field counter unless it is parked at 2. */
+void fn_8005636C(s32* s)
+{
+    if (s[4] == 2) {
+        return;
+    }
+    s[1] += s[2];
+}
+
+#pragma opt_common_subs off
+s32 init_next_level_8005638C(s32 arg0)
+{
+    u8* tbl = (u8*)lbl_80257680;
+    u8* q;
+    s32 i;
+    s32 result;
+    s32 flag;
+    s32 off;
+    u8* w;
+    s32 id;
+    s32 t;
+
+    lbl_80344874 = pbLoad;
+    if (arg0 < 0) {
+        LoadWorldDone(0);
+        lbl_80343C30 = -1;
+        return -1;
+    }
+    ResolveWorldData(arg0);
+    {
+        s32 hi = sMusicTrackHi;
+        s32 lo = sMusicTrackLo;
+        lbl_803448D0 = hi;
+        lbl_803448CC = lo;
+        if (hi != 13) {
+            lbl_803448C8 = hi;
+            lbl_803448C4 = lo;
+        }
+    }
+    sprintf((char*)(tbl + 172), "levels/level%s", gCurLevel->name);
+    lbl_80344854 = mlmMemUsed;
+    lbl_80343C30 = 0;
+    result = LoadWorldDone(tbl + 172);
+    GetEnemyTypes();
+
+    if (*(s32*)(gGameOptions + 8) < 2 && gBossType < 0 && arg0 != sWorldDataConst &&
+        lbl_80344738 < 0) {
+        lbl_80344738 = LoadModel("gen", 0, 0, -1);
+    }
+
+    for (i = 0, off = 0; i < 8; i++, off += 4) {
+        q = tbl + off;
+        t = *(s32*)(q += 332);
+
+        w = tbl + off;
+        *(s32*)(w += 140) = 0;
+        id = t;
+        flag = 1;
+        switch (t) {
+        case E_DRAGON:
+            CritterLoadFile("critter", "dragon.wad");
+            break;
+        case E_CHIMERA:
+            CritterLoadFile("critter", "chimera.wad");
+            break;
+        case E_DJINN:
+            CritterLoadFile("critter", "djinn.wad");
+            break;
+        case E_DRIDER:
+            CritterLoadFile("critter", "drider.wad");
+            break;
+        case E_PBOSS:
+            CritterLoadFile("critter", "pboss.wad");
+            break;
+        case E_YETI:
+            CritterLoadFile("critter", "yeti.wad");
+            break;
+        case E_LICH:
+            CritterLoadFile("critter", "lich.wad");
+            break;
+        case E_WRAITH:
+            CritterLoadFile("critter", "wraith.wad");
+            break;
+        case E_SKORNE1:
+            CritterLoadFile("critter", "skorne1.wad");
+            break;
+        case E_SKORNE2:
+            CritterLoadFile("critter", "skorne2.wad");
+            break;
+        case E_GARM:
+            CritterLoadFile("critter", "garm.wad");
+            break;
+        case E_GOLEM:
+            if (sMusicTrackHi == 9) {
+                CritterLoadFile("critter", "golemI.wad");
+            } else if (sMusicTrackHi == 6) {
+                CritterLoadFile("critter", "golemF.wad");
+            } else {
+                CritterLoadFile("critter", "golem.wad");
+            }
+            break;
+        case E_GENERAL:
+            CritterLoadFile("critter", "general.wad");
+            break;
+        case E_GARGOYLE: {
+            char buf[16];
+            u8* e = tbl + off;
+            sprintf(buf, "gar_%s.wad", *(char**)(e + 236) + 16);
+            CritterLoadFile("critter", buf);
+            break;
+        }
+        default:
+            flag = 0;
+            if (id >= 0) {
+                u8* e;
+                *(s32*)w = BytesFree();
+                e = tbl + off;
+                AllocEnemy(id, *(s32*)(e + 268));
+                *(s32*)w = *(s32*)w - BytesFree();
+            }
+            break;
+        }
+        if (flag != 0) {
+            *(s32*)q = -1;
+        }
+    }
+
+    CritterLoadAllTypes(0);
+    lbl_80344870 = 0;
+    if (arg0 != sWorldDataConst) {
+        InitItems();
+    }
+    lbl_80344858 = 0;
+    LockModels(2);
+    return result;
+}
+#pragma opt_common_subs on
+
+/* 0x80056698 -- resolve a world/level then tally its memory footprint. */
+s32 fn_80056698(s32 arg0, s32 arg1)
+{
+    s32* p;
+    s32* q;
+    s32 total = 0;
+
+    ResolveWorldData(arg0);
+    if (arg1 < 0) {
+        init_next_level_8005638C(arg0);
+        while (fn_80055F68(0, 0) == 0) {
+            serve_busy(-1);
+        }
+    }
+    p = (s32*)lbl_80344DA4;
+    if (p != 0) {
+        total = p[0] + p[20] * 3;   /* +0x50 */
+        total += p[22];             /* +0x58 */
+    }
+    q = (s32*)lbl_80344DA0;
+    if (q != 0) {
+        total += q[0];
+        total += q[20] * 2;
+        total += q[22];
+    }
+    return total;
+}
+
+/* 0x800579E0 -- does the given 4-char tag match the current level id?
+ * OUT OF .text ORDER ON PURPOSE: the target INLINES this function twice into
+ * fn_80057024 (0x80057024), which .text places 0x9BC bytes BEFORE it, and
+ * MWCC only inlines a function already defined.  Emitting the block in .text
+ * order therefore costs fn_80057024 its two inline expansions (measured
+ * 2026-09-04: 92.4062% -> 73.8923%, two `bl` where the target has 26
+ * instructions of lbz/extsb/cmpw/bne).  So the real TU's SOURCE order is not
+ * its .text order for this function, and this definition is hoisted here to
+ * keep the expansions.  Falsify with
+ * `python tools/gdl/fndiff.py game/world/gauntworld fn_80057024 --ops`. */
+s32 InLevel(const char* tag)
+{
+    char* lvl = (char*)gCurLevel;
+
+    if (lvl[8] == tag[0] &&
+        (lvl[9] == 0 || lvl[9] == tag[1]) &&
+        (lvl[10] == 0 || lvl[10] == tag[2]) &&
+        (lvl[11] == 0 || lvl[11] == tag[3])) {
+        return 1;
+    }
+    return 0;
+}
+
+/* 0x8005674C - per-frame world state update (fades, boss timers, wobjs). */
+#pragma dont_inline on
+void world_update(void)
+{
+    char* strs = lbl_80112788;
+    u8* tbl = (u8*)lbl_80257680;
+    s32 cond;
+    s32 i;
+    s32 off;
+    s32 kill;
+    f32 d;
+    f32 pos[3];
+    f32 a;
+
+    cond = 1;
+    if (lbl_803447B8 != 0 && gCurLevel->earlyenemies == 0) {
+        cond = 0;
+    }
+    lbl_8034488C = cond ? 1 : 0;
+    if (gGameBusy | gGameplayPauseTimer) {
+        return;
+    }
+    DoWorldAnimation();
+    SetupDynGrid();
+    CreateDynobjGrid();
+    if (gBossType >= 0 && gGameMode == MG_PLAY) {
+        if (good_wiz_state) {
+            DoGoodWizard();
+        }
+        ProcessSpewItems();
+    }
+    if (gGameMode == MG_PLAY || gGameMode == MG_ROUND_START) {
+        if (lbl_803447B8 != 0) {
+            d = sMusicFadeBase - lbl_80344860;
+            if (d < lbl_80346C10) {
+                a = (f32)(lbl_80346C18 *
+                          (lbl_80346C20 - (f32)(lbl_80346C28 * d)));
+                MBCompVertScaleAddUV(lbl_8034486C, 0, a, a, lbl_80346C30,
+                                     lbl_80346BF0, lbl_80346BF0);
+            } else {
+                if (!lbl_80344868) {
+                    u8* lv = (u8*)gCurLevel;
+                    u8* hdr = lv + 0x70;
+                    s32 col = 0;
+
+                    if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                        col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+                    }
+                    MBCompVertScaleAddUV(
+                        col, hdr[0], *(f32*)(hdr + offsetof(FogData, min)), *(f32*)(hdr + offsetof(FogData, max)),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, nearw))),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, farw))),
+                        (f32)(lbl_80346C38 * *(f32*)(hdr + offsetof(FogData, density))));
+                    lbl_80344868 = 1;
+                }
+                if (lbl_803447B8 == 1) {
+                    lbl_803447B8 = 2;
+                    if (CamGetPlayerAvgPos(pos, 2)) {
+                        StartEnterFX(pos);
+                        fn_8009D288(pos);
+                    } else {
+                        StartEnterFX(gDefaultPlayerPosition);
+                        fn_8009D288(gDefaultPlayerPosition);
+                    }
+                }
+                if (d >= lbl_80346C40 && gScriptedCameraState > 1) {
+                    gScriptedCameraState = 1;
+                }
+            }
+        } else {
+            if (!lbl_80344868) {
+                u8* lv = (u8*)gCurLevel;
+                u8* hdr = lv + 0x70;
+                s32 col = 0;
+
+                if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                    col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
+                }
+                MBCompVertScaleAddUV(
+                    col, hdr[0], *(f32*)(hdr + offsetof(FogData, min)), *(f32*)(hdr + offsetof(FogData, max)),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, nearw))),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, farw))),
+                    (f32)(lbl_80346C38 * *(f32*)(hdr + offsetof(FogData, density))));
+                lbl_80344868 = 1;
+            }
+        }
+    }
+    {
+        u8* lv = (u8*)gCurLevel;
+
+        if ((s8)lv[8] == (s8)"C5"[0] &&
+            ((s8)lv[9] == 0 || (s8)lv[9] == (s8)"C5"[1]) &&
+            ((s8)lv[10] == 0 || (s8)lv[10] == (s8)"C5"[2]) &&
+            ((s8)lv[11] == 0 || (s8)lv[11] == (s8)"C5"[3])) {
+            cond = 1;
+        } else {
+            cond = 0;
+        }
+    }
+    if (cond && gGameMode == MG_PLAY && gBossObj != NULL &&
+        *(s32*)(gBossObj + offsetof(Critter, state)) != 0) {
+        {
+            u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
+
+            if (w != 0 && *(u32*)(w + 0x28) != 0) {
+                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            } else {
+                ErrorPrintf(strs + 0xdc);
+            }
+        }
+        {
+            u32 w = (u32)FindWORLDOBJ(strs + 0xfc);
+
+            if (w != 0 && *(u32*)(w + 0x28) != 0) {
+                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            } else {
+                ErrorPrintf(strs + 0x108);
+            }
+        }
+    }
+    {
+        f64 k2 = lbl_80346C60;
+        f64 k1 = lbl_80346C58;
+
+        for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
+            u8* row = tbl + off;
+            u8* wo = *(u8**)(row + 0x4c);
+            u8* node;
+            f32* timer;
+
+            if (wo == 0) {
+                continue;
+            }
+            node = *(u8**)(wo + 0x28);
+            if (node == 0) {
+                continue;
+            }
+            if (*(s32*)(node + 0x60) & 2) {
+                timer = (f32*)(row + 0x5c);
+                if (sMusicFadeBase >= *timer) {
+                    fn_80067AE0(lbl_80346C4C, lbl_80346C50);
+                    MBTreeClearFlags(*(void**)(wo + 0x28), 2, 0);
+                    *timer = (f32)(k1 + sMusicFadeBase);
+                }
+            } else {
+                timer = (f32*)(row + 0x5c);
+                if (sMusicFadeBase >= *timer) {
+                    MBTreeSetFlags(node, 2, 0);
+                    *timer = (f32)(k2 + sMusicFadeBase +
+                                   Random(lbl_80346C68));
+                }
+            }
+        }
+    }
+    if (gGameMode == MG_PLAY && lbl_803447B4 != 0) {
+        if (lbl_80344864 == lbl_80346C70) {
+            lbl_80344864 = sMusicFadeBase;
+            if (gBossType != 0x2c) {
+                TransitionBlitShow(0);
+            }
+            if (lbl_803447B0 != NULL) {
+                MBBlitSetAlpha(lbl_803447B0, 255);
+            }
+            MBCompVertScaleAddUV(0, 0, lbl_80346BF0, lbl_80346BF0,
+                                 lbl_80346BF0, lbl_80346BF0, lbl_80346BF0);
+        } else {
+            d = sMusicFadeBase - lbl_80344864;
+            if (d < lbl_80346C78) {
+                if (lbl_803447B0 != NULL) {
+                    MBBlitSetAlpha(lbl_803447B0,
+                                   (s32)(lbl_80346C18 *
+                                         (lbl_80346C20 - lbl_80346C28 * d)));
+                }
+                sLevelAmbientScale = (f32)(lbl_80346C20 - d);
+            } else {
+                if (lbl_803447B0 != NULL) {
+                    MBBlitSetAlpha(lbl_803447B0, 0);
+                }
+                sLevelAmbientScale = lbl_80346C80;
+                if (!sndFxQueUpdate()) {
+                    lbl_803447B4 = 2;
+                }
+            }
+        }
+    }
+    PrintWorldMemSizes();
+    if (gBossDead) {
+        lbl_8034489C = 99;
+    }
+    switch (lbl_8034489C) {
+    case 2:
+        if (lbl_80344898 == lbl_80346C70) {
+            switch (gBossType) {
+            case 0x29:
+            case 0x2a:
+                lbl_80344898 = (f32)(lbl_80346C20 + sMusicFadeBase);
+                break;
+            case 0x23:
+                lbl_80344898 = (f32)(lbl_80346C20 + sMusicFadeBase);
+                break;
+            default:
+                lbl_80344898 = (f32)(lbl_80346C40 + sMusicFadeBase);
+                break;
+            }
+        } else if (sMusicFadeBase >= lbl_80344898) {
+            lbl_8034489C = 3;
+            lbl_80344898 = lbl_80346BF0;
+        }
+        fn_80067AE0(lbl_80346C4C, lbl_80346C84);
+        break;
+    case 3:
+        fn_80067AE0(lbl_80346C4C, lbl_80346C84);
+        break;
+    case 4:
+        lbl_8034489C = 5;
+        lbl_80344898 = sMusicFadeBase;
+        break;
+    case 5:
+        kill = 0;
+        d = sMusicFadeBase - lbl_80344898;
+        switch (gBossType) {
+        case 0x27:
+        case 0x28:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                kill = 1;
+                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
+            }
+            break;
+        case 0x2a:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                kill = 1;
+                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
+            }
+            break;
+        case 0x24:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                kill = 1;
+            }
+            break;
+        case 0x26:
+            if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
+                void* found = MBOX_FindObject(strs + 0x128);
+                u32 o = *(u32*)(gBossObj + offsetof(Critter, hitnode1));
+
+                if (o != 0 && *(u32*)(o + 0x78) != 0) {
+                    MBSetObject((void*)*(s32*)(o + 0x78), found);
+                }
+                *(u16*)(gBossObj + offsetof(Critter, unkAC6)) = 0;
+                lbl_8034489C = 6;
+            }
+            break;
+        }
+        if (kill) {
+            if (lbl_80344894 >= 0) {
+                lbl_80344894 = DeleteEffect(lbl_80344894, 1);
+                fn_8009C9DC(3, gBossObj + offsetof(Critter, movevec));
+                fn_8009C9DC(4, gBossObj + offsetof(Critter, movevec));
+            }
+            lbl_8034489C = 6;
+        }
+        if (lbl_80344890 >= 0) {
+            u8* e = (u8*)Effects + lbl_80344890 * 0xf0;
+            f32 dt = *(f32*)(e + 0x68) - gClockTime;
+
+            if (dt < lbl_80346C40) {
+                if (!(*(s32*)(e + 0x64) & 0x4020)) {
+                    u32 o = *(u32*)(e + 0x14);
+
+                    if (o != 0) {
+                        s32 al = (s32)(lbl_80346C90 * dt);
+
+                        while (al > 255) {
+                            al -= 255;
+                        }
+                        MBTreeSetAlpha(
+                            (void*)*(s32*)(*(s32*)(o + 0x78) + 0x78), al, 2);
+                    }
+                }
+            }
+        }
+        break;
+    }
+}
+
+#pragma dont_inline reset
+
+void fn_80057024(void)
+{
+    u8* tbl = (u8*)lbl_80257680;
+    char* fmt = lbl_80112788;
+    f32 z = lbl_80346BF0;
+    s32 off;
+    s32 i;
+    u8* p;
+
+    lbl_80344860 = sMusicFadeBase;
+    lbl_80344864 = z;
+    lbl_80344868 = 0;
+    lbl_80344880 = lbl_80346C94;
+    lbl_803447FC = 18000;
+    lbl_803447F8 = 18000;
+    gDefaultPlayerPosition[0] = z;
+    gDefaultPlayerPosition[1] = z;
+    gDefaultPlayerPosition[2] = z;
+    gPlayerStartYaw = z;
+    gBoss398 = -1;
+    lbl_8034489C = 0;
+    lbl_80344898 = z;
+    lbl_80344894 = -1;
+    lbl_80344890 = -1;
+    gNumType7Items = 0;
+    lbl_8034488C = 0;
+
+    if (gBossType >= 0 && gBossType < 43) {
+        lbl_8034489C = 0;
+        for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 13148) {
+            u8* q = p + off;
+            s32 st = *(s32*)(q + offsetof(Player, state));
+            if (st == 1 || st == 5 || st == 3) {
+                if (lbl_8034489C != 0) {
+                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
+                } else if (towerGetRuneNearStat(i, sMusicTrackHi) != 0) {
+                    *(s32*)(q + offsetof(Player, quest_state)) = 1;
+                    lbl_8034489C = 1;
+                    lbl_80344898 = z;
+                } else {
+                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
+                }
+            }
+        }
+    }
+
+    WorldSaveInitState();
+    lbl_80344880 = (f32)(gWorldInfo.worldmin[1] - lbl_80346C98);
+    GetEnemyTypes();
+
+    if (*(s32*)(gGameOptions + 8) < 2 && gBossType < 0 && sMusicTrackHi != 13 &&
+        lbl_80344738 < 0) {
+        lbl_80344738 = LoadModel("gen", 0, 0, -1);
+    }
+
+    {
+        s32* pool = lbl_802511FC;
+        for (off = 0, i = 0; i < 8; i++, off += 4) {
+            s32 raw = *(s32*)(tbl + off + 332);
+            s32 t = raw;
+            if (raw < E_GARGOYLE) {
+                if (raw == E_GOLEM) {
+                    continue;
+                }
+            } else {
+                if (raw >= E_MAXTYPES) {
+                    goto chk;
+                }
+                continue;
+            }
+chk:
+            if (t >= 0) {
+                s32* pe = pool + t;
+                if (pe[0] == 0) {
+                    LoadEnemy(t, *(s32*)(tbl + off + 268));
+                }
+            }
+        }
+    }
+
+    {
+        s32 free0 = BytesFree();
+        if (!(gGameMode & MODE_GROUP_ATTRACT)) {
+            LoadWeapons();
+        }
+        LoadPowerups((char*)lbl_80344888);
+        lbl_80344858 = lbl_80344858 + (free0 - BytesFree());
+        free0 = BytesFree();
+        LoadItems();
+        lbl_8034485C = free0 - BytesFree();
+    }
+
+    if (gWorldInfo.atreelist != 0) {
+        InitTexMods(gWorldInfo.atreelist, gWorldInfo.model);
+    }
+    fn_800508A0();
+    SetupWeaponPowerupTexMods();
+    SetupItemTexMods();
+    i = 0;
+    do {
+        DoPlayerTexMods(i);
+        i++;
+    } while (i < 4);
+    InitEffects();
+    InitItemInfoData();
+    CritterInitAllMoves();
+
+    if (InLevel("A5")) {
+        lbl_8034484C = 4;
+        strcpy((char*)(tbl + 108), fmt + 312);
+    } else if (InLevel("F2")) {
+        lbl_8034484C = 4;
+        strcpy((char*)(tbl + 108), fmt + 328);
+    } else {
+        lbl_8034484C = 0;
+    }
+
+    {
+        f64 kOff = lbl_80346C60;
+        for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
+            sprintf((char*)tbl, "%s%d", tbl + 108, i + 1);
+            *(s32*)(tbl + off + 76) = (s32)FindWORLDOBJ((char*)tbl);
+            if (*(void**)(tbl + off + 76) != 0 &&
+                *(void**)(*(u8**)(tbl + off + 76) + 40) != 0) {
+                MBTreeSetFlags(*(void**)(*(u8**)(tbl + off + 76) + 40), 2, 0);
+            } else {
+                ErrorPrintf(fmt + 344, tbl);
+            }
+            *(f32*)(tbl + off + 92) =
+                (f32)(kOff + sMusicFadeBase + Random(lbl_80346C68));
+        }
+    }
+
+    world_update();
+    AddItemInstList();
+    AddLocatorInstList();
+    if (gBossType >= 0) {
+        InitDynGrid(lbl_80346C68, lbl_80346CB0);
+    } else {
+        InitDynGrid(lbl_80346CB4, lbl_80346CB0);
+    }
+    SetupDynGrid();
+    CreateDynobjGrid();
+    fn_8005D04C();
+    good_wiz_state = 0;
+    lbl_8023E558[24] = 0;
+    lbl_80344884 = 0;
+    if (sMusicTrackHi == 13) {
+        SumnerInit();
+    }
+    if (gGameMode == MG_PLAY || gGameMode == MG_ROUND_START) {
+        MBCompVertScaleAddUV(lbl_8034486C, 0, lbl_80346C90, lbl_80346C90,
+                             lbl_80346C30, lbl_80346BF0, lbl_80346BF0);
+    } else {
+        MBCompVertScaleAddUV(0, 0, lbl_80346BF0, lbl_80346BF0, lbl_80346BF0,
+                             lbl_80346BF0, lbl_80346BF0);
+        sLevelAmbientScale = lbl_80346BE0;
+    }
+    if (!(gGameMode & MODE_GROUP_ATTRACT)) {
+        lbl_80344850 = 1;
+    }
+    mini_inventory_setup();
+    AppendBigapePowerupsToScene();
+}
+
+
+/* 0x800575CC -- debug dump of the per-category memory usage. */
+#pragma opt_propagation off
+void PrintWorldMemSizes(void)
+{
+    char* fmt = lbl_80112788;
+    WorldMemTable* t = (WorldMemTable*)lbl_80257680;
+    s32 sum;
+    u8 unused[8];
+    s32 i;
+    WorldMemTable* entry;
+
+    if (lbl_80344850 == 0) {
+        return;
+    }
+    sum = 0;
+    if (dbgTextEnable == 0) {
+        lbl_80344850 = 0;
+    }
+    bulletproof_printf(fmt + 368, lbl_80344854);
+    bulletproof_printf(fmt + 388, lbl_80344D88);
+    bulletproof_printf(fmt + 408, lbl_803447A4);
+    bulletproof_printf(fmt + 428, lbl_80344D80);
+    bulletproof_printf(fmt + 448, lbl_80344D84);
+    bulletproof_printf(fmt + 468, lbl_8034485C);
+    bulletproof_printf(fmt + 488, lbl_80344858);
+    for (i = 0; i < 8; i++) {
+        entry = (WorldMemTable*)((u8*)t + i * 4);
+        sum += *(volatile s32*)&entry->sizes[0];
+    }
+    bulletproof_printf(fmt + 508, sum);
+    for (i = 0; i < 8; i++) {
+        entry = (WorldMemTable*)((u8*)t + i * 4);
+        if (entry->typeids[0] >= 0 && entry->sizes[0] >= 0) {
+            bulletproof_printf(fmt + 528,
+                               lbl_8011B578[entry->typeids[0]],
+                               entry->sizes[0]);
+        }
+    }
+    bulletproof_printf(fmt + 540);
+    bulletproof_printf(fmt + 568, mlmMemUsed);
+    lbl_80344850 = 0;
+}
+#pragma opt_propagation reset
+
+#pragma opt_lifetimes off
+void GetEnemyTypes(void)
+{
+    u8* tbl = (u8*)lbl_80257680;
+    s32 i;
+    s32 seen1e = 0;
+    u8* etab = *(u8**)((u8*)gWorldData + 0x20);
+    s32 off;
+    s32 levelOff;
+
+    AudioClearActiveTracks();
+    i = 0;
+    off = 0;
+    levelOff = 0;
+    for (; i < 8; i++, off += 4, levelOff += 2) {
+        s32 type;
+        s32 t14c;
+        u8* ent;
+        u8* subWords;
+        u8* typeWords;
+
+        if (i < 6) {
+            type = *(s16*)((u8*)gCurLevel + levelOff + offsetof(level_data, enemytype));
+        } else {
+            type = -1;
+        }
+        if (type >= 0) {
+            ent = etab + type * 0x18;
+
+            {
+                EnemyTypeRow* slot = (EnemyTypeRow*)tbl;
+                slot = (EnemyTypeRow*)((u8*)slot + off);
+                slot->type = *(s32*)ent;
+                slot->subtype = *(s32*)(ent + 0x4);
+            }
+            if (*(s32*)(ent + 0x4) != 9 && *(s32*)(ent + 0x4) != 5) {
+                AudioSetupBossStreams(i, ent + 0x8);
+            }
+            {
+                EnemyTypeRow* slot = (EnemyTypeRow*)tbl;
+                slot = (EnemyTypeRow*)((u8*)slot + off);
+                slot->ent = ent;
+            }
+        } else if (gCurLevel->bosstype < 0 && *(s32*)gWorldData != 0xD &&
+                   seen1e == 0) {
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, type)) = 0x1E;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, subtype)) = 0;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, ent)) = 0;
+        } else {
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, type)) = -1;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, subtype)) = 0;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, ent)) = 0;
+        }
+
+        typeWords = tbl;
+        typeWords += off;
+        t14c = *(s32*)(typeWords += offsetof(EnemyTypeRow, type));
+        if (t14c == 0x1E) {
+            seen1e = 1;
+        }
+        if (t14c >= 0) {
+            subWords = tbl;
+            subWords += off;
+            if (*(s32*)(subWords += offsetof(EnemyTypeRow, subtype)) == 0) {
+                *(s32*)subWords = GetEnemySubtype(t14c);
+            }
+            if (*(s32*)subWords <= 0) {
+                ErrorPrintf(lbl_801129D4, *(s32*)typeWords, *(s32*)subWords);
+            }
+        }
+    }
+
+    for (i = 0; i < 8; i++) {
+        EnemyTypeRow* row = (EnemyTypeRow*)tbl;
+        row = (EnemyTypeRow*)((u8*)row + i * 4);
+        row->reverse = -1;
+    }
+    for (i = 0; i < 8; i++) {
+        EnemyTypeRow* row = (EnemyTypeRow*)tbl;
+        s32 idx;
+        row = (EnemyTypeRow*)((u8*)row + i * 4);
+        idx = row->subtype;
+
+        if (idx < 6) {
+            s32 rowType = row->type;
+            row = (EnemyTypeRow*)tbl;
+            row = (EnemyTypeRow*)((u8*)row + idx * 4);
+            row->reverse = rowType;
+        }
+    }
+    if (*(s32*)(gGameOptions + 8) < 2) {
+        for (i = 0; i < 8; i++) {
+            u8* words;
+            words = tbl;
+            words += i * 4;
+            if (*(s32*)(words += offsetof(EnemyTypeRow, subtype)) == 2) {
+                *(s32*)words = 4;
+            } else {
+                s32 value;
+                words = tbl;
+                words += i * 4;
+                value = *(s32*)(words += offsetof(EnemyTypeRow, type));
+                if (value >= 0 && value < E_NTYPES) {
+                    *(s32*)words = -1;
+                } else {
+                    *(volatile s32*)words = -1;
+                }
+            }
+        }
+    }
+}
+#pragma opt_lifetimes reset
+/* 0x80057978 -- map an enemy type id to its shared subtype class. */
+s32 GetEnemySubtype(s32 type)
+{
+    s32 subtype = 0;
+
+    switch (type) {
+    case E_SCORP:
+    case E_RAT:
+    case E_SNAKE:
+    case E_SPIDER:
+    case E_MAGGOT:
+    case E_WOLF:
+    case E_DOG:
+    case E_ACID:
+    case E_HAND:
+        subtype = 1;
+        break;
+    case E_TROLL:
+    case E_GRUNT:
+    case E_SORCERER:
+    case E_LIZARDMAN:
+    case E_ZOMBIE:
+    case E_SKELETON:
+    case E_IMP:
+        subtype = 3;
+        break;
+    case E_DEMON:
+    case E_KNIGHT:
+    case E_MUMMY:
+    case E_TREEFOLK:
+    case E_PLAGUE:
+    case E_ICE:
+    case E_WORM:
+    case E_GHOST:
+    case E_WARLOCK:
+    case E_SKY:
+    case E_GARM2:
+        subtype = 4;
+        break;
+    case E_GOLEM:
+    case E_GENERAL:
+        subtype = 5;
+        break;
+    case E_DEATH:
+        subtype = 6;
+        break;
+    case E_IT:
+        subtype = 7;
+        break;
+    case E_GARGOYLE:
+        subtype = 8;
+        break;
+    case E_DRAGON:
+    case E_CHIMERA:
+    case E_DJINN:
+    case E_DRIDER:
+    case E_PBOSS:
+    case E_YETI:
+    case E_WRAITH:
+    case E_LICH:
+    case E_SKORNE1:
+    case E_SKORNE2:
+    case E_GARM:
+        subtype = 9;
+        break;
+    }
+    return subtype;
+}
+
+/* 0x80057A6C -- level display letter ('T' realm remaps to 'G'). */
+s32 LevelLetter(s32 arg0)
+{
+    s32 idx = sCurWorldIndex;
+    s32 c;
+
+    if (idx < 0) {
+        c = 'A';
+    } else {
+        c = sWorldDataTypes[idx].letter;
+    }
+    if ((s8)c == 'T' && arg0 == 0) {
+        c = 'G';
+    }
+    return c;
+}
+
+/* 0x80057AB4 -- accessor: current-level record + 8. */
+void* LevelItemDesc(void)
+{
+    return gCurLevel->name;
+}
+
+/* 0x80057AC0 -- accessor: world-data record + 4. */
+void* WorldItemDesc(void)
+{
+    return (u8*)gWorldData + 4;
+}
+
+/* 0x80057ACC -- lookup a live object by key, else default to gWorldData+4. */
+void* fn_80057ACC(s32 key)
+{
+    s32 i;
+
+    for (i = 0; i < 8; i++) {
+        if (lbl_802577CC[i] == key) {
+            s8* p = lbl_8025776C[i];
+            if (p != 0 && *(p += 16) != 0) {
+                return p;
+            }
+        }
+    }
+    return (u8*)gWorldData + 4;
+}
+
+/* 0x80057B30 -- parse a "<letter><digit>" level tag to (realm<<8)|index. */
+u32 FindWave(const s8* s)
+{
+    s32 realm = -1;
+    s8 letter = toupper(s[0]);
+    s32 i;
+
+    for (i = 0; i < 14; i++) {
+        if (letter == (s8)sWorldDataTypes[i].letter) {
+            realm = sWorldDataTypes[i].type;
+            break;
+        }
+    }
+    if (realm < 0) {
+        return -1;
+    }
+    return (realm << 8) | ((u32)((s32)(s8)s[1] - '1') & 0xFF);
+}
+
+/* 0x80057BC8 -- realm-type descriptor's f20 for a given type id. */
+s32 fn_80057BC8(s32 type)
+{
+    s32 i;
+
+    for (i = 0; i < 14; i++) {
+        if (sWorldDataTypes[i].type == type) {
+            break;
+        }
+    }
+    return sWorldDataTypes[i].f20;
+}
+
+/* 0x80057C14 -- advance attract mode to the next loaded, playable wave. */
+s32 NextAttractWave(s32 worldLevel)
+{
+    s32 worldType = worldLevel >> 8;
+    s32 worldIndex;
+    s32 tableOffset;
+    s32 level;
+    s32 worldId;
+    s32 worldBits;
+    s32 loaded;
+    WorldLevelTableNav* worldTable = (WorldLevelTableNav*)sWorldLevelTable;
+
+    for (worldIndex = 0; worldIndex < 14; worldIndex++) {
+        if (worldType == worldTable->worlds[worldIndex].worldId) {
+            break;
+        }
+    }
+    if ((u32)worldIndex == 14) {
+        worldIndex = 0;
+    }
+    do {
+        s32 startIndex = worldIndex;
+
+        do {
+            worldIndex++;
+            if ((u32)worldIndex >= 14) {
+                worldIndex = 0;
+            }
+            tableOffset = worldIndex * 44;
+            loaded = worldTable->worlds[worldIndex].loaded;
+        } while (loaded == 0 && worldIndex != startIndex);
+
+        level = worldTable->worlds[worldIndex].nextLevel;
+        worldId = worldTable->worlds[worldIndex].worldId;
+        if (level >= worldTable->worlds[worldIndex].numLevels) {
+            level = 0;
+        }
+        worldBits = worldId << 8;
+        ResolveWorldData((level & 0xFF) | worldBits);
+
+        if ((gControllerButtons & 0x10) == 0) {
+            s32 numLevels;
+            WorldLevel* levels;
+            s32 originalLevel;
+
+            originalLevel = level;
+            numLevels = worldTable->worlds[worldIndex].numLevels;
+            levels = gWorldData->levels;
+
+            while ((levels[level].flags2 & 2) == 0) {
+                level++;
+                if (level >= numLevels) {
+                    level = 0;
+                }
+                if (level == originalLevel) {
+                    break;
+                }
+            }
+            if ((levels[level].flags2 & 2) == 0) {
+                continue;
+            }
+        }
+        worldIndex = (level & 0xFF) | worldBits;
+        ResolveWorldData(worldIndex);
+        level++;
+        if (level >= *(s32*)((u8*)worldTable + tableOffset + 252)) {
+            level = 0;
+        }
+        *(s32*)((u8*)worldTable + tableOffset + 272) = level;
+        return worldIndex;
+    } while (1);
+}
+
+/* 0x80057D94 -- move backward to a level accepted by waveMask, wrapping
+ * through the loaded-world table when the current world is exhausted. */
+static inline WorldLevelTableNav* PrevWorldEntry(WorldLevelTableNav* table,
+                                                 s32 offset)
+{
+    return (WorldLevelTableNav*)((u8*)table + offset);
+}
+
+#pragma opt_propagation off
+s32 PrevWorldLevel(s32 waveMask)
+{
+    register s32 currentWorld;
+    WorldLevelTableNav* worldTable = (WorldLevelTableNav*)sWorldLevelTable;
+    s32 worldIndex;
+    s32 level;
+
+    currentWorld = sCurWorldIndex;
+    worldIndex = currentWorld;
+    if (gWorldData == 0) {
+        return *(s32*)(gGameOptions + 36);
+    }
+    if (waveMask == -1) {
+        level = -1;
+    } else {
+        level = gWorldData->curLevel - 1;
+        if (waveMask != 0) {
+            while (level >= 0 &&
+                   (waveMask & gWorldData->levels[level].flags2) == 0) {
+                level--;
+            }
+        }
+    }
+
+    if (level < 0) {
+        level = 0;
+        for (;;) {
+            register WorldLevelTableNav* entry;
+            register s32 offset;
+
+            worldIndex--;
+            if (worldIndex < 0) {
+                worldIndex = 13;
+            }
+            offset = worldIndex * 44;
+            entry = PrevWorldEntry(worldTable, offset);
+            if (entry->worlds[0].loaded != 0 || worldIndex == currentWorld) {
+                break;
+            }
+        }
+        if (worldTable->worlds[worldIndex].numLevels >= 0) {
+            level = worldTable->worlds[worldIndex].numLevels - 1;
+        }
+    }
+    return (worldTable->worlds[worldIndex].worldId << 8) |
+           (level & 0xFF);
+}
+#pragma opt_propagation on
+
+/* 0x80057E6C -- move forward to a level accepted by waveMask, wrapping
+ * through the loaded-world table when the current world is exhausted. */
+#pragma opt_propagation off
+s32 NextWorldLevel(s32 waveMask)
+{
+    register s32 currentWorld;
+    s32 worldIndex;
+    s32 level;
+
+    currentWorld = sCurWorldIndex;
+    worldIndex = currentWorld;
+    if (gWorldData == 0) {
+        return *(s32*)(gGameOptions + 36);
+    }
+    if (waveMask == -1) {
+        level = 99;
+    } else {
+        level = gWorldData->curLevel + 1;
+        if (waveMask != 0) {
+            while (level < gWorldData->numLevels &&
+                   (waveMask & gWorldData->levels[level].flags2) == 0) {
+                level++;
+            }
+        }
+    }
+
+    if (level >= gWorldData->numLevels) {
+        level = 0;
+        do {
+            worldIndex++;
+            if ((u32)worldIndex >= 14) {
+                worldIndex = 0;
+            }
+        } while (sWorldDataTypes[worldIndex].available == 0 &&
+                 worldIndex != currentWorld);
+    }
+    return (sWorldDataTypes[worldIndex].type << 8) | (level & 0xFF);
+}
+#pragma opt_propagation reset
+
+s32 fn_80057F44(s32 code, s32 mask)
+{
+    WorldDataType* types = sWorldDataTypes;
+    s32 wt;
+    s32 sub;
+    u32 i;
+
+    for (;;) {
+        sub = code & 0xFF;
+        wt = code;
+        wt >>= 8;
+        if (sCurWorldType != wt) {
+            for (i = 0; i < 14; i++) {
+                if (types[i].type == wt && types[i].available != 0) {
+                    break;
+                }
+            }
+            if (i == 14) {
+                for (i = 0; i < 14; i++) {
+                    if (types[i].available != 0) {
+                        wt = types[i].type;
+                        break;
+                    }
+                }
+            }
+            if (i == 14) {
+                FatalError(lbl_801129F8, 0x800000);
+            }
+        } else {
+            if (gWorldData != 0) {
+                if (sub >= gWorldData->numLevels) {
+                    sub = 0;
+                }
+            } else {
+                sub = 0;
+            }
+        }
+        sub = (u8)sub;
+        sub = (sub & 0xFF) | (wt << 8);
+        ResolveWorldData(sub);
+        if (mask == 0) {
+            break;
+        }
+        if (gCurLevel->enabled & mask) {
+            break;
+        }
+        code = NextWorldLevel(mask);
+    }
+    return sub;
+}
 
 /* --------------------------------------------------------------------------
  * ResolveWorldData(worldlevel)  0x80058078
@@ -851,7 +2689,6 @@ static void ResolveWorldDataPointers(void)
  * (once), reads it in, and remembers the first realm id.  A missing file logs
  * "No world data file: %s" and clears the slot.  Finally the world-state
  * globals are reset and the world-registry hook (fn_80057F44) is primed. */
-extern char lbl_80257680[];        /* path scratch buffer */
 extern char lbl_80112A9C[];        /* "No world data file: %s\n" */
 extern u8 gGameOptions[];
 
@@ -1728,7 +3565,6 @@ extern char sKeyringName[8];
 extern Item* NewItemPtr_800642C8(void);
 extern void AddItemSub(Item* item);
 extern f32 sArrowFloorRadius;
-extern u8 gWadAtreeHeaders[];
 extern s32 sEnemyDefaultAlgorithm[];
 extern void fn_8009DAF8(void);
 
@@ -1877,7 +3713,7 @@ void fn_8005E90C(Item* item, s32* inst)
         break;
     case 4:
         *(u32*)&result->data[8] |= 1;
-        if (*(s16*)&result->data[0] == 30 && *(u32*)(gWadAtreeHeaders + 120) != 0) {
+        if (*(s16*)&result->data[0] == 30 && *(u32*)((u8*)gWadAtreeHeaders + 120) != 0) {
             MBTreeSetFlags(*(void**)*(void**)&result->atree[0], 2, 0);
             if (*(s16*)&item->data[16] != 0) {
                 result->data[2] = 2;
@@ -6228,7 +8064,13 @@ typedef struct ItemWobjRuntime {
     u32 object[150];    /* +29216 WorldObj* per wobj                      */
 } ItemWobjRuntime;
 
-/* Fire all special triggers of the given class. */
+/* Fire all special triggers of the given class.
+ * dont_inline: the target calls FindWobjWanim (0x80055CB8) out of line from
+ * here.  That function used to live in another TU's source slice, so nothing
+ * could inline it; now that the split map puts it in this file, -inline auto
+ * folds it in and this function stops matching (measured 2026-09-04:
+ * 100.0000% -> 77.3853% without this bracket). */
+#pragma dont_inline on
 void ActivateSpecialTrigger(s32 type, s32 flag)
 {
     s32 i;
@@ -6239,7 +8081,6 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
     s32 n;
     s32 j;
     ItemWobjRuntime* rt;
-    u8 _spare[8];
 
     it = (u8*)sItems;
     rt = (ItemWobjRuntime*)sItemRuntime;
@@ -6294,6 +8135,7 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
         }
     }
 }
+#pragma dont_inline reset
 
 extern s32 lbl_8034488C;
 extern f32 lbl_80347014;
@@ -6315,7 +8157,6 @@ extern void CopyMat3(f32* src, void* dst);
 extern f32 sNoNearbyPlayerDistance;
 extern f64 sItemFloorYOffset;
 extern f32 sItemFloorRadius;
-extern char* lbl_8011B578[];
 extern char lbl_80112CA4[];
 extern char lbl_80112CD4[];
 extern char* lbl_8011C8F0[];

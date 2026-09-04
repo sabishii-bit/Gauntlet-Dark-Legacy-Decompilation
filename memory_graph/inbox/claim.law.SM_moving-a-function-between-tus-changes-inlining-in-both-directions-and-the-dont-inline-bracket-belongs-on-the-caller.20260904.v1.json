@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/fuzzy.py",
+    "tools/gdl/fndiff.py",
+    "tools/gdl/slotdiff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "pool-layout"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A cross-TU function move (in either direction) after which every function in BOTH files holds its exact pre-move fuzzy value with no dont_inline bracket added and no definition hoisted out of .text order -- measured with `python tools/gdl/fuzzy.py <unit>` on both files before and after. That would show the visibility change is inert and the three repairs above were coincidental. Conversely, a case where `#pragma dont_inline on` around the CALLEE restores a caller's bytes without damaging the callee would falsify the operational rule specifically.",
+  "id": "claim.law.SM_moving-a-function-between-tus-changes-inlining-in-both-directions-and-the-dont-inline-bracket-belongs-on-the-caller.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T16:43:11Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-04",
+  "value": "A SPLIT-MAP MOVE IS AN INLINING EVENT, IN BOTH DIRECTIONS, AND NEITHER DIRECTION IS VISIBLE UNTIL THE OBJECT IS BUILT. Relocating a function definition between two source files changes which callees are VISIBLE to which callers, and mwcc's -inline auto acts on visibility, so a move that preserves every function's text verbatim can still change two OTHER functions' bytes. Measured over run 56's gauntworld-block move (24 functions out of game/game/gamemain.c into game/world/gauntworld.c, commit 1a7f0393e), three distinct repairs were needed and all three are this one mechanism:\n\n(1) GAINED INLINE, in a function that did not move. ActivateSpecialTrigger (0x8005FF60) has always lived in gauntworld.c and calls FindWobjWanim (0x80055CB8). While FindWobjWanim's definition sat in the other file, nothing could inline it; the moment it arrived, -inline auto folded it in and ActivateSpecialTrigger went 100.0000% -> 77.3853% fuzzy (`python tools/gdl/fuzzy.py game/world/gauntworld`), i.e. it stopped being byte-exact and the image lost 436 bytes of matched Code and one STRICT function.\n\n(2) LOST INLINE, in a function that did move. fn_80057024 went 92.7182% -> 73.8923% because the block was reassembled in target .text ORDER, which places InLevel (0x800579E0) AFTER fn_80057024 (0x80057024) -- and mwcc only inlines a function already defined. `python tools/gdl/fndiff.py game/world/gauntworld fn_80057024 --ops` printed 'target 362 insns, ours 292 / net count: TARGET is longer by 70' with two ours-only `bl` against two target runs of 26 instructions (lbz/extsb/extsb/cmpw/bne/lbz/extsb./beq/li ...) -- InLevel expanded twice. Hoisting InLevel's definition above fn_80057024 restored 92.7182% exactly.\n\n(3) A STALE FRAME PAD, which is (1)'s second-order cost. Once ActivateSpecialTrigger stopped inlining, its `u8 _spare[8]` pad -- sized against the old codegen -- left it at 99.9083% with ten IMMEDIATE rows that were all one frame delta (`stwu r1,-80(r1)` target vs `-88` ours; `stmw r22,32(r1)` vs `40`; `addi r1,r1,80` vs `88`). Deleting the pad gave `slotdiff` `frame: target 80  ours 80` and `SLOT MAP IDENTICAL`, and the function returned to 100.0000%.\n\nTHE OPERATIONAL RULE, the part that cost a build to learn: `#pragma dont_inline on` BELONGS ON THE CALLER, NOT THE CALLEE. Bracketing FindWobjWanim itself does not merely fail, it makes things worse -- the pragma also blocks inlining INTO the bracketed function, so the static helper worldAnimIndexMatches stopped being folded into FindWobjWanim and that function read 0.0000%; hand-inlining the helper under the bracket still left 99.5000%. Bracketing ActivateSpecialTrigger instead restores the out-of-line call and leaves the callee's own codegen alone. Both functions then read 100.0000%.\n\nCONSEQUENCE FOR THE REMAINING SPLIT-MAP WORK (the enemy block, the sounds_evt+sounds merge, any future TU split or merge): the per-function score list of BOTH files, before and after, is the gate -- not the fact that the text was copied verbatim, and not the DOL checksum, which was green at every one of these three states because both TUs are NonMatching and the linker uses the extracted objects."
+}
