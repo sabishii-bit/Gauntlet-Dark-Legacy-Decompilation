@@ -7,6 +7,41 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "composed_census"))
 import r60_enemy_boundary_probe as boundary
 import r60_enemy_pool_probe as pool
+import r60_enemy_source_probe as source_probe
+
+
+class ResourceForms(unittest.TestCase):
+    BODY = """void fn_80051164(void)
+{
+    s32* p = lbl_80250E00;
+    s32 i;
+
+    for (i = 0; i < 45; i++) {
+        p[345 + i] = 0;
+        p[300 + i] = -1;
+        p[255 + i] = 0;
+    }
+    for (i = 0; i < 8; i++) {
+        p[8 + i] = -1;
+    }
+    lbl_8034471C = 0;
+    lbl_80344738 = -1;
+}
+"""
+
+    def test_joint_form_preserves_first_loop_and_restores_pragma(self):
+        text = dict(source_probe.resource_variants(self.BODY))["propagation_off_second_alias"]
+        self.assertTrue(text.startswith("#pragma opt_propagation off\n"))
+        self.assertTrue(text.endswith("#pragma opt_propagation reset\n"))
+        self.assertIn("p[345 + i] = 0;", text)
+        self.assertIn("s32* row = p + i;\n        row[8] = -1;", text)
+        self.assertIn("lbl_80344738 = -1;", text)
+
+    def test_variants_are_distinct_and_input_shape_is_checked(self):
+        forms = list(source_probe.resource_variants(self.BODY))
+        self.assertEqual(len(forms), len({name for name, _ in forms}))
+        with self.assertRaises(ValueError):
+            list(source_probe.resource_variants("void f(void) {}\n"))
 
 
 class PoolForms(unittest.TestCase):

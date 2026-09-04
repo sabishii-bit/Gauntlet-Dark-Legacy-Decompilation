@@ -1506,6 +1506,13 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "fn_80051164",
+        "before_sha256": "f38366455e254106f9054a3ef653ffb77867fc22845c794f2d0a1f36a1120655",
+        "after_sha256": "f5386bf0130caa9134c122209b465ffb512db22ec8dfed5fd1f2e171418707f5",
+        "mechanism": "attempt.R60_fn51164-strict-recolor-closure.20260904.v1. SOURCE-EXHAUSTION provenance: attempt.R60_fn51164-joint-propagation-alias-closes-address-form.20260904.v1. The source first restores add+stw addressing with a joint explicit element pointer and opt_propagation off/reset; the prior alias-only cap did not cover that combination. Seventeen source variants test declaration/assignment identity, loop-index identity, named constants, inline helpers and propagation/CSE controls. The retained source is 27/27 instructions, frameless, with identical opcode order and seven differing register words. Strict verify_consistent_recolor and full retail datum binding pass; wr_try_rule returns BYTE-EQUAL. No permutation, value-equality widening or unproven audit. This is a checked practical closure, not proof that every possible source form is exhausted.",
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_80046680",
         "before_sha256": "09b5ee1d691989b05fc050cc6849b4638ef5049dd0140305940f7fdbd49619fe",
         "after_sha256": "b3a64c1b7d214ef19459d80a12959dc9046239fee44f68b1e993a955d69394e8",

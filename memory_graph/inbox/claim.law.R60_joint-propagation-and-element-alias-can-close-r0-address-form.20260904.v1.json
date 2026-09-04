@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r60_enemy_source_probe.py",
+    "tools/gdl/tests/test_r60_enemy_probes.py"
+  ],
+  "attributes": {
+    "evidence": [
+      "attempt.R60_fn51164-joint-propagation-alias-closes-address-form.20260904.v1",
+      "attempt.R60_enemy-tail-boundary-restored-with-every-exact-function-preserved.20260904.v1"
+    ],
+    "qualifies": "claim.law.r0-homed-address-temp-forces-the-indexed-store-form.20260901.v1; architecture and prior literal negative probes retained, source-unreachability wording narrowed.",
+    "tags": [
+      "matching",
+      "register-web",
+      "store-placement"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "At the recorded source and real Ninja GC/1.2.5 flags, the fidelity-controlled resources probe fails to produce add+stw at27/27 for propagation_off_second_alias, or the purported single-axis controls do change its raw baseline bytes.",
+  "id": "claim.law.R60_joint-propagation-and-element-alias-can-close-r0-address-form.20260904.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-04T23:23:18Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "An r0-homed address temporary explains why a particular PPC output uses addi+stwx, but does not establish that source cannot reach add+stw. In fn_80051164, ordinary index respelling and an element-pointer alias alone were previously neutral; propagation off alone is also neutral. Combining propagation off with `s32* row = p + i; row[8] = -1;` changes the second-loop preheader to li r0,-1 and the address/store to add+stw at unchanged27/27 instruction count. The tested source now matches the target opcode order and differs only in seven register words. The law about r0's architectural restriction remains correct, while its universal source-unreachability prescription is refuted by this joint-axis counterexample. A similar joint alias/propagation repair preserved raw exactness for fn_800508A0 during the enemy TU-boundary correction. These are measured local observations, not a recommendation to blanket-disable propagation."
+}

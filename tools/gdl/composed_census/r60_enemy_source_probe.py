@@ -366,16 +366,75 @@ def movement_variants(body):
     yield "entry_assigned_direct", replace_once(separate, "    /* stun freeze + knockback integration */", stmts + "    /* stun freeze + knockback integration */")
 
 
+def resource_variants(body):
+    """New joint alias/propagation axis; old index-order spelling is vetoed."""
+    second = """    for (i = 0; i < 8; i++) {
+        p[8 + i] = -1;
+    }"""
+    scoped = replace_once(body, second, """    for (i = 0; i < 8; i++) {
+        s32* row = p + i;
+        row[8] = -1;
+    }""")
+    both = replace_once(scoped, """        p[345 + i] = 0;
+        p[300 + i] = -1;
+        p[255 + i] = 0;""", """        s32* row = p + i;
+        row[345] = 0;
+        row[300] = -1;
+        row[255] = 0;""")
+    def pragma(text, name):
+        return "#pragma " + name + " off\n" + text + "\n#pragma " + name + " reset\n"
+    yield "propagation_off", pragma(body, "opt_propagation")
+    yield "propagation_off_second_alias", pragma(scoped, "opt_propagation")
+    yield "propagation_off_both_aliases", pragma(both, "opt_propagation")
+    yield "common_subs_off_both_aliases", pragma(both, "opt_common_subs")
+    # A second source induction variable has a distinct declaration identity,
+    # unlike commuting the operands of the same old indexed expression.
+    separate = replace_once(body, "    s32 i;", "    s32 i;\n    s32 j;")
+    separate = replace_once(separate, second, re.sub(r"\bi\b", "j", second))
+    yield "separate_loop_index", separate
+    yield "separate_loop_index_decl_first", separate.replace("    s32 i;\n    s32 j;", "    s32 j;\n    s32 i;")
+    # Separate invariant identities per store, with their existing values
+    # and store chronology fixed. No register names or forced bytes.
+    constants = replace_once(body, "    s32 i;", "    s32 i;\n    s32 empty = -1;\n    s32 unused = -1;")
+    constants = constants.replace("p[300 + i] = -1", "p[300 + i] = empty")
+    constants = constants.replace("p[8 + i] = -1", "p[8 + i] = unused")
+    yield "distinct_invariant_identities", constants
+    joint = pragma(scoped, "opt_propagation")
+    yield "joint_pool_decl_last", replace_once(joint, "    s32* p = lbl_80250E00;\n    s32 i;", "    s32 i;\n    s32* p = lbl_80250E00;")
+    yield "joint_pool_assigned", replace_once(joint, "    s32* p = lbl_80250E00;\n    s32 i;", "    s32* p;\n    s32 i;\n\n    p = lbl_80250E00;")
+    for order in ("row_first", "row_last"):
+        top_row = replace_once(joint, "        s32* row = p + i;", "        row = p + i;")
+        decl = "    s32* row;\n"
+        top_row = replace_once(top_row, "    s32* p = lbl_80250E00;\n    s32 i;", (decl if order == "row_first" else "") + "    s32* p = lbl_80250E00;\n    s32 i;" + ("\n" + decl.rstrip() if order == "row_last" else ""))
+        yield "joint_" + order, top_row
+    for typ in ("s32", "u32", "s16"):
+        zeros = replace_once(joint, "    s32 i;", "    s32 i;\n    " + typ + " no_resource = 0;\n    " + typ + " unloaded = 0;")
+        zeros = zeros.replace("p[345 + i] = 0", "p[345 + i] = no_resource")
+        zeros = zeros.replace("p[255 + i] = 0", "p[255 + i] = unloaded")
+        yield "joint_named_zeros_" + typ, zeros
+    yield "joint_both_aliases_register_pool", pragma(both.replace("s32* p =", "register s32* p ="), "opt_propagation")
+    first = """    for (i = 0; i < 45; i++) {
+        p[345 + i] = 0;
+        p[300 + i] = -1;
+        p[255 + i] = 0;
+    }"""
+    helper = "static inline void enemy_reset_resource_rows(s32* p)\n{\n    s32 i;\n" + first + "\n}\n\n"
+    yield "joint_inline_resource_reset", pragma(helper + scoped.replace(first, "    enemy_reset_resource_rows(p);"), "opt_propagation")
+    helper = "static inline void enemy_reset_resource_indices(s32* p)\n{\n    s32 i;\n" + scoped[scoped.index("    for (i = 0; i < 8;"):scoped.index("    lbl_8034471C")] + "}\n\n"
+    caller = scoped[:scoped.index("    for (i = 0; i < 8;")] + "    enemy_reset_resource_indices(p);\n" + scoped[scoped.index("    lbl_8034471C"):]
+    yield "joint_inline_index_reset", pragma(helper + caller, "opt_propagation")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -427,7 +486,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

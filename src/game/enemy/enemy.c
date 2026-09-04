@@ -8353,6 +8353,10 @@ void fn_800510A4(void)
     }
 }
 
+/* Keep the element address explicit across propagation, as in fn_800508A0.
+ * This controls the address form; the remaining register allocation is
+ * separately checked by the matching build's strict recolor rule. */
+#pragma opt_propagation off
 void fn_80051164(void)
 {
     s32* p = lbl_80250E00;
@@ -8364,11 +8368,13 @@ void fn_80051164(void)
         p[255 + i] = 0;
     }
     for (i = 0; i < 8; i++) {
-        p[8 + i] = -1;
+        s32* row = p + i;
+        row[8] = -1;
     }
     lbl_8034471C = 0;
     lbl_80344738 = -1;
 }
+#pragma opt_propagation reset
 
 #pragma opt_common_subs off
 #pragma opt_propagation off

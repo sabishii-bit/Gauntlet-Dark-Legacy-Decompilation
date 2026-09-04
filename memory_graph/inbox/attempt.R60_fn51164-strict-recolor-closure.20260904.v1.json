@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "Strict recolor of the seven remaining register words after a source-level address-form repair.",
+  "attributes": {
+    "law_screen": "The register-field proof applies only after source closes the addressing-mode difference: T27/O27, identical opcode order, 7 differing words. Form-aware decoding, strict CFG renaming bisimulation and full-strength retail datum binding all passed. No permutation, value-equality widening, unproven audit or compiler change.",
+    "source_exhaustion": "attempt.R60_fn51164-joint-propagation-alias-closes-address-form.20260904.v1 records 17 literal source variants and the narrow capped axes. This closure does not assert that every source form is exhausted.",
+    "verification": "webfrank_audit: 1 eligible, 0 rejected. wr_try_rule: BYTE-EQUAL (raw postprocess body); 1 stage(s) applied; datum screen at FULL strength with retail DOL. Fresh probe after installing the rule: 100.0000%, real0, exact27/27. Raw before f38366455e254106f9054a3ef653ffb77867fc22845c794f2d0a1f36a1120655; target f5386bf0130caa9134c122209b465ffb512db22ec8dfed5fd1f2e171418707f5. The raw-object inventory against pre-boundary controls reports no missing or unexpected functions, only init_enemy_vars from the prior accepted correction and this function's three changed source-output words; all other raw bodies preserved. Fresh project progress: STRICT57.28% (2596 functions) plus EQUIVALENT13.51% (173)."
+  },
+  "function": "function:fn_80051164",
+  "id": "attempt.R60_fn51164-strict-recolor-closure.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T23:23:17Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Revisit the indexed-store cap on a new joint propagation-control and element-alias axis, then test source register identities at the closed address form.",
+  "attributes": {
+    "axis_log": [
+      "20260901: p[8+i] -> p[i+8] and row-only alias under ordinary propagation: byte-identical; old cap remains valid only for those axes."
+    ],
+    "law_screen": "Full matching-law corpus previously screened this pass. claim.law.r0-homed-address-temp-forces-the-indexed-store-form.20260901.v1 diagnosis CONFIRMED at +0x44..0x4c, but its source-unreachability wording NARROWED by the successful joint axis. Old index-order and alias-only probes remain vetoed. attempt.R57_fn800c6bb4-count-parity-address-association-cap.20260904.v1 read: single pragma axes there do not deny this composed axis here. claim.law.NM_declaration-order-colours-callee-saved-registers-while-assignment-order-sets-emission-order.20260903.v1 tested for local declaration identity, neutral here (no saved GPRs). The successful new lever follows fn_800508A0's measured joint alias/propagation closure in attempt.R60_enemy-tail-boundary-restored-with-every-exact-function-preserved.20260904.v1.",
+    "probed_form": "Reproducer: python tools/gdl/composed_census/r60_enemy_source_probe.py resources at pre-retention 41086953c. 17 variants plus fidelity baseline. KEPT: #pragma opt_propagation off/reset with second loop `s32* row = p + i; row[8] = -1;`. Propagation off alone and common-subs off with both aliases: original 9 differing words. Propagation off with second/both aliases: 7. Separate i/j indices (both declaration orders) and distinct -1 locals: original 9. JOINT state with pool declaration moved after index; pool assigned rather than initialized; row declared at function scope first/last; or register-qualified pool: 7. Named s32/u32 zero locals: 11; s16 zeros: 9. Inline first-loop reset: O26 versus T27, one zero web coalesced, rejected. Inline second-loop reset: 27/27, same 7. No compatibility aggregate, volatile access or byte edit used.",
+    "residual": "Seven raw register words at +0x10,+0x14,+0x20,+0x24,+0x2c,+0x30,+0x48. Pool target r7 versus ours r6; first zero target r6 versus ours r5; first element address target r5 versus ours r7. Second loop address form now exact: +0x44 li r0,-1; +0x48 add r4,rBASE,r3; +0x4c stw r0,32(r4).",
+    "verification": "Fresh probe source-only: FUZZY 98.3333%, real14, T27/O27, multiset0t. webfrank_audit --grep game/enemy/enemy --function fn_80051164 --min-insns 0 --compact: 1 eligible, 0 rejected, strict register-only. This record caps only the remaining raw-source register assignment; a separate closure record must report any rule and all final gates."
+  },
+  "denial": {
+    "expiry_check": "Recompile the resources axis with r60_enemy_source_probe.py against the real raw Ninja body after any compiler, TU identity or live source change; inspect whole-function raw words rather than the postprocessed fndiff result.",
+    "falsifier": "An ordinary source form giving the target's pool/zero/element-address register assignment at 27/27 with identical relocation binding. The tested variants do not establish mathematical source-unreachability.",
+    "premise_measurement": "T27/O27 before and after. Joint propagation-off plus a loop-local row closes +1 add +1 stw -1 addi -1 stwx; raw differing words 9 -> 7; fresh fuzzy 83.2963% -> 98.3333%, real 18 -> 14, frameless throughout.",
+    "scope": "The measured declaration-rank, explicit assignment, named zero, register qualifier and inline-helper variants of fn_80051164 on the restored 84-function enemy TU. Not a denial of all source forms or of the already successful joint propagation/alias axis."
+  },
+  "function": "function:fn_80051164",
+  "held_fixed": "All loop bounds, store values, store chronology and final global writes; every variant modifies only this function or inserts its inline helper. Whole-object scratch baseline must equal the real Ninja raw object before any result is trusted.",
+  "id": "attempt.R60_fn51164-joint-propagation-alias-closes-address-form.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T23:21:10Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "opcode multiset: IDENTICAL"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.fn80051164-r0-homed-address-temp-forces-stwx.20260901.v1",
+  "valid_from": "2026-09-04"
+}
