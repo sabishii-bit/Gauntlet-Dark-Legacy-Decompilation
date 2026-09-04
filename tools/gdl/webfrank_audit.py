@@ -140,7 +140,13 @@ def _field_edits(base: bytes, target: bytes) -> list[dict]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--grep", help="only units containing this text")
+    parser.add_argument("--grep", help="only UNITS whose path contains this"
+                                       " text (game/enemy, dolphin/card) —"
+                                       " NOT a function name; use --function"
+                                       " for that")
+    parser.add_argument("--function", help="only functions with this NAME"
+                                           " (exact, else substring), across"
+                                           " every unit --grep leaves")
     parser.add_argument("--min-insns", type=int, default=0)
     parser.add_argument(
         "--compact", action="store_true",
@@ -158,13 +164,19 @@ def main() -> int:
     rejected = []
     register_only = 0
     total_bytes = 0
+    units_total = 0
+    units_selected = 0
+    units_parsed = 0
+    functions_selected = 0
 
     for command in commands:
         source = Path(command["file"])
         relative = source.relative_to(REPO / "src")
         unit = str(relative.with_suffix("")).replace("\\", "/")
+        units_total += 1
         if args.grep and args.grep not in unit:
             continue
+        units_selected += 1
         target_path = REPO / "build" / VERSION / "obj" / relative.with_suffix(".o")
         base_path = Path(command["output"])
         # For units that already have a postprocessor, command output is the
@@ -174,12 +186,17 @@ def main() -> int:
             base_path = raw_body
         if not target_path.is_file() or not base_path.is_file():
             continue
+        units_parsed += 1
         target_functions = parse(target_path)
         base_functions = parse(base_path)
         for function, target_lines in target_functions.items():
             base_lines = base_functions.get(function)
             if base_lines is None:
                 continue
+            if args.function and not (args.function == function
+                                      or args.function in function):
+                continue
+            functions_selected += 1
             if classify_function(target_lines, base_lines) != "REGISTER_ONLY":
                 continue
             register_only += 1
@@ -241,6 +258,53 @@ def main() -> int:
                 row.update(classify_rejection(unit, function, str(error)))
                 rejected.append(row)
 
+    # AN EMPTY SELECTION IS NOT A VERDICT (run-55 item 3). Reported by CR:
+    # `webfrank_audit.py --grep CritterCollideItems` printed
+    # `0 register-only; 0 eligible in 0 TUs` for a function that was in fact
+    # eligible — `--grep` filters UNIT PATHS, so a function name matches
+    # nothing and the tool answers the question it was not asked. The
+    # tool's own footer already says absence is not ineligibility
+    # (claim.law.RQ_webfrank-audit-silence-is-not-ineligibility), and that
+    # is exactly the sentence a reader discounts when the headline reads
+    # like a measurement.
+    #
+    # CALIBRATED TWO-SIDED at e8e3959d0 over 256 units in
+    # compile_commands.json and the 3,024 distinct function names in the
+    # split objects: 2,981 names (98.6%) match ZERO unit paths, so this
+    # refusal catches essentially the whole confusion class. The other 43
+    # (1.4%) are SDK functions whose name IS their unit path (CARDCheck ->
+    # dolphin/card/CARDCheck, GXInit -> dolphin/gx/GXInit); for those
+    # `--grep <fn>` selects the right TU anyway, so nothing is lost by the
+    # refusal not firing. Every legitimate path grep still passes:
+    # `--grep game` 92 units, `--grep dolphin` 90, `--grep MSL` 40,
+    # `--grep game/ui/select` 1.
+    if args.grep and units_selected == 0:
+        print(f"REFUSED: --grep {args.grep!r} matched 0 of {units_total}"
+              " unit paths, so NOTHING WAS SCANNED. This flag filters UNIT"
+              " PATHS (game/enemy, dolphin/card), not function names —"
+              f" if {args.grep!r} is a function, run"
+              f" `--function {args.grep}` instead. A zero here is an empty"
+              " scope, never a verdict of ineligibility"
+              " (claim.law.RQ_webfrank-audit-silence-is-not-ineligibility).")
+        return 2
+    if units_parsed == 0:
+        print(f"REFUSED: {units_selected} unit(s) selected of {units_total},"
+              " and NONE had both a split target object and a compiled"
+              " object, so nothing was scanned. Run `ninja` first (and note"
+              " that build/GUNE5D/obj/** is the dtk SPLIT reference, not a"
+              " build artefact — `provision_worktree.py --resplit` restores"
+              " it). Every count below would have been a zero reached by"
+              " not looking.")
+        return 2
+    if args.function and functions_selected == 0:
+        scope = f" under --grep {args.grep!r}" if args.grep else ""
+        print(f"REFUSED: --function {args.function!r} matched 0 functions in"
+              f" {units_parsed} scanned unit(s){scope}, so NOTHING WAS"
+              " SCANNED. Check the spelling against"
+              " `python tools/gdl/fndiff.py <unit> --count`; a zero here is"
+              " an empty scope, never a verdict of ineligibility.")
+        return 2
+
     output = {
         "version": 1,
         "units": units,
@@ -259,6 +323,10 @@ def main() -> int:
         f"WEBFRANK AUDIT: {register_only} register-only; "
         f"{output['audit']['eligible_functions']} eligible in {len(units)} TUs; "
         f"{total_bytes} code bytes; {len(rejected)} rejected"
+        f"  [scope: {units_selected} of {units_total} unit(s)"
+        + (f", {functions_selected} function(s) matched"
+           f" --function {args.function!r}" if args.function else "")
+        + "]"
     )
     for item in rejected:
         print(
