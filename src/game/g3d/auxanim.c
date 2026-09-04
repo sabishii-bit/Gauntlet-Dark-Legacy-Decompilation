@@ -320,8 +320,8 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
     }
     case -4:
         d1 = (f32)(frame - tm->unk4e);
-        fr = (f32)tm->frames;
         d2 = (f32)(frame - tm->unk4e);
+        fr = (f32)tm->frames;
         if (d1 <= 0.0f || fr <= 0.0) {
             k = 0.0f;
         } else if (d2 >= fr) {
@@ -334,8 +334,8 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         break;
     case -5:
         d1 = (f32)(frame - tm->unk4e);
-        fr = (f32)tm->frames;
         d2 = (f32)(frame - tm->unk4e);
+        fr = (f32)tm->frames;
         if (d1 <= 0.0f || fr <= 0.0) {
             k = 0.0f;
         } else if (d2 >= fr) {
