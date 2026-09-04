@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "config/GUNE5D/webfrank.json (the two chained entry pairs and their hashes)",
+    "tools/gdl/composed_census/wr_try_rule.py (the single-stage refusal and the APPLIED-NOT-EQUAL half)",
+    "tools/gdl/fndiff.py --clean (the pins are fine: real 0 on both functions)",
+    "tools/gdl/doldiff.py (DOL matches)"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show that the multi-entry functions are independent rules rather than stages -- i.e. find a function with two entries where `entry0.after_sha256 != entry1.before_sha256` -- or show that `wr_try_rule.py` folds a function's entries itself, which would make the single-stage refusal impossible. The command for both is to parse config/GUNE5D/webfrank.json for functions with more than one entry and replay each stage: today that set is exactly {btricol::LineLineDist, message::msgDraw} and both chain. The law also dies if a future entry pair is found whose stages are declared in an order the file does not preserve, since the whole claim rests on file order being the application order.",
+  "id": "claim.law.CX_a-webfrank-function-can-carry-chained-rule-stages-and-replaying-one-alone-refuses-on-a-hash-that-is-not-drift.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T02:43:08Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-wr-try-rule",
+  "valid_from": "2026-09-04",
+  "value": "A FUNCTION IN config/GUNE5D/webfrank.json MAY CARRY MORE THAN ONE RULE ENTRY, AND THOSE ENTRIES ARE CHAINED STAGES, NOT DUPLICATES. Replaying a later stage on its own compares the RAW body's hash against the INTERMEDIATE hash and REFUSES with `input hash X != expected Y` -- the exact message a drifted pin produces, with a completely benign cause. MEASURED at c0f978273: config/GUNE5D/webfrank.json holds 154 entries over 152 distinct functions; the two extras are `game/world/btricol::LineLineDist` and `game/ui/message::msgDraw`, and for BOTH `entry0.after_sha256 == entry1.before_sha256` is True. LineLineDist stage 0 is `instruction_permutation` alone (audit SCHEDULE_CANDIDATE, 464 instructions, permuted_instructions 2) and stage 1 is `copy_register_fields + instruction_permutation` (audit REGISTER_ONLY, permuted_instructions 5); msgDraw is the same shape at 314 instructions with 4 then 2 permuted. WORKED CASE, both halves measured: `wr_try_rule.py game/world/btricol LineLineDist <stage1>` returns `REFUSED (raw postprocess body): LineLineDist: input hash 49596e08342174450623a347ea14704af6233f5d39a6a210bd13599ec499498e != expected cb0b03c8b9fc6998...`, while the SAME command with <stage0> returns `APPLIED-NOT-EQUAL (raw postprocess body); 2 word(s) changed` -- neither is a verdict on the pin, and the pin is fine: the postprocessed object reads `== LineLineDist: MATCH (pool-name noise only), 0 real diff lines` and the image gate `tools/gdl/doldiff.py` exits 0. THREE CONSEQUENCES. (1) `wr_try_rule.py` replays ONE fragment; there is no single call that replays a function's whole chain, so any per-pin audit or census MUST group entries by (unit, function) and fold them in file order before comparing any hash -- a tool that takes 'the' entry for a function silently takes the last one. (2) A rule-entry COUNT is not a function count: quote 154 entries or 152 functions, never one as the other, and progress's `EQUIVALENT ... (152 fns)` is the function count. (3) This is a second benign cause for the abort message AGENTS.md already warns about beside `t16_rederive_body.py` ('NEVER paste the hash out of webfrank's abort message'): the warning is written for drift, and a lane meeting the message on a chained pin has nothing to re-derive at all."
+}
