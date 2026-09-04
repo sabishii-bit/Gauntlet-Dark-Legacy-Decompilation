@@ -2531,9 +2531,14 @@ class DiscardScopeTests(unittest.TestCase):
         self.assertNotIn("straddling L", text)
 
     def test_an_outside_only_refusal_still_offers_the_scoped_restore(self):
+        # The scoped restore is still OFFERED, but no longer FIRST: run-53
+        # item 7c re-ranked --whole-file above it for the helper-lift shape
+        # (see test_probe_nobank_and_discard.py). Asserted on the flag and
+        # its verb rather than on the column padding, which changed with the
+        # re-ranking and is not what this test is about.
         text = discard_refusal("alpha", "game/x/y", 1, 1,
                                [("outside", 10, 12)])
-        self.assertIn("--discard --function   restore ONLY", text)
+        self.assertRegex(text, r"--discard --function\s+restore ONLY")
         self.assertNotIn("STRADDLE", text)
         self.assertNotIn("No hunk lies wholly outside", text)
 
