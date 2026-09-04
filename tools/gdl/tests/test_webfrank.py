@@ -17,6 +17,8 @@ from tools.gdl.webfrank import (
     _entry_indexes,
     _find_symbol,
     _function_text_relocations,
+    _jumptable_targets_for_symbol,
+    _partition_jumptable_dispatches,
     _sections,
     apply_patch,
     _parse_int,
@@ -849,6 +851,120 @@ class JumptableTargetTests(unittest.TestCase):
         targets = _jumptable_targets(data, sections, text_index,
                                      fn_start, fn_end)
         self.assertEqual(targets, {8})
+
+
+class PerBctrJumptableTests(unittest.TestCase):
+    """Each computed branch must inherit only its own table's successors.
+
+    A function-wide union fabricated cross-table CFG edges in DoPlayerAction:
+    the first dispatch could appear to jump into either later switch, bypassing
+    definitions that every real path executes.  These tests pin the stricter
+    relocation-provenance partition and its fail-closed boundaries.
+    """
+
+    @staticmethod
+    def _lis(rd):
+        return (15 << 26) | (rd << 21)
+
+    @staticmethod
+    def _addi(rd, ra):
+        return (14 << 26) | (rd << 21) | (ra << 16)
+
+    @staticmethod
+    def _lwzx(rd, ra, rb):
+        return ((31 << 26) | (rd << 21) | (ra << 16) | (rb << 11)
+                | (23 << 1))
+
+    @staticmethod
+    def _mtctr(rs):
+        return (31 << 26) | (rs << 21) | (9 << 16) | (467 << 1)
+
+    def test_two_bctr_sites_keep_their_own_table_targets(self):
+        words = [
+            self._lis(3), self._addi(3, 3), self._lwzx(0, 3, 4),
+            self._mtctr(0), 0x4E800420,
+            self._lis(5), self._addi(5, 5), self._lwzx(0, 5, 6),
+            self._mtctr(0), 0x4E800420,
+        ]
+        relocations = {
+            2: (6, "table_a"), 6: (4, "table_a"),
+            22: (6, "table_b"), 26: (4, "table_b"),
+        }
+        dispatches = _partition_jumptable_dispatches(
+            words, relocations,
+            {"table_a": {0x0, 0x4}, "table_b": {0x14, 0x18}},
+        )
+        self.assertEqual(dispatches, {4: {0, 1}, 9: {5, 6}})
+
+    def test_two_proven_bases_for_one_lwzx_are_ambiguous(self):
+        words = [
+            self._lis(3), self._addi(3, 3),
+            self._lis(4), self._addi(4, 4),
+            self._lwzx(0, 3, 4), self._mtctr(0), 0x4E800420,
+        ]
+        relocations = {
+            2: (6, "table_a"), 6: (4, "table_a"),
+            10: (6, "table_b"), 14: (4, "table_b"),
+        }
+        with self.assertRaisesRegex(ValueError, "base is ambiguous"):
+            _partition_jumptable_dispatches(
+                words, relocations,
+                {"table_a": {0}, "table_b": {4}},
+            )
+
+    def test_missing_ha_lo_provenance_is_refused(self):
+        words = [
+            self._lis(3), self._addi(3, 3), self._lwzx(0, 3, 4),
+            self._mtctr(0), 0x4E800420,
+        ]
+        with self.assertRaisesRegex(ValueError, "base is unproved"):
+            _partition_jumptable_dispatches(
+                words, {6: (4, "table_a")}, {"table_a": {0}}
+            )
+
+    def test_complete_table_datum_resolves_only_its_own_slots(self):
+        obj = _elf_object(
+            _words(BLR, BLR), data=bytes(12),
+            data_symbols=[("table_a", 0, 8), ("unrelated", 8, 4)],
+            data_relocations=[
+                (0, "fn", 1, 0), (4, "fn", 1, 4),
+                (8, "fn", 1, 0),
+            ],
+        )
+        sections = _sections(obj)
+        self.assertEqual(
+            _jumptable_targets_for_symbol(
+                obj, sections, "table_a", 1, 0, 8
+            ),
+            {0, 4},
+        )
+
+    def test_incomplete_table_datum_is_refused(self):
+        obj = _elf_object(
+            _words(BLR, BLR), data=bytes(8),
+            data_symbols=[("table_a", 0, 8)],
+            data_relocations=[(0, "fn", 1, 0)],
+        )
+        sections = _sections(obj)
+        with self.assertRaisesRegex(ValueError, "relocation-complete"):
+            _jumptable_targets_for_symbol(
+                obj, sections, "table_a", 1, 0, 8
+            )
+
+    def test_overlapping_table_relocations_are_refused(self):
+        obj = _elf_object(
+            _words(BLR, BLR), data=bytes(8),
+            data_symbols=[("table_a", 0, 8)],
+            data_relocations=[
+                (0, "fn", 1, 0), (0, "fn", 1, 4),
+                (4, "fn", 1, 4),
+            ],
+        )
+        sections = _sections(obj)
+        with self.assertRaisesRegex(ValueError, "overlapping relocations"):
+            _jumptable_targets_for_symbol(
+                obj, sections, "table_a", 1, 0, 8
+            )
 
 
 class InstructionCountDeltaIneligibilityTests(unittest.TestCase):

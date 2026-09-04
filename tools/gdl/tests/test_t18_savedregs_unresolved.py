@@ -136,10 +136,17 @@ class LiveReproduction(unittest.TestCase):
             self.skipTest(f"{unit}::{fn} objects not built")
         return sr.lifetime_pairs(t_rows, o_rows)
 
-    def test_doplayeraction_li_zero_row_is_refused(self):
+    def test_doplayeraction_reconstructed_entry_has_no_unresolved_row(self):
+        """The old independent-zero spelling was deliberately unresolved.
+
+        DoPlayerAction now reconstructs the target's entry value identities;
+        retaining the old assertion would make a successful source repair
+        fail the suite.  The synthetic tests above continue to pin the
+        UNRESOLVED classification itself.
+        """
         verdicts = [v for _l, _t, _o, v, _n
                     in self._pairs("game/anim/action", "DoPlayerAction")]
-        self.assertIn("UNRESOLVED", verdicts)
+        self.assertNotIn("UNRESOLVED", verdicts)
 
     def test_the_t12_laws_expiry_rows_survive(self):
         # claim.law.T12_...20260903.v1: `--per-web` must keep naming

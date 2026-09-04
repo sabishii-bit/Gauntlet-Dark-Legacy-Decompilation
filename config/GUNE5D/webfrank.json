@@ -31,6 +31,620 @@
           "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
+      },
+      {
+        "function": "DoPlayerAction",
+        "before_sha256": "46245f7a4ab8b20c935229655ac34c6d770bb63f209414be141905b3745c44fb",
+        "after_sha256": "57c50be8717fb19536fca61a2b149caa725e66044ceef0d630013eff2535894f",
+        "mechanism": "attempt.R57_doplayeraction-semantic-source-reconstruction-and-per-bctr-value-closure.20260904.v2. SOURCE EXHAUSTION: exact-count source reconstruction retained the target's value identities and corrected verifier-exposed semantic inversions in the 0x5B/0x5C and 0x65/0x66 switch arms (next versus cur), plus the case-0 repeated `(gControllerButtons & 0x10) != 0` test. The raw residual is 1765/1765 instructions and 405 differing words: one copy-form word at +0x18 (`mr` versus `addi ...,r3,0`) and 404 register-field-only words. The entry word is proved by equivalent_copy_form/unconditional_recolor. The remaining multi-site replicated-value topology is not a position-consistent strict renaming, so value_equality_recolor uses constant closure with all 98 widenings explicitly declared. `per_bctr_jumptable_edges` binds each bctr to its own immediately preceding lwzx/mtctr chain, traces exactly one base through a same-basic-block ADDR16_HA/LO pair, and accepts only a relocation-complete aligned data symbol whose every ADDR32 slot resolves inside this function; missing, malformed, overlapping, cross-function and ambiguous provenance refuse. This eliminates the unsound function-wide union that fabricated cross-switch paths. wc_ve_derive reaches BYTE-EQUAL after 17 refusal rounds and wr_try_rule proves the full retail datum.",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 1765,
+          "differing_words": 405
+        },
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "per-bctr CFG exact-source rederive",
+          "substitutions": [
+            {
+              "at": "0x5c",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x8c",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x94",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xa0",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xa8",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x144",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x1e0",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x1fc",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x218",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x25c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x270",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x27c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x28c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x2a0",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x2ac",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x2bc",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x2d0",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x2dc",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x2ec",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x300",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x30c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x31c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x328",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x388",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x394",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x3f4",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x400",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x460",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x46c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x4d4",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x4e8",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x4f8",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x50c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x51c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x530",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x540",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x554",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x564",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x57c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xa28",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xa64",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xb50",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xb58",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xb68",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xb90",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xc7c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xc84",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xc94",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xcb8",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xd34",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xd70",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xdbc",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xdd8",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xdec",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xdfc",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xe18",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xe2c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xe34",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xe3c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xe4c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xe70",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xe80",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xe98",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xeb0",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0xed0",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xedc",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xee8",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xef0",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xefc",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xf08",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xf18",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xf24",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xf30",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xf3c",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xf48",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0xf54",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x11b0",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x11b4",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x11c0",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x11cc",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x11e4",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1240",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1248",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1250",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1258",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1278",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x12b0",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1314",
+              "bank": "g",
+              "ours": 27,
+              "target": 27
+            },
+            {
+              "at": "0x1328",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1384",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1464",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1480",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1498",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x14d8",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1b04",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            },
+            {
+              "at": "0x1b0c",
+              "bank": "g",
+              "ours": 26,
+              "target": 26
+            },
+            {
+              "at": "0x1b24",
+              "bank": "g",
+              "ours": 27,
+              "target": 27
+            },
+            {
+              "at": "0x1b70",
+              "bank": "g",
+              "ours": 31,
+              "target": 31
+            }
+          ],
+          "compare_exchanges": [],
+          "constant_equality": true
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x18",
+            "proof": "unconditional_recolor"
+          }
+        ],
+        "per_bctr_jumptable_edges": true
       }
     ],
     "game/ui/screensaver": [

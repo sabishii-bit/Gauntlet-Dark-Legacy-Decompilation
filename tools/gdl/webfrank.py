@@ -184,6 +184,235 @@ def _jumptable_targets(
     return targets
 
 
+def _jumptable_targets_for_symbol(
+    data: bytes | bytearray, sections: list[Section], table_name: str,
+    text_index: int, fn_start: int, fn_end: int,
+) -> set[int]:
+    """Resolve one code-referenced jump-table symbol, failing closed.
+
+    Unlike :func:`_jumptable_targets`, this does not pool every address-taken
+    label in the function.  The table symbol must be defined, non-empty,
+    word-aligned, and every one of its words must carry exactly one
+    R_PPC_ADDR32 relocation into this function.  Those constraints make the
+    symbol's complete target set mechanically decidable; a partial or mixed
+    datum is not guessed to be a jump table.
+    """
+    symbols = [symbol for symbol in _symbols(data, sections)
+               if symbol.name == table_name and symbol.section_index != 0]
+    if len(symbols) != 1:
+        raise ValueError(
+            f"jump-table symbol {table_name!r} has {len(symbols)} defined "
+            "entries"
+        )
+    table = symbols[0]
+    if table.section_index == text_index or table.size <= 0 \
+            or table.value % 4 or table.size % 4:
+        raise ValueError(
+            f"jump-table symbol {table_name!r} is not a non-empty aligned "
+            "data datum"
+        )
+    slots: dict[int, tuple[int, int, int]] = {}
+    symtabs = [section for section in sections
+               if section.section_type == SHT_SYMTAB]
+    if len(symtabs) != 1:
+        raise ValueError("jump-table proof requires exactly one symbol table")
+    symtab = symtabs[0]
+    entry = symtab.entry_size or 16
+    for rela in sections:
+        if rela.section_type != SHT_RELA or rela.info != table.section_index:
+            continue
+        item = rela.entry_size or 12
+        for position in range(rela.offset, rela.offset + rela.size, item):
+            r_offset, r_info, r_addend = struct.unpack_from(">IIi", data,
+                                                             position)
+            if not table.value <= r_offset < table.value + table.size:
+                continue
+            if r_offset in slots:
+                raise ValueError(
+                    f"jump-table symbol {table_name!r} has overlapping "
+                    f"relocations at +0x{r_offset - table.value:x}"
+                )
+            slots[r_offset] = (r_info & 0xFF, r_info >> 8, r_addend)
+    expected = set(range(table.value, table.value + table.size, 4))
+    if set(slots) != expected:
+        missing = sorted(expected - set(slots))
+        extra = sorted(set(slots) - expected)
+        detail = []
+        if missing:
+            detail.append(f"missing +0x{missing[0] - table.value:x}")
+        if extra:
+            detail.append(f"extra +0x{extra[0] - table.value:x}")
+        raise ValueError(
+            f"jump-table symbol {table_name!r} is not relocation-complete "
+            f"({', '.join(detail)})"
+        )
+    targets = set()
+    for r_offset in sorted(slots):
+        reloc_type, symbol_index, addend = slots[r_offset]
+        if reloc_type != 1:  # R_PPC_ADDR32
+            raise ValueError(
+                f"jump-table symbol {table_name!r} slot "
+                f"+0x{r_offset - table.value:x} is relocation type "
+                f"{reloc_type}, not R_PPC_ADDR32"
+            )
+        sym_offset = symtab.offset + symbol_index * entry
+        value = _u32(data, sym_offset + 4)
+        section_index = _u16(data, sym_offset + 14)
+        resolved = value + addend
+        if section_index != text_index or not fn_start <= resolved < fn_end:
+            raise ValueError(
+                f"jump-table symbol {table_name!r} slot "
+                f"+0x{r_offset - table.value:x} leaves the function"
+            )
+        targets.add(resolved - fn_start)
+    return targets
+
+
+def _relocation_in_word(
+    relocations: dict[int, tuple[int, str]], index: int,
+) -> tuple[int, str] | None:
+    hits = [value for offset, value in relocations.items()
+            if index * 4 <= offset < index * 4 + 4]
+    if len(hits) > 1:
+        raise ValueError(
+            f"+0x{index * 4:x}: multiple relocations in one instruction"
+        )
+    return hits[0] if hits else None
+
+
+def _defines_gpr(word: int, register: int) -> bool:
+    try:
+        return any(
+            bank == "g" and role in ("d", "b")
+            and ((word >> shift) & 0x1F) == register
+            for bank, shift, role, _zero_none in instruction_operands(word)
+        )
+    except ValueError:
+        # A form the operand model cannot decode is not safe to scan across:
+        # conservatively treat it as a possible definition.
+        return True
+
+
+def _trace_jumptable_base(
+    words: list[int], before: int, register: int,
+    relocations: dict[int, tuple[int, str]],
+) -> str | None:
+    """Trace a load base to its own ADDR16_HA/LO pair in one basic block."""
+    lo_index = None
+    lo_name = None
+    lo_source = None
+    for index in range(before - 1, -1, -1):
+        word = words[index]
+        if _is_control_instruction(word):
+            break
+        if not _defines_gpr(word, register):
+            continue
+        relocation = _relocation_in_word(relocations, index)
+        if word >> 26 == 14 and ((word >> 21) & 0x1F) == register \
+                and relocation is not None and relocation[0] == 4:
+            lo_index = index
+            lo_name = relocation[1]
+            lo_source = (word >> 16) & 0x1F
+        break
+    if lo_index is None or not lo_name or lo_source == 0:
+        return None
+    for index in range(lo_index - 1, -1, -1):
+        word = words[index]
+        if _is_control_instruction(word):
+            break
+        if not _defines_gpr(word, lo_source):
+            continue
+        relocation = _relocation_in_word(relocations, index)
+        if word >> 26 == 15 and ((word >> 21) & 0x1F) == lo_source \
+                and ((word >> 16) & 0x1F) == 0 \
+                and relocation == (6, lo_name):
+            return lo_name
+        break
+    return None
+
+
+def _partition_jumptable_dispatches(
+    words: list[int], relocations: dict[int, tuple[int, str]],
+    target_sets: dict[str, set[int]],
+) -> dict[int, set[int]]:
+    """Bind every bctr to the table loaded by its own straight-line chain."""
+    dispatches: dict[int, set[int]] = {}
+    for index, word in enumerate(words):
+        if word >> 26 != 19 or ((word >> 1) & 0x3FF) != 528 \
+                or word & 1:
+            continue
+        if index < 2:
+            raise ValueError(f"+0x{index * 4:x}: bctr has no load chain")
+        mtctr = words[index - 1]
+        spr = ((mtctr >> 16) & 0x1F) | (((mtctr >> 11) & 0x1F) << 5)
+        if mtctr >> 26 != 31 or ((mtctr >> 1) & 0x3FF) != 467 \
+                or spr != 9:
+            raise ValueError(
+                f"+0x{index * 4:x}: bctr is not immediately preceded by "
+                "mtctr"
+            )
+        ctr_source = (mtctr >> 21) & 0x1F
+        load = words[index - 2]
+        if load >> 26 != 31 or ((load >> 1) & 0x3FF) != 23 \
+                or ((load >> 21) & 0x1F) != ctr_source:
+            raise ValueError(
+                f"+0x{index * 4:x}: mtctr source is not immediately loaded "
+                "by lwzx"
+            )
+        bases = []
+        for register in ((load >> 16) & 0x1F, (load >> 11) & 0x1F):
+            name = _trace_jumptable_base(
+                words, index - 2, register, relocations
+            )
+            if name is not None:
+                bases.append(name)
+        if len(bases) != 1:
+            raise ValueError(
+                f"+0x{index * 4:x}: jump-table base is "
+                f"{'ambiguous' if bases else 'unproved'}"
+            )
+        name = bases[0]
+        targets = target_sets.get(name)
+        if not targets:
+            raise ValueError(
+                f"+0x{index * 4:x}: no complete target set for "
+                f"jump-table symbol {name!r}"
+            )
+        if any(offset % 4 or not 0 <= offset < len(words) * 4
+               for offset in targets):
+            raise ValueError(
+                f"+0x{index * 4:x}: jump-table symbol {name!r} has an "
+                "unaligned or out-of-range target"
+            )
+        dispatches[index] = {offset // 4 for offset in targets}
+    if not dispatches:
+        raise ValueError("per-bctr jump-table proof found no bctr")
+    return dispatches
+
+
+def _complete_jumptable_sets(
+    data: bytes | bytearray, sections: list[Section],
+    text_index: int, fn_start: int, fn_end: int,
+    relocations: dict[int, tuple[int, str]],
+) -> dict[str, set[int]]:
+    """Return only relocation-complete tables named by function code."""
+    names = {name for reloc_type, name in relocations.values()
+             if reloc_type == 4 and name}
+    result = {}
+    for name in names:
+        try:
+            result[name] = _jumptable_targets_for_symbol(
+                data, sections, name, text_index, fn_start, fn_end
+            )
+        except ValueError:
+            # Most ADDR16_LO references name ordinary data.  Only the symbol
+            # that the proved lwzx/mtctr/bctr chain selects is required to be
+            # a complete table; _partition_jumptable_dispatches refuses if
+            # that selected symbol is absent here.
+            continue
+    return result
+
+
 def _parse_int(value: int | str) -> int:
     return value if isinstance(value, int) else int(value, 0)
 
@@ -489,6 +718,7 @@ def _successors(
     words: list[int],
     relocated_indexes: frozenset[int] | set[int],
     jumptable_indexes: frozenset[int] | set[int],
+    jumptable_dispatches: dict[int, set[int]] | None = None,
 ) -> tuple[list[list[int]], list[bool]]:
     """Per-word successor lists and call flags, failing closed on any
     control form whose targets cannot be established."""
@@ -533,12 +763,20 @@ def _successors(
                     call = True
                     succ = [index + 1]
                 else:
-                    if not jumptable_indexes:
+                    if jumptable_dispatches is not None:
+                        if index not in jumptable_dispatches:
+                            raise ValueError(
+                                f"+0x{index * 4:x}: bctr has no proved "
+                                "per-dispatch jump-table target set"
+                            )
+                        succ = sorted(jumptable_dispatches[index])
+                    elif jumptable_indexes:
+                        succ = sorted(jumptable_indexes)
+                    else:
                         raise ValueError(
                             f"+0x{index * 4:x}: bctr without discoverable "
                             "jumptable targets"
                         )
-                    succ = sorted(jumptable_indexes)
                     if bo & 0x14 != 0x14:
                         succ.append(index + 1)
             elif xo in _XO19_NO_OPERANDS:
@@ -648,6 +886,7 @@ def verify_consistent_recolor(
     target: bytes,
     *,
     jumptable_targets=(),
+    jumptable_dispatches=None,
     relocated_offsets=(),
     call_targets=None,
 ) -> None:
@@ -667,7 +906,9 @@ def verify_consistent_recolor(
         if off % 4 or not 0 <= off < len(current):
             raise ValueError(f"invalid jumptable target +0x{off:x}")
         jumptable.add(off // 4)
-    successors, calls = _successors(words_cur, relocated, jumptable)
+    successors, calls = _successors(
+        words_cur, relocated, jumptable, jumptable_dispatches
+    )
 
     identity = {("g", n): n for n in range(32)}
     identity.update({("f", n): n for n in range(32)})
@@ -1268,6 +1509,7 @@ def verify_value_equality_recolor(
     target: bytes,
     *,
     jumptable_targets=(),
+    jumptable_dispatches=None,
     relocated_offsets=(),
     target_relocated_offsets=(),
     call_targets=None,
@@ -1334,7 +1576,9 @@ def verify_value_equality_recolor(
         if off % 4 or not 0 <= off < len(current):
             raise ValueError(f"invalid jumptable target +0x{off:x}")
         jumptable.add(off // 4)
-    successors, calls = _successors(words_cur, our_relocated, jumptable)
+    successors, calls = _successors(
+        words_cur, our_relocated, jumptable, jumptable_dispatches
+    )
 
     our_copies = [
         _value_preserving_copy(word, index, our_relocated)
@@ -4201,6 +4445,70 @@ def apply_patch(
         data, sections, symbol.section_index,
         symbol.value, symbol.value + symbol.size,
     )
+    jumptable_dispatches = None
+    per_bctr = patch.get("per_bctr_jumptable_edges", False)
+    if "per_bctr_jumptable_edges" in patch and not isinstance(per_bctr, bool):
+        raise ValueError(
+            f"{symbol.name}: \"per_bctr_jumptable_edges\" is a boolean "
+            "proof opt-in"
+        )
+    if per_bctr:
+        if target_data is None:
+            raise ValueError(
+                f"{symbol.name}: per-bctr jump-table proof requires the "
+                "target object"
+            )
+        target_sections_for_dispatch = _sections(target_data)
+        target_symbol_for_dispatch = _find_symbol(
+            target_data, target_sections_for_dispatch, symbol.name
+        )
+        if target_symbol_for_dispatch.size != symbol.size:
+            raise ValueError(
+                f"{symbol.name}: target/current function size mismatch "
+                f"({target_symbol_for_dispatch.size} != {symbol.size})"
+            )
+        target_text_for_dispatch = target_sections_for_dispatch[
+            target_symbol_for_dispatch.section_index
+        ]
+        target_start_for_dispatch = (
+            target_text_for_dispatch.offset + target_symbol_for_dispatch.value
+        )
+        target_function_for_dispatch = target_data[
+            target_start_for_dispatch:
+            target_start_for_dispatch + target_symbol_for_dispatch.size
+        ]
+        target_relocations_for_dispatch = _function_text_relocations(
+            target_data, target_sections_for_dispatch,
+            target_symbol_for_dispatch.section_index,
+            target_symbol_for_dispatch.value,
+            target_symbol_for_dispatch.value + target_symbol_for_dispatch.size,
+        )
+        our_tables = _complete_jumptable_sets(
+            data, sections, symbol.section_index,
+            symbol.value, symbol.value + symbol.size, text_relocations,
+        )
+        target_tables = _complete_jumptable_sets(
+            target_data, target_sections_for_dispatch,
+            target_symbol_for_dispatch.section_index,
+            target_symbol_for_dispatch.value,
+            target_symbol_for_dispatch.value + target_symbol_for_dispatch.size,
+            target_relocations_for_dispatch,
+        )
+        our_dispatches = _partition_jumptable_dispatches(
+            [_u32(original_function, offset)
+             for offset in range(0, len(original_function), 4)],
+            text_relocations, our_tables,
+        )
+        target_dispatches = _partition_jumptable_dispatches(
+            [_u32(target_function_for_dispatch, offset)
+             for offset in range(0, len(target_function_for_dispatch), 4)],
+            target_relocations_for_dispatch, target_tables,
+        )
+        if our_dispatches != target_dispatches:
+            raise ValueError(
+                f"{symbol.name}: our/target per-bctr jump-table edges differ"
+            )
+        jumptable_dispatches = our_dispatches
     deferred_exit: list = []
 
     changed = 0
@@ -4760,6 +5068,7 @@ def apply_patch(
             verify_consistent_recolor(
                 pre_register, recolor_image,
                 jumptable_targets=jumptable_offsets,
+                jumptable_dispatches=jumptable_dispatches,
                 relocated_offsets=relocated_offsets,
                 call_targets=call_targets,
             )
@@ -4778,6 +5087,7 @@ def apply_patch(
             if value_equality is not None:
                 proof = dict(
                     jumptable_targets=jumptable_offsets,
+                    jumptable_dispatches=jumptable_dispatches,
                     relocated_offsets=relocated_offsets,
                     target_relocated_offsets=value_equality_relocations,
                     call_targets=call_targets,

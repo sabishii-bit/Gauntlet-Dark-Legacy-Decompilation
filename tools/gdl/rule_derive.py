@@ -146,6 +146,20 @@ RULE_CLASSES = {
         ],
         "requires_target": True,
     },
+    "per_bctr_jumptable_edges": {
+        "verifier": "_partition_jumptable_dispatches + "
+                    "_jumptable_targets_for_symbol",
+        "proves": "each bctr's CFG successors come only from the one "
+                  "relocation-complete jump table loaded by that branch's "
+                  "own same-basic-block ADDR16_HA/LO -> lwzx -> mtctr chain",
+        "refuses": [
+            "a missing, indirect, ambiguous, or multiply-relocated base "
+            "provenance chain",
+            "a table with missing/overlapping/non-ADDR32 slots or any target "
+            "outside the current function",
+        ],
+        "requires_target": True,
+    },
     "post_recolor_permutation": {
         "verifier": "permute_instruction_atoms, run AFTER the recolor",
         "proves": "the permutation is legal in the TARGET colouring",

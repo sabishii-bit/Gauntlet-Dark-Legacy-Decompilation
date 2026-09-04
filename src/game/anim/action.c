@@ -563,15 +563,14 @@ void DoPlayerAction(void* player)
     s32 seq;
     s32 combo;
     s32 flags;
-    void* mbobj;
     s32 adv;
     f32 ang;
     s32 dance;
     u8 unused[8];
 
-    next = p[0x83];
+    act = p[0x83];
     cur = p[0x82];
-    act = next;
+    next = act;
     *((u8*)p + 0x93) |= 2;
     atkNext = PlayerAttackType(next);
     atkCur = PlayerAttackType(cur);
@@ -587,12 +586,15 @@ void DoPlayerAction(void* player)
         mode = 2;
     }
     if (act >= 0x83 && act <= 0x94) {
+        s32 repeatCount;
+
         mode = 2;
         if (act == 0x94) {
-            rpt = 2;
+            repeatCount = 2;
         } else {
-            rpt = 1;
+            repeatCount = 1;
         }
+        rpt = repeatCount;
     }
     atkD = PlayerAttackType(d);
     if (atkD != 0 && atkD < 0xB && atkNext >= 11) {
@@ -618,7 +620,7 @@ void DoPlayerAction(void* player)
             } else {
                 hi = 0x708;
             }
-            if (gControllerButtons != 0) {
+            if ((gControllerButtons & 0x10) != 0) {
                 lo = 0x3C;
             } else {
                 lo = 600;
@@ -636,24 +638,24 @@ void DoPlayerAction(void* player)
         didt = 0;
         mode = 2;
         if (next == 0) {
-            mode = 1;
             act = 0;
+            mode = 1;
         }
         break;
     case 2:
         didt = 0;
         mode = 2;
         if (next == 0) {
-            mode = 1;
             act = 3;
+            mode = 1;
         }
         break;
     case 3:
         didt = 1;
         mode = 2;
         if (next == 0) {
-            mode = 0;
             act = 3;
+            mode = 0;
         }
         break;
     case 0x15:
@@ -729,12 +731,11 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x4A;
         }
-        mbobj = pl->weaphold_node;
-        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree->frame < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
+                MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
-                MBTreeClearFlags(mbobj, 2, 0);
+                MBTreeClearFlags(pl->weaphold_node, 2, 0);
             }
         }
         break;
@@ -746,12 +747,11 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x49;
         }
-        mbobj = pl->weaphold_node;
-        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree->frame < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
+                MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
-                MBTreeClearFlags(mbobj, 2, 0);
+                MBTreeClearFlags(pl->weaphold_node, 2, 0);
             }
         }
         break;
@@ -763,12 +763,11 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4E;
         }
-        mbobj = pl->weaphold_node;
-        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree->frame < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
+                MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
-                MBTreeClearFlags(mbobj, 2, 0);
+                MBTreeClearFlags(pl->weaphold_node, 2, 0);
             }
         }
         break;
@@ -780,12 +779,11 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4D;
         }
-        mbobj = pl->weaphold_node;
-        if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree->frame < 2.0f) {
-                MBTreeSetFlags(mbobj, 2, 0);
+                MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
-                MBTreeClearFlags(mbobj, 2, 0);
+                MBTreeClearFlags(pl->weaphold_node, 2, 0);
             }
         }
         break;
@@ -1057,9 +1055,9 @@ void DoPlayerAction(void* player)
         break;
     case 0x58:
         mode = 1;
-        if (p[0x136] >= 0) {
+        if (defs[0x59].seq >= 0) {
             act = 0x59;
-        } else if (p[0x138] >= 0) {
+        } else if (defs[0x5A].seq >= 0) {
             act = 0x5A;
         } else if (rpt < 2) {
             mode = 0;
@@ -1085,7 +1083,7 @@ void DoPlayerAction(void* player)
     case 0x8F:
         didt = 1;
         if (next != d) {
-            if (p[d * 2 + 0x86] >= 0) {
+            if (defs[d + 1].seq >= 0) {
                 act = d + 1;
             }
             mode = 2;
@@ -1121,7 +1119,7 @@ void DoPlayerAction(void* player)
             mode = 2;
         } else if (next == 0x4F) {
             act = 0x50;
-            if (p[0x124] < 0) {
+            if (defs[0x50].seq < 0) {
                 act = 0x4F;
             }
         } else {
@@ -1158,17 +1156,17 @@ void DoPlayerAction(void* player)
         } else if (atkNext == 7) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
-        } else if (cur == 0x73 || cur == 0x75) {
+        } else if (next == 0x73 || next == 0x75) {
             mode = 2;
-        } else if (cur == 0x65) {
+        } else if (next == 0x65) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
         } else {
-            if (cur != 0x5B && atree->frame >= 2.0f) {
+            if (next != 0x5B && atree->frame >= 2.0f) {
                 mode = 2;
-                act = dance ? 0x60 : 0x5F;
+                act = ((dance + 1) == 2) ? 0x60 : 0x5F;
             } else {
-                act = dance ? 0x60 : 0x5F;
+                act = ((dance + 1) == 2) ? 0x60 : 0x5F;
             }
         }
         break;
@@ -1198,12 +1196,12 @@ void DoPlayerAction(void* player)
         } else if (atkNext == 7) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
-        } else if (cur == 0x73 || cur == 0x75) {
+        } else if (next == 0x73 || next == 0x75) {
             mode = 2;
-        } else if (cur == 0x65) {
+        } else if (next == 0x65) {
             s32 gapAct;
 
-            if (next == 0x65) {
+            if (cur == 0x65) {
                 gapAct = 0x66;
             } else {
                 gapAct = 0x65;
@@ -1214,8 +1212,8 @@ void DoPlayerAction(void* player)
     case 0x6B:
     case 0x6C:
         if (next == 0x6B) {
-            didt = 1;
             act = 0x6C;
+            didt = 1;
         } else if (atkNext != 0) {
             mode = 1;
         } else {
@@ -1248,11 +1246,11 @@ void DoPlayerAction(void* player)
         break;
     case 0x73:
         if (next == 0x75) {
+            act = 0x75;
             mode = 2;
-            act = 0x75;
         } else if ((pl->field_956 & 4) == 0) {
-            mode = 0;
             act = 0x75;
+            mode = 0;
         } else {
             act = 0x74;
         }
@@ -1262,7 +1260,7 @@ void DoPlayerAction(void* player)
         break;
     case 0x7A:
         didt = 1;
-        if (cur == 0 ||
+        if (next == 0 ||
             (atree->frame < 10.0f && atree->stage == 0)) {
             mode = 0;
         } else {
@@ -1301,8 +1299,8 @@ void DoPlayerAction(void* player)
     case 0x1D:
     case 0x1E:
         if (next == 0x1D) {
-            didt = 1;
             act = 0x1E;
+            didt = 1;
         } else {
             act = 0x1F;
         }
@@ -1313,7 +1311,7 @@ void DoPlayerAction(void* player)
         } else {
             mode = 2;
         }
-        if (cur == 0 || cur == 0x11 || cur == 0x13) {
+        if (next == 0 || next == 0x11 || next == 0x13) {
             mode = 0;
         }
         break;
@@ -1337,22 +1335,22 @@ void DoPlayerAction(void* player)
     case 0x83:
         mode = 0;
         if (next != 0x83) {
-            mode = 1;
             act = 0x84;
+            mode = 1;
         }
         break;
     case 0x85:
         mode = 0;
         if (next != 0x85) {
-            mode = 1;
             act = 0x86;
+            mode = 1;
         }
         break;
     case 0x87:
         mode = 0;
         if (next != 0x87) {
-            mode = 1;
             act = 0x84;
+            mode = 1;
         }
         break;
     case 0x94:
@@ -1481,14 +1479,14 @@ void DoPlayerAction(void* player)
     atree->repeat = (s16)didt;
     {
         s32 rawSeq = defs[d].seq;
-        if (rawSeq < 0) {
-            rawSeq = 0;
-        }
         seq = rawSeq;
+        if (rawSeq < 0) {
+            seq = 0;
+        }
     }
 
     /* per-action animation speed */
-    if ((*(s16*)((u8*)p + offsetof(Player, hud_flags)) & 0xD0) != 0 || atkNext >= 0xB ||
+    if ((pl->hud_flags & 0xD0) != 0 || atkNext >= 0xB ||
         atkNext == 1) {
         atree->animscale = 1.0f;
     } else if ((act >= 0x58 && act <= 0x5A) ||
@@ -1512,10 +1510,11 @@ void DoPlayerAction(void* player)
 
     adv = DoAnimateTree(speed, node, seq, frame, mode, 1);
     if (adv != 0) {
-        p[0x23C] = PlayerAttackType(act);
+        seq = PlayerAttackType(act);
     } else {
-        p[0x23C] = PlayerAttackType(cur);
+        seq = PlayerAttackType(cur);
     }
+    p[0x23C] = seq;
 
     if (adv != 0) {
         pf[0x296] = -1.0f;
@@ -1624,7 +1623,7 @@ void DoPlayerAction(void* player)
             break;
         }
 
-        *(s16*)((u8*)p + offsetof(Player, hud_flags)) &= ~0xC702;
+        pl->hud_flags &= ~0xC702;
         switch (act) {
         case 0x20:
         case 0x21:
@@ -1709,7 +1708,7 @@ void DoPlayerAction(void* player)
             p[0x23E] = 0;
             break;
         case 0x7B:
-            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x800;
+            pl->hud_flags |= 0x800;
             /* fallthrough */
         case 0x7E:
         case 0x83:
@@ -1717,17 +1716,17 @@ void DoPlayerAction(void* player)
         case 0x85:
         case 0x86:
         case 0x87:
-            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 2;
+            pl->hud_flags |= 2;
             break;
         case 0x77:
-            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x100;
+            pl->hud_flags |= 0x100;
             break;
         case 4:
         case 5:
         case 6:
         case 7:
         case 0x78:
-            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x200;
+            pl->hud_flags |= 0x200;
             break;
         case 9:
         case 10:
@@ -1737,7 +1736,7 @@ void DoPlayerAction(void* player)
         case 0xE:
         case 0xF:
         case 0x10:
-            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x4000;
+            pl->hud_flags |= 0x4000;
             break;
         case 0x47:
         case 0x48:
@@ -1747,12 +1746,12 @@ void DoPlayerAction(void* player)
         case 0x4C:
         case 0x4D:
         case 0x4E:
-            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x8000;
+            pl->hud_flags |= 0x8000;
             p[0x240] |= 1;
             p[0x23E] = 0;
             break;
         case 8:
-            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x400;
+            pl->hud_flags |= 0x400;
             p[0x23E] = 0;
             break;
         case 0x22:
@@ -1907,7 +1906,7 @@ void DoPlayerAction(void* player)
         dbgTextPrintfCol(1, 0x1C,
                          "ACTION:%s NEXT:%s D:%s INT:%d RPT:%d DIDT:%d",
                          action_names[cur], action_names[act],
-                         action_names[next], mode, rpt, didt);
+                         action_names[next], mode, didt, adv);
         dbgTextPrintfCol(1, 0x1D, "  SEQ:%s  frame:%.1f/%d      ",
                          (char*)((s32)atree->seqheader + atree->animseq * 0x30),
                          atree->frame, (s32)atree->numframes);
