@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "tools/gdl/probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "decl-order",
+      "matching",
+      "metrics",
+      "relocation",
+      "symbol-identity",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit an initialised-pointer declaration reorder on any function where the two @lo/@ha materialisations move and `python tools/gdl/composed_census/wf_word_diff.py <unit> <fn>` still reports RELOC-SYMBOL MISMATCH = 0 -- that would show the correspondence survives the reorder and the screen is unnecessary for this class. Conversely, showing that real, fuzzy, the multiset or the differing-word count MOVES when only the two relocations swap would refute the invisibility half: reproduce with the fn_800C03E0 pointer swap, which moved all four numbers in the FAVOURABLE direction while introducing both rows.",
+  "id": "claim.law.WP_a-declaration-reorder-that-improves-real-and-fuzzy-can-break-the-relocation-symbol-correspondence.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T02:47:19Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "REORDERING TWO INITIALISED POINTER LOCALS REORDERS THEIR ADDRESS MATERIALISATIONS, SO A DECLARATION-ORDER PROBE CAN BUY A real AND fuzzy IMPROVEMENT WITH A RELOCATION-SYMBOL MISMATCH THAT NO ARBITER IN THIS PROJECT READS. This EXTENDS claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1 from a defect you INHERIT to one a routine matching probe CREATES, and it names the screen that catches it.\n\nMEASURED on game/pb/dbgtext::fn_800C03E0 at commit eb4cfda9e, 433/433 instructions throughout. The clean baseline probe printed 'RELOC-SYMBOL SCREEN: clean' at real 508 / fuzzy 96.7783%. Transposing the adjacent declarations `char* fmts = lbl_80116450;` and `DbgRow* tblB = lbl_80127DE8;` -- the lever the function's own previous record mandated as step 1, and the only two locals whose defining instruction is an ADDR16_LO materialisation of a DIFFERENT symbol -- measured IMPROVED on both arbiters at once: real 508 -> 498, fresh objdiff fuzzy 96.7783% -> 96.8707%, count parity held, opcode multiset unchanged. It also produced, on the same bytes, 'RELOC-SYMBOL MISMATCH: 2 instruction(s) whose WORD is identical in both streams relocate a DIFFERENT symbol -- +0x000c target lbl_80116450 ours lbl_80127DE8; +0x001c target lbl_80127DE8 ours lbl_80116450'. Two words, byte-identical in both objects, pointing at each other's symbol.\n\nWHY EVERY ARBITER MISSES IT. real, fuzzy, the opcode multiset and the differing-WORD count are all computed over instruction words, and these two words are IDENTICAL in the two streams -- they are not differing words at all, so they cannot appear in any of those numbers in either direction. The improvement is real; the regression is in a channel none of the four inhabit. probe.py's own RELOC-SYMBOL SCREEN is the one instrument that reads it, and it runs on the BASELINE line, so a lane that banks a probe on the verdict alone never sees the screen change from clean to dirty.\n\nWHY IT DISQUALIFIES THE POSTPROCESSOR PATH, which is the sharper consequence. A copy_register_fields rule authored over such a state reproduces the target TEXT exactly while leaving two relocations bound to the wrong atoms -- the guard cannot see it, because webfrank's payload check proves relocation CONSERVATION, not BINDING (claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1). So a score-improving source probe can silently make a function ineligible for the exact rule class a later lane will try to author on it, and the two failures compose without either being visible.\n\nTHE ISOLATION IS THE PROOF, not the observation. The same session's `qline`/`line` transposition -- two uninitialised s32 cursors, no address materialisation between them -- measured real 508 -> 484 and fuzzy 96.7783% -> 97.0092% with the reloc screen still reading 0. Running P3 ALONE separates the two effects completely: the pointer swap's extra -10 real is exactly what the two mismatched rows are bought with, and the cursor swap's -24 real costs nothing. The kept state is the reloc-clean one.\n\nTHE RULE: any declaration-order probe that moves a local whose defining instruction carries a relocation gets `wf_word_diff` read for its RELOC-SYMBOL MISMATCH line before the keep, not just probe.py's verdict. The class is identifiable before the probe: it is exactly the locals initialised from a file-scope address, which MWCC materialises in declaration order in the entry block."
+}
