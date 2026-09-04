@@ -65,6 +65,8 @@ Usage (from repo root):
   python tools/gdl/claimscope.py --index               # unit -> owner map
   python tools/gdl/claimscope.py --blocks              # webfrank block owners
   python tools/gdl/claimscope.py --self                # who am I
+  python tools/gdl/claimscope.py --audit               # every owned_units
+                                                       # entry, one row each
 
 Exit 0 ok / 3 foreign / 0 undecidable (a warning, never a hard stop: the
 field's coverage was 0 of 6 active claims when it shipped, and a gate that
@@ -363,8 +365,11 @@ def real_units(repo=REPO):
     return out
 
 
+AUDIT_STATUSES = ("unit", "prefix", "file", "UNRESOLVED")
+
+
 def audit_owned_units(claims=None, repo=REPO):
-    """Owned-unit entries that name NO unit in this tree (run-51 item 9c).
+    """EVERY owned-unit entry, with the status of what it resolves to.
 
     A claim's `owned_units` list is the ONLY channel the tools screen
     (AGENTS.md, run 46), so an entry that names nothing protects nothing —
@@ -374,9 +379,37 @@ def audit_owned_units(claims=None, repo=REPO):
     directory is wrong and the basename is right, which is exactly the shape
     a basename lookup catches and no existing check looked for.
 
-    A DIRECTORY PREFIX (`tools/gdl`, `memory_graph`) is a legitimate entry
-    that names no source file, so it is verified as a directory instead and
-    reported as `prefix`, never as a miss.
+    THE ROW LIST IS TOTAL (run-54 item 1). Until now this returned rows only
+    for entries that were NOT ordinary units — a resolving entry produced no
+    row at all — so `--audit` printed a header counting every entry beside a
+    row list counting a subset, and the arithmetic did not close. Two run-53
+    lanes reported the same confusion from opposite sides: NC saw
+    `owned_unit_entries: 10 ... 4 rows`, WR saw `owned_unit_entries: 14 with
+    the same 4 rows`, because the rows are insensitive to exactly the entries
+    that changed. A reader cannot distinguish "the other entries were checked
+    and are fine" from "the audit never looked at them", and the second is
+    what the note's own warning is about. So every entry gets a row, and the
+    per-status tally in `--audit` sums to `owned_unit_entries` by
+    construction.
+
+    Statuses: `unit` (a real source unit under src/), `prefix` (an existing
+    DIRECTORY — `tools/gdl`, `memory_graph` — a legitimate entry that names
+    no source file, never a miss), `file` (an existing path that is neither,
+    e.g. `config/GUNE5D/webfrank.json`, which the old code labelled `prefix`
+    although nothing is under it), and `UNRESOLVED` (names nothing here).
+
+    CALIBRATED TWO-SIDED over all 432 distinct work_claim versions in git
+    history (112 owned-unit entries; accepted claims are deleted, so the live
+    corpus is only 6 claims / 9 entries):
+      POSITIVES  80 entries (71%) had no row at all and now report `unit`;
+                 12 more reported `prefix` while being FILES, two distinct
+                 paths (`config/GUNE5D/webfrank.json`, `tools/gdl/
+                 webfrank.py`) — both of them WV's, i.e. the mislabel lands
+                 on the postprocessor lane's scope every run.
+      NEGATIVES  17 true directory prefixes keep `prefix` unchanged, and the
+                 3 UNRESOLVED entries (`game/ps2/ml_mem` — the run-50 defect
+                 — and `dolphin/demo`) keep their status, their
+                 `did_you_mean` and the exit-1 verdict unchanged.
     """
     claims = claims if claims is not None else load_claims(repo)
     units = real_units(repo)
@@ -389,22 +422,28 @@ def audit_owned_units(claims=None, repo=REPO):
             key = normalize(entry)
             path, _block = split_block(key)
             path = normalize(path)
+            row = {"owner": claim["owner"], "claim": claim["id"],
+                   "entry": entry}
             if path in units:
+                rows.append(dict(row, status="unit", resolves_to=path))
                 continue
-            if (Path(repo) / path).is_dir() or (Path(repo) / key).exists():
-                rows.append({"owner": claim["owner"], "claim": claim["id"],
-                             "entry": entry, "status": "prefix"})
+            if (Path(repo) / path).is_dir():
+                rows.append(dict(row, status="prefix", resolves_to=path))
+                continue
+            existing = next((p for p in (key, path)
+                             if (Path(repo) / p).exists()), None)
+            if existing is not None:
+                rows.append(dict(row, status="file", resolves_to=existing))
                 continue
             base = path.rsplit("/", 1)[-1]
-            rows.append({
-                "owner": claim["owner"], "claim": claim["id"],
-                "entry": entry, "status": "UNRESOLVED",
+            rows.append(dict(row, **{
+                "status": "UNRESOLVED",
                 "did_you_mean": sorted(by_base.get(base, [])),
                 "note": ("this entry names no source file and no directory in"
                          " this tree, so every unit it was meant to protect"
                          " reads as FREE to every tool that screens"
                          " owned_units"),
-            })
+            }))
     return rows
 
 
@@ -437,14 +476,30 @@ def main():
     if "--audit" in args:
         rows = audit_owned_units(claims)
         bad = [row for row in rows if row["status"] == "UNRESOLVED"]
+        entries = sum(len(c["owned_units"]) for c in claims)
+        by_status = {name: sum(1 for r in rows if r["status"] == name)
+                     for name in AUDIT_STATUSES}
         print(json.dumps({
             "active_claims": len(claims),
-            "owned_unit_entries": sum(len(c["owned_units"]) for c in claims),
+            "claims_without_owned_units":
+                sum(1 for c in claims if not c["declared"]),
+            "owned_unit_entries": entries,
+            "by_status": by_status,
+            "rows_printed": len(rows),
+            # The row list is TOTAL (run-54 item 1): this is the arithmetic
+            # whose failure to close was the reported symptom, asserted here
+            # rather than left to the reader.
+            "accounting_closes": len(rows) == entries == sum(
+                by_status.values()),
             "unresolved": len(bad),
             "rows": rows,
-            "note": ("an UNRESOLVED entry protects nothing: the units it was"
-                     " meant to cover read as FREE to probe.py and"
-                     " defake_gate.py. Fix the claim before dispatching."),
+            "note": ("every entry gets a row: `unit` resolves to a source"
+                     " unit, `prefix` to a directory, `file` to an existing"
+                     " non-source path, and an UNRESOLVED entry protects"
+                     " nothing — the units it was meant to cover read as FREE"
+                     " to probe.py and defake_gate.py. A claim with NO"
+                     " owned_units makes every unit UNDECIDABLE, never free."
+                     " Fix the claim before dispatching."),
         }, indent=2))
         return 1 if bad else 0
     units = [a for a in args if not a.startswith("-")]
