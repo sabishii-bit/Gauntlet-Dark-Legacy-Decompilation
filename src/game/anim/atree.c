@@ -207,6 +207,8 @@ extern const f64 sAtreeFrameRoundBias;
 DECL_SECT(".sdata2") extern const char sAtreeDummyName[];
 
 /* intra-TU forward declarations (address-order names retained) */
+s32 AtreeFindNodeIdx(anodeinfo* info, int nnodes, char* name, int len);
+void AtreeSetEmpty(void);
 anode* AtreeNodeLastSibling(anode* node);
 anode* AtreeNodePrevNode(anode* node, anode* list);
 void AtreeRemovePsysSub(anode* node);
@@ -306,7 +308,8 @@ void InitTexMods(atreeseq* seq, int texidx)
 
 /* ---------------- node/seq lookup ---------------- */
 
-s32 AtreeFindNodeIdx(anodeinfo* info, int nnodes, char* name, int len)
+static inline s32 AtreeFindNodeIdxSub(anodeinfo* info, int nnodes, char* name,
+                                      int len)
 {
     int i;
 
@@ -327,13 +330,29 @@ void* AtreeFindNode(atree* tree, char* name, int len)
     void* result;
     int idx;
 
-    idx = AtreeFindNodeIdx(tree->anodeinfo, tree->nanodes, name, len);
+    idx = AtreeFindNodeIdxSub(tree->anodeinfo, tree->nanodes, name, len);
     if (idx >= 0) {
         result = tree->firstanode[idx].obj;
     } else {
         result = NULL;
     }
     return result;
+}
+
+s32 AtreeFindNodeIdx(anodeinfo* info, int nnodes, char* name, int len)
+{
+    int i;
+
+    if (name == NULL || *name == '\0') {
+        return -1;
+    }
+    for (i = 0; i < nnodes; i++) {
+        if (strncmp((char*)info + i * 0x3C, name, len - 1) == 0) {
+            return i;
+        }
+    }
+    ErrorPrintf("AtreeFindNodeIdx can not find node %s", name);
+    return -1;
 }
 
 s32 AtreeHeaderFindSeq(animheader* hdr, char* name)
@@ -368,7 +387,7 @@ s32 AtreeFindSeq(atree* tree, char* name)
 
 /* ---------------- node/animdata pools ---------------- */
 
-void AtreeSetEmpty(void)
+static inline void AtreeSetEmptySub(void)
 {
     int i;
 
@@ -382,25 +401,6 @@ void AtreeSetEmpty(void)
             AnimDataList[i].inuse = 0;
         }
     }
-}
-
-void AtreeAlloc(int nnodes, int ndata)
-{
-    if (AtreeNodeList == NULL) {
-        if (nnodes < 0) {
-            nnodes = 0xE00;
-        }
-        AnodeMax = nnodes;
-        AtreeNodeList = AllocMem(nnodes * 0x28);
-    }
-    if (AnimDataList == NULL) {
-        if (ndata < 0) {
-            ndata = 0xC00;
-        }
-        AnimDataMax = ndata;
-        AnimDataList = AllocMem(ndata * 0xA0);
-    }
-    AtreeSetEmpty();
 }
 
 /* ---------------- atree-list slot save / restore ---------------- */
@@ -429,6 +429,41 @@ void AtreeListLock(int slot)
     atreelist_save.natreelists[slot] = natreelists;
     atreelist_save.nodelist[slot] = AtreeNodeList;
     atreelist_save.datalist[slot] = AnimDataList;
+}
+
+void AtreeAlloc(int nnodes, int ndata)
+{
+    if (AtreeNodeList == NULL) {
+        if (nnodes < 0) {
+            nnodes = 0xE00;
+        }
+        AnodeMax = nnodes;
+        AtreeNodeList = AllocMem(nnodes * 0x28);
+    }
+    if (AnimDataList == NULL) {
+        if (ndata < 0) {
+            ndata = 0xC00;
+        }
+        AnimDataMax = ndata;
+        AnimDataList = AllocMem(ndata * 0xA0);
+    }
+    AtreeSetEmptySub();
+}
+
+void AtreeSetEmpty(void)
+{
+    int i;
+
+    if (AtreeNodeList != NULL) {
+        for (i = 0; i < AnodeMax; i++) {
+            AtreeNodeList[i].type = -1;
+        }
+    }
+    if (AnimDataList != NULL) {
+        for (i = 0; i < AnimDataMax; i++) {
+            AnimDataList[i].inuse = 0;
+        }
+    }
 }
 
 /* Source-level helper retained by the Xbox PDB and inlined by the GCN build. */
