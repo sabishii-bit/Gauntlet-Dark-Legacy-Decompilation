@@ -904,6 +904,26 @@ def keep_consumes_transient_bank(argv):
         arg == "--restore" or arg.startswith("--restore=") for arg in argv)
 
 
+def restore_suppresses_bank(argv, restore_tag=None):
+    """Is this invocation a RESTORE, so the scoring path must bank nothing?
+
+    Run-55 item 5 (MC): "--revert restored the EDITED state ... re-banked
+    the edited tree as BASELINE anyway - overwriting the clean revert point
+    I had correctly banked first". `--revert`, `--restore NAME` and
+    `--revert-best` all fall through to main()'s ordinary build/score path,
+    and the bank at the end of it then wrote the POST-RESTORE tree into the
+    rolling snapshot — the one slot that is supposed to hold the state the
+    lane just came back to.
+
+    `--revert-baseline` and `--discard` return before that path and so do
+    not need to be listed; `--revert-baseline` is not matched by
+    `"--revert" in argv` anyway, since that is a membership test on whole
+    arguments rather than a prefix.
+    """
+    return bool(restore_tag) or any(
+        flag in argv for flag in ("--revert", "--revert-best"))
+
+
 def drop_transient_pins(unit, why):
     """Consume this TU's transient pin bank on a KEEP (run-38 item 5).
 
@@ -5593,6 +5613,26 @@ def main():
                   " working tree (NEUTRAL probes bank too). If you want to"
                   " discard an uncommitted neutral edit, use git"
                   " (`git status` / `git checkout -- <file>`); re-scoring:")
+            # NAME THE STATES THAT STILL HOLD SOMETHING ELSE (run-55 item
+            # 5). The advice above sent every lane to git, while probe holds
+            # two other banks and knows whether either differs from what is
+            # on disk. MC's report — "--revert restored the EDITED state" —
+            # is this message: the undo did nothing, and the two banks that
+            # DO hold the pre-edit tree were not mentioned.
+            for other, flag in ((snap.with_suffix(snap.suffix + ".base"),
+                                 "--revert-baseline"),
+                                (snapshot_path(unit, source,
+                                               best_bank_tag(fn)),
+                                 "--revert-best")):
+                if not other.exists():
+                    continue
+                if other.read_bytes() == source.read_bytes():
+                    print(f"  [{flag}: banked, and its bytes are the same as"
+                          " the working tree — it holds nothing different]")
+                else:
+                    print(f"  [{flag}: banked and DIFFERS from the working"
+                          f" tree ({other.name}) — that is where an earlier"
+                          " state of this TU still lives]")
         elif "--whole-file" in sys.argv:
             before_bytes = source.read_bytes()
             shutil.copyfile(snap, source)
@@ -6210,7 +6250,49 @@ def main():
     # liveness pokes, calibration instruments) that will be hand-reverted —
     # without it a neutral diagnostic becomes its own revert point and
     # --revert can no longer reach the pre-diagnostic state.
-    if source is not None and "--no-bank" not in sys.argv and (
+    # A RESTORE IS NOT A PROBE, SO IT BANKS NOTHING (run-55 item 5, from
+    # MC): "--revert restored the EDITED state ... re-banked the edited tree
+    # as BASELINE anyway - overwriting the clean revert point I had
+    # correctly banked first". `--revert` and `--restore NAME` fall through
+    # to this same scoring path, and the bank below then wrote the
+    # POST-RESTORE tree into the rolling snapshot. Reproduced at a5215d1d3
+    # on zlib/adler32: a clean BASELINE banked, a comment edit probed
+    # NEUTRAL (which banks, by design), and `--revert` then printed
+    # `nothing to restore: adler32's banked snapshot IS the current working
+    # tree` and left the edit in place.
+    #
+    # WHAT THE BANK COSTS ON THIS PATH, case by case — this is the two-sided
+    # reading, and it is why suppressing it is free:
+    #   * restore EXACT (tree == snapshot): the bank rewrites the same
+    #     bytes. Nothing is lost by skipping it.
+    #   * "nothing to restore" (tree already IS the snapshot): identical.
+    #   * restore left the TU differing from the bank it names: already
+    #     refused above as a FRANKEN restore, which banks nothing and exits
+    #     PARTIAL_RESTORE_EXIT — so this arm never reached that case either.
+    #   * restore exact INSIDE the function but the TU differs elsewhere
+    #     (function-scoped restore, other functions still edited): the bank
+    #     writes those foreign edits into the snapshot, which then no longer
+    #     holds the state it claims. THIS is the only behavioural change,
+    #     and it is the defect.
+    # The half of MC's report that does NOT reproduce at HEAD is the
+    # BASELINE half: the session baseline is protected by
+    # `baseline_bank_decision` ("keep" once .base exists, and a REFUSAL
+    # when a first baseline would be taken over an edited tree, run-48
+    # item 5), so no restore overwrote it in the reproduction. Reported as
+    # a design reversal rather than fixed twice.
+    restoring = restore_suppresses_bank(sys.argv, restore_tag)
+    if source is not None and restoring and (
+            verdict.startswith(("BASELINE", "IMPROVED", "NEUTRAL",
+                                "REBASED"))):
+        print("[restore: revert point NOT re-banked — this call RESTORED a"
+              " banked state and re-scored it, and banking here would write"
+              " the post-restore tree (including any edits elsewhere in the"
+              " TU that a function-scoped restore cannot reach) into the"
+              " slot that is supposed to hold the state you came back to."
+              " The snapshot, the session baseline and the BEST anchor are"
+              " all unchanged by this call.]")
+    if source is not None and not restoring and "--no-bank" not in sys.argv \
+            and (
             verdict.startswith("BASELINE")
             or verdict.startswith("IMPROVED")
             or (verdict.startswith("NEUTRAL")

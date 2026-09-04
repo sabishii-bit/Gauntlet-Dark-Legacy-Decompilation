@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "AGENTS.md"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any `python <repo tool> | Select-String ...` invocation with NO `Select-Object -First` downstream that leaves `$LASTEXITCODE` nonzero for a run that exits 0 when captured -- that would reopen the refuted half. For the confirmed half: `@('x ... ok') | Select-String -Pattern 'OK'` returning nothing would mean the default is case-sensitive after all. Both are one line in PowerShell and neither needs a build.",
+  "id": "claim.law.T25_select-string-is-case-insensitive-by-default-and-does-not-corrupt-the-exit-code.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T15:34:49Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-matching-analysis",
+  "valid_from": "2026-09-04",
+  "value": "TWO HALVES OF ONE RUN-54 REPORT, MEASURED SEPARATELY AT 80d3d02c8, AND ONLY ONE OF THEM IS TRUE.\n\nCONFIRMED: `Select-String` matches case-INSENSITIVELY unless `-CaseSensitive` is passed, so the suite-verdict grep every lane reaches for -- `'Ran |OK|FAILED'` -- matches `test_foo (...) ... ok` on the `OK` alternative, i.e. EVERY PASSING TEST LINE of a verbose run. Measured on `@(\"Ran 10 tests in 1s\", \"test_foo ... ok\", \"OK\", \"FAILED (errors=1)\")`: 4 rows without `-CaseSensitive`, 3 with it. This lane hit it live on its own first gate run, where the graph suite's verbose output buried `Ran 496 tests` and `OK` under hundreds of `... ok` rows. Use `-CaseSensitive` and anchor (`'^Ran \\d+ tests'`, `'^OK'`) whenever the pattern's letters are also ordinary English.\n\nREFUTED: `Select-String` does NOT corrupt `$LASTEXITCODE` on a long python stream, and saying it does misnames the culprit. It buffers its whole input, so it never breaks the pipe. Measured on a 241-line stream: `python tools/gdl/nearmiss.py --min 0 | Select-String -Pattern 'fn_'` exits 0; so do the `-List` and `-Quiet` forms that look like they stop early; `| Select-String -Pattern 'zzz-no-match'` exits 0. What corrupts the code is a `Select-Object -First` ANYWHERE downstream -- the same stream through `| Select-String -Pattern 'fn_' | Select-Object -First 2` exits -1. AGENTS.md trap 6a is therefore UNCHANGED IN SCOPE: `-First` is the whole mechanism, and a Select-String in the middle of such a pipe is a bystander."
+}

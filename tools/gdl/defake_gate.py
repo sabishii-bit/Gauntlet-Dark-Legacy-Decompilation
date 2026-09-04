@@ -20,6 +20,11 @@ Usage:
       re-anchoring any sibling — the mandate-correct way to bank a
       keep that `real` reads as a regression)
   python tools/gdl/defake_gate.py check game/audio/sndfx.c,game/ui/attract.c --rebuild
+  python tools/gdl/defake_gate.py reanchor game/x/y.c [--arbiter fuzzy]
+      (fill in a baseline's MISSING fuzzy anchor and section prices IN
+      PLACE — the mid-pass answer to "re-take the baseline", which throws
+      away the anchor the pass is measured against. Refuses once the
+      source has moved, because the number would then describe the edit)
   python tools/gdl/defake_gate.py arbitrations [game/enemy/enemy.c]
       (counts and the override RATE from the arbitration log)
   python tools/gdl/defake_gate.py roster game/enemy/critter [--rebuild]
@@ -1049,7 +1054,54 @@ def compare(baseline, current, renames=None, resolve=None,
             # passed this gate, ninja, AND the DOL sha1 end-to-end. When
             # the opcode multiset changed at equal counts, the win must
             # be arbitrated on fuzzy from a FRESH report before banking.
-            if (base.get("opset") and cur.get("opset")
+            # COUNT PARITY IS CHECKED BEFORE THE CARRIER (run-55 item 6,
+            # from MC): "defake_gate arbitrates regressions but reports
+            # improvements bare ... IMPROVED writeGauntletSave real 137 ->
+            # 108 unqualified - that row is a fuzzy regression and a parity
+            # loss". The carrier arbiter above it cannot fire on that row by
+            # construction: it REQUIRES `base.ti == cur.ti and base.bi ==
+            # cur.bi`, i.e. counts that did not move, which is exactly what
+            # a parity loss is not. So the one row shape the count-parity
+            # law governs was the one shape reaching the bare IMPROVED arm.
+            #
+            # claim.law.insn-count-parity-outranks-local-opcode-fidelity
+            # .20260831.v1 is the law, and probe's own arbiter already
+            # prints `ARBITER: COUNT PARITY LOST -- REVERT` for it — two
+            # tools in one loop, disagreeing about the same edit.
+            #
+            # The trigger is the parity GAP WIDENING, not `ti != bi`: a
+            # function already off parity is not made worse by an edit that
+            # leaves the gap where it was, and flagging those would fire on
+            # every improvement to the 114 functions listed below.
+            # CALIBRATED at f0b1b3fe1 over the 3,032 built function pairs:
+            # 2,918 are at count parity (ti == bi) and 114 are off it. So
+            # the population that can LOSE parity is 96% of the image —
+            # this is not a corner — while the rows that could be
+            # false-flagged by a cruder `ti != bi` test are the 114, and
+            # they are excluded by the gap comparison rather than by luck.
+            # Like IMPROVED-CARRIER, this verdict is NOT in the bankable
+            # `improved` set, so `--update-improved` cannot anchor it.
+            base_gap = (None if base.get("ti") is None
+                        or base.get("bi") is None
+                        else abs(base["ti"] - base["bi"]))
+            cur_gap = (None if cur.get("ti") is None or cur.get("bi") is None
+                       else abs(cur["ti"] - cur["bi"]))
+            if base_gap is not None and cur_gap is not None \
+                    and cur_gap > base_gap:
+                verdicts.append(
+                    (name, "IMPROVED-PARITY-LOST",
+                     f"real {base_real} -> {cur_real} BUT the instruction"
+                     f" counts went {base['ti']}/{base['bi']} ->"
+                     f" {cur['ti']}/{cur['bi']} (target/ours; parity gap"
+                     f" {base_gap} -> {cur_gap}). Count parity OUTRANKS a"
+                     " local real win"
+                     " (claim.law.insn-count-parity-outranks-local-opcode-"
+                     "fidelity.20260831.v1), and probe's arbiter calls this"
+                     " `COUNT PARITY LOST -- REVERT`. Arbitrate on fuzzy"
+                     " from a fresh report before banking; this row is NOT"
+                     " bankable with --update-improved")
+                )
+            elif (base.get("opset") and cur.get("opset")
                     and base["opset"] != cur["opset"]
                     and base.get("ti") == cur.get("ti")
                     and base.get("bi") == cur.get("bi")):
@@ -2098,6 +2150,8 @@ def main():
                 continue
             worst = max(worst, run_roster(one, rebuild, arbiter))
         return worst
+    if args[:1] == ["reanchor"] and len(args) == 2:
+        return reanchor(args[1], arbiter)
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
@@ -2224,6 +2278,122 @@ def run_roster(unit, rebuild, arbiter=None):
                        slot_column(unit))
     print(format_roster(unit, rows, bool(baseline)))
     print(f"  {fuzzy_note}")
+    return 0
+
+
+def reanchorable(meta, live_sha):
+    """(ok, reason) — may this baseline take a fuzzy anchor NOW?
+
+    Run-55 item 7, from SP: "defake_gate demands fuzzy arbitration it makes
+    impossible - the baseline file stores no fuzzy" and "the unpriced
+    section(s) advice is unactionable mid-pass: re-taking discards the
+    anchor". Both halves have the same shape — the tool tells a lane to
+    RE-TAKE the baseline to obtain a number, and re-taking mid-pass throws
+    away the comparison point the pass is being measured against.
+
+    REPRODUCED at 5ff787149 on game/sys/memcard, and the trigger is the
+    ordinary loop rather than a corner: `check --rebuild` rebuilds the
+    OBJECT and not the report, so the report is then older than the object,
+    `report_is_fresh` (correctly) refuses it, and the next
+    `baseline game/sys/memcard --at-head` prints `no fuzzy anchor — re-take
+    with --arbiter fuzzy to enable the fuzzy arbiter`. The freshness guard
+    is right; what was missing was any way to supply the number afterwards.
+
+    THE SOUNDNESS CONDITION IS THE WHOLE DESIGN. A fuzzy read now describes
+    the CURRENT bytes, so writing it into an OLD baseline is only honest
+    while the unit's source has not moved since that baseline was taken.
+    That is exactly the mid-pass situation (baseline taken, nothing edited
+    yet); once an edit lands, the number belongs to the edit and re-anchoring
+    would compare a state against itself.
+    """
+    was = (meta or {}).get("source_sha1")
+    if was is None:
+        return False, ("this baseline records no source_sha1 (taken before"
+                       " run 29), so there is no way to prove the tree has"
+                       " not moved since — re-take it instead")
+    if live_sha is None:
+        return False, "the unit's source could not be read to compare"
+    if was != live_sha:
+        return False, (
+            f"the source has MOVED since this baseline (sha1 {was} ->"
+            f" {live_sha}). A fuzzy read now describes YOUR EDIT, not the"
+            " baseline, so anchoring it here would make the arbiter compare"
+            " the edit against itself. Arbitrate with"
+            " `probe.py <unit> <fn> --arbitrate` instead, or re-take the"
+            " baseline deliberately once the edit is committed")
+    return True, ""
+
+
+def reanchor(unit, arbiter=None):
+    """Fill in a baseline's MISSING fuzzy and section prices, in place.
+
+    Only what is missing is written: per-function `fuzzy` for functions the
+    baseline already lists, and `matched`/`target_size` for `__sections__`
+    rows that carry no price AND whose digest still equals the baseline's.
+    Every per-function `real`, `status`, `genuine` and digest — the anchor
+    itself — is left exactly as it was, which is the difference between this
+    and re-taking.
+    """
+    unit = normalize_unit(unit)
+    path = gate_path(unit)
+    if not path.exists():
+        print(f"no baseline for {unit} to re-anchor — take one first"
+              f" (`defake_gate.py baseline {unit} --at-head`)")
+        return 2
+    functions, meta = load_baseline(path)
+    ok, reason = reanchorable(meta, source_digest(unit))
+    if not ok:
+        print(f"REFUSED to re-anchor {unit}: {reason}")
+        return 2
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    rows = (fresh_fuzzy(bare, None) if arbiter == "fuzzy"
+            else (read_report_fuzzy(bare) if report_is_fresh(unit) else {}))
+    if not rows:
+        print("no usable report to read fuzzy from — re-run as"
+              f" `defake_gate.py reanchor {unit} --arbiter fuzzy`, which"
+              " rebuilds the report first (discipline 3: never read a"
+              " report another command left behind)")
+        return 2
+    added = 0
+    for name, value in rows.items():
+        if name in functions and functions[name].get("fuzzy") is None:
+            functions[name]["fuzzy"] = value
+            added += 1
+    # SECTION PRICES, and only for rows whose bytes have NOT moved. Pricing
+    # a section whose digest changed would write the CURRENT match count
+    # over an anchor the baseline never had, turning a data regression into
+    # a clean row — the exact failure `--update-improved` is careful about.
+    priced, refused = 0, []
+    live = None
+    objfile = Path(f"build/{VERSION}/src/{bare}.o")
+    targetfile = Path(f"build/{VERSION}/obj/{bare}.o")
+    if objfile.exists() and targetfile.exists():
+        live = data_section_digests(objfile, targetfile)
+    banked = (functions.get("__sections__") or {}).get("data") or {}
+    for name, entry in list(banked.items()):
+        sha, matched, _size, _basis = _section_row(entry)
+        if matched is not None or not live or name not in live:
+            continue
+        now_sha, now_matched, now_size, _b = _section_row(live[name])
+        if sha != now_sha:
+            refused.append(name)
+            continue
+        if now_matched is None:
+            continue
+        banked[name] = dict(live[name])
+        priced += 1
+    if added or priced:
+        path.write_text(json.dumps({"meta": meta, "functions": functions},
+                                   indent=2, sort_keys=True),
+                        encoding="utf-8")
+    print(f"re-anchored {unit}: {added} function(s) gained a fuzzy anchor,"
+          f" {priced} section(s) priced. The baseline's `real`, `status`,"
+          " `genuine` and digests were NOT touched, so the anchor this pass"
+          " is measured against is unchanged.")
+    for name in refused:
+        print(f"  section {name} NOT priced: its digest has changed since"
+              " the baseline, so pricing it now would erase that change."
+              " Arbitrate it with `datadiff.py <unit> --sections` first.")
     return 0
 
 

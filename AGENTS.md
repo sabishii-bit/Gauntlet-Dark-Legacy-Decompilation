@@ -59,6 +59,28 @@
 >    -SimpleMatch` = 1. Drop `-SimpleMatch` whenever the pattern contains
 >    `|`; keep it only for literals with regex metacharacters in them
 >    (`fn_800DACD8(+0x4)`), where it is the right tool.
+>    **`Select-String` IS CASE-INSENSITIVE BY DEFAULT, and that is the same
+>    screen again with the opposite failure.** `-CaseSensitive` is opt-in, so
+>    the verdict grep every lane reaches for — `'Ran |OK|FAILED'` — matches
+>    `test_foo (...) ... ok` on the `OK` alternative, i.e. EVERY PASSING TEST
+>    LINE in a verbose run. Measured at 80d3d02c8 on the four-line array
+>    `@("Ran 10 tests in 1s", "test_foo ... ok", "OK", "FAILED (errors=1)")`:
+>    the pattern matches **4** rows without `-CaseSensitive` and **3** with
+>    it. On a real suite that is hundreds of `ok` lines burying the verdict
+>    the grep was written to find — this lane hit it live, on its own first
+>    gate run. Pass `-CaseSensitive` (and anchor: `'^Ran \d+ tests'`,
+>    `'^OK'`) whenever the pattern's letters are also ordinary English.
+>    **The exit-code half of the run-54 report does NOT reproduce, and the
+>    difference matters because it names the wrong culprit.** `Select-String`
+>    buffers its whole input, so it does not break a python pipe: measured at
+>    80d3d02c8, `python tools/gdl/nearmiss.py --min 0 | Select-String -Pattern
+>    'fn_'` exits **0** (241-line stream), and so do the `-List` and `-Quiet`
+>    forms that look like they stop early. What DOES corrupt the code is a
+>    `Select-Object -First` ANYWHERE downstream: the same stream through
+>    `| Select-String -Pattern 'fn_' | Select-Object -First 2` exits **-1**.
+>    So trap 6a is unchanged in scope — `-First` is the whole mechanism — and
+>    a Select-String in the middle of such a pipe is a bystander, not a second
+>    cause. Capture first, then slice, then grep the captured variable.
 > 6c. **A FILTERED grep cannot answer a DOES-IT-EXIST question.** An
 >    empty result from a windowed search reads exactly like "measured
 >    absent" and means only "absent inside my window" — and the window is

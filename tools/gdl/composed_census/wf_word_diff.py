@@ -143,6 +143,7 @@ holds the two word streams and the repo root:
 import argparse
 import difflib
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -345,10 +346,137 @@ def reloc_symbol_mismatches(unit, fn, ours, tgt):
         if t_at is not None and o_at is not None and t_at == o_at:
             continue  # one datum, two spellings
         if t_at is None or o_at is None:
-            continue  # anonymous pool entry: fndiff --clean owns that row
+            # Anonymous pool entry: NOT decidable by NAME, and until run 55
+            # dropped here without trace, so the headline printed
+            # `RELOC-SYMBOL MISMATCH = 0` for a function whose two streams
+            # relocate different DATA. `anonymous_datum_rows` decides these
+            # by VALUE instead; see its docstring for the calibration.
+            continue
         rows.append((offset, t_sym, o_sym,
                      _locally_aligned(ours, tgt, index)))
     return rows
+
+
+# A jumptable's payload is a table of BRANCH ADDRESSES: the target's copy is
+# linked and ours is zeros until the linker fills it, so a value comparison
+# reads every one of them as a mismatch. Named (`cardCmdJumptable`) as well
+# as dtk-numbered (`jumptable_8011CCF4`), hence the substring test.
+_JUMPTABLE_RE = re.compile(r"jumptable", re.I)
+
+
+def anonymous_datum_rows(unit, fn, ours, tgt):
+    """Rows the NAME comparison above cannot decide, decided by VALUE.
+
+    Run-55 item 2, reported by WV against
+    attempt.WV_movelogic00-re-served-as-permute-plus-recolor-because-the-
+    retracted-rules-defect-was-a-datum-transposition-no-recolor-can-reach
+    .20260904.v1: "wf_word_diff.py reported RELOC-SYMBOL MISMATCH = 0 for
+    this function throughout, before and after: it cannot see the
+    transposition, because our anonymous @688/@689 cannot be name-compared
+    against the target's lbl_ names."  Reproduced at 84f85a96a:
+    `wf_word_diff.py game/enemy/enemy.c move_logic00` prints
+    `RELOC-SYMBOL MISMATCH = 0` while +0x1e4 relocates `lbl_80346840`
+    (400921fb54524550 = pi) in the target and `@689`
+    (401921fb54524550 = 2*pi) in ours.
+
+    The values are read with fndiff's OWN readers (`target_datum_bytes`,
+    `ours_datum_bytes`, `_datum_prefix_equal`) rather than a second
+    comparison layer — run-42's rule, after a lane rebuilt a value screen
+    fndiff already had.
+
+    Returns (rows, tally) with rows = [(offset, t_sym, o_sym, verdict,
+    locally_aligned)] for the reportable ones only, verdict in
+    {'VALUE-DIFFERS', 'NOT-DECIDABLE'}, and tally counting every class
+    including the excluded ones.
+
+    TWO-SIDED CALIBRATION over all 3,032 functions / 2,841 reloc-comparable
+    pairs at 84f85a96a. The NAME screen silently dropped 2,741 rows in 625
+    functions. By value: 2,561 VALUE-EQUAL (correct to stay silent — this
+    is the negative side, and it is 93% of the population), 145
+    VALUE-DIFFERS, 35 not decidable. Reading the 145 gave three exclusion
+    classes, each measured:
+
+      122 rows  JUMPTABLE (46 functions are jumptable rows and nothing
+                else, including byte-exact ones inside the 100%-matched
+                zlib and MSL regions — zlib/inflate::inflate,
+                MSL/printf::parse_format).
+       13 rows  OUR DATUM IS ALL ZERO at equal length: an unlinked address
+                table (MSL/printf::longlong2str 132B, dolphin/dvd::
+                stateReady 32B, mb_font::MBRenderText 84B). The content is
+                the linker's, not the compiler's.
+        2 rows  TARGET-SIDE ANONYMOUS name. `@N` is not globally unique:
+                `@40` is defined TWICE in config/GUNE5D/symbols.txt
+                (.rodata 0x80117848 size 0x1A and .sdata 0x803440AC size
+                0x4), so a name->address map answers with whichever came
+                last. That is what made TRK_MINNOW_DOLPHIN/Portable/
+                nubinit::TRKNubWelcome — `fndiff --clean` MATCH, 0 real
+                diff lines — read as "OFF" vs "MetroTRK".
+
+    Ten rows in six functions survive all three, and they are the class the
+    tool exists to surface: move_logic00 (pi vs 2*pi), options::show_optmenu
+    ("Accept" vs "Select"), camera::camera_mode_follow (0.7 and 0.25 vs one
+    shared 4330000000000000), player::write_health_and_items,
+    anim/action::DoPlayerAction, and pb_diag::pbDiagDrawInfo, whose two rows
+    are NOT-DECIDABLE (target `whichatree`, ours `lbl_8023D180`).
+
+    THE SHIPPED TALLY PARTITIONS THE SAME 2,741 ROWS DIFFERENTLY, because it
+    applies the exclusions BEFORE reading values: at 84f85a96a a sweep of
+    this function reports `{'value_equal': 2033, 'jumptable': 124,
+    'unlinked_table': 550, 'target_anonymous': 24, 'differs': 8,
+    'not_decidable': 2}` over 2,841 comparable functions, 6 reported. The
+    figures above are the CALIBRATION (value first, then read the 145), and
+    both add to 2,741 — quoting one where the other belongs is the only way
+    to read them as disagreeing.
+
+    THE ROWS ARE EVIDENCE TO READ, NOT A VERDICT. A row on a function with
+    real diffs may be an index-pairing artefact, which is why every row
+    carries the same `locally_aligned` marker the name screen uses, and why
+    the deciding screen for a pool-order residual remains
+    `wf_ordered_datum_screen.py` (the WV record's own conclusion).
+    """
+    count = len(tgt) // 4
+    t_map = _reloc_map(target_object(unit), fn, count)
+    objpath = our_object(unit)[0]
+    o_map = _reloc_map(objpath, fn, count)
+    if t_map is None or o_map is None:
+        return None, {}
+    tally = {"value_equal": 0, "jumptable": 0, "unlinked_table": 0,
+             "target_anonymous": 0, "differs": 0, "not_decidable": 0}
+    rows = []
+    for index in sorted(set(t_map) & set(o_map)):
+        offset = index * 4
+        if wf._u32(ours, offset) != wf._u32(tgt, offset):
+            continue
+        (t_type, t_sym), (o_type, o_sym) = t_map[index], o_map[index]
+        if t_type != o_type or t_sym == o_sym:
+            continue
+        t_at = fndiff.resolve_reloc_symbol_positional(t_sym)
+        o_at = fndiff.resolve_reloc_symbol_positional(o_sym)
+        if t_at is not None and o_at is not None:
+            continue  # the NAME screen above already decided this row
+        if _JUMPTABLE_RE.search(t_sym) or _JUMPTABLE_RE.search(o_sym):
+            tally["jumptable"] += 1
+            continue
+        if fndiff._symbol_kind(t_sym) == "anon":
+            tally["target_anonymous"] += 1
+            continue
+        t_val = fndiff.target_datum_bytes(t_sym)
+        o_val = fndiff.ours_datum_bytes(o_sym, objpath)
+        if o_val and not any(o_val):
+            tally["unlinked_table"] += 1
+            continue
+        if t_val is None or o_val is None:
+            tally["not_decidable"] += 1
+            rows.append((offset, t_sym, o_sym, "NOT-DECIDABLE",
+                         _locally_aligned(ours, tgt, index)))
+            continue
+        if fndiff._datum_prefix_equal(t_val, o_val):
+            tally["value_equal"] += 1
+            continue
+        tally["differs"] += 1
+        rows.append((offset, t_sym, o_sym, "VALUE-DIFFERS",
+                     _locally_aligned(ours, tgt, index)))
+    return rows, tally
 
 
 def mnemonic_divergence(ours, tgt):
@@ -765,12 +893,20 @@ def main():
     # "no pins exist" and is how the run-39 sweep ranked four closed
     # functions first.
     pinned = args.function in rule_served_functions(unit, ROOT)
+    anon_rows, anon_tally = anonymous_datum_rows(
+        unit, args.function, ours, tgt)
     if mismatches is None:
         reloc_column = "not comparable"
     else:
         firm = sum(1 for row in mismatches if row[3])
         reloc_column = str(len(mismatches)) + (
             f" ({firm} index-aligned)" if len(mismatches) != firm else "")
+    # The name screen CANNOT decide an anonymous-pool row, and a zero it
+    # reached by dropping such rows reads exactly like a clean function
+    # (run-55 item 2). Only rows surviving the three calibrated exclusions
+    # reach the headline: 5 functions image-wide, so this is not noise.
+    if anon_rows:
+        reloc_column += f" [+{len(anon_rows)} anon-pool datum]"
     print(f"{unit}::{args.function} ({kind}): {insns} insns, "
           f"DIFFERING WORDS = {len(rows)}, "
           f"MNEMONIC DIVERGENCE = {mnem}, "
@@ -813,6 +949,35 @@ def main():
               " could not be paired against these words) — the wrong-symbol"
               " class is UNSCREENED here, not absent; use"
               " `fnasm <unit> <fn> --diff` and read the symbol column.")
+    if anon_rows:
+        print(f"  ANON-POOL DATUM: {len(anon_rows)} instruction(s) whose WORD"
+              " is identical in both streams relocate symbols that cannot be"
+              " compared by NAME (ours is a compiler-private `@N`), and whose"
+              " DATUM BYTES differ. The RELOC-SYMBOL count above is blind to"
+              " these by construction — move_logic00 read"
+              " `RELOC-SYMBOL MISMATCH = 0` before and after a datum"
+              " transposition (attempt.WV_movelogic00-re-served-as-permute-"
+              "plus-recolor-...20260904.v1). Screened out here as measured"
+              " artefacts: "
+              f"{anon_tally['jumptable']} jumptable, "
+              f"{anon_tally['unlinked_table']} unlinked address table"
+              " (ours all-zero), "
+              f"{anon_tally['target_anonymous']} target-side anonymous name"
+              " (not globally unique), "
+              f"{anon_tally['value_equal']} value-equal.")
+        for offset, t_sym, o_sym, verdict, aligned in anon_rows:
+            t_val = fndiff.target_datum_bytes(t_sym) or b""
+            o_val = fndiff.ours_datum_bytes(o_sym, our_object(unit)[0]) or b""
+            print(f"    +{offset:#06x}  {verdict}  target {t_sym}"
+                  f" ({t_val[:8].hex()}, {len(t_val)}B)   ours {o_sym}"
+                  f" ({o_val[:8].hex()}, {len(o_val)}B)"
+                  + ("" if aligned else
+                     "   [PAIRING UNRELIABLE: mnemonics disagree within"
+                     f" {RELOC_ALIGNMENT_WINDOW} instruction(s)]"))
+        print("  A ROW HERE IS EVIDENCE TO READ, NOT A VERDICT: the screen"
+              " that DECIDES a pool-order residual is"
+              " `wf_ordered_datum_screen.py --unit <unit> --function <fn>`,"
+              " which pairs ordered datum sequences instead of offsets.")
     reloc_index = reloc_types_by_index(unit, args.function, insns)
     counts = decode_counts(rows, reloc_index)
     if rows:
