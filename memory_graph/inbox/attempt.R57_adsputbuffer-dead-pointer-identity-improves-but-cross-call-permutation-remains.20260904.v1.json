@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "Test dead-local identity reuse under exact type/lifetime preconditions, then re-derive the count-parity residual and screen further identity/block-scope carriers.",
+  "attributes": {
+    "axis_log": "Prior v2 vetoes folded in and not retried: hres/strs declaration order, initializer split, array decay, point-of-use, storage/read order. New dst identity reuse: real198->196, fresh fuzzy97.6181->97.6968, T254/O254 retained. Further cyclic identity, saved carrier, and block-scope tail carrier were neutral-identical.",
+    "law_screen": "claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 APPLIED: existing `dst` is a same-width pointer and is dead until after the final string-pool use, so reusing its identity was legal and improved the object. claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1 SCREENED: a block-scoped fileLoopSize carrier folded byte-identically. claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 APPLIED diagnostically: target materializes lbl_801174A8 directly into r30 after the frame while ours materializes early and homes it in r29. claim.law.neutral-real-and-identical-multiset-do-not-prove-byte-identity.20260831.v1 HONOURED: neutral identity probes were compared on object bytes, not inferred from score. claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match.20260902.v1 SCREENED: frame stays 72/72 and extab stays 144/144.",
+    "laws_applied": "[\"claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1\", \"claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1\"]",
+    "probed_form": "Retained: removed `char* strs`, changed the later dead `u8* dst` identity to `char* dst`, initialized `dst=lbl_801174A8`, used it for all four pool references, and later reassigned it to typed `_pad54`/`_pad7C`. Neutral and reverted: cyclic hres/part/tail identity reuse; existing dead `saved` as fileLoopSize carrier; block-scoped `s32 fileLoopSize=s->fileLoopSize; hres=fileLoopSize;`.",
+    "residual": "Count parity and opcode multiset are exact, but the target delays the fileLoopSize-to-hres copy to +0x374 while ours pays the string-base low-half copy at +0xC; that move changes callee-saved value topology across many calls. The existing dependency verifier refuses a permutation spanning those calls, so no sound guarded rule is available yet.",
+    "scope": "src/game/audio/adstream.c::AdsPutBuffer pointer identity and two typed pad references only; no WebFrank config edit because that file is foreign-owned.",
+    "verification": "Fresh `probe.py game/audio/adstream AdsPutBuffer --fuzzy` reports 97.6968%, real196, T254/O254, multiset0t. `fndiff --ops` reports one ours-only addi at +0xC and one target-only addi at +0x374 plus downstream branch drift. `rule_derive.py` reports 220 differing words in a body-wide shifted/crossed-web region. Full ninja prints main.dol: OK."
+  },
+  "function": "function:AdsPutBuffer",
+  "held_fixed": "The source statement order, storage/read order, hres/strs declaration order, and 254/254 instruction count were held fixed while only dead pointer identities and tail carriers varied.",
+  "id": "attempt.R57_adsputbuffer-dead-pointer-identity-improves-but-cross-call-permutation-remains.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:55:16Z",
+  "residual": {
+    "capability_needed": "dependency-audited-cross-call-permutation-with-value-web-proof",
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "IDENTICAL opcode multiset 254/254; ours +0xc addi moved versus target +0x374 addi; 220 raw differing words"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.adsputbuffer-lo-fold-home-vs-scratch.20260831.v2",
+  "valid_from": "2026-09-04",
+  "verifiers_run": "instruction_permutation was previously run by attempt.webfrank-closure2.adsputbuffer.20260831.v1 and refused the call-spanning window; copy_register_fields / verify_consistent_recolor / verify_value_equality_recolor were not run because the current aligned mechanism is a moved address copy plus crossed live ranges, not a position-consistent recolor."
+}

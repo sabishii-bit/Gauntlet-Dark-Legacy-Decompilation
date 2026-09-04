@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Re-derive the ADDR16_LO/count asymmetry, then test distinct CFG, use-set, qualifier, pointer-identity, and live-zero expression-grouping axes.",
+  "attributes": {
+    "axis_log": "grouped zero assignment: real 93->85, fuzzy 92.7407->92.7936, T189/O190 retained; direct-global use set: O191/real114 regression; register and const base qualifiers: neutral-identical; split initializer and field-address cast: neutral-identical; voices alias: O190/real101 despite fuzzy 93.4074, rejected on real/structure; candidate identity: frame 32->40 and real93, rejected; explicit shared-exit CFG: O191/real90; condition-carried CFG variants: O192/O194 regressions.",
+    "law_screen": "claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1 SCREENED and the standing declaration-order veto was HONOURED; no declaration reorder was retried. claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 APPLIED diagnostically: target lowers `lis r3,gADS; addi r4,r3,gADS@lo` directly while ours lowers @lo to r3 then pays `addi r4,r3,0`; source use-set variants did not remove it. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED: grouping the zero assignment moved the persistent zero into target r28 and improved eight real rows, but the endCount store still rematerializes r0 and the strength-reduction r30 zero is scheduled early. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 APPLIED: fresh T189/O190 excludes guarded WebFrank. claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match.20260902.v1 APPLIED: the second pointer identity widened the frame to 40 and was rejected; retained form keeps 32/32 and extab 144/144.",
+    "laws_applied": "[\"claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\", \"claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match.20260902.v1\"]",
+    "probed_form": "Retained `s->keyCount = (i = 0);` in place of two statements. Rejected forms: direct `gADS.voice[j]` plus `s=&gADS`; `register`/`const` base qualifiers; split initializer `base=&gADS` after `s=0`; `(ADSTREAM*)&gADS.mode`; a `voices=base->voice` use-set alias; a second `candidate=base` pointer identity; explicit `if (s != 0) break` CFG; and loop-condition/shared-exit CFG forms.",
+    "residual": "Not parked: more than one structural symptom remains. The root entry event is the one-word ADDR16_LO surplus copy coupled to prologue shadow, while the same older scheduler also preserves a dead duplicate cmplwi and schedules the zero/strength-reduction webs differently. Because count remains T189/O190, no form-aware recolor or dependency-audited permutation can close it.",
+    "scope": "src/game/audio/adstream.c::_AdsThread only; no postprocessor/config rule authored.",
+    "verification": "Fresh `probe.py game/audio/adstream _AdsThread --fuzzy` on the retained form reports 92.7936%, real85, T189/O190, multiset 5t. `fndiff --ops` reports the quoted signature. `compiler_compare.py --root src/game/audio --left 1.2.5 --right 1.2.5n --all` finds zero function improvements for the audio roster; adstream aggregate regresses 386->396 and five exact adstream siblings lose exactness. Full ninja prints main.dol: OK."
+  },
+  "function": "function:_AdsThread",
+  "held_fixed": "The function's switch/state-machine statements, frame pad, and all already-exact sibling bodies were held fixed while entry CFG/use-set and the zero assignment were varied.",
+  "id": "attempt.R57_adsthread-zero-web-improves-and-addrlo-copy-remains.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:55:15Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "DIFFERS target-only: +1 cmplwi +1 mr ours-only: -2 addi -1 li; insns T189/O190; 10 ops clusters"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

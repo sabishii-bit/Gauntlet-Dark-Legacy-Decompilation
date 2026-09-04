@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Resolve the TU's unclaimed .rodata/.sdata2 debt from target relocation bases, then reconstruct the complete named diagnostic-string pool without moving exact code.",
+  "attributes": {
+    "law_screen": "claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1 APPLIED: both zero-sized target rows were unclaimed sections, so af_data_base_census derived claims before source diagnosis. claim.law.T23_a-named-target-symbol-decides-a-data-base-that-a-size-sequence-can-only-guess.20260904.v1 APPLIED: target relocations fixed .rodata at 0x801174A8 and .sdata2 at 0x80349308. claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-some-claim-slack-is-structural.20260903.v1 APPLIED: the .rodata claim must extend through target symbol lbl_801174B4 to 0x80117528. claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match.20260902.v1 SCREENED: extab remained 144/144 and the exact adsMoveCookedToSpu body stayed exact.",
+    "laws_applied": "[\"claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1\", \"claim.law.T23_a-named-target-symbol-decides-a-data-base-that-a-size-sequence-can-only-guess.20260904.v1\", \"claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-some-claim-slack-is-structural.20260903.v1\"]",
+    "probed_form": "Defined `const char lbl_801174A8[] = \"DCSERROR: \";` and a 116-byte `lbl_801174B4[]` containing the aligned underrun/EOF/overrun strings; changed the two exact printf sites from anonymous literals to those names; added `.rodata start:0x801174A8 end:0x80117528` and `.sdata2 start:0x80349308 end:0x80349328` to the adstream splits block.",
+    "residual": "Data debt is closed. The TU remains NonMatching only because _AdsThread and AdsPutBuffer text are open; extabindex remains 215/216 diagnostic bytes because _AdsThread is one instruction count-asymmetric.",
+    "scope": "config/GUNE5D/splits.txt and src/game/audio/adstream.c; data ownership and named string-pool reconstruction only.",
+    "verification": "`python tools/gdl/composed_census/af_data_base_census.py game/audio/adstream` derived both ranges. `python tools/gdl/datadiff.py game/audio/adstream --sections` reports .rodata size 0x80 100.0%, .sdata2 size 0x20 100.0%, extab 144 bytes 100%, and zero object data blockers. `pooldump.py --ours` reports lbl_801174A8 at +0x0 (11B) and lbl_801174B4 at +0xC (116B). `fndiff.py game/audio/adstream adsMoveCookedToSpu --clean` remains EXACT. Full ninja prints build/GUNE5D/main.dol: OK."
+  },
+  "function": "tu:game/audio/adstream",
+  "id": "attempt.R57_adstream-named-string-pool-and-split-claims-close-data.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:55:14Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "no-residual: .rodata 0x80/0x80 and .sdata2 0x20/0x20 byte-exact"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}
