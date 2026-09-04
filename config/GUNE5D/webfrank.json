@@ -3731,6 +3731,46 @@
         "copy_register_fields": true
       }
     ],
+    "game/world/world": [
+      {
+        "function": "WorldSaveInitState",
+        "before_sha256": "1d1ac9b381c90d725992c5b839108324f0d280bc116859065c37fd4db2cd23ee",
+        "after_sha256": "9e4cf60988a450a22fb50bc0a56e65528a00f0b9072ddb3aa5942a9c4a099fa3",
+        "mechanism": "attempt.R57_worldsaveinitstate-live-zero-composed-exact-close.20260904.v1. The source matrix exhausted entry-zero/chaining, explicit induction-variable, and register-hint forms without reaching the retail body. Fresh raw measurement is 111/111 instructions and 31 differing words: 29 register-field words plus the two-word live-zero form/schedule site. First, the dependency-audited [0x64,0x6c) permutation [1,0] moves the equal-count atoms into target order with empty relocation payloads. Then equivalent_copy_form at +0x64 uses constant_dataflow_recolor with our_source r30 to prove and emit the target copy form. Finally copy_register_fields closes the remaining seven demanded substitutions under verify_value_equality_recolor. The completed rule was replayed through webfrank.apply_patch against the full extracted retail datum and produced BYTE-EQUAL output; the ordered-datum screen is BENIGN.",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 111,
+          "differing_words": 31,
+          "permuted_instructions": 2
+        },
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "WR run 42 derivation",
+          "substitutions": [
+            {"at": "0x7c", "bank": "g", "ours": 30, "target": 5},
+            {"at": "0x84", "bank": "g", "ours": 30, "target": 5},
+            {"at": "0x8c", "bank": "g", "ours": 30, "target": 5},
+            {"at": "0x94", "bank": "g", "ours": 30, "target": 5},
+            {"at": "0xa8", "bank": "g", "ours": 11, "target": 29},
+            {"at": "0xbc", "bank": "g", "ours": 30, "target": 5},
+            {"at": "0xe4", "bank": "g", "ours": 11, "target": 29}
+          ],
+          "compare_exchanges": []
+        },
+        "instruction_permutation": {
+          "start": "0x64",
+          "end": "0x6c",
+          "order": [1, 0],
+          "before_sha256": "de0f5449a6d08ebddeb01797fb27a10a78b77ac4d4d64fc8c5c398bc42f7aa19",
+          "after_sha256": "686b0ded200a22806f7349b6f42dbb3a0aa4ce087151b9531e24abd5cb02224f",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {"at": "0x64", "proof": "constant_dataflow_recolor", "our_source": 30}
+        ]
+      }
+    ],
     "game/world/worldcol": [
       {
         "function": "CTriListCollide",
