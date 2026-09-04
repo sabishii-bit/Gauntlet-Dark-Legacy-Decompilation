@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "move_logic22: kill the single ours-only -1 mr at the sMilestones scan-loop prologue by reordering the for-init comma expression so the loop counter, not the address, claims the HA scratch register.",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and APPLIED. claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1 SCREENED and REFINED (see the conserving-resize law this run). claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2 and claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 SCREENED as the class arbiters for every ours-only -1 mr in this TU. claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED as the postprocessor-eligibility arbiter. claim.law.MC_the-raw-differing-word-count-is-an-obligation-size-not-a-distance-and-must-never-be-differenced-across-probes.20260902.v1 APPLIED: every word count below is quoted as a single-state obligation size. claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1 APPLIED: word counts came from composed_census/wf_word_diff.py directly, never probe --raw. attempt.move-logic22-lo-into-scratch-copy.20260831.v1 SCREENED -- it names the same site but carries has_probed_form false, so its veto was unreproducible and this run wrote the form down. claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 SCREENED and found to cover the MECHANISM but not this INSTANCE: its census counted homes per callee-saved register, and move_logic22's home r4 is a VOLATILE, so the function is outside the published P roster while carrying the identical shape.",
+    "laws_applied": "[\"claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1\"]",
+    "probed_form": "`for (node = sMilestones, i = 0; i < sNumMilestones; i++, node += 104) {` became `for (i = 0, node = sMilestones; i < sNumMilestones; i++, node += 104) {`.",
+    "residual": "THE MECHANISM, re-derived from the aligned view this run rather than inherited: at 0x160-0x17c the target emits `lis r3,sMilestones@ha / addi r4,r3,sMilestones@lo` -- the ADDR16_LO result formed DIRECTLY in r4, the register the scan loop then uses -- while ours emits `lis r3,sMilestones@ha / addi r3,r3,sMilestones@lo / ... / mr r4,r3`, routing the low half back through the HA scratch and paying a copy. That is exactly the shape of claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2 with a VOLATILE destination instead of a callee-saved one, and exactly the generalised copy spelling (`mr rHOME,rX` for any volatile rX) that FINDING 1 of the general-temp census added to the class. Ours is one instruction LONG (T227/O228), so per claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 no postprocessor rule reaches it either.",
+    "scope": "src/game/enemy/enemy.c, move_logic22 for-init only; probe REVERTED, nothing retained, working tree clean against HEAD afterwards.",
+    "verification": "probe.py clean BASELINE first (real 95, insns T227/O228, multiset 1t, fuzzy 98.4537%). Probe: NEUTRAL-IDENTICAL with `NEUTRAL-IDENTICAL-PROOF unit=game/enemy/enemy fn=move_logic22 bytes=3c1588cc333c real=95 insns=T227/O228 multiset=1t head=4dd6ec224`; reverted by hand and `git status --short` showed only the untracked LANE_LOCK afterwards."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/enemy/enemy.c move_logic22 --ops -- if the counts read T227/O227 or the `ours-only: -1 mr` line is gone, this is moot.",
+    "falsifier": "any for-init spelling that changes move_logic22's object bytes kills the NEUTRAL-IDENTICAL premise; separately, a positive control for direct-form ADDR16_LO lowering into a VOLATILE home would reopen the whole class.",
+    "premise_measurement": "NEUTRAL-IDENTICAL-PROOF unit=game/enemy/enemy fn=move_logic22 bytes=3c1588cc333c real=95 insns=T227/O228 multiset=1t head=4dd6ec224 -- the object bytes did not move, so the front end folded the comma reorder and the allocator never saw a different problem.",
+    "scope": "move_logic22 only, the FOR-INIT ORDER construct class as a cure for the ADDR16_LO home copy at 0x160-0x17c. It does not deny a loop-form rewrite (index-based addressing, a while form) -- neither was probed."
+  },
+  "function": "function:move_logic22",
+  "id": "attempt.EN_movelogic22-is-the-volatile-home-variant-of-the-addr16-lo-copy-class.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T01:17:13Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "DIFFERS target-only: (none) ours-only: -1 mr; insns T227/O228"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

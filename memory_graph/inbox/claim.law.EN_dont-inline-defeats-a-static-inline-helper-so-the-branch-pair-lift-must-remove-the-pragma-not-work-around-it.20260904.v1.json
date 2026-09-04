@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py --ops (the `ours-only: -1 bl` token and the 571 -> 560 count)",
+    "tools/gdl/probe.py (the paired real/count readings quoted above)"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "inline",
+      "peephole",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A `static inline` helper called from inside a `#pragma dont_inline on` bracket that IS inlined -- i.e. an --ops run showing no surplus `bl` and the caller's instruction count unchanged. Reproduce the positive half at 4dd6ec224 by re-applying the PROBE A form recorded in attempt.EN_damage-enemy-the-p6-goto-pair-wall-does-break-under-the-branch-pair-lift.20260904.v1 and running `python tools/gdl/fndiff.py game/enemy/enemy.c damage_enemy --ops`.",
+  "id": "claim.law.EN_dont-inline-defeats-a-static-inline-helper-so-the-branch-pair-lift-must-remove-the-pragma-not-work-around-it.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T01:17:18Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "MWCC GC 1.2.5, -O4,p. PART 5 of claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v3 states that a `#pragma dont_inline on` covering the CALL SITE defeats the branch-pair helper lift, and measured it on adstream, where the helpers were spelled bare `static`. That law's own DEFAULT clause tells lanes to 'write `static inline`, which is what every one of the four closure sites carries in the tree today'. THOSE TWO SENTENCES TOGETHER INVITE THE WRONG INFERENCE -- that the `inline` keyword survives the pragma -- and it does not.\n\nMEASURED at commit 4dd6ec224 on game/enemy/enemy::damage_enemy, which sits inside a `#pragma dont_inline on` / `off` bracket (enemy.c:5215 and :5500) that encloses that one function and nothing else. A helper declared `static inline f32 scale_fight_damage(...)`, defined immediately BEFORE damage_enemy and called once from it, was NOT inlined: `python tools/gdl/fndiff.py game/enemy/enemy.c damage_enemy --ops` reported `opcode multiset: DIFFERS target-only: +2 b +1 bgt +1 ble +1 bne +1 cmpwi +2 fcmpo +2 fmul +2 frsp  ours-only: -1 bl` with `replace T[369:372]@5c4-5d0=['b','fmul','frsp']  O[360:361]@5a0-5a4=['bl']`, i.e. a real call instruction where the target has arithmetic, and the function shrank from 571 to 560 instructions because its body left. Deleting the pragma pair, with the helper text held byte-for-byte constant, made the same helper inline: counts moved to T571/O574 and the target-only opcode set collapsed from `+1 b +1 bgt` to `+1 bgt`, the branch-pair cure firing.\n\nSO THE PRECONDITION IS A HARD ONE AND THE `static inline` SPELLING IS NOT A WAY ROUND IT. A lane meeting this pragma has two honest choices: remove or re-scope the bracket (and then re-audit the function, because the bracket was presumably placed for a reason -- damage_enemy's own header comment does not say what), or abandon the lift for that function. Silently keeping the pragma and reading the resulting `bl` as 'the lift does not work here' is the failure mode this record exists to prevent, and the `-1 bl` token in the --ops multiset is the one-glance tell that it happened.\n\nSECOND, SMALLER FINDING from the same pair of probes: on this TU the pragma is NOT load-bearing for the branch skeleton. With the pragma removed and no other change, damage_enemy did not collapse -- it went from 571 to 574 instructions, the +3 being two `fmr` from the inline's return web plus one branch, with the rest of the body's cluster list unchanged."
+}

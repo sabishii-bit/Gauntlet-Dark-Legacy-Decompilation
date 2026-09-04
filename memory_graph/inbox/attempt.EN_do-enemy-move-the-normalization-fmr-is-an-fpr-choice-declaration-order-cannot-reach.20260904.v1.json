@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "do_enemy_move: move the two ours-only `fmr` at 0x830 and 0xbe8 by relocating the `f64 a` declaration relative to `hi`/`step` in both normalization blocks -- the cheapest member of the class the move_logic10 record's shared-mechanism note points at.",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and APPLIED. claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1 SCREENED and REFINED (see the conserving-resize law this run). claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2 and claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 SCREENED as the class arbiters for every ours-only -1 mr in this TU. claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED as the postprocessor-eligibility arbiter. claim.law.MC_the-raw-differing-word-count-is-an-obligation-size-not-a-distance-and-must-never-be-differenced-across-probes.20260902.v1 APPLIED: every word count below is quoted as a single-state obligation size. claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1 APPLIED: word counts came from composed_census/wf_word_diff.py directly, never probe --raw. attempt.enemy-c-residual-class-survey.20260831.v1 SCREENED -- it is the record that routes do_enemy_move and move_logic10 to the same 2-fmr mechanism and mandates trying the f64-retype axis on BOTH together; the retype half is REFUTED on move_logic10 this run (see attempt.EN_movelogic10-...20260904.v1), so it was not spent again here. The prose DO-NOT-RETRY on do_enemy_move's slot 19 (`mat`, target 104 / ours 96, three axes already probed: pad insert, conserving split, entry reassociation) was HONOURED -- no slot probe was run.",
+    "laws_applied": "[]",
+    "probed_form": "In BOTH normalization blocks (enemy.c ~677 and ~787) `{ f64 a; f64 hi = lbl_80346840; f32 step = lbl_80344720;` became `{ f64 hi = lbl_80346840; f32 step = lbl_80344720; f64 a;`.",
+    "residual": "MECHANISM re-derived from the aligned view at 0x820-0x840, and it is FINER than the inherited 'normalization-temp-coalesce' label. Target: `lfs f2,588(r30) / fcmpo cr0,f2,f1 / ble ->844 / lfd f0,2pi / fsub f2,f2,f0` -- the reload of e->ang lands in f2 and the f64 arithmetic runs in that same register. Ours: `lfs f0,588(r30) / fcmpo cr0,f0,f1 / fmr f1,f0 / ble ->844 / lfd f0,2pi / fsub f1,f1,f0` -- the reload lands in the VOLATILE SCRATCH f0, which the constant load then needs, so `a` must be copied out to f1 first. The choice being made is which FPR receives the `lfs`, and f0 is MWCC's transient-value register; declaration POSITION of `a` does not reach it. The other half of the residual (target-only +1 addi +1 lwz, plus the 8-byte slot 19 delta at r1+104 vs r1+96) is untouched and separately parked.",
+    "scope": "src/game/enemy/enemy.c, two declaration blocks inside do_enemy_move; probe REVERTED, nothing retained.",
+    "verification": "probe.py clean BASELINE first (real 176, fuzzy 99.0475%, insns T905/O905; the probe's RELOC-SYMBOL SCREEN reported CLEAN, so the wrong-global class is measured absent here). After the edit: NEUTRAL, and `fndiff --ops` printed a byte-for-byte identical cluster list to the baseline's. Reverted by hand; `git status --short` clean but for the untracked LANE_LOCK."
+  },
+  "function": "function:do_enemy_move",
+  "held_fixed": "Both normalization blocks were edited identically and nothing else in the function was touched, so the probe varies declaration POSITION alone.",
+  "id": "attempt.EN_do-enemy-move-the-normalization-fmr-is-an-fpr-choice-declaration-order-cannot-reach.20260904.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-04T01:17:07Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "DIFFERS target-only: +1 addi +1 lwz ours-only: -2 fmr; insns T905/O905"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

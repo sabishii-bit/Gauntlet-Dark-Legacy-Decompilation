@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/slotdiff.py (the SLOT MAP IDENTICAL / SLOTS DIFFER verdict and the frame line)",
+    "tools/gdl/probe.py (the real and FRESH fuzzy pair quoted above)",
+    "tools/gdl/defake_gate.py check (GATE OK at 4dd6ec224)"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A size-conserving resize of an array/pad pair that fails to move the array's slot on a function whose frame size already matches -- or a pure widening that DOES move it without moving the frame. Reproduce both halves with `python tools/gdl/slotdiff.py game/enemy/enemy.c fn_80046680` at 4dd6ec224 (SLOT MAP IDENTICAL) against the same command at 981ea68e8 (SLOTS DIFFER, 2T/2O exclusive).",
+  "id": "claim.law.EN_a-bottom-anchored-local-block-lifts-a-slot-only-under-a-size-conserving-resize-never-under-a-widening.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T01:17:15Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "MWCC GC 1.2.5. REFINEMENT of claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1, with a measured positive and a measured negative on the SAME function, the same slot and the same pad. When a target slot sits N bytes ABOVE ours and the frame size already matches, the lever is not 'add N bytes below it'. Adding bytes GROWS the local block, and because the block is bottom-anchored the growth is paid at the top -- the frame widens, every saved-register and spill displacement moves, and the slot you were chasing does not arrive. The lever is a SIZE-CONSERVING RESIZE: take the N bytes from the array itself and give them to the pad below it, holding the block's TOTAL constant.\n\nMEASURED, both directions, on game/enemy/enemy::fn_80046680, whose `hit` array sits at r1+72 where the target has r1+76 (and the paired read at r1+80 against the target's r1+84), frame 152 correct in both streams. NEGATIVE, run 50 (attempt.EN-fn80046680-slot-pad-revisit.20260901.v1): `u8 _pad4[4]` widened to `[8]`, block 56 -> 60 bytes, measured real 35 -> 43, a clear regression with the opcode clusters unchanged, and the record closed with the typed DO-NOT-RETRY 'widening _pad4 or any adjacent padding local to lift hit[4]'. POSITIVE, this run at commit 4dd6ec224: `f32 hit[4]; u8 _pad4[4];` -> `f32 hit[3]; u8 _pad4[8];`, block still 56 bytes (12+8 against 16+4), measured real 35 -> 29, FRESH fuzzy 97.3675% -> 97.3932%, and `python tools/gdl/slotdiff.py game/enemy/enemy.c fn_80046680` went from `SLOTS DIFFER (2T/2O exclusive)` to `== fn_80046680: target 7 slots, ours 7 -> SLOT MAP IDENTICAL` with `frame: target 152 ours 152`.\n\nTHE TWO PROBES DIFFER IN EXACTLY ONE VARIABLE -- the block total -- and they differ in sign. The array's honest size is what makes the conserving form available: `hit` is read only as hit[0] and hit[2] and passed by decay to a callee that writes three floats, so `[3]` is the truthful declaration and the recovered byte is real, not a trick. WHERE THIS APPLIES: a slot delta that is a small multiple of 4, an already-matching frame size, and a padding local declared BELOW the array (i.e. after it, since this compiler lays the block out in reverse declaration order). WHERE IT DOES NOT: if the frame sizes already differ, the block total is not the controlled variable and this says nothing. HOW TO READ THE RESULT: arbitrate on `slotdiff.py`, not on `real` -- per claim.law.real-can-underweight-a-large-alignment-gain, and note that here they happened to agree.\n\nCOROLLARY FOR READERS OF THE OLDER RECORD: attempt.EN-fn80046680-slot-pad-revisit.20260901.v1's denial is CORRECT AS WRITTEN and is not overturned -- it denies widening, and widening really is dead. It was read by this lane as closing the slot question, which it does not; the conserving form was simply never tried. A pad denial should say whether it held the block total fixed."
+}

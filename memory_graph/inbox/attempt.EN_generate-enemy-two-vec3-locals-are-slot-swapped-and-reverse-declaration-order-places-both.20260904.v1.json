@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "generate_enemy: close the TEN same-opcode IMMEDIATE rows fndiff --ops reports outside every cluster (target r1+40/44/48 against ours r1+64/68/72 and the mirror at the other site) by reordering the three f32[3] locals, then attack the surviving target-only +1 mr with the dead-local carrier class.",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and APPLIED. claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1 SCREENED and REFINED (see the conserving-resize law this run). claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2 and claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 SCREENED as the class arbiters for every ours-only -1 mr in this TU. claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED as the postprocessor-eligibility arbiter. claim.law.MC_the-raw-differing-word-count-is-an-obligation-size-not-a-distance-and-must-never-be-differenced-across-probes.20260902.v1 APPLIED: every word count below is quoted as a single-state obligation size. claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1 APPLIED: word counts came from composed_census/wf_word_diff.py directly, never probe --raw. claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1 SCREENED and found NOT applicable in this direction: the surviving mr is TARGET-only, which that law explicitly scopes out ('the parent law's source-unreachable verdict must be read as applying only to the target-only direction, after its dead-local enumeration comes up empty').",
+    "laws_applied": "[\"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\"]",
+    "probed_form": "PROBE A (IMPROVED, RETAINED, commit 981ea68e8): the declaration list `f32 v[3]; f32 out[3]; f32 startv[3];` became `f32 startv[3]; f32 out[3]; f32 v[3];` -- nothing else changed. PROBE B (NEUTRAL-IDENTICAL, reverted): `if (e->actionlist[1].animidx >= 0) { InitAnim(lbl_80346820, &e->atree.animinfo, e->actionlist[1].animidx, 0, 1); }` became `i = e->actionlist[1].animidx; if (i >= 0) { InitAnim(lbl_80346820, &e->atree.animinfo, i, 0, 1); }`, reusing the function's already-declared `s32 i`.",
+    "residual": "THE MECHANISM, measured: MWCC lays this function's f32[3] locals out in REVERSE declaration order (last-declared gets the LOWEST r1 offset). Before: declared v,out,startv and allocated startv@40 out@52 v@64; the target wants v@40 out@52 startv@64. Swapping the two outer declarations reproduces the target's map exactly and closed all ten IMMEDIATE rows at once. WHAT REMAINS, two clusters, real 131. (A) a cmplwi/stw schedule swap plus a base-register web difference at 0x1a8-0x1b8: target `mulli r0,r26,916 / add r27,r28,r0 / stw r23,4264(r27) / cmplwi r23,0 / addi r27,r27,3608` reuses ONE register for the gEnemies base and increments it in place; ours `mulli r0,r28,916 / add r3,r27,r0 / cmplwi r23,0 / stw r23,4264(r3) / addi r24,r3,3608` splits it into r3 and r24 and hoists the compare above the store. (B) the count blocker, target-only +1 mr at 0x358: target `lwz r0,220(r27) / cmpwi r0,0 / mr r4,r0 / blt`, ours `lwz r4,220(r24) / cmpwi r4,0 / blt` -- ours loads e->actionlist[1].animidx straight into the argument register where the target loads it into r0 and copies. Probe B establishes that the local-carrier CONSTRUCT CLASS never reaches codegen on this site, so no spelling of it can move the copy.",
+    "scope": "src/game/enemy/enemy.c, generate_enemy declaration block only (2 lines). Commit 981ea68e8.",
+    "verification": "probe.py clean BASELINE banked first (real 153, insns T242/O241, multiset 1t, FRESH fuzzy 97.5207%). Probe A: IMPROVED real 153 -> 131, FRESH fuzzy 97.5620% (+0.0413 local). `fndiff --ops` after: all ten IMMEDIATE rows GONE, two clusters left. Probe B: NEUTRAL-IDENTICAL, bytes=90ef071f11c6, real=131, head=0f4151839 -- reverted by hand. defake_gate.py check game/enemy/enemy.c --rebuild GATE OK; full ninja printed `build/GUNE5D/main.dol: OK`; `python -m unittest discover tools/gdl/tests -b` Ran 1829 tests OK; `python -m memory_graph.test_graph --changed -b` exit 0; `git diff --check HEAD` and `git diff --cached --check` both exit 0."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/enemy/enemy.c generate_enemy --ops -- if the `target-only: +1 mr` line is gone, or if the counts read T242/O242, this denial is moot.",
+    "falsifier": "any local-carrier spelling of the InitAnim third argument that changes generate_enemy's object bytes at all kills the NEUTRAL-IDENTICAL premise and reopens the class.",
+    "premise_measurement": "probe.py game/enemy/enemy.c generate_enemy after the substitution printed NEUTRAL-IDENTICAL with `NEUTRAL-IDENTICAL-PROOF unit=game/enemy/enemy fn=generate_enemy bytes=90ef071f11c6 real=131 insns=T242/O241 multiset=1t head=0f4151839` -- the object bytes did not move, so the construct folded away in the front end and the compiler never reached the decision being probed.",
+    "scope": "generate_enemy only, and only the LOCAL-CARRIER construct class (spelling the InitAnim argument through an already-declared local) as a cure for the target-only mr at 0x358. It does NOT deny the register-web/schedule cluster at 0x1a8, which was not probed this run."
+  },
+  "function": "function:generate_enemy",
+  "id": "attempt.EN_generate-enemy-two-vec3-locals-are-slot-swapped-and-reverse-declaration-order-places-both.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T01:17:09Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "frame-slot",
+    "measured_at": "2026-09-04",
+    "signature": "DIFFERS target-only: +1 mr ours-only: (none); insns T242/O241"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

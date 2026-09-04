@@ -1936,8 +1936,8 @@ void move_logic00(s32 index)
         lbl_80344720 = base;
         {
             f32 cand = base;
-            s32 found = 0;
             s32 off = 0;
+            s32 found = 0;
             do {
                 f32 d;
                 if (e->route > 0) {
@@ -5967,9 +5967,9 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     s32 i;
     s32 r;
     Enemy* e;
-    f32 v[3];
-    f32 out[3];
     f32 startv[3];
+    f32 out[3];
+    f32 v[3];
 
     if (gGameMode == MA_HSTABLE) {
         return -1;
@@ -7349,8 +7349,8 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     s32 start;
     f32 best1;
     f32 best = lbl_803468B0;
-    f32 hit[4];
-    u8 _pad4[4];
+    f32 hit[3];
+    u8 _pad4[8];
     f32 d;
     f32 dy;
     f32 dx;
