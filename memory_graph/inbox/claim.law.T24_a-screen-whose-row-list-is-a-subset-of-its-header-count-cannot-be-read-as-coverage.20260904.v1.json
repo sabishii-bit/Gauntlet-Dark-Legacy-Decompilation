@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "tools/gdl/claimscope.py",
+    "tools/gdl/tests/test_t21_queue_chores.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A screen whose row list is deliberately a ranked SAMPLE, with the header count named as the population and the sampling stated, is not this defect. Reproduce with `python tools/gdl/claimscope.py --audit` and check `accounting_closes`; asserted by tools/gdl/tests/test_t21_queue_chores.py::OwnedUnitsAudit (test_the_row_list_accounts_for_every_entry, test_the_live_claims_audit_clean_and_account).",
+  "id": "claim.law.T24_a-screen-whose-row-list-is-a-subset-of-its-header-count-cannot-be-read-as-coverage.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T06:31:16Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "A screen that prints a HEADER COUNT over one population and a ROW LIST over a subset of it cannot be read as coverage, and the reader cannot tell 'the rest were checked and are fine' from 'the rest were never looked at'. Two run-53 lanes reported the same confusion from opposite sides of `claimscope.py --audit`: NC saw `owned_unit_entries: 10 ... 4 rows` and WR saw `owned_unit_entries: 14 with the same 4 rows` -- the rows are INSENSITIVE to exactly the entries that changed, because a resolving entry produced no row at all. Reconstructed over all 432 distinct work_claim versions in git history (112 owned-unit entries): 80 of 112 (71%) had no row, and 12 more carried the WRONG label, reported `prefix` while being FILES (config/GUNE5D/webfrank.json, tools/gdl/webfrank.py -- both the postprocessor lane's, so the mislabel lands on the same scope every run). THE FIX IS ARITHMETIC, NOT VERBOSITY: emit one row per member with its status and a per-status tally that SUMS to the header count, and assert that sum in the payload (`accounting_closes`) rather than leaving it to the reader. The same shape governs any census: a filtered result presented beside an unfiltered count is the run-46 absence rule (AGENTS trap 6c) wearing a header."
+}

@@ -65,14 +65,17 @@ Usage (from repo root):
   python tools/gdl/claimscope.py --index               # unit -> owner map
   python tools/gdl/claimscope.py --blocks              # webfrank block owners
   python tools/gdl/claimscope.py --self                # who am I
+  python tools/gdl/claimscope.py --audit               # every owned_units
+                                                       # entry, one row each
 
 Exit 0 ok / 3 foreign / 0 undecidable (a warning, never a hard stop: the
 field's coverage was 0 of 6 active claims when it shipped, and a gate that
 refuses on absence would refuse every lane on day one).
 
 IMPORTABLE CORE: load_claims, check_unit, lane_identity, normalize,
-split_block, resolution_scopes, webfrank_units, webfrank_block_owners --
-pure over the record JSON, no database build and no compile.
+split_block, resolution_scopes, webfrank_units, webfrank_block_owners,
+audit_owned_units, owned_unit_overlaps -- pure over the record JSON, no
+database build and no compile.
 """
 
 import json
@@ -220,10 +223,35 @@ def check_unit(unit, lane=None, claims=None, repo=REPO):
     lane_l = (lane or "").strip().lower()
 
     def partition(scope):
-        owned, ours = [], []
+        # MOST SPECIFIC ENTRY WINS AMONG CLAIMS, TOO (run-54 item 8). Two
+        # claims can both cover one path when one lane carves a file out of
+        # another lane's directory prefix -- this run, WV's
+        # `tools/gdl/webfrank.py` inside T24's `tools/gdl`, an arrangement
+        # both work orders spell out ("owns tools/gdl + memory_graph EXCEPT
+        # the webfrank surfaces - WV's"). Comparing entries only by `covers`
+        # made BOTH lanes foreign on that file, so the screen refused the
+        # very owner the carve-out exists to name. Measured at 221fdc4cc:
+        #
+        #   GDL_LANE=claude-fleet-worker-WV claimscope.py tools/gdl/webfrank.py
+        #     "status": "foreign", owner claude-fleet-worker-T24   exit 3
+        #
+        # A longer covering entry is a strictly narrower grant, so only the
+        # claims whose best covering entry is the longest decide. An exact
+        # TIE -- two claims listing the SAME entry -- is untouched and stays
+        # a collision for both, which is the case that really is one.
+        best = []
         for claim in claims:
-            if not any(covers(entry, scope)
-                       for entry in claim["owned_units"]):
+            reach = max((len(normalize(entry))
+                         for entry in claim["owned_units"]
+                         if covers(entry, scope)), default=None)
+            if reach is not None:
+                best.append((reach, claim))
+        if not best:
+            return [], []
+        finest = max(reach for reach, _ in best)
+        owned, ours = [], []
+        for reach, claim in best:
+            if reach != finest:
                 continue
             owner = (claim.get("owner") or "").strip()
             if owner and (owner.lower() == lane_l
@@ -272,6 +300,77 @@ def check_unit(unit, lane=None, claims=None, repo=REPO):
         verdict["resolved_by"] = resolved_by
         verdict["resolution_scopes"] = resolution_scopes(unit)
     return verdict
+
+
+def owned_unit_overlaps(claims=None, repo=REPO):
+    """Cross-lane overlaps of `owned_units`, split by KIND (run-54 item 8).
+
+    The exact-key comparison behind `owned_units_conflicts` groups entries by
+    string equality, so an entry NESTED inside another lane's directory
+    prefix reads as two unrelated keys and the overlap is reported nowhere.
+    Measured live at 221fdc4cc: `gdlmem claims` prints
+    `owned_units_conflicts: {}` while the index carries `tools/gdl ->
+    [T24]` and `tools/gdl/webfrank.py -> [WV]` as separate rows.
+
+    Two kinds, and keeping them apart is the point:
+
+      duplicate -- two owners list the SAME entry. Nobody is more specific,
+                   the tools refuse both, and it is a real collision.
+      nested    -- one owner's entry strictly contains another's. This is a
+                   CARVE-OUT, not a collision: `check_unit` resolves it
+                   most-specific-first, and this run's own work orders
+                   create it on purpose.
+
+    DESIGN REVERSAL, recorded because the reporting item invited the other
+    design: folding nesting into `conflicts` would raise a false collision
+    on the postprocessor carve-out EVERY RUN. Reconstructed from git over
+    every work_claim version that ever carried an owned_units list (48
+    claims), the same nesting recurs under four tool-lane ids on 2026-09-03
+    (T17/T18/T19/T20 vs WF, WR) and four more on 2026-09-04 (T21..T24 vs WV,
+    WR, WP) -- it is standing fleet structure. So nesting is reported
+    ADVISORY, with the resolution stated, and only `duplicate` is a
+    conflict. Same-owner nesting is not reported at all (0 occurrences in
+    that corpus, and a lane listing both a prefix and a file inside it is
+    describing its own scope).
+    """
+    claims = load_claims(repo) if claims is None else claims
+    entries = [(claim.get("owner") or "", claim.get("id") or "",
+                normalize(entry))
+               for claim in claims for entry in claim["owned_units"]]
+    duplicates, nested = {}, []
+    for index, (owner_a, claim_a, entry_a) in enumerate(entries):
+        for owner_b, claim_b, entry_b in entries[index + 1:]:
+            if owner_a == owner_b:
+                continue
+            if entry_a == entry_b:
+                duplicates.setdefault(entry_a, set()).update(
+                    (owner_a, owner_b))
+            elif covers(entry_a, entry_b) or covers(entry_b, entry_a):
+                outer, inner = ((entry_a, entry_b)
+                                if covers(entry_a, entry_b)
+                                else (entry_b, entry_a))
+                outer_owner = owner_a if outer == entry_a else owner_b
+                inner_owner = owner_b if outer == entry_a else owner_a
+                outer_claim = claim_a if outer == entry_a else claim_b
+                inner_claim = claim_b if outer == entry_a else claim_a
+                nested.append({
+                    "outer": outer, "outer_owner": outer_owner,
+                    "outer_claim": outer_claim,
+                    "inner": inner, "inner_owner": inner_owner,
+                    "inner_claim": inner_claim,
+                    "resolution": (f"{inner} resolves to {inner_owner} (the"
+                                   f" more specific entry); {outer_owner}"
+                                   f" keeps the rest of {outer}"),
+                })
+    return {
+        "duplicate": {entry: sorted(owners)
+                      for entry, owners in sorted(duplicates.items())},
+        "nested": nested,
+        "note": ("`duplicate` is a real collision — two owners on one entry,"
+                 " neither more specific, both refused. `nested` is a"
+                 " carve-out: it resolves most-specific-first and is"
+                 " advisory."),
+    }
 
 
 WEBFRANK_CONFIG = "config/GUNE5D/webfrank.json"
@@ -363,8 +462,11 @@ def real_units(repo=REPO):
     return out
 
 
+AUDIT_STATUSES = ("unit", "prefix", "file", "UNRESOLVED")
+
+
 def audit_owned_units(claims=None, repo=REPO):
-    """Owned-unit entries that name NO unit in this tree (run-51 item 9c).
+    """EVERY owned-unit entry, with the status of what it resolves to.
 
     A claim's `owned_units` list is the ONLY channel the tools screen
     (AGENTS.md, run 46), so an entry that names nothing protects nothing —
@@ -374,9 +476,37 @@ def audit_owned_units(claims=None, repo=REPO):
     directory is wrong and the basename is right, which is exactly the shape
     a basename lookup catches and no existing check looked for.
 
-    A DIRECTORY PREFIX (`tools/gdl`, `memory_graph`) is a legitimate entry
-    that names no source file, so it is verified as a directory instead and
-    reported as `prefix`, never as a miss.
+    THE ROW LIST IS TOTAL (run-54 item 1). Until now this returned rows only
+    for entries that were NOT ordinary units — a resolving entry produced no
+    row at all — so `--audit` printed a header counting every entry beside a
+    row list counting a subset, and the arithmetic did not close. Two run-53
+    lanes reported the same confusion from opposite sides: NC saw
+    `owned_unit_entries: 10 ... 4 rows`, WR saw `owned_unit_entries: 14 with
+    the same 4 rows`, because the rows are insensitive to exactly the entries
+    that changed. A reader cannot distinguish "the other entries were checked
+    and are fine" from "the audit never looked at them", and the second is
+    what the note's own warning is about. So every entry gets a row, and the
+    per-status tally in `--audit` sums to `owned_unit_entries` by
+    construction.
+
+    Statuses: `unit` (a real source unit under src/), `prefix` (an existing
+    DIRECTORY — `tools/gdl`, `memory_graph` — a legitimate entry that names
+    no source file, never a miss), `file` (an existing path that is neither,
+    e.g. `config/GUNE5D/webfrank.json`, which the old code labelled `prefix`
+    although nothing is under it), and `UNRESOLVED` (names nothing here).
+
+    CALIBRATED TWO-SIDED over all 432 distinct work_claim versions in git
+    history (112 owned-unit entries; accepted claims are deleted, so the live
+    corpus is only 6 claims / 9 entries):
+      POSITIVES  80 entries (71%) had no row at all and now report `unit`;
+                 12 more reported `prefix` while being FILES, two distinct
+                 paths (`config/GUNE5D/webfrank.json`, `tools/gdl/
+                 webfrank.py`) — both of them WV's, i.e. the mislabel lands
+                 on the postprocessor lane's scope every run.
+      NEGATIVES  17 true directory prefixes keep `prefix` unchanged, and the
+                 3 UNRESOLVED entries (`game/ps2/ml_mem` — the run-50 defect
+                 — and `dolphin/demo`) keep their status, their
+                 `did_you_mean` and the exit-1 verdict unchanged.
     """
     claims = claims if claims is not None else load_claims(repo)
     units = real_units(repo)
@@ -389,22 +519,28 @@ def audit_owned_units(claims=None, repo=REPO):
             key = normalize(entry)
             path, _block = split_block(key)
             path = normalize(path)
+            row = {"owner": claim["owner"], "claim": claim["id"],
+                   "entry": entry}
             if path in units:
+                rows.append(dict(row, status="unit", resolves_to=path))
                 continue
-            if (Path(repo) / path).is_dir() or (Path(repo) / key).exists():
-                rows.append({"owner": claim["owner"], "claim": claim["id"],
-                             "entry": entry, "status": "prefix"})
+            if (Path(repo) / path).is_dir():
+                rows.append(dict(row, status="prefix", resolves_to=path))
+                continue
+            existing = next((p for p in (key, path)
+                             if (Path(repo) / p).exists()), None)
+            if existing is not None:
+                rows.append(dict(row, status="file", resolves_to=existing))
                 continue
             base = path.rsplit("/", 1)[-1]
-            rows.append({
-                "owner": claim["owner"], "claim": claim["id"],
-                "entry": entry, "status": "UNRESOLVED",
+            rows.append(dict(row, **{
+                "status": "UNRESOLVED",
                 "did_you_mean": sorted(by_base.get(base, [])),
                 "note": ("this entry names no source file and no directory in"
                          " this tree, so every unit it was meant to protect"
                          " reads as FREE to every tool that screens"
                          " owned_units"),
-            })
+            }))
     return rows
 
 
@@ -428,6 +564,9 @@ def main():
                                   for k, v in sorted(index.items())},
             "conflicts": {k: sorted(set(v)) for k, v in sorted(index.items())
                           if len(set(v)) > 1},
+            # An overlap between a prefix and a path inside it is invisible
+            # to the exact-key `conflicts` above (run-54 item 8).
+            "overlaps": owned_unit_overlaps(claims, REPO),
             "webfrank_blocks": webfrank_block_owners(claims),
         }, indent=2))
         return 0
@@ -437,14 +576,30 @@ def main():
     if "--audit" in args:
         rows = audit_owned_units(claims)
         bad = [row for row in rows if row["status"] == "UNRESOLVED"]
+        entries = sum(len(c["owned_units"]) for c in claims)
+        by_status = {name: sum(1 for r in rows if r["status"] == name)
+                     for name in AUDIT_STATUSES}
         print(json.dumps({
             "active_claims": len(claims),
-            "owned_unit_entries": sum(len(c["owned_units"]) for c in claims),
+            "claims_without_owned_units":
+                sum(1 for c in claims if not c["declared"]),
+            "owned_unit_entries": entries,
+            "by_status": by_status,
+            "rows_printed": len(rows),
+            # The row list is TOTAL (run-54 item 1): this is the arithmetic
+            # whose failure to close was the reported symptom, asserted here
+            # rather than left to the reader.
+            "accounting_closes": len(rows) == entries == sum(
+                by_status.values()),
             "unresolved": len(bad),
             "rows": rows,
-            "note": ("an UNRESOLVED entry protects nothing: the units it was"
-                     " meant to cover read as FREE to probe.py and"
-                     " defake_gate.py. Fix the claim before dispatching."),
+            "note": ("every entry gets a row: `unit` resolves to a source"
+                     " unit, `prefix` to a directory, `file` to an existing"
+                     " non-source path, and an UNRESOLVED entry protects"
+                     " nothing — the units it was meant to cover read as FREE"
+                     " to probe.py and defake_gate.py. A claim with NO"
+                     " owned_units makes every unit UNDECIDABLE, never free."
+                     " Fix the claim before dispatching."),
         }, indent=2))
         return 1 if bad else 0
     units = [a for a in args if not a.startswith("-")]

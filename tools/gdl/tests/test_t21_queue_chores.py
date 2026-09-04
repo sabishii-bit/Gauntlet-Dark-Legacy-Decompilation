@@ -148,16 +148,48 @@ class OwnedUnitsAudit(unittest.TestCase):
         rows = claimscope.audit_owned_units([claim], repo=REPO)
         self.assertEqual({row["status"] for row in rows}, {"prefix"})
 
-    def test_a_real_unit_produces_no_row_at_all(self):
+    def test_a_real_unit_gets_a_row_too(self):
+        # Run-54 item 1: this used to assert NO row, which is what made the
+        # --audit header count entries the row list did not. The row list is
+        # total now; a resolving unit reports `unit`, not silence.
         claim = {"owner": "t21", "id": "work_claim.fake.v3",
                  "owned_units": ["game/sys/ml_mem", "src/game/enemy/enemy.c"],
                  "declared": True}
-        self.assertEqual(claimscope.audit_owned_units([claim], repo=REPO), [])
+        rows = claimscope.audit_owned_units([claim], repo=REPO)
+        self.assertEqual([row["status"] for row in rows], ["unit", "unit"])
+        self.assertEqual([row["resolves_to"] for row in rows],
+                         ["game/sys/ml_mem", "game/enemy/enemy"])
 
-    def test_the_live_claims_audit_clean(self):
-        rows = claimscope.audit_owned_units(repo=REPO)
+    def test_an_existing_file_is_not_called_a_prefix(self):
+        # 12 of 112 historical entries were files reported as `prefix`, both
+        # distinct paths belonging to the postprocessor lane's scope.
+        claim = {"owner": "t21", "id": "work_claim.fake.v4",
+                 "owned_units": ["config/GUNE5D/webfrank.json",
+                                 "tools/gdl/webfrank.py"],
+                 "declared": True}
+        rows = claimscope.audit_owned_units([claim], repo=REPO)
+        self.assertEqual({row["status"] for row in rows}, {"file"})
+
+    def test_the_row_list_accounts_for_every_entry(self):
+        claim = {"owner": "t21", "id": "work_claim.fake.v5",
+                 "owned_units": ["game/sys/ml_mem", "tools/gdl",
+                                 "config/GUNE5D/webfrank.json",
+                                 "game/ps2/ml_mem"],
+                 "declared": True}
+        rows = claimscope.audit_owned_units([claim], repo=REPO)
+        self.assertEqual(len(rows), len(claim["owned_units"]))
+        self.assertEqual([row["status"] for row in rows],
+                         ["unit", "prefix", "file", "UNRESOLVED"])
+
+    def test_the_live_claims_audit_clean_and_account(self):
+        claims = claimscope.load_claims(REPO)
+        rows = claimscope.audit_owned_units(claims, repo=REPO)
         bad = [row for row in rows if row["status"] == "UNRESOLVED"]
         self.assertEqual(bad, [])
+        self.assertEqual(len(rows),
+                         sum(len(c["owned_units"]) for c in claims))
+        self.assertLessEqual({r["status"] for r in rows},
+                             set(claimscope.AUDIT_STATUSES))
 
 
 if __name__ == "__main__":

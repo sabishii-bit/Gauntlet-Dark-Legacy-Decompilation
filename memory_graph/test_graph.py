@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import importlib.util
 import io
+import itertools
 import json
 import shutil
 import sqlite3
@@ -1767,6 +1768,17 @@ class RetrievalQueryTests(unittest.TestCase):
                 {"function": "other_fn",
                  "instruction_permutation": {},
                  "mechanism": "a bare schedule window with no cited record"},
+                # Run-54 item 2: the SAME law id with a trailing period, the
+                # live citation defect measured on three pins at 2948352c4.
+                # It looks law-backed to a substring match and resolves to
+                # nothing.
+                {"function": "dangling_fn",
+                 "copy_register_fields": {},
+                 "mechanism": "the encoding is picked downstream of source;"
+                              " see"
+                              " claim.law.live-zero-copy-vs-remat-is-allocator"
+                              "-not-source.20260831.v9 (a version that does"
+                              " not exist)"},
             ]}}), encoding="utf-8")
         report = cls.root / "build" / "GUNE5D" / "report.json"
         report.parent.mkdir(parents=True)
@@ -1812,6 +1824,44 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertIn(
             "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1",
             pins[0]["cites_records"])
+
+    def test_a_dead_id_marker_is_honoured_not_cited(self):
+        """Run-54 item 4: DEAD-ID[...] had zero consumers in python.
+
+        MP measured both movieplayer pins still citing
+        `attempt.HV_union-resweep-eight-composed-closes.20260901.v1`, the id
+        the repair note beside it declares has never existed. 13 markers, 13
+        such cites across 13 pins in 8 units, and ZERO of the 13 appear
+        anywhere else in their own mechanism.
+        """
+        cited, dead = core._mechanism_citations(
+            "citation repaired run 52 -- the id previously here,"
+            " DEAD-ID[attempt.HV_union-resweep-eight-composed-closes"
+            ".20260901.v1], has never existed; the true record is"
+            " claim.HV_union-resweep-closability-roster.20260901.v1.")
+        self.assertEqual(
+            cited, ["claim.HV_union-resweep-closability-roster.20260901.v1"])
+        self.assertEqual(
+            dead, ["attempt.HV_union-resweep-eight-composed-closes"
+                   ".20260901.v1"])
+
+    def test_a_sentence_final_id_does_not_swallow_the_full_stop(self):
+        """The `.` is inside the id class, so 15 of 247 extracted ids ended
+        in a stop and resolved to nothing. Trimming leaves the COUNT at 247,
+        which is the check that no two ids collapse into one."""
+        cited, dead = core._mechanism_citations(
+            "see claim.law.a-law.20260831.v1. Then attempt.b-thing.v2, and"
+            " claim.law.a-law.20260831.v1 again.")
+        self.assertEqual(cited, ["attempt.b-thing.v2",
+                                 "claim.law.a-law.20260831.v1"])
+        self.assertEqual(dead, [])
+
+    def test_an_ordinary_mechanism_is_unchanged(self):
+        # NEGATIVE side: no marker, no trailing stop, nothing to repair.
+        cited, dead = core._mechanism_citations(
+            "derived in attempt.x.v1 and proven by claim.law.y.v2")
+        self.assertEqual(cited, ["attempt.x.v1", "claim.law.y.v2"])
+        self.assertEqual(dead, [])
 
     def test_pin_mechanism_is_not_truncated(self):
         """Run-37 item 5: the prose used to be cut at 600 characters, which
@@ -2219,6 +2269,78 @@ class RetrievalQueryTests(unittest.TestCase):
         # other_fn's park exists but documents no probed_form
         self.assertEqual(by_fn["other_fn"]["provenance"],
                          "parked-without-probed_form")
+        # POSITIVE side of the run-54 item-2 hardening: the strongest
+        # provenance class may not rest on an id that resolves to nothing.
+        self.assertNotEqual(by_fn["dangling_fn"]["provenance"],
+                            "law-backed-source-unreachable")
+        self.assertEqual(
+            by_fn["dangling_fn"]["provenance_laws_unresolved"],
+            ["claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+             ".20260831.v9"])
+        self.assertNotIn("provenance_laws", by_fn["dangling_fn"])
+        # Run-54 item 4: an id that resolves to nothing says so, and offers
+        # the unique record that extends it when there is exactly one.
+        self.assertEqual(
+            [row["id"] for row in
+             by_fn["dangling_fn"]["unresolved_citations"]],
+            ["claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+             ".20260831.v9"])
+
+    def test_a_resolvable_law_still_backs_a_pin(self):
+        # NEGATIVE side: the hardening changed ZERO of the 155 live pins'
+        # verdicts, and must not start refusing correctly cited laws.
+        brief = tu_briefing("game/test/foo", root=self.root)
+        by_fn = {row["function"]: row for row in brief["webfrank_pins"]}
+        self.assertEqual(by_fn["test_fn"]["provenance"],
+                         "law-backed-source-unreachable")
+        self.assertEqual(
+            by_fn["test_fn"]["provenance_laws"],
+            ["claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+             ".20260831.v1"])
+        self.assertNotIn("provenance_laws_unresolved", by_fn["test_fn"])
+
+    def test_the_pins_tier_answers_the_trap_4_screen_alone(self):
+        """Run-54 item 7: the mandatory freeze screen without the briefing.
+
+        Measured at 7c673e8b9: `brief game/game/gamemain` spends 176,136 B
+        over 261 rows and 4.71s to name four pinned functions, `--summary`
+        names none of them and `--roster-only` omits the section. Agreement
+        with the full brief was checked on all 53 pinned TUs (53/53).
+        """
+        screen = core.tu_pin_screen("game/test/foo", root=self.root)
+        full = tu_briefing("game/test/foo", root=self.root)
+        self.assertEqual(
+            [(p["function"], p["provenance"])
+             for p in screen["webfrank_pins"]],
+            [(p["function"], p["provenance"])
+             for p in full["webfrank_pins"]])
+        self.assertEqual(screen["pinned_functions"],
+                         [p["function"] for p in full["webfrank_pins"]])
+        self.assertEqual(screen["pin_count"], len(screen["webfrank_pins"]))
+        self.assertIsNone(screen["empty_note"])
+        # It is a SCREEN, not a briefing: it must say what it does not carry.
+        self.assertIn("PINS ONLY", screen["note"])
+        # The identical per-row legend is hoisted once (a third of the
+        # payload on a four-pin TU), and it must not simply vanish.
+        self.assertIn("Mandatory-policy bar", screen["provenance_note"])
+        for pin in screen["webfrank_pins"]:
+            self.assertNotIn("provenance_note", pin)
+        for omitted in ("open_hypotheses", "functions", "active_claims"):
+            self.assertNotIn(omitted, screen)
+
+    def test_the_pins_tier_is_reachable_through_brief(self):
+        self.assertEqual(
+            tu_briefing("game/test/foo", root=self.root, pins_only=True),
+            core.tu_pin_screen("game/test/foo", root=self.root))
+
+    def test_an_unpinned_tu_says_zero_is_not_a_lookup_success(self):
+        # NEGATIVE side: an unpinned TU and an unknown spelling both report
+        # 0, so 0 alone must never read as a measured all-clear.
+        for unit in ("game/test/unpinned", "not/a/real/unit"):
+            screen = core.tu_pin_screen(unit, root=self.root)
+            self.assertEqual(screen["pin_count"], 0, unit)
+            self.assertEqual(screen["pinned_functions"], [], unit)
+            self.assertIn("measured absence", screen["empty_note"], unit)
 
     def test_brief_roster_carries_the_unabsorbed_closability_column(self):
         """run-31 item 6.
@@ -3101,6 +3223,78 @@ class OwnedUnitsTests(unittest.TestCase):
         self.assertEqual(result["owned_units_conflicts"],
                          {"game/anim/atree": ["worker-mf", "worker-nm"]})
         self.assertIn("game/ps2/ml_fmath", result["owned_units_index"])
+        # NEGATIVE side of the run-54 item-8 change: an exact duplicate is a
+        # conflict and NOT also reported as a nesting.
+        self.assertEqual(result["owned_units_nesting"], [])
+
+    def _carve_out(self):
+        """A lane carving one file out of another lane's directory prefix."""
+        _write(self.root / "memory_graph" / "inbox" / "wc4.json", {
+            "schema_version": 1, "id": "work_claim.t24.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-t24", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "tool lane",
+                           "owned_units": ["tools/gdl", "memory_graph"]},
+        })
+        _write(self.root / "memory_graph" / "inbox" / "wc5.json", {
+            "schema_version": 1, "id": "work_claim.wv.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-wv", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "postprocessor lane",
+                           "owned_units": ["tools/gdl/webfrank.py"]},
+        })
+        build_database(self.root)
+
+    def test_a_nested_entry_is_reported_and_is_not_a_conflict(self):
+        """Run-54 item 8: the exact-key comparison cannot see a prefix.
+
+        Reproduced live at 221fdc4cc: `gdlmem claims` printed
+        `owned_units_conflicts: {}` while its own index carried
+        `tools/gdl -> [T24]` and `tools/gdl/webfrank.py -> [WV]`.
+        """
+        self._carve_out()
+        result = work_claims(root=self.root)
+        self.assertEqual(result["owned_units_conflicts"], {})
+        self.assertEqual(len(result["owned_units_nesting"]), 1)
+        row = result["owned_units_nesting"][0]
+        self.assertEqual((row["outer"], row["outer_owner"]),
+                         ("tools/gdl", "worker-t24"))
+        self.assertEqual((row["inner"], row["inner_owner"]),
+                         ("tools/gdl/webfrank.py", "worker-wv"))
+
+    def test_the_narrower_grant_decides_the_owns_verdict(self):
+        self._carve_out()
+        result = work_claims(root=self.root, owns="tools/gdl/webfrank.py")
+        self.assertEqual(result["structured_owners"], ["worker-wv"])
+        self.assertEqual(result["verdict"], "OWNED by worker-wv")
+        outranked = [c for c in result["claims"]
+                     if c["owner"] == "worker-t24"]
+        self.assertEqual([c["decides"] for c in outranked], [False])
+        self.assertIn("WIDER entry", result["outranked_note"])
+
+    def test_the_prefix_owner_still_owns_the_rest_of_the_directory(self):
+        # NEGATIVE side: specificity must not hand the whole prefix away.
+        self._carve_out()
+        result = work_claims(root=self.root, owns="tools/gdl/probe.py")
+        self.assertEqual(result["structured_owners"], ["worker-t24"])
+        self.assertEqual(result["verdict"], "OWNED by worker-t24")
+        self.assertNotIn("outranked_note", result)
+
+    def test_an_exact_tie_leaves_both_owners_deciding(self):
+        # NEGATIVE side: equal specificity is a real collision, not something
+        # to resolve away.
+        self._carve_out()
+        _write(self.root / "memory_graph" / "inbox" / "wc6.json", {
+            "schema_version": 1, "id": "work_claim.t23.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-t23", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "twin tool lane",
+                           "owned_units": ["tools/gdl"]},
+        })
+        build_database(self.root)
+        result = work_claims(root=self.root, owns="tools/gdl/probe.py")
+        self.assertEqual(result["structured_owners"],
+                         ["worker-t23", "worker-t24"])
 
 
 class SupersessionLineageDedupTests(unittest.TestCase):
@@ -4341,6 +4535,63 @@ class RecordSizePreflightTests(unittest.TestCase):
         self.assertIn("OVER BY", message)
         self.assertIn("attributes.probed_form", message)
         self.assertIn("--size", message)
+
+    # --- run-54 item 6: the trim plan -------------------------------------
+    def test_the_plan_names_the_smallest_set_that_covers_the_overage(self):
+        """NC spent five round trips shedding 1,852 bytes
+        (18236 -> 17319 -> 17011 -> 16766 -> 16500 -> 16417 -> clean)
+        against a report that said where the weight was and never how much
+        had to go."""
+        report = core.record_size_report(self._oversize())
+        plan = report["trim_plan"]
+        self.assertTrue(plan)
+        # LEAVES only: summing a parent and its children double-counts.
+        for row in plan:
+            self.assertNotEqual(row["field"], "attributes")
+        self.assertGreaterEqual(plan[-1]["cumulative_bytes"],
+                                report["over_by"])
+        # ... and it is the SMALLEST such prefix.
+        if len(plan) > 1:
+            self.assertLess(plan[-2]["cumulative_bytes"], report["over_by"])
+        self.assertEqual(
+            [row["cumulative_bytes"] for row in plan],
+            list(itertools.accumulate(row["bytes"] for row in plan)))
+
+    def test_a_record_within_the_cap_gets_headroom_and_no_plan(self):
+        # NEGATIVE side: 1,381 of 1,393 accepted attempt records are under
+        # 90% of the cap and must see no plan at all.
+        report = core.record_size_report(
+            {"schema_version": 1, "id": "attempt.small.v1", "kind": "attempt",
+             "function": "function:F", "attempted_axis": "a",
+             "outcome": "neutral"})
+        self.assertEqual(report["over_by"], 0)
+        self.assertNotIn("trim_plan", report)
+        self.assertGreater(report["headroom_bytes"], 0)
+
+    def test_the_cap_is_reported_beside_the_other_gates_not_instead(self):
+        """FS run-53: the entity screen validates LAST, after size.
+
+        Being over the cap is not structural invalidity, so it must not
+        short-circuit the reference/dedup/entity screens the way a missing
+        `id` does.
+        """
+        record = self._oversize()
+        record["attributes"].pop("law_screen")     # a second, later failure
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=ev_root(), report_all=True)
+        message = str(caught.exception)
+        self.assertIn("OVER BY", message)
+        self.assertIn("law_screen", message)
+        self.assertIn("problem(s), all of them reported together", message)
+
+    def test_a_structural_failure_still_short_circuits(self):
+        # NEGATIVE side: a record with no `kind` leaves the later checks
+        # nothing to read, and must still stop at the structural error.
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal({"schema_version": 1, "id": "attempt.x"},
+                                  root=ev_root(), report_all=True)
+        self.assertIn("missing record fields", str(caught.exception))
+        self.assertNotIn("OVER BY", str(caught.exception))
 
 
 class ResourceExhaustionReportingTests(unittest.TestCase):
@@ -5716,12 +5967,33 @@ def committed_range_base(root=core.REPO_ROOT):
           irrelevant: LANE_LOCK
         SKIP: no changed path under memory_graph/, tools/gdl/, ...
 
-    The right question for a clean tree is what this BRANCH has changed, so
-    the base is the merge-base with `main`. On `main` itself (or wherever
-    the merge-base IS HEAD, so the range would be empty) it falls back to
-    `HEAD~1`, which is the per-commit question spelled literally. Returns
-    None only when neither exists — a root commit or a broken git — and the
-    caller then fails OPEN and runs.
+    The question is per-COMMIT, so the base is `HEAD~1` — which is what this
+    already did on `main`, where the merge-base IS HEAD. Returns None only
+    when that does not exist — a root commit or a broken git — and the caller
+    then fails OPEN and runs.
+
+    RUN-54 ITEM 5. This asked `merge-base(HEAD, main)..HEAD`, the whole LANE
+    BRANCH, and fell back to HEAD~1 only on main. On a worker branch that is
+    a different question: once ANY commit on the branch touches a graph input
+    root, every later invocation RUNs regardless of what the commit at hand
+    did, and the gate stops discriminating for the rest of the branch. NC
+    reported the symptom from the other end — the full suite running for a
+    src/-only working tree — and the tree was not the reason; an earlier
+    commit on the branch was.
+
+    CALIBRATED TWO-SIDED over all 400 merged lane branches in this history
+    (1,811 commits, modelling one invocation per commit against a clean
+    tree):
+      POSITIVES  116 invocations (6.4%) on 56 branches RUN under the
+                 branch-wide range and SKIP under the per-commit question —
+                 the worst single branch wastes 18 of its 45 commits, at
+                 ~70s a suite.
+      NEGATIVES  953 invocations RUN under both and 742 SKIP under both:
+                 1,695 of 1,811 (93.6%) are unchanged.
+      UNSOUND    0 — there is no invocation the per-commit question runs
+                 that the branch-wide range skips, so this is strictly
+                 tighter and never looser. That count is the one that
+                 decides the change, and it is asserted below.
     """
     import subprocess
 
@@ -5731,10 +6003,9 @@ def committed_range_base(root=core.REPO_ROOT):
         return result.stdout.strip() if result.returncode == 0 else None
 
     head = git("rev-parse", "HEAD")
-    for candidate in (git("merge-base", "HEAD", "main"),
-                      git("rev-parse", "HEAD~1")):
-        if candidate and candidate != head:
-            return candidate
+    candidate = git("rev-parse", "HEAD~1")
+    if candidate and candidate != head:
+        return candidate
     return None
 
 
@@ -5745,7 +6016,25 @@ def changed_gate(base=None, root=core.REPO_ROOT, stream=sys.stdout) -> bool:
     no base it reads the working tree FIRST and, when the tree names nothing
     relevant, ALSO reads the committed range (see `committed_range_base`) —
     a second look that can only turn a SKIP into a RUN, never the reverse.
+
+    The decision preamble is FLUSHED before returning (run-54 item 5). It is
+    printed before `unittest.main` runs, but it goes to stdout while
+    unittest's own output goes to stderr, and python BLOCK-buffers stdout
+    when it is redirected — so on a RUN the preamble surfaced after all 478
+    test lines and read as a postscript. Reproduced at 491095677:
+    `python -m memory_graph.test_graph --changed -b 2>&1` printed 600 lines
+    whose LAST four were `relevant (committed): ...` and the `RUN:` verdict.
     """
+    try:
+        return _changed_gate_decide(base=base, root=root, stream=stream)
+    finally:
+        flush = getattr(stream, "flush", None)
+        if callable(flush):
+            flush()
+
+
+def _changed_gate_decide(base=None, root=core.REPO_ROOT,
+                         stream=sys.stdout) -> bool:
     try:
         paths, description = changed_paths(base=base, root=root)
     except Exception as error:                      # noqa: BLE001
@@ -5950,6 +6239,62 @@ class ChangedModeTests(unittest.TestCase):
             self.assertFalse(changed_gate(stream=stream))
         self.assertIn("SKIP:", stream.getvalue())
 
+    # --- run-54 item 5 ----------------------------------------------------
+    def test_the_committed_range_is_the_commit_not_the_branch(self):
+        """The base is HEAD~1, so the gate keeps discriminating on a branch.
+
+        With `merge-base(HEAD, main)` the range was the WHOLE lane branch:
+        one relevant commit made every later invocation RUN. Calibrated over
+        400 merged branches / 1811 commits: 116 invocations (6.4%) change
+        from RUN to SKIP, 1695 are unchanged, and 0 go the unsound way.
+        """
+        import subprocess
+        base = committed_range_base()
+        if base is None:
+            self.skipTest("root commit or unreadable git")
+        parent = subprocess.run(
+            ["git", "rev-parse", "HEAD~1"], cwd=str(core.REPO_ROOT),
+            capture_output=True, text=True).stdout.strip()
+        self.assertEqual(base, parent)
+
+    def test_the_preamble_is_flushed_before_the_suite_runs(self):
+        """Its stdout is block-buffered when redirected; unittest writes to
+        stderr. Without the flush the decision surfaced after 478 test
+        lines and read as a postscript rather than a decision."""
+        flushed = []
+
+        class Recording(io.StringIO):
+            def flush(self):
+                flushed.append(self.getvalue())
+                super().flush()
+
+        stream = Recording()
+        fake, _calls = self._clean_tree_then(["tools/gdl/savedregs.py"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertTrue(flushed, "changed_gate never flushed its stream")
+        self.assertIn("RUN:", flushed[-1])
+
+    def test_a_stream_without_flush_does_not_break_the_gate(self):
+        class NoFlush:
+            def __init__(self):
+                self.text = ""
+
+            def write(self, chunk):
+                self.text += chunk
+
+        stream = NoFlush()
+        fake, _calls = self._clean_tree_then(["src/game/ui/select.c"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertFalse(changed_gate(stream=stream))
+        self.assertIn("SKIP:", stream.text)
+
     def test_an_explicit_since_is_never_second_guessed(self):
         """`--since` names the range the caller wants; consulting another
         one behind their back would make the flag a suggestion."""
@@ -5989,9 +6334,16 @@ class ChangedModeTests(unittest.TestCase):
             self.assertTrue(changed_gate(stream=stream))
         self.assertIn("cannot read the committed range", stream.getvalue())
 
-    def test_the_base_prefers_the_merge_base_and_falls_back_to_HEAD_1(self):
-        """On a branch the question is what the BRANCH changed; on main the
-        merge-base IS HEAD, so the literal per-commit range is used."""
+    def test_the_base_is_HEAD_1_even_where_a_merge_base_exists(self):
+        """Run-54 item 5, REPLACING the merge-base contract this asserted.
+
+        The old rule preferred `merge-base(HEAD, main)` on a branch, so the
+        range was everything the branch had done and the gate stopped
+        discriminating after its first relevant commit. HEAD~1 is the
+        per-commit question the gate's own docstring names, and it is
+        strictly tighter: 0 of 1811 modelled invocations run under the old
+        rule's answer and skip under this one in the unsound direction.
+        """
         import subprocess
 
         def run(argv, **kwargs):
@@ -6007,11 +6359,16 @@ class ChangedModeTests(unittest.TestCase):
 
         self.merge_base, self.parent = "basesha", "parentsha"
         with mock.patch("subprocess.run", run):
-            self.assertEqual(committed_range_base(), "basesha")
+            self.assertEqual(committed_range_base(), "parentsha")
         self.merge_base, self.parent = "headsha", "parentsha"
         with mock.patch("subprocess.run", run):
             self.assertEqual(committed_range_base(), "parentsha")
+        # A root commit leaves nothing to compare and the caller fails OPEN.
         self.merge_base, self.parent = "headsha", None
+        with mock.patch("subprocess.run", run):
+            self.assertIsNone(committed_range_base())
+        # ... and so does a parent that IS head (a degenerate range).
+        self.merge_base, self.parent = "basesha", "headsha"
         with mock.patch("subprocess.run", run):
             self.assertIsNone(committed_range_base())
 

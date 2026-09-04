@@ -73,6 +73,76 @@ class ForeignEditsAreCaught(unittest.TestCase):
         self.assertEqual(v["status"], "foreign")
 
 
+CARVEOUT = {"id": "wc.wv", "owner": "worker-WV", "declared": True,
+            "owned_units": ["tools/gdl/webfrank.py"]}
+TWIN = {"id": "wc.t17", "owner": "worker-T17", "declared": True,
+        "owned_units": ["tools/gdl", "memory_graph"]}
+
+
+class CarveOutsResolveMostSpecificFirst(unittest.TestCase):
+    """Run-54 item 8: a file carved out of another lane's directory prefix.
+
+    Both entries `cover` the path, so comparing them only with `covers` made
+    BOTH lanes foreign — the screen refused the very owner the carve-out
+    exists to name. The longer entry is the narrower grant and decides.
+    """
+
+    def test_the_carve_out_owner_may_edit_its_own_file(self):
+        v = claimscope.check_unit("tools/gdl/webfrank.py", lane="worker-WV",
+                                  claims=[TOOLS, CARVEOUT])
+        self.assertEqual(v["status"], "ok")
+        self.assertEqual(v["owners"], [])
+
+    def test_the_prefix_owner_is_still_refused_on_the_carved_out_file(self):
+        v = claimscope.check_unit("tools/gdl/webfrank.py", lane="worker-T16",
+                                  claims=[TOOLS, CARVEOUT])
+        self.assertEqual(v["status"], "foreign")
+        self.assertEqual([o["owner"] for o in v["owners"]], ["worker-WV"])
+
+    def test_the_prefix_owner_keeps_the_rest_of_the_directory(self):
+        v = claimscope.check_unit("tools/gdl/probe.py", lane="worker-T16",
+                                  claims=[TOOLS, CARVEOUT])
+        self.assertEqual(v["status"], "ok")
+
+    def test_an_exact_tie_is_still_a_collision_for_both(self):
+        # NEGATIVE side: two lanes listing the SAME entry are not resolvable
+        # by specificity and must both keep reading as foreign.
+        for lane in ("worker-T16", "worker-T17"):
+            v = claimscope.check_unit("tools/gdl/probe.py", lane=lane,
+                                      claims=[TOOLS, TWIN])
+            self.assertEqual(v["status"], "foreign", lane)
+
+
+class OverlapReporting(unittest.TestCase):
+    def test_a_nesting_is_reported_as_a_carve_out_not_a_conflict(self):
+        out = claimscope.owned_unit_overlaps([TOOLS, CARVEOUT])
+        self.assertEqual(out["duplicate"], {})
+        self.assertEqual(len(out["nested"]), 1)
+        row = out["nested"][0]
+        self.assertEqual((row["outer"], row["outer_owner"]),
+                         ("tools/gdl", "worker-T16"))
+        self.assertEqual((row["inner"], row["inner_owner"]),
+                         ("tools/gdl/webfrank.py", "worker-WV"))
+
+    def test_an_exact_duplicate_is_the_conflict(self):
+        out = claimscope.owned_unit_overlaps([TOOLS, TWIN])
+        self.assertEqual(sorted(out["duplicate"]), ["memory_graph",
+                                                    "tools/gdl"])
+        self.assertEqual(out["nested"], [])
+
+    def test_one_owner_nesting_its_own_entries_is_silent(self):
+        self_nested = {"id": "wc.s", "owner": "worker-T16", "declared": True,
+                       "owned_units": ["tools/gdl", "tools/gdl/probe.py"]}
+        out = claimscope.owned_unit_overlaps([self_nested])
+        self.assertEqual(out["duplicate"], {})
+        self.assertEqual(out["nested"], [])
+
+    def test_unrelated_entries_produce_nothing(self):
+        out = claimscope.owned_unit_overlaps([MF, NM])
+        self.assertEqual(out["duplicate"], {})
+        self.assertEqual(out["nested"], [])
+
+
 class OwnAndUnownedEditsAreNotCaught(unittest.TestCase):
     """NEGATIVE side: the half that decides whether this can refuse at all."""
 

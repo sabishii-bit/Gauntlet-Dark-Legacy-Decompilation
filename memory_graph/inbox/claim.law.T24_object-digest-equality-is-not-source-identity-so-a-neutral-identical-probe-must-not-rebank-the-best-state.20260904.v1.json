@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/tests/test_probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A NEUTRAL-IDENTICAL probe whose source a lane WANTS as the best bank would make first-writer-wins the wrong rule; the lane can already say so with `--bank NAME`, and if that turns out to be the common case the default should invert. Reproduce the keying half with `python tools/gdl/probe.py <unit> <fnA>` then `<fnB>` in one TU and check `build/GUNE5D/gate/` for one bank or two. Asserted by tools/gdl/tests/test_probe.py::BestBankTests (test_the_best_bank_is_keyed_per_FUNCTION, test_a_best_bank_records_the_digest_it_came_from).",
+  "id": "claim.law.T24_object-digest-equality-is-not-source-identity-so-a-neutral-identical-probe-must-not-rebank-the-best-state.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T06:31:14Z",
+  "schema_version": 1,
+  "subject": "tool:probe",
+  "valid_from": "2026-09-04",
+  "value": "probe's BEST bank exists to return a lane to the SOURCE that produced the best bytes, and the anchor that decides whether to write it is keyed on the OBJECT DIGEST (anchor_names_these_bytes, run-43 item 4, deliberately preferring the digest over `real` because a NEUTRAL that merely ties `real` is not the best state). A NEUTRAL-IDENTICAL probe defeats that: it produces the SAME digest from DIFFERENT source, so the anchor reports that it names these bytes and the bank is rewritten with the form the lane was evaluating. `--revert-best` then has nowhere to go -- NC measured exactly this at run 53, where after probe 7 (NEUTRAL-IDENTICAL) `--revert-best` printed the `nothing to restore: ... IS the current working tree` branch and re-scored, leaving mb_camera.c holding probe 7's source rather than the banked snapshot. Digest equality is a statement about the OBJECT and the bank is a statement about the SOURCE; when the object has not moved there is nothing to gain by rewriting and a banked form to lose, so the first banked source stays. SECOND, INDEPENDENT KEYING DEFECT in the same slot: probe STATE is per FUNCTION (`probe_{unit}_{fn}.json`) while the bank was per UNIT (`snap_{unit}__best.c`), so every function in a TU wrote its best source into one file while each kept its own best anchor. Measured across the fleet's live gate directories at 1eaa07a51: game/enemy/critter had SEVEN probed functions sharing one `snap_game_enemy_critter____best.c`, and game/audio/dcs, game/game/player and game/sys/memcard two each -- four of the eleven units with live state contested, the other seven single-function and unaffected. A bank must be keyed exactly as widely as the state that decides when to write it."
+}

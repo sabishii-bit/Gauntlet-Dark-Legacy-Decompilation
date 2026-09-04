@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/claimscope.py",
+    "tools/gdl/tests/test_t16_claimscope.py",
+    "memory_graph/core.py",
+    "memory_graph/test_graph.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A run in which a nested cross-owner owned_units pair is NOT a deliberate carve-out -- i.e. the two work orders' scope prose do not agree about who owns the inner path -- would make most-specific-first the wrong resolution and the advisory report a missed collision. Check with `python tools/gdl/claimscope.py --index` (the `overlaps.nested` rows) against the two claims' scope prose; the resolution is asserted by tools/gdl/tests/test_t16_claimscope.py::CarveOutsResolveMostSpecificFirst and memory_graph/test_graph.py::OwnedUnitsTests, and an EQUAL-entry collision is asserted by test_an_exact_tie_is_still_a_collision_for_both.",
+  "id": "claim.law.T24_a-nested-owned-units-entry-is-a-carve-out-resolved-most-specific-first-not-a-collision.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T06:31:13Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "When two active work_claims' `owned_units` entries OVERLAP, the SHAPE of the overlap decides what it means, and only one of the two shapes is a collision. An entry that strictly CONTAINS another lane's entry (`tools/gdl` containing `tools/gdl/webfrank.py`) is a CARVE-OUT: the longer entry is the narrower grant, it wins, and the containing lane keeps the rest. An entry EQUAL to another lane's is a collision: neither is more specific and both must be refused. Comparing entries only with a covers() predicate, as claimscope.check_unit did, makes BOTH lanes foreign on a carved-out path, so the screen refuses the very owner the carve-out exists to name -- measured at 221fdc4cc, `GDL_LANE=claude-fleet-worker-WV claimscope.py tools/gdl/webfrank.py` returned \"status\": \"foreign\", owner claude-fleet-worker-T24, exit 3, on the file WV's own claim exclusively lists. Comparing them only by string EQUALITY, as gdlmem claims' owned_units_conflicts did, makes the overlap invisible: the same command printed `owned_units_conflicts: {}` beside an index carrying `tools/gdl -> [T24]` and `tools/gdl/webfrank.py -> [WV]` as unrelated keys. Reporting a nesting AS a conflict is equally wrong: reconstructed from git over all 48 work_claims that ever carried the field, this fleet creates the tool-lane/postprocessor-lane nesting DELIBERATELY every run, under eight distinct lane ids across 2026-09-03 (T17/T18/T19/T20 vs WF, WR) and 2026-09-04 (T21..T24 vs WV, WR, WP), so it is standing structure and a conflict verdict on it is a false alarm every run. Nesting is therefore reported ADVISORY with its resolution; only duplication is a conflict."
+}

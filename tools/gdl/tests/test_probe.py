@@ -1331,6 +1331,111 @@ class BestBankTests(unittest.TestCase):
             probe.snapshot_path("game/mb/mb_camera", source,
                                 probe.BEST_BANK_TAG))
 
+    def test_an_external_rewrite_tells_the_caller_to_re_read(self):
+        """Run-54 item 9: MP's next Edit after a clean --discard re-applied
+        the pre-discard content plus the new change, because an edit tool
+        matches against the content it last READ and nothing said the file
+        had moved underneath it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "y.c"
+            path.write_bytes(b"int a;\nint b;\n")
+            before = b"int a;\n"
+            out = io.StringIO()
+            stdout, sys.stdout = sys.stdout, out
+            try:
+                moved = probe.announce_external_rewrite(path, before,
+                                                        "--discard")
+            finally:
+                sys.stdout = stdout
+            self.assertTrue(moved)
+            text = out.getvalue()
+            self.assertIn("FILE REWRITTEN ON DISK by --discard", text)
+            self.assertIn("RE-READ IT BEFORE YOUR NEXT EDIT", text)
+            self.assertIn("14 bytes (was 7)", text)
+
+    def test_a_restore_that_moved_nothing_says_nothing(self):
+        """NEGATIVE side: "NOTHING DISCARDED" and "nothing to restore: the
+        bank IS the current working tree" are the most frequent outcomes of
+        these flags, and a stale-view warning there is pure noise."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "y.c"
+            path.write_bytes(b"int a;\n")
+            out = io.StringIO()
+            stdout, sys.stdout = sys.stdout, out
+            try:
+                moved = probe.announce_external_rewrite(path, b"int a;\n",
+                                                        "--discard")
+            finally:
+                sys.stdout = stdout
+            self.assertFalse(moved)
+            self.assertEqual(out.getvalue(), "")
+
+    def test_every_source_rewriting_path_announces(self):
+        """The mechanical falsifier: a new restore path that writes `source`
+        without announcing is the same hole one flag over."""
+        text = Path(probe.__file__).read_text(encoding="utf-8")
+        writes = [line for line in text.splitlines()
+                  if "source.write_bytes(" in line
+                  or "copyfile(snap, source)" in line
+                  or "copyfile(base, source)" in line]
+        announces = text.count("announce_external_rewrite(")
+        # 7 write sites: 5 caller-visible restores (announced) + the 2 in the
+        # arbitration path, which restores the caller's own bytes and must
+        # NOT announce. The helper's definition and its own call sites make
+        # up the announce count.
+        self.assertEqual(len(writes), 7, writes)
+        self.assertGreaterEqual(announces, 6)
+
+    def test_the_best_bank_is_keyed_per_FUNCTION(self):
+        """Run-54 item 3a: probe STATE is per function, the bank was per unit.
+
+        Measured across the fleet's live gate directories at 1eaa07a51:
+        game/enemy/critter has SEVEN probed functions sharing one
+        `snap_game_enemy_critter____best.c`; game/audio/dcs, game/game/player
+        and game/sys/memcard have two each. Four of eleven units with live
+        state are contested; the other seven are unaffected.
+        """
+        source = Path("src/game/enemy/critter.c")
+        a = probe.snapshot_path("game/enemy/critter", source,
+                                probe.best_bank_tag("ProcessCritterList"))
+        b = probe.snapshot_path("game/enemy/critter", source,
+                                probe.best_bank_tag("CritterDoSfx"))
+        self.assertNotEqual(a, b)
+        # ... and neither is the rolling snapshot or the legacy per-unit one
+        self.assertNotIn(a, (probe.snapshot_path("game/enemy/critter", source),
+                             probe.snapshot_path("game/enemy/critter", source,
+                                                 probe.BEST_BANK_TAG)))
+
+    def test_a_best_tag_is_recognised_in_both_spellings(self):
+        self.assertTrue(probe.is_best_tag(probe.BEST_BANK_TAG))
+        self.assertTrue(probe.is_best_tag(probe.best_bank_tag("do_players")))
+        # NEGATIVE side: a user bank must never be read as a best bank, and
+        # `validate_tag` still refuses the reserved shape outright.
+        for tag in ("before-declswap", "b1", "", None, "best"):
+            self.assertFalse(probe.is_best_tag(tag), repr(tag))
+        tag, error = probe.validate_tag(probe.best_bank_tag("f"), "--bank")
+        self.assertIsNone(tag)
+        self.assertTrue(error)
+
+    def test_a_best_bank_records_the_digest_it_came_from(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = os.getcwd()
+            os.chdir(tmp)
+            try:
+                source = Path("src/game/x/y.c")
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text("int a;\n", encoding="utf-8")
+                snap, existed = probe.write_named_bank(
+                    "game/x/y", source, probe.best_bank_tag("f"),
+                    digest="d1")
+                self.assertFalse(existed)
+                self.assertEqual(probe.bank_meta(snap).get("digest"), "d1")
+                # A bank written without one reports None, not a crash.
+                other, _ = probe.write_named_bank("game/x/y", source, "plain")
+                self.assertIsNone(probe.bank_meta(other).get("digest"))
+            finally:
+                os.chdir(cwd)
+
     def test_the_anchor_is_keyed_on_the_digest_not_on_real(self):
         """A NEUTRAL probe ties `real` without BEING the best state, and
         banking it as best would hand a later --revert-best wrong bytes."""

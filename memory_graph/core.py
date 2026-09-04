@@ -1704,25 +1704,60 @@ def record_size_report(record: Mapping[str, Any],
         return report
     total = _size_of(record)
     fields: list[dict[str, Any]] = []
+    leaves: list[dict[str, Any]] = []
     for key, value in record.items():
         size = _size_of(value)
         fields.append({"field": str(key), "bytes": size})
         if isinstance(value, Mapping):
             for sub_key, sub_value in value.items():
-                fields.append({
-                    "field": f"{key}.{sub_key}", "bytes": _size_of(sub_value),
-                })
+                row = {"field": f"{key}.{sub_key}",
+                       "bytes": _size_of(sub_value)}
+                fields.append(row)
+                leaves.append(row)
+        else:
+            leaves.append({"field": str(key), "bytes": size})
     fields.sort(key=lambda item: (-item["bytes"], item["field"]))
+    leaves.sort(key=lambda item: (-item["bytes"], item["field"]))
     cap = ATTEMPT_BYTE_CAP if record.get("kind") == "attempt" else None
-    return {
+    over_by = max(0, total - cap) if cap is not None else 0
+    report = {
         "id": record.get("id"),
         "kind": record.get("kind"),
         "bytes": total,
         "cap": cap,
         "cap_applies": cap is not None,
-        "over_by": max(0, total - cap) if cap is not None else 0,
+        "over_by": over_by,
         "largest_fields": fields[:8],
     }
+    if cap is not None:
+        report["headroom_bytes"] = max(0, cap - total)
+    # THE TRIM PLAN (run-54 item 6). Reporting the largest fields told a
+    # lane where the weight IS; it never said how much had to GO, so each
+    # trim was a guess and the cap was rediscovered one round trip at a
+    # time. NC measured five: 18236 -> 17319 -> 17011 -> 16766 -> 16500 ->
+    # 16417 -> clean, five builds of a record to remove 1,852 bytes. This
+    # names the SMALLEST PREFIX of the heaviest LEAF fields whose combined
+    # bytes cover `over_by`, with a running cumulative total, so the lane can
+    # see where the line falls before editing anything. Leaves only: the
+    # `largest_fields` list carries both `attributes` and `attributes.x`, and
+    # summing those double-counts.
+    if over_by:
+        plan, running = [], 0
+        for row in leaves:
+            running += row["bytes"]
+            plan.append(dict(row, cumulative_bytes=running))
+            if running >= over_by:
+                break
+        report["trim_plan"] = plan
+        report["trim_plan_note"] = (
+            f"REMOVE AT LEAST {over_by} bytes. Emptying the"
+            f" {len(plan)} field(s) listed would free {running} — they are"
+            " the heaviest LEAVES, so the numbers are additive (the"
+            " largest_fields list is not: it carries a parent and its"
+            " children). Trimming rather than emptying frees less, so aim"
+            " past the line, and re-run `propose-record --size <file>` to"
+            " see the delta from your last measurement.")
+    return report
 
 
 def format_size_fields(fields: Iterable[Mapping[str, Any]]) -> str:
@@ -1954,7 +1989,46 @@ def _validate_schema_fields(record: dict[str, Any], source: Path) -> None:
                     )
 
 
-def _validate_record(record: dict[str, Any], source: Path) -> None:
+def attempt_cap_refusal(record: Mapping[str, Any],
+                        source: Any = "<proposal>") -> str | None:
+    """The 16 KB refusal message for an attempt record, or None if it fits.
+
+    Split out of `_validate_record` (run-54 item 6). Being over the cap is
+    not STRUCTURAL invalidity — the record has a good `id` and `kind` and
+    every later gate could read it — but it was raised from inside the
+    structural validator, whose failure deliberately short-circuits the rest
+    of the proposal checks ("a structurally invalid record cannot be carried
+    through the remaining checks without inventing answers"). So an over-cap
+    draft learned about its size, and only on the NEXT round trip about the
+    reference, dedup and entity screens, which is FS's run-53 report that
+    the entity screen validates last. The proposal path now applies this
+    through `fail()` and keeps going; import and build still raise on it.
+    """
+    if record.get("kind") != "attempt":
+        return None
+    report = record_size_report(record)
+    if not report["over_by"]:
+        return None
+    plan = report.get("trim_plan") or []
+    frees = plan[-1].get("cumulative_bytes", 0) if plan else 0
+    return (
+        f"{source}: attempt record is {report['bytes']} bytes (cap"
+        f" {ATTEMPT_BYTE_CAP}, OVER BY {report['over_by']}); keep the"
+        " do-not-retry head compact — fold history into one-line"
+        " axis_log entries and put deep forensics in an evidence"
+        " record or the commit itself.\nLARGEST FIELDS: "
+        + format_size_fields(report["largest_fields"])
+        + "\nTRIM PLAN: " + format_size_fields(plan)
+        + f" (emptying those frees {frees} against an overage of"
+          f" {report['over_by']})"
+        + "\nFull breakdown, and the DELTA since your last measurement,"
+        " without re-running validation:"
+        " `gdlmem.py propose-record --size <file>`"
+    )
+
+
+def _validate_record(record: dict[str, Any], source: Path,
+                     skip_size_cap: bool = False) -> None:
     required = {"schema_version", "id", "kind"}
     missing = sorted(required - record.keys())
     if missing:
@@ -1996,19 +2070,10 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
         raise MemoryGraphError(f"{source}: claim needs object or value")
     if kind == "evidence" and "claim" not in record and "edge" not in record:
         raise MemoryGraphError(f"{source}: evidence needs claim or edge")
-    if kind == "attempt":
-        report = record_size_report(record)
-        if report["over_by"]:
-            raise MemoryGraphError(
-                f"{source}: attempt record is {report['bytes']} bytes (cap"
-                f" {ATTEMPT_BYTE_CAP}, OVER BY {report['over_by']}); keep the"
-                " do-not-retry head compact — fold history into one-line"
-                " axis_log entries and put deep forensics in an evidence"
-                " record or the commit itself.\nLARGEST FIELDS: "
-                + format_size_fields(report["largest_fields"])
-                + "\nFull breakdown without re-running validation:"
-                " `gdlmem.py propose-record --size <file>`"
-            )
+    if kind == "attempt" and not skip_size_cap:
+        message = attempt_cap_refusal(record, source)
+        if message:
+            raise MemoryGraphError(message)
     anchors: list[str] = []
     attributes = record.get("attributes", {})
     if isinstance(attributes, dict):
@@ -6404,7 +6469,13 @@ def stage_record_proposal(
                 " reviewed change if a new pattern class is real)"
             )
     try:
-        _validate_record(record, Path("<proposal>"))
+        # THE SIZE CAP IS NOT STRUCTURAL (run-54 item 6). It is applied just
+        # below through `fail()`, which in report_all mode COLLECTS and keeps
+        # going, so an over-cap draft learns about its references, duplicates
+        # and entity screens in the same call instead of on the next round
+        # trip. Structural failures still short-circuit, because they really
+        # do leave the later checks nothing to read.
+        _validate_record(record, Path("<proposal>"), skip_size_cap=True)
     except MemoryGraphError as error:
         fail(str(error))
         # A structurally invalid record cannot be carried through the
@@ -6412,6 +6483,9 @@ def stage_record_proposal(
         # what every one of them reads. Report what is known and stop.
         finish()
         raise
+    cap_message = attempt_cap_refusal(record)
+    if cap_message:
+        fail(cap_message)
     gate_warnings = _apply_proposal_gates(record, collect_failures=failures)
     if warnings is not None:
         warnings.extend(gate_warnings)
@@ -7586,6 +7660,42 @@ def mechanism_sentences_naming(
     return out
 
 
+_RECORD_ID_RE = re.compile(r"\b(?:claim|attempt|evidence)\.[A-Za-z0-9._-]+")
+_DEAD_ID_RE = re.compile(r"DEAD-ID\[([^\]]+)\]")
+
+
+def _mechanism_citations(text: str) -> tuple[list[str], list[str]]:
+    """(cited, dead) record ids out of one pin's mechanism prose.
+
+    TWO REPAIRS, both measured over all 155 pins / 247 extracted ids at
+    b50d9a642 (run-54 item 4).
+
+    (1) A TRAILING FULL STOP IS NOT PART OF AN ID. `.` sits inside the id
+    character class, so an id ending a SENTENCE captured the stop:
+    `claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1.`
+    resolved to nothing and was still cited. Trimming trailing `. - _` takes
+    resolution from 209 to 224 of 247, and the extracted COUNT is unchanged
+    at 247 — no two distinct ids collapse into one, which is the negative
+    check that makes the trim safe.
+
+    (2) `DEAD-ID[...]` IS HONOURED. The convention marks an id its author
+    MEASURED absent from the corpus ("the id previously here, DEAD-ID[x],
+    has never existed"), and it had zero consumers in python — so the
+    extractor read straight through the marker and cited the dead id anyway.
+    That is MP's run-53 report: both movieplayer pins listed
+    `attempt.HV_union-resweep-eight-composed-closes.20260901.v1`, the id the
+    repair note beside it declares nonexistent. 13 markers, 13 such cites
+    across 13 pins in 8 units, and ZERO of the 13 appear anywhere else in
+    their own mechanism, so honouring the marker removes no live citation.
+    They are returned separately rather than dropped, because the repair
+    note quoting them is the record of what was fixed.
+    """
+    marked = {value.strip().rstrip("._-")
+              for value in _DEAD_ID_RE.findall(text)}
+    found = {value.rstrip("._-") for value in _RECORD_ID_RE.findall(text)}
+    return (sorted(found - marked), sorted(found & marked))
+
+
 def webfrank_pin_mechanisms(
     root: Path = REPO_ROOT, query: str | None = None,
     include_without_mechanism: bool = False,
@@ -7648,12 +7758,18 @@ def webfrank_pin_mechanisms(
                                "mechanism", "audit")
             )
             text = " ".join(mechanism.split())
+            cited, dead = _mechanism_citations(text)
             out.append({
                 "unit": unit,
                 "function": function,
                 "stages": stages,
-                "cites_records": sorted(set(re.findall(
-                    r"\b(?:claim|attempt|evidence)\.[A-Za-z0-9._-]+", text))),
+                "cites_records": cited,
+                **({"dead_citations": dead,
+                    "dead_citations_note": (
+                        "ids the mechanism itself marks DEAD-ID[...] — its"
+                        " author measured them absent from the corpus. They"
+                        " are NOT in cites_records; listed so the repair note"
+                        " stays readable.")} if dead else {}),
                 # NOT TRUNCATED (run-37 item 5). This prose is the densest
                 # derivation of a closed residual anywhere in the project,
                 # and a 600-character cut discarded 59.1% of it — 77,547 of
@@ -8930,6 +9046,45 @@ def owned_unit_covers(entry: str, unit: str) -> bool:
     return unit == entry or unit.startswith(entry + "/")
 
 
+def owned_unit_nesting(pairs: list[tuple[str, str]]) -> list[dict[str, str]]:
+    """Cross-owner NESTED `owned_units` entries, from (owner, entry) pairs.
+
+    `owned_units_conflicts` groups entries by string equality, so an entry
+    sitting INSIDE another lane's directory prefix reads as two unrelated
+    index keys and the overlap is reported nowhere. Reproduced live at
+    221fdc4cc: `gdlmem claims` printed `owned_units_conflicts: {}` while its
+    own index carried `tools/gdl -> [claude-fleet-worker-T24]` and
+    `tools/gdl/webfrank.py -> [claude-fleet-worker-WV]`.
+
+    A nesting is NOT reported as a conflict. It is a carve-out — the tools
+    resolve it most-specific-first — and this fleet creates it deliberately
+    every run (measured over all 48 historical work_claims carrying the
+    field: the same tool-lane/postprocessor-lane nesting recurs under eight
+    distinct lane ids across 2026-09-03 and 2026-09-04). Folding it into
+    `conflicts` would raise a false collision on standing fleet structure.
+    Same-owner nesting is not reported at all.
+    """
+    out: list[dict[str, str]] = []
+    for index, (owner_a, entry_a) in enumerate(pairs):
+        for owner_b, entry_b in pairs[index + 1:]:
+            if owner_a == owner_b or entry_a == entry_b:
+                continue
+            if owned_unit_covers(entry_a, entry_b):
+                outer, inner = (owner_a, entry_a), (owner_b, entry_b)
+            elif owned_unit_covers(entry_b, entry_a):
+                outer, inner = (owner_b, entry_b), (owner_a, entry_a)
+            else:
+                continue
+            out.append({
+                "outer": outer[1], "outer_owner": outer[0],
+                "inner": inner[1], "inner_owner": inner[0],
+                "resolution": (f"{inner[1]} resolves to {inner[0]} (the more"
+                               f" specific entry); {outer[0]} keeps the rest"
+                               f" of {outer[1]}"),
+            })
+    return out
+
+
 def validate_owned_units(record: dict[str, Any]) -> list[str]:
     """Refusal messages for a malformed `attributes.owned_units`.
 
@@ -9043,8 +9198,16 @@ def work_claims(
             for entry in units:
                 unit_index.setdefault(entry, []).append(row["owner"])
         match = None
+        reach = None
         if owns:
-            structured = any(owned_unit_covers(entry, owns) for entry in units)
+            # How NARROW is this claim's grant over the queried path? The
+            # longest covering entry wins (run-54 item 8): a lane that carves
+            # `tools/gdl/webfrank.py` out of another lane's `tools/gdl` is the
+            # owner of that file, and reporting both as owners contradicts the
+            # screen probe.py and defake_gate.py actually enforce.
+            reach = max((len(normalize_owned_unit(entry)) for entry in units
+                         if owned_unit_covers(entry, owns)), default=None)
+            structured = reach is not None
             needle = owns.replace("\\", "/").strip().lower()
             haystack = " ".join(filter(None, (
                 str(row["scope"] or ""), str(row["function"] or ""),
@@ -9068,6 +9231,7 @@ def work_claims(
                 "scope": row["scope"],
                 "owned_units": units,
                 **({"match": match} if match else {}),
+                **({"_reach": reach} if reach is not None else {}),
             }
         )
     result = {
@@ -9102,11 +9266,30 @@ def work_claims(
             u: sorted(set(o)) for u, o in sorted(unit_index.items())
             if len(set(o)) > 1
         },
+        # The exact-key comparison above cannot see a prefix overlap
+        # (run-54 item 8); a nesting is a carve-out, reported separately and
+        # advisory, never folded into the conflicts above.
+        "owned_units_nesting": owned_unit_nesting(
+            [(owner, entry) for entry, owners in unit_index.items()
+             for owner in dict.fromkeys(owners)]),
     }
     if owns:
         result["owns_query"] = owns
-        structured = [c for c in claims if c.get("match") == "owned_units"]
+        covering = [c for c in claims if c.get("match") == "owned_units"]
+        # MOST SPECIFIC GRANT DECIDES (run-54 item 8). Reproduced at
+        # 221fdc4cc: `claims --owns tools/gdl/webfrank.py` answered
+        # "OWNED by claude-fleet-worker-T24, claude-fleet-worker-WV" for a
+        # path this run's orders give to WV alone, because both a prefix and
+        # the file inside it "cover" it. A wider claim is demoted to
+        # "decides": false, exactly as a prose-only hit is; an exact TIE (two
+        # lanes listing the same entry) leaves both deciding, which is the
+        # case that really is a collision.
+        finest = max((c["_reach"] for c in covering), default=None)
+        structured = [c for c in covering if c["_reach"] == finest]
+        outranked = [c for c in covering if c["_reach"] != finest]
         prose_only = [c for c in claims if c.get("match") == "scope_prose"]
+        for claim in claims:
+            claim.pop("_reach", None)
         # FREE is only sound when EVERY active claim is decidable. One claim
         # without a list leaves the whole question open, however many others
         # carry one -- reporting FREE there would be the exact false all-clear
@@ -9142,6 +9325,19 @@ def work_claims(
             result["verdict_basis"] = "owned_units"
             for claim in prose_only:
                 claim["decides"] = False
+            for claim in outranked:
+                claim["decides"] = False
+            if outranked:
+                result["outranked_note"] = (
+                    f"{len(outranked)} claim(s) cover this path through a"
+                    " WIDER entry and are outranked by a more specific one;"
+                    " they decide nothing here and carry \"decides\": false."
+                    " A longer owned_units entry is a narrower grant, and"
+                    " claimscope.py / probe.py / defake_gate.py resolve the"
+                    " same way, so this verdict is the one they enforce."
+                    " Outranked: "
+                    + ", ".join(f"{c['owner']} ({c['id']})"
+                                for c in outranked))
             if prose_only:
                 result["scope_prose_note"] = (
                     f"{len(prose_only)} claim(s) matched the SCOPE PROSE only"
@@ -9936,13 +10132,18 @@ def _pin_provenance(root: Path, tu: str,
         for name in wanted
     }
     directory = root / "memory_graph" / "records"
+    accepted_ids: set[str] = set()
     if directory.exists():
         for path in sorted(directory.rglob("*.json")):
             try:
                 record = json.loads(path.read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError):
                 continue
-            if not isinstance(record, dict) or record.get("kind") != "attempt":
+            if not isinstance(record, dict):
+                continue
+            if record.get("id"):
+                accepted_ids.add(str(record["id"]))
+            if record.get("kind") != "attempt":
                 continue
             name = str(record.get("function", "")).split(":", 1)[-1]
             trail = trails.get(name)
@@ -9971,8 +10172,35 @@ def _pin_provenance(root: Path, tu: str,
         # Cited by the pin's own mechanism prose OR applied by any attempt
         # record on the function: for InitControls the unreachability law is
         # named in the closing record's laws_applied, not in the pin text.
+        # CITATIONS THAT RESOLVE TO NOTHING ARE SAID SO (run-54 item 4).
+        # After the two extractor repairs, 10 of 234 cited ids still name no
+        # record; 8 of the 10 are a version suffix short of a real one and
+        # resolve UNIQUELY by prefix (e.g. `claim.law.C1_permute-recolor-
+        # composition-needs-a-permutation-legal-in-our-colouring` ->
+        # `...20260901.v1`), and the other two (`claim.LZ`, `attempt.CN`) are
+        # prose abbreviations with 2 and 5 candidates. The suggestion is
+        # reported, never silently substituted: repairing a citation is an
+        # editorial act and belongs to whoever owns the pin.
+        unresolved = []
+        for cited in pin["cites_records"]:
+            if cited in accepted_ids:
+                continue
+            hits = sorted(known for known in accepted_ids
+                          if known.startswith(cited))
+            unresolved.append({
+                "id": cited,
+                "did_you_mean": hits[0] if len(hits) == 1 else None,
+                "candidates": len(hits),
+            })
+        if unresolved:
+            pin["unresolved_citations"] = unresolved
+            pin["unresolved_citations_note"] = (
+                "these cited ids name no record in memory_graph/records, so"
+                " they point nowhere. A `did_you_mean` means exactly one"
+                " accepted id extends the cited string — usually a missing"
+                " date/version suffix. Nothing is substituted automatically.")
         candidates = set(pin["cites_records"]) | trail["laws"]
-        law_backed = sorted(
+        named = sorted(
             cited for cited in candidates
             if cited.startswith("claim.law.")
             and any(mark in cited.lower() for mark in
@@ -9980,6 +10208,25 @@ def _pin_provenance(root: Path, tu: str,
                      "unreachable-from-source", "is-not-source",
                      "source-unavailable"))
         )
+        # THE BACKING LAW MUST RESOLVE (run-54 item 2). This test was a
+        # substring match on a cited STRING, so a citation that resolves to
+        # no record at all could carry the strongest provenance class the
+        # Mandatory policy has. Measured at 2948352c4: three pins
+        # (game/anim/atree DoAnimateTreeFrame, game/g3d/gcontrolpads
+        # G3DReadControlPadStates, game/ui/btext
+        # FindStringMessageListSub_8001FC4C) cite
+        # `claim.law.live-zero-copy-vs-remat-is-allocator-not-source
+        # .20260831.v1.` — the real law id with a TRAILING PERIOD — and the
+        # classifier counted it. No pin's class actually rests on it (all
+        # three also cite the id spelled correctly), so requiring resolution
+        # changes ZERO of the 155 pins' verdicts today; it removes the way a
+        # single prune or typo could later manufacture a false clear. The
+        # unresolvable ids are reported rather than dropped, because they are
+        # citation defects someone should fix.
+        law_backed = [cited for cited in named if cited in accepted_ids]
+        unresolved = [cited for cited in named if cited not in accepted_ids]
+        if unresolved:
+            pin["provenance_laws_unresolved"] = unresolved
         if law_backed:
             pin["provenance"] = "law-backed-source-unreachable"
             pin["provenance_laws"] = law_backed
@@ -10014,8 +10261,91 @@ def _pin_provenance(root: Path, tu: str,
             " failing form down, so the rule rests on an unreproducible veto."
             " NO-SOURCE-TRAIL = bar unmet; the function owes a source-first"
             " pass before any further rule work."
+            " A law only backs a pin if its id RESOLVES to a record in"
+            " memory_graph/records; ids that do not are reported under"
+            " provenance_laws_unresolved and back nothing."
         )
     return pins
+
+
+def tu_pin_screen(tu: str, *, root: Path = REPO_ROOT) -> dict[str, Any]:
+    """JUST the pinned functions of a TU, with their provenance class.
+
+    AGENTS.md first-five-minutes trap 4 makes this a MANDATORY screen before
+    editing anything in a TU, and until now its only route was the full
+    briefing. Measured at 7c673e8b9:
+
+      game/game/gamemain   full 176,136 B / 261 rows / 4.71s   -> 4 pins
+      game/enemy/critter   full 311,858 B / 336 rows / 6.18s   -> 8 pins
+      game/enemy/enemy     full 217,176 B / 289 rows / 3.72s   -> 10 pins
+
+    The answer itself is 105, 243 and 210 bytes: the cheapest existing route
+    to the mandatory screen costs between 1,034x and 1,677x the answer. The
+    `--summary` tier does not help — it reduces `webfrank_pins` to a count
+    plus record ids, so on all three TUs it names NO pinned function at all,
+    and `--roster-only` omits the section by design. That is why a run-51
+    record could state a TU "has no pins" while it had eight: the screen was
+    the most expensive call in the tool.
+
+    This reads `config/GUNE5D/webfrank.json` and `memory_graph/records/`
+    only — no database build, no report, no roster. `roster_mentions` needs
+    the TU's function roster and is therefore absent here; the payload says
+    so rather than leaving its absence to be read as "there are none".
+
+    WHAT IT ACTUALLY DELIVERS, stated rather than implied by the ratio above:
+    the pin ROWS are kept whole, mechanism prose included, so gamemain's
+    screen is 6,751 B — a 26x cut, not a 1,677x one. Stripping the mechanism
+    would hit the smaller number and cost the lane the full brief again the
+    moment it wanted a derivation, which is the trade this tier exists to
+    avoid.
+
+    CALIBRATED TWO-SIDED at 7c673e8b9 over all 53 pinned TUs: the functions
+    and their provenance classes are IDENTICAL to the full brief's on 53 of
+    53 (0 disagreements), and the whole 53-TU sweep costs 10.3s against
+    4.71s for ONE full brief. Negative side: an unpinned TU
+    (`game/ps2/ml_fmath`) and an unknown spelling (`not/a/real/unit`) both
+    report pin_count 0 — indistinguishable, which is why `empty_note` says
+    so instead of letting 0 read as a measured all-clear.
+    """
+    pins = _pin_provenance(root, tu)
+    # The provenance legend is identical on every row and is ~700 B, so on a
+    # four-pin TU it is a third of the payload. Hoisted ONCE here; the full
+    # brief keeps it per row, and the classes themselves are untouched.
+    legend = next((pin.get("provenance_note") for pin in pins
+                   if pin.get("provenance_note")), None)
+    pins = [{key: value for key, value in pin.items()
+             if key != "provenance_note"} for pin in pins]
+    return {
+        "tu": _normalized_tu(tu),
+        "pin_count": len(pins),
+        "pinned_functions": [pin["function"] for pin in pins],
+        "provenance_note": legend,
+        "webfrank_pins": pins,
+        "webfrank_pins_note": (
+            "a pinned function's SOURCE IS FROZEN (AGENTS.md trap 4): the"
+            " postprocessor hash-asserts its body and the build aborts on"
+            " drift. Screen this list before editing anything in the TU."
+            " `provenance` classes each pin against the Mandatory-policy"
+            " source-exhaustion bar."
+        ),
+        "note": (
+            "PINS ONLY. This is the trap-4 freeze screen and nothing else:"
+            " it does NOT carry the mandatory-step-1 hypotheses, the"
+            " cross-fleet claim VETOes, the roster or the laws. Run the full"
+            " `brief` before your first edit in a TU. `roster_mentions`"
+            " (sentences in one pin's derivation that name a SIBLING) needs"
+            " the roster and is omitted here — its absence in this payload"
+            " is not evidence that there are none."
+        ),
+        "empty_note": (
+            "pin_count 0 means this TU has NO block in"
+            " config/GUNE5D/webfrank.json. That is a measured absence, not a"
+            " lookup failure — an unknown TU spelling reports 0 the same way,"
+            " so check the spelling against the unit paths the tools accept"
+            " (game/enemy/enemy) before quoting it."
+            if not pins else None
+        ),
+    }
 
 
 def tu_briefing(
@@ -10027,6 +10357,7 @@ def tu_briefing(
     roster_only: bool = False,
     law_join: bool = True,
     summary: bool = False,
+    pins_only: bool = False,
 ) -> dict[str, Any]:
     """One-call spawn briefing for a TU-scoped pass.
 
@@ -10055,6 +10386,10 @@ def tu_briefing(
     tu = tu.replace("\\", "/").strip("/")
     if tu.startswith("src/"):
         tu = tu[len("src/"):]
+    # Answered before ensure_database: the pin screen needs neither the
+    # database nor the report, and the point of the tier is its cost.
+    if pins_only:
+        return tu_pin_screen(tu, root=root)
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
         modules = connection.execute(
@@ -11232,6 +11567,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 kw["tu"], root=root, db_path=db, limit=kw["limit"],
                 roster_only=bool(kw["roster_only"]),
                 summary=bool(kw["summary"]),
+                pins_only=bool(kw["pins"]),
                 law_join=not kw["no_law_join"]),
             params=(
                 SurfaceParam("tu", str, required=True,
@@ -11265,6 +11601,18 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                                   " `record <id1>,<id2>`. Measured on"
                                   " game/enemy/enemy: full 254,306 B ->"
                                   " summary 44,312 B (83% smaller)"),
+                SurfaceParam("pins", int, default=0, maximum=1,
+                             help="1 for the PIN SCREEN ONLY — AGENTS.md"
+                                  " trap 4's mandatory freeze check and"
+                                  " nothing else. No database, no report, no"
+                                  " roster. Measured: game/game/gamemain full"
+                                  " 176,136 B / 261 rows / 4.71s against a"
+                                  " 105-byte answer, and --summary names no"
+                                  " pinned function at all while"
+                                  " --roster-only omits the section. Run the"
+                                  " FULL brief before your first edit: this"
+                                  " tier carries no hypotheses and no claim"
+                                  " vetoes"),
             ),
         ),
         SurfaceOp(

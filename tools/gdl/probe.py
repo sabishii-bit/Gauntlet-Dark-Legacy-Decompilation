@@ -134,7 +134,14 @@ docstring omitted it — the flags below all work):
                      itself whenever a verdict moves the anchor, so
                      recovering a best state after two later probes banked
                      over it is one call instead of the three hand Edits and
-                     ~60s CL measured per recovery.
+                     ~60s CL measured per recovery. The bank is keyed PER
+                     FUNCTION (run-54 item 3): probe state always was, while
+                     the bank was per unit, so seven functions of
+                     game/enemy/critter were sharing one. And a probe that
+                     produces the SAME OBJECT from different source no longer
+                     overwrites it — digest equality is not source identity,
+                     and rewriting there left --revert-best with nowhere to
+                     go (it printed "nothing to restore" and re-scored).
                      SCOPE: --revert, --restore NAME and --revert-best are
                      FUNCTION-SCOPED by default and take --whole-file to
                      restore the whole TU; --discard is the other way round
@@ -413,6 +420,7 @@ WARN instead of silently measuring a partial swap.
 """
 
 import difflib
+import hashlib
 import json
 import re
 import shutil
@@ -478,6 +486,28 @@ _TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$")
 BEST_BANK_TAG = "__best"
 
 
+# RUN-54 ITEM 3a. The probe STATE is per FUNCTION (`probe_{unit}_{fn}.json`)
+# and the best bank was per UNIT, so every function in a TU wrote its best
+# SOURCE into one file while each kept its own best ANCHOR. Measured across
+# the fleet's live gate directories at 1eaa07a51: `game/enemy/critter` has
+# SEVEN probed functions (CritterCollideItems, CritterCollideWorld,
+# CritterDamagePlayer, CritterDoSfx, CritterLoadDone, CritterLoadStartNext,
+# ProcessCritterList) sharing one `snap_game_enemy_critter____best.c`;
+# game/audio/dcs, game/game/player and game/sys/memcard have two each. Four
+# of the eleven units with live state are contested; the other seven have one
+# function and are unaffected by the per-function key.
+def best_bank_tag(fn):
+    """The BEST bank's tag for one function. Starts with `_`, which
+    `_TAG_RE` refuses, so no `--bank`/`--restore` name can collide."""
+    return f"{BEST_BANK_TAG}_{re.sub(r'[^A-Za-z0-9_.-]+', '_', str(fn or ''))}"
+
+
+def is_best_tag(tag):
+    """Is this tag a BEST bank — the per-function form or the legacy one?"""
+    return bool(tag) and (tag == BEST_BANK_TAG
+                          or tag.startswith(BEST_BANK_TAG + "_"))
+
+
 def flag_value(argv, name):
     """`--name VALUE` or `--name=VALUE` from argv, or None."""
     for index, arg in enumerate(argv):
@@ -509,16 +539,38 @@ def validate_tag(tag, flag):
     return tag, None
 
 
-def write_named_bank(unit, source, tag):
+def bank_meta(snap):
+    """The `.meta` sidecar of a bank, or {} when absent or unreadable."""
+    meta = snap.with_suffix(snap.suffix + ".meta")
+    if not meta.exists():
+        return {}
+    try:
+        value = json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def write_named_bank(unit, source, tag, digest=None):
     """Write a named snapshot plus its commit and pin sidecars. Returns
-    (path, existed) — the one writer for `--bank` and the best bank."""
+    (path, existed) — the one writer for `--bank` and the best bank.
+
+    `digest` is the object digest these SOURCE bytes produced, recorded so a
+    later probe can tell "the same object" from "the same source" (run-54
+    item 3b).
+    """
     snap = snapshot_path(unit, source, tag)
     existed = snap.exists()
     shutil.copyfile(source, snap)
     head = git_head()
+    payload = {}
     if head:
+        payload["head"] = head
+    if digest is not None:
+        payload["digest"] = digest
+    if payload:
         snap.with_suffix(snap.suffix + ".meta").write_text(
-            json.dumps({"head": head}), encoding="utf-8")
+            json.dumps(payload), encoding="utf-8")
     snap.with_suffix(snap.suffix + ".pins").write_text(
         json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
         encoding="utf-8")
@@ -2080,6 +2132,39 @@ def scoped_revert(snap_text, cur_text, fn):
     notes = (f"{reverted} hunk(s) inside {fn} reverted;"
              f" {kept} hunk(s) elsewhere in the TU left untouched")
     return "".join(out), notes
+
+
+def announce_external_rewrite(source, before, action):
+    """Say that THIS TOOL rewrote the file, so a stale editor view is wrong.
+
+    RUN-54 ITEM 9. Every restore path here rewrites the working source
+    OUTSIDE whatever editor the caller is using, and an agent's edit tool
+    matches against the content it last READ. MP reported the consequence
+    after a clean `--discard`: the next Edit re-applied the pre-discard
+    content plus the new change — the discard was undone by the very edit
+    that followed it, silently, because nothing told the caller its view was
+    stale. probe printed `discarded: ...` and moved on.
+
+    Prints only when the bytes actually MOVED. The no-op paths — "NOTHING
+    DISCARDED", "nothing to restore: the bank IS the current working tree" —
+    are the most frequent outcomes of these flags, and a warning there would
+    be noise on exactly the invocations that changed nothing. Five call
+    sites, all of them the ones that write `source`: `--discard` whole-file
+    and `--function`, `--revert-baseline`, and the `--revert` / `--restore` /
+    `--revert-best` family in both scopes. The two writes in the arbitration
+    path are deliberately NOT announced: it restores the caller's own bytes
+    before returning, so the file leaves that call exactly as it arrived.
+    """
+    after = source.read_bytes()
+    if after == before:
+        return False
+    print(f"[FILE REWRITTEN ON DISK by {action}: {source} is now"
+          f" {len(after)} bytes (was {len(before)}),"
+          f" sha1 {hashlib.sha1(after).hexdigest()[:12]}."
+          " YOUR EDITOR'S VIEW OF THIS FILE IS NOW STALE — RE-READ IT BEFORE"
+          " YOUR NEXT EDIT. An edit matched against the pre-restore content"
+          " re-applies what this call just took out.]")
+    return True
 
 
 def restore_is_partial(snap_text, restored_text):
@@ -5312,7 +5397,10 @@ def main():
                     print(f"cannot discard --function: {error}")
                     return 1
                 declined = new_text == source.read_bytes().decode("latin-1")
+                before_bytes = source.read_bytes()
                 source.write_bytes(new_text.encode("latin-1"))
+                announce_external_rewrite(source, before_bytes,
+                                          "--discard --function")
                 if declined:
                     print(f"NOTHING DISCARDED: {source} is unchanged —"
                           f" {notes}. This invocation reverted nothing: every"
@@ -5334,8 +5422,10 @@ def main():
                 return NOTHING_RESTORED_EXIT if declined else 0
         # The same question one level out: a whole-file discard of a tree
         # that already IS HEAD reverted nothing either, and said "discarded".
-        declined = source.read_bytes() == head_bytes_now
+        before_bytes = source.read_bytes()
+        declined = before_bytes == head_bytes_now
         source.write_bytes(head_bytes_now)
+        announce_external_rewrite(source, before_bytes, "--discard")
         if declined:
             print(f"NOTHING DISCARDED: {source} already matches HEAD —"
                   " this TU carries no uncommitted source change. (Header"
@@ -5375,7 +5465,7 @@ def main():
             print("--revert-best and --restore name two different states;"
                   " run one at a time")
             return 1
-        restore_tag = BEST_BANK_TAG
+        restore_tag = best_bank_tag(fn)
     if "--list-banks" in sys.argv:
         if source is None:
             print(f"no src source found for {unit}")
@@ -5395,7 +5485,7 @@ def main():
                     head = "unreadable"
             note = ("   (written by probe itself when the BEST anchor moved;"
                     " restore with --revert-best)"
-                    if tag == BEST_BANK_TAG else "")
+                    if is_best_tag(tag) else "")
             print(f"  {tag:<24} {path}  banked at {head}{note}")
         return 0
     if bank_tag:
@@ -5420,7 +5510,9 @@ def main():
             return 1
         if guard_stale_restore(base, source, "session baseline"):
             return 1
+        before_bytes = source.read_bytes()
         shutil.copyfile(base, source)
+        announce_external_rewrite(source, before_bytes, "--revert-baseline")
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
         restore_transient_pins(unit)
@@ -5450,9 +5542,20 @@ def main():
             print(f"cannot revert: no src source found for {unit}")
             return 1
         snap = snapshot_path(unit, source, restore_tag)
+        if not snap.exists() and is_best_tag(restore_tag):
+            # A bank written before the per-function key (run-54 item 3a)
+            # lives under the bare tag. Read it rather than telling a lane
+            # mid-session that its best state does not exist.
+            legacy = snapshot_path(unit, source, BEST_BANK_TAG)
+            if legacy.exists():
+                print(f"[using the LEGACY per-unit best bank {legacy}: this"
+                      " unit's bank predates the per-function key, so it may"
+                      " hold ANOTHER function's source. The next banking"
+                      f" probe of {fn} writes {snap.name}.]")
+                snap = legacy
         if not snap.exists():
-            if restore_tag == BEST_BANK_TAG:
-                print("no BEST state banked for this unit yet: the best bank"
+            if is_best_tag(restore_tag):
+                print(f"no BEST state banked for {fn} yet: the best bank"
                       " is written when a verdict moves the BEST anchor"
                       " (BASELINE / IMPROVED / REBASED), and --no-bank"
                       " probes never write one. `--revert` restores the"
@@ -5476,7 +5579,7 @@ def main():
         # This used to run only when the .meta sidecar existed, which made
         # a missing stamp a silent PASS; it now fails closed in the shared
         # guard.
-        if restore_tag == BEST_BANK_TAG:
+        if is_best_tag(restore_tag):
             snap_label = guard_label = "the BEST-scoring banked state"
         elif restore_tag:
             snap_label = guard_label = f"bank '{restore_tag}'"
@@ -5491,7 +5594,11 @@ def main():
                   " discard an uncommitted neutral edit, use git"
                   " (`git status` / `git checkout -- <file>`); re-scoring:")
         elif "--whole-file" in sys.argv:
+            before_bytes = source.read_bytes()
             shutil.copyfile(snap, source)
+            announce_external_rewrite(
+                source, before_bytes,
+                f"a --whole-file restore of {snap_label}")
             print(f"restored {source} to {snap_label} —"
                   " --whole-file: uncommitted work on OTHER functions in"
                   " this TU since that bank is GONE; re-scoring:")
@@ -5518,7 +5625,11 @@ def main():
                       " (--whole-file would take those changes back too);"
                       " re-scoring:")
             else:
+                before_bytes = source.read_bytes()
                 source.write_bytes(new_text.encode("latin-1"))
+                announce_external_rewrite(
+                    source, before_bytes,
+                    f"a function-scoped restore of {snap_label}")
                 print(f"restored {fn} to {snap_label} — {notes};"
                       " re-scoring:")
             # The kept hunks are reported as a COUNT ("N hunk(s) elsewhere in
@@ -6138,13 +6249,36 @@ def main():
         # anchor names the bytes just probed, so a NEUTRAL that merely ties
         # `real` never overwrites the real best.
         if anchor_names_these_bytes(state, digest, real):
-            best_snap, _existed = write_named_bank(unit, source,
-                                                   BEST_BANK_TAG)
+            tag = best_bank_tag(fn)
+            existing = snapshot_path(unit, source, tag)
+            banked_digest = bank_meta(existing).get("digest")
             fuzzy_note = (f", fuzzy {state['best_fuzzy']:.4f}%"
                           if state.get("best_fuzzy") is not None else "")
-            print(f"[BEST state banked (real {real}{fuzzy_note}):"
-                  f" probe.py {unit} {fn} --revert-best restores THESE bytes"
-                  f" however many later verdicts bank -> {best_snap}]")
+            # RUN-54 ITEM 3b. `anchor_names_these_bytes` keys on the OBJECT
+            # digest, and a NEUTRAL-IDENTICAL probe produces the same digest
+            # from DIFFERENT source. Rewriting the bank there replaced the
+            # source the lane banked with the form it was evaluating, so
+            # `--revert-best` had nowhere to go: NC's probe 7 was
+            # NEUTRAL-IDENTICAL and `--revert-best` then printed
+            # "nothing to restore ... IS the current working tree" and
+            # re-scored, leaving the file holding probe 7. Digest equality is
+            # not source identity; when the object has not moved the FIRST
+            # banked source stays, because it is the one deliberately banked.
+            if (existing.exists() and digest is not None
+                    and banked_digest == digest
+                    and existing.read_bytes() != source.read_bytes()):
+                print(f"[BEST state KEPT (real {real}{fuzzy_note}): this probe"
+                      " produced the SAME object from different source, so the"
+                      f" bank still holds the source banked earlier ->"
+                      f" {existing}. `--revert-best` restores THAT; to bank"
+                      " the current form instead use --bank NAME.]")
+            else:
+                best_snap, _existed = write_named_bank(unit, source, tag,
+                                                       digest=digest)
+                print(f"[BEST state banked (real {real}{fuzzy_note}):"
+                      f" probe.py {unit} {fn} --revert-best restores THESE"
+                      f" bytes however many later verdicts bank"
+                      f" -> {best_snap}]")
         # The KEEP end of the transient-pin A/B (run-38 item 5). The revert
         # end already consumes the bank; this one did not, so a bank
         # outlived the A/B it described and the NEXT revert in the TU

@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -218,7 +219,12 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
              " validation and stages nothing, so it works on a half-written"
              " draft — trim before authoring the rest, not after ten"
              " round-trips of guessing. It COMPOSES with --dry-run, which"
-             " always includes this report beside the gate findings")
+             " always includes this report beside the gate findings. Over"
+             " the cap it also prints a TRIM PLAN (the smallest set of"
+             " fields whose bytes cover the overage) and, from the second"
+             " call onward, the DELTA since your last measurement of this"
+             " record — run-53 measured five round trips (18236 -> 17319 ->"
+             " 17011 -> 16766 -> 16500 -> 16417 -> clean) with neither")
     propose_record.add_argument(
         "--template",
         nargs="?", const=_TEMPLATE_LIST,
@@ -285,6 +291,63 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
 # HRESULT 0x800705AF), and it arrives as an OSError, not a MemoryError.
 _COMMIT_LIMIT_WINERRORS = {8, 14, 1455}
 _EXIT_RESOURCE_EXHAUSTED = 3
+
+
+def _size_delta_path(root: Path, record_id: str | None) -> Path:
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(record_id or "unnamed"))[:120]
+    return root / "build" / "gdlmem_out" / f"size-{slug}.json"
+
+
+def _attach_size_delta(root: Path, report: dict) -> None:
+    """Report the change since this record's LAST `--size` measurement.
+
+    RUN-54 ITEM 6. The trim loop reported an absolute number and nothing
+    else, so a lane could not see whether an edit had moved anything, let
+    alone by how much per field. NC measured five round trips (18236 ->
+    17319 -> 17011 -> 16766 -> 16500 -> 16417 -> clean) to shed 1,852 bytes.
+    The cache is per record id under `build/gdlmem_out/` (already gitignored
+    and per-worktree), and every failure to read or write it is silent: a
+    missing delta must never turn the preflight into an error.
+    """
+    path = _size_delta_path(root, report.get("id"))
+    previous = None
+    try:
+        if path.exists():
+            value = json.loads(path.read_text(encoding="utf-8"))
+            previous = value if isinstance(value, dict) else None
+    except (OSError, ValueError):
+        previous = None
+    if previous and isinstance(previous.get("bytes"), int):
+        was = previous["bytes"]
+        moved = report["bytes"] - was
+        by_field = {row["field"]: row["bytes"]
+                    for row in previous.get("fields") or []}
+        changes = []
+        for row in report.get("largest_fields", []):
+            before = by_field.get(row["field"])
+            if before is not None and before != row["bytes"]:
+                changes.append({"field": row["field"], "was": before,
+                                "now": row["bytes"],
+                                "delta": row["bytes"] - before})
+        report["since_last_size_call"] = {
+            "was_bytes": was,
+            "delta_bytes": moved,
+            "measured_at": previous.get("measured_at"),
+            "changed_fields": changes,
+            "note": ("the previous `--size` measurement of this record id."
+                     " A delta of 0 means the edit did not change the"
+                     " ENCODED size, which is the only size the cap reads."),
+        }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "bytes": report["bytes"],
+            "measured_at": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"),
+            "fields": report.get("largest_fields", []),
+        }), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def _resource_exhaustion_message(command: str, record_id: str | None,
@@ -382,6 +445,7 @@ def main(argv: list[str] | None = None) -> int:
                         f" stamps {report['staging_stamps_added']} the gate"
                         " will add; the file on disk is smaller and is not"
                         " what the cap sees)")
+                _attach_size_delta(root, report)
                 return report
 
             # --size COMPOSES with --dry-run (run-41 item 7). It used to be a
