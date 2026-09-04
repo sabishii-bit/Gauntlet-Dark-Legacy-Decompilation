@@ -2,9 +2,10 @@
   "attributes": {
     "integrator": "codex-root",
     "owned_units": [
-      "game/enemy/enemy.c"
+      "game/enemy/enemy.c",
+      "game/game/gamemain.c"
     ],
-    "scope": "Continue the user's solo enemy.c TU flip request after the verified first-pass landing bc9743a39. Own src/game/enemy/enemy.c and enemy-specific configure/splits/symbols/webfrank entries. Existing pinned bodies remain frozen in production; scratch-only pool experiments must compare every raw sibling before considering retention. The function now has an exact frame/slot map but a missing coll_ip reload and an entry-address reassociation; generate_enemy has242/242 but two address-load permutations plus recolor; move_logic10 still has1085/1087. Read the five accepted R60 records and earlier pool record attempt.PJ_enemy-sdata2-pool-conversion-is-not-codegen-neutral-twelve-functions-move-and-six-leave-the-exact-set.20260904.v1 before new axes. Next pool diagnosis: literal conversion disturbs frames; test the recorded static-const alternative in generated scratch source. No new compiler patch or postprocessor capability authorized. Project-wide WebFrank necessity audit remains after the requested TU flip; no blanket source-unreachability premise. No other TUs or headers are claimed by this record."
+    "scope": "Continue the user's solo enemy.c flip request after bc9743a39. Own enemy.c and gamemain.c, plus their configure/splits/symbols/WebFrank entries, to execute the banked 22-function enemy boundary repair from attempt.SM_the-enemy-block-move-is-derived-and-banked-not-executed-because-enemy-c-is-unowned-and-two-of-its-pins-are-another-lanes-work-this-run.20260904.v1. Live ownership screen found gamemain free and only this claim active; GameCube extab/text cuts and Xbox ENEMY.OBJ membership rechecked. Preserve every function's baseline and strict pins, migrate two pins with their functions, and arbitrate inlining or pool renumber changes across BOTH objects. No new compiler patch or postprocessor capability authorized. Project-wide WebFrank necessity audit remains after the requested TU flip; no blanket source-unreachability premise. No other TUs or shared headers are claimed."
   },
   "claimed_at": "2026-09-04",
   "function": "function:do_enemy_move",
