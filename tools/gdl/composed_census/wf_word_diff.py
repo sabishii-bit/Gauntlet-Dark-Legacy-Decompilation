@@ -19,11 +19,24 @@ WebFrank candidacy.
     python tools/gdl/composed_census/wf_word_diff.py game/movie/movieplayer fn_800D8BCC --by-region
     python tools/gdl/composed_census/wf_word_diff.py <unit> <fn> --range 0x1c4:0x250 --list
 
-EXIT CODE (run 42): 0 whenever the MEASUREMENT succeeded, whether or not
-words differ.  It used to return 1 on any residual — which is what a normal
-call looks like — so every `&&` chain and CI step around it stopped at the
-first function that had one.  Nonzero now means the measurement did not
-happen (missing object, count-asymmetric function).
+EXIT CODE (run 42, narrowed run 51): 0 whenever the MEASUREMENT succeeded,
+whether or not words differ.  It used to return 1 on any residual — which is
+what a normal call looks like — so every `&&` chain and CI step around it
+stopped at the first function that had one.  Nonzero now means the
+measurement did not happen: a MISSING OBJECT, and nothing else.
+
+A COUNT-ASYMMETRIC function exits 0 (run-51 item 4).  It was grouped with
+the missing object under "did not happen", and it is the opposite: it is a
+determinate answer about the function — no word residual exists, because the
+function is outside every postprocessor class by construction — and it is
+one of the answers this tool exists to give.  Every such row of a sweep came
+back as a PowerShell NativeCommandError block (10 of 13 rows in one run-50
+census).  The verdict line names itself `COUNT-ASYMMETRIC` so a sweep can
+still partition on it, and the counts are LABELLED `target N, ours M`, the
+same order and wording `fndiff --count` uses — the old text read
+`count-asymmetric (103 vs 105 insns)`, ours first and unlabelled, against
+fndiff's `insns 105/103` for the same function, and a run-50 census row was
+read backwards.
 
 Reads the RAW `.postprocess/body` where present, so it scores COMPILER
 output rather than postprocessed output and already-shipped rules stay
@@ -532,6 +545,41 @@ def decode_summary(counts, total):
     return line
 
 
+class CountAsymmetric(SystemExit):
+    """The two streams have different instruction counts (run-51 item 4).
+
+    A SUBCLASS of SystemExit so every existing caller that catches SystemExit
+    keeps catching it, while `main` can tell this apart from a missing
+    object. The two are not the same kind of event at all: a missing object
+    is a MEASUREMENT THAT DID NOT HAPPEN, and count asymmetry is a
+    DETERMINATE ANSWER about the function — the one this tool exists to give
+    before a rule is sized.
+
+    THE COUNTS ARE LABELLED. The old message read
+    `count-asymmetric (103 vs 105 insns)` — ours first, unlabelled — while
+    `fndiff --count` prints `insns 105/103`, target first, for the same
+    function (game/game/gamemain::fn_80051C78, both measured at 491f82e35).
+    Two opposite conventions for one question, and NC read the pair backwards
+    off a run-50 census row.
+    """
+
+    def __init__(self, unit, fn, kind, ours_insns, target_insns):
+        self.unit, self.fn, self.kind = unit, fn, kind
+        self.ours, self.target = ours_insns, target_insns
+        super().__init__(self.report())
+
+    def report(self):
+        gap = self.ours - self.target
+        return (f"{self.unit}::{self.fn} ({self.kind}): COUNT-ASYMMETRIC"
+                f" — target {self.target}, ours {self.ours} insns"
+                f" (ours {gap:+d}); DIFFERING WORDS = n/a."
+                " A count-asymmetric function is outside every postprocessor"
+                " class by construction, so there is no word residual to"
+                " measure — that IS the answer, not a failure to get one."
+                " Close the count first (`fndiff --ops`, then the aligned"
+                " `fnasm --diff`), then re-run this.")
+
+
 def word_streams(unit, fn):
     """(kind, ours_bytes, target_bytes) for one function, count-checked."""
     op, kind = our_object(unit)
@@ -541,9 +589,7 @@ def word_streams(unit, fn):
     _a, _b, _c, ours, _orel, _ojt = load(op, fn)
     _d, _e, _f, tgt, _trel, _tj = load(tp, fn)
     if len(ours) != len(tgt):
-        raise SystemExit(
-            f"{fn}: count-asymmetric ({len(ours)//4} vs {len(tgt)//4} insns) "
-            f"— outside every postprocessor class by construction")
+        raise CountAsymmetric(unit, fn, kind, len(ours) // 4, len(tgt) // 4)
     return kind, ours, tgt
 
 
@@ -618,7 +664,19 @@ def main():
     for suffix in (".cpp", ".c"):
         if unit.endswith(suffix):
             unit = unit[:-len(suffix)]
-    kind, ours, tgt = word_streams(unit, args.function)
+    try:
+        kind, ours, tgt = word_streams(unit, args.function)
+    except CountAsymmetric as gap:
+        # EXIT 0, because the measurement SUCCEEDED and its answer is "no
+        # word residual exists here" (run-51 item 4). Exit 1 was the run-42
+        # spelling of "the measurement did not happen", and it swept a
+        # determinate verdict into the same bucket as a missing object: on
+        # PowerShell every such row renders as a NativeCommandError block,
+        # and 10 of 13 rows of one run-50 census came back that way. The
+        # verdict line is machine-readable — `COUNT-ASYMMETRIC` — so a sweep
+        # can still partition its rows.
+        print(gap.report())
+        return 0
     rows = [(o, wf._u32(ours, o), wf._u32(tgt, o))
             for o in range(0, len(ours), 4)
             if wf._u32(ours, o) != wf._u32(tgt, o)]

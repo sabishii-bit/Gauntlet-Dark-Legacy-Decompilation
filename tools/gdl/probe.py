@@ -1169,7 +1169,7 @@ def strip_dtk_suffix(name):
     return re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
 
 
-def raw_word_residual(unit, fn, fn_stripped=None):
+def raw_word_residual(unit, fn, fn_stripped=None, notes=None):
     """(words, insns, mnemonic_divergence, pinned) for the RAW body, or None.
 
     Run-48 item 1. The differing-WORD count is the number AGENTS.md makes
@@ -1222,7 +1222,16 @@ def raw_word_residual(unit, fn, fn_stripped=None):
                 # function under `--raw` terminated the probe instead of
                 # printing the fallback line its own docstring promises.
                 _kind, insns, rows, mnemonic = module.word_diff(unit, name)
-            except (Exception, SystemExit):
+            except (Exception, SystemExit) as error:
+                # WHICH failure it was, when the caller asks (run-51 item 4's
+                # sibling screen). The fallback line used to assert BOTH
+                # causes with an "or" — "count-asymmetric, or the raw body
+                # could not be read" — and the MP law's whole complaint was
+                # that it named the one conclusion that takes a function out
+                # of every postprocessor class on a function squarely in one.
+                asym = getattr(module, "CountAsymmetric", None)
+                if notes is not None and asym and isinstance(error, asym):
+                    notes.append(error.report())
                 continue
             pinned = name in served
             # The PER-WORD decode (run-48 item 4), so the loop's CLASS line
@@ -1238,7 +1247,8 @@ def raw_word_residual(unit, fn, fn_stripped=None):
         return None
 
 
-def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None):
+def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None,
+                   reason=None):
     """The RAW-WORD line printed under a `--raw` verdict, or "".
 
     Pure over the measurement so both the delta arithmetic and the class
@@ -1248,11 +1258,17 @@ def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None):
     not be taken — the class line then falls back to the mnemonic reading.
     """
     if words is None:
-        return ("[RAW WORDS: not measurable — the two streams are"
-                " count-asymmetric, or the raw body could not be read. A"
-                " count-asymmetric function is outside every postprocessor"
-                " class by construction, so there is no word residual to"
-                " arbitrate on.]")
+        if reason:
+            # The MEASURED cause, not the two-cause "or". `reason` is
+            # wf_word_diff's own CountAsymmetric report, which carries the
+            # labelled counts.
+            return f"[RAW WORDS: {reason}]"
+        return ("[RAW WORDS: not measurable, and the cause was NOT"
+                " determined — the raw body could not be read for either"
+                " spelling of this name. This is NOT evidence of count"
+                " asymmetry: a count-asymmetric function reports itself, with"
+                " its two counts, and that report would be printed here"
+                " instead.]")
     delta = ("" if prev_words is None
              else f" ({words - prev_words:+d} vs the last probe's"
                   f" {prev_words})")
@@ -5364,11 +5380,13 @@ def main():
     # `probe --raw` followed by a hand-paired `wf_word_diff.py` call.
     raw_words = raw_insns = raw_mnemonic = raw_decode = None
     raw_pinned = False
+    raw_notes = []
     if raw:
-        measured = raw_word_residual(unit, fn, fn_stripped)
+        measured = raw_word_residual(unit, fn, fn_stripped, raw_notes)
         if measured is not None:
             (raw_words, raw_insns, raw_mnemonic, raw_pinned,
              raw_decode) = measured
+    raw_reason = raw_notes[0] if raw_notes else None
 
     if "--stateless" in sys.argv:
         # Sweep mode: no state read, no banking, no verdict-vs-best —
@@ -5378,7 +5396,7 @@ def main():
               " or compared; pair with git for reverts")
         if raw:
             print(raw_words_line(raw_words, None, raw_insns, raw_mnemonic,
-                                 raw_pinned, raw_decode))
+                                 raw_pinned, raw_decode, raw_reason))
         return 0
 
     # The opcode-multiset token count is the STRUCTURE metric: `real` is a
@@ -5744,7 +5762,7 @@ def main():
     # to fetch with a second, hand-paired tool call on every A/B.
     if raw:
         line = raw_words_line(raw_words, prev_words, raw_insns, raw_mnemonic,
-                              raw_pinned, raw_decode)
+                              raw_pinned, raw_decode, raw_reason)
         if line:
             print(line)
         print(f"  Read the residual with `python tools/gdl/fnasm.py {unit}"
