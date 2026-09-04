@@ -1,0 +1,20 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/sp_blob_census.py"
+  ],
+  "attributes": {
+    "tags": [
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Compile a multi-literal TU with `-str reuse,pool,readonly` on any compiler under build/compilers and read the resulting single `@stringBase0` object's entry offsets: if any archive compiler or flag combination yields 4-aligned entries (0,16,28,...) instead of 0,15,26,..., the first half of this law is wrong. For the second half, compile the same TU with `-str reuse,readonly` and read the `.text` addressing: if MWCC emits a separate base register per literal instead of one base plus `addi` offsets, the second half is wrong. Both are one build each with no ninja; the harness is tools/gdl/composed_census/sp_blob_census.py's pool_entry/looks_like_pool plus a direct mwcceppc invocation.",
+  "id": "claim.law.SP_str-pool-packs-tight-in-every-archive-compiler-while-plain-str-reuse-4-aligns-each-literal-and-still-pools-the-addressing.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T05:45:01Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-04",
+  "value": "MWCC's `-str pool` is the WRONG form for reproducing retail's pooled string layout, and no alignment lever exists or is needed. TWO measurements, both from tools/gdl/composed_census/sp_blob_census.py's harness on a 6-literal micro-TU. (1) POOLING PACKS TIGHT, EVERYWHERE: under `-str reuse,pool,readonly` all TWENTY GC archive compilers (1.0, 1.1, 1.1p1, 1.2.5, 1.2.5n, 1.3, 1.3.2, 1.3.2r, 2.0, 2.0p1, 2.5, 2.6, 2.7, 3.0a3, 3.0a3.2, 3.0a3.3, 3.0a3.4, 3.0a3p1, 3.0a5, 3.0a5.2) emit ONE `@stringBase0` object with entry offsets 0,15,26,38,48,59 -- tight, strlen+1 spacing. 26 flag candidates on GC/1.2.5 and the first 8 re-run on GC/1.2.5n give the SAME six offsets: -align mac68k / mac68k4byte / powerpc,arraymembers / arraymembers, -pool on|off, -pooldata off, -func_align 32, -sdata 0 -sdata2 0, -common on|off, -char signed|unsigned, -rostr, -O0, -O4,p, -opt space|speed, -Cpp_exceptions on, -use_lmw_stmw on, -schedule on, -sym on, -ansi strict, and -str reuse,pool / -str pool alone (which move the object to .data but keep the same offsets). `mwcceppc.exe -help opt=str` shows the option has exactly THREE suboptions -- `[no]reuse`, `[no]pool`, `[no]readonly` -- and `-help search=align` returns only `-align` (documented `structure/array alignment`) and `-func_align` (function alignment). There is no string-pool alignment control. (2) THE ALIGNMENT IS FREE WITHOUT THE FLAG: under the plain `-str reuse,readonly` that cflags_demo already carries, MWCC emits ONE `@N` .rodata object PER literal, each 4-byte aligned (sizes 15->16, 11->12, 12->12, 10->12), laid out contiguously in first-use order, AND STILL POOLS THE ADDRESSING -- one `addi rB,r3,0` base plus `addi r3,rB,16 / 28 / 40 / 52 / 64` per site. Those immediates are byte-identical to the retail target. So retail's `base+offset` addressing over a 4-aligned run is NOT a pooled object at all: it is per-literal 4-aligned objects plus MWCC's address pooling, and it is what the tree's existing cflags already produce. Verified against the image: the gamemain blob at 0x80112370 decodes as 102 consecutive entries, every one starting 4-aligned with stride == align4(strlen+1), ZERO exceptions."
+}
