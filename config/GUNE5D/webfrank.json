@@ -1,6 +1,38 @@
 {
   "version": 1,
   "units": {
+    "game/anim/action": [
+      {
+        "function": "DoEnemyAction",
+        "before_sha256": "1577e45daf603a8171fec8d7d4648b214df189f918f3a3ae9aa729601cf790eb",
+        "after_sha256": "d9753a807568844ef8abdc79064e62230cb9795f0d510abd67a6d1f4f014eff4",
+        "mechanism": "SOURCE EXHAUSTION: attempt.NM_doenemyaction-entry-block-ordering-class-does-not-reach-codegen.20260903.v1 measured three distinct entry source axes at ca4074cb1 -- statement order, declaration initializer placement and variable-identity split -- and every one was NEUTRAL-IDENTICAL with object digest bc393fec00e8. Its typed denial is deliberately scoped to the entry scheduling axis and leaves this postprocessor closure open. The diagnosis was reproduced fresh at 375c7649b: 482/482 instructions, identical opcode multiset, real 2, and exactly two raw differing words with zero relocation mismatch. OURS at +0x28/+0x2c is `lwz r28,204(r3); addi r3,r27,108`; TARGET is `addi r3,r27,108; lwz r28,204(r27)`. This cannot use the ordinary pre-recolor permutation because ours' addi overwrites r3 before the moved load reads it, and it cannot use strict recolor because r3 and r27 are same-valued aliases rather than a position-consistent renaming. The first stage is therefore the narrow copy_alias_register_fields proof added for this measured case: form-aware decoding confirms shift 16 is the use-only RA field of the lwz, rejects RA-zero literal semantics, binds the rewritten whole word to the unpermuted target intermediate, and a forward CFG must-equality analysis proves r3 == r27 at +0x28 from the unrelocated `mr r27,r3` at +0x18 on every reaching path. Definitions retire aliases, joins intersect them, calls retire volatile aliases and unsupported forms clear the relation; adversarial tests cover missing/bypassed/overwritten copies, RA zero, destination fields and non-register target changes. Only after that proof changes the load base does post_recolor_permutation exchange the now-independent load and addi with order [1,0]; the existing dependence and relocation-binding guards run in the target colouring. wr_try_rule.py reports BYTE-EQUAL at FULL datum strength. The source file is unchanged.",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 482,
+          "differing_words": 2,
+          "permuted_instructions": 2
+        },
+        "copy_alias_register_fields": [
+          {
+            "at": "0x28",
+            "shift": 16,
+            "from": 3,
+            "to": 27,
+            "proof": "cfg_copy_equality"
+          }
+        ],
+        "post_recolor_permutation": {
+          "start": "0x28",
+          "end": "0x30",
+          "order": [1, 0],
+          "before_sha256": "adf18e72a8f35e933b10dc46bc1a8387b5064ced15546c78424386f703b0e911",
+          "after_sha256": "d53ba96799b7c1ed313762247b0a909f06d8cf1a69693ae1738ecd9f997a7599",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
     "game/ui/screensaver": [
       {
         "function": "print_n_of_m",

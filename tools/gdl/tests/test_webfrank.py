@@ -28,6 +28,7 @@ from tools.gdl.webfrank import (
     _sha256,
     _successors,
     _word_effects,
+    apply_copy_alias_register_fields,
     check_permutation_dependences,
     copy_register_fields,
     decode_copy_form,
@@ -3769,6 +3770,138 @@ class CompareOperandExchangeTests(unittest.TestCase):
                 current, target,
                 compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
             )
+
+
+class CopyAliasRegisterFieldTests(unittest.TestCase):
+    """A target-bound use substitution proved by current-stream copies."""
+
+    def edit(self, **overrides):
+        edit = {
+            "at": "0x4", "shift": 16, "from": 3, "to": 27,
+            "proof": "cfg_copy_equality",
+        }
+        edit.update(overrides)
+        return [edit]
+
+    def test_cfg_copy_equality_reaches_the_target_word(self):
+        ours = _words(_addi(27, 3, 0), _lwz(28, 3, 204), BLR)
+        target = _words(_addi(27, 3, 0), _lwz(28, 27, 204), BLR)
+        output, changed = apply_copy_alias_register_fields(
+            ours, target, self.edit()
+        )
+        self.assertEqual((output, changed), (target, 1))
+
+    def test_missing_copy_refuses(self):
+        ours = _words(_addi(27, 4, 0), _lwz(28, 3, 204), BLR)
+        target = _words(_addi(27, 4, 0), _lwz(28, 27, 204), BLR)
+        with self.assertRaisesRegex(ValueError, "not provably equal"):
+            apply_copy_alias_register_fields(ours, target, self.edit())
+
+    def test_intervening_write_retires_the_alias(self):
+        ours = _words(
+            _addi(27, 3, 0), _addi(27, 0, 0), _lwz(28, 3, 204), BLR
+        )
+        target = _words(
+            _addi(27, 3, 0), _addi(27, 0, 0), _lwz(28, 27, 204), BLR
+        )
+        with self.assertRaisesRegex(ValueError, "not provably equal"):
+            apply_copy_alias_register_fields(
+                ours, target, self.edit(at="0x8")
+            )
+
+    def test_branch_that_bypasses_the_copy_refuses_at_the_join(self):
+        ours = _words(
+            _bne(2), _addi(27, 3, 0), _lwz(28, 3, 204), BLR
+        )
+        target = _words(
+            _bne(2), _addi(27, 3, 0), _lwz(28, 27, 204), BLR
+        )
+        with self.assertRaisesRegex(ValueError, "not provably equal"):
+            apply_copy_alias_register_fields(
+                ours, target, self.edit(at="0x8")
+            )
+
+    def test_ra_zero_is_literal_and_never_an_alias(self):
+        ours = _words(_addi(27, 0, 0), _lwz(28, 0, 204), BLR)
+        target = _words(_addi(27, 0, 0), _lwz(28, 27, 204), BLR)
+        with self.assertRaisesRegex(ValueError, "base-register presence"):
+            apply_copy_alias_register_fields(
+                ours, target, self.edit(**{"from": 0})
+            )
+
+    def test_nonregister_target_difference_refuses(self):
+        ours = _words(_addi(27, 3, 0), _lwz(28, 3, 204), BLR)
+        target = _words(_addi(27, 3, 0), _lwz(28, 27, 205), BLR)
+        with self.assertRaisesRegex(ValueError, "does not reach target"):
+            apply_copy_alias_register_fields(ours, target, self.edit())
+
+    def test_stale_declared_source_refuses(self):
+        ours = _words(_addi(27, 3, 0), _lwz(28, 3, 204), BLR)
+        target = _words(_addi(27, 3, 0), _lwz(28, 27, 204), BLR)
+        with self.assertRaisesRegex(ValueError, "declared source"):
+            apply_copy_alias_register_fields(
+                ours, target, self.edit(**{"from": 4})
+            )
+
+    def test_unrecognised_proof_label_refuses(self):
+        ours = _words(_addi(27, 3, 0), _lwz(28, 3, 204), BLR)
+        target = _words(_addi(27, 3, 0), _lwz(28, 27, 204), BLR)
+        with self.assertRaisesRegex(ValueError, "cfg_copy_equality"):
+            apply_copy_alias_register_fields(
+                ours, target, self.edit(proof="trust_me")
+            )
+
+    def test_destination_field_is_outside_the_narrow_class(self):
+        ours = _words(_addi(27, 3, 0), _lwz(28, 3, 204), BLR)
+        target = _words(_addi(27, 3, 0), _lwz(27, 3, 204), BLR)
+        with self.assertRaisesRegex(ValueError, "use-only field"):
+            apply_copy_alias_register_fields(
+                ours, target,
+                self.edit(shift=21, **{"from": 28, "to": 27})
+            )
+
+
+class CopyAliasPostPermutationApplyPatchTests(unittest.TestCase):
+    """The DoEnemyAction-shaped proof composition through apply_patch."""
+
+    OURS = (
+        0x3B630000, 0x838300CC, 0x387B006C, BLR,
+    )
+    TARGET = (
+        0x3B630000, 0x387B006C, 0x839B00CC, BLR,
+    )
+
+    def patch(self, ours, target, **overrides):
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "copy_alias_register_fields": [{
+                "at": "0x4", "shift": 16, "from": 3, "to": 27,
+                "proof": "cfg_copy_equality",
+            }],
+            "post_recolor_permutation": {
+                "start": "0x4", "end": "0xc", "order": [1, 0],
+            },
+        }
+        patch.update(overrides)
+        return patch
+
+    def test_the_proved_alias_then_dependency_safe_swap_reaches_target(self):
+        ours, target = _words(*self.OURS), _words(*self.TARGET)
+        data, target_data = _elf_object(ours), _elf_object(target)
+        before, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data)
+        )
+        self.assertEqual((before, after, changed),
+                         (_sha256(ours), _sha256(target), 3))
+
+    def test_the_stage_does_not_compose_with_a_second_recolor_proof(self):
+        ours, target = _words(*self.OURS), _words(*self.TARGET)
+        data, target_data = _elf_object(ours), _elf_object(target)
+        patch = self.patch(ours, target, copy_register_fields=True)
+        with self.assertRaisesRegex(ValueError, "do not compose"):
+            apply_patch(data, patch, bytes(target_data))
 
 
 class ValueEqualityApplyPatchTests(unittest.TestCase):

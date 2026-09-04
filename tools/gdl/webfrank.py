@@ -1048,6 +1048,210 @@ def _declared_exchanges(declarations) -> set:
     return declared
 
 
+def _canonical_alias(bank: str, one: int, other: int):
+    """Canonical non-reflexive pair for the local copy-equality relation."""
+    if one == other:
+        return None
+    return (bank, min(one, other), max(one, other))
+
+
+def _alias_members(relation: set, bank: str, register: int) -> set[int]:
+    """All registers transitively equal to *register* in one stream."""
+    pending = [register]
+    found = {register}
+    while pending:
+        current = pending.pop()
+        for kind, one, other in relation:
+            if kind != bank:
+                continue
+            neighbour = other if one == current else one if other == current else None
+            if neighbour is not None and neighbour not in found:
+                found.add(neighbour)
+                pending.append(neighbour)
+    return found
+
+
+def _copy_alias_states(words: list[int], relocated_offsets=(),
+                       jumptable_targets=(), call_targets=None) -> dict[int, set]:
+    """Forward must-equality facts created only by value-preserving copies.
+
+    A pair in the state means the two registers in THIS instruction stream
+    hold the same value on every path reaching the word.  Definitions retire
+    all pairs touching their destination; an unrelocated copy then relates
+    its destination to the source's whole equivalence class.  Joins use
+    intersection, and ordinary calls retire volatile registers.  Unsupported
+    forms clear the relation, which is conservative and fail-closed.
+    """
+    relocated = {offset // 4 for offset in relocated_offsets}
+    jumptable = {offset // 4 for offset in jumptable_targets}
+    successors, calls = _successors(words, relocated, jumptable)
+    incoming: dict[int, set] = {0: set()}
+    pending = [0]
+    steps = 0
+    while pending:
+        index = pending.pop()
+        steps += 1
+        if steps > _VALUE_EQUALITY_STEP_LIMIT:
+            raise ValueError(
+                "copy-alias verification did not converge within "
+                f"{_VALUE_EQUALITY_STEP_LIMIT} steps"
+            )
+        relation = set(incoming[index])
+        word = words[index]
+        opcode = word >> 26
+        try:
+            operands = instruction_operands(word)
+        except ValueError:
+            relation.clear()
+            operands = ()
+
+        defined = set()
+        if opcode == 46:  # lmw defines a range not exposed by operands.
+            defined |= {("g", number)
+                        for number in range((word >> 21) & 0x1F, 32)}
+        for bank, shift, role, zero_none in operands:
+            register = (word >> shift) & 0x1F
+            if zero_none and register == 0:
+                continue
+            if role in ("d", "b"):
+                defined.add((bank, register))
+        for bank, register in defined:
+            relation = {
+                pair for pair in relation
+                if not (pair[0] == bank and register in pair[1:])
+            }
+
+        copy = _value_preserving_copy(word, index, relocated)
+        if copy is not None:
+            bank, destination, source = copy
+            if destination != source:
+                members = _alias_members(relation, bank, source)
+                for member in members:
+                    pair = _canonical_alias(bank, destination, member)
+                    if pair is not None:
+                        relation.add(pair)
+
+        if calls[index]:
+            helper = _helper_call(
+                call_targets.get(index * 4) if call_targets else None
+            )
+            if helper is None:
+                volatile = frozenset(_CALL_VOLATILE)
+                relation = {
+                    pair for pair in relation
+                    if (pair[0], pair[1]) not in volatile
+                    and (pair[0], pair[2]) not in volatile
+                }
+            else:
+                relation = {
+                    pair for pair in relation
+                    if not (pair[0] == "g" and 11 in pair[1:])
+                }
+                if helper[0] == "rest":
+                    _, bank, first = helper
+                    relation = {
+                        pair for pair in relation
+                        if not (pair[0] == bank
+                                and (pair[1] >= first or pair[2] >= first))
+                    }
+
+        for successor in successors[index]:
+            known = incoming.get(successor)
+            merged = set(relation) if known is None else known & relation
+            if known is None or merged != known:
+                incoming[successor] = merged
+                pending.append(successor)
+    return incoming
+
+
+def apply_copy_alias_register_fields(current: bytes, target: bytes, edits,
+                                     *, relocated_offsets=(),
+                                     jumptable_targets=(),
+                                     call_targets=None) -> tuple[bytes, int]:
+    """Apply target-bound use-field edits proved by CFG copy equality.
+
+    This is intentionally narrower than a recolor.  It cannot change a
+    destination, a read/write operand, an RA-as-literal-zero field, or any
+    non-register bit.  Each declaration names the exact old/new field and
+    must make its whole word equal the target intermediate.  The only proof
+    mode is a must-equality relation derived from unrelocated copy forms in
+    the current stream.
+    """
+    if len(current) != len(target) or len(current) % 4:
+        raise ValueError("copy-alias edits need equal word-aligned sizes")
+    words = [_u32(current, offset) for offset in range(0, len(current), 4)]
+    states = _copy_alias_states(
+        words, relocated_offsets, jumptable_targets, call_targets
+    )
+    output = bytearray(current)
+    seen = set()
+    changed = 0
+    for edit in edits or ():
+        if edit.get("proof") != "cfg_copy_equality":
+            raise ValueError(
+                "copy-alias register-field edit requires "
+                '"proof": "cfg_copy_equality"'
+            )
+        relative = _parse_int(edit["at"])
+        shift = int(edit["shift"])
+        old = int(edit["from"])
+        new = int(edit["to"])
+        if relative % 4 or not 0 <= relative <= len(current) - 4:
+            raise ValueError(f"invalid copy-alias offset {edit}")
+        if shift not in {6, 11, 16, 21} or not 0 <= old < 32 \
+                or not 0 <= new < 32:
+            raise ValueError(f"invalid copy-alias register field {edit}")
+        if relative in seen:
+            raise ValueError(f"duplicate copy-alias edit {edit}")
+        seen.add(relative)
+        index = relative // 4
+        word = words[index]
+        field = None
+        for bank, operand_shift, role, zero_none in instruction_operands(word):
+            if operand_shift == shift:
+                field = (bank, role, zero_none)
+                break
+        if field is None:
+            raise ValueError(
+                f"+0x{relative:x}: shift {shift} is not a register field"
+            )
+        bank, role, zero_none = field
+        if role != "u":
+            raise ValueError(
+                f"+0x{relative:x}: copy-alias edit may change only a "
+                f"use-only field, not role {role!r}"
+            )
+        actual = (word >> shift) & 0x1F
+        if actual != old:
+            raise ValueError(
+                f"+0x{relative:x}: declared source {bank}{old} changed "
+                f"to {bank}{actual}"
+            )
+        if zero_none and (old == 0 or new == 0):
+            raise ValueError(
+                f"+0x{relative:x}: base-register presence differs"
+            )
+        relation = states.get(index)
+        pair = _canonical_alias(bank, old, new)
+        if relation is None or (pair is not None and pair not in relation):
+            raise ValueError(
+                f"+0x{relative:x}: {bank}{old} and {bank}{new} are not "
+                "provably equal on every CFG path"
+            )
+        rewritten = (word & ~(0x1F << shift)) | (new << shift)
+        target_word = _u32(target, relative)
+        if rewritten != target_word:
+            raise ValueError(
+                f"+0x{relative:x}: copy-alias edit does not reach target "
+                f"intermediate (0x{rewritten:08x} vs 0x{target_word:08x})"
+            )
+        struct.pack_into(">I", output, relative, rewritten)
+        changed += rewritten != word
+    if not changed:
+        raise ValueError("copy-alias register-field stage changed no words")
+    return bytes(output), changed
+
+
 def _format_substitution(site) -> str:
     index, bank, ours, target = site
     return f"+0x{index * 4:x} {bank}{ours}->{bank}{target}"
@@ -4310,6 +4514,13 @@ def apply_patch(
         patch.get("copy_register_fields") or patch.get("recolors")
         or patch.get("register_fields")
     )
+    copy_alias_stage = bool(patch.get("copy_alias_register_fields"))
+    if copy_alias_stage and register_stage:
+        raise ValueError(
+            f"{symbol.name}: copy-alias register-field edits do not compose "
+            "with a recolor stage; keep the narrow proof independently "
+            "auditable"
+        )
 
     # A combined form+recolor edit leaves a word that is DELIBERATELY not the
     # target word: it carries the target's encoding around our registers, and
@@ -4404,10 +4615,11 @@ def apply_patch(
     if post_permutation:
         if target_data is None:
             raise ValueError(f"{symbol.name}: target object is required")
-        if not register_stage:
+        if not (register_stage or copy_alias_stage):
             raise ValueError(
                 f"{symbol.name}: a post-recolor permutation requires a "
-                f"register stage — it exists to run AFTER the recolor"
+                f"register stage or copy-alias stage — it exists to run only "
+                f"after the register operands have reached target form"
             )
         if patch.get("unproven_recolor_audit"):
             raise ValueError(
@@ -4452,6 +4664,26 @@ def apply_patch(
         # first measured post-recolor site carrying a relocation.
         recolor_target = unpermute_target_windows(
             target_function, post_windows, post_ranges
+        )
+
+    if copy_alias_stage:
+        if target_data is None or recolor_target is None:
+            raise ValueError(
+                f"{symbol.name}: copy-alias register-field edits require a "
+                "target object and post-recolor permutation"
+            )
+        rewritten, alias_changes = apply_copy_alias_register_fields(
+            bytes(data[start:end]), recolor_target,
+            patch["copy_alias_register_fields"],
+            relocated_offsets=relocated_offsets,
+            jumptable_targets=jumptable_offsets,
+            call_targets=call_targets,
+        )
+        data[start:end] = rewritten
+        changed += alias_changes
+        print(
+            f"WEBFRANK {symbol.name}: CFG copy-alias proof "
+            f"({alias_changes} site(s))"
         )
 
     if patch.get("copy_register_fields"):

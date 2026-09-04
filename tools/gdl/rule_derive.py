@@ -119,6 +119,21 @@ RULE_CLASSES = {
                     " `unproven_recolor_audit`"],
         "requires_target": True,
     },
+    "copy_alias_register_fields": {
+        "verifier": "apply_copy_alias_register_fields -> CFG copy equality",
+        "proves": "one current-stream use operand may be rewritten to the"
+                  " target intermediate's register because unrelocated copy"
+                  " dataflow proves both registers hold the same value on"
+                  " every path reaching that word",
+        "refuses": [
+            "a destination/read-write field, an RA-as-literal-zero field,"
+            " a non-register target difference, or a missing/bypassed/"
+            "overwritten copy",
+            "composition with a second recolor proof; this narrow stage"
+            " composes only with post_recolor_permutation",
+        ],
+        "requires_target": True,
+    },
     "value_equality_recolor": {
         "verifier": "verify_value_equality_recolor",
         "proves": "the register stage's OUTPUT is value-equal to the"
