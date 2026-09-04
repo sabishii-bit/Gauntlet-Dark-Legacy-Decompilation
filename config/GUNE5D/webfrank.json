@@ -3716,6 +3716,24 @@
             "proof": "unconditional"
           }
         ]
+      },
+      {
+        "function": "PointLineColl",
+        "before_sha256": "e487333a52c22e046b8840f61bb9b27bb21740a5afa10013edc54ea21236800e",
+        "after_sha256": "65edab4d13307a9e1c563622c5e01fa829b455fba9a9a97b5a5f1a1dbab43fa2",
+        "mechanism": "SOURCE-EXHAUSTION AND TYPED DENIAL: attempt.R57_pointlinecoll-post-recolor-permutation-exact-close.20260904.v1 supersedes the prior cap and folds its source matrix together with this run's two declaration-order probes and inline-second-call probe. Counts are 107/107 and the raw residual is 14 words: 11 REGFIELD-ONLY plus three aligned lfs displacement rows, with zero mnemonic or relocation divergence. The only schedule difference is the six-atom branch-local x/z/y rotation at +0xe8..+0xfc: ours computes y,x,z and target computes x,z,y. PRE-RECOLOR placement is mechanically impossible, not merely unattractive: both a pair of three-atom windows and one six-atom window are refused by check_permutation_dependences because moving the y subtraction after ours has overwritten f2 breaks its def-use chain. POST-RECOLOR placement is the served narrow class. unpermute_target_windows constructs the intermediate in ours' y,x,z chronology; copy_register_fields plus verify_consistent_recolor proves that whole intermediate a position-consistent renaming with NO value-equality or unproven-audit escape; then [0xe8,0x100) order [1,2,0,4,5,3] is dependency-safe in TARGET colouring and produces the retail bytes. wr_try_rule.py reports BYTE-EQUAL against the raw postprocess body at FULL datum strength. wf_ordered_datum_screen.py independently reports the ordered datum sequences IDENTICAL. No source file is frozen by this new rule until this exact raw-body hash is present, and any source improvement changes that hash and fails closed.",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 107,
+          "differing_words": 14,
+          "permuted_instructions": 6
+        },
+        "post_recolor_permutation": {
+          "start": "0xe8",
+          "end": "0x100",
+          "order": [1, 2, 0, 4, 5, 3]
+        },
+        "copy_register_fields": true
       }
     ],
     "game/ui/attract": [
