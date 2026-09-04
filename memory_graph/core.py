@@ -860,6 +860,54 @@ _WINDOW_SHAPE_RE = re.compile(
     re.I,
 )
 
+# THE COUNT-ASYMMETRY EXEMPTION (run-51 item 8).
+#
+# `outside every postprocessor class` is a phrase this project's TOOLS print.
+# `wf_word_diff` answers a count-asymmetric function with "— outside every
+# postprocessor class by construction", and `probe --raw` printed the same
+# sentence in its fallback line, so a record quoting the measurement it was
+# handed tripped a gate about verifier enumeration. PR and NC each lost a
+# submission that way, and AGENTS.md documents the identical false-positive
+# class for the run-44 slot gate: "that same gate's first EVIDENCE predicate
+# looked only for the literal tool name and scored eight records as
+# violations that quote the tool's OUTPUT verbatim".
+#
+# The exemption is not "it came from a tool" — it is that the claim has a
+# DIFFERENT AND COMPLETE DISCHARGE. Count asymmetry puts a function outside
+# every postprocessor class as a THEOREM (every shipped class is
+# instruction-count-preserving), so no verifier subset was run, none could
+# have been, and `verifiers_run` has nothing true to say. Proposal gate B
+# already forces such a record to quote its counts as N/N, which is the
+# evidence this looks for.
+_COUNT_ASYMMETRY_WORD_RE = re.compile(
+    r"count[- ]asymmetr\w*|\binstruction[- ]count[- ]delta\w*\b", re.I)
+# A quoted count PAIR only counts when the two numbers actually differ.
+# CALIBRATION CAUGHT THIS: the first draft accepted any `T\d+/O\d+`, and
+# attempt.HV_startshieldfx-and-drawblitflatquad-refuted-from-the-permute-
+# class.20260901.v1 quotes `insns T141/O141` — count PARITY — beside "NOT a
+# webfrank candidate at all" for a 6-token multiset difference. That is a
+# genuine gate-G target and the draft exempted it.
+_COUNT_PAIR_RES = (
+    re.compile(r"\bT(\d+)\s*/\s*O(\d+)\b"),
+    re.compile(r"\b(\d+)\s*vs\.?\s*(\d+)\s*ins\w*\b", re.I),
+)
+
+
+def _count_asymmetry_evidence(window):
+    """Does this text window establish that the two counts DIFFER?"""
+    if _COUNT_ASYMMETRY_WORD_RE.search(window or ""):
+        return True
+    for pattern in _COUNT_PAIR_RES:
+        for match in pattern.finditer(window or ""):
+            if match.group(1) != match.group(2):
+                return True
+    return False
+# How far from the phrase the evidence may sit. Record prose is one long
+# paragraph, but this is deliberately NOT the whole record: a record may
+# discuss a count-asymmetric SIBLING while closing THIS function on verifier
+# refusals, and a whole-record window would exempt it.
+_COUNT_ASYMMETRY_WINDOW = 240
+
 _POSTPROCESSOR_CLOSED_RE = re.compile(
     r"(?:postprocessor|webfrank)[- ](?:path|route|class)"
     r"\s*(?:is|are|remains?|stays?)?\s*(?:therefore\s+)?closed"
@@ -871,6 +919,30 @@ _POSTPROCESSOR_CLOSED_RE = re.compile(
     r"|not (?:a )?(?:webfrank|postprocessor)[- ](?:candidate|class)",
     re.I,
 )
+
+
+def postprocessor_closure_claim(substance):
+    """The closure phrase gate G must tax, or None (run-51 item 8).
+
+    Every match is checked against the COUNT-ASYMMETRY exemption above: a
+    match whose neighbourhood carries count-asymmetry evidence is discharged
+    by the COUNTS, not by a verifier subset, and the scan CONTINUES to the
+    next match rather than stopping — a record can quote the tool's
+    count-asymmetry sentence for one function AND separately claim a
+    verifier closure, and only the second is gate G's business.
+
+    Pure over one string, so both sides of the calibration are decided
+    without a corpus.
+    """
+    text = substance or ""
+    for match in _POSTPROCESSOR_CLOSED_RE.finditer(text):
+        lo = max(0, match.start() - _COUNT_ASYMMETRY_WINDOW)
+        hi = min(len(text), match.end() + _COUNT_ASYMMETRY_WINDOW)
+        if _count_asymmetry_evidence(text[lo:hi]):
+            continue
+        return match
+    return None
+
 
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
@@ -5822,7 +5894,7 @@ def _apply_proposal_gates(
             and str(record.get("outcome", "")).lower() in HELD_FIXED_OUTCOMES
             and _WEBFRANK_VERIFIER_RE.search(substance)
             and not _record_field(record, "verifiers_run")):
-        closed = _POSTPROCESSOR_CLOSED_RE.search(substance)
+        closed = postprocessor_closure_claim(substance)
         if closed:
             fail(
                 "a record closing the POSTPROCESSOR path for a function"
