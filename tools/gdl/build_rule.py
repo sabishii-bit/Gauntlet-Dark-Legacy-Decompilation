@@ -3,10 +3,22 @@
 Every hash below is computed from the objects ninja just produced; nothing
 is copied from a banked record.
 
-Usage: python tools/gdl/build_rule.py [unit]   (default game/pb/pb_window)
+Usage: python tools/gdl/build_rule.py [game/pb/pb_window] [--out=PATH]
 Runs from ANY checkout; the OURS side prefers the raw compiler output
 (.postprocess/body/) — reading the post-webfrank object as input is only
 correct when webfrank is disabled for the unit.
+
+THE UNIT ARGUMENT IS PB_WINDOW-ONLY, and now says so (run-53 item 2). The
+docstring used to advertise "[unit] (default game/pb/pb_window)" as if the
+tool were general, but the composition at the bottom of this file is a
+HARDCODED pbWinSetup/pbProjCalc pair — window offsets, permutation orders and
+copy-form sites all literal. The unit argument only redirects which object
+FILES are opened, so any other unit dies looking for a symbol it cannot
+contain: measured at c7b741799, `python tools/gdl/build_rule.py
+game/sys/memcard` -> `KeyError: "symbol 'pbWinSetup' not found"`. It is
+refused with an explanation instead now. For a rule on any OTHER function,
+use `python tools/gdl/rule_derive.py <unit> <fn> --emit [--class KIND]`,
+which derives the windows from the live objects.
 """
 import json
 import struct
@@ -16,6 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from tools.gdl import cliscreen  # noqa: E402
 from tools.gdl.webfrank import (  # noqa: E402
     SHT_RELA,
     _find_symbol,
@@ -32,8 +45,25 @@ from tools.gdl.reloc_symbols import (  # noqa: E402
     region_symbols,
 )
 
+USAGE = "usage: python tools/gdl/build_rule.py [game/pb/pb_window] [--out=PATH]"
+# Screened BEFORE anything is read or written. `--help` used to fall through
+# the `startswith("--")` filter below, run the whole pb_window composition and
+# WRITE build/GUNE5D/rules/game_pb_pb_window_rules.json — a help flag with a
+# side effect on disk (run-53 item 2, reproduced at c7b741799).
+cliscreen.screen(("--out",), usage=USAGE, doc=__doc__)
+
 _args = [a for a in sys.argv[1:] if not a.startswith("--")]
 UNIT = (_args[0] if _args else "game/pb/pb_window").strip("/")
+if UNIT != "game/pb/pb_window":
+    # The composition below is literal pb_window. Refusing here names the
+    # right tool; the old behaviour was a KeyError out of webfrank's symbol
+    # lookup, which reads as a broken object rather than a misused tool.
+    raise SystemExit(
+        f"build_rule.py composes a HARDCODED pbWinSetup/pbProjCalc rule; it"
+        f" cannot build one for {UNIT!r} (the old failure was"
+        f' KeyError: "symbol \'pbWinSetup\' not found").\n'
+        "Derive a rule for any other function with:\n"
+        "  python tools/gdl/rule_derive.py <unit> <fn> --emit [--class KIND]")
 OUT = Path(next((a.split("=", 1)[1] for a in sys.argv
                  if a.startswith("--out=")),
                 ROOT / "build" / "GUNE5D" / "rules"
