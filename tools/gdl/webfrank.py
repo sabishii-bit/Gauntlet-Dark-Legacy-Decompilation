@@ -2394,6 +2394,60 @@ def permute_instruction_atoms(
     our_symbols: dict[int, str] | None = None,
     target_relocations: dict[int, tuple[int, str]] | None = None,
     memory_locations: dict[int, tuple] | None = None,
+    where: str = "",
+) -> tuple[bytes, list[tuple[int, int, int]], int]:
+    """Apply one explicit instruction-atom permutation, naming the caller.
+
+    ``where`` identifies the function and window this permutation belongs
+    to, and every refusal below is re-raised carrying it. Run 56 (PJ): the
+    body-hash abort in ``apply_patch`` opens with ``f"{symbol.name}: ..."``,
+    and so do its neighbours at "memory disambiguation", "expected one
+    relocation section" and "unsupported relocation layout" — but the
+    permutation refusals raised from THIS frame named nothing at all, so a
+    build that aborted on "instruction permutation relocation input hash
+    changed" identified neither the unit, the function, nor which of a
+    function's several windows moved. The label is applied by wrapping
+    rather than by editing each raise, so a refusal added later cannot
+    silently escape it; ``where=""`` keeps the historical bare message.
+
+    Only ``ValueError`` is relabelled. This project raises ``SystemExit``
+    as a refusal idiom, and ``SystemExit`` is not an ``Exception``
+    (AGENTS.md discipline 20), so it is deliberately left to propagate
+    untouched rather than being swallowed by a broad handler.
+    """
+    try:
+        return _permute_instruction_atoms(
+            current,
+            order,
+            relocations,
+            before_sha256=before_sha256,
+            after_sha256=after_sha256,
+            before_relocations_sha256=before_relocations_sha256,
+            after_relocations_sha256=after_relocations_sha256,
+            exit_dead=exit_dead,
+            our_symbols=our_symbols,
+            target_relocations=target_relocations,
+            memory_locations=memory_locations,
+        )
+    except ValueError as exc:
+        if not where:
+            raise
+        raise ValueError(f"{where}: {exc}") from exc
+
+
+def _permute_instruction_atoms(
+    current: bytes,
+    order: list[int],
+    relocations: list[tuple[int, int, int]],
+    *,
+    before_sha256: str,
+    after_sha256: str,
+    before_relocations_sha256: str,
+    after_relocations_sha256: str,
+    exit_dead=None,
+    our_symbols: dict[int, str] | None = None,
+    target_relocations: dict[int, tuple[int, str]] | None = None,
+    memory_locations: dict[int, tuple] | None = None,
 ) -> tuple[bytes, list[tuple[int, int, int]], int]:
     """Apply one explicit instruction-atom permutation, failing closed.
 
@@ -4067,6 +4121,10 @@ def apply_patch(
                     for at, location in memory_locations.items()
                     if relative_start <= at < relative_end
                 },
+                where=(
+                    f"{symbol.name}: permutation window "
+                    f"+0x{relative_start:x}-0x{relative_end:x}"
+                ),
             )
             data[start + relative_start:start + relative_end] = permuted
 
@@ -4656,6 +4714,10 @@ def apply_patch(
             exit_dead=None,
             our_symbols=window_symbols,
             target_relocations=window_target_relocations,
+            where=(
+                f"{symbol.name}: post-recolor permutation window "
+                f"+0x{relative_start:x}-0x{relative_end:x}"
+            ),
         )
         data[start + relative_start:start + relative_end] = permuted
         changed += moved

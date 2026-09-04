@@ -5271,5 +5271,100 @@ class RetailImageRequiredTests(unittest.TestCase):
             self.assertFalse(output.exists())
 
 
+class PermutationRefusalsNameTheirFunctionTests(unittest.TestCase):
+    """Run 56 (PJ's criticism, WF lane). `apply_patch`'s body-hash abort
+    opens with `f"{symbol.name}: ..."`, and so do its neighbours at "memory
+    disambiguation", "expected one relocation section" and "unsupported
+    relocation layout" — but every refusal raised from
+    `permute_instruction_atoms` named nothing at all, so a build that
+    stopped on "instruction permutation relocation input hash changed"
+    identified neither the function nor which of its windows moved. Each
+    test below fails without the `where` label.
+    """
+
+    # The fixture is this lane's own measured residual: pb_error's target
+    # emits `addi r3,r1,8` before `extsh r4,r31` and our build emits them in
+    # the other order. The two atoms are independent (r3/r1 against r4/r31).
+    ADDI = 0x38610008
+    EXTSH = 0x7FE40734
+
+    def permute(self, **overrides):
+        current = struct.pack(">II", self.EXTSH, self.ADDI)
+        arguments = dict(
+            before_sha256=_sha256(current),
+            after_sha256=_sha256(struct.pack(">II", self.ADDI, self.EXTSH)),
+            before_relocations_sha256=_relocation_sha256([], {}),
+            after_relocations_sha256=_relocation_sha256([], {}),
+        )
+        arguments.update(overrides)
+        return permute_instruction_atoms(current, [1, 0], [], **arguments)
+
+    def test_it_permutes_cleanly_when_nothing_is_wrong(self):
+        output, _relocations, moved = self.permute()
+        self.assertEqual(output, struct.pack(">II", self.ADDI, self.EXTSH))
+        self.assertEqual(moved, 2)
+
+    def test_a_relocation_hash_refusal_names_the_function_and_window(self):
+        with self.assertRaises(ValueError) as caught:
+            self.permute(before_relocations_sha256="0" * 64,
+                         where="fn_800C13CC: permutation window +0x48-0x50")
+        message = str(caught.exception)
+        self.assertIn("fn_800C13CC", message)
+        self.assertIn("+0x48-0x50", message)
+        self.assertIn("relocation input hash changed", message)
+
+    def test_a_body_hash_refusal_is_labelled_too(self):
+        """The label is applied by wrapping, not per raise site, so every
+        refusal in the frame carries it — including ones added later."""
+        with self.assertRaises(ValueError) as caught:
+            self.permute(before_sha256="0" * 64,
+                         where="fn_800C1174: permutation window +0x0-0x10")
+        self.assertIn("fn_800C1174", str(caught.exception))
+
+    def test_a_dependence_refusal_from_a_helper_frame_is_labelled_too(self):
+        """check_permutation_dependences raises from its own frame; the
+        wrapper is what puts the caller's name on it."""
+        with self.assertRaises(ValueError) as caught:
+            permute_instruction_atoms(
+                struct.pack(">II", self.ADDI, 0x38830000),  # addi r4,r3,0
+                [1, 0],
+                [],
+                before_sha256=_sha256(
+                    struct.pack(">II", self.ADDI, 0x38830000)),
+                after_sha256=_sha256(
+                    struct.pack(">II", 0x38830000, self.ADDI)),
+                before_relocations_sha256=_relocation_sha256([], {}),
+                after_relocations_sha256=_relocation_sha256([], {}),
+                where="fn_800C1174: permutation window +0x0-0x8",
+            )
+        self.assertIn("fn_800C1174", str(caught.exception))
+
+    def test_an_unlabelled_call_keeps_the_historical_bare_message(self):
+        """Every caller predating the label — and every existing test that
+        matches on the bare text — must read exactly as before."""
+        with self.assertRaises(ValueError) as caught:
+            self.permute(before_relocations_sha256="0" * 64)
+        self.assertEqual(
+            str(caught.exception),
+            "instruction permutation relocation input hash changed")
+
+    def test_the_label_does_not_defeat_the_rederive_hint_discriminant(self):
+        """AGENTS.md discipline 18, mechanized: `rederive_hint` decides the
+        RELOCATION class by substring, and must still give both answers once
+        a prefix is prepended — the hint for a relocation hash, and silence
+        for a BODY hash, where re-deriving would launder real codegen."""
+        labelled_relocation = (
+            "fn_800C13CC: permutation window +0x48-0x50: instruction "
+            "permutation relocation input hash changed")
+        self.assertIn("--rederive-pin", rederive_hint(
+            "game/pb/pb_error", "fn_800C13CC",
+            ValueError(labelled_relocation)))
+        labelled_body = (
+            "fn_800C13CC: permutation window +0x48-0x50: instruction "
+            "permutation input hash changed")
+        self.assertEqual("", rederive_hint(
+            "game/pb/pb_error", "fn_800C13CC", ValueError(labelled_body)))
+
+
 if __name__ == "__main__":
     unittest.main()
