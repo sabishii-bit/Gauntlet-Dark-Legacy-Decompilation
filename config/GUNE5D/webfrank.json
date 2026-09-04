@@ -2185,6 +2185,46 @@
         "copy_register_fields": true
       }
     ],
+    "game/g3d/auxanim": [
+      {
+        "function": "DoTexModSeqSub",
+        "before_sha256": "07fb49b6eee2a74adf2fcce717639235500682ca6974a6b36cd1e7fcc3d43d4d",
+        "after_sha256": "7512b7b0bb6a89a41b35b58a7a29ac2ffa42e52e92a986a5fdbaf506afa3f8ee",
+        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.PF_dotexmodseqsub-second-buffer-plus-block-scope-closes-the-slot-class-and-the-nested-call-closes-the-fmr.20260904.v1 retained twelve source probes that closed the count, frame, slot and opcode classes and left a count-neutral schedule/register residual. This run additionally tested four case -5 carrier/live-range forms: reusing the dead fr, d1 or d2 local for the selected k value folded to the identical object, while defining k from d1 before the guard reordered the anonymous conversion slots and regressed real 30 to 48; every probe was reverted. FINAL RESIDUAL: 201/201 instructions, IDENTICAL opcode multiset, frame 64/64, SLOT MAP IDENTICAL, zero immediate or relocation-symbol differences, 15 raw differing words. PERMUTATIONS: [0x184,0x18c) and [0x244,0x24c), each order [1,0], move ours `stw r3,32(r1)` after the adjacent `fcmpo cr0,f1,f0` to retail's order. In each window the store reads r3 and writes stack memory while the compare reads f0/f1 and writes CR0, so the atoms are independent; check_permutation_dependences accepts both with no dead-final-write escape and both relocation sets are empty. RECOLOR: after the two swaps, all remaining differences are form-aware register fields in the case -4/-5 FP webs, including commutative fmul operand/destination selection; verify_consistent_recolor proves the complete function and verify_datum_binding runs against the retail DOL. The composed rule replayed through webfrank.apply_patch at full datum strength and produced the retail function bytes exactly without value-equality or unproven escapes.",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 201,
+          "permuted_instructions": 4
+        },
+        "instruction_permutation": [
+          {
+            "start": "0x184",
+            "end": "0x18c",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "fd31cd51ced4b8baaf827869da0615cab34dd1cfedae286d3929dc969a6ac6ea",
+            "after_sha256": "4aa3272f4c508ba7258051557ac0fdb23c3854456c4fe6d85018c97c68197621",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x244",
+            "end": "0x24c",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "fd31cd51ced4b8baaf827869da0615cab34dd1cfedae286d3929dc969a6ac6ea",
+            "after_sha256": "4aa3272f4c508ba7258051557ac0fdb23c3854456c4fe6d85018c97c68197621",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/g3d/g3dpad": [
       {
         "function": "G3DUpdatePadStatus",
