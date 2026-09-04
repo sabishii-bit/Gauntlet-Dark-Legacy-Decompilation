@@ -40,6 +40,16 @@ def _load_parser():
     return mod
 
 
+def _inplace(mod, insns, site):
+    """Did this @lo materialisation land in the SAME register that held the
+    @ha (`addi rT,rT,SYM@lo`, IN PLACE) or in a fresh one (`addi rD,rT,...`)?
+    Returns None when the site's instruction cannot be read as an addi."""
+    m = mod.ADDI.match(insns[site["idx"]][0])
+    if not m:
+        return None
+    return m.group(1) == m.group(2)
+
+
 def split_roster(mod, roster):
     """-> rows with the per-function shape-B / shape-V surplus decomposition."""
     rows = []
@@ -60,6 +70,15 @@ def split_roster(mod, roster):
         tv = sum(1 for r in ta if r["shape"] == "V")
         ov = sum(1 for r in oa if r["shape"] == "V")
         surplus_b, surplus_v = ob - tb, ov - tv
+        # POLARITY (run 53): among shape-V rows, which SIDE lowers the @lo
+        # in place (dst == the @ha temp) decides whether the decl-order lever
+        # applies at all. The lever's law describes ours-IN-PLACE /
+        # target-FRESH; the mirror does not respond. See the module docstring.
+        o_inplace = any(_inplace(mod, o[fn], r) for r in oa
+                        if r["shape"] == "V")
+        t_fresh = any(_inplace(mod, t[fn], r) is False for r in ta)
+        polarity = ("ours-in-place/target-fresh" if (o_inplace and t_fresh)
+                    else "mirror-or-other")
         if surplus_v > 0 and surplus_b <= 0:
             cls, disp = "V", "class (b) VOLATILE dest -- DECL-ORDER LEVER LIVE"
         elif surplus_b > 0 and surplus_v <= 0:
@@ -71,6 +90,7 @@ def split_roster(mod, roster):
         rows.append(dict(unit=unit, fn=fn, cls=cls, disposition=disp,
                          t_B=tb, o_B=ob, t_V=tv, o_V=ov,
                          surplus_B=surplus_b, surplus_V=surplus_v,
+                         polarity=polarity,
                          tn=entry.get("tn"), on=entry.get("on")))
     return rows
 
@@ -106,7 +126,8 @@ def main():
             last = r["cls"]
         print(f"  {r['unit']:<28} {r['fn']:<34} "
               f"B {r['t_B']}->{r['o_B']}  V {r['t_V']}->{r['o_V']}  "
-              f"T{r['tn']}/O{r['on']}")
+              f"T{r['tn']}/O{r['on']}"
+              + (f"  [{r['polarity']}]" if r["cls"] == "V" else ""))
     print("\n=== TOTALS")
     for k in ("V", "MIXED", "B", "OTHER"):
         if k in counts:
