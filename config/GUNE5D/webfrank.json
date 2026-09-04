@@ -2144,6 +2144,26 @@
         ]
       }
     ],
+    "game/audio/dcsdrv": [
+      {
+        "function": "dcsHandleRequest",
+        "before_sha256": "e1047c9c6369a3f079d2571dc8e0cf7468fb72cc0289ee79205fa039ac3c58d5",
+        "after_sha256": "80c560cba5f53bb3ba044c6c5a4964b3a6c67975add8b4528d2cbf2538ff6076",
+        "mechanism": "attempt.NC_dcshandlerequest-case-17-statement-order-closes-one-of-the-two-opcode-words.20260904.v1 is the SOURCE-EXHAUSTION PROVENANCE and it is unusually complete: four literal probed_form axes on the surviving word, of which two are NEUTRAL-IDENTICAL with the object digest quoted (probe 2, the for-init loop head, bytes=7ed3491299bf; probe 4, the chained assignment unchained, bytes unchanged) and one REGRESSED 146->184 (probe 3, resultOffset declared last). Two NEUTRAL-IDENTICAL results are the strong form of the negative: statement SHAPE cannot reach this decision at all. The formal-passthrough matrix is closed separately on eight measured points across two constructs by attempt.DC_dcshandlerequest-jumptable-settled-and-webfrank-barred.20260901.v1 section (3) ('DO NOT RETRY the passthrough matrix in any construct'). THE RESIDUAL: 411/411 instructions, wf_word_diff 'DIFFERING WORDS = 67 ... DECODE: REGFIELD-ONLY 66, IMMEDIATE 0, BRANCH 0, OPCODE 1, RELOCATED 0'; fndiff --ops is a single aligned replace, T@1e8 li against O@1e8 mr. THE ONE FORM WORD: ours +0x1e8 `mr r31,r30` against the target's `li r31,0` -- the ours-copy -> target-li arrow, which is what `dominating_def_inverse` is the named mode for. Destinations AGREE (both write r31), so this is not the form-change-AND-recolor pair that would need an unbuilt combined stage, and the streams are positionally aligned here, so no permutation is involved and no membership test is invoked. prove_constant_source discharges the value obligation from our own `li r30,0` at +0x1e0, two instructions earlier with the `stw` between them writing memory only. THE JUMPTABLE BAR IS GONE, AND SAYING WHY MATTERS BECAUSE TWO ACCEPTED PARKS RECORD IT AS DECISIVE: +0x1e0 IS a jumptable case-entry (_jumptable_targets returns it among 19), but the scan's entry check tests index+1, i.e. whether control can enter BETWEEN the definition and the site, and the definition sits AT the entry rather than above it -- control arriving from the switch dispatch executes the `li r30,0` on its way in. attempt.WF_dcshandlerequest-inverse-rescreen-park-upheld.20260901.v1 and the DC record above both measured their bars at the PRE-TRANSPOSITION alignment where the site was +0x1e0; the run-52 measurement REFUTES all three of their bars IN SCOPE (BAR A positional li-vs-li, BAR B destination mismatch, BAR C/4 jumptable) and upholds every SOURCE cap they carry. Their own refusal text is reproducible today at the wrong offset: a rule asking for +0x1e0 is refused '+0x1e0: target word 0x3b800000 is not a register copy', verbatim as recorded. REFUSAL PROBES RUN AGAINST THIS EXACT FUNCTION, each failing by name so the guard is demonstrably load-bearing here: proof 'dominating_def' -> '+0x1e8: inverse copy/constant-load site requires \"proof\": \"dominating_def_inverse\"'; site +0x1e0 -> the message above; copy_register_fields ALONE with the form stage removed -> 'non-register instruction bits differ at +0x1e8: 0x443ff378'. The remaining 66 words are the 3-cycle formal recolor (ours r30/r29/r28 = resultOffset/output/input against target r28/r30/r29), machine-proven by verify_consistent_recolor with no unproven_recolor_audit escape, and verify_datum_binding ran at FULL strength against orig/GUNE5D/sys/main.dol with no L4 pool-correspondence residue. Derived and proven through webfrank.apply_patch against the extracted retail object: BYTE-EQUAL, 67 words changed, real 144 -> 0.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 411,
+          "permuted_instructions": 0
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x1e8",
+            "proof": "dominating_def_inverse"
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/audio/mempool": [
       {
         "function": "pool_garbage_collect",
