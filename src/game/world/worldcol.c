@@ -427,6 +427,7 @@ u32 FloorCollide(f32 radius, f32 yFrom, f32 yTo, Vec3* position,
  * basis/point back into `result`. */
 u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
                  s32 flags, s32 mode) {
+    u8 _padTop[16];
     WorldCollisionResult* res = &lbl_8023CA40;
     f32* from = (f32*)fromv;
     f32* to = (f32*)tov;
@@ -443,6 +444,7 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     s32 gz;
     WObj* obj;
     u32 oflags;
+    u8 _pad[28];
     f32 vecBuf[3];
     f32 mtxBuf[16];
 
