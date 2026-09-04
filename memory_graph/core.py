@@ -7586,6 +7586,42 @@ def mechanism_sentences_naming(
     return out
 
 
+_RECORD_ID_RE = re.compile(r"\b(?:claim|attempt|evidence)\.[A-Za-z0-9._-]+")
+_DEAD_ID_RE = re.compile(r"DEAD-ID\[([^\]]+)\]")
+
+
+def _mechanism_citations(text: str) -> tuple[list[str], list[str]]:
+    """(cited, dead) record ids out of one pin's mechanism prose.
+
+    TWO REPAIRS, both measured over all 155 pins / 247 extracted ids at
+    b50d9a642 (run-54 item 4).
+
+    (1) A TRAILING FULL STOP IS NOT PART OF AN ID. `.` sits inside the id
+    character class, so an id ending a SENTENCE captured the stop:
+    `claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1.`
+    resolved to nothing and was still cited. Trimming trailing `. - _` takes
+    resolution from 209 to 224 of 247, and the extracted COUNT is unchanged
+    at 247 — no two distinct ids collapse into one, which is the negative
+    check that makes the trim safe.
+
+    (2) `DEAD-ID[...]` IS HONOURED. The convention marks an id its author
+    MEASURED absent from the corpus ("the id previously here, DEAD-ID[x],
+    has never existed"), and it had zero consumers in python — so the
+    extractor read straight through the marker and cited the dead id anyway.
+    That is MP's run-53 report: both movieplayer pins listed
+    `attempt.HV_union-resweep-eight-composed-closes.20260901.v1`, the id the
+    repair note beside it declares nonexistent. 13 markers, 13 such cites
+    across 13 pins in 8 units, and ZERO of the 13 appear anywhere else in
+    their own mechanism, so honouring the marker removes no live citation.
+    They are returned separately rather than dropped, because the repair
+    note quoting them is the record of what was fixed.
+    """
+    marked = {value.strip().rstrip("._-")
+              for value in _DEAD_ID_RE.findall(text)}
+    found = {value.rstrip("._-") for value in _RECORD_ID_RE.findall(text)}
+    return (sorted(found - marked), sorted(found & marked))
+
+
 def webfrank_pin_mechanisms(
     root: Path = REPO_ROOT, query: str | None = None,
     include_without_mechanism: bool = False,
@@ -7648,12 +7684,18 @@ def webfrank_pin_mechanisms(
                                "mechanism", "audit")
             )
             text = " ".join(mechanism.split())
+            cited, dead = _mechanism_citations(text)
             out.append({
                 "unit": unit,
                 "function": function,
                 "stages": stages,
-                "cites_records": sorted(set(re.findall(
-                    r"\b(?:claim|attempt|evidence)\.[A-Za-z0-9._-]+", text))),
+                "cites_records": cited,
+                **({"dead_citations": dead,
+                    "dead_citations_note": (
+                        "ids the mechanism itself marks DEAD-ID[...] — its"
+                        " author measured them absent from the corpus. They"
+                        " are NOT in cites_records; listed so the repair note"
+                        " stays readable.")} if dead else {}),
                 # NOT TRUNCATED (run-37 item 5). This prose is the densest
                 # derivation of a closed residual anywhere in the project,
                 # and a 600-character cut discarded 59.1% of it — 77,547 of
@@ -10056,6 +10098,33 @@ def _pin_provenance(root: Path, tu: str,
         # Cited by the pin's own mechanism prose OR applied by any attempt
         # record on the function: for InitControls the unreachability law is
         # named in the closing record's laws_applied, not in the pin text.
+        # CITATIONS THAT RESOLVE TO NOTHING ARE SAID SO (run-54 item 4).
+        # After the two extractor repairs, 10 of 234 cited ids still name no
+        # record; 8 of the 10 are a version suffix short of a real one and
+        # resolve UNIQUELY by prefix (e.g. `claim.law.C1_permute-recolor-
+        # composition-needs-a-permutation-legal-in-our-colouring` ->
+        # `...20260901.v1`), and the other two (`claim.LZ`, `attempt.CN`) are
+        # prose abbreviations with 2 and 5 candidates. The suggestion is
+        # reported, never silently substituted: repairing a citation is an
+        # editorial act and belongs to whoever owns the pin.
+        unresolved = []
+        for cited in pin["cites_records"]:
+            if cited in accepted_ids:
+                continue
+            hits = sorted(known for known in accepted_ids
+                          if known.startswith(cited))
+            unresolved.append({
+                "id": cited,
+                "did_you_mean": hits[0] if len(hits) == 1 else None,
+                "candidates": len(hits),
+            })
+        if unresolved:
+            pin["unresolved_citations"] = unresolved
+            pin["unresolved_citations_note"] = (
+                "these cited ids name no record in memory_graph/records, so"
+                " they point nowhere. A `did_you_mean` means exactly one"
+                " accepted id extends the cited string — usually a missing"
+                " date/version suffix. Nothing is substituted automatically.")
         candidates = set(pin["cites_records"]) | trail["laws"]
         named = sorted(
             cited for cited in candidates

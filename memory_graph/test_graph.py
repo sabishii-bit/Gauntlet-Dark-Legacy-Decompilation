@@ -1776,8 +1776,8 @@ class RetrievalQueryTests(unittest.TestCase):
                  "mechanism": "the encoding is picked downstream of source;"
                               " see"
                               " claim.law.live-zero-copy-vs-remat-is-allocator"
-                              "-not-source.20260831.v1. (note the trailing"
-                              " period: this id resolves to nothing)"},
+                              "-not-source.20260831.v9 (a version that does"
+                              " not exist)"},
             ]}}), encoding="utf-8")
         report = cls.root / "build" / "GUNE5D" / "report.json"
         report.parent.mkdir(parents=True)
@@ -1823,6 +1823,44 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertIn(
             "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1",
             pins[0]["cites_records"])
+
+    def test_a_dead_id_marker_is_honoured_not_cited(self):
+        """Run-54 item 4: DEAD-ID[...] had zero consumers in python.
+
+        MP measured both movieplayer pins still citing
+        `attempt.HV_union-resweep-eight-composed-closes.20260901.v1`, the id
+        the repair note beside it declares has never existed. 13 markers, 13
+        such cites across 13 pins in 8 units, and ZERO of the 13 appear
+        anywhere else in their own mechanism.
+        """
+        cited, dead = core._mechanism_citations(
+            "citation repaired run 52 -- the id previously here,"
+            " DEAD-ID[attempt.HV_union-resweep-eight-composed-closes"
+            ".20260901.v1], has never existed; the true record is"
+            " claim.HV_union-resweep-closability-roster.20260901.v1.")
+        self.assertEqual(
+            cited, ["claim.HV_union-resweep-closability-roster.20260901.v1"])
+        self.assertEqual(
+            dead, ["attempt.HV_union-resweep-eight-composed-closes"
+                   ".20260901.v1"])
+
+    def test_a_sentence_final_id_does_not_swallow_the_full_stop(self):
+        """The `.` is inside the id class, so 15 of 247 extracted ids ended
+        in a stop and resolved to nothing. Trimming leaves the COUNT at 247,
+        which is the check that no two ids collapse into one."""
+        cited, dead = core._mechanism_citations(
+            "see claim.law.a-law.20260831.v1. Then attempt.b-thing.v2, and"
+            " claim.law.a-law.20260831.v1 again.")
+        self.assertEqual(cited, ["attempt.b-thing.v2",
+                                 "claim.law.a-law.20260831.v1"])
+        self.assertEqual(dead, [])
+
+    def test_an_ordinary_mechanism_is_unchanged(self):
+        # NEGATIVE side: no marker, no trailing stop, nothing to repair.
+        cited, dead = core._mechanism_citations(
+            "derived in attempt.x.v1 and proven by claim.law.y.v2")
+        self.assertEqual(cited, ["attempt.x.v1", "claim.law.y.v2"])
+        self.assertEqual(dead, [])
 
     def test_pin_mechanism_is_not_truncated(self):
         """Run-37 item 5: the prose used to be cut at 600 characters, which
@@ -2237,8 +2275,15 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertEqual(
             by_fn["dangling_fn"]["provenance_laws_unresolved"],
             ["claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
-             ".20260831.v1."])
+             ".20260831.v9"])
         self.assertNotIn("provenance_laws", by_fn["dangling_fn"])
+        # Run-54 item 4: an id that resolves to nothing says so, and offers
+        # the unique record that extends it when there is exactly one.
+        self.assertEqual(
+            [row["id"] for row in
+             by_fn["dangling_fn"]["unresolved_citations"]],
+            ["claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+             ".20260831.v9"])
 
     def test_a_resolvable_law_still_backs_a_pin(self):
         # NEGATIVE side: the hardening changed ZERO of the 155 live pins'
