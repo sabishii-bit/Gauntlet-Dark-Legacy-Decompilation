@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Reconstruct frame/slot layout, volatile zero and bound loads, slope promotion identity, reused clip carrier, and list-offset schedule; then classify the one remaining entry copy.",
+  "attributes": {
+    "axis_log": "Baseline 95.6314%, real 396, T472/O468, frame 216/256, target-only +5 lfs and ours-only -1 mr. Pads made frame/save/13-slot map exact. WZERO reads reached 96.7034%, real 242, T472/O472. slopeCalc recreated the target's late fmr. volatile upper-bound reread restored the missing lfs but initially introduced an fmr; reusing the earlier clipT carrier eliminated that fmr. Splitting the offset update removed the last schedule cluster. Final 97.9746%, real 345, T472/O473, only ours-only mr.",
+    "law_screen": "The complete 2026-09-04 `brief game/world/worldcol` screen (56 matching laws and 50 core-screen laws) was read. APPLIED: claim.law.stack-slots-descend-in-declaration-order.20260831.v1 and the inner-block/bottom-anchor slot laws guided `_padTop[16]` plus `_pad[28]`; claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 predicted the retained `clipT` reuse that removed the upper fmr; claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2 classifies the remaining direct-home versus scratch-home copy; claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 and claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 make T472/O473 ineligible for WebFrank. SCREENED/NOT APPLICABLE: register-only, permutation, relocation-name, pool-order, EH-slot, live-zero-remat, inline-boundary, and branch-pair laws because fresh fndiff/slotdiff reduced the function to one count-asymmetric entry copy with exact relocation target, frame, saves, slots, and otherwise aligned opcodes. The mnemonic-alias law was screened: this is a real extra word, not an alias spelling.",
+    "laws_applied": "[\"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1\", \"claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2\", \"claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "RETAINED: function-top `u8 _padTop[16]`, local-block `u8 _pad[28]`, `f32 slopeCalc = WZERO32; ... slope = slopeCalc;`, WZERO32 comparison reads, upper-bound `clipT` reuse with `*(volatile f32*)&lbl_80344170`, and split `off += (tcount - 1) * 2; off += 6;`. REVERTED: res declaration/assignment splits and declaration relocation (byte-neutral); dx/dz/slope declaration orders (neutral/regressive); direct slope with cached zero (lost target promotion fmr); block-local edgeT and outer t in the upper clip (both emitted an extra fmr); cnt/off declaration swap (opened a schedule cluster); hoisted tcount declaration (neutral).",
+    "residual": "At entry target forms lbl_8023CA40 directly in saved r30 (`addi r30,r3,@lo`); ours forms it in r8, uses r8 for initial stores, then copies it to saved r29 (`mr r29,r8`). This is one real extra instruction and causes the downstream global GPR recolor. Count asymmetry is the sole remaining structural barrier and makes guarded WebFrank inapplicable.",
+    "scope": "src/game/world/worldcol.c::WorldCollide only; CTriListCollide and PointLineColl pinned bodies were not edited.",
+    "verification": "Fresh commands at 0d7ca32bf: `probe.py game/world/worldcol WorldCollide --fuzzy` = 97.9746%, real 345, T472/O473; `fndiff.py ... --ops` = only ours-only mr; `regnorm.py` = one genuine structural row; `slotdiff.py` = frame/save/13-slot map identical; `defake_gate.py check game/world/worldcol.c --rebuild --arbiter fuzzy` = IMPROVED 354->345 / GATE OK; `datadiff.py game/world/worldcol --sections` = .sdata2 100%, extab 100%, extabindex 99.359%, 0 blockers."
+  },
+  "denial": {
+    "expiry_check": "Run `python tools/gdl/fndiff.py game/world/worldcol WorldCollide --ops` and `python tools/gdl/fnasm.py game/world/worldcol WorldCollide 0x20:0x58 --diff` after any compiler or neighbouring-body alignment change.",
+    "falsifier": "A semantics-preserving source form that emits `lis r3,lbl_8023CA40@ha; addi r30,r3,lbl_8023CA40@lo` directly at this alignment without an extra home copy or any new opcode/count/relocation delta, or a compiler build that does so while preserving the rest of the function.",
+    "premise_measurement": "At commit 0d7ca32bf, `python tools/gdl/fndiff.py game/world/worldcol WorldCollide --ops` reports T472/O473 and only `ours-only: -1 mr`; `regnorm.py` reports 1 genuine STRUCTURAL row at 0x30 and the rest renaming/branch-displacement artifacts; `slotdiff.py` reports frame 256/256, save r23/r23, and all 13 slots identical.",
+    "scope": "Only WorldCollide's one-instruction-long ADDR16_LO-to-saved-home copy at target/ours offsets 0x28-0x30; it does not deny source work on any future residual that appears after compiler/alignment changes."
+  },
+  "function": "function:WorldCollide",
+  "held_fixed": "WorldCollide semantics, control flow, declarations outside the tested carriers, GC/1.2.5 compiler configuration, and the already-exact PointLineColl/SlideAlongWall bodies.",
+  "id": "attempt.R57_worldcollide-single-addr16-home-copy.20260904.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-09-04T19:00:42Z",
+  "residual": {
+    "capability_needed": "compiler-address-home-coalescing",
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "ours-only: -1 mr; insns T472/O473"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.worldcollide.20260831.v1",
+  "valid_from": "2026-09-04"
+}
