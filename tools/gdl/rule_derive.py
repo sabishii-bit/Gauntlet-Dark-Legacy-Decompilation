@@ -25,6 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from tools.gdl import cliscreen  # noqa: E402
 from tools.gdl.webfrank import (  # noqa: E402
     _find_symbol,
     _function_text_relocations,
@@ -323,7 +324,18 @@ def emit(name, kind):
           " before ninja, or the WEBFRANK edge is never created.")
 
 
+USAGE = ("usage: rule_derive.py <unit> <function> [function ...]"
+         "\n       rule_derive.py <unit> <fn> --emit [--class KIND]"
+         "\n       rule_derive.py --list-classes")
+FLAGS = ("--emit", "--class", "--list-classes")
+
+
 def main():
+    # `--help` used to be swallowed by positional_args()'s `startswith("--")`
+    # filter, so it fell through to the no-unit default and dumped a pb_window
+    # analysis (run-53 item 2, reproduced at c7b741799). Screened FIRST, before
+    # any object is opened.
+    cliscreen.screen(FLAGS, usage=USAGE, doc=__doc__)
     if "--list-classes" in sys.argv:
         print_class_map()
         return 0
@@ -336,10 +348,7 @@ def main():
         if UNIT == "game/pb/pb_window":
             funcs = ["pbWinSetup", "pbProjCalc"]
         else:
-            raise SystemExit(
-                "usage: rule_derive.py <unit> <function> [function ...]"
-                "\n       rule_derive.py <unit> <fn> --emit [--class KIND]"
-                "\n       rule_derive.py --list-classes")
+            raise SystemExit(USAGE)
     if "--emit" in sys.argv:
         kind = "instruction_permutation"
         if "--class" in sys.argv:

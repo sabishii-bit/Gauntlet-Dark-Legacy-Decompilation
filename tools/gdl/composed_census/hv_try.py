@@ -17,9 +17,26 @@ while not os.path.isdir(os.path.join(ROOT, "config", "GUNE5D")):
     ROOT = parent
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
+import cliscreen  # noqa: E402
 import ha_close as ha  # noqa: E402
 
+USAGE = ("usage: hv_try.py <unit> <fn> pre|post lo:hi:o,o,o [lo:hi:o,o,o ...]"
+         "\n  e.g. hv_try.py game/sys/memcard drawMemCardMessage pre"
+         " 0x24:0x2c:1,0")
+# Run-53 item 2: `hv_try.py --help` used to die with `IndexError: list index
+# out of range` on the line below, because argv was indexed positionally with
+# nothing checking its length. A tool that cannot survive `--help` teaches a
+# caller nothing about how to invoke it.
+cliscreen.screen((), usage=USAGE, doc=__doc__)
+if len(sys.argv) < 5:
+    raise SystemExit(
+        f"hv_try.py needs a unit, a function, pre|post and at least one"
+        f" window; got {len(sys.argv) - 1} argument(s).\n{USAGE}")
+
 unit, fn, placement = sys.argv[1], sys.argv[2], sys.argv[3]
+if placement not in ("pre", "post"):
+    raise SystemExit(f"placement must be 'pre' or 'post', not"
+                     f" {placement!r}.\n{USAGE}")
 wins = []
 for spec in sys.argv[4:]:
     lo, hi, order = spec.split(":")

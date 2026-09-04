@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/af_data_base_census.py",
+    "tools/gdl/tests/test_af_data_base_census.py",
+    "config/GUNE5D/splits.txt"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "relocation",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find a (unit, section) whose relocation-derived SINGLE base is wrong \u2014 write the splits.txt line it prints, rebuild, and have `datadiff.py <unit> --sections` report substantially less than 100% bytes equal. That would mean named-symbol pairing is not sound and the widening must be reverted. For the second half: find a case where a MULTI verdict hides a base that every symbol really does agree on, i.e. where the disagreement is an artifact of the pairing rather than of the layout. For the third: a dtk split that ends inside a symbol and is ACCEPTED.",
+  "id": "claim.law.T23_a-named-target-symbol-decides-a-data-base-that-a-size-sequence-can-only-guess.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T04:52:23Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-af-data-base-census",
+  "valid_from": "2026-09-04",
+  "value": "A TU'S DATA-SECTION BASE IS DECIDED BY ITS .text RELOCATIONS WHENEVER THE TARGET SIDE NAMES A SYMBOL AT ALL, AND A CENSUS THAT RESOLVES ONLY `lbl_XXXXXXXX` NAMES REPORTS 'NO TARGET ADDRESS RESOLVABLE' ON BASES IT IS HOLDING. `fndiff.symbol_table()` returns (SECTION, ADDRESS, SIZE); af_data_base_census read `entry[0]` \u2014 the SECTION STRING \u2014 then discarded the row because it was not an int, so every relocation naming a real target symbol was dropped silently and only the `lbl_` spelling, which is parsed out of the NAME itself, ever resolved. MEASURED at c7b741799 on game/enemy/enemy: 274 data-section relocation pairs, 220 lbl_ and 54 NAMED (20%) discarded, among them `ours @692 -> target jumptable_8011C0EC`, the pair that decides the .data base. That is why the tool printed 'no target address resolvable from .text relocations' for enemy.c's .data and a lane derived 0x8011C0EC BY HAND from a size sequence one run earlier (attempt.EO_enemy-c-data-claims-land-two-of-three-and-the-sdata2-blocker-is-an-under-emitted-pool-not-a-missing-claim.20260904.v1). The evidence was in the relocations the whole time; after the fix the tool prints the landed claim verbatim, `.data start:0x8011C0EC end:0x8011C27C`. TWO-SIDED over all 92 built game/ units: 47 (unit, section) verdicts IMPROVE, mostly nothing -> a paste-ready claim; 2 go SINGLE -> MULTI and BOTH ARE CORRECTIONS, which is the second half of the law. SECOND HALF: A PASTE-READY BASE BUILT ON THIN EVIDENCE IS NOT MERELY USELESS, IT IS WRONG AND CONFIDENT. Before the fix this tool printed `.sbss start:0x80344758` for game/boss/boss on the strength of ONE relocation row, while the shipped, verified claim in config/GUNE5D/splits.txt is `start:0x80344378` \u2014 off by 0x3E0. With the named symbols resolving, boss's .sbss reports twelve mutually inconsistent bases and withholds the PASTE line, which is the honest answer: for .bss/.sbss our object's symbol OFFSETS need not match the target's, so `target address - our offset` is not a base estimate there. THIRD FACT, a dtk rule the tool now carries instead of leaving in a build failure: a split may not END INSIDE A SYMBOL. Our .bss for enemy.c is 0x678C, so base+size lands at 0x8025758C and dtk refused with `Split game/enemy/enemy.c .bss (0x80250E00..0x8025758C) ends within symbol 'gEnemies' (0x80251C18..0x80257590)` \u2014 the correct end sat in the refusal. The PASTE line now rounds up to the symbol boundary and says why. CONSEQUENCE FOR THE SIZE-SEQUENCE FALLBACK: it is real (16 (unit, section) pairs still resolve nothing from relocations) but it ships ADVISORY and never as a paste line, because size agreement is weaker evidence than the single row that produced the wrong boss base, and the lane that ran it by hand confirmed its claim BY CONTENT (100.0% bytes equal on the first build), not by size."
+}

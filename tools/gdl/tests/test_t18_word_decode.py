@@ -105,31 +105,60 @@ class WordClasses(unittest.TestCase):
             "OPCODE")
 
     def test_the_register_mask_is_intersected_across_both_forms(self):
-        # `li r3,4` (addi r3,0,4) against `addi r3,r4,4`: the differing bit
-        # is in rA, a register slot in BOTH forms, so it is a recolour.
-        self.assertEqual(w.decode_word_class(0x38600004, 0x38640004),
+        # `addi r3,r4,4` against `addi r3,r5,4`: the differing bits are in
+        # rA, a register slot in both forms, holding a REAL register on both
+        # sides — a renaming maps r4 onto r5, so this is a recolour.
+        self.assertEqual(w.decode_word_class(0x38640004, 0x38650004),
                          "REGFIELD-ONLY")
+
+    def test_a_zero_rA_is_the_literal_zero_and_not_a_recolour(self):
+        """CORRECTED run 53 (item 4). This case used to assert REGFIELD-ONLY.
+
+        `li r3,4` IS `addi r3,0,4`, and the zero rA field there is the
+        literal value zero, NOT GPR 0 — the fact webfrank.decode_copy_form is
+        built on. Against `addi r3,r4,4` the differing bits are in a register
+        slot on both sides, but no renaming maps a register's contents onto a
+        literal, so calling it a recolour said a copy_register_fields rule
+        could close it when none can.
+
+        The old assertion was the misread PINNED BY A PASSING TEST: it is the
+        third artifact to inherit it, beside a work order and an accepted
+        record. Measured image-wide at c7b741799, 3 of the 7 functions whose
+        DECODE line declared "all differing words are register fields" were
+        wrong because of exactly this.
+        """
+        self.assertEqual(w.decode_word_class(0x38600004, 0x38640004),
+                         "RA-ZERO")
 
 
 class Summary(unittest.TestCase):
     def test_unreachable_words_are_named_and_counted(self):
-        counts = {"REGFIELD-ONLY": 23, "IMMEDIATE": 0, "BRANCH": 1,
-                  "OPCODE": 5, "RELOCATED": 0}
+        counts = {"REGFIELD-ONLY": 23, "RA-ZERO": 0, "IMMEDIATE": 0,
+                  "BRANCH": 1, "OPCODE": 5, "RELOCATED": 0}
         line = w.decode_summary(counts, 29)
         self.assertIn("REGFIELD-ONLY 23", line)
         self.assertIn("BRANCH 1", line)
         self.assertIn("6 of 29 word(s) lie OUTSIDE", line)
 
+    def test_a_partial_counts_dict_does_not_crash_the_summary(self):
+        """Adding a class must not turn every hand-built dict into a
+        KeyError; the three tests in this class did exactly that when
+        RA-ZERO landed."""
+        line = w.decode_summary({"REGFIELD-ONLY": 3}, 3)
+        self.assertIn("REGFIELD-ONLY 3", line)
+        for name in w.DECODE_CLASSES:
+            self.assertIn(name, line)
+
     def test_a_clean_recolour_says_so(self):
-        counts = {"REGFIELD-ONLY": 12, "IMMEDIATE": 0, "BRANCH": 0,
-                  "OPCODE": 0, "RELOCATED": 0}
+        counts = {"REGFIELD-ONLY": 12, "RA-ZERO": 0, "IMMEDIATE": 0,
+                  "BRANCH": 0, "OPCODE": 0, "RELOCATED": 0}
         line = w.decode_summary(counts, 12)
         self.assertIn("all 12 differing word(s) are register fields", line)
         self.assertNotIn("OUTSIDE", line)
 
     def test_relocated_words_are_neither_reachable_nor_a_blocker(self):
-        counts = {"REGFIELD-ONLY": 0, "IMMEDIATE": 0, "BRANCH": 0,
-                  "OPCODE": 0, "RELOCATED": 1}
+        counts = {"REGFIELD-ONLY": 0, "RA-ZERO": 0, "IMMEDIATE": 0,
+                  "BRANCH": 0, "OPCODE": 0, "RELOCATED": 1}
         line = w.decode_summary(counts, 1)
         self.assertIn("the LINKER's", line)
         self.assertIn("fndiff --relocs", line)

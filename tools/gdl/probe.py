@@ -2446,13 +2446,47 @@ def discard_refusal(fn, unit, inside, outside, entangled):
         lines.append(
             "  --discard --function  WILL REFUSE while a straddling hunk"
             " exists; it cannot split one.")
+        lines.append(
+            "  --discard --whole-file  take the old all-or-nothing restore"
+            " deliberately (run `git diff` first)")
+    elif outside_spans:
+        # AN OUTSIDE HUNK IS AMBIGUOUS, AND --function USED TO BE OFFERED
+        # FIRST AS THOUGH IT WERE NOT (run-53 item 7c). probe knows only
+        # WHERE the hunks are, never WHOSE they are, and the two cases want
+        # opposite remedies:
+        #   * a SIBLING function's independent work -> --function is right
+        #   * THE OTHER HALF OF YOUR OWN EDIT -> --whole-file is right
+        # The second is the helper-lift shape: an edit that pulls a helper
+        # OUT of the named function leaves the new file-scope definition
+        # OUTSIDE it, so --function restores the call site and strands the
+        # helper — half the edit, and a tree that is neither the probe nor
+        # HEAD. Same shape for a hoisted declaration, a new static, or a
+        # moved #pragma region. --whole-file leads because it is the only
+        # remedy that cannot leave a half-state; --function stays available
+        # and is now labelled with the question it depends on.
+        lines.append(
+            "  WHICH REMEDY depends on something probe CANNOT see: whether"
+            f" those hunks are ANOTHER function's work or the other half of"
+            f" the edit you made to {fn}. Read `git diff -- {unit}` and"
+            " decide before running either.")
+        lines.append(
+            "  --discard --whole-file  restore the WHOLE TU to HEAD. Correct"
+            " when the outside hunks are part of YOUR edit — a helper lifted"
+            " out of the function, a hoisted declaration, a new file-scope"
+            " static — because a scoped restore would take the call site back"
+            " and strand the definition, leaving a tree that is neither the"
+            " probe nor HEAD.")
+        lines.append(
+            f"  --discard --function    restore ONLY the hunks inside {fn}."
+            " Correct when the outside hunks are a SIBLING's independent"
+            " uncommitted work, which this preserves.")
     else:
         lines.append(
             f"  --discard --function   restore ONLY the hunks inside {fn},"
             " leaving the rest of the TU's uncommitted work alone")
-    lines.append(
-        "  --discard --whole-file  take the old all-or-nothing restore"
-        " deliberately (run `git diff` first)")
+        lines.append(
+            "  --discard --whole-file  take the old all-or-nothing restore"
+            " deliberately (run `git diff` first)")
     return "\n".join(lines)
 
 
@@ -3745,7 +3779,7 @@ def tu_sibling_regressions(unit):
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
              digest=None, source_changed=True, fuzzy=None,
              accept_fuzzy_loss=False, head=None, tu_at_head=False,
-             extab=None):
+             extab=None, no_bank=False):
     """Pure verdict function: (verdict_text, new_state).
 
     ``state`` is the banked gate state; the returned state carries the
@@ -3804,6 +3838,24 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     prior_best = {key: state.get(key) for key in BEST_KEYS}
 
     def bank_best():
+        # `--no-bank` OPTS OUT OF THE BEST ANCHOR TOO (run-53 item 7). It used
+        # to suppress only the source SNAPSHOT, so the anchor still moved onto
+        # the very state the flag declined to bank.
+        #
+        # THE PRECONDITION IS A **BASELINE** VERDICT, which neither
+        # claim.law.BG_arbitrate-leaves-a-stale-object-and-no-bank-still-moves-
+        # the-best-anchor.20260904.v1 nor the queue item states: with an
+        # anchor already present a worse state classifies REGRESSED and banks
+        # nothing, and that half does NOT reproduce. Measured both ways at
+        # c7b741799 on game/ps2/fakelib::sceOpen with a `volatile int` local
+        # added (real 24 -> 44):
+        #   anchor present -> `REGRESSED vs best 24`, best_real stays 24  (OK)
+        #   after --reset  -> `BASELINE real 44`,     best_real None -> 44 (BUG)
+        # The second is the law's transcript exactly (`BASELINE real 140`
+        # beside `[--no-bank: snapshot NOT updated]`), and it leaves the
+        # session anchored to the worse of the two states until `--reset`.
+        if no_bank:
+            return
         state["best_real"] = real
         state["best_multiset"] = multiset_tokens
         state["best_insns"] = insns
@@ -4642,6 +4694,28 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
               " edit — the source is restored but build/ now holds the"
               " BANKED object. Re-run a plain probe before trusting any"
               " score.")
+    else:
+        # SAY THAT IT REBUILT (run-53 item 7). The rebuild landed with
+        # --arbitrate itself (cd480723c) and has always been SILENT on
+        # success, so the only line a reader saw was "[working tree restored
+        # to your edited state]" — which says nothing about the object.
+        # claim.law.BG_arbitrate-leaves-a-stale-object-and-no-bank-still-
+        # moves-the-best-anchor.20260904.v1 reported the object as STALE and
+        # its own text names the real gap: "--revert-baseline handles exactly
+        # this case and PRINTS that it did; --arbitrate ... does not". The
+        # staleness does NOT reproduce at c7b741799 — measured on
+        # game/ps2/fakelib::sceOpen with a `volatile int` local (real 24 vs
+        # 44), the object after --arbitrate is byte-identical to the one built
+        # from the EDITED source and the following `ninja` correctly prints
+        # "no work to do" — but a lane could not tell that from the output,
+        # which is why the workaround (touch + ninja before every fnasm) was
+        # applied on every inspection of a whole run. A full-strength guarantee
+        # that prints nothing is indistinguishable from one that did not run.
+        print(f"[object rebuilt after --arbitrate: build/{VERSION}/src/"
+              f"{unit}.o describes YOUR EDITED source again, not the banked"
+              " state it was last built from, so fnasm / fndiff --no-build /"
+              " regnorm / slotdiff / wf_word_diff read the tree you are"
+              " actually in. No touch-and-rebuild is needed.]")
     size, total = function_weight(unit, fn, fn_stripped)
     print(arbitrate_table(label, banked[0], banked[2], current[0], current[2],
                           moved=moved_sections(banked[3], current[3]),
@@ -5713,7 +5787,8 @@ def main():
                               fuzzy=cached_fuzzy,
                               accept_fuzzy_loss=accept_fuzzy_loss,
                               head=head_now, tu_at_head=tu_at_head,
-                              extab=extab_rows)
+                              extab=extab_rows,
+                              no_bank="--no-bank" in sys.argv)
     # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
     # provisional whenever it would move the BEST anchor: a real+multiset
     # win can still be a fuzzy LOSS, and banking one poisons every later
@@ -5773,7 +5848,8 @@ def main():
                                   fuzzy=fresh,
                                   accept_fuzzy_loss=accept_fuzzy_loss,
                                   head=head_now, tu_at_head=tu_at_head,
-                                  extab=extab_rows)
+                                  extab=extab_rows,
+                                  no_bank="--no-bank" in sys.argv)
         if fresh is not None:
             cached_fuzzy = fresh
             state["last_fuzzy"] = fresh
@@ -6089,7 +6165,11 @@ def main():
         state[SNAPSHOT_ANCHOR] = anchor_of(state)
         state_file.write_text(json.dumps(state), encoding="utf-8")
     elif source is not None and "--no-bank" in sys.argv:
-        print("[--no-bank: snapshot NOT updated — hand-revert this edit]")
+        print("[--no-bank: snapshot NOT updated AND the BEST anchor NOT"
+              " moved — hand-revert this edit. Because the anchor did not"
+              " move, a first probe on a function still has none afterwards,"
+              " so the NEXT probe is another BASELINE rather than a verdict"
+              " against the state you declined to bank.]")
 
     # A failed probe almost always needs the ops view next — print it
     # unasked (the multiset pass above already fetched it).

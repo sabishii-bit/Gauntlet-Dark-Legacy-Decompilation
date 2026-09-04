@@ -1,6 +1,39 @@
 """HV run-30: the FORM/REGFIELD ARROW-ORDER defect, and its repair.
 
-THE DEFECT.  ha_close.classify decides a differing word pair like this:
+THE REPAIR SHIPPED; THIS FILE IS NOW ONLY THE EIGHT-CANDIDATE SWEEP
+(run-53 item 2).  Everything below the next paragraph is the history of why
+the arrow order matters and is kept because the mechanism is still the point.
+What changed: this tool used to monkey-patch its own `corrected_classify`
+over `ha_close.classify` before importing hv_repair.  `ha_close.classify`
+has since GROWN the repair as a parameter -- its signature is now
+`classify(ow, tw, form_first=False)` and `ha_close.build_rule` ENUMERATES
+both orders (`for form_first in (False, True)`), adjudicating every candidate
+through the shipped apply_patch.  The local patch's signature `(ow, tw)` no
+longer matched that caller, so every candidate raised
+`TypeError: corrected_classify() got an unexpected keyword argument
+'form_first'`, the loop's `except Exception` turned each TypeError into a
+per-candidate `refuses` line, and the summary totalled those lines into a
+clean-looking `0 of 8 CLOSE ... exit 0`.  Nothing was ever classified.
+
+That negative CONTRADICTED the corpus without saying so: the accepted
+claim.HV_regfield-only-class-full-image-sweep-and-its-exhaustion.20260901.v1
+records fn_80054E78 as closing under the corrected order, and
+attempt.HV_fn80054e78-arrow-order-reclassification.20260901.v1 names THIS
+FILE as the reproduction.  Restoring the patch would have been the wrong
+cure twice over: it would reinstate a cruder classifier on top of a better
+shipped one (the shipped `_same_copy_form` restricts form-first to the
+li<->copy direction that is genuinely shadowed, which the local `_form_arrow`
+did not), and it would keep the crash-as-refusal shape.  So the patch is
+deleted, the sweep runs the SHIPPED classifier, and an exception is now
+ABORTED -- counted separately from `refuses` and exiting non-zero -- because
+a sweep that renders a crash as a verdict and totals it is the one output
+shape indistinguishable from a real measured negative.
+Measured after the change: 1 of 8 CLOSE (gamemain::fn_80054E78, arrow order
+form-first, families={'fwd': 1, 'regfield': 18}), which is the corpus's own
+answer.
+
+THE DEFECT (history).  ha_close.classify used to decide a differing word
+pair like this:
 
     if ow == tw:                 -> "same"
     if regfield_only(ow, tw):    -> "regfield"      <-- tested FIRST
@@ -28,12 +61,13 @@ THE REPAIR, one line of ordering: when a lexically regfield-only pair decodes
 to two DIFFERENT copy-form KINDS (one "li", one "copy"), the form arrow wins.
 A register renaming can map source A to source B, so a copy/copy pair is
 genuinely a recolor; it can never map a register's contents to a literal, so a
-li/copy pair never is.  Everything else keeps its current arrow.
+li/copy pair never is.  Everything else keeps its current arrow.  That is the
+rule ha_close now implements itself, behind `form_first`.
 
-Nothing is simulated: the corrected classifier is patched into the SHIPPED
-ha_close.build_rule and every verdict is webfrank.apply_patch's own residual
+Nothing is simulated: every verdict is webfrank.apply_patch's own residual
 count against the extracted retail object.
 """
+import argparse
 import json
 import os
 import sys
@@ -51,50 +85,7 @@ sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
 sys.path.insert(0, HERE)
 
-import webfrank as wf          # noqa: E402
 import ha_close as ha          # noqa: E402
-
-_ORIGINAL = ha.classify
-
-
-def corrected_classify(ow, tw):
-    """ha_close.classify with the form arrow lifted above the regfield arrow
-    for kind-mismatched copy forms."""
-    if ow == tw:
-        return "same", None
-    if ha.regfield_only(ow, tw):
-        ours, theirs = wf.decode_copy_form(ow), wf.decode_copy_form(tw)
-        if ours is not None and theirs is not None and ours[0] != theirs[0]:
-            # li vs copy: a renaming cannot bridge these.  Fall through to the
-            # ORIGINAL classifier's form logic by re-asking it about a pair it
-            # would have routed correctly had regfield_only not shadowed it.
-            forced = _ORIGINAL.__wrapped__(ow, tw) \
-                if hasattr(_ORIGINAL, "__wrapped__") else None
-            if forced is not None:
-                return forced
-            return _form_arrow(ours, theirs)
-        return "regfield", None
-    return _ORIGINAL(ow, tw)
-
-
-def _form_arrow(ours, theirs):
-    """The form half of ha_close.classify, applied to already-decoded pairs."""
-    same_dest = ours[1] == theirs[1]
-    if ours[0] == "li" and theirs[0] == "copy":
-        if theirs[2] == 0:
-            return "other", None
-        if same_dest:
-            return "form", ("fwd", ha.PURE_FWD + ["constant_dataflow_recolor"])
-        return "form", ("fwd_rc", ["constant_dataflow_recolor"])
-    if ours[0] == "copy" and theirs[0] == "li":
-        if ours[2] == 0:
-            return "other", None
-        if same_dest:
-            return "form", ("inv",
-                            ha.PURE_INV + ["constant_dataflow_inverse_recolor"])
-        return "form", ("inv_rc", ["constant_dataflow_inverse_recolor"])
-    return "other", None
-
 
 TARGETS = [
     ("game/enemy/critter", "CritterLoadDone"),
@@ -107,26 +98,55 @@ TARGETS = [
     ("game/sys/memcard", "drawMemCardMessage"),
 ]
 
-if __name__ == "__main__":
-    ha.classify = corrected_classify          # the one-line ordering repair
-    import hv_repair as hr                    # imported AFTER the patch
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Re-prove the eight arrow-order Tier-A candidates through"
+                    " the SHIPPED ha_close classifier and apply_patch.",
+        epilog="ABORTED is reported separately from refuses and forces a"
+               " non-zero exit: an exception rendered as a per-candidate"
+               " verdict and then totalled is indistinguishable from a real"
+               " negative (run-53 item 2).")
+    parser.add_argument(
+        "--out", default=os.path.join(ROOT, "build", "HV_formfirst.json"),
+        help="where to write the per-candidate JSON (default under build/)")
+    args = parser.parse_args(argv)
+
+    import hv_repair as hr
     out = []
     for unit, fn in TARGETS:
-        rule, note = None, ""
+        rule, note, verdict = None, "", None
         try:
             rule, _res, note = ha.build_rule(unit, fn)
             if not rule:
                 rule, note = hr.repair(unit, fn, verbose=False)
                 note = "via repair: " + str(note)
+        except SystemExit as exc:
+            # AGENTS.md discipline 20: SystemExit is NOT an Exception, and it
+            # is this project's REFUSAL idiom, so a blanket `except Exception`
+            # would let a refusal from webfrank or ha_close kill the sweep
+            # mid-way instead of being counted.
+            verdict, note = "ABORTED", f"SystemExit: {exc}"
         except Exception as exc:                            # noqa: BLE001
-            note = f"{type(exc).__name__}: {exc}"
-        verdict = "CLOSES" if rule else "refuses"
+            verdict, note = "ABORTED", f"{type(exc).__name__}: {exc}"
+        if verdict is None:
+            verdict = "CLOSES" if rule else "refuses"
         print(f"{verdict:8} {unit}::{fn} -- {str(note)[:170]}", flush=True)
         rec = {"unit": unit, "fn": fn, "verdict": verdict, "note": str(note)}
         if rule:
             rec["rule"] = rule
         out.append(rec)
-    with open(os.path.join(ROOT, "build", "HV_formfirst.json"), "w") as fh:
+    with open(args.out, "w") as fh:
         json.dump(out, fh, indent=1)
-    print(f"\n{sum(1 for r in out if r['verdict'] == 'CLOSES')} of {len(out)} "
-          f"CLOSE under the corrected arrow order")
+    closes = sum(1 for r in out if r["verdict"] == "CLOSES")
+    aborted = sum(1 for r in out if r["verdict"] == "ABORTED")
+    print(f"\n{closes} of {len(out)} CLOSE under the enumerated arrow orders")
+    if aborted:
+        # NOT folded into the CLOSE count and NOT reported as refusals: these
+        # candidates were never classified at all.
+        print(f"{aborted} of {len(out)} ABORTED (not refused, not measured)")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

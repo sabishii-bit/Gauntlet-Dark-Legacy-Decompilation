@@ -4566,7 +4566,16 @@ def _probe_record_references(
     # worker caught it by hand). `supersedes` and the structured
     # `attributes.laws_applied` list are both checked; free-text mentions
     # in law_screen stay advisory.
-    cited: list[str] = []
+    # Each entry is (FIELD, id). The field label is what makes the debt
+    # ENUMERABLE downstream (run-53 item 1): validate reports one row per
+    # citation, and a record that names the same predecessor in BOTH
+    # `supersedes` and `refutes` legitimately produces two rows for one id.
+    # Measured over the accepted corpus at c7b741799: 59 citation rows are
+    # only 54 distinct (path, cited) pairs and 52 distinct stranded ids —
+    # three different numbers for "the debt", and without the field nothing
+    # in the output says which of them a reader is looking at, or which key
+    # to edit to repair a row.
+    cited: list[tuple[str, str]] = []
     # `describes_denial_of` joins these (run-36 item 9). Gate D has always
     # DESCRIBED it as "a CITATION, not a free-text opt-out ... which is
     # checkable" — but nothing checked it, so any string at all released the
@@ -4575,18 +4584,20 @@ def _probe_record_references(
     for citing_key in ("supersedes", "refutes"):
         value = record.get(citing_key)
         if isinstance(value, str):
-            cited.append(value)
+            cited.append((citing_key, value))
         elif isinstance(value, list):
             # A MERGING record names more than one predecessor (run-47 item
             # 10). Reading only the scalar spelling let every id in a list
             # skip the resolution check that exists so a citation cannot rot.
-            cited.extend(item for item in value if isinstance(item, str))
+            cited.extend((f"{citing_key}[{index}]", item)
+                         for index, item in enumerate(value)
+                         if isinstance(item, str))
     # Read through _record_field, because gate D releases on EITHER spelling
     # (top-level or attributes.) — checking only the top-level one would
     # leave the same hole one level down.
     describes = _record_field(record, "describes_denial_of")
     if isinstance(describes, str) and describes.strip():
-        cited.append(describes)
+        cited.append(("describes_denial_of", describes))
     laws_applied = (
         record.get("attributes", {}).get("laws_applied")
         if isinstance(record.get("attributes"), dict) else None
@@ -4605,7 +4616,8 @@ def _probe_record_references(
             raise MemoryGraphError(
                 "attributes.laws_applied must be a JSON list of record ids"
             )
-        cited.extend(laws_applied)
+        cited.extend((f"attributes.laws_applied[{index}]", law)
+                     for index, law in enumerate(laws_applied))
     if connection is not None:
         return _probe_references_with(connection, record, kind, entity_refs,
                                       cited, root,
@@ -4728,14 +4740,18 @@ def _cited_ids_that_resolve(connection: sqlite3.Connection,
 
 def _probe_references_with(
     connection: sqlite3.Connection, record: dict[str, Any], kind: Any,
-    entity_refs: list[str], cited: list[str], root: Path,
+    entity_refs: list[str], cited: list[tuple[str, str]], root: Path,
     strict_citations: bool = True,
-) -> list[str]:
+) -> list[dict[str, str]]:
     """The reference checks themselves, against an already-open connection.
 
     Split out of `_probe_record_references` so a bulk caller can hold ONE
     connection across every record; the checks are byte-for-byte the ones the
     build applies.
+
+    ``cited`` is a list of (FIELD, record id) pairs and the non-strict return
+    is a list of ``{"field", "cited"}`` rows, so a caller can report WHICH key
+    of the record strands the citation rather than only that one does.
     """
     for key in entity_refs:
         if not _reference_resolvable(connection, key, root):
@@ -4744,8 +4760,8 @@ def _probe_references_with(
                 entity_key_namespaces(connection),
                 _entity_key_suggestions(connection, key),
             ))
-    dangling: list[str] = []
-    for cited_id in cited:
+    dangling: list[dict[str, str]] = []
+    for citing_field, cited_id in cited:
         if cited_id == record.get("id"):
             raise MemoryGraphError("a record cannot cite itself")
         row = connection.execute(
@@ -4771,7 +4787,7 @@ def _probe_references_with(
                 # Reporting those as hard errors would make `validate` fail on
                 # the documented workflow's own output — the gate refusing the
                 # records that document it. Collected as debt instead.
-                dangling.append(cited_id)
+                dangling.append({"field": citing_field, "cited": cited_id})
                 continue
             # Run-50 item 7: if the id is a prefix of real records, say so
             # and name them. A citation missing only its `.YYYYMMDD.vN` is
@@ -10010,6 +10026,7 @@ def tu_briefing(
     limit: int = 100,
     roster_only: bool = False,
     law_join: bool = True,
+    summary: bool = False,
 ) -> dict[str, Any]:
     """One-call spawn briefing for a TU-scoped pass.
 
@@ -10028,6 +10045,12 @@ def tu_briefing(
     35.7%. It is a RE-READ form, not a substitute for the spawn briefing —
     the omitted sections carry the mandatory-step-1 hypotheses and the
     cross-fleet claim vetoes, and the returned note says so.
+
+    ``summary`` (run-53 item 9) is the MIDDLE tier those two leave empty: it
+    keeps whole everything a lane may not skip — the hypotheses, the
+    cross-fleet claims, the roster, the staleness banner — and reduces the
+    rest to counts plus RECORD IDS. Unlike ``roster_only`` it is safe as a
+    first read. See `summarize_brief` for the byte census behind it.
     """
     tu = tu.replace("\\", "/").strip("/")
     if tu.startswith("src/"):
@@ -10522,7 +10545,7 @@ def tu_briefing(
                 " REMEASURE before quoting one."
             ),
         }
-    return {
+    full = {
         "tu": [row["object_name"] for row in modules],
         # 10b comes FIRST, before the roster: a recorded untried hypothesis
         # outranks fresh analysis, and one skipped by its own author was
@@ -10629,6 +10652,102 @@ def tu_briefing(
             " owners. Every number here is stale — see staleness_banner."
         ),
     }
+    return summarize_brief(full) if summary else full
+
+
+# Fields whose ROWS are briefing heads a reader must SEE, not counts. Every
+# one of them is something AGENTS.md calls mandatory: an untried hypothesis is
+# step 1 (discipline 10b), a foreign active claim is a VETO, and a pin freezes
+# the source.
+_SUMMARY_KEEP_WHOLE = ("tu", "open_hypotheses", "active_claims",
+                       "staleness_banner", "report_generated_at",
+                       "report_age_hours", "fuzzy_staleness",
+                       "unabsorbed_staleness")
+
+
+def summarize_brief(full: dict) -> dict:
+    """A middle tier between the full brief and `--roster-only`.
+
+    RUN-53 ITEM 9, AND A DESIGN REVERSAL. The item asked for "a
+    --compact/summary mode" as though none existed. TWO do, and one command
+    shows it: `python memory_graph/gdlmem.py brief --help` lists
+    `--roster-only`, and gdlmem's global `--compact` drops JSON indentation.
+    Measured at c7b741799 on game/enemy/enemy: the full brief is 254,306
+    bytes over 5,063 lines and `--roster-only 1` is 15,238 — a 94% cut that
+    already hoists the repeated staleness paragraphs out of the rows.
+
+    So the premise is refuted and the COMPLAINT is still right, for a reason
+    the item did not name. `--roster-only` is documented as a RE-READ form
+    that "deliberately OMITS open_hypotheses, vetoed_axes, refutations,
+    live_attempts, active_claims, webfrank_pins" — i.e. every VETO and every
+    mandatory step-1 hypothesis. A lane's only two options were a 254 KB
+    briefing or a roster it is told not to start from, which is why one
+    scripted around its own briefing.
+
+    THIS TIER IS SAFE AS A FIRST READ. It keeps whole exactly what a lane may
+    not skip — the hypotheses, the cross-fleet claims, the roster, the
+    staleness banner — and replaces the bulk with COUNTS PLUS RECORD IDS, so
+    every omission is one `gdlmem.py record <id1>,<id2>` away rather than
+    gone. Where the bytes actually are, measured on the same TU: vetoed_axes
+    64,637 B over 21 rows (3,078 B/row), live_attempts 45,916 over 43, the
+    three law lists 36,600 over 120, webfrank_pins 16,717 over 10. The two
+    staleness paragraphs repeated on all 62 function rows are 29,202 B, 11.7%
+    of the payload — the item says three paragraphs; measured, the function
+    rows carry two.
+    """
+    out = {key: full[key] for key in _SUMMARY_KEEP_WHOLE if key in full}
+    rows = full.get("functions", []) or []
+    # HOIST, never DROP. The two staleness paragraphs live only on the ROWS
+    # in a full brief, so stripping them from every row without lifting one
+    # copy out would delete the warning instead of de-duplicating it — the
+    # opposite of what a staleness note is for.
+    for key in ("fuzzy_staleness", "unabsorbed_staleness"):
+        for row in rows:
+            if isinstance(row, dict) and row.get(key):
+                out.setdefault(key, row[key])
+                break
+    out["functions"] = [
+        {key: value for key, value in row.items()
+         if key not in ("fuzzy_staleness", "unabsorbed_staleness")}
+        for row in rows
+    ]
+    heads = {}
+    for key in ("vetoed_axes", "live_attempts", "refutations",
+                "webfrank_pins", "similar_residuals", "core_screen_laws",
+                "matching_laws", "tu_mentioned_laws", "raw_offset_debt",
+                "scaffold_rows"):
+        rows = full.get(key)
+        if isinstance(rows, dict):
+            # `similar_residuals` is keyed by function, not a list. Reporting
+            # only the list-shaped fields silently dropped it from `omitted`,
+            # so a reader could not tell it existed at all.
+            heads[key] = {"count": len(rows), "ids": sorted(rows)}
+            continue
+        if not isinstance(rows, list):
+            continue
+        ids = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            ident = (row.get("id") or row.get("record")
+                     or row.get("function") or row.get("law"))
+            if isinstance(ident, str):
+                ids.append(ident)
+        heads[key] = {"count": len(rows), "ids": ids}
+    out["omitted"] = heads
+    out["summary_note"] = (
+        "SUMMARY BRIEF — safe as a FIRST read, unlike --roster-only, which"
+        " omits the mandatory-step-1 hypotheses and the cross-fleet claim"
+        " VETOes. open_hypotheses, active_claims and the roster are here in"
+        " full. Everything under `omitted` is present as a COUNT and its"
+        " RECORD IDS: fetch any of them in one call with"
+        " `gdlmem.py record <id1>,<id2>,...`, and fetch them ALL by re-running"
+        " this brief without --summary. A parked/capped attempt is still a"
+        " VETO on its axis whether or not you read its body, so read"
+        " vetoed_axes' ids before probing an axis. Every number here is stale"
+        " — see staleness_banner."
+    )
+    return out
 
 
 _GC_ADDR_SUFFIX_RE = re.compile(r"_8[0-9A-Fa-f]{7}$")
@@ -11112,6 +11231,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             call=lambda root, db, **kw: tu_briefing(
                 kw["tu"], root=root, db_path=db, limit=kw["limit"],
                 roster_only=bool(kw["roster_only"]),
+                summary=bool(kw["summary"]),
                 law_join=not kw["no_law_join"]),
             params=(
                 SurfaceParam("tu", str, required=True,
@@ -11134,6 +11254,17 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                                   " hypotheses and the cross-fleet claim"
                                   " vetoes, so run the full brief before your"
                                   " first edit in a TU"),
+                SurfaceParam("summary", int, default=0, maximum=1,
+                             help="1 for the SUMMARY tier — safe as a FIRST"
+                                  " read, unlike --roster-only. Keeps the"
+                                  " mandatory-step-1 hypotheses, the"
+                                  " cross-fleet claim VETOes and the roster"
+                                  " whole; reduces vetoed_axes, live_attempts,"
+                                  " webfrank_pins and the law lists to counts"
+                                  " plus RECORD IDS you fetch with"
+                                  " `record <id1>,<id2>`. Measured on"
+                                  " game/enemy/enemy: full 254,306 B ->"
+                                  " summary 44,312 B (83% smaller)"),
             ),
         ),
         SurfaceOp(
@@ -11662,6 +11793,29 @@ def attempt_staleness(
         if isinstance(subject, str) and subject:
             entry["function"] = subject.split(":", 1)[-1]
         reopen.append(entry)
+    # VACUOUS EXPIRY CHECKS (run-53 item 8), in the SAME walk as
+    # anchor_path_missing and for the same reason: both are pure joins of
+    # record metadata against something outside the record, and neither has a
+    # score to move. `anchor_path_missing` asks whether a record's evidence
+    # still EXISTS; this asks whether a typed denial's `expiry_check` can ever
+    # DECIDE anything.
+    pinned = webfrank_pinned_functions(root)
+    for row in anchor_rows:
+        try:
+            record = json.loads(row["raw_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        verdict = vacuous_expiry_reason(record, pinned)
+        if verdict is None:
+            continue
+        entry = {"record": row["record_id"],
+                 "reason": "vacuous_expiry_check",
+                 "expiry_check": verdict["expiry_check"],
+                 "reads": verdict["reads"]}
+        subject = record.get("function") or record.get("subject")
+        if isinstance(subject, str) and subject:
+            entry["function"] = subject.split(":", 1)[-1]
+        reopen.append(entry)
     return {
         "stale_solved": stale,
         "postprocessor_walls": walls,
@@ -11699,12 +11853,117 @@ def attempt_staleness(
             " one day: verify via git log against the claimed scope, then"
             " remove the claim in a standalone cleanup commit (AGENTS.md"
             " cross-fleet concurrency)."
+            " vacuous_expiry_check means the record's typed denial names an"
+            " expiry_check that reads the POSTPROCESSED object of a"
+            " webfrank-PINNED function, so it can never decide anything: a"
+            " pinned function reads real 0 with an identical multiset BY"
+            " CONSTRUCTION, which makes the denial either immortal (the"
+            " trigger can never fire) or falsely expired (the trigger's"
+            " nonzero premise can never be shown again) — see"
+            " claim.law.CX_an-expiry-check-that-reads-the-postprocessed-"
+            "object-of-a-pinned-function-can-never-fire.20260904.v2. THE"
+            " REPAIR IS REWRITING THE CHECK AGAINST THE RAW BODY, not"
+            " deleting the denial: add `--raw`, or name a raw-reading tool"
+            " (composed_census/wf_word_diff.py, hv_try.py,"
+            " wr_const_closure_probe.py). This dimension does NOT run the"
+            " check — `stale` performs no builds — it reports that running it"
+            " would prove nothing."
         ),
     }
 
 
+# Tools whose DEFAULT read is the POSTPROCESSED object.
+_POSTPROCESS_READERS = ("probe.py", "fndiff.py", "savedregs.py",
+                        "slotdiff.py", "regnorm.py")
+# Tools that read the RAW pre-postprocess body by construction. A check
+# naming one of these is sound on a pinned function and must NOT be flagged.
+_RAW_READERS = ("wf_word_diff.py", "hv_try.py", "wr_const_closure_probe.py",
+                "wr_try_rule.py", "wf_rederive_pin.py", "t16_rederive_body.py",
+                "hv_bypass.py", "wr_perm_hash.py")
+
+
+def webfrank_pinned_functions(root: Path) -> set:
+    """Every function name carrying a rule in config/GUNE5D/webfrank.json."""
+    path = root / "config" / "GUNE5D" / "webfrank.json"
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    units = config.get("units", {}) if isinstance(config, dict) else {}
+    return {entry.get("function")
+            for rows in units.values() if isinstance(rows, list)
+            for entry in rows if isinstance(entry, dict)}
+
+
+def vacuous_expiry_reason(record: dict, pinned: set):
+    """Why this record's typed denial can never expire, or None.
+
+    RUN-53 ITEM 8. A typed denial must carry an `expiry_check` — the command
+    that would show the denial no longer holds. When that command reads the
+    POSTPROCESSED object of a webfrank-PINNED function it decides nothing: a
+    pinned function reads `real 0` with an IDENTICAL opcode multiset by
+    construction, so the denial is either immortal or falsely expired
+    (claim.law.CX_an-expiry-check-that-reads-the-postprocessed-object-of-a-
+    pinned-function-can-never-fire.20260904.v2).
+
+    THE SCREEN IS NOT A TOOL-NAME LIST, and that is the whole difficulty: the
+    same law records that a name-list screen REFUSED TWO SOUND DENIALS,
+    because `--raw` and several composed_census tools read the raw body. So a
+    check is exempt when it passes `--raw` or names a raw-reading tool.
+
+    TWO-SIDED, measured over the live corpus at c7b741799 (170 typed denials,
+    all four denial fields present on every one; 153 pinned functions):
+
+        naive tool-name screen                  19 rows
+        raw-aware screen (shipped)               9 rows
+        exempted by a RAW read                  10 rows  (53% of the naive
+                                                 screen's hits were FALSE)
+
+    The ten exemptions are named because each removes rows: seven pass
+    `--raw` (DoWorldAnimation, InitItemInfoData, fn_800DA6A4, getSinCos,
+    cam_orient_to_80029E8C, CritterLineNodeColSub) and three name a raw
+    reader (init_all_dir_info via hv_try.py, PlayerProcessPowerups x2 via
+    wf_word_diff.py, scroll_credits via wr_const_closure_probe.py). The last
+    two are exactly the pair the law says a name-list screen wrongly refused,
+    so they are the calibration's own regression test.
+
+    This function RUNS NOTHING: `stale` performs no builds, and the verdict
+    is that running the check would prove nothing, never that it fired.
+    """
+    denial = record.get("denial")
+    if not isinstance(denial, dict):
+        attributes = record.get("attributes")
+        denial = attributes.get("denial") if isinstance(attributes, dict) \
+            else None
+    if not isinstance(denial, dict):
+        return None
+    check = denial.get("expiry_check")
+    if not isinstance(check, str) or not check.strip():
+        return None
+    subject = record.get("function") or record.get("subject") or ""
+    function = subject.split(":", 1)[-1] if isinstance(subject, str) else ""
+    if function not in pinned:
+        return None
+    reads = [tool for tool in _POSTPROCESS_READERS if tool in check]
+    if not reads:
+        return None
+    if "--raw" in check or any(tool in check for tool in _RAW_READERS):
+        return None
+    return {"expiry_check": check, "reads": reads}
+
+
 def _validate_cache_path(root: Path) -> Path:
     return default_database_path(root).parent / "validate_cache.json"
+
+
+# The SHAPE of the cached reference results, versioned independently of the
+# record SCHEMA_VERSION. Run 53: the cached value went from list[str] to
+# list[{"field","cited"}] while SCHEMA_VERSION stayed 1, so gating the load on
+# the record schema alone would have loaded the old shape and crashed on
+# `row["field"]` — a stale cache reading as a tool defect. Bump this whenever
+# the cached value's shape changes; an unrecognised value simply discards the
+# cache and pays one full validation (0.5s over 2,193 records, measured).
+VALIDATE_CACHE_FORMAT = 2
 
 
 def validate_records(
@@ -11748,7 +12007,8 @@ def validate_records(
         try:
             loaded = json.loads(cache_path.read_text(encoding="utf-8"))
             if (isinstance(loaded, dict)
-                    and loaded.get("schema_version") == SCHEMA_VERSION):
+                    and loaded.get("schema_version") == SCHEMA_VERSION
+                    and loaded.get("cache_format") == VALIDATE_CACHE_FORMAT):
                 cache["schema"] = loaded.get("schema") or {}
                 cache["references"] = loaded.get("references") or {}
         except (OSError, json.JSONDecodeError):
@@ -11796,10 +12056,10 @@ def validate_records(
                 cached = cache["references"].get(key)
                 if cached is not None:
                     references_cached += 1
-                    for cited_id in cached:
+                    for row in cached:
                         dangling_citations.append(
                             {"path": _repo_relative(root, path),
-                             "cited": cited_id})
+                             "field": row["field"], "cited": row["cited"]})
                     continue
                 try:
                     stranded = _probe_record_references(
@@ -11811,10 +12071,10 @@ def validate_records(
                          "error": str(error)})
                 else:
                     cache["references"][key] = stranded
-                    for cited_id in stranded:
+                    for row in stranded:
                         dangling_citations.append(
                             {"path": _repo_relative(root, path),
-                             "cited": cited_id})
+                             "field": row["field"], "cited": row["cited"]})
     # The cache is written unconditionally. Skipping the write when ANY record
     # failed would have thrown away every good result alongside it, which is
     # how an incremental check silently stays non-incremental.
@@ -11822,6 +12082,7 @@ def validate_records(
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps({
             "schema_version": SCHEMA_VERSION,
+            "cache_format": VALIDATE_CACHE_FORMAT,
             "schema": cache["schema"],
             "references": cache["references"],
         }, sort_keys=True), encoding="utf-8")
@@ -11830,6 +12091,8 @@ def validate_records(
         # itself; the next run simply pays full price.
         pass
     stranded_ids = sorted({row["cited"] for row in dangling_citations})
+    stranded_pairs = {(row["path"], row["cited"])
+                      for row in dangling_citations}
     result = {
         "valid": not reference_errors,
         "record_count": len(paths),
@@ -11837,9 +12100,20 @@ def validate_records(
         "references_checked": references_checked,
         "schema_checks_cached": schema_cached,
         "reference_checks_cached": references_cached,
+        # THREE NUMBERS, ALL REPORTED, NONE TRUNCATED (run-53 item 1). The
+        # count is per CITATION, and `dangling_citations` used to be sliced
+        # `[:60]` while the count was not — so the two silently disagreed
+        # above sixty rows (67 vs 60 at 7fe2f4a9f) and the debt could not be
+        # enumerated from the tool at all. The slice is gone: gdlmem.py
+        # already spills any result over SPILL_THRESHOLD to a file AND
+        # reports `row_counts`, which is an honest size mechanism, so a
+        # second silent one underneath it only hid rows. Measured at
+        # c7b741799: 59 rows -> 15.6 KB, and the payload does not reach the
+        # 24 KB spill until roughly 200 rows.
         "dangling_citation_count": len(dangling_citations),
+        "dangling_citation_distinct_pairs": len(stranded_pairs),
         "dangling_citation_ids": stranded_ids,
-        "dangling_citations": dangling_citations[:60],
+        "dangling_citations": dangling_citations,
         "dangling_note": (
             "CORPUS DEBT, not a validation failure: an accepted record cites a"
             " record id that no longer exists. Most are the documented"
@@ -11848,7 +12122,16 @@ def validate_records(
             " that pointed at one — so failing the corpus on them would make"
             " the gate refuse the records that document it. A NEW proposal is"
             " still refused for a dangling citation (strict at staging,"
-            " tolerant over history)."
+            " tolerant over history). READING THE THREE COUNTS:"
+            " `dangling_citation_count` counts CITATIONS and equals"
+            " len(dangling_citations) exactly — every row is listed, nothing"
+            " is truncated; `dangling_citation_distinct_pairs` collapses the"
+            " rows where one record strands one id through TWO fields (a"
+            " record that both supersedes and refutes a pruned predecessor —"
+            " 5 such pairs at c7b741799, which is the whole 59-vs-54 gap);"
+            " `dangling_citation_ids` is the deduplicated set of MISSING ids"
+            " (52 there), i.e. how many records would have to come back."
+            " Each row's `field` names the key to edit to repair it."
         ),
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "cache": _repo_relative(root, cache_path),

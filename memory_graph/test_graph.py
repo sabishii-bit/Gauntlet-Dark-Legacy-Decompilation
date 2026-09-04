@@ -3647,6 +3647,31 @@ class ValidateIncrementalTests(unittest.TestCase):
         self.assertIn("dangling_citation_count", result)
         self.assertTrue(result["valid"])
 
+    def test_the_dangling_count_and_the_dangling_list_cannot_disagree(self):
+        """Run-53 item 1: the count was untruncated and the list was `[:60]`.
+
+        Above sixty rows the two silently disagreed (67 vs 60 at 7fe2f4a9f)
+        and the debt was not enumerable from the tool — the reader had to
+        write a script to see the rows the slice ate. This asserts the
+        equality directly, so the slice cannot come back unnoticed.
+        """
+        result = core.validate_records(REPO_ROOT)
+        self.assertEqual(result["dangling_citation_count"],
+                         len(result["dangling_citations"]),
+                         "dangling_citations must list EVERY counted row")
+        # The three published numbers are ordered by construction:
+        # citations >= distinct (path, id) pairs >= distinct missing ids.
+        self.assertGreaterEqual(result["dangling_citation_count"],
+                                result["dangling_citation_distinct_pairs"])
+        self.assertGreaterEqual(result["dangling_citation_distinct_pairs"],
+                                len(result["dangling_citation_ids"]))
+        for row in result["dangling_citations"]:
+            # `field` is what makes a row repairable: it names the key of the
+            # citing record to edit, and it is why one record stranding one
+            # id through both `supersedes` and `refutes` is two rows.
+            self.assertEqual({"path", "field", "cited"}, set(row))
+            self.assertTrue(row["field"])
+
     def test_a_new_proposal_is_still_strict_about_citations(self):
         record = {
             "schema_version": 1, "id": "attempt.rg-strict-probe.20260902.v1",
@@ -3657,6 +3682,168 @@ class ValidateIncrementalTests(unittest.TestCase):
         }
         with self.assertRaises(MemoryGraphError):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
+
+
+class SummaryBriefTests(unittest.TestCase):
+    """The middle tier between the full brief and --roster-only (item 9).
+
+    DESIGN REVERSAL: the queue item asked for "a --compact/summary mode" as
+    though none existed. Two do — `brief --roster-only` and gdlmem's global
+    `--compact` — and `gdlmem.py brief --help` shows the first in one command.
+    Measured at c7b741799 on game/enemy/enemy: full brief 254,306 bytes over
+    5,063 lines, --roster-only 15,238.
+
+    The COMPLAINT survives the refutation for a different reason: --roster-only
+    is documented as a RE-READ form that omits open_hypotheses, active_claims,
+    vetoed_axes and webfrank_pins — every VETO and every mandatory step-1
+    hypothesis — so a lane's only two choices were a 254 KB briefing or a
+    roster it is told not to start from. This tier is safe as a first read:
+    44,312 bytes, 83% smaller, with the un-skippable sections whole and the
+    rest reduced to counts plus record ids.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.full = core.tu_briefing("game/enemy/enemy", root=REPO_ROOT)
+        cls.summary = core.summarize_brief(cls.full)
+
+    def test_it_is_substantially_smaller(self):
+        full = len(json.dumps(self.full))
+        small = len(json.dumps(self.summary))
+        self.assertLess(small, full * 0.4, f"{small} vs {full}")
+
+    def test_the_unskippable_sections_survive_whole(self):
+        """What --roster-only drops is exactly what makes it unsafe first."""
+        for key in ("open_hypotheses", "active_claims", "tu"):
+            self.assertEqual(self.summary.get(key), self.full.get(key), key)
+
+    def test_the_roster_survives_without_the_repeated_paragraphs(self):
+        self.assertEqual(len(self.summary["functions"]),
+                         len(self.full["functions"]))
+        for row in self.summary["functions"]:
+            self.assertNotIn("fuzzy_staleness", row)
+            self.assertNotIn("unabsorbed_staleness", row)
+
+    def test_the_staleness_paragraphs_are_HOISTED_not_dropped(self):
+        """They live only on the rows in a full brief, so stripping them
+        without lifting one copy out would DELETE the warning."""
+        self.assertIn("REMEASURE", self.summary["fuzzy_staleness"])
+        self.assertIn("never means zero",
+                      self.summary["unabsorbed_staleness"])
+        self.assertTrue(self.summary["staleness_banner"])
+
+    def test_every_omitted_section_reports_a_count_and_its_ids(self):
+        omitted = self.summary["omitted"]
+        for key in ("vetoed_axes", "live_attempts", "webfrank_pins",
+                    "core_screen_laws", "similar_residuals"):
+            self.assertIn(key, omitted, key)
+            self.assertEqual(omitted[key]["count"],
+                             len(self.full[key]), key)
+
+    def test_a_dict_shaped_section_is_reported_too(self):
+        """`similar_residuals` is keyed by function, not a list; reporting
+        only list-shaped fields dropped it from `omitted` entirely."""
+        self.assertEqual(self.summary["omitted"]["similar_residuals"]["count"],
+                         len(self.full["similar_residuals"]))
+
+    def test_the_note_says_it_is_safe_first_and_how_to_get_the_rest(self):
+        note = self.summary["summary_note"]
+        self.assertIn("FIRST read", note)
+        self.assertIn("record <id1>", note)
+        self.assertIn("VETO", note)
+
+    def test_the_flag_is_reachable_from_the_briefing_surface(self):
+        result = core.tu_briefing("game/enemy/enemy", root=REPO_ROOT,
+                                  summary=True)
+        self.assertIn("summary_note", result)
+        self.assertNotIn("vetoed_axes", result)
+
+
+class VacuousExpiryTests(unittest.TestCase):
+    """`stale` gains an EXPIRY dimension (run-53 item 8).
+
+    A typed denial whose `expiry_check` reads the POSTPROCESSED object of a
+    webfrank-PINNED function can never decide anything: the pinned function
+    reads real 0 with an identical multiset by construction
+    (claim.law.CX_an-expiry-check-that-reads-the-postprocessed-object-of-a-
+    pinned-function-can-never-fire.20260904.v2).
+
+    TWO-SIDED at c7b741799 over 170 typed denials and 153 pinned functions:
+    the naive tool-name screen the law warns against hits 19; the shipped
+    raw-aware screen hits 9; 10 are exempted by a RAW read, so 53% of the
+    naive screen's hits were false. Two of those ten (scroll_credits via
+    wr_const_closure_probe.py, init_all_dir_info via hv_try.py) are the pair
+    the law records a name-list screen wrongly refusing.
+    """
+
+    PINNED = {"CritterGetTargetPlayers"}
+
+    def denial(self, check, function="function:CritterGetTargetPlayers"):
+        return {"id": "attempt.x.20260904.v1", "kind": "attempt",
+                "function": function,
+                "denial": {"scope": "s", "premise_measurement": "p",
+                           "expiry_check": check, "falsifier": "f"}}
+
+    def test_a_postprocess_read_of_a_pinned_function_is_flagged(self):
+        verdict = core.vacuous_expiry_reason(
+            self.denial("python tools/gdl/probe.py game/x/y f --ops"),
+            self.PINNED)
+        self.assertIsNotNone(verdict)
+        self.assertEqual(verdict["reads"], ["probe.py"])
+
+    def test_a_raw_flag_exempts_the_check(self):
+        """Seven live rows are exempt this way; without it the screen has a
+        53% false-positive rate."""
+        self.assertIsNone(core.vacuous_expiry_reason(
+            self.denial("python tools/gdl/probe.py game/x/y f --raw"),
+            self.PINNED))
+
+    def test_a_raw_reading_tool_exempts_the_check(self):
+        """The pair the law says a name-list screen wrongly refused."""
+        for tool in ("composed_census/wr_const_closure_probe.py",
+                     "composed_census/hv_try.py",
+                     "composed_census/wf_word_diff.py"):
+            self.assertIsNone(core.vacuous_expiry_reason(
+                self.denial(f"python tools/gdl/{tool} game/x/y f"),
+                self.PINNED), tool)
+
+    def test_an_unpinned_function_is_never_flagged(self):
+        """On an unpinned function the postprocessed object IS the compiler's
+        own output, so the check decides normally."""
+        self.assertIsNone(core.vacuous_expiry_reason(
+            self.denial("python tools/gdl/probe.py game/x/y f --ops",
+                        function="function:NotPinnedAnywhere"),
+            self.PINNED))
+
+    def test_a_record_with_no_denial_block_is_ignored(self):
+        self.assertIsNone(core.vacuous_expiry_reason(
+            {"id": "a", "kind": "attempt", "function": "function:X"},
+            self.PINNED))
+
+    def test_the_attributes_spelling_is_read_too(self):
+        record = {"id": "a", "kind": "attempt",
+                  "function": "function:CritterGetTargetPlayers",
+                  "attributes": {"denial": {
+                      "scope": "s", "premise_measurement": "p",
+                      "expiry_check": "python tools/gdl/fndiff.py x y --ops",
+                      "falsifier": "f"}}}
+        self.assertIsNotNone(
+            core.vacuous_expiry_reason(record, self.PINNED))
+
+    def test_the_pinned_set_comes_from_webfrank_json(self):
+        pinned = core.webfrank_pinned_functions(REPO_ROOT)
+        self.assertIn("CritterGetTargetPlayers", pinned)
+        self.assertGreater(len(pinned), 100)
+
+    def test_stale_reports_the_rows_with_their_own_reason(self):
+        result = core.attempt_staleness(REPO_ROOT)
+        rows = [row for row in result["reopen_candidates"]
+                if row.get("reason") == "vacuous_expiry_check"]
+        self.assertTrue(rows, "the live corpus carries this class")
+        for row in rows:
+            self.assertIn("expiry_check", row)
+            self.assertIn("reads", row)
+            self.assertNotIn("--raw", row["expiry_check"])
 
 
 class GraphRebuildCostTests(unittest.TestCase):
