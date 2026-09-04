@@ -7349,8 +7349,8 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     s32 start;
     f32 best1;
     f32 best = lbl_803468B0;
-    f32 hit[4];
-    u8 _pad4[4];
+    f32 hit[3];
+    u8 _pad4[8];
     f32 d;
     f32 dy;
     f32 dx;
