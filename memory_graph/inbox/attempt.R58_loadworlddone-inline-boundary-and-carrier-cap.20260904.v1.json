@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Solo source-first continuation: inline body versus address getter, wrapper-local retention, parameter identity reuse, opt_propagation, and failure-block placement. No improvement retained; this caps these forms, not every possible source reconstruction.",
+  "attributes": {
+    "axis_log": [
+      "R57: separately assigned WorldInfo* model view regressed to T84/O86, real54, fuzzy96.5%, frame48; aggregate {char name[228]; WorldInfo info;} view and pointer-to-array char(*base)[64] each identical. Preserve these negative axes from superseded R57 record.",
+      "Earlier NV: moving base declaration first or splitting its initializer was identical. Eliminating base local/direct-global spelling gave T84/O84 real34 but sank address formation and changed addi/mr uses; not a match.",
+      "AT extern array-to-struct declaration retype was identical across all seven gWorldName users; source-level same-global control disproves save-shadow timing as a sufficient explanation."
+    ],
+    "law_screen": "Applied claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2 to diagnose the count-asymmetric home copy, but do not promote its sampled source-unreachable framing into a universal proof. Its broad census and claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 explain why declaration/type repetitions are low-value. Screened claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1: base and modelp remain concurrently live, so no dead pointer identity is available; tested parameter-carrier provenance separately. Screened claim.law.point-of-use-single-use-pointer-delay.20260830.v1: base is multi-use, not the law's single-use case. Prior initializer-width, typed-view and aggregate caps remain valid. The inline whole-body direct-address trial removes the copy but sinks address generation and alters return lowering; therefore direct lowering is possible under a different source topology, not a complete fix. Current count-preserving WebFrank classes cannot remove an instruction; no rule was authored or guard weakened. Queried branch/inline laws before the failure-label probe; target already has the desired branch layout, so this is a coalescing-context test rather than a claim that its branch structure was wrong.",
+    "probed_form": "A: `register char* base = gWorldName;` unchanged. B: `char* base;` with `base = gWorldName;` after the three leading zero stores unchanged. C: move entire body into `static inline s32 sLoadWorldDone(char* name, char* base)`, remove its local base, and use wrapper `return sLoadWorldDone(name, gWorldName);`: fuzzy 91.1905%, real 59, T84/O83; removes address copy but also alters return and address placement. D: original body with `static inline char* sWorldName(void) { return gWorldName; }` and `char* base = sWorldName();`: unchanged 98.7500%, real 15, T84/O85. E: same whole-body helper as C, wrapper `char* base = gWorldName; s32 result = sLoadWorldDone(name, base); return result;`: 96.7857%, real 34, T84/O84; original address copy survives, count parity comes from deleting target return materialization and is not closure. F: original signature changed to `LoadWorldDone(char* base)`, local initializer changed to `char* name = base;`, followed by `base = gWorldName;` before zero stores: 94.2857%, real 44, T84/O86, extra parameter copy. G: original body bracketed by `#pragma opt_propagation off` / `#pragma opt_propagation on`: unchanged 98.7500%, real 15, T84/O85. H: original initializer retained, guard `if (name == 0 || FileExists(name, \"worlds\") == 0) goto load_failed;`, normal success body followed by `load_failed: world_load_state = -1; return -1;` at function tail: 83.1548%, real 24, T84/O84, original address copy survives and branch island moves. Every trial reverted.",
+    "residual": "Target +0x18 lis r3,HA; +0x1c addi r28,r3,LO. Ours +0x18 lis r3,HA; +0x1c addi r0,r3,LO; +0x20 mr r28,r0. Observed compiler address-home coalescing difference; an internal worklist cause is an inference, not a trace from this run. Remaining branch target drift is explained by this extra instruction. No semantic correction was needed or made.",
+    "scope": "src/game/world/world.c::LoadWorldDone; no code, configuration or postprocessor change retained.",
+    "verification": "After full restoration: probe.py --fuzzy 98.7500%, real15 T84/O85; fndiff --ops only ours-only -1 mr; slotdiff frame40/40 and SLOT MAP IDENTICAL. Full ninja prints build/GUNE5D/main.dol: OK. datadiff --sections game/world/world: .data 0x38 and .sdata2 0x58 each 100%, extab 144 bytes 100%, extabindex 216 bytes 99.0741%; world remains NonMatching. Overall STRICT57.20% + EQUIVALENT13.46%, combined70.66%, unchanged. Working source diff empty."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/world/world LoadWorldDone --fuzzy",
+    "falsifier": "At a changed source/compiler alignment, one of the enumerated forms removes the address home copy without introducing other instruction, relocation, frame or control-flow mismatches. Exact target form is addi r28,r3,LO at +0x1c, with no following mr.",
+    "premise_measurement": "Fresh probe.py game/world/world LoadWorldDone --fuzzy: 98.7500%, real 15, T84/O85. All trials were worse or unchanged. Restored source has exactly the same measurements; slotdiff reports frame 40/40, save r26/r26, five identical r1 slots.",
+    "scope": "Only the literal source forms in probed_form, on the world.c baseline at 9b808becc; not a proof that portable source can never reproduce the target."
+  },
+  "function": "function:LoadWorldDone",
+  "held_fixed": "Global symbol identities, field displacements, allocation and accounting semantics, call order, and the existing WebFrank pin were held fixed. Each trial began from the restored original function except the explicitly paired inline-body/wrapper-local trial. The failure-label trial changed branch placement alone, not the address initializer. No source edits survived.",
+  "id": "attempt.R58_loadworlddone-inline-boundary-and-carrier-cap.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T20:31:49Z",
+  "residual": {
+    "capability_needed": "compiler-address-home-coalescing",
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: (none)  ours-only: -1 mr"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.R57_loadworlddone-typed-view-and-pointer-form-cap.20260904.v2",
+  "valid_from": "2026-09-04"
+}

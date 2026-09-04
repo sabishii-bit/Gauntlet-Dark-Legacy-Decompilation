@@ -1,0 +1,36 @@
+{
+  "attempted_axis": "Inline state-machine body with address parameters, then jointly retain named address locals in the wrapper. No improvement retained; prior initializer/type caps folded forward.",
+  "attributes": {
+    "axis_log": [
+      "R57 A pointer-to-array name identical; B split name initializer only real63/T122O123 but fuzzy97.2951 worse and volatile carrier moved; C split buf only identical; D joint split both identical. These vetoes survive supersession.",
+      "Earlier name/buf declaration swap identical; save-shadow scheduling explanation refuted by prior scheduling-off and LoadWorldDone controls; no new scheduling probe here.",
+      "AT extern char[64] to struct64/address form identical at all seven gWorldName sites."
+    ],
+    "law_screen": "Screened claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 against the aligned entry: this is a general volatile carrier, not the r0-only case. The original r0-only law is relevant by family analogy only. Applied the source-boundary distinction measured in this run's LoadWorldDone helper trials: inlining can eliminate a named-address web but also rematerialize addresses, so inspect counts and full address placement, not copy disappearance alone. Prior SP initializer grouping and MV width-class screens remain unchanged; these probes do not repeat declaration ordering. Existing postprocessing is count-preserving; T122/O123 is still structural, not a recolor. No rule authored. Prior source-census law's negative evidence retained without claiming universal source impossibility.",
+    "probed_form": "A: rename original body to `static inline s32 sStartWorldLoad(s32 arg, char* name, char* buf)`, remove both local address initializers, and define `s32 StartWorldLoad(s32 arg) { return sStartWorldLoad(arg, gWorldName, lbl_801151D8); }`: fresh fuzzy84.2049%, real113, T122/O129, frame24/save r30 instead of target32/save r29, repeated address materialization. B: same inline body, wrapper `char* name = gWorldName; char* buf = lbl_801151D8; return sStartWorldLoad(arg, name, buf);`: fresh fuzzy97.3361%, real63, T122/O123 and original entry copy restored. Both reverted.",
+    "residual": "Target +0x14 addi r30,r4,gWorldName@lo writes the saved home directly. Ours +0x0c addi r5,r4,gWorldName@lo then +0x20 addi r30,r5,0. The other saved address, buf in r31, is direct in both. Count T122/O123; downstream normalized branch-target drift explained by the inserted instruction. Exact compiler-internal cause not traced in this solo source campaign.",
+    "verification": "Restored baseline probe.py --fuzzy97.3361%, real63 T122/O123. fndiff --ops only ours-only -1 addi. slotdiff frame32/32, save r29/r29, five identical r1 slots. Full ninja build/GUNE5D/main.dol: OK. .data0x38 and .sdata2 0x58 byte-exact; extabindex remains99.0741%. No source change retained and world.c not flipped. Overall STRICT57.20% plus EQUIVALENT13.46%, combined70.66%, unchanged."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/world/world StartWorldLoad --fuzzy",
+    "falsifier": "At a new alignment, one of the enumerated forms yields direct target address homes, T122/O122 and no new structural, relocation or frame difference.",
+    "premise_measurement": "Fresh probe.py game/world/world StartWorldLoad --fuzzy baseline 97.3361%, real63, T122/O123. Direct-global inline arguments regress to84.2049%, real113, T122/O129; named wrapper locals restore97.3361%, real63, T122/O123 with the same extra address copy.",
+    "scope": "These two inline-body/address-argument source forms at 9b808becc; no assertion that every possible portable spelling has been exhausted."
+  },
+  "function": "function:StartWorldLoad",
+  "held_fixed": "The complete switch body, state transitions, call order, global identities and field accesses remain unchanged while moving the function boundary and choosing wrapper argument provenance. No changes to the pinned sibling or compiler settings.",
+  "id": "attempt.R58_startworldload-inline-address-provenance-cap.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T20:31:50Z",
+  "residual": {
+    "capability_needed": "compiler-address-home-coalescing",
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: (none)  ours-only: -1 addi"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.R57_startworldload-numbering-carrier-cap.20260904.v2",
+  "valid_from": "2026-09-04"
+}
