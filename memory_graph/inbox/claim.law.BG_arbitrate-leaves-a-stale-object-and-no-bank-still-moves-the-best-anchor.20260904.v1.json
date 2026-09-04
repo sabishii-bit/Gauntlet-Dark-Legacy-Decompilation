@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "For (1): a run where `python tools/gdl/probe.py <unit> <fn> --arbitrate --vs-baseline` is followed by `ninja <the owning object>` and ninja REBUILDS (or where fnasm --ours returns bytes matching the restored working tree without a forced rebuild). For (2): a `--no-bank` readout of a worse state after which `--revert-baseline` does NOT print a BEST-anchor note naming that worse state's real, or `probe --ops` classifies the next probe against the banked state instead.",
+  "id": "claim.law.BG_arbitrate-leaves-a-stale-object-and-no-bank-still-moves-the-best-anchor.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T02:40:14Z",
+  "schema_version": 1,
+  "subject": "tool:probe",
+  "valid_from": "2026-09-04",
+  "value": "TWO measured probe.py defects, both in the state layer the run-39 and run-49 --discard fixes were about (source / object / state), found this run at commit c0f978273. (1) `--arbitrate` RESTORES THE SOURCE WITHOUT REBUILDING THE OBJECT, and says so only obliquely ('working tree restored to your edited state'). Because it builds CURRENT first and BANKED second, the object left on disk describes the BANKED state while the working tree holds the edit, and because the restore preserves mtimes, `ninja build/GUNE5D/src/game/world/newcam.o` immediately afterwards prints `ninja: no work to do`. Every object-reading tool - fnasm, fndiff --no-build, slotdiff, regnorm, wf_word_diff - then reads a stream that does not correspond to any file on disk, with no warning. `--revert-baseline` handles exactly this case and PRINTS that it did ('[object rebuilt after --revert-baseline: build/... now describes the restored source ...]'); --arbitrate, which is the tool the edit loop actually runs, does not. The workaround this run used on every inspection is `(Get-Item <src>).LastWriteTime = Get-Date; ninja <obj>` before any fnasm/fndiff/slotdiff read. (2) `--no-bank` SUPPRESSES THE SNAPSHOT BUT NOT THE BEST ANCHOR. A `--no-bank` readout of a WORSE state printed `BASELINE real 140 ...` and `[--no-bank: snapshot NOT updated - hand-revert this edit]`, and the very next `--revert-baseline` then printed `[NOTE: the BEST anchor (real 140) is untouched by a discard and may still describe the edit you just discarded - the next probe is classified against it.]`. real 140 was 40 worse than the banked real 100, so the flag whose documented purpose is 'opt out' left the session anchored to the worse of the two states; only `--reset` cleared it. A lane that trusts --no-bank will have its next verdict classified against a state it explicitly declined to bank."
+}

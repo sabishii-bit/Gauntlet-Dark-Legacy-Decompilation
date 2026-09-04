@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function where `x = a + b; x -= c;` and `x = a + b - c;` emit the SAME destination-register shape for the subtraction at equal instruction count - i.e. `python tools/gdl/probe.py <unit> <fn> --arbitrate --vs-baseline` returns NEUTRAL-IDENTICAL across that rewrite, or the aligned view shows in-place arithmetic on both sides of the edit. A single NEUTRAL-IDENTICAL disproves the law on that instance.",
+  "id": "claim.law.BG_compound-assignment-splitting-decides-in-place-versus-distinct-destination-arithmetic.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T02:39:35Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "Whether an FP result is accumulated IN PLACE (`fsubs fD,fD,fS`) or written to a DISTINCT destination from a scratch temp (`fsubs fD,fT,fS`) is decided by the source's statement shape, not by the allocator: `x = a + b; ... x -= c;` produces the in-place form and `x = a + b - c;` produces the distinct-destination form, and the two are otherwise instruction-for-instruction identical. MEASURED on game/world/newcam.c::fn_8006DC64 at commit c0f978273: at HEAD all six delta values use the split form and all six emit in-place (`fadds f28,f1,f6` / `fsubs f28,f28,f8`, and the same for f25/f29/f26/f27/f24); folding all six into single expressions turns every one into the three-register form (`fsubs f28,f5,f9`, `fsubs f25,f4,f9`, `fsubs f29,f3,f8`, `fsubs f27,f2,f10`, `fsubs f26,f1,f8`, `fsubs f24,f0,f10`) at an unchanged instruction count (T180/O180) and an unchanged real (100). This matters because a target stream MIXES the two forms and the mixture is readable: fn_8006DC64's target folds four (positionDeltaY `fadds f3,f1,f9` @0x34 / `fsubs f28,f3,f7` @0x74; deltaY; positionDeltaZ; deltaZ) and splits two (positionDeltaX `fsubs f29,f29,f6` @0xa0 and deltaX `fsubs f26,f26,f6` @0xac), so the per-variable choice is recoverable from the aligned view before any probe. The class is NOT a fuzzy win by itself - the best mixed form on that function measured 87.8278 against an 87.8833 baseline - but it is the only source class measured to change that function's arithmetic register shape at all, where three statement-shape classes (statement order, plane-assignment order, named local pointer copy) are all inert."
+}

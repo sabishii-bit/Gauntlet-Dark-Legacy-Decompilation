@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function where splitting `(s32)(f32)x` into two statements through a named f32 local changes the emitted instruction stream while the frame size is held constant - i.e. a state where the split moves a stack temporary, changes a temp's slot, or changes the instruction count without changing the frame. `python tools/gdl/probe.py <unit> <fn> --arbitrate --vs-baseline` reporting a non-zero real or fuzzy delta for such an edit at equal frame size disproves this law on that instance.",
+  "id": "claim.law.BG_a-double-cast-split-through-a-named-intermediate-is-refused-refolded-before-temp-allocation.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T02:39:34Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "Splitting an MWCC double cast `y = (s32)(f32)x;` into `f32 t = (f32)x; y = (s32)t;` is codegen-INERT: the front end re-fuses the pair before temporaries are allocated, so it cannot be used to reorder, separate or regroup the two 8-byte stack temporaries the conversion needs (the int->float magic-number STAGING double and the fctiwz RESULT double). MEASURED on game/pb/pb_frame.c::pbFrameMode at commit c0f978273, all four mode arms rewritten uniformly: with two f32 locals declared the frame grows 864 -> 872 and every r1 displacement in the conversion window shifts by exactly +8 (real 131 -> 245, fuzzy 98.1962 -> 98.1378) while the four temps keep their relative order; shrinking an existing `u8 _spare[16]` pad to `u8 _spare[8]` to hold the frame makes the edit NEUTRAL-IDENTICAL - real 131, fuzzy 98.1962%, insns T958/O959, and a forced rebuild returns the HEAD bytes verbatim (`stw r4,772(r1)`, `stw r0,768(r1)`, `lfd f0,768(r1)`, `stw r4,788(r1)`, `stw r0,784(r1)`, `lfd f1,784(r1)`, `stfd f0,760(r1)`, `lwz r0,764(r1)`, `stfd f0,776(r1)`, `lwz r0,780(r1)`). The corollary for lanes: a conversion-temporary slot difference cannot be attacked through the cast's statement shape, and the ONLY thing a split like this can change is the frame, so measure the frame before attributing any movement to the split. This is the same shape as the recorded pad-scope NEUTRAL-IDENTICAL on controls.c::PlayerControls - a declaration or grouping that folds away in the front end never reaches the allocator, and one such measurement is decisive."
+}
