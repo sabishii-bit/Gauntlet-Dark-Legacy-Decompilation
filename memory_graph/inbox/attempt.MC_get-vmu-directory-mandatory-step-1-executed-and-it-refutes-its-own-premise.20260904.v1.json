@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "AGENTS.md discipline 10b: execute the MANDATORY STEP 1 left by attempt.BF_get-vmu-directory-the-lift-rematerialises-a-live-constant.20260903.v1 -- its own typed hypothesis and its own named cheapest refuting observation -- before spending any probe on this function. ZERO BUILDS.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and it is the governing law for the refuted hypothesis: the constant the hypothesis wanted to make disappear is materialised by BOTH builds, so its presence is not a source choice. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and DECISIVE for the disposition: this residual is count-asymmetric (T116/O115), so the postprocessor path is closed to it by construction and it stays source work. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED, not applicable (the multiset DIFFERS here). No probe was spent, so no cure-side law applied.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "NO EDIT AND NO BUILD. One read-only command, the one BF v1 nominated: `python tools/gdl/fnasm.py game/sys/memcard get_vmu_directory 0x0:0x40`.",
+    "residual": "THE HYPOTHESIS IS REFUTED BY ITS OWN STATED CRITERION, AT ZERO COST. BF v1 wrote: 'This row is only closable if `success` is NOT a compile-time 1 at the guard', with the refuting observation 'if the target materialises the constant 1 into r30 with its own `li r30,1` before the mask test, then `success` IS a known 1 in the retail build too and no source spelling can remove the fold.' The target does exactly that: `li r30,1` at +0x24, feeding `slw r0,r30,r29` at +0x28 and `and. r0,r3,r0` at +0x34, i.e. the constant 1 is materialised into a CALLEE-SAVED register before the mask test and before the first call. Retail's `success` is a compile-time 1 at the guard, held in r30 across the call exactly as BF v1's residual note described from the object side ('success stays in r30, already holding 1 from before the call'). So the fold BF v1 hoped a different source spelling would remove is present in retail too, and the lift's two-instruction cost is not something a respelling of the initialiser can avoid.\n\nWHAT THIS LEAVES. The @0x48 branch pair is now carrying FOUR recorded probes across three records -- attempt.WS_get-vmu-directory-branch-pair-two-more-carriers-dead.20260901.v3 (two carriers from the conditional-EXPRESSION producer set, after v1/v2 exhausted the if-statement respell family), and BF v1's static-helper lift in two storage-class spellings whose object bytes were identical to each other -- plus this refutation of the one hypothesis that would have reopened it. Every one of them regressed or was neutral. The axis is CLOSED.\n\nDISPOSITION: source work, count-asymmetric, and NOT a postprocessor candidate (T116/O115 -- claim.law.webfrank-cannot-close-instruction-count-deltas). The next lane should not re-probe the guard; if this function is revisited it must be through the +0x68 and +0xf4 paired addis/addi address-expression clusters BF v1 explicitly did not touch, which are a different mechanism from the branch pair and have never been the subject of a probe.",
+    "scope": "READ-ONLY. src/game/sys/memcard.c untouched by this item; no config file, no commit.",
+    "verification": "Target prologue read verbatim from the retail object at e0aadb9fa: `   0: mflr r0 / 4: stw r0,4(r1) / 8: stwu r1,-56(r1) / c: stmw r27,36(r1) / 10: mr r27,r3 / 14: addi r28,r4,0 / 18: slwi r0,r27,2 / 1c: lis r4,0 @lbl_8025EE80(ADDR16_HA) / 20: add r29,r28,r0 / 24: li r30,1 / 28: slw r0,r30,r29 / 2c: lwz r3,0(0) @lbl_80343C78(EMB_SDA21) / 30: addi r31,r4,0 @lbl_8025EE80(ADDR16_LO) / 34: and. r0,r3,r0 / 38: beq ->e8 / 3c: bl ->3c @beginSaveCacheTransaction(REL24)`."
+  },
+  "denial": {
+    "expiry_check": "`python tools/gdl/fnasm.py game/sys/memcard get_vmu_directory 0x0:0x40` -- if the target no longer shows `li r30,1` before the mask test (i.e. the disassembly or the symbol binding changed), re-derive. `python tools/gdl/probe.py game/sys/memcard get_vmu_directory --ops` reporting other than real 65 / T116/O115 / `target-only: +1 b +1 bne ours-only: -1 beq` means the alignment moved and the branch-pair probes are worth re-running per the alignment-sensitivity rule.",
+    "falsifier": "A source form that removes the target's `li r30,1`-fed fold, or any guard respelling that reaches T116/O116 count parity without regressing fuzzy. Either would show the constant is source-reachable after all.",
+    "premise_measurement": "`python tools/gdl/fnasm.py game/sys/memcard get_vmu_directory 0x0:0x40` at e0aadb9fa returns `24: li r30,1` ahead of `28: slw r0,r30,r29` and `34: and. r0,r3,r0`, which is verbatim the condition BF v1 named as refuting its own hypothesis. Live residual at the same commit: `defake_gate.py check game/sys/memcard` reports get_vmu_directory STRUCTURAL real 65, and the TU baseline anchored at 47ae4d37c / source sha1 dfe53edd4 records the same 65 with fuzzy 92.715515%.",
+    "scope": "The @0x48 branch-pair residual of get_vmu_directory, reached by any respelling of the `if ((u8) beginSaveCacheTransaction() != 1) { success = 0; }` guard -- if-statement respells (WS v1/v2), conditional-expression carriers (WS v3), and the static-helper lift in either storage class (BF v1). It denies nothing about the +0x68 / +0xf4 address-expression clusters in the same function, which remain unprobed."
+  },
+  "function": "function:get_vmu_directory",
+  "id": "attempt.MC_get-vmu-directory-mandatory-step-1-executed-and-it-refutes-its-own-premise.20260904.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-04T05:47:02Z",
+  "refutes": "attempt.BF_get-vmu-directory-the-lift-rematerialises-a-live-constant.20260903.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-04",
+    "signature": "DIFFERS target-only: +1 b +1 bne ours-only: -1 beq; insns T116/O115"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}
