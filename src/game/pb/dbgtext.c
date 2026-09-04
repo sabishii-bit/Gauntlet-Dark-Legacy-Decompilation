@@ -294,8 +294,8 @@ s32 fn_800C03E0(s32 mode)
     DbgRow* tblB = lbl_80127DE8;
     u32 shift = 10;
     u32 div;
-    s32 line;
     s32 qline;
+    s32 line;
     s32 i;
     s32 j;
     s32 k;
