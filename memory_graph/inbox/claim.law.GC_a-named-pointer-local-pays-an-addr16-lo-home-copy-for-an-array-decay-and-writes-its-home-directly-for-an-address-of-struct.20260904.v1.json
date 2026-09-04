@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "relocation",
+      "sda-global",
+      "store-placement"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where the same local, the same declaration position and the same statement position pay the `mr` with a struct-typed extern and `&sym`, or avoid it with an array-typed extern and a decay - either direction disproves the type as the discriminant. Reproduce the measurement with `python tools/gdl/probe.py game/pb/pb_error fn_800C1174 --ops` at commit 6d31be8ee (struct form, T150/O150) against the same command with `extern u8 lbl_802C4DB8[0x28]` and `blk = (PBErrorBlock*)&lbl_802C4DB8;` restored (array form, T150/O151).",
+  "id": "claim.law.GC_a-named-pointer-local-pays-an-addr16-lo-home-copy-for-an-array-decay-and-writes-its-home-directly-for-an-address-of-struct.20260904.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-04T15:04:38Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "THE ADDR16_LO HOME COPY FOLLOWS THE EXTERN'S TYPE, NOT THE LOCAL'S DECLARATION. For `namedPointerLocal = <file-scope address>` where the local's home is a callee-saved register, MWCC GC 1.2.5 emits `lis rT,SYM@ha ; addi r0,rT,SYM@lo ; mr rHOME,r0` when the right-hand side is an ARRAY DECAY (`extern u8 sym[N]; p = (T*)sym;`) and emits `lis rT,SYM@ha ; addi rHOME,rT,SYM@lo` - the target's shape, one instruction shorter - when the right-hand side is the ADDRESS OF A STRUCT OBJECT (`extern T sym; p = &sym;`). Measured on game/pb/pb_error.c::fn_800C1174 with everything else held fixed: array form T150/O151 real 75, struct form T150/O150 real 42, and the pair was measured in BOTH directions (the array form was restored at the end of the pass and the copy came back). This REFUTES, for this instance, the do-not-probe disposition that claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 and claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1 case (a) place on the whole class-P population: the copy is source-reachable, just not through any of the levers those laws screened (declaration order, statement position, storage class, initialiser-vs-assignment - all four measured NEUTRAL or worse on the sibling fn_800C13CC). THREE CONSTRAINTS ON USING IT. (1) IT COSTS FOUR BYTES OF LOCAL-BLOCK FLOOR. The same retype moves the block's bottom anchor from r1+16 to r1+20 - isolated with the pad held constant at 4 bytes, and with the struct's SIZE ruled out separately (padding PBErrorBlock from 36 to 40 bytes returned NEUTRAL-IDENTICAL, object digest 48aacfc9cf76). Budget the four bytes out of a pad local in the same function, which is what took fn_800C1174 from real 54 to real 42 and restored frame parity at 8320. (2) IT DOES NOT TRANSFER TO A SCALAR. Retyping `extern char sym[];` to `extern char sym;` and writing `&sym` makes the object SDA-addressable and deletes the lis/addi pair outright: measured on the string literal shared by fn_800C1174 and fn_800C13CC, the sibling went from real 42 to real 180 at 148 insns against a 150-insn target. The type must be large enough to stay out of the small-data area. (3) THE NAMED LOCAL IS STILL REQUIRED. Deleting the local removes the copy too, but hands the address to a compiler-created temp, which takes the HIGHEST callee-saved register while named locals fill upward from the lowest in reverse declaration order - so the target's register assignment becomes unreachable. Keep the local; retype the extern."
+}
