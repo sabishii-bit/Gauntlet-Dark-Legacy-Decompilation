@@ -61,6 +61,16 @@ unexamined set. Calibrated over all 257 unit pairs: 3,222 rows are
 kind-differing-but-equal, 45 are wrong-datum and 177 wrong-value, and 23
 of the 72 flagged functions read `real 0` today.
 
+A byte comparison across the link boundary is only sound where nothing
+relocates the bytes: ours is an UNLINKED object and the target side is read
+from the LINKED retail DOL, so a jump or pointer table is placeholders here
+and resolved addresses there. Such a row is POOL-RELOCATED (benign,
+counted, never scored) and the evidence is the object's own relocation
+table, not the shape of the bytes — `is_pointer_table`, the shape heuristic
+`--datum` uses, calls any all-zero datum a table and so reports an f64 0.0
+sitting where the target has 30.0 as benign (measured: game/ui/auxscreen::
+CaptionTextSub, the ONE row it fires on image-wide).
+
 --datum answers the same question ALIGNMENT-FREE, for the rows --clean's
 positional pairing cannot pair: it compares the MULTISET of pool VALUES both
 functions read, so a datum present on one side only is named by its VALUE
@@ -121,7 +131,8 @@ is newer (pass --no-build to skip). This prevents analyzing stale objects.
 IMPORTABLE CORE: objdump, unit_key, parse, classify_function, count_real,
 instruction_lines, opcode_multiset_signature, pool_row_findings,
 datum_screen_from_lines, datum_multiset_screen, object_sections,
-object_datum_table, target_datum_entry, dol_read, symbol_table — pure
+object_datum_table, object_relocation_offsets, datum_is_relocated,
+target_datum_entry, dol_read, symbol_table — pure
 functions over object paths and parsed line lists; no build, no printing,
 and importing this module has no side effects. A sweep calls them
 in-process (the objdump, DOL and symbols.txt readers are all cached per
@@ -1047,6 +1058,11 @@ def pool_row_findings(t, b, ours_object=None):
       WRONG-POOL-VALUE  named-vs-anonymous, and the BYTES behind the two
                         entries disagree — our pool holds a different
                         constant (this is the adsInitFromHeader shape)
+      POOL-RELOCATED    named-vs-anonymous, and a RELOCATION covers our
+                        datum: its bytes are placeholders the linker fills,
+                        so a comparison against the linked retail image
+                        measures the link, not the constant — benign,
+                        counted, never scored
       POOL-KIND-UNDECIDED  named-vs-anonymous and the bytes could not be
                         read on one side
       POOL-KIND-EQUAL   named-vs-anonymous, same bytes — benign, counted
@@ -1071,6 +1087,18 @@ def pool_row_findings(t, b, ours_object=None):
         o_val = ours_datum_bytes(o_sym, ours_object)
         if t_val is None or o_val is None:
             findings.append(("POOL-KIND-UNDECIDED", at, t_sym, o_sym,
+                             t_val, o_val))
+        elif datum_is_relocated(o_sym, ours_object):
+            # RUN-56 ITEM 6. Our side is an UNLINKED object and the target
+            # side is read from the LINKED retail DOL, so a datum the linker
+            # fills in — a jump table, a pointer table — is placeholders here
+            # and resolved addresses there. Comparing those bytes measures the
+            # link, not the constant, and the difference is guaranteed rather
+            # than informative. `--datum` has had a guard for this since
+            # `is_pointer_table` was written; this classifier never called it,
+            # which is the same one-defect-several-layers shape as run 39's
+            # and run 49's `probe --discard` fixes (AGENTS.md discipline 18).
+            findings.append(("POOL-RELOCATED", at, t_sym, o_sym,
                              t_val, o_val))
         elif _datum_prefix_equal(t_val, o_val):
             findings.append(("POOL-KIND-EQUAL", at, t_sym, o_sym,
@@ -1114,8 +1142,8 @@ def pool_findings_note(findings):
     if not counts:
         return ""
     parts = []
-    for kind in ("POOL-KIND-EQUAL", "POOL-KIND-UNDECIDED", "POOL-RENUMBER",
-                 "RENAME"):
+    for kind in ("POOL-KIND-EQUAL", "POOL-RELOCATED", "POOL-KIND-UNDECIDED",
+                 "POOL-RENUMBER", "RENAME"):
         if counts.get(kind):
             parts.append(f"{counts[kind]} {kind}")
     return ", ".join(parts)
@@ -1299,10 +1327,87 @@ def object_datum_table(objfile, readable=INITIALIZED_SECTIONS):
     return table
 
 
+_DATA_RELOC_HEAD = re.compile(r"^RELOCATION RECORDS FOR \[([^\]]+)\]:")
+_DATA_RELOC_ROW = re.compile(r"^([0-9a-f]{8})\s+(R_PPC\S+)\s")
+_DATA_RELOC_CACHE = {}
+
+
+def object_relocation_offsets(objfile):
+    """{section: {offset, ...}} for every relocation in one object.
+
+    Run-56 item 6. The pool classifiers compare OUR object's raw bytes
+    against the RETAIL DOL's linked bytes, and those are only comparable
+    where nothing relocates them: a word the linker is going to fill in
+    reads as its placeholder here and as a resolved address there. This is
+    the evidence that decides it.
+    """
+    path = Path(objfile)
+    try:
+        stat = path.stat()
+        key = (str(path), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        key = (str(path), None, None)
+    cached = _DATA_RELOC_CACHE.get(key)
+    if cached is not None:
+        return cached
+    table = {}
+    try:
+        listing = objdump(path, "-r")
+    except OSError:
+        _DATA_RELOC_CACHE[key] = table
+        return table
+    section = None
+    for line in listing.splitlines():
+        head = _DATA_RELOC_HEAD.match(line.strip())
+        if head:
+            section = head.group(1)
+            continue
+        row = _DATA_RELOC_ROW.match(line.strip())
+        if row and section:
+            table.setdefault(section, set()).add(int(row.group(1), 16))
+    _DATA_RELOC_CACHE[key] = table
+    return table
+
+
+def datum_is_relocated(symbol, objfile):
+    """Does a relocation cover this datum's bytes in OUR object?
+
+    True  -> its raw bytes are placeholders; a byte comparison against the
+             linked image is meaningless and must not be scored.
+    False -> the bytes are the constant; comparison is sound.
+    None  -> the symbol is not defined in this object, so we cannot say.
+    """
+    if objfile is None:
+        return None
+    base, _addend = split_addend((symbol or "").strip())
+    head = _RELOC_SYM_RE.match(base)
+    if head:
+        base = head.group(1)
+    wanted, _blobs = object_sections(Path(objfile), readable=None)
+    entry = wanted.get(base)
+    if entry is None:
+        return None
+    section, offset, size = entry
+    hits = object_relocation_offsets(objfile).get(section, ())
+    span = max(int(size or 0), 4)
+    return any(offset <= at < offset + span for at in hits)
+
+
 def is_pointer_table(blob, name=""):
     """A relocation-filled table: resolved addresses in the retail image and
     ZEROS in our object, because our entries live in the relocation table.
-    That is a representation difference, never a datum difference."""
+    That is a representation difference, never a datum difference.
+
+    THIS IS A SHAPE HEURISTIC AND IT HAS A MEASURED FALSE POSITIVE (run-56
+    item 6). The `not any(blob)` branch calls ANY all-zero datum a pointer
+    table, and an f64 0.0 is eight zero bytes: on game/ui/auxscreen::
+    CaptionTextSub our `@355` holds 0000000000000000 against the target's
+    403e000000000000 (f64 30.0), which is a genuine wrong constant this
+    predicate reports as benign. So it is NOT what `pool_row_findings` uses —
+    that classifier asks `datum_is_relocated`, which reads the relocation
+    table instead of guessing from the bytes. Kept as-is for `datum_key`,
+    where the multiset comparison still surfaces such a pair as unequal.
+    """
     if name.startswith("jumptable_"):
         return True
     if not blob or len(blob) < 8 or len(blob) % 4:
