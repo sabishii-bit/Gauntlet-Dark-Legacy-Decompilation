@@ -423,16 +423,6 @@
         "copy_register_fields": true
       },
       {
-        "function": "MissileCollideEnemy",
-        "before_sha256": "0c724c8d5a6238861922b3fc005eb21176b9cc9fff4a5a7332753f33aa47480f",
-        "after_sha256": "22483617cfedc178cd33f90c6093902d8ddb001536250f3ecb178b48ea70d7ef",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 86
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "cam_orient_to_80029E8C",
         "before_sha256": "3b2003b09b31aceb953f93b0ea6fabccd616013121944e4b7085ad398343a5a1",
         "after_sha256": "63fd924bd9b52978a7fab4d9623848e43f76b10615cda92a998c006981c49246",
