@@ -1153,6 +1153,18 @@ python tools/gdl/aritycheck.py [--verdict PHANTOM-CANDIDATE]  # parameter
     # view cannot decide the row — read the target half) and a SHORT/FULL
     # split (only FULL sites pay for a phantom parameter, so a row with
     # 0 FULL sites has no payer).
+python tools/gdl/whenrun.py <commit> [<commit> ...]   # a commit CITATION,
+    # read as a date, an AGE IN DAYS and a RUN NUMBER. Records are anchored
+    # to commits by policy and freshness is how two disagreeing records are
+    # ranked, so an anchor nobody can read is an age that cannot enter the
+    # ranking: `"measured at c0f978273"` resolved to nothing before run 56.
+    # The run comes from history itself (the integrator's `Stage run-N work
+    # claims` commit), so it needs no table — but it is a FLOOR, because runs
+    # 6, 8, 29 and 32 staged no marker; `--runs` prints the table and the
+    # gaps. `--scan-records` resolves every citation in the corpus: 956 of
+    # the 1,194 hash-shaped tokens are commits here and 238 are not (source
+    # sha1s, body digests, worker-branch commits), and the tool says which
+    # rather than guessing.
 python tools/gdl/matchtool.py probe <unit> --brief
 python tools/gdl/lowmatch.py --max 50 --min-size 200 --sort impact
 python configure.py progress

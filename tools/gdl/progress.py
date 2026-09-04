@@ -20,14 +20,28 @@ Notes:
     function reads low even if most functions match. Watch the fn column too.
   * report.json is NOT rebuilt by a normal `ninja`; use --refresh (or run
     `ninja build/GUNE5D/report.json`) to get fresh numbers.
+  * REPORT UNIT NAMES ARE NOT UNIT PATHS (run-56 item 5). Every unit in
+    report.json is named `main/<unit>` WITHOUT the `.c`/`.cpp` extension —
+    measured at 2a90f8403, 333 of 333 units, first segment `main` with no
+    exceptions. So the two joins a lane writes first both fail:
 
-IMPORTABLE CORE: postprocessor_split — pure over report.json and
-config/GUNE5D/webfrank.json; no build, no printing, and importing this module
-has no side effects.
+        [u for u in units if u["name"] == "game/enemy/critter.c"]   -> 0
+        [u for u in units if u["name"].endswith("game/enemy/critter.c")] -> 0
+
+    and only the extension-stripped `endswith` finds anything. That is one
+    wasted pass per lane that learns it the hard way, and the file hosting
+    this module's IMPORTABLE CORE never said it. Use `report_unit_key()` /
+    `load_report_units()` below rather than re-deriving the strip: 15 of the
+    19 tools that read a report unit `name` today carry their own copy of it.
+
+IMPORTABLE CORE: postprocessor_split, report_unit_key, load_report_units —
+pure over report.json and config/GUNE5D/webfrank.json; no build, no printing,
+and importing this module has no side effects.
 """
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -36,6 +50,35 @@ VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
 RULES = REPO / "config" / VERSION / "webfrank.json"
+
+
+def report_unit_key(name):
+    """`main/game/enemy/critter` -> `game/enemy/critter`.
+
+    The report side of the same normalization `fndiff.unit_key` does for the
+    ARGV side. Both directions have to agree or a join silently matches
+    nothing; keeping the pair in one sentence is the point of naming this.
+    """
+    text = str(name or "").replace("\\", "/").strip().strip("/")
+    if text.startswith("main/"):
+        text = text[len("main/"):]
+    if text.startswith("src/"):
+        text = text[len("src/"):]
+    return re.sub(r"\.(c|cpp)$", "", text)
+
+
+def load_report_units(report=None):
+    """{unit_key: unit dict} from report.json — the join, done once.
+
+    Run-56 item 5. Every caller that wanted "the report row for this unit"
+    was writing its own prefix strip; 15 of the 19 tools that read a report
+    unit `name` carry a private copy today, and the sixteenth is where the
+    wasted pass happens.
+    """
+    path = Path(report) if report else REPORT
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {report_unit_key(unit.get("name", "")): unit
+            for unit in data.get("units", [])}
 
 
 def postprocessor_split(report=None, rules=None):
@@ -138,7 +181,7 @@ def main():
     units = json.loads(REPORT.read_text()).get("units", [])
     rows = []
     for u in units:
-        name = u.get("name", "").removeprefix("main/")
+        name = report_unit_key(u.get("name", ""))
         m = u.get("measures", {})
         pct = m.get("matched_code_percent", 0.0)
         tf = m.get("total_functions", 0)
