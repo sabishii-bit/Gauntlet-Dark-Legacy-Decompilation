@@ -534,6 +534,33 @@ def size_gap_class(target_bytes, our_bytes, bss=False):
     return "debt-zero-slack"
 
 
+def refine_unclaimed(gap, target_len, claimed):
+    """Split OURS-LARGER into the CLAIM-DEBT case and the data case.
+
+    RUN-53 ITEM 6. `blocker-ours-larger`'s blurb — "OURS is LARGER than the
+    target, the DOL-range byte check is structurally blind to this" — is
+    written for a DATA defect, and lanes read it as one. It is usually not.
+    When the target side is exactly 0x0, the reason is almost always that
+    THE DTK SPLIT NEVER ASSIGNED THAT SECTION TO THIS TU, so there are no
+    target bytes to be larger than, and the cure is a line in
+    config/GUNE5D/splits.txt rather than any edit to the .c.
+
+    claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-
+    splits-txt-claim-debt-not-a-data-defect.20260904.v1 measured the distance
+    0-3 band: 38 blocker lines, all 38 of this shape, and all 38 unclaimed.
+    This does NOT assert that law — it CHECKS it per row, against the live
+    splits.txt, so a row whose section IS claimed keeps the data wording and
+    the law's own falsifier stays live.
+
+    Worked pair from the law, one file apart in splits.txt: `game/mb/mb_blit.c`
+    lists no .sdata2 and prints the blocker; `game/mb/mb_camera.c` lists
+    `.sdata2 start:0x80348B30 end:0x80348B38` and prints `100.0% bytes equal`.
+    """
+    if gap == "blocker-ours-larger" and not target_len and not claimed:
+        return "blocker-unclaimed-section"
+    return gap
+
+
 GAP_BLURB = {
     "debt-zero-slack": ("the target's extra bytes are ZERO over an identical"
                         " head — the same claim slack the byte mode scores"
@@ -542,6 +569,16 @@ GAP_BLURB = {
                        " and the byte mode does not screen it at all"),
     "blocker-ours-larger": ("OURS is LARGER than the target — the DOL-range"
                             " byte check is structurally blind to this"),
+    "blocker-unclaimed-section": (
+        "UNCLAIMED SECTION — the target side is 0x0 because the dtk split"
+        " never assigned this section to this TU, not because our data is"
+        " wrong. This is CLAIM DEBT in config/GUNE5D/splits.txt and it is NOT"
+        " fixed in the .c: derive the address range with `python"
+        " tools/gdl/composed_census/af_data_base_census.py <unit>`, which"
+        " prints a paste-ready line, add it under this file's block, and"
+        " re-run. (claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-"
+        "flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1:"
+        " 38 of 38 blockers in the distance 0-3 band were this)"),
     "blocker-nonzero-tail": ("the target's extra bytes are NONZERO — real"
                              " bytes are missing from ours"),
     "blocker-head-differs": ("the compared head DIFFERS, so this is not a"
@@ -609,6 +646,12 @@ def section_table(unit_key, strict_slack=False, debt=None):
 
     content = section_bytes
     ts, os_ = section_sizes(tgt_o), section_sizes(ours_o)
+    # What this .c actually claims in splits.txt, so an OURS-LARGER row can be
+    # told apart from an UNCLAIMED one per row instead of by assumption.
+    try:
+        claims = parse_splits().get(unit_key, {})
+    except (OSError, ValueError):
+        claims = {}
     bad = 0
     compared = 0
     for sec in DATA_SECTIONS + (".bss", ".sbss", ".sbss2"):
@@ -626,6 +669,7 @@ def section_table(unit_key, strict_slack=False, debt=None):
                        else "debt-bss-slack")
             else:
                 gap = size_gap_class(tb, ob, bss=False)
+            gap = refine_unclaimed(gap, tlen or 0, sec in claims)
             blocks = gap.startswith("blocker") or strict_slack
             mark = "FLIP BLOCKER" if blocks else "DATA-DEBT"
             print(f"[{unit_key}] {sec}: SIZE target 0x{tlen or 0:X} vs"
