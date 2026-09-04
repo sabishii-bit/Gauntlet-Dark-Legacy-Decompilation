@@ -3932,10 +3932,11 @@ s32 MissileCollideEnemy(f32 radius, f32* from, f32* to, f32* hit,
             u8 _pad[8];
             f32 dx;
             f32 enemyRadius;
-            f32 dz = PF(enemy, offsetof(Enemy, objgrp.coll_pos[2]), f32) - to[2];
+            f32 dz;
             f32 enemyHeight;
             f32 eh2;
             enemyRadius = radius + PF(enemy, offsetof(Enemy, rad), f32);
+            dz = PF(enemy, offsetof(Enemy, objgrp.coll_pos[2]), f32) - to[2];
             dx = PF(enemy, offsetof(Enemy, objgrp.coll_pos[0]), f32) - to[0];
             enemyHeight = radius + PF(enemy, offsetof(Enemy, hht), f32);
             eh2 = enemyHeight;
