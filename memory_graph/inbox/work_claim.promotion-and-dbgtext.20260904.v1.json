@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl/webfrank.py",
+      "config/GUNE5D/webfrank.json",
+      "game/pb/dbgtext.c",
+      "game/sys/sysservice.c"
+    ],
+    "scope": "POSTPROCESSOR+PROMOTION lane (owns webfrank surfaces EXCEPT the game/enemy/enemy block - AL's per 15b): (1) fn_800C03E0 ENDGAME: the withheld rule is proved byte-equal at 206 words (attempt.WP_fn800c03e0-declaration-order-pays-but-one-swap-is-a-relocation-regression-and-the-rule-is-withheld.20260904.v1); spend AT MOST 2 source probes on the callee-saved permutation (savedregs --raw first; the WP record's P-axes are dead - read it), then SHIP the rule WITH the provenance those probes complete (the withhold condition discharges either way); on close dbgtext = 100% fns: datadiff --sections + textorder (CX's roster says dist-1/0-blockers/ORDER-OK - re-verify live), full flip audit, finish_tu, ninja + sha1 = A FLIP. (2) CHEAP PROMOTIONS from CX's sketches (claim.CX_mechanism-sketches-for-the-forty-one-mechanism-less-webfrank-pins.20260904.v1): sysClearFlags (4 insns/2w), dbgTextInit (6/5), then MissileCollideEnemy, InitAnim, DmgFxAdd, add_vmu_file - SKIP any in the enemy block (gendir_8004FBC8 is AL's). Per fn: raw A/B loop, source-exact close -> DELETE the rule same-commit + configure + forced replay (EQ->STRICT, pure honesty gains); 3-attempt cap then keep the pin and bank the mechanism prose INTO the pin entry (paying the bare-boolean debt for that row either way). Resolve promotion TUs at selection: claimscope --audit + claims --owns + extend owned_units (sysservice is Matching+linked - any source edit must keep it green + sha1). (3) Fold CX's derived mechanism sketches into the pins you touch (the 37 bare booleans - your file, your run). Every ship: verify_datum_binding, refusal tests failing w/o their guard, forced replay per webfrank.py change, configure per json edit, both suites. Quote the split before/after. Gate = 'main.dol: OK' + sha1 per flip. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:fn_800C03E0",
+  "id": "work_claim.promotion-and-dbgtext.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WR",
+  "recorded_at": "2026-09-04T03:31:51Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
