@@ -5022,11 +5022,15 @@ extern void CritterLoadAllTypes(s32 arg0);
 #pragma opt_common_subs off
 static s32 init_next_level_8005638C(s32 arg0)
 {
-    char* fmt = lbl_80112788;
     u8* tbl = (u8*)lbl_80257680;
-    s32 result;
+    u8* q;
     s32 i;
+    s32 result;
+    s32 flag;
     s32 off;
+    u8* w;
+    s32 id;
+    s32 t;
 
     lbl_80344874 = pbLoad;
     if (arg0 < 0) {
@@ -5045,7 +5049,7 @@ static s32 init_next_level_8005638C(s32 arg0)
             lbl_803448C4 = lo;
         }
     }
-    sprintf((char*)(tbl + 172), fmt, gCurLevel->name);
+    sprintf((char*)(tbl + 172), "levels/level%s", gCurLevel->name);
     lbl_80344854 = mlmMemUsed;
     lbl_80343C30 = 0;
     result = LoadWorldDone(tbl + 172);
@@ -5057,70 +5061,73 @@ static s32 init_next_level_8005638C(s32 arg0)
     }
 
     for (i = 0, off = 0; i < 8; i++, off += 4) {
-        u8* q = tbl + off;
-        u8* w = tbl + off;
-        s32 t = *(s32*)(q += 332);
-        s32 flag;
+        q = tbl + off;
+        t = *(s32*)(q += 332);
 
+        w = tbl + off;
         *(s32*)(w += 140) = 0;
+        id = t;
         flag = 1;
         switch (t) {
         case E_DRAGON:
-            CritterLoadFile(lbl_80346C04, fmt + STR_DRAGON_WAD);
+            CritterLoadFile(lbl_80346C04, "dragon.wad");
             break;
         case E_CHIMERA:
-            CritterLoadFile(lbl_80346C04, fmt + STR_CHIMERA_WAD);
+            CritterLoadFile(lbl_80346C04, "chimera.wad");
             break;
         case E_DJINN:
-            CritterLoadFile(lbl_80346C04, fmt + STR_DJINN_WAD);
+            CritterLoadFile(lbl_80346C04, "djinn.wad");
             break;
         case E_DRIDER:
-            CritterLoadFile(lbl_80346C04, fmt + STR_DRIDER_WAD);
+            CritterLoadFile(lbl_80346C04, "drider.wad");
             break;
         case E_PBOSS:
-            CritterLoadFile(lbl_80346C04, fmt + STR_PBOSS_WAD);
+            CritterLoadFile(lbl_80346C04, "pboss.wad");
             break;
         case E_YETI:
-            CritterLoadFile(lbl_80346C04, fmt + STR_YETI_WAD);
+            CritterLoadFile(lbl_80346C04, "yeti.wad");
             break;
         case E_LICH:
-            CritterLoadFile(lbl_80346C04, fmt + STR_LICH_WAD);
+            CritterLoadFile(lbl_80346C04, "lich.wad");
             break;
         case E_WRAITH:
-            CritterLoadFile(lbl_80346C04, fmt + STR_WRAITH_WAD);
+            CritterLoadFile(lbl_80346C04, "wraith.wad");
             break;
         case E_SKORNE1:
-            CritterLoadFile(lbl_80346C04, fmt + STR_SKORNE1_WAD);
+            CritterLoadFile(lbl_80346C04, "skorne1.wad");
             break;
         case E_SKORNE2:
-            CritterLoadFile(lbl_80346C04, fmt + STR_SKORNE2_WAD);
+            CritterLoadFile(lbl_80346C04, "skorne2.wad");
             break;
         case E_GARM:
-            CritterLoadFile(lbl_80346C04, fmt + STR_GARM_WAD);
+            CritterLoadFile(lbl_80346C04, "garm.wad");
             break;
         case E_GOLEM:
             if (sMusicTrackHi == 9) {
-                CritterLoadFile(lbl_80346C04, fmt + STR_GOLEMI_WAD);
+                CritterLoadFile(lbl_80346C04, "golemI.wad");
             } else if (sMusicTrackHi == 6) {
-                CritterLoadFile(lbl_80346C04, fmt + STR_GOLEMF_WAD);
+                CritterLoadFile(lbl_80346C04, "golemF.wad");
             } else {
-                CritterLoadFile(lbl_80346C04, fmt + STR_GOLEM_WAD);
+                CritterLoadFile(lbl_80346C04, "golem.wad");
             }
             break;
         case E_GENERAL:
-            CritterLoadFile(lbl_80346C04, fmt + STR_GENERAL_WAD);
+            CritterLoadFile(lbl_80346C04, "general.wad");
             break;
         case E_GARGOYLE: {
             char buf[16];
-            sprintf(buf, fmt + STR_GAR_S_WAD, *(char**)(tbl + off + 236) + 16);
+            u8* e = tbl + off;
+            sprintf(buf, "gar_%s.wad", *(char**)(e + 236) + 16);
             CritterLoadFile(lbl_80346C04, buf);
             break;
         }
         default:
             flag = 0;
-            if (t >= 0) {
+            if (id >= 0) {
+                u8* e;
                 *(s32*)w = BytesFree();
-                AllocEnemy(t, *(s32*)(tbl + off + 268));
+                e = tbl + off;
+                AllocEnemy(id, *(s32*)(e + 268));
                 *(s32*)w = *(s32*)w - BytesFree();
             }
             break;
