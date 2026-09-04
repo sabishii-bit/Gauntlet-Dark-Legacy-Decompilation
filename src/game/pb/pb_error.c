@@ -21,7 +21,6 @@
 #include "types.h"
 
 extern u32 gErrorCode;           /* 0x80343EF0 (.sdata) */
-extern u8  lbl_802C4DB8[0x28];   /* error scratch block (.bss) */
 extern u32 lbl_80343F04;
 extern s32 lbl_80343F08;
 extern s32 lbl_80343EE8;
@@ -58,6 +57,8 @@ typedef struct PBErrorBlock {
     u8 blue;
 } PBErrorBlock;
 
+extern PBErrorBlock lbl_802C4DB8;   /* error scratch block, 0x28 bytes (.bss) */
+
 /* Big error reporter: rasterizes the message through a 256-wide 1-bit glyph
  * atlas into an 8 KiB stack bitmap, one 21-character line at a time. Each
  * glyph is 5 bytes wide x 7 rows in the atlas (35 bytes); every set cell
@@ -66,7 +67,7 @@ typedef struct PBErrorBlock {
 void fn_800C1174(register s8* text, register u32 errorHigh)
 {
     u8 image[80];
-    u8 unused[8];
+    u8 unused[4];             /* unrecovered local between image and pixels */
     u32 pixels[2048];
     PBErrorBlock* blk;
     s8* glyph;
@@ -81,7 +82,7 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     u8 c;
     s32 plot;
 
-    blk = (PBErrorBlock*)lbl_802C4DB8;
+    blk = &lbl_802C4DB8;
     sceGsResetPath();
     sceGsResetGraph(0, 0, 2, 1);
     fn_800C13CC();
@@ -91,7 +92,8 @@ void fn_800C1174(register s8* text, register u32 errorHigh)
     blk->red = (ec >> 17) & 0x7F;
     blk->green = (ec >> 9) & 0x7F;
     blk->blue = (ec >> 1) & 0x7F;
-    FlushCache(0, (blk->high = 0));
+    blk->high = 0;
+    FlushCache(0);
     sceGsSwapDBuff(blk);
     sceGsResetPath();
     sceGsSwapDBuff(blk);
@@ -154,7 +156,6 @@ void fn_800C13CC(void)
     u32 zero;
     u8 image[164];
     s32 off;
-    char* file;
     u32 i;
 
     for (zero = 0; zero < 1024; zero++) {
@@ -164,7 +165,6 @@ void fn_800C13CC(void)
 
     i = 0;
     off = 0;
-    file = lbl_801164C0;
     do {
         sceGsSetDefLoadImage(image, (s16)off, 4, 0, 0, 0, 32, 32);
         if (lbl_80343EE8 != 0) {
@@ -172,7 +172,7 @@ void fn_800C13CC(void)
         }
         sceGsExecLoadImage(image, pixels);
         if (lbl_80343EEC != 0) {
-            fn_800C1148(0, 0, file);
+            fn_800C1148(0, 0, lbl_801164C0);
         }
         i++;
         off += 16;
