@@ -270,11 +270,11 @@ void CreateDynobjGrid(void)
             p = (f32*)((u8*)o->prep + 0x30);
         else
             p = o->bbox;
-        xlo = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         xloRaw = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         xhi = (s32)((p[0] + o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         zlo = (s32)((p[2] - o->radius - gWorldInfo.min_z) * dyngrid_invwidth);
         zhi = (s32)((p[2] + o->radius - gWorldInfo.min_z) * dyngrid_invwidth);
+        xlo = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         xlo = (xlo < 0) ? 0 : (xloRaw > num_dyngridx - 1 ? num_dyngridx - 1 : xloRaw);
         xhi = (xhi < 0) ? 0 : (xhi > num_dyngridx - 1 ? num_dyngridx - 1 : xhi);
         zlo = (zlo < 0) ? 0 : (zlo > num_dyngridz - 1 ? num_dyngridz - 1 : zlo);
