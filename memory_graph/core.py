@@ -281,6 +281,56 @@ HYPOTHESIS_FIELDS = ("statement", "cheapest_refuting_observation",
 # takes any count figure anywhere in the block as an answer.
 HYPOTHESIS_COUNT_FIELD = "count_consequence"
 
+# Optional and TOLERATED, same class as the count field above (run-55 item 1):
+# the hypothesis's PRESCRIPTION — the named cure — held separate from the
+# DIAGNOSIS that `statement` otherwise carries.
+#
+# THE MEASURED FAILURE. attempt.EN_movelogic00-within-class-zero-reorder-and-
+# the-provenance-the-retracted-rule-never-had.20260904.v1 wrote one blob into
+# `statement`: a diagnosis (the retracted rule rotated two pooled f64 constant
+# homes at +0x1dc-0x1f4 without their relocations) followed by a cure ("The
+# rule must be authored in the VALUE-EQUALITY mode ... never the plain
+# copy_register_fields"). `brief` ranks that row FIRST, marks it TYPED, and
+# tells the reader every other row is prose at 30-50% extraction precision —
+# so the cure rode at the schema's highest confidence. The next lane measured
+# the cure WRONG: attempt.WV_movelogic00-re-served-as-permute-plus-recolor-
+# because-the-retracted-rules-defect-was-a-datum-transposition-no-recolor-can-
+# reach.20260904.v1 records "That is the wrong cure for the right reason ...
+# The value-equality mode would not have helped, and declaring it would have
+# been the second unsound rule on this function in two runs." The diagnosis
+# transferred perfectly; only the prescription rotted, which is exactly
+# AGENTS.md's run-41 rebalance ("the record's named CURE is only the FIRST
+# CANDIDATE, not a mandate; five mandated levers across runs 38-41 regressed
+# or folded").
+#
+# NO PROSE TRIGGER SHIPS, and two-sided calibration is why. Measured at
+# 84f85a96a over all 274 typed hypothesis blocks in records/ + inbox/:
+#   * mandate PHRASES ("must be authored", "the cure is", "never the",
+#     "declare", "use the", "apply the") fire on 20/274 (7.3%) and the fired
+#     set READS wrong — 4 of the first 6 are diagnoses caught on an
+#     incidental "declare"/"use the" — while the silent set holds real
+#     prescriptions it misses (attempt.AF_atree-is-flip-ready-...20260903.v1
+#     opens "Close fn_8001267C source-exact ... and delete its webfrank
+#     rule", and the trigger says nothing).
+#   * the corpus's own NECESSITY_TERMS vocabulary fires on 150/274 (54.7%):
+#     half the corpus is not a discriminated set.
+#   * necessity NEAR cure vocabulary fires on 11/274 (4.0%), and reading all
+#     eleven, exactly ONE is a mandated cure — the move_logic00 row above.
+#     The other ten are correctly-stated VETOes ("the next lane must not
+#     spend declaration-order probes on it") and process notes ("it must be
+#     settled BEFORE any rule is authored"). Precision 1/11 = 9%.
+# So the separation is recorded by the AUTHOR as a field, never guessed from
+# the prose, and `brief` reports the SHAPE fact (`cure_status`) rather than a
+# phrase verdict.
+#
+# MIGRATION: none needed, and the number is the argument. The field fires on
+# 0/274 accepted blocks today, so every one of them stays valid — unknown
+# keys are tolerated here exactly as in `residual`, and making this REQUIRED
+# would invalidate all 274 at once. That is also why `cure_status` prints
+# `unseparated` as a neutral shape fact and not a warning: a warning true of
+# 100% of the corpus is noise, which this corpus has measured twice.
+HYPOTHESIS_PRESCRIPTION_FIELD = "prescription"
+
 # A REPRODUCTION is the cap-STRENGTHENING path (run-39 item 7). AGENTS.md
 # already says parked probes are ALIGNMENT-SENSITIVE — "a probe that measured
 # negative may turn positive after surrounding regions improve, so re-A/B
@@ -5062,6 +5112,17 @@ def record_template(kind: str) -> dict[str, Any]:
                 " attempt.PR_distancetoclosestplayer-...20260903.v2 died on"
                 " exactly that (123 vs 122). Omitting it prints a WARNING,"
                 " never a refusal>",
+                "prescription": "<OPTIONAL: the named CURE, held SEPARATE from"
+                " the diagnosis in `statement`. AGENTS.md's run-41 rebalance:"
+                " the diagnosis transfers near-perfectly and verifying it is"
+                " mandatory step 1, while the cure is only the FIRST"
+                " CANDIDATE. Put the mechanism in `statement` and the lever"
+                " here, and `brief` will rank them accordingly"
+                " (`cure_status: separated`). Measured instance:"
+                " attempt.EN_movelogic00-...20260904.v1 mandated the"
+                " value-equality rule mode inside its statement and"
+                " attempt.WV_movelogic00-...20260904.v1 measured that cure"
+                " wrong while its diagnosis held exactly>",
             },
             "reproductions": [
                 {
@@ -10016,7 +10077,9 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
     if isinstance(typed, dict) and str(typed.get("statement") or "").strip():
         statement = str(typed["statement"])
         seen.add(statement[:80])
-        found.append({
+        prescription = str(
+            typed.get(HYPOTHESIS_PRESCRIPTION_FIELD) or "").strip()
+        row = {
             "marker": "TYPED",
             "field": "hypothesis",
             "text": statement,
@@ -10024,7 +10087,13 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
                 typed.get("cheapest_refuting_observation") or ""),
             "screened_against_target": str(
                 typed.get("screened_against_target") or ""),
-        })
+            # SHAPE, not a phrase verdict (see HYPOTHESIS_PRESCRIPTION_FIELD:
+            # every prose trigger calibrated for this failed two-sided).
+            "cure_status": "separated" if prescription else "unseparated",
+        }
+        if prescription:
+            row[HYPOTHESIS_PRESCRIPTION_FIELD] = prescription
+        found.append(row)
     for field, text in (("attempted_axis", record.get("attempted_axis")),
                         ("value", record.get("value")),
                         *(("attributes." + key, value)
@@ -10900,6 +10969,21 @@ def tu_briefing(
             " parked/capped/negative record — 53 such rows corpus-wide were"
             " being handed back as mandatory first moves — and carry a"
             " `field_caveat` when the outcome says the trying succeeded."
+            " TYPED AND EXACT DESCRIBES THE SHAPE, NOT THE CURE. A statement"
+            " may carry a DIAGNOSIS and a PRESCRIPTION in one blob, and"
+            " AGENTS.md's run-41 rebalance is that the diagnosis transfers"
+            " near-perfectly while the named cure is only the FIRST"
+            " CANDIDATE (five mandated levers across runs 38-41 regressed or"
+            " folded). Each TYPED row therefore reports `cure_status`:"
+            " `separated` means the author put the lever in the optional"
+            " `prescription` key and the row prints it apart from the"
+            " mechanism; `unseparated` means the two are mixed in `statement`"
+            " — verify the mechanism first and treat the lever inside it as"
+            " one candidate. Measured instance: attempt.EN_movelogic00-..."
+            ".20260904.v1 mandated the value-equality rule mode and"
+            " attempt.WV_movelogic00-....20260904.v1 measured that cure wrong"
+            " ('the wrong cure for the right reason') while its diagnosis"
+            " held exactly."
         ),
         "vetoed_axes": vetoed_axes,
         "vetoed_axes_note": (

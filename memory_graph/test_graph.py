@@ -3001,6 +3001,82 @@ class TypedProseObjectTests(unittest.TestCase):
                       brief["open_hypotheses"][0])
 
 
+class HypothesisPrescriptionTests(unittest.TestCase):
+    """T25 run-55 item 1: the CURE is separable from the DIAGNOSIS.
+
+    attempt.EN_movelogic00-...20260904.v1 mixed a correct diagnosis and a
+    cure into one `statement`; `brief` ranked the blob first and called it
+    TYPED and exact, and attempt.WV_movelogic00-...20260904.v1 then measured
+    the cure wrong ("the wrong cure for the right reason") while the
+    diagnosis held. The field is OPTIONAL by calibration: it fires on 0 of
+    274 accepted blocks, so requiring it would invalidate every one.
+    """
+
+    def setUp(self):
+        self.root = ev_root()
+
+    def _hyp(self, **extra):
+        block = {
+            "statement": "the rotated pool constant homes cross the renaming",
+            "cheapest_refuting_observation": "wf_ordered_datum_screen.py",
+            "screened_against_target": "yes -- 53 differing words",
+        }
+        block.update(extra)
+        return block
+
+    def test_a_hypothesis_without_a_prescription_still_validates(self):
+        record = _attempt("attempt.no-presc.v1", "function:test_fn",
+                          outcome="improved", hypothesis=self._hyp(),
+                          attributes={"law_screen": "none applicable: schema"})
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_a_prescription_is_accepted_and_never_required(self):
+        record = _attempt("attempt.with-presc.v1", "function:test_fn",
+                          outcome="improved",
+                          attributes={"law_screen": "none applicable: schema"},
+                          hypothesis=self._hyp(
+                              prescription="author the rule in the"
+                                           " value-equality mode"))
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_brief_reports_cure_status_unseparated_by_default(self):
+        records = self.root / "memory_graph" / "records"
+        _write(records / "attempts" / "typed.json", _attempt(
+            "attempt.unsep.v1", "function:test_fn", outcome="improved",
+            hypothesis=self._hyp()))
+        build_database(self.root)
+        row = tu_briefing("game/test/foo", root=self.root)[
+            "open_hypotheses"][0]
+        self.assertEqual(row["marker"], "TYPED")
+        self.assertEqual(row["cure_status"], "unseparated")
+        self.assertNotIn("prescription", row)
+
+    def test_brief_separates_a_declared_prescription(self):
+        records = self.root / "memory_graph" / "records"
+        _write(records / "attempts" / "typed.json", _attempt(
+            "attempt.sep.v1", "function:test_fn", outcome="improved",
+            hypothesis=self._hyp(
+                prescription="author the rule in the value-equality mode")))
+        build_database(self.root)
+        brief = tu_briefing("game/test/foo", root=self.root)
+        row = brief["open_hypotheses"][0]
+        self.assertEqual(row["cure_status"], "separated")
+        self.assertEqual(row["prescription"],
+                         "author the rule in the value-equality mode")
+        # The diagnosis stays in `text` — the cure never displaces it.
+        self.assertIn("rotated pool constant homes", row["text"])
+        self.assertIn("cure_status", brief["open_hypotheses_note"])
+
+    def test_the_template_documents_the_optional_field(self):
+        template = core.record_template("attempt")
+        self.assertIn(core.HYPOTHESIS_PRESCRIPTION_FIELD,
+                      template["hypothesis"])
+        self.assertNotIn(core.HYPOTHESIS_PRESCRIPTION_FIELD,
+                         core.HYPOTHESIS_FIELDS)
+
+
 class LegacyQuarantineTests(unittest.TestCase):
     """Deliverable 7: flag ungated prose denials, never auto-extract them."""
 
