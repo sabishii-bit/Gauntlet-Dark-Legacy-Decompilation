@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl",
+      "memory_graph"
+    ],
+    "scope": "TOOL lane (owns tools/gdl + memory_graph EXCEPT webfrank surfaces - WP owns those this run): run-51 queue; observations only (reproduce w/ the reporter's command, quote verbatim, derive cures yourself); two-sided calibration; one commit per item. (1) SANCTIONED: class-B dangling-citation repair (attempt.CX_the-sixty-seven-dangling-citations-are-five-classes-and-only-eight-are-repairable.20260904.v1 - 8 instances/6 ids, versionless or mis-dated; seven sit in laws_applied so the repair MOVES FIVE LAWS' EVIDENCE SCORES - report before/after per law, integrator sanction is on record). (2) defake_gate structure arbiter is one-directional AND erases rows near unpaired clusters (CR: unpaired 9->3 printed as 'REGRESSION... structure agrees with real'; BG: 0-row erasure made a false corroboration; same root, two costumes - when genuine rows RISE or the region holds unpaired clusters, compare unpaired counts and route to the fuzzy arbiter, or print UNDEFINED). (3) probe's cross-tool advice names flags defake_gate does not accept ('--arbitrate' vs the real '--arbiter fuzzy'; CR followed the banner into exit 1). (4) COUNT-PARITY GAINED/LOST banner is computed vs the previous PROBE not vs HEAD (CR + EN, independent sightings; the --discard fix covered one path, the overwrite path still lies). (5) brief: roster prints 'name: None' for every fn (CR reconstructed from gate JSON); --section flag (NC: 40KB spill for <10% signal); 10b OPEN HYPOTHESES mines attempted_axis and mandates already-refuted work (claim.law.EN_brief-open-hypotheses-mines-the-attempted-axis-field... - consult outcome/denial before emitting a row); cross-TU pin attribution (brief game/audio/dcsdrv returned game/audio/dcs pins - exact unit key). (6) propose-record --size under-reports vs the real gate by ~60-70B (BG: 3 trim cycles; make --size run the gate's own serializer). (7) probe BASELINE warning when a function's body is produced by inlined helpers outside its span (NC: --revert-best correctly refused but the revert loop was silently unavailable all lane). (8) AGENTS: SystemExit-is-not-Exception trap (T21: 3 sites relied on catching what cannot be caught); presence-claims-quote-their-query screen (CR: 'critter has no pins' shipped unqueried, 8 pins); claimscope --audit mandatory in the integrator dispatch checklist. (9) fndiff.objdump raises on missing flags instead of returning '' (CR: fabricated all-clear from an IMPORTABLE-CORE fn). Scoped tests between items; FULL suites per commit; ninja 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:TextHeightMLines",
+  "id": "work_claim.tool-queue-22.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T22",
+  "recorded_at": "2026-09-04T02:09:23Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

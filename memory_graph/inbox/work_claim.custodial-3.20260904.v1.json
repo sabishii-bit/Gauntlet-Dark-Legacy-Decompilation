@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "research"
+    ],
+    "scope": "CUSTODIAL/INVESTIGATION lane round 3 (standing): NO source edits this run - findings become records; tool work hands to T22, webfrank prose to WP. (1) SECTION-DEBT MAP: run datadiff --sections over EVERY NonMatching TU at distance 1-3 (the run-51 lesson: 2 of 3 distance-1 TUs owed data; do mb_camera, dbgtext, pb_frame, critter, pb_error, dynobjgrid, fakelib, auxanim, pb_texture, cardutil, attract, adstream, audio, action at minimum) + textorder.py over the same set; publish THE TRUE FLIP ROSTER as a claim record: per TU, open fns + section blockers + textorder verdict, ranked by total distance. This becomes every future flip order's dispatch census. (2) VACUOUS-EXPIRY REMEDIATION: the 13 denials whose expiry checks read postprocessed objects of pinned fns (attempt.CX_expiry-sweep... run-51) - re-run each with --raw, author superseding records where the denial's premise changed, confirm-and-restate where it holds (the do_enemies precedent: conclusions survived, check failed). (3) EXPIRED-DENIAL cleanup: the 5 expired records from run-51's sweep - supersede or stale_solved each with the live measurement. (4) The 41 mechanism-less pins (T21 item 6 marked them explicitly): triage which have derivable mechanisms from their rules' own JSON (decode the rule: a permutation's atoms or a recolor's field map IS a mechanism sketch) - author mechanism-bearing notes as records for WP to fold into webfrank.json next run (WP owns the file this run - hand off, do not edit). (5) Spot-audit 3 random EQUIVALENT-tier fns end-to-end (raw residual vs rule vs linked bytes) as a standing honesty control. Quote the split at start and end - expected UNCHANGED except WP/EO landings. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:CritterLoadDone",
+  "id": "work_claim.custodial-3.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CX",
+  "recorded_at": "2026-09-04T02:09:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

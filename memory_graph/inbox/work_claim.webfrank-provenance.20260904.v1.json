@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl/webfrank.py",
+      "config/GUNE5D/webfrank.json",
+      "game/audio/dcsdrv.c",
+      "game/pb/dbgtext.c"
+    ],
+    "scope": "POSTPROCESSOR lane (sole owner of webfrank surfaces this run) - THE MANDATE ITEM LEADS: (1) PROVENANCE REPAIR: 14 shipped rule entries cite provenance records that do not exist (claim record: attempt.CX_unfalsifiable-pin-mechanism-census... + the CX run-51 report's item-2/6 findings; the list: attempt.HV_union-resweep-eight-composed-closes.20260901.v1 cited by NINE rules, attempt.HV_harvest-sweep-arrow-order... by two, one misspelling (HV_gauntworld- for HV_fn8005fb48-), one pruned-and-superseded id, one literal ellipsis placeholder claim.law.HB_two-censuses-...v1). Per rule: locate the TRUE record (search by mechanism + date - the id may be misremembered not missing), else RE-DERIVE the source-exhaustion provenance from the raw residual and author the record, else report the rule as PROVENANCE-UNESTABLISHED prominently for the integrator (the user mandate makes exhaustion provenance the tier's admission ticket - do NOT silently retract, do NOT silently keep). (2) SERVE dcsHandleRequest's banked rule request: attempt.NC_dcshandlerequest-case-17-statement-order-closes-one-of-the-two-opcode-words.20260904.v1 - ONE word left at +0x1e8 (NOT +0x1e0 - the old BAR A was measured at the pre-transposition offset; the dominating def is two instructions earlier inside the same jumptable entry block, so prove_constant_source should now succeed); positionally aligned, destination-equal (both write r31), the corpus's best inverse-copy-form customer. If it serves: dcsdrv is 100% fns w/ CLEAN data (NC measured '0 blocker(s)') - run textorder + full flip audit + finish_tu + full ninja + retail sha1 = A FLIP. (3) SCREEN fn_800C03E0 (dbgtext, real 508, multiset IDENTICAL 433/433, wf_word_diff = 216 differing words ALL REGFIELD-ONLY, 0 mnemonic/0 reloc; savedregs: 12 role mismatches, 45 permuted live ranges) for a copy_register_fields + permutation composition; serve if provable w/ full verify_datum_binding, instrumented refusal otherwise; if served, dbgtext = 100% fns - run datadiff --sections + textorder BEFORE claiming the flip (the run-51 lesson: 2 of 3 distance-1 TUs owed sections). Every ship: verify_datum_binding, refusal tests failing w/o their guard, forced full replay per webfrank.py change, configure per json edit, both suites. Closes are EQUIVALENT; STRICT unmoved by rules. Gate = 'main.dol: OK' + sha1 per flip. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:dcsHandleRequest",
+  "id": "work_claim.webfrank-provenance.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WP",
+  "recorded_at": "2026-09-04T02:09:21Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

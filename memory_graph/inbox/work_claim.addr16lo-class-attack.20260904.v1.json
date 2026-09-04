@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/world/btricol.c"
+    ],
+    "scope": "RESEARCH lane - THE ADDR16_LO HOME-COPY CLASS (the biggest single wall: S=0 over 953 opportunities, 40+ fn roster incl. 3 of enemy.c's 4 count-asymmetric blockers; claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 - open it, quote the roster + the 12 failed discriminants BEFORE designing anything). Objective: find the discriminant that decides when the target emits the home copy, via the find-it-in-matched-code method (the whoemits doctrine that closed WPitchMat3): (1) census OUR OWN byte-exact fns for sites where our compiler DOES emit the ADDR16_LO home copy (t15_whoemits + the addr16 census family in composed_census - addr16_census.py, addrlo_home_general_census.py etc. are live; read their docstrings first, they may already hold half the answer); (2) derive candidate discriminants from POSITIVE instances (source shapes, web counts, shadow coupling - the law's own name says general-temp-and-shadow-coupled; EN's run-51 records add: move_logic22 = VOLATILE-home variant the callee-saved census missed, generate_enemy = target-only direction); (3) validate any discriminant against the full 40-fn roster BOTH ways (fires on members, silent on non-members) at zero builds; (4) probe the best discriminant's source form on AT MOST 2 roster fns OUTSIDE game/enemy/* (EO owns enemy.c, CR-history TUs respect typed parks) - resolve those TUs at selection, run claimscope --audit + claims --owns, extend owned_units, and drop the btricol.c placeholder if unused. A refuted discriminant w/ both sides measured is a GOOD outcome - record it; 12 are already dead, do not re-run them. If the class cracks: the payoff is 40+ fns incl. the enemy.c flip path - state it prominently. 3-attempt cap on source probes; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive; defake baseline per touched TU. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:fn_80046680",
+  "id": "work_claim.addr16lo-class-attack.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-AL",
+  "recorded_at": "2026-09-04T02:09:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
