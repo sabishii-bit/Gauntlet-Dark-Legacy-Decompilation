@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "EVERY ROW IS A CANDIDATE, NOT A BUG. A dangling region is frequently the intended TU-wide setting: game/sys/memcard is top_of_file, covers all 30 of its functions, and is LOAD-BEARING (closing it aborts the build on memCardErrorPrompt's webfrank body hash and takes saveMount and vmu_exists off their bytes). Before acting on any row, run the per-TU load-bearing test: close the region, defake_gate baseline <unit> --at-head, defake_gate check <unit> --rebuild.",
+    "The function parser is a heuristic. Two-sided calibration against fndiff.raw_signature over 36 units / 970 real functions at b00285ce3: false-positive 60, missed 63 (al_pragma_extent: 97 and 73). 52 of the misses are one file, game/movie/movieplayer, where an extern \"C\" block wrapping the TU defeats brace tracking; such files print PARSE-FAIL rather than a coverage of zero, because an unparsed file otherwise reads as 'no functions affected'."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/mc_pragma_regions.py [--out PATH] [--src DIR] [--bare-closes-all] [--all]",
+  "id": "tool.mc-pragma-regions.20260904T053648Z.74add95d",
+  "kind": "tool",
+  "name": "mc_pragma_regions",
+  "purpose": "Image-wide census of UNCLOSED #pragma regions across every src/ translation unit and every stateful pragma family, with each region's covering functions and a top_of_file/after_paired shape split. Complements al_pragma_extent, which answers a narrower question: that tool is keyed to the ADDR16_LO census roster (45 units, and it exits if build/GUNE5D/al_addrlo_positive.json is absent) and tracks only opt_propagation.",
+  "recorded_at": "2026-09-04T05:36:48Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/mc_pragma_regions.py",
+  "status": "active",
+  "tool_key": "tool:mc-pragma-regions",
+  "tool_kind": "census",
+  "usage": [
+    "Run from the repo root; writes build/GUNE5D/mc_pragma_regions.json. --bare-closes-all inverts the leak law's bare-reset assumption so both readings can be compared (37 regions vs 36)."
+  ],
+  "valid_from": "2026-09-04T05:36:48+00:00"
+}
