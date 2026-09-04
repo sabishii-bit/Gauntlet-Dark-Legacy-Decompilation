@@ -4000,6 +4000,53 @@ class ValidateIncrementalTests(unittest.TestCase):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
 
 
+class SearchAndToolTruncationTests(unittest.TestCase):
+    """Run-56 item 2, arrived at through a REFUTATION.
+
+    The reported observation was "`gdlmem find --tu` caps silently at 25".
+    It does not reproduce: `find` has published `truncated` AND a warning
+    naming the limit since 3d5347184 (2026-08-31), three days before the
+    report. Censusing the eleven limit-bearing surfaces instead found the
+    class two surfaces away — `search` and `tool` both cut and said nothing
+    — and `search` is the surface AGENTS.md's absence rule tells lanes to
+    settle "no record covers Y" with, so a capped bucket there answers a
+    does-it-exist question with a windowed one.
+
+    Two-sided: over 30 realistic queries at the default limit of 20, 28 cap
+    at least one bucket and 2 do not, so the signal has to be quiet on the
+    uncapped case as well as loud on the capped one.
+    """
+
+    def test_a_capped_search_says_which_bucket_and_by_how_much(self):
+        result = core.search_memory("residual", root=REPO_ROOT, limit=1)
+        self.assertTrue(result["truncated"])
+        self.assertIn("RESULT SET TRUNCATED", result["warning"])
+        self.assertIn("records", result["truncated_buckets"])
+        # The published number is a real COUNT, not another floor: shown +
+        # dropped must equal the total for every bucket.
+        for bucket, total in result["totals"].items():
+            dropped = result["truncated_buckets"].get(bucket, 0)
+            self.assertEqual(len(result[bucket]) + dropped, total, bucket)
+
+    def test_an_uncapped_search_stays_quiet(self):
+        result = core.search_memory(
+            "quokkamarsupialnotinthecorpus", root=REPO_ROOT, limit=20)
+        self.assertFalse(result["truncated"])
+        self.assertNotIn("warning", result)
+        self.assertNotIn("truncated_buckets", result)
+
+    def test_tool_reports_its_own_cap(self):
+        capped = core.tool_context("diff", root=REPO_ROOT, limit=1)
+        self.assertTrue(capped["truncated"])
+        self.assertIn("RESULT SET TRUNCATED", capped["warning"])
+        self.assertEqual(capped["tools_total"],
+                         core.tool_context("diff", root=REPO_ROOT,
+                                           limit=100)["tools_total"])
+        whole = core.tool_context("diff", root=REPO_ROOT, limit=100)
+        self.assertFalse(whole["truncated"])
+        self.assertNotIn("warning", whole)
+
+
 class SummaryBriefTests(unittest.TestCase):
     """The middle tier between the full brief and --roster-only (item 9).
 

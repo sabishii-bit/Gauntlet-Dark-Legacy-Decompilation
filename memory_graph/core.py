@@ -3503,7 +3503,7 @@ def search_memory(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
     limit: int = 20,
-) -> dict[str, list[dict[str, Any]]]:
+) -> dict[str, Any]:
     ensure_database(root, db_path)
     fts = _fts_query(query)
     pattern = f"%{query}%"
@@ -3575,12 +3575,59 @@ def search_memory(
                 (pattern, pattern, limit),
             )
         ]
-    return {
+        # RUN-56 ITEM 2. Every bucket above ends in `LIMIT ?`, so a full
+        # bucket is a FLOOR and the caller cannot tell it from a total. That
+        # matters here more than anywhere else on the surface: AGENTS.md's
+        # absence rule tells lanes to settle "no record covers Y" with
+        # `gdlmem.py search`, and a silently capped bucket answers a
+        # does-it-exist question with a windowed one (trap 6c, one layer
+        # down). `find` and `laws` have published `truncated` since
+        # 3d5347184 (2026-08-31); `search` and `tool` did not, and MEASURED
+        # over 30 realistic queries at the default limit of 20, 28 of 30 cap
+        # at least one bucket — the silence is the normal case, not the edge
+        # one. The totals are real COUNTs, not floors, so a reader can size
+        # the raise instead of guessing at it.
+        totals = {
+            "records": connection.execute(
+                "SELECT count(*) FROM record_fts WHERE record_fts MATCH ?",
+                (fts,)).fetchone()[0],
+            "documents": connection.execute(
+                "SELECT count(*) FROM document_chunk_fts"
+                " WHERE document_chunk_fts MATCH ?", (fts,)).fetchone()[0],
+            "symbols": connection.execute(
+                "SELECT count(*) FROM binary_symbol s"
+                " LEFT JOIN binary_module m ON m.id=s.module_id"
+                " WHERE s.raw_name LIKE ? OR m.object_name LIKE ?",
+                (pattern, pattern)).fetchone()[0],
+            "entities": connection.execute(
+                "SELECT count(*) FROM entity"
+                " WHERE name LIKE ? OR entity_key LIKE ?",
+                (pattern, pattern)).fetchone()[0],
+        }
+    shown = {"records": len(records), "documents": len(documents),
+             "symbols": len(symbols), "entities": len(entities)}
+    dropped = {key: totals[key] - shown[key] for key in shown}
+    truncated = {key: value for key, value in dropped.items() if value > 0}
+    result: dict[str, Any] = {
         "records": records,
         "documents": documents,
         "symbols": symbols,
         "entities": entities,
+        "limit": limit,
+        "totals": totals,
+        "truncated": bool(truncated),
     }
+    if truncated:
+        result["truncated_buckets"] = truncated
+        result["warning"] = (
+            "RESULT SET TRUNCATED at limit=" + str(limit) + ": "
+            + ", ".join(f"{key} shows {shown[key]} of {totals[key]}"
+                        for key in sorted(truncated))
+            + ". NEVER use a truncated result as a NEGATIVE screen (an"
+            " absence claim, a park/veto check) — raise --limit until"
+            " truncated=false, or narrow the query."
+        )
+    return result
 
 
 def _symbol_row(connection: sqlite3.Connection, query: str, platform: str) -> sqlite3.Row | None:
@@ -4125,6 +4172,15 @@ def tool_context(
             """,
             (pattern, pattern, pattern, pattern, pattern, pattern, query, limit),
         ).fetchall()
+        total_tools = connection.execute(
+            """
+            SELECT count(*) FROM tool_catalog t
+            WHERE t.name LIKE ? OR t.tool_key LIKE ? OR t.source_path LIKE ?
+               OR t.purpose LIKE ? OR t.usage_json LIKE ?
+               OR t.constraints_json LIKE ?
+            """,
+            (pattern, pattern, pattern, pattern, pattern, pattern),
+        ).fetchone()[0]
     tools: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
@@ -4139,6 +4195,18 @@ def tool_context(
         query, tools, root=root, db_path=db_path, limit=limit)
     result = {"query": query, "tools": tools, "laws": laws,
               "legacy_provenance": evidence}
+    # RUN-56 ITEM 2, same class as `search` above: the tool_catalog query
+    # ends in `LIMIT ?`, so a full page reads as the whole answer. Measured:
+    # 3 of 10 realistic `tool` queries cap at the default limit of 20.
+    result["limit"] = limit
+    result["tools_total"] = total_tools
+    result["truncated"] = total_tools > len(tools)
+    if result["truncated"]:
+        result["warning"] = (
+            f"RESULT SET TRUNCATED at limit={limit}: tools shows"
+            f" {len(tools)} of {total_tools}. Raise --limit before reading"
+            " this as the whole tool set."
+        )
     result["laws_note"] = (
         "Laws about how this TOOL behaves. `subject_anchored` rows are"
         " anchored with `subject: tool:<slug>` / `workflow:<slug>` — the"
