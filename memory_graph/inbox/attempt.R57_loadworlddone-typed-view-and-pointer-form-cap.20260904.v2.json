@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "Execute the mandatory typed WorldInfo view hypothesis, then test the single-base aggregate view and pointer-to-array address form against the one extra ADDR16_LO home copy.",
+  "attributes": {
+    "law_screen": "claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v1 APPLIED and reproduced exactly: ADDR16_LO writes r0 and the following mr homes it in saved r28. claim.law.GC_a-named-pointer-local-pays-an-addr16-lo-home-copy-for-an-array-decay-and-writes-its-home-directly-for-an-address-of-struct.20260904.v1 SCREENED: the extern-level address-of-struct form was already NEUTRAL-IDENTICAL; this pass tested the distinct local typed-view and aggregate-view axes and both failed to remove the copy. claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1 APPLIED to the aggregate view's byte-identical result. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 APPLIED: T84/O85 excludes all current guarded postprocessor classes. claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 and claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 SCREENED; the saved-register numbering already matches everywhere except the volatile r0 detour and earlier declaration/type probes were inert. Core-screen laws were read in full; frame, raw-offset, pool and data laws do not alter this one-instruction diagnosis.",
+    "laws_applied": "[\"claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "PROBE A: `WorldInfo* world;` then `*(modelp = &((world = (WorldInfo*)(base + 228))->model)) = MBOX_AllocModel(name);`, with later `world->whitetex` and `world->atreelist` accesses. PROBE B: function-local `typedef struct WorldLoadView { char name[228]; WorldInfo info; } WorldLoadView; WorldLoadView* world = (WorldLoadView*)gWorldName;`, with all name/field accesses through that one aggregate pointer. PROBE C: `char (*base)[64] = &lbl_8028C9A8;`, with `(u8*)base` for field offsets and `(char*)base` for strcpy.",
+    "residual": "The exact surviving mechanism is allocator refusal to write an ADDR16_LO result directly into the already-saved r28 web. Target `+0x1c addi r28,r3,LO`; ours `+0x1c addi r0,r3,LO; +0x20 mr r28,r0`. The surrounding frame 40/40, save r26/r26 and five-slot map are exact.",
+    "scope": "src/game/world/world.c::LoadWorldDone only; all three source probes reverted and the source is byte-identical to HEAD.",
+    "verification": "Each probe was compiled and measured with probe.py --fuzzy, then classified with fndiff --ops and fnasm --diff. `slotdiff.py game/world/world.c LoadWorldDone` reports `frame: target 40 ours 40 saves: target r26 ours r26` and `target 5 slots, ours 5 -> SLOT MAP IDENTICAL`. After restoration, fresh fndiff again reads T84/O85 with the sole ours-only mr; source diff is empty."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/world LoadWorldDone --ops",
+    "falsifier": "A source form or compiler build that emits target `addi r28,r3,lbl_8028C9A8@lo` directly at +0x1c with T84/O84 and no new opcode, relocation, frame or save-set difference disproves this cap.",
+    "premise_measurement": "Fresh baseline `probe.py game/world/world LoadWorldDone --fuzzy` measured 98.7500%, real 15, T84/O85 and one ours-only mr. Probe A, a separately materialised WorldInfo* assigned at the first model field access and used for all later fields, regressed to fuzzy 96.5000%, real 54, T84/O86, added `addi r27,r28,228`, expanded the frame 40->48 and save set r26->r25, while the original mr survived. Probe B, a typed aggregate view `{ char name[228]; WorldInfo info; }*` rooted once at gWorldName and used for both the name and fields, was byte-identical to baseline: real 15, T84/O85, original mr unchanged. Probe C, `char (*base)[64] = &lbl_8028C9A8` with explicit byte casts for field access, was also byte-identical: real 15, T84/O85, original mr unchanged.",
+    "scope": "LoadWorldDone's single ours-only `mr r28,r0` immediately after the lbl_8028C9A8 ADDR16_LO materialisation, for typed-view, aggregate-view and pointer-to-array source forms. It does not deny a future compiler implementation that can coalesce the address home directly."
+  },
+  "function": "function:LoadWorldDone",
+  "held_fixed": "The function's control flow, calls, three leading zero stores, model allocation, memory accounting, file checks, strcpy and return value were held fixed; only the type/identity graph rooted at gWorldName and its +228 WorldInfo view changed.",
+  "id": "attempt.R57_loadworlddone-typed-view-and-pointer-form-cap.20260904.v2",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T19:31:37Z",
+  "residual": {
+    "capability_needed": "compiler-address-home-coalescing",
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: (none)  ours-only: -1 mr; insns T84/O85"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.NM_loadworlddone-the-extra-mr-is-an-address-init-copy-no-declaration-class-reaches-it.20260903.v1",
+  "valid_from": "2026-09-04"
+}

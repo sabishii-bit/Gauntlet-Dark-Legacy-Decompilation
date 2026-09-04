@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "Execute the recorded same-width numbering-carrier hypothesis by varying initializer-group membership jointly and separately for the two pointer locals, plus a pointer-to-array type boundary, without retrying the refuted save-timing theory.",
+  "attributes": {
+    "law_screen": "claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 APPLIED as the mandatory carrier screen: name and buf are same-width pointers and their declaration order was already capped, so initializer-group membership was the remaining source-visible numbering carrier. claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 APPLIED and bounded: splitting name changed only which volatile carried the address, not whether a home copy was paid; splitting buf or both was byte-identical. claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 SCREENED and its shadow cure remains REFUTED by the superseded record; it was not retried. claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v1 APPLIED by family analogy and the image-wide census: our build pays one volatile-to-saved copy where target homes directly. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 APPLIED: T122/O123 excludes current guarded postprocessing. Core-screen laws were read in full; no frame, stack, raw-offset, pool or branch-shape law changes the one-instruction mechanism.",
+    "laws_applied": "[\"claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1\", \"claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "PROBE A: `char (*name)[64] = &lbl_8028C9A8;` with `(char*)name` at calls and `(u8*)name` at field offsets. PROBE B: `char* name; char* buf = lbl_801151D8; name = gWorldName;`. PROBE C: `char* name = gWorldName; char* buf; buf = lbl_801151D8;`. PROBE D, required joint probe: `char* name; char* buf; name = gWorldName; buf = lbl_801151D8;` before the world_load_state guard.",
+    "residual": "Target emits two direct homes: gWorldName to r30 and lbl_801151D8 to r31 after the frame save. Ours completes gWorldName early in volatile r5, materialises the second address, then copies r5 to r30 while the r31 home is direct. The saved-register roles, 32-byte frame and five stack slots otherwise match exactly.",
+    "scope": "src/game/world/world.c::StartWorldLoad only; all four probes reverted and source is byte-identical to HEAD.",
+    "verification": "Each form was compiled and measured with probe.py --fuzzy; fndiff --ops and the 0x0:0x34 aligned view rederived the mechanism, and savedregs confirmed the single-name split changed volatile r5 to r4 without removing the copy. `slotdiff.py game/world/world.c StartWorldLoad` reports `frame: target 32 ours 32 saves: target r29 ours r29` and `target 5 slots, ours 5 -> SLOT MAP IDENTICAL`. Final restored fndiff reads T122/O123 and the same one-token residual."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/world StartWorldLoad --ops",
+    "falsifier": "A source form or compiler build that reduces the prologue to target T122/O122 by emitting `addi r30,r4,lbl_8028C9A8@lo` directly after stmw, while retaining the exact frame/save/slot map and the second address in r31, disproves this cap.",
+    "premise_measurement": "Fresh baseline `probe.py game/world/world StartWorldLoad --fuzzy` measured 97.3361%, real 63, T122/O123, exact frame/save/slot map and one extra addi copy. Pointer-to-array name form was NEUTRAL-IDENTICAL at real 63/T122/O123. Splitting only `name` from its initializer moved the volatile completed-address carrier r5->r4 but retained the copy, real 63 and T122/O123, while fresh fuzzy regressed 97.3361%->97.2951%. Splitting only `buf` was byte-identical. Splitting both name and buf jointly, assigning name then buf before the guard, was byte-identical to baseline; the same extra copy remained. No probe moved the T122/O123 count or the one-token multiset.",
+    "scope": "StartWorldLoad's one extra gWorldName ADDR16_LO-to-r30 home copy for the same-width pointer numbering carrier: name initializer split, buf initializer split, joint split and name pointer-to-array form. It excludes the already-refuted extern retype, pointer declaration swap, address-count and scheduler axes and leaves only a future allocator/compiler capability open."
+  },
+  "function": "function:StartWorldLoad",
+  "held_fixed": "All switch cases, calls, branch structure, uses of name and buf, the arg parameter and the exact 32-byte frame/five-slot map were held fixed; only same-width pointer initializer-group membership or the name pointer's local type varied.",
+  "id": "attempt.R57_startworldload-numbering-carrier-cap.20260904.v2",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T19:31:38Z",
+  "residual": {
+    "capability_needed": "compiler-address-home-coalescing",
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: (none)  ours-only: -1 addi; insns T122/O123"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.AL_startworldload-entry-bound-address-count-and-scheduling-off-both-refuted.20260904.v1",
+  "valid_from": "2026-09-04"
+}

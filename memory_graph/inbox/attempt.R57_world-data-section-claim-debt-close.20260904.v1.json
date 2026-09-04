@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "Measure the two reported data blockers, derive their target ranges from relocation evidence, and claim the exact .data and .sdata2 sections in splits.txt.",
+  "attributes": {
+    "law_screen": "claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1 APPLIED: target size 0 for both sections was unclaimed split debt, not a C data mismatch. claim.law.T23_a-named-target-symbol-decides-a-data-base-that-a-size-sequence-can-only-guess.20260904.v1 APPLIED: af_data_base_census derived both bases from target relocation pairs. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 SCREENED: after the split claim, byte comparison rather than score inference proves both sections exactly equal.",
+    "laws_applied": "[\"claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1\", \"claim.law.T23_a-named-target-symbol-decides-a-data-base-that-a-size-sequence-can-only-guess.20260904.v1\"]",
+    "residual": "No object-data blocker remains. extab remains 144 bytes at 100.0000%; extabindex is link-level 216 bytes at 99.0741% and follows the two still count-asymmetric source functions rather than object data.",
+    "scope": "config/GUNE5D/splits.txt entries for game/world/world.c only; source unchanged.",
+    "verification": "Initial `datadiff.py game/world/world --sections` reported .data target 0x0/ours 0x38 and .sdata2 target 0x0/ours 0x58 as UNCLAIMED SECTION blockers. `af_data_base_census.py game/world/world` used 21 offset-shifted relocation pairs and printed .data 0x80126C30..0x80126C68 plus .sdata2 0x80348768..0x803487C0. After adding those paste-ready lines, configure.py and ninja completed with `build/GUNE5D/main.dol: OK`; datadiff reports .data size 0x38 100.0%, .sdata2 size 0x58 100.0%, and 0 blockers."
+  },
+  "function": "tu:game/world/world.c",
+  "id": "attempt.R57_world-data-section-claim-debt-close.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:31:39Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "no-residual"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}
