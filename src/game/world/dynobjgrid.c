@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/mbobject.h"
 
 /* game/world/dynobjgrid.c  (Xbox PDB module dynobjgrid.obj)
  *
@@ -267,7 +268,7 @@ void CreateDynobjGrid(void)
         if (o->flags & 0x01000000)
             p = d->bbox;
         else if (o->flags & 0x00001000)
-            p = (f32*)((u8*)o->prep + 0x30);
+            p = ((MBObject*)o->prep)->mat[3];
         else
             p = o->bbox;
         xloRaw = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
