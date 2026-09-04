@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Confirm on a SECOND TU that the ADDR16_LO home copy survives with the instruction scheduler disabled, i.e. that the prologue-shadow hoist is not its cause; and read the resulting prologue for a within-function matched control.",
+  "attributes": {
+    "law_screen": "claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 SCREENED as the class arbiter; MBOX_BGLoadModelStart is in its P roster and this run REFUTED its FINDING 3 shadow coupling as causal. claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 SCREENED; none of its twelve axes re-run, and its FINDING 3 argument is shown to rest on a tautological cell (a callee-saved-homed addi cannot appear in the shadow by construction, so 0/683 decides nothing). claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED and NOT APPLICABLE HERE: this function is count-SYMMETRIC (T71/O71) because the surplus `mr` is offset by a missing `add`, so the blanket 'the whole class is WebFrank-ineligible' disposition does not cover it -- flagged for the postprocessor lane as a scope correction, not acted on. claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1 SCREENED: class (a), do not probe decl order. claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 SCREENED and cited in the hypothesis as the untried split.",
+    "laws_applied": "[\"claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1\"]",
+    "probed_form": "Inserted `#pragma scheduling off` on the line before `int MBOX_BGLoadModelStart(const char* dir, int slot) {` and `#pragma scheduling reset` on the line after its closing brace. The body was not touched.",
+    "residual": "Two independent residuals stand: the ADDR16_LO home copy on lbl_80115DA8 (now with the scheduler excluded as its cause) and a separate target-only `add` at 0xf8 that was not probed.",
+    "scope": "src/game/mb/mb_model.c, MBOX_BGLoadModelStart only. REVERTED with `probe.py game/mb/mb_model MBOX_BGLoadModelStart --discard --whole-file`; `git status --short` empty afterwards; nothing retained.",
+    "verification": "defake_gate.py baseline game/mb/mb_model.c --at-head anchored to commit c0f978273, source sha1 28e18043b, stamping STRICT 57.17% (2593 fns) + EQUIVALENT 11.25% (152 fns). After the discard: `RESTORED real 46 (insns T71/O71, multiset 2t)`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/mb/mb_model.c MBOX_BGLoadModelStart --ops -- if the `ours-only: -1 mr` line is gone this denial is moot.",
+    "falsifier": "Any `#pragma scheduling` spelling that removes the `mr` would reopen the scheduler axis. The pragma is not a no-op here: it moved real 46->64 and fuzzy 87.8873->54.0704, so an ignored-pragma explanation of the null is already excluded.",
+    "premise_measurement": "Clean BASELINE `probe.py game/mb/mb_model MBOX_BGLoadModelStart --fuzzy`: real 46, insns T71/O71, multiset 2t, FRESH fuzzy 87.8873%. With `#pragma scheduling off` around the function: real 64, FRESH fuzzy 54.0704%, insns T71/O71, multiset 2t, `fndiff --ops` STILL `target-only: +1 add  ours-only: -1 mr`. `fnasm game/mb/mb_model MBOX_BGLoadModelStart 0x0:0x2c --ours` under the pragma: `@0x0 mflr r0` / `@0x4 stw r0,4(r1)` / `@0x8 stwu r1,-48(r1)` / `@0xc stmw r26,24(r1)` / `@0x10 addi r31,r3,0` / `@0x14 addi r26,r4,0` / `@0x18 lis r3,lbl_80115DA8@ha` / `@0x1c addi r0,r3,lbl_80115DA8@lo` / `@0x20 mr r28,r0` / `@0x24 lis r3,lbl_802A5CF0@ha` / `@0x28 addi r29,r3,lbl_802A5CF0@lo`. The prologue shadow is EMPTY, r28 is already saved by the `stmw r26,24(r1)` at `@0xc`, and the copy `mr r28,r0` at `@0x20` is still paid -- while the very next address in the same prologue is homed directly.",
+    "scope": "MBOX_BGLoadModelStart only, and only the SCHEDULER as the cause of the ADDR16_LO home copy on lbl_80115DA8 at 0x20. It denies nothing about the allocator-side or source-binding-order axes; the hypothesis field above names the untried one."
+  },
+  "function": "function:MBOX_BGLoadModelStart",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe: change `char* strs = (char*)lbl_80115DA8;` to a bare `char* strs;` plus `strs = (char*)lbl_80115DA8;` placed AFTER `tbl = lbl_802A5CF0;`, and read `fndiff --ops game/mb/mb_model.c MBOX_BGLoadModelStart`. NEUTRAL-IDENTICAL object bytes kill it outright (the front end folded the split, exactly as it did for generate_enemy's local carrier).",
+    "count_consequence": "Count-neutral if it lands: ours is T71/O71 today and the cure removes one `mr` while the separate `target-only: +1 add` residual would still need the count back. A lane taking this must close both or accept the count staying at 71.",
+    "screened_against_target": "no -- the target's own binding order was not derived. The target prologue at 0x0-0x28 forms lbl_80115DA8 into r29 directly and lbl_802A5CF0 into r28 directly, so the target pays NEITHER copy and the order hypothesis is inferred only from our own scheduling-off stream, not confirmed against target bytes.",
+    "statement": "The discriminating variable is the ORDER in which a function's file-scope addresses are BOUND in source: with the scheduler off, this function materialises lbl_80115DA8 (bound FIRST, as the initialiser `char* strs = (char*)lbl_80115DA8;` in the declaration block) through r0 with a paid `@0x20 mr r28,r0`, and lbl_802A5CF0 (bound LATER, as the first executable statement `tbl = lbl_802A5CF0;`) directly into r29 with `@0x28 addi r29,r3,lbl_802A5CF0@lo`. Try moving the losing binding OUT of the declaration-initialiser position into a plain assignment statement placed after another statement, WITHOUT reordering the declarations themselves -- claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 says initialiser PRESENCE and declaration POSITION are separate variables, and only position has been probed in this class."
+  },
+  "id": "attempt.AL_mboxbgloadmodelstart-two-addresses-one-prologue-opposite-outcomes.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T02:38:26Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "DIFFERS target-only: +1 add ours-only: -1 mr; insns T71/O71"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}
