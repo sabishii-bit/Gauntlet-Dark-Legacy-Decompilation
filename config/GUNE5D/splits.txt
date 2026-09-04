@@ -124,6 +124,7 @@ game/world/dynobjgrid.c:
 	extab       start:0x80005FF8 end:0x80006018
 	extabindex  start:0x80009844 end:0x80009874
 	.text       start:0x80043A78 end:0x800444C0
+	.sdata2     start:0x803466B0 end:0x803466C8
 
 game/enemy/enemy.c:
 	extab       start:0x80006018 end:0x800061D8
