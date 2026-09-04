@@ -369,7 +369,6 @@ extern f32   lbl_80346B20;
 extern f32   lbl_80346B70;
 extern f32   lbl_80346B74;
 extern f32   lbl_80346B78;
-DECL_SECT(".sdata2") extern const char lbl_80346B7C[];
 extern f32   lbl_80346B84;
 extern f32   lbl_80346B88;
 extern f64   lbl_80346AE8;
@@ -461,7 +460,6 @@ extern s32   lbl_80344870;
 extern u32   lbl_80344874;
 extern s32*  lbl_80344878;
 extern s32   lbl_8025778C[];
-DECL_SECT(".sdata2") extern const char lbl_80346BF8[];
 extern s32   lbl_80344D80;
 extern s32   lbl_80344D84;
 extern s32   lbl_80344D88;
@@ -2051,7 +2049,7 @@ void fn_800553B4(void)
     }
     mbBlitInit3414(*blit3, 1);
 
-    texture = MBOX_FindTexture_Err(lbl_80346B7C, 0, 1);
+    texture = MBOX_FindTexture_Err("TIMER", 0, 1);
     mbInitBlitEntry(*(void**)(state + 112), texture, 0);
     mbInitBlitEntry(*blit1,
                     MBOX_FindTexture_Err(strings + 544, 0, 1), 0);
@@ -2444,8 +2442,8 @@ state12:
             qty = *(s32*)(table + offsetof(EnemyTypeRow, subtype) +
                           lbl_80344870 * 4);
             fn_80050DD8(name, type, qty);
-            size = FileSize(name, lbl_80346BF8);
-            lbl_80344878 = StartFileRead(name, lbl_80346BF8, 0, size,
+            size = FileSize(name, "anim");
+            lbl_80344878 = StartFileRead(name, "anim", 0, size,
                                          gWadAtreeHeaders[type], fn_8005636C);
             lbl_80343C30 = 13;
         } else {
@@ -3141,9 +3139,6 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
 #pragma opt_common_subs on
 
 /* 0x80051E1C - format a world/level display name (uppercased) */
-extern char lbl_80346A90[8];    /* "%s" fmt */
-extern char lbl_80346A98[8];    /* "%s %c" fmt */
-extern char lbl_80346AA0[3];    /* suffix */
 extern char lbl_80343BF8[5];    /* level letter table */
 
 char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
@@ -3168,13 +3163,13 @@ chk8:
     }
     goto lettered;
 plain:
-    sprintf(buf, lbl_80346A90, findWorldName(world));
+    sprintf(buf, "%s%d", findWorldName(world));
     goto suffix;
 lettered:
-    sprintf(buf, lbl_80346A98, findWorldName(world), (&lbl_80343BF8[n])[-4]);
+    sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
 suffix:
     if (flag != 0) {
-        strcat(buf, lbl_80346AA0);
+        strcat(buf, "L1");
     }
     for (i = 0; i < strlen(buf); i++) {
         buf[i] = toupper(buf[i]);
@@ -3879,7 +3874,6 @@ extern f64  lbl_80346B30;
 extern f64  lbl_80346B40;
 extern f64  lbl_80346B48;
 extern f64  lbl_80346B50;
-DECL_SECT(".sdata2") extern const char lbl_80346B58[];
 extern void MBRemoveBlit(s32 blit);
 extern void AudioFootstep(s32 n);
 extern void fn_8009FA84(void);
@@ -3896,7 +3890,6 @@ extern s32  gScriptedCameraState;
 extern f32  gCameras[];
 extern f32  lbl_8025EA04[];
 extern void* lbl_80344EA8;
-extern char lbl_80346AB0[8];
 extern s32  lbl_80344788;
 extern u8   lbl_80344798;
 extern u32  lbl_803448D0;
@@ -4190,7 +4183,7 @@ void game_main(void)
         fn_80054E78();
         fn_80055678(lbl_8025EA04, gCameras + 75);
         if (!lbl_803447B8 && lbl_8034479C == 0) {
-            lbl_8034479C = MBOX_NewObject(lbl_80346AB0, 0, lbl_80344EA8, 8);
+            lbl_8034479C = MBOX_NewObject("COMPASS", 0, lbl_80344EA8, 8);
         }
         if (sMusicTrackHi == 13 && !options_state && !lbl_803447B8) {
             if (check_active_players()) {
@@ -4459,10 +4452,10 @@ void fn_80054E78(void)
             mbBlitCalcY(*b, 106 - Round((f32)v2));
 
             if ((gControllerButtons & 0x10) != 0) {
-                DrawText(-256, 8, 6, 0xFFFFFF, lbl_80346B58,
+                DrawText(-256, 8, 6, 0xFFFFFF, "%.1f",
                          lbl_80344814 - lbl_80344818);
             } else if ((gControllerButtons & 0x10) != 0) {
-                DrawText(-256, 8, 6, 0xFFFFFF, lbl_80346B58, lbl_80344818);
+                DrawText(-256, 8, 6, 0xFFFFFF, "%.1f", lbl_80344818);
             }
         }
     }
@@ -4501,10 +4494,6 @@ extern s32  lbl_8034486C;
 extern s32  lbl_80344884;
 extern s32  lbl_8023E558[];
 extern f32  gDefaultPlayerPosition[3];
-DECL_SECT(".sdata2") extern const char lbl_80346C00[];
-DECL_SECT(".sdata2") extern const char lbl_80346CA0[];
-DECL_SECT(".sdata2") extern const char lbl_80346CA4[];
-DECL_SECT(".sdata2") extern const char lbl_80346CA8[];
 extern s32  towerGetRuneNearStat(s32 player, s32 world);
 extern void WorldSaveInitState(void);
 extern s32  FindWORLDOBJ(char* name);
@@ -4538,7 +4527,6 @@ extern f32  lbl_80346C4C;
 extern f32  lbl_80346C50;
 extern f32  lbl_80346C80;
 extern f32  lbl_80346C84;
-extern char lbl_80346C48[4];
 extern s32  lbl_803447B4;
 extern void* lbl_803447B0;
 extern u8*  gBossObj;
@@ -4647,10 +4635,10 @@ void world_update(void)
     {
         u8* lv = (u8*)gCurLevel;
 
-        if ((s8)lv[8] == (s8)lbl_80346C48[0] &&
-            ((s8)lv[9] == 0 || (s8)lv[9] == (s8)lbl_80346C48[1]) &&
-            ((s8)lv[10] == 0 || (s8)lv[10] == (s8)lbl_80346C48[2]) &&
-            ((s8)lv[11] == 0 || (s8)lv[11] == (s8)lbl_80346C48[3])) {
+        if ((s8)lv[8] == (s8)"C5"[0] &&
+            ((s8)lv[9] == 0 || (s8)lv[9] == (s8)"C5"[1]) &&
+            ((s8)lv[10] == 0 || (s8)lv[10] == (s8)"C5"[2]) &&
+            ((s8)lv[11] == 0 || (s8)lv[11] == (s8)"C5"[3])) {
             cond = 1;
         } else {
             cond = 0;
@@ -4895,7 +4883,7 @@ void fn_80057024(void)
 
     if (gGameOptions[2] < 2 && gBossType < 0 && sMusicTrackHi != 13 &&
         lbl_80344738 < 0) {
-        lbl_80344738 = LoadModel(lbl_80346C00, 0, 0, -1);
+        lbl_80344738 = LoadModel("gen", 0, 0, -1);
     }
 
     {
@@ -4950,10 +4938,10 @@ chk:
     InitItemInfoData();
     CritterInitAllMoves();
 
-    if (InLevel(lbl_80346CA0)) {
+    if (InLevel("A5")) {
         lbl_8034484C = 4;
         strcpy((char*)(tbl + 108), fmt + 312);
-    } else if (InLevel(lbl_80346CA4)) {
+    } else if (InLevel("F2")) {
         lbl_8034484C = 4;
         strcpy((char*)(tbl + 108), fmt + 328);
     } else {
@@ -4963,7 +4951,7 @@ chk:
     {
         f64 kOff = lbl_80346C60;
         for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
-            sprintf((char*)tbl, lbl_80346CA8, tbl + 108, i + 1);
+            sprintf((char*)tbl, "%s%d", tbl + 108, i + 1);
             *(s32*)(tbl + off + 76) = FindWORLDOBJ((char*)tbl);
             if (*(void**)(tbl + off + 76) != 0 &&
                 *(void**)(*(u8**)(tbl + off + 76) + 40) != 0) {
@@ -5014,7 +5002,6 @@ extern u32  lbl_803448D0;
 extern s32  lbl_803448CC;
 extern s32  lbl_803448C8;
 extern s32  lbl_803448C4;
-DECL_SECT(".sdata2") extern const char lbl_80346C04[];
 extern s32  LoadWorldDone(void* name);
 extern void CritterLoadFile(const char* wad, const char* name);
 extern void CritterLoadAllTypes(s32 arg0);
@@ -5057,7 +5044,7 @@ static s32 init_next_level_8005638C(s32 arg0)
 
     if (gGameOptions[2] < 2 && gBossType < 0 && arg0 != sWorldDataConst &&
         lbl_80344738 < 0) {
-        lbl_80344738 = LoadModel(lbl_80346C00, 0, 0, -1);
+        lbl_80344738 = LoadModel("gen", 0, 0, -1);
     }
 
     for (i = 0, off = 0; i < 8; i++, off += 4) {
@@ -5070,55 +5057,55 @@ static s32 init_next_level_8005638C(s32 arg0)
         flag = 1;
         switch (t) {
         case E_DRAGON:
-            CritterLoadFile(lbl_80346C04, "dragon.wad");
+            CritterLoadFile("critter", "dragon.wad");
             break;
         case E_CHIMERA:
-            CritterLoadFile(lbl_80346C04, "chimera.wad");
+            CritterLoadFile("critter", "chimera.wad");
             break;
         case E_DJINN:
-            CritterLoadFile(lbl_80346C04, "djinn.wad");
+            CritterLoadFile("critter", "djinn.wad");
             break;
         case E_DRIDER:
-            CritterLoadFile(lbl_80346C04, "drider.wad");
+            CritterLoadFile("critter", "drider.wad");
             break;
         case E_PBOSS:
-            CritterLoadFile(lbl_80346C04, "pboss.wad");
+            CritterLoadFile("critter", "pboss.wad");
             break;
         case E_YETI:
-            CritterLoadFile(lbl_80346C04, "yeti.wad");
+            CritterLoadFile("critter", "yeti.wad");
             break;
         case E_LICH:
-            CritterLoadFile(lbl_80346C04, "lich.wad");
+            CritterLoadFile("critter", "lich.wad");
             break;
         case E_WRAITH:
-            CritterLoadFile(lbl_80346C04, "wraith.wad");
+            CritterLoadFile("critter", "wraith.wad");
             break;
         case E_SKORNE1:
-            CritterLoadFile(lbl_80346C04, "skorne1.wad");
+            CritterLoadFile("critter", "skorne1.wad");
             break;
         case E_SKORNE2:
-            CritterLoadFile(lbl_80346C04, "skorne2.wad");
+            CritterLoadFile("critter", "skorne2.wad");
             break;
         case E_GARM:
-            CritterLoadFile(lbl_80346C04, "garm.wad");
+            CritterLoadFile("critter", "garm.wad");
             break;
         case E_GOLEM:
             if (sMusicTrackHi == 9) {
-                CritterLoadFile(lbl_80346C04, "golemI.wad");
+                CritterLoadFile("critter", "golemI.wad");
             } else if (sMusicTrackHi == 6) {
-                CritterLoadFile(lbl_80346C04, "golemF.wad");
+                CritterLoadFile("critter", "golemF.wad");
             } else {
-                CritterLoadFile(lbl_80346C04, "golem.wad");
+                CritterLoadFile("critter", "golem.wad");
             }
             break;
         case E_GENERAL:
-            CritterLoadFile(lbl_80346C04, "general.wad");
+            CritterLoadFile("critter", "general.wad");
             break;
         case E_GARGOYLE: {
             char buf[16];
             u8* e = tbl + off;
             sprintf(buf, "gar_%s.wad", *(char**)(e + 236) + 16);
-            CritterLoadFile(lbl_80346C04, buf);
+            CritterLoadFile("critter", buf);
             break;
         }
         default:
@@ -5152,12 +5139,7 @@ static s32 init_next_level_8005638C(s32 arg0)
 extern s32  lbl_8011C300[];        /* per-class stats screen layout table */
 extern u8   lbl_80240E30[];        /* per-class 60-byte descriptor table  */
 DECL_SECT(".sdata2") extern const f32  lbl_80346ABC;
-DECL_SECT(".sdata2") extern const char lbl_80346AC0[];
-DECL_SECT(".sdata2") extern const char lbl_80346AC4[];
-DECL_SECT(".sdata2") extern const char lbl_80346AC8[];
 DECL_SECT(".sdata2") extern const f32  lbl_80346AD0;
-DECL_SECT(".sdata2") extern const char lbl_80346AD8[];
-DECL_SECT(".sdata2") extern const char lbl_80346AE0[];
 extern f32  lbl_80346AE4;
 extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 flags, s32 color,
                               const char* fmt);
@@ -5177,7 +5159,7 @@ extern s32  strcmp(const char* a, const char* b);
         row_ = (u8*)layout + c_ * 4;                                        \
         DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
                           *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, lab);  \
-        {                                                                               u8* v_ = state + *(s32*)p * 4;                                              sprintf(buf_, lbl_80346AE0, *(s32*)(v_ + (valoff)));                    }                                                                   \
+        {                                                                               u8* v_ = state + *(s32*)p * 4;                                              sprintf(buf_, "%d", *(s32*)(v_ + (valoff)));                    }                                                                   \
         w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
         c_ = *(s32*)p;                                                      \
         row_ = (u8*)layout + c_ * 4;                                        \
@@ -5254,9 +5236,9 @@ s32 do_stats_display(void)
         if (st != 1 && st != 5 && st != 4) {
             continue;
         }
-        sprintf(nbuf, lbl_80346AC0, p + 2688);
-        if (strcmp(nbuf, lbl_80346AC4) == 0) {
-            strcpy(nbuf, lbl_80346AC8);
+        sprintf(nbuf, "%s", p + 2688);
+        if (strcmp(nbuf, "___") == 0) {
+            strcpy(nbuf, "NO NAME");
         }
         {
             s32 c = *(s32*)p;
@@ -5296,13 +5278,13 @@ s32 do_stats_display(void)
             } else {
                 stalled = 1;
             }
-            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col1, "ENEMIES", 32);
             break;
         }
         case 2: {
             s32 ok;
             done = 0;
-            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col1, "ENEMIES", 32);
             STAT_TALLY(48, generators_destroyed, ok);
             if (ok != 0) {
                 s32* sp2 = (s32*)(state + off);
@@ -5320,7 +5302,7 @@ s32 do_stats_display(void)
         case 3: {
             s32 ok;
             done = 0;
-            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col1, "ENEMIES", 32);
             STAT_ROW(col2, msgs + 12, 48);
             STAT_TALLY(16, gold_found, ok);
             if (ok != 0) {
@@ -5343,7 +5325,7 @@ s32 do_stats_display(void)
             (*(s32*)(p + offsetof(Player, field_A64)))++;
         case 5: {
             done = 0;
-            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col1, "ENEMIES", 32);
             STAT_ROW(col2, msgs + 12, 48);
             STAT_ROW(col3, msgs + 24, 16);
             {
@@ -5381,7 +5363,7 @@ s32 do_stats_display(void)
         case 6: {
             u8* sp;
             done = 0;
-            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col1, "ENEMIES", 32);
             STAT_ROW(col2, msgs + 12, 48);
             STAT_ROW(col3, msgs + 24, 16);
             TIME_ROW(colT);
@@ -5394,7 +5376,7 @@ s32 do_stats_display(void)
             break;
         }
         default:
-            STAT_ROW(col1, lbl_80346AD8, 32);
+            STAT_ROW(col1, "ENEMIES", 32);
             STAT_ROW(col2, msgs + 12, 48);
             STAT_ROW(col3, msgs + 24, 16);
             TIME_ROW(colT);
