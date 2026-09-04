@@ -698,6 +698,28 @@ one, and supersede the law if your target contradicts it.
    scratchpad file by a generic name you did not write in the same tool
    call.
 
+   **AND NEVER ENUMERATE A SHARED DIRECTORY BY PATTERN TO DECIDE WHAT TO
+   ACT ON** (run 56, from GC's run-55 report). Prefixing your own names
+   protects the files you WRITE; it does nothing about the ones you READ
+   BACK with a glob. `*.json`, `*.txt`, `memory_graph/inbox/` and
+   `<scratchpad>/*` all resolve to every lane's work, and a glob cannot
+   tell yours from theirs — so `git add memory_graph/inbox` or a tool
+   pointed at a directory sweeps in whatever the rest of the fleet has
+   staged there. GC reports nearly committing 24 foreign claims that way,
+   over a scratchpad holding 388 stale drafts. THE RULE: pass every tool an
+   EXPLICIT LIST of the files you wrote THIS SESSION, and commit with
+   explicit pathspecs (the shared-checkout rule below, which is the same
+   hazard one directory over). This is also why `propose-record` exists:
+   it places the file for you, so you never name the inbox yourself.
+   PROVENANCE, stated because the rule's numbers have none: GC's 24-and-388
+   figures live in `work_claim.tool-queue-26.20260904.v1`'s scope prose and
+   in no record — `python memory_graph/gdlmem.py search "388"` returns
+   thirteen records, all of them about instruction offsets and byte counts,
+   and `search "scratchpad glob foreign claims stale drafts"` returns only
+   the work_claim itself. The MECHANISM is live and cheap to confirm in any
+   worktree: at 62b46ac21 `memory_graph/inbox/` held 6 work_claims, 5 of
+   them other lanes'. The rule does not depend on the exact count.
+
 18. **A record closing a defect must screen for WHAT ELSE HAS THIS SHAPE,
    and say what it found.** Fixing the instance is half the work; the
    other half is one query asking whether the same mistake exists one
@@ -1671,6 +1693,49 @@ each screen below costs one command and would have caught its lane):
   the reporter's own shell. A present-tense number in an order needs a
   record id (already a rule above); an ABSENCE needs its query, which is
   the same rule pointed at the other kind of claim.
+- **AN ORDER NAMES FILES, NEVER FAMILIES** (run 56, from run 55's
+  ownership collision). A scope written as a family — "the webfrank
+  surfaces", "the wf_* tools", "the memcard TUs" — is a prefix each lane
+  expands differently, and the two expansions differ exactly where it
+  matters: `wf_word_diff.py`, `webfrank_audit.py` and
+  `ws_datum_tier_audit.py` all read as "webfrank surfaces" while belonging
+  to the TOOL lane, and `tools/gdl/webfrank.py` reads as "a tools/gdl file"
+  while belonging to the postprocessor lane. The tools cannot arbitrate it
+  either: `owned_units` is a LIST OF PATHS, so a family label reaches the
+  claim screen as either nothing or a prefix that over-claims — and the
+  prose screen "cannot read a negation, so a lane that names another lane's
+  TUs in order to exclude them is reported as their co-owner" (the run-46
+  measurement above). Write the exceptions by FILENAME in the scope and in
+  `owned_units`, both directions: what the lane owns, and what it does not
+  own inside a prefix it otherwise does. Run 56's own order does this
+  ("owns tools/gdl + memory_graph EXCEPT webfrank.py/webfrank.json —
+  wf_word_diff/webfrank_audit/ws_datum_tier_audit are YOURS"), and
+  `claimscope.py --audit` then resolves it mechanically: it printed the
+  nesting row `tools/gdl/webfrank.py resolves to claude-fleet-worker-WF
+  (the more specific entry); claude-fleet-worker-T26 keeps the rest of
+  tools/gdl`. PROVENANCE: this lesson is carried by
+  `work_claim.tool-queue-26.20260904.v1` and by no record —
+  `gdlmem search "name files not families"` returns five records and none
+  of them is about ownership.
+- **A CHANGED-UNIT-SET ASSERTION CARRIES THE `git diff --name-only` THAT
+  PRODUCED IT** (run 56). "the units run N changed", "the TUs this touched",
+  "the files affected" are all one claim, they are all used as a SCOPE, and
+  a remembered scope is wrong in both directions at once. Measured, and the
+  record to cite is
+  `attempt.CU_expiry-sweep-over-run-53-54-units-ten-expired-including-four-on-one-function-and-the-order-s-unit-list-was-wrong.20260904.v1`:
+  its order named "enemy, critter, mb_camera, gamemain, memcard,
+  movieplayer, dbgtext, dcsdrv", while
+  `git diff --name-only c7b741799 84f85a96a -- src config configure.py`
+  returns `config/GUNE5D/webfrank.json`, `configure.py`,
+  `src/game/enemy/critter.c`, `src/game/enemy/enemy.c`,
+  `src/game/game/combat.c`, `src/game/game/gamemain.c`,
+  `src/game/mb/mb_camera.c`, `src/game/sys/memcard.c` — so movieplayer and
+  dcsdrv were NOT changed and combat.c WAS and the order omitted it. Two
+  wrong exclusions and one wrong inclusion in one eight-item list. The
+  command is the claim: paste it with its output beside the set, the way
+  discipline 19 requires for an absence and the run-46 rule requires for an
+  order's numbers. Use `tools/gdl/whenrun.py <commit>` when the range is
+  given as a run rather than as two hashes.
 - **A CENSUS THAT ADVERTISES A LEVER SHIPS WITH ITS DENIAL SCREEN**
   (run-56 item 4). A census computed from BYTES cannot see the graph, so it
   will happily head a roster `DECL-ORDER LEVER LIVE` and list a function
