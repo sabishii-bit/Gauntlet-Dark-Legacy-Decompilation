@@ -3942,6 +3942,52 @@ class ValidateIncrementalTests(unittest.TestCase):
             self.assertEqual({"path", "field", "cited"}, set(row))
             self.assertTrue(row["field"])
 
+    def test_validate_says_whether_it_equalled_the_builds_record_gate(self):
+        """Run-56 item 1: the fallback must state its own coverage.
+
+        `validate` is the sanctioned stand-in for `build` on a session that
+        cannot run `build`. Measured two-sided over five perturbations of one
+        synthetic corpus, it is STRICTER than the build on a malformed or
+        schema-invalid inbox file, equal on duplicate ids and on a malformed
+        durable record, and WEAKER on exactly one thing — reference
+        resolution, and only when no database exists, because that stage is
+        guarded by `database.exists()`. A green `valid: true` with references
+        unchecked is therefore a false all-clear unless the result says so.
+        """
+        result = core.validate_records(REPO_ROOT)
+        gate = result["build_gate"]
+        self.assertEqual(gate["equivalent_to_build_record_gate"],
+                         result["references_checked"])
+        self.assertTrue(gate["covered_here"])
+        self.assertTrue(gate["always_build_only"])
+        self.assertTrue(gate["worker_fallback"])
+        if result["references_checked"]:
+            self.assertEqual(gate["not_covered_here"], [])
+        else:
+            self.assertTrue(gate["not_covered_here"])
+
+    def test_the_unchecked_reference_state_names_its_recovery_command(self):
+        """The weak state is reachable, so it must not read as a clean pass.
+
+        Measured by moving `build/gdlmem/memory.sqlite` aside: `validate`
+        exits 0 with `references_checked: false` and does NOT create the
+        database, while any ordinary read command does. So the one lane that
+        can hit it is the lane whose FIRST graph command is the fallback gate
+        — exactly the blocked worker the item is about.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "no-such-graph.sqlite"
+            result = core.validate_records(REPO_ROOT, db_path=missing,
+                                           refresh=1)
+        self.assertFalse(result["references_checked"])
+        gate = result["build_gate"]
+        self.assertFalse(gate["equivalent_to_build_record_gate"])
+        self.assertTrue(
+            any("REFERENCE RESOLUTION" in row
+                for row in gate["not_covered_here"]),
+            gate["not_covered_here"])
+        self.assertIn("gdlmem.py ensure", gate["worker_fallback"])
+
     def test_a_new_proposal_is_still_strict_about_citations(self):
         record = {
             "schema_version": 1, "id": "attempt.rg-strict-probe.20260902.v1",

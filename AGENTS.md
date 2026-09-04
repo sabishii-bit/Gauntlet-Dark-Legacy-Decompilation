@@ -515,7 +515,36 @@ one, and supersede the law if your target contradicts it.
    check — it now completes in under a second (the old "never block
    on it" advice described a quadratic bug, fixed run 33 at 3,400x).
    validate reports dangling citations from pruned records as DEBT,
-   not failure; staging stays strict. The memory_graph suite
+   not failure; staging stays strict.
+   **IF YOUR SESSION CANNOT RUN `gdlmem build`, THE SANCTIONED FALLBACK
+   IS `propose-record` + `gdlmem validate` + both suites, and the
+   integrator runs `build` at merge — do not fight the classifier and do
+   not skip the gate.** Run 55's GC lane reported `build` blocked by its
+   permission classifier while `validate` was not; run 56 could not
+   reproduce the block (`python memory_graph/gdlmem.py build` exits 0
+   here), so it is a property of a SESSION, not of the repository — but
+   the fallback needed writing down either way, because a worker
+   forbidden the gate its own contract mandates otherwise ships
+   ungated. The fallback is sound in one measured direction and not the
+   other, so `validate` now says which: its `build_gate` block reports
+   `equivalent_to_build_record_gate`. Two-sided calibration over five
+   perturbations of one synthetic corpus, run through BOTH surfaces:
+   validate is STRICTER than the build on a malformed inbox file and on
+   a schema-invalid one (it raises; the build lists them in
+   `inbox_rejected` and still exits 0), EQUAL on a duplicate record id
+   and on a malformed durable record, and WEAKER on exactly one thing —
+   an unresolvable `function:`/entity reference, which it passes and the
+   build importer rejects. That one gap opens only when no database
+   exists, because the reference stage is guarded by `database.exists()`:
+   measured with the DB moved aside, `validate` exits 0 with
+   `references_checked: false` and does NOT create one, while any
+   ordinary read command (`laws`) does. So the false all-clear is
+   reachable exactly once per fresh worktree, by the lane whose FIRST
+   graph command is the fallback gate itself. Quote the fallback as a
+   gate only with `equivalent_to_build_record_gate: true`; if it is
+   false, run `gdlmem ensure` and re-run validate. `attempt_overflow`
+   and the derived tables (law applications, residual-signature index)
+   stay build-only in every case. The memory_graph suite
    (`python -m memory_graph.test_graph`) runs 66-88s vs 3-4s for
    tools/gdl (measured run 34) — between items of a multi-item lane,
    run only the test class your change touches; the FULL suite is
