@@ -1041,7 +1041,6 @@ f32 *delta;
     f32 floorResult[15];
     f32 contact[3];
     u8 unusedLow[4];
-    void *surface;
     f32 *cpos;
     f32 *from;
     f32 wallRadius;
@@ -1058,6 +1057,7 @@ f32 *delta;
     s32 i;
     s32 offset;
     s32 grounded;
+    void *surface;
 
     minRise = (f32)(-16.0 * (f64)gClockFrameStep);
     cpos = c->pos;
