@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/tests/test_probe.py",
+    "AGENTS.md"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A restore path that writes the working source without announcing would reopen the hole one flag over; tools/gdl/tests/test_probe.py::test_every_source_rewriting_path_announces counts the write sites (7: five caller-visible restores plus the two in the arbitration path, which restores the caller's own bytes and must NOT announce) and fails if a new one appears unannounced. If a lane measures an edit landing correctly on post-restore content WITHOUT re-reading, the reader-side rule is stronger than needed.",
+  "id": "claim.law.T24_a-tool-that-restores-a-source-file-makes-the-callers-editor-view-stale-and-the-next-edit-undoes-the-restore.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T06:31:15Z",
+  "schema_version": 1,
+  "subject": "tool:probe",
+  "valid_from": "2026-09-04",
+  "value": "An agent's edit tool matches against the content it last READ, and probe's restore family rewrites the source file on disk behind it. The next edit therefore lands on the PRE-RESTORE content and re-applies exactly what the restore removed, silently and with no failure anywhere: MP measured it at run 53, where after a clean `probe --discard` the next Edit re-applied the pre-discard content plus the new change. Five probe flags do this to `src/` -- `--discard` whole-file and `--function`, `--revert`, `--restore NAME`, `--revert-best`, `--revert-baseline` -- and `--rederive-pin` does it to config/GUNE5D/webfrank.json. THE RULE IS ON THE READER, NOT THE TOOL: re-read the file after any of them before the next edit, because it is the VIEW that is stale rather than the tool that is unreliable. The tool-side mitigation is an announcement, not a fix, and it is deliberately CONDITIONAL: probe now prints `[FILE REWRITTEN ON DISK by <flag>: ... RE-READ IT BEFORE YOUR NEXT EDIT]` with the new size and sha1 only when the bytes actually MOVED, and says nothing on the no-op paths (`NOTHING DISCARDED`, `nothing to restore: the bank IS the current working tree`), which are the most frequent outcomes of those flags and where a warning would be pure noise. This is the same class as the Copy-Item mtime hazard (AGENTS discipline 7) and probe --discard's source/object/state layering (discipline 18): an operation whose effect reaches further than the layer that performed it."
+}
