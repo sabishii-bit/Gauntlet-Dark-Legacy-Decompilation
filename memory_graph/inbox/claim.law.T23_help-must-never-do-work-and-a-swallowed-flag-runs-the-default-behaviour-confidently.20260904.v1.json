@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/cliscreen.py",
+    "tools/gdl/tests/test_cliscreen.py",
+    "tools/gdl/rule_derive.py",
+    "tools/gdl/build_rule.py",
+    "tools/gdl/composed_census/hv_try.py",
+    "tools/gdl/composed_census/hv_formfirst.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python tools/gdl/cliscreen.py`-screened tools with a flag they do not implement and find one that is a LIVE, correct invocation somewhere in the corpus \u2014 i.e. re-run the negative-side scan (every record, AGENTS.md, README.md, tools/gdl/tests/*.py for text following the tool name) and find a flag that is neither --help nor another tool's. That would mean the screen refuses real work and must degrade to a warning. The law also dies for any tool where `--help` is shown to do NO work and swallow NO flag while still lacking argparse.",
+  "id": "claim.law.T23_help-must-never-do-work-and-a-swallowed-flag-runs-the-default-behaviour-confidently.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T04:52:21Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "A TOOL THAT READS `sys.argv` WITH NO argparse EITHER DIES ON `--help` OR SILENTLY DISCARDS IT, AND THE SECOND IS THE DANGEROUS ONE: THE FLAG IS DROPPED AND THE TOOL RUNS ITS DEFAULT BEHAVIOUR CONFIDENTLY, PRODUCING OUTPUT NOBODY CAN TELL FROM THE RUN THAT WAS MEANT. Four tools reproduced verbatim from the repo root at c7b741799. `composed_census/hv_formfirst.py --help` ran its whole eight-function sweep and printed `0 of 8 CLOSE under the corrected arrow order`, EXIT 0 (the run-52 report says it exits 1; measured twice, it exits 0, so a scripted caller reads success). `composed_census/hv_try.py --help` -> `IndexError: list index out of range` at hv_try.py:22, exit 1. `rule_derive.py --help` dumped a pb_window permutation analysis, exit 0. `build_rule.py --help` dumped a pbWinSetup/pbProjCalc analysis AND WROTE build/GUNE5D/rules/game_pb_pb_window_rules.json \u2014 a help flag with a SIDE EFFECT ON DISK, which is the shape that matters. One cause in all four: positional indexing, or a filter spelled `if arg.startswith('--'): continue`, which discards every flag the tool does not implement. This is the class AGENTS.md already records as `probe swallowed unknown flags 45 runs`. TWO-SIDED CALIBRATION at c7b741799. POSITIVE: of 128 modules under tools/gdl and tools/gdl/composed_census that read arguments, 75 use argparse and get --help free; 53 (41%) read sys.argv with no argparse and can swallow a flag. NEGATIVE, the half that decides whether this refuses or merely warns: scanning every accepted record, every inbox proposal, AGENTS.md, README.md and tools/gdl/tests/*.py for text following each of the four tool names yields rule_derive {--diff, --help}, build_rule {--help}, hv_try {--ops, --help}, hv_formfirst {--help} \u2014 every --help is a REPORT OF THIS DEFECT and --diff/--ops belong to fnasm/probe invocations quoted in the same sentence. ZERO live invocations would be refused, so the screen ships as a REFUSAL rather than as an advisory. THE REFUSAL EXITS 2, argparse's usage-error status, and prints on stderr: `raise SystemExit('text')` prints the text but sets `.code` to the STRING and the process status to 1, which is the status a tool that merely FAILED returns, so a caller cannot tell 'you typed a flag I do not have' from 'the run went wrong'. A SECOND, SEPARATE FACT found by the same reproduction: `build_rule.py`'s docstring advertised `[unit] (default game/pb/pb_window)` while its composition is a HARDCODED pbWinSetup/pbProjCalc pair, so the unit argument only redirects which object FILES are opened \u2014 `python tools/gdl/build_rule.py game/sys/memcard` died with `KeyError: \"symbol 'pbWinSetup' not found\"`. A documented parameter that cannot work is worse than an absent one."
+}

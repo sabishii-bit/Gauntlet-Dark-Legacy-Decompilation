@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "tools/gdl/tests/test_wf_word_diff_ra_zero.py",
+    "tools/gdl/tests/test_t18_word_decode.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a webfrank rule whose `copy_register_fields` stage CLOSES a word pair carrying this asymmetry \u2014 i.e. a consistent renaming that maps one side's literal-zero rA onto the other side's real GPR \u2014 or show a d-form instruction on the shipped list where rA==0 does NOT mean the literal zero. Either would mean the class is reachable after all and the RA-ZERO rows belong back in REGFIELD-ONLY. Cheapest check: `python tools/gdl/composed_census/wf_word_diff.py game/enemy/critter CritterLoadDone --decode` \u2014 if it ever reports RA-ZERO 0 with the two words at +0x98/+0x9c unchanged, the decode has regressed.",
+  "id": "claim.law.T23_a-zero-ra-slot-is-the-literal-zero-so-a-lexical-regfield-screen-overstates-postprocessor-candidacy.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T04:52:22Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-wf-word-diff",
+  "valid_from": "2026-09-04",
+  "value": "A DIFFERING WORD WHOSE ONLY DIFFERENCE LIES IN A d-FORM rA SLOT IS NOT A REGISTER-FIELD DIFFERENCE WHEN EXACTLY ONE SIDE PUTS A ZERO THERE: A ZERO rA MEANS THE LITERAL VALUE ZERO, NOT GPR 0, AND NO RENAMING MAPS A REGISTER'S CONTENTS ONTO A LITERAL. `webfrank.register_slot_mask` marks the rA field as a five-bit register slot \u2014 correctly, it is one \u2014 so `wf_word_diff.decode_word_class` scored `addi rD,rS,0` (= `mr rD,rS`) against `addi rD,0,0` (= `li rD,0`) as REGFIELD-ONLY, the class its own DECODE line calls 'the only class a shipped rule reaches'. Intersecting the two masks does NOT catch it: the slot is a register field in BOTH forms, and what differs is what a zero in it MEANS \u2014 the same fact `webfrank.decode_copy_form` is built on ('addi treats a zero rA field as the literal value zero rather than as GPR 0, so addi rD,0,0 is li rD,0 \u2014 a constant load, not a copy of r0'). MEASURED IMAGE-WIDE at c7b741799 over the 127 scannable non-matching functions (117 of 244 are count-asymmetric or have no object): 4,244 REGFIELD-ONLY rows, of which 64 in 39 functions carry the asymmetry \u2014 56 addi and 8 lwz \u2014 and 4,180 keep their class. THE NUMBER THAT DECIDES IT IS THE VERDICT FLIP, not the row count: of the SEVEN functions whose DECODE line said 'all differing word(s) are register fields, the only class a shipped rule reaches', THREE ARE WRONG \u2014 game/enemy/critter::CritterLoadDone and ::CritterLoadStartNext at 2 of 2 differing words each, and game/pb/dbgtext::fn_800C03E0 at 1 of 202. The first two are Tier-A postprocessor candidates whose real refusal reads `+0x98: base register presence differs (g3 vs g0)`, which is this law stated by verify_consistent_recolor after the fact. TWO SCREENS WERE MEASURED BEFORE ONE SHIPPED: a copy-form KIND mismatch (webfrank.decode_copy_form disagrees li-vs-copy) catches 56 rows, all opcode 14; the rA-zero asymmetry catches 64 and is a strict superset, widening by 8 `lwz` rows in 6 functions (bosscam, gamemain x3, options, pb_diag, movieplayer) where a load's base is GPR on one side and an absolute address on the other. The UPDATE forms (lwzu 33, lbzu 35, stwu 37, stbu 39, lhzu 41, lhau 43, sthu 45, lfsu 49, lfdu 51, stfsu 53, stfdu 55) are excluded because rA==0 is an INVALID encoding there rather than a literal; excluding them removed ZERO live rows, so it is a correctness guard and not a filter doing work. THE MISREAD WAS PINNED BY A PASSING TEST \u2014 a third artifact beside the work order and the accepted record the run-52 report names: tools/gdl/tests/test_t18_word_decode.py asserted `decode_word_class(0x38600004, 0x38640004) == 'REGFIELD-ONLY'` with the comment 'the differing bit is in rA, a register slot in BOTH forms, so it is a recolour'. A shipped assertion is the strongest form this class of error takes, because every later reader treats it as settled."
+}
