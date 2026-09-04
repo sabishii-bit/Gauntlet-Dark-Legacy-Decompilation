@@ -33,6 +33,23 @@ Exit status is 1 when any row is a MISMATCH.
 claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-
 relocations.20260903.v1 is the defect this audits for; move_logic00 was its one
 instance and its rule was withdrawn in run 43.
+
+RE-SERVED IN RUN 54, and the sentence above is why this paragraph exists
+(run-55 item 9, reported by WV). `game/enemy/enemy::move_logic00` carries a
+rule again — config/GUNE5D/webfrank.json line 834 at 215bd2193, and
+`python tools/gdl/composed_census/wf_word_diff.py game/enemy/enemy.c
+move_logic00` prints `PINNED = YES`. It is NOT the withdrawn rule: the CQ
+defect was a DATUM TRANSPOSITION that no register-field renaming can express,
+so the new entry runs an `instruction_permutation` over [0x1dc,0x1ec) FIRST —
+which moves the relocations WITH their atoms, the exact thing the retracted
+rule did not do — and only then the strict `copy_register_fields`
+(attempt.WV_movelogic00-re-served-as-permute-plus-recolor-because-the-
+retracted-rules-defect-was-a-datum-transposition-no-recolor-can-reach
+.20260904.v1). Verified here: `ws_datum_tier_audit.py --unit game/enemy/enemy`
+at 215bd2193 returns 13 served functions, `OK 11`, `CORRESPONDENCE 2`
+(do_enemies and fn_8004646C, both on .bss uninitialised data), zero MISMATCH.
+So this tool's own headline instance is LIVE and PASSING, not absent — a
+reader who stops at the previous paragraph concludes the opposite.
 """
 import argparse
 import json
