@@ -286,36 +286,42 @@ exit:
 
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 {
-    f32 out;
     f32 r;
     f32 k;
-    f32 kf;
     s32 f;
+    f32 ra;
+    f32 de;
+    f32 fr2;
+    f32 d1;
+    f32 fr;
+    f32 d2;
 
     if (tm == NULL) {
         return;
     }
     switch (tm->src) {
     case -2: {
-        f32 ra = (f32)tm->rate;
-        f32 de = (f32)(frame - tm->unk4e);
-        f32 fr2 = (f32)tm->frames;
+        f32 out;
+        ra = (f32)tm->rate;
+        de = (f32)(frame - tm->unk4e);
+        fr2 = (f32)tm->frames;
         r = CalcTexScroll(de, ra, fr2, frame, &out);
         MBTreeSetUVScaleAdd(out, r, 1.0f, 0.0f, ctx, 1);
         break;
     }
     case -3: {
-        f32 ra = (f32)tm->rate;
-        f32 de = (f32)(frame - tm->unk4e);
-        f32 fr2 = (f32)tm->frames;
-        r = CalcTexScroll(de, ra, fr2, frame, &out);
-        MBTreeSetUVScaleAdd(1.0f, 0.0f, out, r, ctx, 1);
+        f32 out2;
+        ra = (f32)tm->rate;
+        de = (f32)(frame - tm->unk4e);
+        fr2 = (f32)tm->frames;
+        r = CalcTexScroll(de, ra, fr2, frame, &out2);
+        MBTreeSetUVScaleAdd(1.0f, 0.0f, out2, r, ctx, 1);
         break;
     }
-    case -4: {
-        f32 d1 = (f32)(frame - tm->unk4e);
-        f32 fr = (f32)tm->frames;
-        f32 d2 = (f32)(frame - tm->unk4e);
+    case -4:
+        d1 = (f32)(frame - tm->unk4e);
+        fr = (f32)tm->frames;
+        d2 = (f32)(frame - tm->unk4e);
         if (d1 <= 0.0f || fr <= 0.0) {
             k = 0.0f;
         } else if (d2 >= fr) {
@@ -323,14 +329,13 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         } else {
             k = d2 / fr;
         }
-        kf = (f32)(1.0 - k);
-        MBTreeSetAlpha(ctx, (s32)(f32)(kf * 255.0), 1);
+        k = (f32)(1.0 - k);
+        MBTreeSetAlpha(ctx, (s32)(f32)(k * 255.0), 1);
         break;
-    }
-    case -5: {
-        f32 d1 = (f32)(frame - tm->unk4e);
-        f32 fr = (f32)tm->frames;
-        f32 d2 = (f32)(frame - tm->unk4e);
+    case -5:
+        d1 = (f32)(frame - tm->unk4e);
+        fr = (f32)tm->frames;
+        d2 = (f32)(frame - tm->unk4e);
         if (d1 <= 0.0f || fr <= 0.0) {
             k = 0.0f;
         } else if (d2 >= fr) {
@@ -340,7 +345,6 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         }
         MBTreeSetAlpha(ctx, (s32)(f32)(k * 255.0), 1);
         break;
-    }
     case -6:
         break;
     default:
