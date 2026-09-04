@@ -1,0 +1,44 @@
+{
+  "attempted_axis": "EXACT: a user-approved single-pointer local aggregate removes the surplus address-home instruction; preserve natural-source negative results without representing the wrapper as original structure.",
+  "attributes": {
+    "axis_log": [
+      "R57 pointer-to-array name, buf-only initializer split and joint split identical; name-only split real63 T122/O123 but fuzzy97.2951 and volatile carrier changed. Earlier name/buf declaration swap identical.",
+      "AL: holding name initializer fixed, buf declarations in case2/case4 real91 T122/O125 fuzzy91.0246 frame24/save r30; direct global buf refs real92 T122/O126 extra3addi+1lis. Scheduling off/reset real99 T122/O123, copy survives as mr.",
+      "AT global extern char[64] to aggregate type unchanged across seven gWorldName users; R59 natural contiguous global type likewise did not close LoadWorldDone and was removed from the final patch.",
+      "R58 inline entire state machine with direct-global arguments real113 T122/O129 fuzzy84.2049 frame24; retaining named wrapper address locals restores baseline real63 T122/O123. Both boundaries reverted.",
+      "R59 two-pointer local aggregate reaches count parity but increases frame8; register keyword/lifetime pragma do not repair the aggregate-area effect. One-pointer local reaches the target frame and bytes; keep only this explicitly approved form."
+    ],
+    "compatibility_exception": "Current user explicitly answered 'Allow documented compatibility wrapper' on 2026-09-04 after being told both wrappers were compiler-compatibility scaffolding, not recovered original structure, and required an AGENTS anti-fakematch exception. Approval applies to these two functions, not arbitrary aggregate scaffolding elsewhere. This is ordinary C without a new postprocessor, ABI change, added runtime memory access, or fixed-byte restriction on edited source. Modified-game runtime behavior has not been separately play-tested.",
+    "law_screen": "Rechecked R58's exact entry-copy diagnosis before probing; the named inline cure was already measured. claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1 diagnoses the general volatile carrier, not just r0. claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 motivated changing local identity shape, not redoing initializer order. claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1: whole-body scope alone was neutral here. claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1: disabling lifetimes did not shrink the two-pointer aggregate's frame. claim.law.WF_the-block-floor-and-the-addrlo-home-copy-are-one-cast-driven-mechanism-not-two.20260904.v1 is pb_error-specific; world global declaration retyping was neutral, so its prescribed cure did not transfer. Core offset/alias/cascade screens: kept existing base pointer type, field offsets and globals; raw-byte/full-link gates establish no sibling or relocation regression. No count-asymmetric postprocessor rule attempted.",
+    "laws_applied": [
+      "claim.law.R59_single-pointer-local-aggregate-closes-two-world-address-home-copies.20260904.v1",
+      "claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1"
+    ],
+    "mechanism": "Original target +0x14 `addi r30,r4,gWorldName@lo` forms the saved pointer directly; baseline ours +0x0c `addi r5,r4,gWorldName@lo` plus +0x20 `addi r30,r5,0` pays an extra home operation. Aggregate-member promotion changes this choice and yields the complete target stream. Internal coalescing/worklist explanation is inferred from emitted code, not a compiler trace.",
+    "probed_form": "KEPT: `typedef struct WorldNameRef { char* base; } WorldNameRef;` and entry `WorldNameRef load; char* buf = lbl_801151D8; load.base = gWorldName;`, replacing the old `name` uses with `load.base`. Anonymous one-pointer local and final named type both raw exact. Two-pointer `{char* name; char* buf;}` local: T122/O122 real10, fuzzy99.9590%, frame40 versus32; opt_lifetimes off/reset identical. Original pointer locals with an inner block around the body: original T122/O123 real63, fuzzy97.3361%. Final single-pointer case: T122/O122 real0, fresh fuzzy100.0000%, frame32/32 and SLOT MAP IDENTICAL. The committed compiler probe independently generates a scalar-local negative control and reproduces T122/O123.",
+    "scope": "src/game/world/world.c::StartWorldLoad and shared TU-local WorldNameRef typedef; configure.py promotes world.c to Matching after the whole-TU gate.",
+    "verification": "At a5a30fb77 plus the approved source diff: python tools/gdl/composed_census/r59_world_name_ref_probe.py passes whole-raw-object fidelity with GC/1.2.5 and both raw target bodies; generated scalar controls reproduce T122/O123 and T84/O85. python tools/gdl/defake_gate.py check game/world/world --rebuild: GATE OK (2 improved), all 21 previously exact siblings retained. python tools/gdl/datadiff.py --sections game/world/world: .data 0x38, .sdata2 0x58, extab 144 and extabindex 216 bytes all 100%; zero blockers. After Object(Matching) promotion, python configure.py; ninja -j2 prints build/GUNE5D/main.dol: OK. python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph -b both all green. Overall STRICT57.20% ->57.28% (+2 functions), EQUIVALENT13.46% unchanged; combined70.66% ->70.74%. Linked33.80% ->34.97%."
+  },
+  "function": "function:StartWorldLoad",
+  "held_fixed": "Switch body, state transitions, calls/argument values, original global declarations, pointer arithmetic, named displacements, second buf pointer and GC/1.2.5 cflags_demo were held fixed for the kept change. Final joint probe uses the same approved type in both remaining functions; the WorldSaveInitState pin is unchanged.",
+  "id": "attempt.R59_startworldload-approved-aggregate-local-raw-exact.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T21:04:39Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: (none)  ours-only: (none)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": [
+    "attempt.R58_startworldload-inline-address-provenance-cap.20260904.v1",
+    "attempt.R57_startworldload-numbering-carrier-cap.20260904.v2",
+    "attempt.AT_startworldload-and-loadworlddone-extern-retype-is-null-across-all-seven-gworldname-sites.20260904.v1",
+    "attempt.startworldload-addrlo-home-copy-cap.20260901.v1",
+    "attempt.mp-label-correction.startworldload.20260831.v1"
+  ],
+  "valid_from": "2026-09-04"
+}

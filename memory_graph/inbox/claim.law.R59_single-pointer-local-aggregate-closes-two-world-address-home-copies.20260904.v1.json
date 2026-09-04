@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r59_world_name_ref_probe.py",
+    "tools/gdl/datadiff.py",
+    "tools/gdl/defake_gate.py"
+  ],
+  "attributes": {
+    "compatibility_exception": "Current user explicitly answered 'Allow documented compatibility wrapper' on 2026-09-04 after being told both wrappers were compiler-compatibility scaffolding, not recovered original structure, and required an AGENTS anti-fakematch exception. Approval applies to these two functions, not arbitrary aggregate scaffolding elsewhere. This is ordinary C without a new postprocessor, ABI change, added runtime memory access, or fixed-byte restriction on edited source. Modified-game runtime behavior has not been separately play-tested.",
+    "scope": "src/game/world/world.c at a5a30fb77 plus R59's two approved local-wrapper changes; configured GC/1.2.5, no compiler/flag change.",
+    "tags": [
+      "matching",
+      "register-web",
+      "entry-schedule"
+    ],
+    "verification": "At a5a30fb77 plus the approved source diff: python tools/gdl/composed_census/r59_world_name_ref_probe.py passes whole-raw-object fidelity with GC/1.2.5 and both raw target bodies; generated scalar controls reproduce T122/O123 and T84/O85. python tools/gdl/defake_gate.py check game/world/world --rebuild: GATE OK (2 improved), all 21 previously exact siblings retained. python tools/gdl/datadiff.py --sections game/world/world: .data 0x38, .sdata2 0x58, extab 144 and extabindex 216 bytes all 100%; zero blockers. After Object(Matching) promotion, python configure.py; ninja -j2 prints build/GUNE5D/main.dol: OK. python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph -b both all green. Overall STRICT57.20% ->57.28% (+2 functions), EQUIVALENT13.46% unchanged; combined70.66% ->70.74%. Linked33.80% ->34.97%."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "At the same source and configured compiler edge, python tools/gdl/composed_census/r59_world_name_ref_probe.py fails whole-object fidelity, raw target equality, or either scalar +1 instruction control. A changed compiler/source alignment is a new scope, not a proof the original observation was false.",
+  "id": "claim.law.R59_single-pointer-local-aggregate-closes-two-world-address-home-copies.20260904.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-04T21:02:21Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "In world.c under the configured GC/1.2.5 cflags_demo edge, an ordinary single-pointer local aggregate changes address-home formation: `WorldNameRef load; ... load.base = gWorldName;` with member uses yields raw byte-exact StartWorldLoad (122/122 instructions, frame32/32) and LoadWorldDone (84/84, frame40/40). The reproducible scalar-local controls are 122/123 and84/85. A two-pointer aggregate in each function reaches instruction parity but enlarges its frame by8 bytes; the one-pointer form avoids that. Whole-object compiler fidelity, complete raw body equality, whole-TU data comparison and actual linked DOL verification all pass. This narrows the broad source-unreachable interpretation of earlier address-home-copy census laws; their observations about scalar forms and count-asymmetric postprocessor ineligibility remain valid. Aggregate promotion/coalescing is an emitted-code diagnosis, not a traced internal worklist algorithm. The wrapper is a user-approved compatibility exception for these two functions only, explicitly not a recovered original game structure; this law does not authorize inserting artificial structures elsewhere. world.c's other 21 exact functions are retained, including its pre-existing WorldSaveInitState rule; neither newly closed function needs a postprocessor."
+}

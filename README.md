@@ -159,6 +159,17 @@ quote the combined matched% alone in a record or report." A single
 "matched %" figure taken from the first `All:` line is the combined
 number and must not be quoted on its own.
 
+STRICT describes emitted bytes, not proof that the original source has been
+recovered. In `world.c`, `StartWorldLoad` and `LoadWorldDone` use the
+user-approved (2026-09-04) `WorldNameRef` compatibility wrapper: an ordinary
+one-pointer local struct that changes MWCC's register allocation. It is
+explicitly **not** a recovered game type. Both functions match without
+postprocessing; the TU retains its existing `WorldSaveInitState` rule.
+The wrapper does not lock either function to fixed bytes when modders edit
+the source. Its compiler regression check is
+`python tools/gdl/composed_census/r59_world_name_ref_probe.py`; the complete
+linked build, not this instruction-only probe, verifies relocations/data.
+
 Three constraints govern the harness itself, quoted from `AGENTS.md`:
 
 - It is "used exactly within the constraints returned by

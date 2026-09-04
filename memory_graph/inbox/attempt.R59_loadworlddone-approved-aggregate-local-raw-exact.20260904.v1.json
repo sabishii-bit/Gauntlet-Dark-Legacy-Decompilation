@@ -1,0 +1,44 @@
+{
+  "attempted_axis": "EXACT: approved one-pointer aggregate-local carrier removes the address-home copy; cast-free global retyping and scalar initialization controls do not.",
+  "attributes": {
+    "axis_log": [
+      "R57 separate typed WorldInfo* model view regressed T84/O86 real54 fuzzy96.5 frame48; aggregate global {char name[228];WorldInfo info;} view and pointer-to-array unchanged. NM u8* base retype kept the extra copy at real15 but moved unrelated object bytes (neutral-worse), not an untried axis.",
+      "NV base declaration first or split initializer unchanged; eliminating base/direct-global spelling T84/O84 real34 but sinks address formation and changes uses, not closure. AT external array-to-struct retype unchanged across all seven users.",
+      "R58 register pointer and initialization after leading zero stores unchanged; inline getter unchanged. Whole-body inline helper/direct argument real59 T84/O83 fuzzy91.1905; keeping wrapper-local address real34 T84/O84 fuzzy96.7857 but copy survives.",
+      "R58 parameter identity reuse real44 T84/O86 fuzzy94.2857; opt_propagation off unchanged; failure-label tail real24 T84/O84 fuzzy83.1548 changes branch placement with copy surviving. All reverted.",
+      "R59 one-pointer aggregate exact; two-pointer context frame+8; const scalar/cast-free global type/inline output getter/brace scalar initializer all baseline. No natural-source provenance was established for the winning wrapper."
+    ],
+    "compatibility_exception": "Current user explicitly answered 'Allow documented compatibility wrapper' on 2026-09-04 after being told both wrappers were compiler-compatibility scaffolding, not recovered original structure, and required an AGENTS anti-fakematch exception. Approval applies to these two functions, not arbitrary aggregate scaffolding elsewhere. This is ordinary C without a new postprocessor, ABI change, added runtime memory access, or fixed-byte restriction on edited source. Modified-game runtime behavior has not been separately play-tested.",
+    "law_screen": "R58 entry-copy diagnosis verified before new probes. claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v2 describes the exact baseline producer/copy, but its sampled source-unreachable wording is not universal: this approved aggregate positive control yields direct lowering. Its rejection of count-asymmetric WebFrank rules remains valid. claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 preserves prior scalar/declaration/compiler negative controls, not an aggregate-local impossibility proof. claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 supports testing local representation. claim.law.WF_the-block-floor-and-the-addrlo-home-copy-are-one-cast-driven-mechanism-not-two.20260904.v1 did not transfer: a cast-free WorldGlobals pointer with typed primary fields remains T84/O85. Core alias/offset/cascade screens satisfied by restoring original globals and pointer arithmetic for the kept wrapper; all siblings/data/link remain exact.",
+    "laws_applied": [
+      "claim.law.R59_single-pointer-local-aggregate-closes-two-world-address-home-copies.20260904.v1",
+      "claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1"
+    ],
+    "mechanism": "Baseline target +0x18 `lis r3,HA`; +0x1c `addi r28,r3,LO`. Ours +0x18 `lis r3,HA`; +0x1c `addi r0,r3,LO`; +0x20 `mr r28,r0`. Single-member aggregate changes compiler promotion/coalescing so complete raw instructions match. It is a compiler-source compatibility counterexample, not proof of recovered original structure or traced internal algorithm.",
+    "probed_form": "KEPT `WorldNameRef load; s32 size; load.base = gWorldName;`, replacing old base uses by load.base without retyping globals/fields. Anonymous one-pointer char* and one-pointer WorldGlobals* aggregate controls also exact. `{s32* modelp; char* base;}` local with corresponding member uses: T84/O84 real10 fuzzy99.9405, frame48 versus40; register struct identical. `char* const base = gWorldName;` stays T84/O85 real15 fuzzy98.7500. Natural contiguous `WorldGlobals { char name[64]; WorldInfo secondary; WorldInfo primary; }` global plus `WorldGlobals* world = &lbl_8028C9A8;` and typed primary fields: baseline T84/O85. Inline output getter `sGetWorldGlobals(&world)` is identical. Scalar brace initializer `WorldGlobals* world = { &lbl_8028C9A8 };` identical. Final minimal shared char* wrapper T84/O84 real0 fresh fuzzy100.0000 frame40/40 and SLOT MAP IDENTICAL. Promoted compiler probe's generated scalar negative control independently returns T84/O85.",
+    "scope": "src/game/world/world.c::LoadWorldDone with shared TU-local WorldNameRef; world.c promoted to Matching.",
+    "verification": "At a5a30fb77 plus the approved source diff: python tools/gdl/composed_census/r59_world_name_ref_probe.py passes whole-raw-object fidelity with GC/1.2.5 and both raw target bodies; generated scalar controls reproduce T122/O123 and T84/O85. python tools/gdl/defake_gate.py check game/world/world --rebuild: GATE OK (2 improved), all 21 previously exact siblings retained. python tools/gdl/datadiff.py --sections game/world/world: .data 0x38, .sdata2 0x58, extab 144 and extabindex 216 bytes all 100%; zero blockers. After Object(Matching) promotion, python configure.py; ninja -j2 prints build/GUNE5D/main.dol: OK. python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph -b both all green. Overall STRICT57.20% ->57.28% (+2 functions), EQUIVALENT13.46% unchanged; combined70.66% ->70.74%. Linked33.80% ->34.97%."
+  },
+  "function": "function:LoadWorldDone",
+  "held_fixed": "Final change keeps original global symbol declarations, existing char-pointer field-offset accesses, parameter, modelp local, branch/call order and allocation/accounting semantics. Only the local address carrier is replaced. Earlier natural global-type probes were reverted; final two-function joint gate uses original compiler settings and the untouched existing pin.",
+  "id": "attempt.R59_loadworlddone-approved-aggregate-local-raw-exact.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T21:04:40Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: (none)  ours-only: (none)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": [
+    "attempt.R58_loadworlddone-inline-boundary-and-carrier-cap.20260904.v1",
+    "attempt.R57_loadworlddone-typed-view-and-pointer-form-cap.20260904.v2",
+    "attempt.NM_loadworlddone-the-extra-mr-is-an-address-init-copy-no-declaration-class-reaches-it.20260903.v1",
+    "attempt.NV_loadworlddone-redundant-revisit-against-recorded-veto.20260901.v2",
+    "attempt.mp-label-correction.loadworlddone.20260831.v1"
+  ],
+  "valid_from": "2026-09-04"
+}

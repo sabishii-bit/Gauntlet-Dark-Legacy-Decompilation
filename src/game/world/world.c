@@ -657,17 +657,27 @@ void WorldLoadModelDone(s32 a) {
 }
 
 /* StartWorldLoad: multi-file "worlds"/"anim" load state machine. */
+/* Compiler-compatibility wrapper, explicitly approved 2026-09-04; this is not
+ * a recovered game structure. MWCC promotes the member to a register and forms
+ * its address directly in that register. A plain pointer local instead pays an
+ * extra home copy in StartWorldLoad and LoadWorldDone. This uses ordinary C,
+ * adds no runtime memory access, and imposes no fixed bytes on modified builds. */
+typedef struct WorldNameRef {
+    char* base;
+} WorldNameRef;
+
 s32 StartWorldLoad(s32 arg) {
-    char* name = gWorldName;
+    WorldNameRef load;
     char* buf = lbl_801151D8;
+    load.base = gWorldName;
 
     if (world_load_state < 0)
         return 1;
     switch (world_load_state) {
     case 0:
         if (lbl_80344DA4 != 0) {
-            s32 size = FileSize(name, "worlds");
-            lbl_80344D7C = StartFileRead(name, "worlds", 0, size,
+            s32 size = FileSize(load.base, "worlds");
+            lbl_80344D7C = StartFileRead(load.base, "worlds", 0, size,
                                          lbl_80344DA4, BGLoadWorldFile);
             world_load_state = 1;
         } else {
@@ -684,8 +694,8 @@ s32 StartWorldLoad(s32 arg) {
         break;
     case 2:
         if (lbl_80344DA0 != 0) {
-            s32 size = FileSize(name, &buf[36]);
-            lbl_80344D7C = StartFileRead(name, &buf[36], 0, size,
+            s32 size = FileSize(load.base, &buf[36]);
+            lbl_80344D7C = StartFileRead(load.base, &buf[36], 0, size,
                                          lbl_80344DA0, BGLoadWorldFile);
             world_load_state = 3;
         } else {
@@ -701,9 +711,9 @@ s32 StartWorldLoad(s32 arg) {
         }
         break;
     case 4: {
-        s32 model = *(s32*)(name + 228 + offsetof(WorldInfo, model)); /* gWorldInfo.model */
+        s32 model = *(s32*)(load.base + 228 + offsetof(WorldInfo, model)); /* gWorldInfo.model */
 
-        *(s32*)(name + 228 + offsetof(WorldInfo, whitetex)) = /* gWorldInfo.whitetex */
+        *(s32*)(load.base + 228 + offsetof(WorldInfo, whitetex)) = /* gWorldInfo.whitetex */
             (s32)MBOX_FindTexture_Sub(&buf[48], 0, model, model, 1);
         world_load_state = 5;
     }
@@ -731,14 +741,15 @@ s32 LoadWorldDone(char* name) {
     s32* modelp;
     s32 freeBefore;
     s32 memBase;
-    char* base = gWorldName;
+    WorldNameRef load;
     s32 size;
+    load.base = gWorldName;
     lbl_80344D88 = 0;
     lbl_80344D84 = 0;
     lbl_80344D80 = 0;
     if (name != 0 && FileExists(name, "worlds") != 0) {
         freeBefore = BytesFree();
-        *(modelp = (s32*)(base + 228 + offsetof(WorldInfo, model))) = /* gWorldInfo.model */
+        *(modelp = (s32*)(load.base + 228 + offsetof(WorldInfo, model))) = /* gWorldInfo.model */
             MBOX_AllocModel(name);
         lbl_80344D80 += freeBefore - BytesFree();
         memBase = mlmMemUsed;
@@ -751,16 +762,16 @@ s32 LoadWorldDone(char* name) {
         world_load_state = -1;
         return -1;
     }
-    *(s32*)(base + 228 + offsetof(WorldInfo, whitetex)) = 0; /* gWorldInfo.whitetex */
+    *(s32*)(load.base + 228 + offsetof(WorldInfo, whitetex)) = 0; /* gWorldInfo.whitetex */
     lbl_80344DA0 = 0;
-    strcpy(base, name);
+    strcpy(load.base, name);
     if (FileExists(name, "anim") != 0) {
         size = FileSize(name, "anim");
-        *(s32*)(base + 228 + offsetof(WorldInfo, atreelist)) = /* gWorldInfo.atreelist */
+        *(s32*)(load.base + 228 + offsetof(WorldInfo, atreelist)) = /* gWorldInfo.atreelist */
             (s32)AllocMem(size);
         lbl_80344D84 += size;
     } else {
-        *(s32*)(base + 228 + offsetof(WorldInfo, atreelist)) = 0; /* gWorldInfo.atreelist */
+        *(s32*)(load.base + 228 + offsetof(WorldInfo, atreelist)) = 0; /* gWorldInfo.atreelist */
     }
     bulletproof_printf(lbl_80115230, mlmMemUsed,
                        (mlmMemUsed - memBase) >> 10);
