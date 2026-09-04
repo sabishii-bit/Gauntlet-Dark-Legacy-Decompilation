@@ -213,21 +213,22 @@ u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
     u32 result;
     s32 flag;
     f32 vz = vel[2];
-    f32 vx = vel[0];
     f32 pen;
     f32 dotx;
     f32 dotz;
-    f32 avx;
     f32 adotx;
     f32 avz;
     f32 adotz;
     f32 z1;
 
-    pen = ((pos[0] + vx) - wallpt[0]) * normal[0] +
+    pen = ((pos[0] + vel[0]) - wallpt[0]) * normal[0] +
           ((pos[2] + vz) - wallpt[2]) * normal[2] - radius;
     if (vz < WZERO64) {
         vz = -vz;
     }
+    {
+    f32 avx;
+    f32 vx = vel[0];
     if (vx < WZERO64) {
         avx = -vx;
     } else {
@@ -289,6 +290,7 @@ u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
     result = 0xFFFFFFFF;
     vel[2] = WZERO32;
     return result;
+    }
 ret0:
     return 0;
 }
