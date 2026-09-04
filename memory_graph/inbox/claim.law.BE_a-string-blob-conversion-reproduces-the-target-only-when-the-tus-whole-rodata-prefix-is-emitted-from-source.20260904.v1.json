@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/datadiff.py",
+    "tools/gdl/composed_census/sp_blob_census.py"
+  ],
+  "attributes": {
+    "tags": [
+      "pool-layout",
+      "relocation",
+      "defake",
+      "symbol-identity",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Take any TU whose blob run is NOT its whole .rodata prefix \u2014 game/sound/sounds_evt.c is the measured one \u2014 convert every site of one function in a single probe with cflags untouched, and read `python tools/gdl/fnasm.py <unit> <fn> --ours`. If the base relocation still resolves to the retail run's first object and the per-site immediates still read the target's (348/364/376/... for AudioSetupBossStreams), the law is wrong and MWCC is basing on something other than its own emitted section. Conversely, for the positive half: convert a TU whose run IS its whole .rodata prefix but emit the literals in an order OTHER than retail's first-use order; if `datadiff.py --sections` still reports an identical head, the first-use-order clause is wrong. One build each, no ninja beyond the unit.",
+  "id": "claim.law.BE_a-string-blob-conversion-reproduces-the-target-only-when-the-tus-whole-rodata-prefix-is-emitted-from-source.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T14:47:33Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "MWCC pools a function's string addressing on ONE base materialised from its TU's OWN .rodata section, and every per-site `addi rX,rBase,N` immediate is a SECTION-RELATIVE offset. Therefore a string-blob-extern conversion reproduces the target's instructions ONLY IF the converting TU emits its entire .rodata prefix, from the section's first object through the last entry the converted functions read, in retail's order. Blob-base OWNERSHIP is not the precondition; PREFIX REPRODUCIBILITY is, and the two are different tests. POSITIVE, measured on game/sys/ml_mem.c at commit 608a31cb4 (attempt.BE_ml-mem-string-blob-...20260904.v1): the retail run 0x801161B0..0x80116450 is 17 4-aligned entries and IS the whole of that TU's .rodata, the TU's source first-use order matches that address order entry for entry, and converting all 17 at once reproduced every base materialisation and every immediate \u2014 26/26 functions `fndiff --clean` EXACT or MATCH(pool-name noise), 26/26 fuzzy 100.0000%, `main.dol: OK`, and the .rodata head went from 0xA5 to 0x29B bytes identical to retail. Note the base is the SECTION, not the function's first literal: AllocFile's lowest literal is at +0x11C and its base relocation is still the object at +0x0, which is why every function's immediates came out right at once. NEGATIVE, measured the same day on game/sound/sounds_evt.c AudioSetupBossStreams (19 sites, one function, one probe per the FS mixture rule): its 19 literals sit at +348..+512 of a run whose first 348 bytes ('wizmus.s' ... 'completion.s') are read by OTHER functions that still use externs, so source emits no prefix. The target materialises `lbl_80114A48` (the run's first object) at +0x3c and offsets +348/+364/...; after conversion our object materialises `@...rodata.0` at +0x24 with our own section's addend and offsets from OUR first literal, and `probe.py` measured real 1297 -> 1301 and fresh fuzzy 98.4262% -> 98.0944% (-0.3317 local). Reverted with `probe.py --revert`; tree clean. CONSEQUENCE FOR THE SP ROSTER (claim.SP_string-blob-extern-roster-21-tus-364-sites-zero-foreign-blockers.20260904.v1): its SELF/OPEN/FOREIGN axis ranks by which unit owns the BLOB BASE in splits.txt, and that is necessary but NOT sufficient. Its single SELF row converted end to end; every OPEN row fails prefix reproducibility unless the whole TU's .rodata is reconstructed, which for the top rows means reconstructing hundreds of entries that other, often already byte-exact, functions read. Combined with claim.law.never-literalize-inside-a-real-zero-function.20260831.v1 the OPEN rows are additionally gated by the status of the reading function: a STATUS CENSUS of the roster's blob-site functions taken at 84f85a96a returns 8 EXACT (sfx InitEffects \u2014 all 52 of that row's sites, tower SumnerDoSpeech + SumnerSpeechEnd, pb_diag pbDiagDrawMenu + pbDiagDrawSoundRow, attract init_credits + init_titlescreen, gauntworld ResolveWorldDataPointers), 8 RELOCATION_ONLY, and only 15 with real > 0. The roster's #1 OPEN row by site count, game/sfx/sfx.c at 52 sites, is one EXACT function and is therefore FORBIDDEN, not merely unprofitable."
+}

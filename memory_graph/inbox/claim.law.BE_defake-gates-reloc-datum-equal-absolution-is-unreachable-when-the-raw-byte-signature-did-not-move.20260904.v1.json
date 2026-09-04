@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "relocation",
+      "batch-gating",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Reorder the checks so the relocation classifier is reached whenever `base['relocs'] != cur['relocs']` and both reals are 0, independent of the byte hash, then re-run `python tools/gdl/defake_gate.py check game/sys/ml_mem --rebuild` at 608a31cb4 against the baseline `defake_gate.py baseline game/sys/ml_mem --at-head` takes at 84f85a96a. If StartFileRead is still reported REGRESSION, the raw-signature guard is not the discriminator and this law is wrong. The discriminator itself is re-measurable with no build: load build/GUNE5D/gate/game_sys_ml_mem.json and compare its per-function `bytes`/`words` fields against `fndiff.raw_signature` / `fndiff.raw_words_signature` of build/GUNE5D/src/game/sys/ml_mem.o \u2014 13 functions differ on `bytes`, StartFileRead does not, and StartFileRead is the only one whose `relocs` list changed with `bytes` unchanged.",
+  "id": "claim.law.BE_defake-gates-reloc-datum-equal-absolution-is-unreachable-when-the-raw-byte-signature-did-not-move.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T14:50:24Z",
+  "schema_version": 1,
+  "subject": "tool:defake-gate",
+  "valid_from": "2026-09-04",
+  "value": "defake_gate.py classifies ONE change class two contradictory ways, and which one a function gets is decided by something unrelated to the change: whether fndiff.raw_signature happened to move. The RELOC-DATUM-EQUAL classifier \u2014 the run-48 absolution that reads 'the relocation did NOT move; only the pool SPELLING did. Not a regression' \u2014 lives inside the byte-identity backstop at tools/gdl/defake_gate.py:938, guarded by `base['bytes'] != cur['bytes']`. A function whose relocation SYMBOLS changed while its raw byte signature did NOT never enters that branch, falls through to the unconditional `base['status'] == 'EXACT' and cur['status'] != 'EXACT'` check at line 1023, and is reported `REGRESSION ... status EXACT -> RELOCATION_ONLY`, failing the gate and blocking `--update-improved`. MEASURED at commit 608a31cb4 on game/sys/ml_mem: one edit changed the pool spelling of 14 previously-EXACT functions in exactly one way (a named `lbl_*`/`mlmGameSubdirectory` .rodata symbol became the anonymous `@N` object holding the same datum at the same address). fndiff.raw_signature moved for 13 of them \u2014 AllocFile, AllocHiMem, AllocMem, AllocMem32, FileExists, FileSize, GetMemBase, InitMemHandler, LockMem, MLMReadFile, do_threaded_io, get_path, xReadFileSection \u2014 and every one was correctly absolved RELOC-DATUM-EQUAL. It did NOT move for StartFileRead, the only function whose changed relocation is at the very start of its section (addend 0, so no immediate moved either), and StartFileRead alone was reported a REGRESSION: `GATE FAILED: 1 regression(s)`, exit 1. Both verdicts describe the identical change. The three arbiters AGREE with the absolution and against the gate: `fndiff --clean` reports StartFileRead `MATCH (pool-name noise only), 0 real diff lines (+4 pool-name lines suppressed) HINT: suppressed pool rows: 2 POOL-KIND-EQUAL`; `fuzzy.py` reports 100.0000%; and the full `ninja` prints `build/GUNE5D/main.dol: OK`, i.e. the linked image is byte-identical to retail. The failure is therefore FALSE-POSITIVE-ONLY (it never passes a real defect), but it is not harmless: it fails the gate a lane is told to trust, it blocks re-anchoring, and its message names a status demotion rather than the pool spelling, so it reads as the run-37 'never-literalize-inside-a-real-zero-function' hazard rather than as the class the tool already knows how to clear. SIBLING SCREEN (AGENTS.md discipline 18), one layer out: the same 938-branch guard also gates NAMING-DRIFT and RELOC-TOWARD-TARGET, so a pure symbol RENAME and a relocation REPAIR are unreachable by the same mechanism whenever the raw signature is unmoved \u2014 three classifiers, one blind spot, and the run-48 record that added RELOC-DATUM-EQUAL does not mention the guard it was nested under."
+}

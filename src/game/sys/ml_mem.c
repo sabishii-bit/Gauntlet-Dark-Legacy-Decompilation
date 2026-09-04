@@ -27,15 +27,6 @@ extern void bulletproof_printf(char* fmt, ...);
 extern void FatalError(char* fmt, int code);
 extern void FatalErrorf(const char* fmt, ...);
 extern int gErrorCode;
-extern char lbl_80116258[];
-extern char lbl_80116284[];
-extern char lbl_801162A0[];
-extern char lbl_801162B8[];
-extern char lbl_801162CC[];
-extern char lbl_801162F4[];
-extern char lbl_8011631C[];
-extern char lbl_80116350[];
-extern char lbl_80116388[];
 
 /* ---- CRT / MSL string + printf (other TUs) ---- */
 extern int sprintf(char* buf, const char* fmt, ...);
@@ -101,8 +92,6 @@ extern const char mlmPathFmtWad[6]; /* "%s/%s" */
 extern const char mlmPathFmt[3];    /* "%s"    */
 extern const char mlmExtDefault[5]; /* ".ps2"  */
 extern const char mlmPathSeparator[2];
-extern const char mlmGameSubdirectory[]; /* "/gauntlet/" */
-extern const char lbl_801161B0[];
 extern void ErrorPrintf(const char* fmt, ...);
 
 /* forward decls (address order kept) */
@@ -230,13 +219,6 @@ int MBSetupWad(int* wad, int base)
 }
 
 /* open a file into the async handle slot */
-const char lbl_801161B0[] =
-    "Temporary high memory in use by somebody else when StartFileRead called.  Check if another file is being read!\0\0"
-    "Too many open files: %d";
-const char mlmGameSubdirectory[] =
-    "/gauntlet/\0\0"
-    "Can't open: %s.\n";
-
 MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
                       char* dest, void* callback)
 {
@@ -249,7 +231,9 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
 
     if (alloctot != 0) {
         gErrorCode = 0xff;
-        FatalErrorf(lbl_801161B0);
+        FatalErrorf("Temporary high memory in use by somebody else when "
+                    "StartFileRead called.  Check if another file is being "
+                    "read!");
     }
     for (slot = 0; slot < 1; slot++) {
         f = &finfo_list[slot];
@@ -259,7 +243,7 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     }
     if (slot == 1) {
         gErrorCode = 0xff;
-        FatalErrorf(lbl_801161B0 + 0x70, slot);
+        FatalErrorf("Too many open files: %d", slot);
         return NULL;
     }
     f = &finfo_list[slot];
@@ -274,13 +258,13 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     }
     strcpy(full, mlmRootPath);
     if (path[0] != '/') {
-        strcat(full, mlmGameSubdirectory);
+        strcat(full, "/gauntlet/");
     }
     strcat(full, path);
     fd = sceOpen(full, 1);
     if (fd < 0) {
         gErrorCode = 0xff;
-        FatalErrorf(mlmGameSubdirectory + 0xc, full);
+        FatalErrorf("Can't open: %s.\n", full);
         return NULL;
     }
     size = sceLseek(fd, 0, 2);
@@ -299,7 +283,7 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     fd = sceOpen(full, 0x8001);
     if (fd < 0) {
         gErrorCode = 0xff;
-        FatalErrorf(mlmGameSubdirectory + 0xc, full);
+        FatalErrorf("Can't open: %s.\n", full);
         return NULL;
     }
     f->fd = fd;
@@ -328,7 +312,7 @@ int do_threaded_io(MLFILE* f)
                 if (uncompress(f->buffer, destLen, f->compSrc,
                                f->totalSize) != 0) {
                     gErrorCode = 0x80;
-                    FatalErrorf(lbl_80116258);
+                    FatalErrorf("Error decompressing file. Can not contine.");
                 }
             }
             mlmServeTimeout = 0;
@@ -336,7 +320,7 @@ int do_threaded_io(MLFILE* f)
                     waitStatus != 0)) {
                 if (++mlmServeTimeout > 1500000000) {
                     gErrorCode = 0xa0;
-                    FatalErrorf(lbl_80116284, f->name);
+                    FatalErrorf("Timeout serving file %s (1)", f->name);
                 }
             }
             mlmCloseRes = sceClose(f->fd);
@@ -392,7 +376,7 @@ void InitMemHandler(void)
         }
     }
     memset(mlmMemBase, 0, mlmMemLimit);
-    bulletproof_printf(lbl_801162A0, mlmMemLimit);
+    bulletproof_printf("Available Memory = %d\n", mlmMemLimit);
     mlmMemUsed = 0;
     mlmMemBase = (u8*)(((u32)mlmMemBase + 0x3f) & 0xffffffc0);
     mlmMemLimit = (mlmMemLimit & 0xffffffc0) - 0x40;
@@ -422,7 +406,7 @@ int FileSystemBusy(void)
 void LockMem(int slot)
 {
     if (slot >= 8) {
-        FatalError(lbl_801162B8, 0x800000);
+        FatalError("Too Many Mem locks", 0x800000);
     }
     mlmLockStack[slot] = mlmMemUsed;
     mlmLockSaveTop = mlmLockSave;
@@ -448,7 +432,7 @@ void* GetMemBase(void)
 {
     if (mlmMemReserved != 0) {
         gErrorCode = 0xe0e000;
-        FatalErrorf(lbl_801162CC);
+        FatalErrorf("GetMemBase() called while mem reserved");
     }
     return mlmMemBase + (mlmMemUsed / 4) * 4;
 }
@@ -459,7 +443,7 @@ void* AllocMem(u32 size)
 
     if (mlmMemReserved != 0) {
         gErrorCode = 0xa0a000;
-        FatalErrorf(lbl_801162F4);
+        FatalErrorf("AllocMem() called while mem reserved");
     }
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
@@ -468,7 +452,8 @@ void* AllocMem(u32 size)
     mlmMemUsed += size;
     if (mlmMemUsed > mlmMemLimit) {
         gErrorCode = 0xc0c000;
-        FatalErrorf(lbl_8011631C, size, mlmMemUsed - mlmMemLimit);
+        FatalErrorf("AllocMem failed: %d bytes, exceeds free by %d bytes",
+                    size, mlmMemUsed - mlmMemLimit);
     }
     return result;
 }
@@ -488,7 +473,7 @@ void* AllocMem32(int size)
     }
     if (mlmMemReserved != 0) {
         gErrorCode = 0xa0a000;
-        FatalErrorf(lbl_801162F4);
+        FatalErrorf("AllocMem() called while mem reserved");
     }
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
@@ -497,7 +482,8 @@ void* AllocMem32(int size)
     mlmMemUsed += size;
     if (mlmMemUsed > mlmMemLimit) {
         gErrorCode = 0xc0c000;
-        FatalErrorf(lbl_8011631C, size, mlmMemUsed - mlmMemLimit);
+        FatalErrorf("AllocMem failed: %d bytes, exceeds free by %d bytes",
+                    size, mlmMemUsed - mlmMemLimit);
     }
     return (u8*)result + pad;
 }
@@ -515,14 +501,15 @@ void* AllocHiMem(u32 size)
 
     if (mlmMemReserved != 0) {
         gErrorCode = 0x808000;
-        FatalErrorf(lbl_801162F4);
+        FatalErrorf("AllocMem() called while mem reserved");
     }
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
     }
     if ((int)(mlmMemUsed + size) > mlmMemLimit) {
         gErrorCode = 0x909000;
-        FatalErrorf(lbl_80116350, size, (mlmMemUsed + size) - mlmMemLimit);
+        FatalErrorf("AllocHiMem failed: %d bytes, exceeds free by %d bytes",
+                    size, (mlmMemUsed + size) - mlmMemLimit);
     }
     tmp = ((u32)mlmMemBase + mlmMemLimit) - size;
     result = tmp & 0xffffff80;
@@ -562,7 +549,7 @@ static inline void get_path_inline(char* out, char* wad, char* name)
     }
     strcpy(out, mlmRootPath);
     if (tmp[0] != '/') {
-        strcat(out, mlmGameSubdirectory);
+        strcat(out, "/gauntlet/");
     }
     strcat(out, tmp);
 }
@@ -624,29 +611,28 @@ void* AllocFile(char* wad, char* name)
     int read;
     void* dest;
     int used0;
-    const char* strings = lbl_801161B0;
 
     if (mlmMemReserved != 0) {
         gErrorCode = 0xe0e000;
-        FatalErrorf(strings + 0x11c);
+        FatalErrorf("GetMemBase() called while mem reserved");
     }
     dest = mlmMemBase + (mlmMemUsed / 4) * 4;
     avail = mlmMemLimit - mlmMemUsed;
     read = xReadFileSection(wad, name, avail, dest);
     if (avail > 0 && read > avail) {
         gErrorCode = 0x80;
-        FatalErrorf(strings + 0x1d8,
+        FatalErrorf("File read overflowed: %s size:%d max:%d",
                     temp_finfo.name, read, avail);
     }
     if (read < 0) {
         gErrorCode = 0xff;
-        FatalErrorf(strings + 0x200);
+        FatalErrorf("AllocFile: Read failed.");
     }
     avail = read;
     used0 = mlmMemUsed;
     if (mlmMemReserved != 0) {
         gErrorCode = 0xa0a000;
-        FatalErrorf(strings + 0x144);
+        FatalErrorf("AllocMem() called while mem reserved");
     }
     if (read & 0xf) {
         avail += 0x10 - (read & 0xf);
@@ -654,10 +640,10 @@ void* AllocFile(char* wad, char* name)
     mlmMemUsed += avail;
     if (mlmMemUsed > mlmMemLimit) {
         gErrorCode = 0xc0c000;
-        FatalErrorf(strings + 0x16c,
+        FatalErrorf("AllocMem failed: %d bytes, exceeds free by %d bytes",
                     avail, mlmMemUsed - mlmMemLimit);
     }
-    bulletproof_printf(strings + 0x218,
+    bulletproof_printf("==== ALLOC FILE=%s/%s, MEM:%06dk -> %06dk [%dk]\n",
                        wad, name, used0 >> 10, mlmMemUsed >> 10, read >> 10);
     mlmLastFileSize = read;
     return dest;
@@ -670,7 +656,7 @@ int MLMReadFile(char* wad, char* name, int maxLen, void* dest)
     read = xReadFileSection(wad, name, maxLen, dest);
     if (maxLen > 0 && read > maxLen) {
         gErrorCode = 0x80;
-        FatalErrorf(lbl_80116388,
+        FatalErrorf("File read overflowed: %s size:%d max:%d",
                     temp_finfo.name, read, maxLen);
     }
     return read;
@@ -686,7 +672,6 @@ int xReadFileSection(char* wad, char* name, register int maxLen, register void* 
     int read;
     register void* output;
     register int limit;
-    const char* strings = lbl_801161B0;
 
     limit = maxLen;
     output = dest;
@@ -702,18 +687,18 @@ int xReadFileSection(char* wad, char* name, register int maxLen, register void* 
     }
     strcpy(full, mlmRootPath);
     if (tmp[0] != '/') {
-        strcat(full, strings + 136);
+        strcat(full, "/gauntlet/");
     }
     strcat(full, tmp);
     fd = sceOpen(full, 1);
     if (fd < 0) {
-        ErrorPrintf(strings + 588, full);
+        ErrorPrintf("Can't load: %s, failed on open.\n", full);
         return -1;
     }
     size = sceLseek(fd, 0, 2);
     if (size < 0) {
         sceClose(fd);
-        ErrorPrintf(strings + 624, full);
+        ErrorPrintf("Can't load: %s, failed on Lseek for size.\n", full);
         return -1;
     }
     sceLseek(fd, 0, 0);
@@ -750,7 +735,7 @@ void get_path(char* out, char* wad, char* name)
     }
     strcpy(out, mlmRootPath);
     if (tmp[0] != '/') {
-        strcat(out, mlmGameSubdirectory);
+        strcat(out, "/gauntlet/");
     }
     strcat(out, tmp);
 }
