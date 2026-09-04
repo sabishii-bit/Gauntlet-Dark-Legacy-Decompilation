@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Natural inline nearest-player search closes count asymmetry; remaining source rank axes capped at a strict recolor",
+  "attributes": {
+    "axis_log": "Prior resize hit[4]+pad[4] -> hit[3]+pad[8] retained unchanged. Prior grouped declarations and same-scope carrier caps remain evidence on those specific spellings, not all possible source. An experimental one-pointer aggregate reached parity but frame160 and was rejected: world-only wrapper permission was not generalized.",
+    "law_screen": "Screened the full current law listing and pointer-home, variable-identity, block-scope, inline-boundary and count-delta laws. The existing hit/slot diagnosis reproduces; frame changes were held fixed. Named array owner, typed pointer and void pointer spellings did not remove the home copy. Inline expansion did, so previous pointer-source caps do not establish compiler-wide unreachability. Strict recolor is eligible only after count parity is restored.",
+    "probed_form": [
+      "p = (u8*)&gPlayers: unchanged 117/118; Player* p with p++ or p=(Player*)((u8*)p+PLAYER_STRIDE), and void* p with byte casts: unchanged 117/118.",
+      "for(i=0;i<4;i++) with gPlayerWords[i], or loop-local Player* player: 117/119; EnemyPlayerArray* players=&gPlayers; p=(u8*)players->words: 117/118.",
+      "static inline s32 enemy_nearest_live_player(u8* e,f32 best1,u8* p) returning last; caller start=last=helper(...): 117/118, home copy removed but return copy added, frame160.",
+      "static inline void enemy_nearest_live_player(u8* e,f32 best1,u8* p,s32* nearest) writes *nearest; caller helper(e,best,(u8*)gPlayerWords,&last); start=last: 117/117, frame152, 24 differing register words. KEPT.",
+      "With output helper fixed: caller declarations q,j,last instead of last,j,q: 27 differing words; pass &start then last=start: 31; helper parameter order p,e,best instead of e,best,p: same24. No exact raw result on these axes."
+    ],
+    "reproduction": "tools/gdl/composed_census/r60_enemy_source_probe.py pointer records the literal independent variants. Original source alignment is commit0cbf688a7; rerun against that source and its freshly built raw object using --source and --baseline-object. The checked-in helper explicitly documents its reconstruction status.",
+    "verification": "At 0cbf688a7 plus R60 source changes: probe.py game/enemy/enemy fn_80046680 --fuzzy prints fresh98.8034% (baseline97.3932), real48, T117/O117 versus baseline real29,T117/O118; fndiff --ops prints opcode streams identical and multiset117/117. webfrank_audit includes fn_80046680 as eligible. wr_try_rule with copy_register_fields:true and full retail datum returns BYTE-EQUAL. This is a constructive postprocess closure, not a proof that no untried source could match."
+  },
+  "function": "function:fn_80046680",
+  "held_fixed": "GC/1.2.5 and real Ninja flags; hit[3]+pad[8], frame, collision semantics, player stride and second sweep chronology. Each generated candidate is compiled separately, not cumulatively.",
+  "id": "attempt.R60_fn46680-inline-search-removes-the-pointer-home-copy.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T22:18:35Z",
+  "residual": {
+    "capability_needed": "copy_register_fields",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "opcode streams identical"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.EN_fn80046680-a-size-conserving-resize-lifts-the-slot-that-pad-widening-could-not.20260904.v1",
+  "valid_from": "2026-09-04"
+}

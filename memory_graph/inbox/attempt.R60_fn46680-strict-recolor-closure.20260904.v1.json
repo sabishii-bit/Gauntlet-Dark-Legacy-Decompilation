@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Close the inline-search source's remaining 117/117 register-only residual with strict WebFrank",
+  "attributes": {
+    "law_screen": "Count-delta exclusion no longer applies after the natural inline search restores117/117. Form-aware field decoding, consistent CFG renaming and full-strength retail datum binding all pass. No instruction permutation, value-equality widening, unproven audit or compiler modification is needed.",
+    "scope": "src/game/enemy/enemy.c and config/GUNE5D/webfrank.json; ordinary strict recolor only. move_logic00 relocation pin rederived separately with all body hashes unchanged after anonymous pool renumbering.",
+    "source_exhaustion": "attempt.R60_fn46680-inline-search-removes-the-pointer-home-copy.20260904.v1 records the literal source axes and the narrow remaining cap; it does not claim mathematical necessity of postprocessing.",
+    "verification": "python tools/gdl/composed_census/wr_try_rule.py game/enemy/enemy fn_80046680 <copy_register_fields:true> --out <completed>: BYTE-EQUAL (raw postprocess body); 1 stage(s) applied, datum screen at FULL strength. Raw before09b5ee1d691989b05fc050cc6849b4638ef5049dd0140305940f7fdbd49619fe; targetb3a64c1b7d214ef19459d80a12959dc9046239fee44f68b1e993a955d69394e8."
+  },
+  "function": "function:fn_80046680",
+  "id": "attempt.R60_fn46680-strict-recolor-closure.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T22:18:40Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ]
+}

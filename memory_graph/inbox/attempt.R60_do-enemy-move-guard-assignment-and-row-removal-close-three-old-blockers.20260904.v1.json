@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Joint source repair of two FP normalization copies, collision pointer home, and the matrix stack slot",
+  "attributes": {
+    "law_screen": "Screened full current corpus plus normalization, frame-slot, inline-boundary, variable identity, xor operand order, and reload/CSE laws. Prior local declaration-order negative reproduced but did not close assignment-position. The two-variable joint-probe law applies directly to entry row removal plus matrixGap. Fresh fuzzy arbitrates count-distance and real disagreements; raw non-register/stack structure decides the mechanism.",
+    "probed_form": [
+      "a=e->ang; if(a>hi) -> if((a=e->ang)>hi), twice: both surplus fmr disappear, including target's in-place f2 normalization. Explicit f64 cast and declaration initialization were neutral; inline f64/f32 normalization helpers also remove both copies.",
+      "other=&gEnemies[n]; other->coll_enenum=index; instead of array store then other assignment: produces target's addi plus home copy,905/903 ->905/904. Named-return inline helper adds two operations and frame216; direct-return helper does not restore the missing copy.",
+      "Remove row and initialize Enemy* e=(Enemy*)((u8*)lbl_80250E00+index*916+ENEMY_POOL_OFF); add u8 matrixGap[8] after mat[16]: matrix96->104 with every other stack slot and frame208 unchanged. Removing row alone shrinks frame8 but leaves slots; gap alone grows frame8. This JOINT edit refutes the old mat-unreachable framing. Block-scoped/inline matrix instead moved all other arrays and was rejected.",
+      "ABS -> existing ABS_REVERSED within do_enemy_move: ten xor operand orders corrected with no other raw instruction change.",
+      "Missing coll_ip reload: named item prefix view, integer/pointer field spelling, local node value, inline node accessor, inline route call and forward-goto node guard do not add the required load. Global opt_common_subs off gives915instructions, opt_propagation off903; neither is a retained solution. These are sampled axes, not a source-impossibility proof."
+    ],
+    "remaining": "Target +0x994 lwz r3,652(r30), +0x998 lwz r0,100(r3); later ABS uses r3 and target reloads +0x9c4 lwz r4,652(r30). Ours initially caches that pointer in r4 and retains it across the conditional. Entry computes index+3608 before base addition while target adds base+index then advances. Both require further source work; WebFrank was not used for this function.",
+    "verification": "Fresh probe99.5856%, real145,T905/O904 against baseline99.0475%,real176,T905/O905. slotdiff prints frame208/208,savesr26/r26,SLOT MAP IDENTICAL. fndiff --ops now only target+1lwz; entry still reassociates add/addi and raw register differences remain. defake_gate calls the count-parity loss out even though all extraneous operations were removed and fresh fuzzy improves; no claim of exact or postprocessor eligibility. Existing move_logic00 pin relocation hashes mechanically rederived with all body hashes unchanged."
+  },
+  "function": "function:do_enemy_move",
+  "held_fixed": "Target905-instruction function; GC/1.2.5 actual Ninja flags; source semantics, all smaller array sizes and lower padding. Matrix-gap work varies the entry pointer local and gap jointly, not the lower-frame pad.",
+  "id": "attempt.R60_do-enemy-move-guard-assignment-and-row-removal-close-three-old-blockers.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T22:34:54Z",
+  "refutes": "attempt.DE_do-enemy-move-slot19-is-a-compiler-temp-region.20260901.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "cse-share",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: +1 lwz ours-only: (none)"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.EN_do-enemy-move-the-normalization-fmr-is-an-fpr-choice-declaration-order-cannot-reach.20260904.v1",
+  "valid_from": "2026-09-04"
+}

@@ -1505,6 +1505,13 @@
       }
     ],
     "game/enemy/enemy": [
+      {
+        "function": "fn_80046680",
+        "before_sha256": "09b5ee1d691989b05fc050cc6849b4638ef5049dd0140305940f7fdbd49619fe",
+        "after_sha256": "b3a64c1b7d214ef19459d80a12959dc9046239fee44f68b1e993a955d69394e8",
+        "mechanism": "attempt.R60_fn46680-strict-recolor-closure.20260904.v1. SOURCE-EXHAUSTION provenance: attempt.R60_fn46680-inline-search-removes-the-pointer-home-copy.20260904.v1. A natural inline nearest-player search with an output index removes the extra pointer-home copy, restoring 117/117 instructions and exact frame152/stack slots. Indexed traversal, typed/void pointer carriers, array ownership, return-value helper, caller declaration rank and helper argument order were independently measured. The retained source has 24 differing words, identical opcode order and non-register fields. copy_register_fields passes strict verify_consistent_recolor and full retail datum binding; wr_try_rule returns BYTE-EQUAL. No permutation, value-equality widening or unproven audit. This supplies a verified match, not proof that all possible source forms are exhausted.",
+        "copy_register_fields": true
+      },
     {
       "function": "move_logic22",
       "before_sha256": "c95fe0cda8ef6c86bd6bf1297c8cae8ea0e1e93ce12b8a834b673b2997e45e72",
@@ -1553,8 +1560,8 @@
           ],
           "before_sha256": "1f25855d832a8568a492077e7ca0f60d8d010e14ee680ba02287bddc49d3b898",
           "after_sha256": "632794d5cba761fe5c5f2a052a45e51b74f2c67c045472e7d63bcd1fc3cf7fdc",
-          "before_relocations_sha256": "3de33386b7a5198872beb365df5763411035f3474c44434de0cb542289325fc8",
-          "after_relocations_sha256": "7eeff44cbf3b632095589c6036f82ef87dd5e0eab6aef02ae7a768aca3ea53b8"
+          "before_relocations_sha256": "30e29a0d730ab587eedbfe3dc78612464cf6daf6f6b566149a101675d17dc2ce",
+          "after_relocations_sha256": "8b20a1384822727360e1029cf046e9cc5dda612ba0ced18508abd8b970b4f9bd"
         }
       ],
       "copy_register_fields": true

@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Restore the target's animation argument copy and object-address chronology, then test the remaining two-load schedule",
+  "attributes": {
+    "law_screen": "Full current law listing plus variable identity, pointer home, statement chronology, within-class declaration rank, and source-exhaustion screens. The old simple signed carrier cap does not cover an explicitly signed test of an unsigned local. Counts restored before attempting any postprocessing; untouched pins screened.",
+    "probed_form": [
+      "e=&gEnemies[slot]; e->generator=gen; instead of gEnemies[slot].generator=gen; e=&gEnemies[slot]: fixes address/store chronology.",
+      "u32 animation=e->actionlist[1].animidx; if((s32)animation>=0) InitAnim(...,animation,0,1): supplies the target copy. s32/long local WITHOUT the explicit cast remains241 instructions; s32/u32/long/unsigned long WITH the cast reaches242. The unsigned local makes the signed-sentinel test meaningful; its exact original declared type is not recovered.",
+      "Joint source plus declaration ranks slot before otype/mask and d before start:242/242,22 differing raw words. Earlier e declaration, delayed tbl assignment at entry, const table and s32 table view are neutral on the22-word residual. Direct table uses244 instructions; assignment after guards242 but123 differingwords; explicit pool pointer before/after tbl242 but23words. No source exact result on those sampled axes."
+    ],
+    "reproduction": "tools/gdl/composed_census/r60_enemy_source_probe.py generate, historical0cbf688a7 source plus freshly built raw object through --source/--baseline-object; generated variants include literal source for every axis.",
+    "verification": "probe.py game/enemy/enemy generate_enemy --fuzzy: fresh99.5041%, real46,242/242 versus97.5620%,real131,242/241. Frame136 and vector slots unchanged. defake_gate check --rebuild reports improved; no sibling code regression. wr_try_rule permutation/recolor trial refuses at the first relocation binding: compiler ...bss.0 versus target lbl_80250E00. No rule was added and no verifier was weakened; the composed recolor was not reached. The refusal measures this window's symbol-binding model, not a proof of semantic inequivalence or compiler impossibility."
+  },
+  "function": "function:generate_enemy",
+  "held_fixed": "GC/1.2.5 real Ninja flags, existing vector slots/frame, function semantics and constant pool. Each probe changes one named source axis; joint source variants explicitly combine the observed wins.",
+  "id": "attempt.R60_generate-enemy-signed-animation-test-and-store-order-close-count.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T22:34:53Z",
+  "residual": {
+    "capability_needed": "proved-pooled-bss-relocation-binding",
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "opcode streams identical"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.EN_generate-enemy-two-vec3-locals-are-slot-swapped-and-reverse-declaration-order-places-both.20260904.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "instruction_permutation",
+    "verify_relocation_binding"
+  ],
+  "windows_tried": [
+    "0x4:0x10:2,1,0",
+    "0x3c:0x44:1,0"
+  ]
+}

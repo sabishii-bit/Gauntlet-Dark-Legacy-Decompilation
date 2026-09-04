@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Test new inline-boundary and pre/post angle-identity axes against the two surplus FP copies",
+  "attributes": {
+    "axis_log": "Prior assignment-in-declaration form neutral; whole f64 cand and three-arm normalizer failed. Those measurements were read before this batch.",
+    "law_screen": "Screened full current law listing and variable identity, inline boundary, normalization, count asymmetry and explicit FP conversion laws. The do_enemy_move assignment-in-condition closure does not transfer: move_logic10 already has that form. Existing f64 retype and three-arm normalization failures remain narrow source-axis caps, not proof of compiler-wide impossibility.",
+    "probed_form": [
+      "cand=enemy_normalize_angle(cand) using inline f64-input or f32-input helper, with f64 internal arithmetic and f32 return: baseline-identical1085/1087. Enabling opt_propagation for the helper before restoring it off for the caller is also baseline-identical for both signatures.",
+      "inline void normalize(f32* angle) with f64 internal arithmetic; register f64 av; explicit (f64)cand input; explicit (f32)av output: baseline-identical1085/1087.",
+      "Separate f32 raw_angle before normalization and f32 cand afterward, either case-local or shared across case1/default:1085/1087 with changed colors, no removal of either copy.",
+      "f64 cand with explicit f32 arithmetic operands:1085/1105, rejected. Function-scope opt_propagation on:1085/1086 but frame400 instead392, both offending fmr survive, entry/addressing instructions change; rejected."
+    ],
+    "verification": "Actual raw whole-object baseline fidelity asserted before every batch by tools/gdl/composed_census/r60_enemy_source_probe.py normalization. No edit retained to move_logic10. The current function remains1085/1087; no postprocessor trial, no claim of eligibility or impossibility. Broader source reconstruction and constant-pool work are still open."
+  },
+  "function": "function:move_logic10",
+  "held_fixed": "GC/1.2.5 real compile edge, function semantics, existing stack arrays, case-0 normalization and whole-TU source outside move_logic10. Variants are independent, not cumulative.",
+  "id": "attempt.R60_move-logic10-inline-normalization-and-split-angle-probes.20260904.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-04T22:36:59Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "ours-only: -2 fmr"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.EN_movelogic10-the-mandated-f64-retype-is-refuted-and-the-assignment-position-class-folds.20260904.v1",
+  "valid_from": "2026-09-04"
+}

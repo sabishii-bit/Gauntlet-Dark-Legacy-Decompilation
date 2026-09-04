@@ -889,8 +889,7 @@ next_enemy:
 
 void do_enemy_move(s32 index)
 {
-    u8* row = (u8*)lbl_80250E00 + index * 916;
-    Enemy* e = (Enemy*)(row + 3608); /* = &gEnemies[index] via the pool anchor */
+    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + ENEMY_POOL_OFF);
     s32 alg = e->algorithm;
     f32 rad = e->rad;
     f32 hht = e->hht;
@@ -901,6 +900,7 @@ void do_enemy_move(s32 index)
     s32 n;
     Enemy* other;
     f32 mat[16];
+    u8 matrixGap[8]; /* Unrecovered local space above the movement vectors. */
     f32 oldpos[3];
     f32 rad2;
     u8 unused1[4];
@@ -991,8 +991,8 @@ void do_enemy_move(s32 index)
             other = 0;
             n = e->coll_enenum;
             if (n < 0x10000) {
-                gEnemies[n].coll_enenum = index;
-                other = (Enemy*)&gEnemies[n];
+                other = &gEnemies[n];
+                other->coll_enenum = index;
             }
             if (hitWorld != 0) {
                 /* the probe clipped the move against the world: retry the
@@ -1063,13 +1063,13 @@ void do_enemy_move(s32 index)
                 }
             } else if (other != 0
                        && (alg == 7 || alg == 8 || alg == 10 || alg == 20)) {
-                if (e->route == 0 || ABS(e->route) > 2) {
+                if (e->route == 0 || ABS_REVERSED(e->route) > 2) {
                     e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
                                            &other->objgrp.worldmat[3][0]);
                     e->collided = 0;
                 }
                 if (alg == 7) {
-                    if (ABS(e->route) <= 2) {
+                    if (ABS_REVERSED(e->route) <= 2) {
                         e->collided++;
                         fn_8004D030(index, 15);
                     } else {
@@ -1084,7 +1084,7 @@ void do_enemy_move(s32 index)
                         e->collided = 0;
                     }
                 } else if (alg == 8) {
-                    if (ABS(e->route) <= 2) {
+                    if (ABS_REVERSED(e->route) <= 2) {
                         e->collided++;
                         fn_8004D030(index, 10);
                     } else {
@@ -1099,7 +1099,7 @@ void do_enemy_move(s32 index)
                         e->collided = 0;
                     }
                 } else if (alg == 10) {
-                    if (ABS(e->route) <= 2) {
+                    if (ABS_REVERSED(e->route) <= 2) {
                         e->collided++;
                         fn_8004D030(index, 15);
                     } else {
@@ -1114,7 +1114,7 @@ void do_enemy_move(s32 index)
                         e->collided = 0;
                     }
                 } else if (alg == 20) {
-                    if (ABS(e->route) <= 2) {
+                    if (ABS_REVERSED(e->route) <= 2) {
                         e->collided++;
                         fn_8004D030(index, 10);
                     } else {
@@ -1124,8 +1124,7 @@ void do_enemy_move(s32 index)
                             f64 hi = lbl_80346840;
                             f32 step = lbl_80344720;
                             e->ang = (f32)(hi + step);
-                            a = e->ang;
-                            if (a > hi) {
+                            if ((a = e->ang) > hi) {
                                 a -= lbl_80346848;
                             } else if (a <= lbl_80346850) {
                                 a = lbl_80346848 + a;
@@ -1173,13 +1172,13 @@ void do_enemy_move(s32 index)
                 }
             } else if (alg == 7 || alg == 8 || alg == 10 || alg == 20) {
                 if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
-                    if (e->route == 0 || ABS(e->route) > 2) {
+                    if (e->route == 0 || ABS_REVERSED(e->route) > 2) {
                         e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
                                                (f32*)((u8*)e->coll_ip + 52));
                         e->collided = 0;
                     }
                     if (alg == 7) {
-                        if (ABS(e->route) <= 2) {
+                        if (ABS_REVERSED(e->route) <= 2) {
                             e->collided++;
                             fn_8004D030(index, 15);
                         } else {
@@ -1194,7 +1193,7 @@ void do_enemy_move(s32 index)
                             e->collided = 0;
                         }
                     } else if (alg == 8) {
-                        if (ABS(e->route) <= 2) {
+                        if (ABS_REVERSED(e->route) <= 2) {
                             e->collided++;
                             fn_8004D030(index, 15);
                         } else {
@@ -1209,7 +1208,7 @@ void do_enemy_move(s32 index)
                             e->collided = 0;
                         }
                     } else if (alg == 10) {
-                        if (ABS(e->route) <= 2) {
+                        if (ABS_REVERSED(e->route) <= 2) {
                             e->collided++;
                             fn_8004D030(index, 15);
                         } else {
@@ -1224,7 +1223,7 @@ void do_enemy_move(s32 index)
                             e->collided = 0;
                         }
                     } else if (alg == 20) {
-                        if (ABS(e->route) <= 2) {
+                        if (ABS_REVERSED(e->route) <= 2) {
                             e->collided++;
                             fn_8004D030(index, 15);
                         } else {
@@ -1234,8 +1233,7 @@ void do_enemy_move(s32 index)
                                 f64 hi = lbl_80346840;
                                 f32 step = lbl_80344720;
                                 e->ang = (f32)(hi + step);
-                                a = e->ang;
-                                if (a > hi) {
+                                if ((a = e->ang) > hi) {
                                     a -= lbl_80346848;
                                 } else if (a <= lbl_80346850) {
                                     a = lbl_80346848 + a;
@@ -1963,26 +1961,60 @@ linked_enemy_done:
     return result;
 }
 
-/* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
- * b!=0 restricts the sweep to the nearest live player. */
-s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
+/* Search stage of fn_80046680, factored as an inline helper. This is a
+ * reconstruction choice, not an independently recovered retail function. */
+static inline void enemy_nearest_live_player(u8* e, f32 best1, u8* p, s32* nearest)
 {
-    s32 last;
     s32 i;
-    s32 j;
-    u8* p;
-    u8* q;
-    u8* e = (u8*)gEnemies + index * 916;
-    s32 ret = -1;
-    s32 start;
-    f32 best1;
-    f32 best = lbl_803468B0;
-    f32 hit[3];
-    u8 _pad4[8];
     f32 d;
     f32 dy;
     f32 dx;
     f32 dz;
+    *nearest = -1;
+    /* Keep the literal stride used by the original traversal. */
+    for (i = 0; i < 4; i++, p += PLAYER_STRIDE) {
+        if (*(s32*)(p + offsetof(Player, state)) == 1) {
+            /* A live mikey supplies its collision position instead of
+             * the player's own effectpos. */
+            if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                     *(f32*)(p + offsetof(Player, mikey_coll_pos[0]));
+                dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                     *(f32*)(p + offsetof(Player, mikey_coll_pos[1]));
+                dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                     *(f32*)(p + offsetof(Player, mikey_coll_pos[2]));
+                d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+            } else {
+                dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                     *(f32*)(p + offsetof(Player, effectpos[0]));
+                dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                     *(f32*)(p + offsetof(Player, effectpos[1]));
+                dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                     *(f32*)(p + offsetof(Player, effectpos[2]));
+                d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+            }
+            if (d < best1) {
+                best1 = d;
+                *nearest = i;
+            }
+        }
+    }
+}
+
+/* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
+ * b==0 restricts the sweep to the nearest live player. */
+s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
+{
+    s32 last;
+    s32 j;
+    u8* q;
+    u8* e = (u8*)gEnemies + index * 916;
+    s32 ret = -1;
+    s32 start;
+    f32 best = lbl_803468B0;
+    f32 hit[3];
+    u8 _pad4[8];
+    f32 d;
     u8 _spare[36];
 
     if (b != 0) {
@@ -1992,40 +2024,7 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
         if (*(s16*)(e + offsetof(Enemy, closest)) < 0) {
             return -1;
         }
-        best1 = best;
-        p = (u8*)gPlayerWords;
-        last = -1;
-        /* PLAYER_STRIDE is an object-like macro for the same literal:
-         * claim.law.sizeof-defeats-loop-stride-induction only bans the
-         * sizeof(Player) respelling, which costs the loop's induction form. */
-        for (i = 0; i < 4; i++, p += PLAYER_STRIDE) {
-            if (*(s32*)(p + offsetof(Player, state)) == 1) {
-                /* A player whose mikey is live (field_A1C > 2) is ranged
-                 * against the mikey object's collision position (the mikey
-                 * OBJGRP embed) instead of the player's own effectpos. */
-                if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
-                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
-                         *(f32*)(p + offsetof(Player, mikey_coll_pos[0]));
-                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
-                         *(f32*)(p + offsetof(Player, mikey_coll_pos[1]));
-                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
-                         *(f32*)(p + offsetof(Player, mikey_coll_pos[2]));
-                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
-                } else {
-                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
-                         *(f32*)(p + offsetof(Player, effectpos[0]));
-                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
-                         *(f32*)(p + offsetof(Player, effectpos[1]));
-                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
-                         *(f32*)(p + offsetof(Player, effectpos[2]));
-                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
-                }
-                if (d < best1) {
-                    best1 = d;
-                    last = i;
-                }
-            }
-        }
+        enemy_nearest_live_player(e, best, (u8*)gPlayerWords, &last);
         start = last;
     }
     q = (u8*)gPlayerWords + start * PLAYER_STRIDE;
@@ -7096,12 +7095,12 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
                    struct item* gen, s32 imp, f32 ang)
 {
     u8* tbl = lbl_8011AF48;
+    s32 slot;
     s32 otype;
     s32 mask = 0;
-    s32 slot;
     s32 ndirs;
-    s32 start;
     s32 d;
+    s32 start;
     s32 i;
     s32 r;
     Enemy* e;
@@ -7150,8 +7149,8 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         return -2;
     }
     init_enemy(slot, pos, type, level, spew);
-    gEnemies[slot].generator = gen;
     e = &gEnemies[slot];
+    e->generator = gen;
     if (gen == 0 || type == 30) {
         e->genang_offset = lbl_80346820;
     } else {
@@ -7236,9 +7235,12 @@ placed:
     UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
     fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
     e->action = 1;
-    if (e->actionlist[1].animidx >= 0) {
-        InitAnim(lbl_80346820, &e->atree.animinfo,
-                 e->actionlist[1].animidx, 0, 1);
+    {
+        u32 animation = e->actionlist[1].animidx;
+        /* Animation indices use a negative signed sentinel for no sequence. */
+        if ((s32)animation >= 0) {
+            InitAnim(lbl_80346820, &e->atree.animinfo, animation, 0, 1);
+        }
     }
     if (e->hht > 2.0 && level <= 3 && lbl_80251148[type] != 0) {
         StartGenFX(pos, level);
