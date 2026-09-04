@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Reproduce the saved-register diagnosis, then exhaust reuse, declaration identity/order, initializer, register hint, shared-constant, compiler-version and optimization-flag axes for the missing loop-hoisted -1 web.",
+  "attributes": {
+    "law_screen": "Applied claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 and claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1: the 81/81 identical multiset hides the stmw/lmw displacement and save-width delta. Applied claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 and claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 to screen the declaration/initializer matrix. Applied claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1, but the existing verifier set remains insufficient because the residual changes a save-area immediate and moves a definition across CFG/calls. Screened claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1: a single linear permutation window is not legal across this loop CFG.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1\", \"claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1\", \"claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1\", \"claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "probed_form": "A: `off = -1; ... tex = off` and `off = off - off - 1; ... tex = off` (both NEUTRAL-identical). B: `v = -1; ... tex = v` (O83, real62). C: fresh `int notfound; notfound = -1; ... tex = notfound` and `register int notfound` at late declaration positions (81/81 but real74 and scratch slots shifted); moving the declaration before `r` folds NEUTRAL-identical; placing it after `r` gives real64 by moving one scratch subobject. D: `int notfound = -1` at early and late declaration positions (NEUTRAL or real74). E: use one named `notfound` for MBOX argument, compare and else store (NEUTRAL-identical due constant propagation). F: flagsweep built-in battery over scheduling, strength, peephole, propagation, lifetimes, CSE, proc and compiler versions; none exact, with -opt nocse changing indexed-address construction.",
+    "residual": "Single named mechanism: retail creates a sixth callee-saved value web for -1, hoists it before the second loop and widens the save set to r26@48; 1.2.5n rematerializes the constant on the empty-name path and saves only r27..r31 at52. The remaining loop-1 volatile colors are downstream of the same allocation topology.",
+    "scope": "No source change retained; diagnosis and cap apply only to InitOAnimList.",
+    "verification": "Every source probe was compiled and compared with probe.py --ops --slots --arbitrate --vs-head; the final retained source is identical to HEAD. flagsweep.py ran its complete built-in version/flag battery against the extracted target object."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/g3d/auxanim InitOAnimList --fuzzy; python tools/gdl/slotdiff.py game/g3d/auxanim InitOAnimList; python tools/gdl/fndiff.py game/g3d/auxanim InitOAnimList --ops",
+    "falsifier": "A portable source form that emits `li r28,-1` at +0xc8 while retaining the exact 32..43 scratch area and 81/81 count, a compiler/flag producing those same bytes, or a reviewed postprocessor mode that proves both the CFG-wide constant liveness and the extra r26 save/restore slot without rewriting any unproved immediate.",
+    "premise_measurement": "Fresh probe.py --fuzzy reports real 54, fuzzy 95.5926, T81/O81. Fresh slotdiff reports frame 72/72, target stmw/lmw r26,48 versus ours r27,52, with the baseline scratch area identical at 32..43. Target hoists `li r28,-1` to +0xc8 and consumes it at +0x118; ours rematerializes `li r0,-1` at +0x114. Dead-off reuse and several declaration/initializer positions fold NEUTRAL-identical; u32-v reuse breaks parity to O83 and real62; late fresh/register locals keep parity but regress to real64 or real74 by moving scratch slots. flagsweep's 1.2.5/1.2.5n and ordinary options do not close; -opt nocse changes the addressing form and instruction stream rather than reproducing retail. Existing WebFrank modes cannot alter the stmw/lmw displacement and cannot legally permute the constant across branches and calls.",
+    "scope": "The portable-source, ordinary compiler-version/flag, and currently shipped guarded-WebFrank axes for src/game/g3d/auxanim.c::InitOAnimList at the 81/81 residual. It does not deny a future machine-proven WebFrank mode that jointly proves a CFG-crossing constant hoist and safe one-register stmw/lmw save-area widening."
+  },
+  "function": "function:InitOAnimList",
+  "held_fixed": "The retained loop-1 byte-swap source, 72-byte frame, 81/81 instruction parity, and second-loop control flow were held fixed while the value-web construction was varied; the independent flagsweep held source fixed.",
+  "id": "attempt.R57_initoanimlist-live-minus-one-web-source-and-flag-exhaustion.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T18:46:37Z",
+  "residual": {
+    "capability_needed": "cfg_constant_hoist_and_save_area_widening",
+    "family": "constant-hoist",
+    "measured_at": "2026-09-04",
+    "signature": "delete T[50:51]@c8-cc=['li']; insert O[69:70]@114-118=['li']"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.PF_initoanimlist-the-pad-axis-is-dead-and-the-local-areas-are-identical-so-the-sixth-save-comes-from-frame-slack.20260904.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "instruction_permutation",
+    "copy_register_fields",
+    "verify_consistent_recolor"
+  ]
+}

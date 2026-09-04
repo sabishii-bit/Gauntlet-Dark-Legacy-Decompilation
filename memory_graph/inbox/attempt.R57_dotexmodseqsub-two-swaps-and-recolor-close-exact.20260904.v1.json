@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Close the source-exhausted 201/201 residual with two dependency-audited store/compare swaps followed by strict register-field recoloring.",
+  "attributes": {
+    "law_screen": "Applied claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1: the automatic audit was silent because this is composed schedule plus recolor, not because the function was ineligible. Applied claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1: both two-atom swaps pass the dependency audit in the raw compiler colouring. Applied claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1. Screened claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 and found it inapplicable: no copy-form/value-form change remains.",
+    "laws_applied": "[\"claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\", \"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\"]",
+    "probed_form": "PROBE A: `fr = k; ... use fr` after the case -5 selection; NEUTRAL-identical. PROBE B: `k = d1` before the case -5 guard and use `k` in the guard; REGRESSED real 30 -> 48 at 201/201. PROBE C: reuse dead `d1` as the carrier; NEUTRAL-identical. PROBE D: reuse dead `d2` as the carrier; NEUTRAL-identical. Then retain source unchanged and apply permutation windows 0x184:0x18c and 0x244:0x24c, each order 1,0, followed by copy_register_fields.",
+    "residual": "None. The guarded rule changes 15 instruction atoms/fields and reproduces the retail function bytes exactly without an unproven audit escape.",
+    "scope": "config/GUNE5D/webfrank.json only; src/game/g3d/auxanim.c is byte-unchanged.",
+    "verification": "wr_try_rule.py full-strength and --from-config both report BYTE-EQUAL; fndiff.py --clean reports MATCH; datadiff.py --sections has zero blocking data rows; textorder.py reports ORDER-OK 10/10; python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph --changed -b are green; gdlmem validate/build are green; full ninja -j2 prints build/GUNE5D/main.dol: OK. Commit 47d969605fce9b45bfef375373b3c08d6aa76b53."
+  },
+  "function": "function:DoTexModSeqSub",
+  "held_fixed": "The retained source and 201/201 instruction count were held fixed while four fresh carrier spellings and then the postprocessor composition were tested.",
+  "id": "attempt.R57_dotexmodseqsub-two-swaps-and-recolor-close-exact.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T18:46:36Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "no residual"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.PF_dotexmodseqsub-second-buffer-plus-block-scope-closes-the-slot-class-and-the-nested-call-closes-the-fmr.20260904.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "instruction_permutation",
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_relocation_binding"
+  ],
+  "windows_tried": [
+    "0x184:0x18c:1,0",
+    "0x244:0x24c:1,0"
+  ]
+}
