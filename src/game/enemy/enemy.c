@@ -8829,41 +8829,50 @@ void fn_80051C78(void)
 }
 #pragma opt_propagation reset
 
+/* Keep the nested name lookup inline with the level formatter. Numbered
+ * cases share the default arm; lettered levels use the existing suffix map. */
+#pragma inline_depth(2)
+static inline char* enemy_format_world_level(s32 world, s32 lvl)
+{
+    s32 n = lvl;
+    char* buf = (char*)lbl_80250E00;
+    if (lvl == 0) {
+        n = 1;
+    }
+    switch (lvl) {
+    case 1:
+    case 2:
+    case 3:
+    default:
+        sprintf(buf, "%s%d", findWorldName(world), n);
+        break;
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+        sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+        break;
+    }
+    return buf;
+}
+
 char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
 {
-    s32 n;
+    char* character;
     u32 i;
     char* buf;
 
-    buf = (char*)lbl_80250E00;
-    if (lvl == 0) {
-        n = 1;
-    } else {
-        n = lvl;
-    }
-    if (lvl >= 4) {
-        goto chk8;
-    }
-    goto plain;
-chk8:
-    if (lvl >= 8) {
-        goto plain;
-    }
-    goto lettered;
-plain:
-    sprintf(buf, "%s%d", findWorldName(world));
-    goto suffix;
-lettered:
-    sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
-suffix:
+    buf = enemy_format_world_level(world, lvl);
     if (flag != 0) {
         strcat(buf, "L1");
     }
     for (i = 0; i < strlen(buf); i++) {
-        buf[i] = toupper(buf[i]);
+        character = buf + i;
+        *character = toupper(*character);
     }
     return buf;
 }
+#pragma inline_depth(0)
 
 void* EnemyTypePrefix(s32 id)
 {

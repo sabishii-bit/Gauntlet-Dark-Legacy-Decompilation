@@ -1,5 +1,6 @@
 """Pure-core regressions for the scratch-only enemy experiments."""
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -8,6 +9,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "composed_census"))
 import r60_enemy_boundary_probe as boundary
 import r60_enemy_pool_probe as pool
 import r60_enemy_source_probe as source_probe
+
+
+class BaselineFidelity(unittest.TestCase):
+    def test_overlapping_expected_path_does_not_compare_output_to_itself(self):
+        with tempfile.TemporaryDirectory() as directory:
+            obj = Path(directory) / "baseline.o"
+            obj.write_bytes(b"old verified object")
+
+            def overwritten(*args):
+                obj.write_bytes(b"different generated object")
+                return obj, None
+
+            with patch.object(source_probe, "compile_with", side_effect=overwritten):
+                with self.assertRaisesRegex(ValueError, "fidelity failed"):
+                    source_probe.compile_baseline({"mw": "test", "cflags": ""}, Path("source.c"), obj, obj, Path(directory))
 
 
 class ResourceForms(unittest.TestCase):

@@ -468,16 +468,208 @@ def milestone_variants(body):
         yield "joint_reuse_" + old + "_as_" + new, pragma(lead + part)
 
 
+def formatter_variants(body):
+    """Recover the live integer vararg before testing code-shape levers."""
+    arg = replace_once(body, 'sprintf(buf, "%s%d", findWorldName(world));', 'sprintf(buf, "%s%d", findWorldName(world), n);')
+    yield "live_numeric_argument", arg
+    old = """    if (lvl == 0) {
+        n = 1;
+    } else {
+        n = lvl;
+    }"""
+    normalized = replace_once(arg, old, "    n = lvl;\n    if (lvl == 0) n = 1;")
+    yield "argument_and_normalized_local", normalized
+    yield "argument_normalized_buffer_decl_first", replace_once(normalized, "    s32 n;\n    u32 i;\n    char* buf;", "    char* buf;\n    s32 n;\n    u32 i;")
+    # The two range-test branch pairs can be an inlined helper's returns;
+    # a caller-level goto is specifically the previously measured dead axis.
+    start, end = normalized.index("    if (lvl >= 4)"), normalized.index("suffix:\n")
+    helper = """static inline void enemy_format_world_level(char* buf, s32 world, s32 lvl, s32 n)
+{
+    if (lvl < 4 || lvl >= 8) {
+        sprintf(buf, "%s%d", findWorldName(world), n);
+        return;
+    }
+    sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+}
+
+"""
+    yield "inline_format_region", helper + normalized[:start] + "    enemy_format_world_level(buf, world, lvl, n);\n" + normalized[end+len("suffix:\n"):]
+    choose = """static inline s32 enemy_lettered_level(s32 lvl)
+{
+    if (lvl < 4) return 0;
+    if (lvl >= 8) return 0;
+    return 1;
+}
+
+"""
+    branch = normalized[:start] + """    if (enemy_lettered_level(lvl)) {
+        sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+    } else {
+        sprintf(buf, "%s%d", findWorldName(world), n);
+    }
+""" + normalized[end+len("suffix:\n"):]
+    yield "inline_range_predicate", choose + branch
+    switch = """    switch (lvl) {
+    default:
+        sprintf(buf, "%s%d", findWorldName(world), n);
+        break;
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+        sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+        break;
+    }
+"""
+    switched = normalized[:start] + switch + normalized[end+len("suffix:\n"):]
+    yield "switch_default_first", switched
+    early = replace_once(switched, "    buf = (char*)lbl_80250E00;\n    n = lvl;\n    if (lvl == 0) n = 1;", "    n = lvl;\n    if (lvl == 0) n = 1;\n    buf = (char*)lbl_80250E00;")
+    yield "switch_normalize_before_buffer", early
+    yield "switch_propagation_off", "#pragma opt_propagation off\n" + switched + "\n#pragma opt_propagation reset\n"
+    init = replace_once(switched, "    char* buf;", "    char* buf = (char*)lbl_80250E00;")
+    init = replace_once(init, "    buf = (char*)lbl_80250E00;\n", "")
+    yield "switch_buffer_initializer", init
+    # Full formatting helper with a pointer result: unlike a predicate it
+    # returns the actual value the caller consumes, without a synthetic flag.
+    format_helper = """static inline char* enemy_format_world_level(s32 world, s32 lvl)
+{
+    s32 n = lvl;
+    char* buf = (char*)lbl_80250E00;
+    if (lvl == 0) n = 1;
+    if (lvl < 4 || lvl >= 8) {
+        sprintf(buf, "%s%d", findWorldName(world), n);
+        return buf;
+    }
+    sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+    return buf;
+}
+
+"""
+    consumer = "char* fn_80051E1C(s32 world, s32 lvl, s32 flag)\n{\n    u32 i;\n    char* buf = enemy_format_world_level(world, lvl);\n" + normalized[end+len("suffix:\n"):]
+    yield "inline_return_buffer", format_helper + consumer
+    # Explicit inline lookup inside the formatter. The existing bare-static
+    # lookup is not auto-inlined at this additional nesting depth.
+    lookup = """static inline char* enemy_world_label(s32 world)
+{
+    s32 off = 0;
+    s32 i;
+    for (i = 0; i < 44; i++) {
+        u8* e = (u8*)((Row36*)lbl_8011AF48) + off;
+        if (world == *(s32*)e) return (char*)(e + 4);
+        off += 36;
+    }
+    return 0;
+}
+
+"""
+    yield "inline_return_buffer_explicit_lookup", lookup + format_helper.replace("findWorldName(world)", "enemy_world_label(world)") + consumer
+    yield "inline_void_explicit_lookup", lookup + helper.replace("findWorldName(world)", "enemy_world_label(world)") + normalized[:start] + "    enemy_format_world_level(buf, world, lvl, n);\n" + normalized[end+len("suffix:\n"):]
+    conditional = normalized[:start] + """    if (lvl < 4) {
+        sprintf(buf, "%s%d", findWorldName(world), n);
+    } else if (lvl < 8) {
+        sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+    } else {
+        sprintf(buf, "%s%d", findWorldName(world), n);
+    }
+""" + normalized[end+len("suffix:\n"):]
+    yield "explicit_three_way_intervals", conditional
+    # Preserve the explicit normalizer while varying only the range region's
+    # optimizer boundary. This is a local control, not a compiler patch.
+    yield "switch_scheduling_off", "#pragma scheduling off\n" + switched + "\n#pragma scheduling reset\n"
+    for low in (0, 1):
+        labels = "".join("    case %d:\n" % i for i in range(low, 4))
+        yield "switch_numbered_cases_" + str(low), replace_once(switched, "    default:\n", labels + "    default:\n")
+    numbered = replace_once(switched, "    default:\n", "    case 1:\n    case 2:\n    case 3:\n    default:\n")
+    yield "numbered_const_buffer", replace_once(numbered, "    char* buf;\n\n    buf = (char*)lbl_80250E00;", "    char* const buf = (char*)lbl_80250E00;")
+    void_buffer = replace_once(numbered, "    char* buf;", "    void* buf;")
+    void_buffer = void_buffer.replace("buf[i]", "((char*)buf)[i]")
+    yield "numbered_void_buffer", void_buffer
+    unsigned_buffer = replace_once(numbered, "    char* buf;", "    u8* buf;")
+    unsigned_buffer = unsigned_buffer.replace("buf[i]", "((char*)buf)[i]")
+    unsigned_buffer = unsigned_buffer.replace("buf = (char*)lbl_80250E00", "buf = (u8*)lbl_80250E00")
+    for callee in ("sprintf", "strcat", "strlen"):
+        unsigned_buffer = unsigned_buffer.replace(callee + "(buf", callee + "((char*)buf")
+    unsigned_buffer = unsigned_buffer.replace("return buf;", "return (char*)buf;")
+    yield "numbered_unsigned_buffer", unsigned_buffer
+    before_test = replace_once(numbered, "    buf = (char*)lbl_80250E00;\n    n = lvl;", "    n = lvl;\n    buf = (char*)lbl_80250E00;")
+    yield "numbered_n_before_buffer_before_test", before_test
+    # Nested-inline experiment: only retained if the compiler actually emits
+    # the nested lookup (the previous controls retained a bl to it).
+    yield "nested_inline_depth_two", "#pragma inline_depth(2)\n" + format_helper + consumer + "\n#pragma inline_depth(0)\n"
+    hstart = format_helper.index("    if (lvl < 4 || lvl >= 8)")
+    hswitch = """    switch (lvl) {
+    case 1:
+    case 2:
+    case 3:
+    default:
+        sprintf(buf, "%s%d", findWorldName(world), n);
+        break;
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+        sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+        break;
+    }
+    return buf;
+}
+
+"""
+    nested_switch = format_helper[:hstart] + hswitch
+    yield "nested_inline_numbered_switch", "#pragma inline_depth(2)\n" + nested_switch + consumer + "\n#pragma inline_depth(0)\n"
+    upper = """static inline void enemy_uppercase_level_name(char* buf)
+{
+    u32 i;
+    for (i = 0; i < strlen(buf); i++) {
+        buf[i] = toupper(buf[i]);
+    }
+}
+
+"""
+    loop = """    for (i = 0; i < strlen(buf); i++) {
+        buf[i] = toupper(buf[i]);
+    }"""
+    upper_consumer = consumer.replace("    u32 i;\n", "").replace(loop, "    enemy_uppercase_level_name(buf);")
+    yield "nested_switch_and_uppercase_helper", "#pragma inline_depth(2)\n" + nested_switch + upper + upper_consumer + "\n#pragma inline_depth(0)\n"
+    yield "nested_switch_caller_strength_off", "#pragma inline_depth(2)\n" + nested_switch + "#pragma opt_strength_reduction off\n" + consumer + "\n#pragma opt_strength_reduction reset\n#pragma inline_depth(0)\n"
+    addressed_consumer = consumer.replace(loop, """    for (i = 0; i < strlen(buf); i++) {
+        char* character = buf + i;
+        *character = toupper(*character);
+    }""")
+    yield "nested_switch_character_alias", "#pragma inline_depth(2)\n" + nested_switch + addressed_consumer + "\n#pragma inline_depth(0)\n"
+    yield "nested_switch_alias_propagation_off", "#pragma inline_depth(2)\n" + nested_switch + "#pragma opt_propagation off\n" + addressed_consumer + "\n#pragma opt_propagation reset\n#pragma inline_depth(0)\n"
+    assigned = addressed_consumer.replace("    char* buf = enemy_format_world_level(world, lvl);", "    char* buf;\n    buf = enemy_format_world_level(world, lvl);")
+    yield "nested_switch_buffer_assigned", "#pragma inline_depth(2)\n" + nested_switch + assigned + "\n#pragma inline_depth(0)\n"
+    declared_first = assigned.replace("    u32 i;\n    char* buf;", "    char* buf;\n    u32 i;")
+    yield "nested_switch_buffer_first_assigned", "#pragma inline_depth(2)\n" + nested_switch + declared_first + "\n#pragma inline_depth(0)\n"
+    scope_char = assigned.replace("    u32 i;", "    char* character;\n    u32 i;").replace("        char* character = buf + i;", "        character = buf + i;")
+    yield "nested_switch_character_function_scope", "#pragma inline_depth(2)\n" + nested_switch + scope_char + "\n#pragma inline_depth(0)\n"
+
+
+def compile_baseline(edge, source_path, baseline_path, expected_path, out):
+    # Read BEFORE compiling: a historical --baseline-object can be the same
+    # pathname as baseline_path. Reading afterward would compare the new
+    # output with itself and silently defeat the fidelity gate.
+    expected_bytes = expected_path.read_bytes()
+    baseline, error = compile_with(dict(edge, src=str(source_path)), edge["mw"],
+                                   edge["cflags"], baseline_path, out)
+    if error:
+        raise RuntimeError(error)
+    if baseline.read_bytes() != expected_bytes:
+        raise ValueError("whole-object baseline fidelity failed; rebuild first")
+    return baseline
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -518,18 +710,14 @@ def main():
             raise RuntimeError(error)
         return obj
 
-    baseline, error = compile_with(dict(edge, src=str(source_path)), edge["mw"], edge["cflags"],
-                                   out / "baseline.o", out)
-    if error:
-        raise RuntimeError(error)
     expected_baseline = args.baseline_object if args.baseline_object else REPO / edge["body_o"]
-    if baseline.read_bytes() != expected_baseline.read_bytes():
-        raise ValueError("whole-object baseline fidelity failed; rebuild first")
+    baseline = compile_baseline(edge, source_path, out / "baseline.o", expected_baseline, out)
     print("FIDELITY: raw whole-object identity", flush=True)
+    (out / "baseline.c").write_text(source, encoding="utf-8")
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

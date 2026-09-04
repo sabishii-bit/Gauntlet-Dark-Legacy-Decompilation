@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "One dependency-legal instruction swap then strict recolor, after restoring the missing argument and exact source instruction shape.",
+  "attributes": {
+    "law_screen": "Measured82/82,17 raw differing words. The +0x50..0x58 pair consists of addi r4,r4,@lo and li r5,0: disjoint registers, no memory access, no control flow, no RAW/WAR/WAW dependence. Its relocation moves with the addi. The reordered window is byte-equal before any recolor; the15 remaining words pass strict whole-CFG register renaming and full L3 datum binding. No widened verifier or unproven annotation.",
+    "source_exhaustion": "attempt.R60_fn51e1c-live-vararg-numbered-switch-and-inline-buffer-close-shape.20260904.v1 records29 source variants and the bounded remaining cap. No universal source-unreachability claim.",
+    "verification": "wr_perm_hash after-window words equal target at both+0x50/+0x54. wr_try_rule returns BYTE-EQUAL (raw postprocess body),1stage with FULL retail datum proof. before9b5d659311abd88da7bf93973281d34fe6e05670d42e36d67481debd706cbb50, after904069ecf29093540c6128bfa144e8fd764df7472f62f9b436ea79f972d694fa. Full build, suites and reporting are required before integration."
+  },
+  "function": "function:fn_80051E1C",
+  "id": "attempt.R60_fn51e1c-permutation-and-strict-recolor-closure.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T23:49:14Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "instruction_permutation",
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ]
+}

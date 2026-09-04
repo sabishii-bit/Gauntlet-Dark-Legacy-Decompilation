@@ -1506,6 +1506,20 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "fn_80051E1C",
+        "before_sha256": "9b5d659311abd88da7bf93973281d34fe6e05670d42e36d67481debd706cbb50",
+        "after_sha256": "904069ecf29093540c6128bfa144e8fd764df7472f62f9b436ea79f972d694fa",
+        "mechanism": "attempt.R60_fn51e1c-permutation-and-strict-recolor-closure.20260904.v1. SOURCE-EXHAUSTION provenance: attempt.R60_fn51e1c-live-vararg-numbered-switch-and-inline-buffer-close-shape.20260904.v1. The source restores an omitted live sprintf argument, numbered/default switch arms, a meaningful inline formatting helper and explicit character address. Twenty-nine source variants are recorded. At82/82, exact40-byte frame/slots and17 differing words, one independent addi-r4/li-r5 swap at0x50..0x58 restores schedule; fifteen register words pass strict renaming. Full retail datum binding passes and wr_try_rule returns BYTE-EQUAL. No new postprocessor capability, widened proof or unproven audit. This is a practical exact closure, not proof of universal source-unreachability.",
+        "instruction_permutation": [{
+          "start": "0x50", "end": "0x58", "order": [1, 0],
+          "before_sha256": "2f5fa74c2ac0b4b27623504e1e9c075ce7120b03c6e91cd27358144d891d5b14",
+          "after_sha256": "2b03787606d2dc6003c4381da7fa3d5d6ec5a7bd1e85928dd1ce3eb6c5cdb3e0",
+          "before_relocations_sha256": "12ca4e179523bcc957c7006cbc7e44dd8da0ed51a931643455a3833233ea57da",
+          "after_relocations_sha256": "d595676a330c4365aeec638aff02c283ef0a6d7ef29e72f8240c702163ad820c"
+        }],
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_80051C78",
         "before_sha256": "5fba9c99ab2157768af6c045d8ec61416f8803c9b7c4197bd1ec5bb2fe28e28b",
         "after_sha256": "e961741e7273271996cd6871143e819c5b96b80c5db86d072d9325455cf4cec3",
