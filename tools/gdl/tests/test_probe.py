@@ -1331,6 +1331,56 @@ class BestBankTests(unittest.TestCase):
             probe.snapshot_path("game/mb/mb_camera", source,
                                 probe.BEST_BANK_TAG))
 
+    def test_the_best_bank_is_keyed_per_FUNCTION(self):
+        """Run-54 item 3a: probe STATE is per function, the bank was per unit.
+
+        Measured across the fleet's live gate directories at 1eaa07a51:
+        game/enemy/critter has SEVEN probed functions sharing one
+        `snap_game_enemy_critter____best.c`; game/audio/dcs, game/game/player
+        and game/sys/memcard have two each. Four of eleven units with live
+        state are contested; the other seven are unaffected.
+        """
+        source = Path("src/game/enemy/critter.c")
+        a = probe.snapshot_path("game/enemy/critter", source,
+                                probe.best_bank_tag("ProcessCritterList"))
+        b = probe.snapshot_path("game/enemy/critter", source,
+                                probe.best_bank_tag("CritterDoSfx"))
+        self.assertNotEqual(a, b)
+        # ... and neither is the rolling snapshot or the legacy per-unit one
+        self.assertNotIn(a, (probe.snapshot_path("game/enemy/critter", source),
+                             probe.snapshot_path("game/enemy/critter", source,
+                                                 probe.BEST_BANK_TAG)))
+
+    def test_a_best_tag_is_recognised_in_both_spellings(self):
+        self.assertTrue(probe.is_best_tag(probe.BEST_BANK_TAG))
+        self.assertTrue(probe.is_best_tag(probe.best_bank_tag("do_players")))
+        # NEGATIVE side: a user bank must never be read as a best bank, and
+        # `validate_tag` still refuses the reserved shape outright.
+        for tag in ("before-declswap", "b1", "", None, "best"):
+            self.assertFalse(probe.is_best_tag(tag), repr(tag))
+        tag, error = probe.validate_tag(probe.best_bank_tag("f"), "--bank")
+        self.assertIsNone(tag)
+        self.assertTrue(error)
+
+    def test_a_best_bank_records_the_digest_it_came_from(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = os.getcwd()
+            os.chdir(tmp)
+            try:
+                source = Path("src/game/x/y.c")
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_text("int a;\n", encoding="utf-8")
+                snap, existed = probe.write_named_bank(
+                    "game/x/y", source, probe.best_bank_tag("f"),
+                    digest="d1")
+                self.assertFalse(existed)
+                self.assertEqual(probe.bank_meta(snap).get("digest"), "d1")
+                # A bank written without one reports None, not a crash.
+                other, _ = probe.write_named_bank("game/x/y", source, "plain")
+                self.assertIsNone(probe.bank_meta(other).get("digest"))
+            finally:
+                os.chdir(cwd)
+
     def test_the_anchor_is_keyed_on_the_digest_not_on_real(self):
         """A NEUTRAL probe ties `real` without BEING the best state, and
         banking it as best would hand a later --revert-best wrong bytes."""
