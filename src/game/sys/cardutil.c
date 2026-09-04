@@ -529,121 +529,125 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
     char tmpName[0x24];
     char tmpTilde[0x24];
     u8* diskID;
-    CARDStat* st;
     s32 res;
+    s32 channel;
+    OSMutex* mutex2;
+    CardDirEntry* directory;
+    s32* dirCount;
     s32 fileNo;
-    u8* dir;
-    u8* e;
-    int i;
+    CardDirEntry* e;
 
+    channel = chan;
+    directory = (CardDirEntry*)dirBuf;
     diskID = DVDGetCurrentDiskID();
+    mutex2 = &M.mutex2;
     res = 0;
-    OSLockMutex(&M.mutex2);
-    M.dir = dir = (u8*)dirBuf;
-    M.dirCount = res;
-    OSUnlockMutex(&M.mutex2);
+    OSLockMutex(mutex2);
+    M.dir = directory;
+    dirCount = &M.dirCount;
+    *dirCount = res;
+    OSUnlockMutex(mutex2);
     if (dirBuf == NULL) {
         return 0;
     }
     memset(dirBuf, 0, 0x2d44c0);
 
     for (fileNo = 0; fileNo < 0x7f; fileNo++) {
-        e = dir + M.dirCount * 0x5b40;
-        st = (CARDStat*)(e + 0x5a44);
-        if (CARDGetStatus(chan, fileNo, st) < 0) {
+        e = directory + *dirCount;
+        if (CARDGetStatus(channel, fileNo, &e->stat) < 0) {
             continue;
         }
-        if (memcmp(st->gameName, diskID, 4) != 0) {
+        if (memcmp(e->stat.gameName, diskID, 4) != 0) {
             continue;
         }
-        if (memcmp(st->company, diskID + 4, 2) != 0) {
+        if (memcmp(e->stat.company, diskID + 4, 2) != 0) {
             continue;
         }
 
-        if (st->fileName[0] == 0x7e) {
+        if (e->stat.fileName[0] == 0x7e) {
             /* orphaned temp: try to promote it, otherwise delete it */
-            strncpy(tmpTilde, st->fileName, 0x20);
+            strncpy(tmpTilde, e->stat.fileName, 0x20);
             tmpTilde[0x20] = 0;
             strncpy(tmpName, tmpTilde + 1, 0x20);
             tmpName[0x20] = 0;
-            if (st->commentAddr <= st->length - 0x40 &&
-                CARDRename(chan, tmpTilde, tmpName) == 0) {
+            if (e->stat.commentAddr <= e->stat.length - 0x40 &&
+                CARDRename(channel, tmpTilde, tmpName) == 0) {
                 fileNo--;
                 continue;
             }
-            res = CARDFastDelete(chan, fileNo);
-            if (res < 0) {
-                return res;
+            res = CARDFastDelete(channel, fileNo);
+            if (res >= 0) {
+                if ((res = CARDFreeBlocks(channel, &M.freeBytes, &M.freeFiles)) >= 0) {
+                    continue;
+                }
             }
-            res = CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
-            if (res < 0) {
-                return res;
-            }
-            continue;
+            return res;
         }
 
-        memset(e + 0x5a00, 0, 0x40);
-        if (st->commentAddr <= st->length - 0x40) {
+        memset(e->comment, 0, 0x40);
+        if (e->stat.commentAddr <= e->stat.length - 0x40) {
             s32 base;
             s32 len;
-            s32 t = CARDFastOpen(chan, fileNo, &info);
+            s32 t = CARDFastOpen(channel, fileNo, &info);
             if (t < 0) {
                 return t;
             }
-            base = st->commentAddr & ~0x1ff;
-            len = ((st->commentAddr + 0x40) - base + 0x1ff) & ~0x1ff;
+            base = e->stat.commentAddr & ~0x1ff;
+            len = (e->stat.commentAddr + 0x40) - base;
+            len = (len + 0x1ff) & ~0x1ff;
             res = CARDRead(&info, e, len, base);
             CARDClose(&info);
             if (res < 0) {
                 return res;
             }
-            memmove(e + 0x5a00, e + (st->commentAddr & 0x1ff), 0x40);
+            memmove(e->comment, (u8*)e + (e->stat.commentAddr & 0x1ff), 0x40);
         }
 
-        if ((st->bannerFormat != 0 || st->iconFormat != 0) &&
-            st->offsetData <= st->length && st->iconAddr < st->offsetData) {
-            s32 iconCount;
-            int spShift;
+        if ((e->stat.bannerFormat != 0 || e->stat.iconFormat != 0) &&
+            e->stat.offsetData <= e->stat.length && e->stat.iconAddr < e->stat.offsetData) {
             s32 ciCount;
+            int i;
+            s32 iconCount;
             int fmtShift;
+            int spShift;
             s32 base;
             s32 len;
-            s32 t = CARDFastOpen(chan, fileNo, &info);
+            s32 t = CARDFastOpen(channel, fileNo, &info);
             if (t < 0) {
                 return t;
             }
-            base = st->iconAddr & ~0x1ff;
-            len = ((st->offsetData - base) + 0x1ff) & ~0x1ff;
+            base = e->stat.iconAddr & ~0x1ff;
+            len = ((e->stat.offsetData - base) + 0x1ff) & ~0x1ff;
             res = CARDRead(&info, e, len, base);
             CARDClose(&info);
             if (res < 0) {
                 return res;
             }
-            memmove(e, e + (st->iconAddr & 0x1ff), st->offsetData - st->iconAddr);
-            DCFlushRange(e, st->offsetData - st->iconAddr);
+            memmove(e, (u8*)e + (e->stat.iconAddr & 0x1ff), e->stat.offsetData - e->stat.iconAddr);
+            DCFlushRange(e, e->stat.offsetData - e->stat.iconAddr);
 
-            *(u32*)(e + 0x5ab0) = 0;
+            e->dataOffset = 0;
             i = 0;
             iconCount = 0;
             spShift = 0;
             ciCount = 0;
             fmtShift = 0;
             for (; i < 8; i++) {
-                s32 sp = (st->iconSpeed >> spShift) & 3;
+                s32 sp = (e->stat.iconSpeed >> spShift) & 3;
                 if (sp == 0) {
                     break;
                 }
-                *(u32*)(e + 0x5ab4 + i * 4) = *(u32*)(e + 0x5ab0);
-                *(u32*)(e + 0x5aec + i * 4) = ciCount;
-                *(u32*)(e + 0x5ab0) += sp << 2;
-                if ((st->iconFormat >> fmtShift) & 3) {
+                e->iconOffset[i] = e->dataOffset;
+                e->iconTlut[i] = ciCount;
+                e->dataOffset += sp << 2;
+                if ((e->stat.iconFormat >> fmtShift) & 3) {
                     ciCount++;
                     fmtShift += 2;
                 }
                 iconCount++;
                 spShift += 2;
             }
-            if ((st->bannerFormat & 4) == 4 && iconCount > 2) {
+            if ((e->stat.bannerFormat & 4) == 4 && iconCount > 2) {
                 int k;
                 int count = iconCount - 2;
                 int dstOff = i * 4;
@@ -651,22 +655,22 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
                 int srcIndex = count;
 
                 for (k = 0; k < count; k++) {
-                    s32 sp = (st->iconSpeed >> shift) & 3;
-                    *(u32*)(e + 0x5ab4 + dstOff) = *(u32*)(e + 0x5ab0);
-                    *(u32*)(e + 0x5aec + dstOff) =
+                    s32 sp = (e->stat.iconSpeed >> shift) & 3;
+                    *(u32*)((u8*)e->iconOffset + dstOff) = e->dataOffset;
+                    *(u32*)((u8*)e->iconTlut + dstOff) =
                         ((u32*)e)[srcIndex + (0x5aec / sizeof(u32))];
-                    *(u32*)(e + 0x5ab0) += sp << 2;
-                    shift -= 2;
+                    e->dataOffset += sp << 2;
                     srcIndex--;
+                    shift -= 2;
                     dstOff += 4;
                 }
             }
         }
 
-        *(s32*)(e + 0x5a40) = fileNo;
-        OSLockMutex(&M.mutex2);
-        M.dirCount++;
-        OSUnlockMutex(&M.mutex2);
+        e->fileNo = fileNo;
+        OSLockMutex(mutex2);
+        (*dirCount)++;
+        OSUnlockMutex(mutex2);
     }
     return res;
 }
