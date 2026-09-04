@@ -360,10 +360,54 @@ def _perm_entry(op, fn, ours, win):
                 prec, moved_symbols(win_syms, order))}
 
 
+RETAIL_IMAGE = os.path.join(
+    os.path.dirname(os.path.dirname(HERE)), "orig", "GUNE5D", "sys",
+    "main.dol")
+_IMAGE = None
+
+
+def retail_image():
+    """The retail image `apply_patch` needs for its L3 datum level.
+
+    RUN-56 ITEM 7 (WS, run 55): `prove` called `apply_patch` with THREE
+    arguments, so `image` defaulted to None, the L3 DATUM level of
+    `verify_datum_binding` could not run, and every word it would have
+    decided fell through to L4 — the pool CORRESPONDENCE, a one-to-one map
+    that says nothing about which datum each end holds. That is the hole
+    claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-
+    their-relocations.20260903.v1 records, and this tool DERIVES rules, so
+    it was the weaker screen that decided what got authored.
+
+    MEASURED at 5366a3a2f over all 162 shipped rules, run through
+    `apply_patch` twice with nothing but this argument changed: 59 (36%)
+    lose datum strength without the image, 98 are unchanged, 5 are not
+    comparable. Same BYTE-EQUAL verdict either way — the only visible
+    difference is the `N word(s) rest on the pool correspondence alone`
+    line.
+
+    Its absence is a REFUSAL, not a downgrade (the wr_try_rule rule, run 44):
+    a screen that quietly stops screening is how that law shipped for ten
+    days.
+    """
+    global _IMAGE
+    if _IMAGE is None:
+        if not os.path.exists(RETAIL_IMAGE):
+            raise SystemExit(
+                f"REFUSING to prove a rule without {RETAIL_IMAGE}: the L3"
+                " datum level of verify_datum_binding cannot run, and every"
+                " word it would decide falls through to the weaker pool"
+                " correspondence. Run `python tools/gdl/provision_worktree.py`"
+                " first. (webfrank's own main() and wr_try_rule.py refuse here"
+                " for the same reason.)")
+        _IMAGE = wf.RetailImage(RETAIL_IMAGE)
+    return _IMAGE
+
+
 def prove(op, tp, fn, rule, tgt):
     """Run the rule through the SHIPPED apply_patch; return residual words."""
     data = bytearray(open(op, "rb").read())
-    wf.apply_patch(data, copy.deepcopy(rule), open(tp, "rb").read())
+    wf.apply_patch(data, copy.deepcopy(rule), open(tp, "rb").read(),
+                   None, retail_image())
     sec = wf._sections(data)
     sym = wf._find_symbol(data, sec, fn)
     text = sec[sym.section_index]
