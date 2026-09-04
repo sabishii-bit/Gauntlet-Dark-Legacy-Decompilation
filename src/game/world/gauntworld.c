@@ -721,9 +721,12 @@ void world_update(void);
  *   .sdata2    the run's pool entries are 0x80346BE0..0x80346CB4 and they
  *              INTERLEAVE with ResolveWorldDataPointers' (0x80346BE0,
  *              0x80346C70) -- one object's pool, not two.
+ * The verdict on init_next_level_8005638C (the one contradiction the run-55
+ * finding left open) and the per-function evidence are recorded as
+ * claim.SM_init-next-level-is-gauntworlds-not-gamemains-and-the-verdict-rests-
+ * on-four-retail-byte-axes-not-the-pdb-name.20260904.v1 (2026-09-04).
  * Falsify with:
- *   python memory_graph/gdlmem.py record \
- *     claim.SM_init-next-level-is-gauntworlds-not-gamemains-four-axis-verdict.20260904.v1
+ *   python tools/gdl/fuzzy.py game/world/gauntworld
  *   python tools/gdl/textorder.py game/world/gauntworld
  * ========================================================================== */
 
