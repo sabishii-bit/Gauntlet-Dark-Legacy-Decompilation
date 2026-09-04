@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/enemy/enemy.c"
+    ],
+    "scope": "Continue the user's solo enemy.c TU flip request after the verified first-pass landing bc9743a39. Own src/game/enemy/enemy.c and enemy-specific configure/splits/symbols/webfrank entries. Existing pinned bodies remain frozen in production; scratch-only pool experiments must compare every raw sibling before considering retention. The function now has an exact frame/slot map but a missing coll_ip reload and an entry-address reassociation; generate_enemy has242/242 but two address-load permutations plus recolor; move_logic10 still has1085/1087. Read the five accepted R60 records and earlier pool record attempt.PJ_enemy-sdata2-pool-conversion-is-not-codegen-neutral-twelve-functions-move-and-six-leave-the-exact-set.20260904.v1 before new axes. Next pool diagnosis: literal conversion disturbs frames; test the recorded static-const alternative in generated scratch source. No new compiler patch or postprocessor capability authorized. Project-wide WebFrank necessity audit remains after the requested TU flip; no blanket source-unreachability premise. No other TUs or headers are claimed by this record."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:do_enemy_move",
+  "id": "work_claim.root-r60-enemy-continuation.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-root-r60-enemy",
+  "recorded_at": "2026-09-04T22:39:41Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
