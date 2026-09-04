@@ -2,6 +2,7 @@
   "attributes": {
     "owned_units": [
       "game/anim/action",
+      "config/GUNE5D/webfrank.json",
       "tools/gdl/webfrank.py",
       "tools/gdl/rule_derive.py",
       "tools/gdl/tests"
