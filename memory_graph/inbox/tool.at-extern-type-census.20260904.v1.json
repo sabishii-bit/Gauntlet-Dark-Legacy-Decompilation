@@ -1,0 +1,12 @@
+{
+  "id": "tool.at-extern-type-census.20260904.v1",
+  "kind": "tool",
+  "name": "at_extern_type_census.py",
+  "purpose": "Zero-build census over the ADDR16_LO home-copy class (class P): classifies each site's extern as array-decay/struct/pointer/scalar from OUR source, counts each symbol's byte-exact shape-A homes, and reports per-function instruction-count parity, which decides postprocessor eligibility for the class.",
+  "recorded_at": "2026-09-04T16:21:19Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "composed-census-at-extern-type-census",
+  "tool_kind": "analysis",
+  "valid_from": "2026-09-04"
+}
