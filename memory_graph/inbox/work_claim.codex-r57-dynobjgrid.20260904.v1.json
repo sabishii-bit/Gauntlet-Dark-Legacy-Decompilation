@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "owned_units": [
+      "game/world/dynobjgrid"
+    ],
+    "scope": "RUN-57F exact-close lane for game/world/dynobjgrid.c, currently 2/4 functions exact with no WebFrank pins and one raw-offset debt site. Fresh briefing at 6804c5c5d: WorldDynCollide is count-asymmetric at 97.48%; CreateDynobjGrid is count-parity with 72 differing words and 10 unabsorbed operand-class words at 95.79%. Mandatory step 1 for WorldDynCollide is the newest v2 diagnosis: test a genuinely new CFG source shape making its first two early-outs share the same exit block as the third; do not retry guard spelling or compiler-flag axes. For CreateDynobjGrid, rederive the aligned mechanism and screen its full attempt record/laws before probing; exact source or a sound guarded rule is the goal. Resolve the TU data blocker and raw-offset debt only from measured datadiff/relocation evidence. Continue distinct axes until both functions exact and flip the TU, or produce one named compiler mechanism per survivor under the exact-match mandate. Record via scratch+propose-record, commit milestones with -F and explicit paths, full gates, never push."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:WorldDynCollide",
+  "id": "work_claim.codex-r57-dynobjgrid.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-r57-dynobjgrid",
+  "recorded_at": "2026-09-04T18:45:43Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
