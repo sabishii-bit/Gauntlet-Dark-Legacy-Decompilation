@@ -1,0 +1,16 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/t26_denial_screen.py",
+    "tools/gdl/tests/test_t26_denial_screen.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "A census row and a live denial that name the same axis under spellings the canonical vocabulary does not relate (the screen then reports NO CONTRADICTION on a real one), or a flagged row whose denial scope, read in full, does not deny the advertised axis (the screen then fires on an exemption the cut missed). Both are decided by `python tools/gdl/composed_census/t26_denial_screen.py --census <json>` against the cited record's own `denial.scope`.",
+  "id": "claim.law.T26_a-census-versus-denial-screen-must-compare-axes-not-phrases-and-must-read-only-the-denying-half-of-a-scope.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T17:03:52Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-04",
+  "value": "A CENSUS COMPUTED FROM BYTES CANNOT SEE THE GRAPH, SO IT WILL ADVERTISE A LEVER AS LIVE ON A FUNCTION WHOSE ACCEPTED DENIAL DENIES THAT EXACT AXIS. Measured instance: al_dest_split.py heads its V section `class (b) VOLATILE dest -- DECL-ORDER LEVER LIVE (4 function(s))` and lists ProcessCritterList, whose accepted, unsuperseded attempt.CR_processcritterlist-the-declaration-order-lever-is-inert-here-so-the-addr16lo-reachable-remainder-is-zero.20260904.v1 carries `denial.scope: TWO axes on ProcessCritterList ... (a) DECLARATION ORDER of the function's four locals, measured across three distinct orders`. Neither artifact is wrong; the JOIN was missing. TWO THINGS MAKE THE JOIN WORK, BOTH MEASURED. (1) IT COMPARES AXES, NOT WORDS. The first implementation matched flat PHRASES, calibrated cleanly, and then reported NO CONTRADICTION on its own seed case, because the census spells the axis `DECL-ORDER` and the record spells it `DECLARATION ORDER` -- zero intersection, a clean bill of health, and a design reversal to a canonical-axis vocabulary. (2) IT READS ONLY THE DENYING HALF OF A SCOPE. A denial scope is written to bound itself ('It does NOT deny statement order', 'It denies nothing about the indexing form'), so a substring match fires on the EXEMPTION -- the same defect AGENTS.md records for the owned_units prose screen, which 'cannot read a negation'. Over the live corpus (188 accepted denial blocks, 151 live and function-anchored on 104 functions) the vocabulary matches 68 axis mentions of which 48 sit in a denying clause and 20 (29%) are exemptions the cut discards; the share varies from 0 of 9 for declaration-order to 2 of 2 for loop-form, so the cut is neither uniform nor optional. RESULT: 1 contradiction over al_dest_split's 41 rows -- exactly the reported one -- with the other 40 and 3 of the 4 census JSONs present clean. A FLAGGED ROW IS NOT A REFUTATION OF THE CENSUS: a denial can have expired, so the screen returns each denial's `expiry_check`, and the reader runs it and then either re-measures the row or supersedes the denial, never silently preferring one artifact."
+}

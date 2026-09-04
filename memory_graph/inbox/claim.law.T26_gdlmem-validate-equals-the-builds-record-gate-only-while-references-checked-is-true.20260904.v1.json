@@ -1,0 +1,16 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py",
+    "memory_graph/test_graph.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "A perturbation the build's record importer rejects and `validate` accepts while `references_checked` is TRUE. That would mean the two are not equivalent even with a database present, and the `build_gate` block's verdict is wrong. Reproduce with the five-case harness shape described above, extended with the new perturbation.",
+  "id": "claim.law.T26_gdlmem-validate-equals-the-builds-record-gate-only-while-references-checked-is-true.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T17:03:51Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "`gdlmem validate` IS THE SANCTIONED FALLBACK FOR `gdlmem build` ON A SESSION THAT CANNOT RUN THE BUILD, AND IT IS A SUPERSET OF THE BUILD'S RECORD GATE IN EVERY DIRECTION BUT ONE. Two-sided calibration over five perturbations of one synthetic corpus, each run through BOTH `validate_records` and the build's own `_import_records`: (A) a clean record whose `function:` reference does not resolve -- validate says `valid: true`, the build REJECTS it; (B) malformed JSON under inbox/ -- validate RAISES, the build rejects-and-continues into `inbox_rejected` and still exits 0; (C) a schema-invalid inbox record -- same asymmetry as B; (D) a duplicate record id across two files -- validate raises, the build raises an IntegrityError; (E) malformed JSON under records/ -- both raise. So validate is STRICTER on B and C, EQUAL on D and E, and WEAKER on exactly one thing: reference resolution. THAT GAP IS CONDITIONAL AND ITS CONDITION IS REACHABLE. The reference stage is guarded by `database.exists()`, and measured by moving build/gdlmem/memory.sqlite aside, `validate` exits 0 with `references_checked: false` and does NOT create the database, while any ordinary read command (`laws --tag core-screen`) does. So the false all-clear is reachable exactly once per fresh worktree -- by the lane whose FIRST graph command is the fallback gate itself, which is precisely the blocked worker the fallback exists for. validate now publishes a `build_gate` block whose `equivalent_to_build_record_gate` states this per run; quote the fallback as a gate only when it is true. `attempt_overflow` and the derived tables (law applications, residual-signature index) stay build-only in every case. NON-REPRODUCTION, recorded because it changes what the item was: the reported block ('gdlmem build is blocked by the session's permission classifier while validate is not') does NOT reproduce -- `python memory_graph/gdlmem.py build` exits 0 in a run-56 worker session -- so it is a property of a SESSION, not of the repository, and the deliverable is the reconciliation rather than a fix."
+}

@@ -1,0 +1,17 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/t26_apply_patch_image_audit.py",
+    "tools/gdl/tests/test_t26_apply_patch_image.py",
+    "tools/gdl/composed_census/ha_close.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "`python tools/gdl/composed_census/t26_apply_patch_image_audit.py --list` reporting a call site that is neither in CLEAN nor in KNOWN_DEBT, or reporting a KNOWN_DEBT entry that now passes the image (both exit 1). The 36% figure is falsified by re-running the two-way comparison over config/GUNE5D/webfrank.json's rules and finding the DEGRADE count materially different at an unchanged rule corpus.",
+  "id": "claim.law.T26_apply-patch-without-the-retail-image-degrades-the-datum-screen-on-thirty-six-percent-of-shipped-rules-and-twenty-three-of-twenty-six-call-sites-omit-it.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T17:03:50Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-ha-close",
+  "valid_from": "2026-09-04",
+  "value": "`webfrank.apply_patch(data, patch, target_data, symbol_addresses, image)` TAKES THE RETAIL IMAGE AS ITS FIFTH ARGUMENT, AND OMITTING IT SILENTLY DOWNGRADES THE PROOF WITHOUT CHANGING THE VERDICT. Without the image the L3 DATUM level of `verify_datum_binding` cannot run and every word it would have decided falls through to L4, the pool CORRESPONDENCE -- a one-to-one map that says nothing about which datum each end holds, which is the hole claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1 records. MEASURED at 5366a3a2f by running all 162 SHIPPED rules through apply_patch TWICE against the raw .postprocess/body objects, with nothing but that argument changed: 59 rules (36%) lose datum strength, 98 are unchanged, 5 are not comparable (before-hash mismatch). BYTE-EQUAL is printed either way; the only visible difference is the line `N word(s) rest on the pool correspondence alone (uninitialised data)`. THE POPULATION IS THE POINT: run 44 item 3 fixed ONE call site (wr_try_rule.py) and wrote the mechanism down, and an AST census at the same commit found 26 call sites of which only THREE passed the image (webfrank's own main, t16_rederive_body, wr_try_rule) and 23 did not -- including ha_close.py, which DERIVES rules, so the weaker screen was deciding what got authored. Writing a mechanism down does not fix its other twenty-two instances; a machine-checked accounting does. ha_close now passes the image and REFUSES when it is absent (SystemExit, the project's refusal idiom, which `except Exception` cannot swallow), and the remaining 22 are declared debt in tools/gdl/composed_census/t26_apply_patch_image_audit.py, pinned by a test so the count can shrink but a new image-less call cannot appear unannounced."
+}
