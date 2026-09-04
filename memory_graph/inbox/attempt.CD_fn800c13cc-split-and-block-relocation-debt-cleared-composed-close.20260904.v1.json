@@ -1,0 +1,42 @@
+{
+  "attempted_axis": "Execute the inherited split-map hypothesis, identify why the split alone leaves the relocation discriminator unchanged, and replay the already-derived permutation plus recolor on the corrected target object.",
+  "attributes": {
+    "law_screen": "claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1 APPLIED but REFINED: the .rodata claim is necessary and makes datadiff compare the 0x14-byte datum, but config/GUNE5D/config.yml's explicit block_relocations at 0x800C1404/0x800C1408 also had to be removed before the extracted target object gained HA/LO relocations. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED; the addi reads r1/writes r3 and extsh reads r30/writes r4, so the swap is dependence-free. claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED. claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1 APPLIED through this denial. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED, not applicable because the raw body is 51/51.",
+    "laws_applied": [
+      "claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1",
+      "claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1",
+      "claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1",
+      "claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1"
+    ],
+    "probed_form": "Config probe 1: add `\\t.rodata start:0x801164C0 end:0x801164D4` to pb_error's split and resplit; target .rodata appeared but target text retained the resolved literal. Config probe 2: remove the stale block_relocations for .text:0x800C1404 and .text:0x800C1408 and resplit; target and ours then carried matching ADDR16_HA/LO relocations, raw real fell 12 -> 10, and the residual became the derived schedule+recolor composition. Source data form: replace `extern char lbl_801164C0[]` with `const char lbl_801164C0[] = \"PB_ERROR.C:__LINE__\"`; datadiff .rodata became 0x14/0x14 byte-exact.",
+    "residual": "No final residual. The compiler's raw six-word schedule/recolor variance is closed by the guarded rule; linked bytes are exact.",
+    "scope": "Retained changes touch config/GUNE5D/config.yml, config/GUNE5D/splits.txt, config/GUNE5D/webfrank.json, src/game/pb/pb_error.c, and configure.py. The target split/config edits cover pb_error's own addresses only.",
+    "verification": "Baseline at HEAD: target/current 51/51, real 12, fuzzy 93.7843%, frame 4296/4296. After split plus relocation repair, raw real 10 at 51/51; current wf_word_diff on the pinned raw body reports 6 differing words, REGFIELD-ONLY 4 / OPCODE 2 / RELOCATED 0. `wr_try_rule.py ... fn_800C13CC` returned BYTE-EQUAL with L3 reading orig/GUNE5D/sys/main.dol. Final `fndiff --clean` reports EXACT, and finish_tu reports the whole object ready and flips it to Matching."
+  },
+  "denial": {
+    "expiry_check": "python memory_graph/gdlmem.py laws --residual \"+1 extsh -1 extsh\"",
+    "falsifier": "A newer source law or a portable-C form that makes the raw compiler body byte-exact at 51/51 without the rule, verified by `python tools/gdl/composed_census/wf_word_diff.py game/pb/pb_error fn_800C13CC` on a pin-free test branch.",
+    "premise_measurement": "attempt.WF_fn800c13cc-is-blocked-by-an-unclaimed-rodata-gap-not-by-codegen-so-the-rule-is-refused-and-the-split-map-is-the-fix.20260904.v1 measured `image` versus `&image[0]` as NEUTRAL-IDENTICAL and a named s16 transit as NEUTRAL at 51/51. This run re-derived the same 0x48:0x50 window after the target relocation repair: `wr_perm_hash.py game/pb/pb_error fn_800C13CC 0x48 0x50 1,0` showed +0x48 byte-equal and +0x4c register-field-only; `wr_try_rule.py` returned BYTE-EQUAL.",
+    "scope": "The source-spelling axis for the +0x48 extsh/addi transposition and coupled r30/r31 recolor in game/pb/pb_error.c::fn_800C13CC at this raw-body alignment only."
+  },
+  "function": "function:fn_800C13CC",
+  "held_fixed": "The source body and compiler flags were held fixed while the split/config discriminator was isolated. The prior record's two literal source probes remain the source-exhaustion evidence for the extsh/addi schedule axis.",
+  "id": "attempt.CD_fn800c13cc-split-and-block-relocation-debt-cleared-composed-close.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T18:12:59Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "EXACT after guarded composition; raw opcode multiset IDENTICAL (51/51) -- insert T[18:18]@48-48=[] O[18:19]@48-4c=['extsh'] / delete T[19:20]@4c-50=['extsh'] O[20:20]@50-50=[]"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.WF_fn800c13cc-is-blocked-by-an-unclaimed-rodata-gap-not-by-codegen-so-the-rule-is-refused-and-the-split-map-is-the-fix.20260904.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": "RUN through tools/gdl/composed_census/wr_try_rule.py at full retail-datum strength: instruction_permutation, dependency audit, relocation-preserving bijection, copy_register_fields, verify_consistent_recolor, and verify_relocation_binding. The strict recolor proof passed; verify_value_equality_recolor and unproven_recolor_audit were neither requested nor needed. The composed result was BYTE-EQUAL.",
+  "windows_tried": [
+    "0x48:0x50:1,0"
+  ]
+}

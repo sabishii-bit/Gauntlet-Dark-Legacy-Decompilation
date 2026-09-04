@@ -425,6 +425,7 @@ game/pb/pb_error.c:
 	extab       start:0x80007BD8 end:0x80007BF0
 	extabindex  start:0x8000C214 end:0x8000C238
 	.text       start:0x800C1174 end:0x800C151C
+	.rodata     start:0x801164C0 end:0x801164D4
 
 game/pb/pb_frame.c:
 	extab       start:0x80007BF0 end:0x80007C20

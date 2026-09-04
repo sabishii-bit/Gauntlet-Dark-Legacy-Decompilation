@@ -1,0 +1,46 @@
+{
+  "attempted_axis": "Re-derive the recorded floor/cast mechanism after repairing target relocations, test the remaining parameter-width and declared-local levers jointly, then exhaust three source forms for the final extsh/address schedule and prove the composed close.",
+  "attributes": {
+    "law_screen": "claim.law.parameter-save-area-width-sets-the-local-block-floor.20260901.v1 APPLIED: removing the unused second formal moved pixels 20 -> 16 while frame stayed 8320, exposing that the old function signature was the floor bug. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED: unused[4] -> unused[8] above pixels restored image 8212 -> 8216 without moving the now-correct floor. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED: removing c8 folded away and did not pay the four bytes; the live signature width did. claim.law.frame-deltas-must-be-probed-with-an-eight-byte-ruler.20260831.v1 APPLIED to the 8-byte unused form. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 and claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED; extsh reads r28/writes r8 and addi reads r1/writes r3, with no relocation or control. claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1 APPLIED through this denial. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and is why the O151 named-pointer probe was rejected.",
+    "laws_applied": [
+      "claim.law.parameter-save-area-width-sets-the-local-block-floor.20260901.v1",
+      "claim.law.stack-slots-descend-in-declaration-order.20260831.v1",
+      "claim.law.frame-deltas-must-be-probed-with-an-eight-byte-ruler.20260831.v1",
+      "claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1",
+      "claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1",
+      "claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1"
+    ],
+    "probed_form": "Floor F1: `void fn_800C1174(register s8* text, register u32 errorHigh)` -> one formal `void fn_800C1174(register s8* text)`, which moved pixels 20 -> 16 and image 8216 -> 8212 at frame 8320. Floor F2: with F1 retained, `u8 unused[4]` -> `u8 unused[8]`, which moved image 8212 -> 8216 while pixels stayed 16; slotdiff became identical. A c8-removal probe was NEUTRAL-IDENTICAL and was restored. Schedule S1: `image` -> `&image[0]`, NEUTRAL-IDENTICAL. S2: add `s16 y16; y16=(s16)y;` and pass y16, NEUTRAL-IDENTICAL. S3: add `u8* imagePtr; imagePtr=image;` and pass imagePtr with S2 held, REGRESSED to O151/real103/fuzzy96.0867. All three schedule probes were restored; the direct call remains.",
+    "residual": "No final residual. The compiler's raw 15-word schedule/recolor variance is closed by the guarded rule; linked bytes are exact.",
+    "scope": "Retained source changes are the one-parameter definition and unused[8] in src/game/pb/pb_error.c. The shared split/config changes are recorded by the fn_800C13CC companion record and affect only pb_error's own eight text relocation sites and 0x14-byte .rodata datum.",
+    "verification": "Baseline at HEAD: target/current 150/150, real 42, fuzzy 97.9200%, frame 8320/8320 with target floor 16 versus ours 20. Relocation repair alone reduced raw real 42 -> 30. The one-parameter plus unused[8] source form yields raw real 26, fuzzy 97.9333%, 150/150, frame 8320/8320, save base r26/r26, SLOT MAP IDENTICAL. Current wf_word_diff on the pinned raw body reports 15 differing words: REGFIELD-ONLY 13 / OPCODE 2 / IMMEDIATE 0 / RELOCATED 0. `wr_try_rule.py ... fn_800C1174` returned BYTE-EQUAL with L3 reading orig/GUNE5D/sys/main.dol. Final `fndiff --clean` reports EXACT, and finish_tu reports all five functions/data/order exact and flips the TU to Matching."
+  },
+  "denial": {
+    "expiry_check": "python memory_graph/gdlmem.py laws --residual \"+1 extsh -1 extsh\"",
+    "falsifier": "A newer source law or portable-C form that preserves the retained 150/150 count and identical slot map while emitting addi r3,r1,8216 before extsh r8,r28 and eliminating the 13-word recolor, verified on the raw pin-free object.",
+    "premise_measurement": "Three literal source forms were measured against raw 150/150 code with the fully identical slot map. `image` -> `&image[0]` was NEUTRAL-IDENTICAL at real 26/fuzzy 97.9333. Hoisting `(s16)y` through `s16 y16; y16=(s16)y;` was also NEUTRAL-IDENTICAL. Adding `u8* imagePtr; imagePtr=image;` before the already-neutral y16 transit regressed to ours 151 instructions, real 103, fuzzy 96.0867. Restoring direct arguments returned raw 150/150, real 26, fuzzy 97.9333. `wr_perm_hash.py ... 0x1ec 0x1f4 1,0` made both words byte-equal and `wr_try_rule.py` returned BYTE-EQUAL.",
+    "scope": "The source-spelling axis for the +0x1ec extsh/address transposition and coupled 13-word volatile-GPR recolor in game/pb/pb_error.c::fn_800C1174 at the retained one-parameter, slot-exact alignment only."
+  },
+  "differing_words": 15,
+  "function": "function:fn_800C1174",
+  "held_fixed": "The corrected relocation map, PBErrorBlock extern type, loop body, declaration order, compiler flags, and all other call arguments were held fixed. The floor probe varied only the unused second formal, then only unused[4] versus unused[8]. The three schedule probes varied only the first-argument spelling, then only a named s16 transit, then a named image pointer plus that already-neutral s16 transit; every unsuccessful form was restored before the retained composition was derived.",
+  "id": "attempt.CD_fn800c1174-one-parameter-floor-and-composed-close.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T18:13:00Z",
+  "refutes": "attempt.WF_fn800c1174-the-block-floor-and-the-home-copy-are-one-cast-driven-mechanism-so-pb-error-cannot-flip.20260904.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "EXACT after guarded composition; raw opcode multiset IDENTICAL (150/150) -- insert T[123:123]@1ec-1ec=[] O[123:124]@1ec-1f0=['extsh'] / delete T[124:125]@1f0-1f4=['extsh'] O[125:125]@1f4-1f4=[]"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.WF_fn800c1174-the-block-floor-and-the-home-copy-are-one-cast-driven-mechanism-so-pb-error-cannot-flip.20260904.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": "RUN through tools/gdl/composed_census/wr_try_rule.py at full retail-datum strength: instruction_permutation, dependency audit, relocation-preserving bijection, copy_register_fields, verify_consistent_recolor, and verify_relocation_binding. The strict recolor proof passed; verify_value_equality_recolor and unproven_recolor_audit were neither requested nor needed. The composed result was BYTE-EQUAL.",
+  "windows_tried": [
+    "0x1ec:0x1f4:1,0"
+  ]
+}

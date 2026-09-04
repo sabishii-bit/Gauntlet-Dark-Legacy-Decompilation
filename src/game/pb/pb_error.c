@@ -26,7 +26,7 @@ extern s32 lbl_80343F08;
 extern s32 lbl_80343EE8;
 extern s32 lbl_80343EEC;
 extern s32 lbl_80344F90;
-extern char lbl_801164C0[];      /* "PB_ERROR.C:__LINE__" */
+const char lbl_801164C0[] = "PB_ERROR.C:__LINE__";
 extern s8 lbl_80120E98[];
 extern u32 lbl_80344F94;
 
@@ -62,12 +62,12 @@ extern PBErrorBlock lbl_802C4DB8;   /* error scratch block, 0x28 bytes (.bss) */
 /* Big error reporter: rasterizes the message through a 256-wide 1-bit glyph
  * atlas into an 8 KiB stack bitmap, one 21-character line at a time. Each
  * glyph is 5 bytes wide x 7 rows in the atlas (35 bytes); every set cell
- * plots a two-word white pixel pair. The second parameter is retained for the
- * original ABI; the scratch block itself is addressed through its symbol. */
-void fn_800C1174(register s8* text, register u32 errorHigh)
+ * plots a two-word white pixel pair. The scratch block itself is addressed
+ * through its symbol. */
+void fn_800C1174(register s8* text)
 {
     u8 image[80];
-    u8 unused[4];             /* unrecovered local between image and pixels */
+    u8 unused[8];             /* unrecovered local between image and pixels */
     u32 pixels[2048];
     PBErrorBlock* blk;
     s8* glyph;

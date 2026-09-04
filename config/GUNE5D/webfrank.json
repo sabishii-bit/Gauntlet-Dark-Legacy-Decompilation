@@ -1956,6 +1956,50 @@
         "copy_register_fields": true
       }
     ],
+    "game/pb/pb_error": [
+      {
+        "function": "fn_800C1174",
+        "before_sha256": "ec023e05c419c047d232c7671954ab8a4b6d3a37297b9c9a54ab259f70bf48d9",
+        "after_sha256": "14ad4403ace9d4656cc19fcf233b98076a58374a24202a4dbd649e3114d77877",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 150,
+          "permuted_instructions": 2
+        },
+        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.CD_fn800c1174-one-parameter-floor-and-composed-close.20260904.v1, which carries three literal schedule-axis probes and a typed denial; the earlier floor/cast matrix is attempt.WF_fn800c1174-the-block-floor-and-the-home-copy-are-one-cast-driven-mechanism-so-pb-error-cannot-flip.20260904.v1. The real source fix is the one-parameter signature plus an 8-byte recovered local: deleting the unused second parameter moves the pixels floor 20 -> 16 but image 8216 -> 8212, and growing unused[4] -> unused[8] restores image 8216 while holding frame 8320, save base 8296 and instruction parity 150/150. slotdiff is then fully identical and wf_word_diff reports 15 words: 13 register-field-only plus one displaced extsh. PERMUTATION +0x1ec..+0x1f4 order [1,0] swaps two independent, relocation-free atoms, our `extsh r8,r28` and `addi r3,r1,8216`; wr_perm_hash shows both resulting words byte-equal to target and the dependence audit accepts the window with no escape. copy_register_fields then closes the 13-word volatile-GPR recolor over the nested glyph loop through the strict whole-CFG renaming bisimulation, with no unproven audit. wr_try_rule replayed the composed stage at full datum-screen strength against orig/GUNE5D/sys/main.dol and returned BYTE-EQUAL.",
+        "instruction_permutation": {
+          "start": "0x1ec",
+          "end": "0x1f4",
+          "order": [1, 0],
+          "before_sha256": "7272ab142c46deedde0374bbb35319fc4b0b487bd480b13226a96017e7b292dd",
+          "after_sha256": "de82e312180f3d164aea9ab9a205087083d7d3941d87f506d4b62b172970399e",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "fn_800C13CC",
+        "before_sha256": "3186434722731d2bdedb62f5d7f0a1b6c95ace5938bdd6286b9d9b9b5e65e8b0",
+        "after_sha256": "0cffed9783ce8991ff66aad89e34f7e3b8ce31144055969682c90cba0d1eb82f",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 51,
+          "permuted_instructions": 2
+        },
+        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.WF_fn800c13cc-is-blocked-by-an-unclaimed-rodata-gap-not-by-codegen-so-the-rule-is-refused-and-the-split-map-is-the-fix.20260904.v1 carries the two measured source forms and typed denial; attempt.CD_fn800c13cc-split-and-block-relocation-debt-cleared-composed-close.20260904.v1 records the corrected diagnosis. The old attempt correctly derived the composition but incorrectly predicted the split claim alone would make its guard run: config/GUNE5D/config.yml explicitly blocked both HA/LO sites at 0x800C1404/0x800C1408. Claiming this TU's own 0x14-byte assert literal and removing those stale block_relocations makes target and ours carry the same relocations. The remaining 51/51 residual is three register-field words plus the independent, relocation-free +0x48/+0x4c transposition. PERMUTATION +0x48..+0x50 order [1,0] moves `addi r3,r1,8` before `extsh r4,r30`; wr_perm_hash shows the first word exact and the second differing only in its source register. copy_register_fields closes the r30/r31 recolor through strict whole-CFG renaming bisimulation with no unproven audit. wr_try_rule replayed the composed stage at full datum-screen strength against orig/GUNE5D/sys/main.dol and returned BYTE-EQUAL.",
+        "instruction_permutation": {
+          "start": "0x48",
+          "end": "0x50",
+          "order": [1, 0],
+          "before_sha256": "bb5658ad2738564982295b4f63d1e6b319297d6e1204593bbc5167a8ef8cb644",
+          "after_sha256": "959e3897bfebfebbdd87162704583c3a15cd1731af101a0cea4ed3ad4381d365",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/pb/pb_texture": [
       {
         "function": "fn_800C72DC",
