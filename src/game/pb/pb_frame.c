@@ -496,7 +496,7 @@ void pbFrameMode(s32 mode, s32 flag)
     kNop = 0x7000001A;
     kBig = 0x10000000;
     bufOff = envOff = k = 0;
-    for (; k < 2; k++) {
+    while (k < 2) {
         buf = g->screen->frames + bufOff;
         env = dispenv + envOff;
         tA = (k != 0) ? tplA2p : pA1;
@@ -538,10 +538,15 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->b = one;
             ((GsFldH4*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 2)))->b = ((GsFldH4*)(env + (offsetof(PbDispEnvRec, m18) + 2)))->b;
             ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
+            {
+            u32 displaySum;
+            displaySum = ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
+                         ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF);
+            displaySum += lbl_80344FA4;
+            displaySum += lbl_80344FAC;
             ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->hi =
-                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
-                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF) +
-                lbl_80344FA4 + lbl_80344FAC + 1;
+                displaySum + 1;
+            }
             ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->b =
                 (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + lbl_80344FA8 + xoff;
             ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->hi =
@@ -563,10 +568,10 @@ void pbFrameMode(s32 mode, s32 flag)
             selB = 0;
             selC = 0;
             if (smode <= 5) {
-                s32 aRWork = (smode - 1) << 6;
-                aG = 256 - aRWork;
+                aR = (smode - 1) << 6;
+                aG = 256 - aR;
                 noBlend = 0;
-                if ((aR = aRWork) > 255) {
+                if (aR > 255) {
                     aR = 255;
                 }
                 if (aG > 255) {
@@ -728,6 +733,7 @@ void pbFrameMode(s32 mode, s32 flag)
         *(u32*)(buf + (offsetof(PBFRAMEBUF, gif_tag) + 8)) = 0;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, dma_tag))) = kNop;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, dma_tag) + 4)) = 0;
+        k++;
         envOff += 40;
         bufOff += 512;
     }
