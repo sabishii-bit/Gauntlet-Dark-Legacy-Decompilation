@@ -3278,8 +3278,9 @@ s32 ProcessCritterList(void)
 
     activePlayers = 0;
     total = 0;
+    player = gPlayers;
     lbl_80344664++;
-    for (player = gPlayers, i = 0; i < 4; i++, player++) {
+    for (i = 0; i < 4; i++, player++) {
         if (player->state == 1) {
             activePlayers++;
         }
