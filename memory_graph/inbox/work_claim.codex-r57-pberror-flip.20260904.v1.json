@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/pb/pb_error.c"
+    ],
+    "scope": "RUN-57B EXACT-FLIP lane for game/pb/pb_error.c. Fresh game/pb census reports Object(NonMatching), source present, zero unclaimed text gaps. At dispatch fn_800C13CC is 51/51, 7 raw differing words, and fn_800C1174 is 150/150, 23 raw differing words; neither is pinned. Mandatory step 1 is attempt.WF_fn800c13cc-is-blocked-by-an-unclaimed-rodata-gap-not-by-codegen-so-the-rule-is-refused-and-the-split-map-is-the-fix.20260904.v1: derive and test the .rodata claim containing this TU's own lbl_801164C0 assert string, then re-run the recorded relocation discriminator and composed-rule proof. For fn_800C1174 execute the current untried source hypotheses from attempt.WF_fn800c1174-the-block-floor-and-the-home-copy-are-one-cast-driven-mechanism-so-pb-error-cannot-flip.20260904.v1 only after re-deriving its floor/cast diagnosis; its union and leading-array forms are already vetoed. Goal both exact and TU flip, with relocation/datum correctness explicit. Shared splits/config files are surgical stanza/row scope only. Exact or fully named typed park; one commit per retained milestone; full gates; never push."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:fn_800C13CC",
+  "id": "work_claim.codex-r57-pberror-flip.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-r57-pberror",
+  "recorded_at": "2026-09-04T17:57:57Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
