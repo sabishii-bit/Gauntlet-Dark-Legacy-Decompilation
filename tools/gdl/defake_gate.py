@@ -147,6 +147,23 @@ it, so a strictly-nearer stream can score worse on `real` alone -- that
 shape read as a flat REGRESSION and had to be overridden by hand. Only
 the disputed functions are re-measured, so the check stays cheap.
 
+IT IS UNDEFINED ACROSS AN ALIGNMENT CHANGE, and the baseline now banks the
+UNPAIRED count so the check can tell (run-52 item 2). `genuine` counts rows
+over the PAIRED subsequence: an instruction the aligner leaves unpaired
+cannot produce a structural row at all, so a genuine count that RISES may
+be reporting instructions that merely became visible. Two run-51 sightings,
+one root: ProcessCritterList (unpaired 9 -> 3, genuine 0 -> 2, fresh fuzzy
+84.08 -> 94.59) and dcsHandleRequest (genuine 0 -> 1 across an edit that
+removed the region's unpaired cluster, fuzzy 98.66 -> 99.00) both printed
+`ROSE -- structure agrees with real` on an improving edit. When the unpaired
+count MOVED the row now reads UNDEFINED and routes to fuzzy; the direction
+is never printed. Calibrated two-sided over all 3032 census rows at
+dc40326c7: 2792 functions (92.1%) sit at unpaired 0 and can never trigger
+it, and of the 201 with a genuine count at all only 176 carry unpaired > 0.
+That last number is why the trigger is `unpaired CHANGED` and NOT `unpaired
+> 0`: keying on the presence of unpaired clusters would silence the arbiter
+on 176 of its own 201 customers (87.6%).
+
 The third route is the FUZZY ARBITER (`--arbiter fuzzy`), for the case the
 structure arbiter is silent about: real rose while the genuine structural
 rows held FLAT. Flat rows mean regnorm sees the same amount of genuine
@@ -1054,8 +1071,8 @@ def compare(baseline, current, renames=None, resolve=None,
     return verdicts
 
 
-def genuine_counts(unit, names):
-    """{fn: genuine structural rows} for the named functions.
+def alignment_counts(unit, names):
+    """{fn: {"genuine": n, "unpaired": n}} for the named functions.
 
     `real` is the gate's only score and it cannot see structure: a
     respell that moves the residual strictly nearer target can RAISE real
@@ -1064,6 +1081,18 @@ def genuine_counts(unit, names):
     read as a flat REGRESSION and had to be overridden by hand
     (attempt.LG_get-vmu-directory-shared-constant-and-branch-pair-
     carriers.20260901.v2, real 48 -> 65 at fuzzy 90.04 -> 92.72).
+
+    THE UNPAIRED COUNT IS BANKED BESIDE IT, and it is what makes the
+    genuine count COMPARABLE across two states. `regnorm.analyze` can
+    only emit a STRUCTURAL row for a PAIRED pair — an instruction the
+    aligner leaves unpaired lands in `UNPAIRED-T`/`UNPAIRED-O` and is
+    never counted — so `genuine` is a count over the paired subsequence,
+    and its domain moves whenever the alignment does. Two run-51
+    sightings, one root: ProcessCritterList went unpaired 9 -> 3 while
+    genuine went 0 -> 2 (the two instructions were unpaired at baseline
+    and merely became visible), and dcsHandleRequest went 0 -> 1 genuine
+    across an edit that removed the unpaired cluster in the region. Both
+    printed as `ROSE — structure agrees with real` on an improving edit.
 
     Kept to the disputed functions only — two objdumps plus a difflib
     pass each, not a TU-wide census.
@@ -1083,8 +1112,21 @@ def genuine_counts(unit, names):
             result = regnorm.analyze(target[fn_t], ours[fn_o], resolver)
         except Exception:
             continue
-        counts[name] = len(result.genuine)
+        counts[name] = {"genuine": len(result.genuine),
+                        "unpaired": result.unpaired}
     return counts
+
+
+def genuine_counts(unit, names):
+    """{fn: genuine structural rows} — the `alignment_counts` genuine half."""
+    return {name: row["genuine"]
+            for name, row in alignment_counts(unit, names).items()}
+
+
+def unpaired_counts(unit, names):
+    """{fn: unpaired rows} — the `alignment_counts` unpaired half."""
+    return {name: row["unpaired"]
+            for name, row in alignment_counts(unit, names).items()}
 
 
 def ops_text(bare_unit, name):
@@ -1228,7 +1270,7 @@ def verdict_row(verdict, detail, accepted):
 
 def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
                           ops_fn=None, fuzzy_fn=None, arbiter=None,
-                          cached_fuzzy_fn=None):
+                          cached_fuzzy_fn=None, unpaired_fn=None):
     """Downgrade real-growth REGRESSIONs to CONFLICT when the current state
     is structurally target-identical (equal insn counts, IDENTICAL opcode
     multiset): the growth can be pure naming churn invisible to `real`.
@@ -1239,16 +1281,40 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
     arbiter has nothing to say and every keep was overridden by hand —
     reports the delta it would be overriding, and a RISING fuzzy becomes a
     CONFLICT instead of a bare REGRESSION.
+
+    THE STRUCTURE ARBITER IS UNDEFINED ACROSS AN ALIGNMENT CHANGE (run-52
+    item 2). `genuine` counts rows over the PAIRED subsequence only, so
+    comparing two states whose unpaired counts differ compares two
+    different domains — see `alignment_counts`. Inequality is the SOUND
+    direction and is all this uses: an unpaired count that MOVED proves
+    the comparison undefined, and the row is routed to fuzzy instead.
+    Equality does NOT prove comparability (the same number of instructions
+    can be unpaired in different places), which is why the ROSE branch no
+    longer asserts `structure agrees with real` on its own — it now
+    carries the fuzzy delta like every other branch, and yields to a
+    RISING fuzzy exactly as the FLAT branch does.
     """
     bare_unit = re.sub(r"\.(c|cpp)$", "", unit)
     baseline = baseline or {}
-    genuine_fn = genuine_fn or genuine_counts
     ops_fn = ops_fn or ops_text
     disputed = [name for name, verdict, detail in verdicts
                 if verdict == "REGRESSION"
                 and re.match(r"real (\d+) -> (\d+)$", detail)
                 and not detail.startswith("real 0 ")]
-    genuine_now = genuine_fn(bare_unit, disputed) if disputed else {}
+    # One regnorm pass supplies both halves. An injected `genuine_fn`
+    # (the test seam, and every caller predating this item) keeps its
+    # meaning and simply leaves `unpaired_now` empty, which reads as
+    # "alignment unknown" and preserves the old behaviour exactly.
+    genuine_now, unpaired_now = {}, {}
+    if disputed:
+        if genuine_fn is None and unpaired_fn is None:
+            rows = alignment_counts(bare_unit, disputed)
+            genuine_now = {n: r["genuine"] for n, r in rows.items()}
+            unpaired_now = {n: r["unpaired"] for n, r in rows.items()}
+        else:
+            genuine_now = (genuine_fn or genuine_counts)(bare_unit, disputed)
+            unpaired_now = unpaired_fn(bare_unit, disputed) if unpaired_fn \
+                else {}
     fuzzy_now, fuzzy_source = {}, None
     if disputed and arbiter == "fuzzy":
         fuzzy_now = (fuzzy_fn or fresh_fuzzy)(bare_unit, disputed) or {}
@@ -1293,6 +1359,27 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
             continue
         delta, note = _fuzzy_note(baseline.get(name, {}).get("fuzzy"),
                                   fuzzy_now.get(name), fuzzy_source)
+        was_u = baseline.get(name, {}).get("unpaired")
+        now_u = unpaired_now.get(name)
+        if was_u is not None and now_u is not None and was_u != now_u:
+            # ALIGNMENT MOVED: `genuine` is a count over the paired
+            # subsequence, so the two numbers are not comparable at all.
+            # Say UNDEFINED and let fuzzy decide; never print a direction.
+            undefined = (f" BUT the structure arbiter is UNDEFINED here:"
+                         f" unpaired {was_u} -> {now_u} MOVED, so genuine"
+                         f" {was} -> {now} is a comparison over two"
+                         " different paired subsequences (an unpaired"
+                         " instruction can never produce a structural"
+                         " row) — arbitrate on fuzzy")
+            if delta is not None and delta > 0:
+                out.append((name, "CONFLICT",
+                            detail + undefined + f"; {note} ROSE — the finer"
+                            " metric disagrees with real; do NOT auto-revert"
+                            " (pass --arbitrate to accept)"))
+            else:
+                out.append((name, verdict, detail + undefined
+                            + f"; {note}"))
+            continue
         if now < was:
             out.append((name, "CONFLICT",
                         detail + f" BUT genuine structural rows {was} ->"
@@ -1302,9 +1389,26 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
                         " (pass --arbitrate to accept)"
                         + (f" [{note}]" if delta is not None else "")))
         elif now > was:
-            out.append((name, verdict,
-                        detail + f" (genuine structural rows {was} -> {now}"
-                        " ROSE — structure agrees with real)"))
+            # NOT one-directional any more. A rise is evidence only while
+            # the alignment held, and equal unpaired counts do not prove
+            # that, so the claim is qualified and the fuzzy delta rides
+            # along — a rising fuzzy wins here exactly as it does on FLAT.
+            held = (f"alignment held at {now_u} unpaired"
+                    if was_u is not None and now_u is not None
+                    else "NO unpaired count in this baseline, so the"
+                         " alignment is unverified — re-take with"
+                         " --at-head")
+            if delta is not None and delta > 0:
+                out.append((name, "CONFLICT",
+                            detail + f" BUT genuine structural rows {was} ->"
+                            f" {now} ROSE while {note} ROSE ({held}) — the"
+                            " finer metric disagrees with real; do NOT"
+                            " auto-revert (pass --arbitrate to accept)"))
+            else:
+                out.append((name, verdict,
+                            detail + f" (genuine structural rows {was} ->"
+                            f" {now} ROSE — structure agrees with real;"
+                            f" {held}; {note})"))
         elif delta is not None and delta > 0:
             # FUZZY ARBITER: rows flat, so the structure arbiter is silent
             # and `real` alone was deciding. A rising fresh fuzzy says the
@@ -2014,9 +2118,12 @@ def measure_unit(unit, arbiter=None):
     # disputed, so they are skipped and the count stays cheap.
     mismatching = [name for name, row in snap.items() if row.get("real")]
     if mismatching:
-        for name, count in genuine_counts(unit, mismatching).items():
+        # `unpaired` rides along free (same regnorm pass) and is what makes
+        # the banked `genuine` comparable at check time — run-52 item 2.
+        for name, row in alignment_counts(unit, mismatching).items():
             if name in snap:
-                snap[name]["genuine"] = count
+                snap[name]["genuine"] = row["genuine"]
+                snap[name]["unpaired"] = row["unpaired"]
     # Fuzzy anchor for the fuzzy arbiter. Only ever taken from a report at
     # least as new as the object it describes: an anchor read from a stale
     # report is worse than no anchor, because `check` would silently
@@ -2190,6 +2297,19 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         print("[baseline predates run 29: no commit anchor and no"
               " genuine-row counts — re-take it to enable the structure"
               " arbiter and make it reconstructable]")
+    # Run-52 item 2: a baseline with genuine counts but no unpaired counts
+    # can still be gated, but the structure arbiter cannot tell an
+    # alignment change from a codegen change on it. Say so once, here,
+    # rather than once per row.
+    banked = [row for name, row in baseline.items()
+              if name != "__sections__" and isinstance(row, dict)
+              and row.get("genuine") is not None]
+    if banked and not any(row.get("unpaired") is not None for row in banked):
+        print("  [no UNPAIRED counts in this baseline (taken before run 52)"
+              " — the structure arbiter cannot tell an ALIGNMENT change from"
+              " a codegen change, and a `genuine rows ROSE` row is"
+              " unverified. Re-take with"
+              f" `defake_gate.py baseline {unit} --at-head`.]")
     if bank_arbitrated:
         # Re-anchor ONE function's row over a fuzzy-arbitrated keep the
         # mandate accepts but `real` reads as a regression. Re-running a
