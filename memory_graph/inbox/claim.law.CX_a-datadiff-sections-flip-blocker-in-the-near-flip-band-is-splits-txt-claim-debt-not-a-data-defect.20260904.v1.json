@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/datadiff.py --sections (the blocker lines)",
+    "config/GUNE5D/splits.txt (the per-TU section claims the cross-check reads)",
+    "tools/gdl/composed_census/af_data_base_census.py (the tool that emits the paste-ready claim, i.e. the actual cure)"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find one FLIP BLOCKER line, on any NonMatching TU, that is NOT of the form `SIZE target 0x0 vs ours 0xNN` -- i.e. both sides nonzero, or the target larger -- or one whose named section IS claimed by the owning .c in config/GUNE5D/splits.txt. Either finding breaks the law for that row and means the blocker really is data content. The command is `python tools/gdl/datadiff.py <unit> --sections` over the NonMatching set plus a grep of config/GUNE5D/splits.txt for the unit's section list; the law was derived from the distance 0-3 band ONLY (29 of 51 NonMatching units), so the 22 TUs at distance >= 4 are the cheapest place to look for a counterexample and have NOT been measured here.",
+  "id": "claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T02:20:53Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "A `datadiff.py <unit> --sections` FLIP BLOCKER on a near-flip NonMatching TU is SPLIT-CLAIM DEBT IN config/GUNE5D/splits.txt, NOT A DATA-CONTENT DEFECT, AND IT IS NOT FIXED IN THE .c. MEASURED IMAGE-WIDE at c0f978273 over the whole distance 0-3 band (29 NonMatching TUs; see claim.CX_the-true-flip-roster-twenty-nine-tus-at-distance-zero-to-three-with-sections-and-textorder-measured.20260904.v1 for the roster): 38 FLIP BLOCKER lines, and ALL 38 CARRY ONE SHAPE -- `SIZE target 0x0 vs ours 0xNN  <- FLIP BLOCKER - OURS is LARGER than the target - the DOL-range byte check is structurally blind to this`. Zero are OURS-LARGER with both sides nonzero; zero are TARGET-LARGER. The reason the target side reads 0x0 is that the DTK SPLIT NEVER ASSIGNED THAT SECTION TO THAT TU: cross-checked mechanically by parsing config/GUNE5D/splits.txt and asking, per blocker line, whether the owning .c claims the named section -- 38 of 38 answer NO. WORKED PAIR, one file apart in splits.txt: `game/mb/mb_blit.c:` lists extab, extabindex, .text, .ctors and NO .sdata2, and datadiff prints `[game/mb/mb_blit.c] .sdata2: SIZE target 0x0 vs ours 0x90  <- FLIP BLOCKER`; `game/mb/mb_camera.c:` lists `.sdata2 start:0x80348B30 end:0x80348B38` and datadiff prints `[game/mb/mb_camera.c] .sdata2: size 0x8, 100.0% bytes equal`. CONSEQUENCES FOR DISPATCH, both of which have cost lanes time: (1) a blocker count is NOT a measure of how wrong the TU's data is, so it must never be read as source debt or as a reason to defer the TU -- the fix is deriving the address range and adding the splits.txt claim (the workflow run-51's enemy.c order already specifies: tools/gdl/composed_census/af_data_base_census.py emits paste-ready claims); (2) the blocker axis is DECOUPLED from the open-function axis, so the two halves of a flip can be dispatched to different lanes in the same run, and a TU with 0 open functions can still be a non-flip purely because of a splits.txt line (game/anim/atree: 36/36 functions matched, one unclaimed 4-byte .sdata2). The DATA-DEBT rows datadiff already scores advisory (target's extra bytes zero over an identical head: atree .rodata 0x17C vs 0x17B, action .data 0x850 vs 0x848) are a different class and are correctly not blockers."
+}
