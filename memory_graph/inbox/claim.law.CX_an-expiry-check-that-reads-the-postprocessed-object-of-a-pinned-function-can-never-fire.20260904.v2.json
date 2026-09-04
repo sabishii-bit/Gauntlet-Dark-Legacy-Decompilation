@@ -1,0 +1,29 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py (the raw read and the PINNED field)",
+    "tools/gdl/fndiff.py --count (the postprocessed read that returns real 0 by construction)",
+    "tools/gdl/savedregs.py --raw (the do_enemies precedent, both readings measured)",
+    "tools/gdl/composed_census/wr_const_closure_probe.py (a raw reader on the v1 postprocess-reader list)",
+    "tools/gdl/composed_census/hv_try.py (a raw reader on the v1 postprocess-reader list)",
+    "config/GUNE5D/webfrank.json (the pinned-function set the census joins against)"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "metrics",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Mode (b) dies if any of the nine always-fire checks, run verbatim on an unedited tree, reports the premise value it demands rather than the by-construction postprocessed reading: e.g. `fndiff.py game/game/player PlayerProcessPowerups --count` printing `real 48` instead of the measured `DIFF PlayerProcessPowerups insns 1598/1598 lines 32 real 0`. The population correction dies if `wr_const_closure_probe.py` or `hv_try.py` is shown to read the POSTPROCESSED body -- the test is that both reproduce a refusal on a function whose postprocessed object is byte-exact, which they did. The whole law dies if `probe.py`/`fndiff.py` are shown to read the pre-postprocess body by default for a pinned function.",
+  "id": "claim.law.CX_an-expiry-check-that-reads-the-postprocessed-object-of-a-pinned-function-can-never-fire.20260904.v2",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T02:31:51Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "supersedes": "claim.law.CX_an-expiry-check-that-reads-the-postprocessed-object-of-a-pinned-function-can-never-fire.20260904.v1",
+  "valid_from": "2026-09-04",
+  "value": "A TYPED DENIAL WHOSE `expiry_check` READS THE POSTPROCESSED OBJECT OF A WEBFRANK-PINNED FUNCTION IS UNFALSIFIABLE IN ONE OF TWO WAYS, AND THE SECOND DESTROYS STANDING CONCLUSIONS. v1 of this law established the class and the population; this version corrects two things measured by re-running all thirteen at c0f978273 (attempt.CX_vacuous-expiry-remediation-thirteen-rerun-raw-ten-confirm-three-expire-and-the-census-had-two-false-rows.20260904.v1). CORRECTION ONE -- THERE ARE TWO FAILURE MODES, not one. (a) NEVER-FIRES: the trigger is keyed on a reading the postprocessed object gives BY CONSTRUCTION -- `real 0`, an IDENTICAL opcode multiset, the absence of a ROLE MISMATCH row -- so the check passes forever and the denial is immortal. Two of the thirteen: attempt.CL_crittergettargetplayers-...v1 (wants 'anything other than an IDENTICAL 128/128 multiset') and attempt.SB_do-enemies-...v1 (tests for the strings EMISSION ORDER and ROLE MISMATCH, which the default savedregs read does not print on a pinned function). (b) ALWAYS-FIRES, i.e. FALSE EXPIRY: the trigger is keyed on a NONZERO premise value the postprocessed read can never show again -- `real 18`, `real 48`, `real 6`, `frame target 40 ours 48`, `the four cluster lines at @424-@440`, `target-only +1 mr / ours-only -1 li`. NINE of the thirteen. A lane running one of these is told a LIVE denial has lapsed, which is worse than being told nothing: it invites re-probing an axis that is still dead. v1's title names only the harmless half. CORRECTION TWO -- THE POPULATION IS ELEVEN, NOT THIRTEEN, and the screen's discriminant was wrong. v1 screened for 'the expiry_check names a postprocess-reading tool (probe.py, fndiff.py, savedregs.py, slotdiff.py, regnorm.py)'. It did not ask whether the named tool reads the RAW body, and two rows do. `composed_census/wr_const_closure_probe.py` prints `game/ui/attract::scroll_credits  (raw postprocess body, 148 insns)` as its own first line and reproduced attempt.WR_scroll-credits-...v1's refusal on a pinned function -- that denial was never vacuous. attempt.MC_init-all-dir-info-...v1 is HALF: its clause (b) names `composed_census/hv_try.py`, which reproduced `+0x14: base register presence differs (g3 vs g0)` and `+0x18: no proof mode offered` verbatim on a pinned function, while its clause (a) names `probe.py --ops` and is vacuous. SO THE SHIPPABLE SCREEN IS NOT A TOOL-NAME LIST: it is a per-tool RAW-versus-POSTPROCESSED attribute joined against config/GUNE5D/webfrank.json. A name-list screen would have refused two sound denials AND would pass any future raw-blind tool that is not on the list. THE CURE FOR AN AUTHOR IS UNCHANGED AND NOW SHOWN TO WORK: state the premise as a RAW obligation. Ten of the thirteen re-ruled CONFIRMED on the raw read this way, several to the digit -- attempt.SA_playerprocesspowerups-volatile-half-...v1's own word test reproduced as `+0x0cfc  O 82df06d0  T 831f06d0` -- so the raw form is not merely sound, it is the form under which these denials keep their evidentiary value."
+}
