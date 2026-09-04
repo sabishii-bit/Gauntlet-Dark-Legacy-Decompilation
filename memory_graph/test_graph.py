@@ -1767,6 +1767,17 @@ class RetrievalQueryTests(unittest.TestCase):
                 {"function": "other_fn",
                  "instruction_permutation": {},
                  "mechanism": "a bare schedule window with no cited record"},
+                # Run-54 item 2: the SAME law id with a trailing period, the
+                # live citation defect measured on three pins at 2948352c4.
+                # It looks law-backed to a substring match and resolves to
+                # nothing.
+                {"function": "dangling_fn",
+                 "copy_register_fields": {},
+                 "mechanism": "the encoding is picked downstream of source;"
+                              " see"
+                              " claim.law.live-zero-copy-vs-remat-is-allocator"
+                              "-not-source.20260831.v1. (note the trailing"
+                              " period: this id resolves to nothing)"},
             ]}}), encoding="utf-8")
         report = cls.root / "build" / "GUNE5D" / "report.json"
         report.parent.mkdir(parents=True)
@@ -2219,6 +2230,28 @@ class RetrievalQueryTests(unittest.TestCase):
         # other_fn's park exists but documents no probed_form
         self.assertEqual(by_fn["other_fn"]["provenance"],
                          "parked-without-probed_form")
+        # POSITIVE side of the run-54 item-2 hardening: the strongest
+        # provenance class may not rest on an id that resolves to nothing.
+        self.assertNotEqual(by_fn["dangling_fn"]["provenance"],
+                            "law-backed-source-unreachable")
+        self.assertEqual(
+            by_fn["dangling_fn"]["provenance_laws_unresolved"],
+            ["claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+             ".20260831.v1."])
+        self.assertNotIn("provenance_laws", by_fn["dangling_fn"])
+
+    def test_a_resolvable_law_still_backs_a_pin(self):
+        # NEGATIVE side: the hardening changed ZERO of the 155 live pins'
+        # verdicts, and must not start refusing correctly cited laws.
+        brief = tu_briefing("game/test/foo", root=self.root)
+        by_fn = {row["function"]: row for row in brief["webfrank_pins"]}
+        self.assertEqual(by_fn["test_fn"]["provenance"],
+                         "law-backed-source-unreachable")
+        self.assertEqual(
+            by_fn["test_fn"]["provenance_laws"],
+            ["claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+             ".20260831.v1"])
+        self.assertNotIn("provenance_laws_unresolved", by_fn["test_fn"])
 
     def test_brief_roster_carries_the_unabsorbed_closability_column(self):
         """run-31 item 6.

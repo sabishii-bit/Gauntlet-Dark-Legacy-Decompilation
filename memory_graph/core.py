@@ -10016,13 +10016,18 @@ def _pin_provenance(root: Path, tu: str,
         for name in wanted
     }
     directory = root / "memory_graph" / "records"
+    accepted_ids: set[str] = set()
     if directory.exists():
         for path in sorted(directory.rglob("*.json")):
             try:
                 record = json.loads(path.read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError):
                 continue
-            if not isinstance(record, dict) or record.get("kind") != "attempt":
+            if not isinstance(record, dict):
+                continue
+            if record.get("id"):
+                accepted_ids.add(str(record["id"]))
+            if record.get("kind") != "attempt":
                 continue
             name = str(record.get("function", "")).split(":", 1)[-1]
             trail = trails.get(name)
@@ -10052,7 +10057,7 @@ def _pin_provenance(root: Path, tu: str,
         # record on the function: for InitControls the unreachability law is
         # named in the closing record's laws_applied, not in the pin text.
         candidates = set(pin["cites_records"]) | trail["laws"]
-        law_backed = sorted(
+        named = sorted(
             cited for cited in candidates
             if cited.startswith("claim.law.")
             and any(mark in cited.lower() for mark in
@@ -10060,6 +10065,25 @@ def _pin_provenance(root: Path, tu: str,
                      "unreachable-from-source", "is-not-source",
                      "source-unavailable"))
         )
+        # THE BACKING LAW MUST RESOLVE (run-54 item 2). This test was a
+        # substring match on a cited STRING, so a citation that resolves to
+        # no record at all could carry the strongest provenance class the
+        # Mandatory policy has. Measured at 2948352c4: three pins
+        # (game/anim/atree DoAnimateTreeFrame, game/g3d/gcontrolpads
+        # G3DReadControlPadStates, game/ui/btext
+        # FindStringMessageListSub_8001FC4C) cite
+        # `claim.law.live-zero-copy-vs-remat-is-allocator-not-source
+        # .20260831.v1.` — the real law id with a TRAILING PERIOD — and the
+        # classifier counted it. No pin's class actually rests on it (all
+        # three also cite the id spelled correctly), so requiring resolution
+        # changes ZERO of the 155 pins' verdicts today; it removes the way a
+        # single prune or typo could later manufacture a false clear. The
+        # unresolvable ids are reported rather than dropped, because they are
+        # citation defects someone should fix.
+        law_backed = [cited for cited in named if cited in accepted_ids]
+        unresolved = [cited for cited in named if cited not in accepted_ids]
+        if unresolved:
+            pin["provenance_laws_unresolved"] = unresolved
         if law_backed:
             pin["provenance"] = "law-backed-source-unreachable"
             pin["provenance_laws"] = law_backed
@@ -10094,6 +10118,9 @@ def _pin_provenance(root: Path, tu: str,
             " failing form down, so the rule rests on an unreproducible veto."
             " NO-SOURCE-TRAIL = bar unmet; the function owes a source-first"
             " pass before any further rule work."
+            " A law only backs a pin if its id RESOLVES to a record in"
+            " memory_graph/records; ids that do not are reported under"
+            " provenance_laws_unresolved and back nothing."
         )
     return pins
 
