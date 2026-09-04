@@ -287,6 +287,15 @@ hunk is inside the named function the two are the same bytes and nothing
 changes. Its success line always said "uncommitted work on other
 functions in this TU is gone", which is a receipt, not a guard.
 
+A DISCARD THAT REVERTS NOTHING EXITS 6 (run-51 item 5). `--discard
+--function <fn>` when every uncommitted hunk lies OUTSIDE <fn>, and plain
+`--discard` when the file already matches HEAD, both used to print a
+success line and exit 0 — indistinguishable from a real discard to any
+script, while `git diff` still showed the edit. `--revert` in the same
+shape already exited PARTIAL_RESTORE_EXIT. A discard that DID revert
+hunks still exits 0 even when sibling hunks survive: that is the
+documented contract of --function, not a failure.
+
 (3) NO RESTORE MAY DELETE COMMITTED WORK. Both banked states (the rolling
 snapshot and the session .base) are stamped with the commit they were
 taken at, exactly as defake_gate anchors its baselines, and any restore
@@ -4968,6 +4977,24 @@ FUZZY_NO_NUMBER_EXIT = 4
 # that wants to branch on exactly that needs its own code.
 PARTIAL_RESTORE_EXIT = 5
 
+# A restore that DECLINED: it ran, it found the function, and it reverted
+# nothing, because everything uncommitted in the TU lies outside the function
+# it was pointed at (or, whole-file, because the tree already IS HEAD).
+# Run-51 item 5, reproduced at 7d8142f77 on game/movie/movieplayer with one
+# added line inside `MoviePlayer::~MoviePlayer`:
+#
+#   $ probe.py game/movie/movieplayer fn_800D967C --discard --function
+#   discarded (function-scoped): src\game\movie\movieplayer.cpp — 0 hunk(s)
+#   inside fn_800D967C reverted; 1 hunk(s) elsewhere in the TU left untouched
+#   EC=0                                   <- and `git diff` still shows +1/-0
+#
+# The prose says it plainly; the EXIT CODE said "done". `--revert` in the
+# same shape already exits PARTIAL_RESTORE_EXIT, so the two spellings of one
+# operation disagreed. Distinct from 5 because nothing was restored AT ALL:
+# a caller retrying with --whole-file wants to tell "reverted some" from
+# "reverted none".
+NOTHING_RESTORED_EXIT = 6
+
 
 def unknown_flags(argv, known=KNOWN_FLAGS):
     """[(flag, [suggestions])] for every `--flag` this tool does not know."""
@@ -5108,8 +5135,17 @@ def main():
                 except ValueError as error:
                     print(f"cannot discard --function: {error}")
                     return 1
+                declined = new_text == source.read_bytes().decode("latin-1")
                 source.write_bytes(new_text.encode("latin-1"))
-                print(f"discarded (function-scoped): {source} — {notes}")
+                if declined:
+                    print(f"NOTHING DISCARDED: {source} is unchanged —"
+                          f" {notes}. This invocation reverted nothing: every"
+                          f" uncommitted hunk in this TU lies OUTSIDE {fn}."
+                          " Re-run with --whole-file to take them all back"
+                          " deliberately, or point --function at the function"
+                          " that actually carries the edit.")
+                else:
+                    print(f"discarded (function-scoped): {source} — {notes}")
                 restore_transient_pins(unit)
                 warn_outside_edits(source, None)
                 if "--no-rebuild" in sys.argv:
@@ -5119,10 +5155,19 @@ def main():
                                           "--discard --function")
                 else:
                     invalidate_prev_state(state_file, "--discard --function")
-                return 0
+                return NOTHING_RESTORED_EXIT if declined else 0
+        # The same question one level out: a whole-file discard of a tree
+        # that already IS HEAD reverted nothing either, and said "discarded".
+        declined = source.read_bytes() == head_bytes_now
         source.write_bytes(head_bytes_now)
-        print(f"discarded: {source} restored to HEAD (whole file —"
-              " uncommitted work on other functions in this TU is gone)")
+        if declined:
+            print(f"NOTHING DISCARDED: {source} already matches HEAD —"
+                  " this TU carries no uncommitted source change. (Header"
+                  " edits and webfrank.json are outside this file and are"
+                  " reported separately below.)")
+        else:
+            print(f"discarded: {source} restored to HEAD (whole file —"
+                  " uncommitted work on other functions in this TU is gone)")
         restore_transient_pins(unit)
         # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
         warn_outside_edits(source, None)
@@ -5132,7 +5177,7 @@ def main():
             rescore_after_restore(unit, fn, state_file, "--discard")
         else:
             invalidate_prev_state(state_file, "--discard")
-        return 0
+        return NOTHING_RESTORED_EXIT if declined else 0
     # NAMED BANKS (run-42 item 3). The rolling snapshot is one slot that
     # every banking verdict overwrites, so a multi-axis lane had nowhere to
     # keep the base it wanted to come back to; SA hand-rolled scratch copies
