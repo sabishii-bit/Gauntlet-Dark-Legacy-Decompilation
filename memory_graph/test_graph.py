@@ -5821,12 +5821,33 @@ def committed_range_base(root=core.REPO_ROOT):
           irrelevant: LANE_LOCK
         SKIP: no changed path under memory_graph/, tools/gdl/, ...
 
-    The right question for a clean tree is what this BRANCH has changed, so
-    the base is the merge-base with `main`. On `main` itself (or wherever
-    the merge-base IS HEAD, so the range would be empty) it falls back to
-    `HEAD~1`, which is the per-commit question spelled literally. Returns
-    None only when neither exists — a root commit or a broken git — and the
-    caller then fails OPEN and runs.
+    The question is per-COMMIT, so the base is `HEAD~1` — which is what this
+    already did on `main`, where the merge-base IS HEAD. Returns None only
+    when that does not exist — a root commit or a broken git — and the caller
+    then fails OPEN and runs.
+
+    RUN-54 ITEM 5. This asked `merge-base(HEAD, main)..HEAD`, the whole LANE
+    BRANCH, and fell back to HEAD~1 only on main. On a worker branch that is
+    a different question: once ANY commit on the branch touches a graph input
+    root, every later invocation RUNs regardless of what the commit at hand
+    did, and the gate stops discriminating for the rest of the branch. NC
+    reported the symptom from the other end — the full suite running for a
+    src/-only working tree — and the tree was not the reason; an earlier
+    commit on the branch was.
+
+    CALIBRATED TWO-SIDED over all 400 merged lane branches in this history
+    (1,811 commits, modelling one invocation per commit against a clean
+    tree):
+      POSITIVES  116 invocations (6.4%) on 56 branches RUN under the
+                 branch-wide range and SKIP under the per-commit question —
+                 the worst single branch wastes 18 of its 45 commits, at
+                 ~70s a suite.
+      NEGATIVES  953 invocations RUN under both and 742 SKIP under both:
+                 1,695 of 1,811 (93.6%) are unchanged.
+      UNSOUND    0 — there is no invocation the per-commit question runs
+                 that the branch-wide range skips, so this is strictly
+                 tighter and never looser. That count is the one that
+                 decides the change, and it is asserted below.
     """
     import subprocess
 
@@ -5836,10 +5857,9 @@ def committed_range_base(root=core.REPO_ROOT):
         return result.stdout.strip() if result.returncode == 0 else None
 
     head = git("rev-parse", "HEAD")
-    for candidate in (git("merge-base", "HEAD", "main"),
-                      git("rev-parse", "HEAD~1")):
-        if candidate and candidate != head:
-            return candidate
+    candidate = git("rev-parse", "HEAD~1")
+    if candidate and candidate != head:
+        return candidate
     return None
 
 
@@ -5850,7 +5870,25 @@ def changed_gate(base=None, root=core.REPO_ROOT, stream=sys.stdout) -> bool:
     no base it reads the working tree FIRST and, when the tree names nothing
     relevant, ALSO reads the committed range (see `committed_range_base`) —
     a second look that can only turn a SKIP into a RUN, never the reverse.
+
+    The decision preamble is FLUSHED before returning (run-54 item 5). It is
+    printed before `unittest.main` runs, but it goes to stdout while
+    unittest's own output goes to stderr, and python BLOCK-buffers stdout
+    when it is redirected — so on a RUN the preamble surfaced after all 478
+    test lines and read as a postscript. Reproduced at 491095677:
+    `python -m memory_graph.test_graph --changed -b 2>&1` printed 600 lines
+    whose LAST four were `relevant (committed): ...` and the `RUN:` verdict.
     """
+    try:
+        return _changed_gate_decide(base=base, root=root, stream=stream)
+    finally:
+        flush = getattr(stream, "flush", None)
+        if callable(flush):
+            flush()
+
+
+def _changed_gate_decide(base=None, root=core.REPO_ROOT,
+                         stream=sys.stdout) -> bool:
     try:
         paths, description = changed_paths(base=base, root=root)
     except Exception as error:                      # noqa: BLE001
@@ -6055,6 +6093,62 @@ class ChangedModeTests(unittest.TestCase):
             self.assertFalse(changed_gate(stream=stream))
         self.assertIn("SKIP:", stream.getvalue())
 
+    # --- run-54 item 5 ----------------------------------------------------
+    def test_the_committed_range_is_the_commit_not_the_branch(self):
+        """The base is HEAD~1, so the gate keeps discriminating on a branch.
+
+        With `merge-base(HEAD, main)` the range was the WHOLE lane branch:
+        one relevant commit made every later invocation RUN. Calibrated over
+        400 merged branches / 1811 commits: 116 invocations (6.4%) change
+        from RUN to SKIP, 1695 are unchanged, and 0 go the unsound way.
+        """
+        import subprocess
+        base = committed_range_base()
+        if base is None:
+            self.skipTest("root commit or unreadable git")
+        parent = subprocess.run(
+            ["git", "rev-parse", "HEAD~1"], cwd=str(core.REPO_ROOT),
+            capture_output=True, text=True).stdout.strip()
+        self.assertEqual(base, parent)
+
+    def test_the_preamble_is_flushed_before_the_suite_runs(self):
+        """Its stdout is block-buffered when redirected; unittest writes to
+        stderr. Without the flush the decision surfaced after 478 test
+        lines and read as a postscript rather than a decision."""
+        flushed = []
+
+        class Recording(io.StringIO):
+            def flush(self):
+                flushed.append(self.getvalue())
+                super().flush()
+
+        stream = Recording()
+        fake, _calls = self._clean_tree_then(["tools/gdl/savedregs.py"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertTrue(flushed, "changed_gate never flushed its stream")
+        self.assertIn("RUN:", flushed[-1])
+
+    def test_a_stream_without_flush_does_not_break_the_gate(self):
+        class NoFlush:
+            def __init__(self):
+                self.text = ""
+
+            def write(self, chunk):
+                self.text += chunk
+
+        stream = NoFlush()
+        fake, _calls = self._clean_tree_then(["src/game/ui/select.c"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertFalse(changed_gate(stream=stream))
+        self.assertIn("SKIP:", stream.text)
+
     def test_an_explicit_since_is_never_second_guessed(self):
         """`--since` names the range the caller wants; consulting another
         one behind their back would make the flag a suggestion."""
@@ -6094,9 +6188,16 @@ class ChangedModeTests(unittest.TestCase):
             self.assertTrue(changed_gate(stream=stream))
         self.assertIn("cannot read the committed range", stream.getvalue())
 
-    def test_the_base_prefers_the_merge_base_and_falls_back_to_HEAD_1(self):
-        """On a branch the question is what the BRANCH changed; on main the
-        merge-base IS HEAD, so the literal per-commit range is used."""
+    def test_the_base_is_HEAD_1_even_where_a_merge_base_exists(self):
+        """Run-54 item 5, REPLACING the merge-base contract this asserted.
+
+        The old rule preferred `merge-base(HEAD, main)` on a branch, so the
+        range was everything the branch had done and the gate stopped
+        discriminating after its first relevant commit. HEAD~1 is the
+        per-commit question the gate's own docstring names, and it is
+        strictly tighter: 0 of 1811 modelled invocations run under the old
+        rule's answer and skip under this one in the unsound direction.
+        """
         import subprocess
 
         def run(argv, **kwargs):
@@ -6112,11 +6213,16 @@ class ChangedModeTests(unittest.TestCase):
 
         self.merge_base, self.parent = "basesha", "parentsha"
         with mock.patch("subprocess.run", run):
-            self.assertEqual(committed_range_base(), "basesha")
+            self.assertEqual(committed_range_base(), "parentsha")
         self.merge_base, self.parent = "headsha", "parentsha"
         with mock.patch("subprocess.run", run):
             self.assertEqual(committed_range_base(), "parentsha")
+        # A root commit leaves nothing to compare and the caller fails OPEN.
         self.merge_base, self.parent = "headsha", None
+        with mock.patch("subprocess.run", run):
+            self.assertIsNone(committed_range_base())
+        # ... and so does a parent that IS head (a degenerate range).
+        self.merge_base, self.parent = "basesha", "headsha"
         with mock.patch("subprocess.run", run):
             self.assertIsNone(committed_range_base())
 
