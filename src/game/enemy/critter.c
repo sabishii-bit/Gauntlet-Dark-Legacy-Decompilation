@@ -1059,12 +1059,12 @@ f32 *delta;
     s32 offset;
     s32 grounded;
 
-    cpos = c->pos;
-    from = cpos;
-    surface = NULL;
     minRise = (f32)(-16.0 * (f64)gClockFrameStep);
+    cpos = c->pos;
+    from = NULL;
     wallRadius = ((CritterPackedType *)c->hdr)->wallRadius;
     radius = ((CritterPackedType *)c->hdr)->radius;
+    surface = NULL;
     if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
         offset = 0;
         for (i = 0; i < ((CritterPackedType *)c->hdr)->colCount;
@@ -1092,9 +1092,10 @@ f32 *delta;
             }
         }
     } else {
-        probe[0] = from[0] + delta[0];
-        probe[1] = from[1] + delta[1];
-        probe[2] = from[2] + delta[2];
+        probe[0] = cpos[0] + delta[0];
+        probe[1] = cpos[1] + delta[1];
+        probe[2] = cpos[2] + delta[2];
+        from = cpos;
         surface = EnemyWallCollide(wallRadius, from, probe, contact);
     }
 
@@ -1125,8 +1126,8 @@ f32 *delta;
     bottom = -(f64)radius - 3.0;
     if ((surface = FloorCollide(probe, (s32)floorResult, 0, 2,
                                 1.0f, radius, bottom)) != NULL) {
-        CritterWorldDamage(c, surface, cpos, floorResult + 12);
         grounded = 1;
+        CritterWorldDamage(c, surface, cpos, floorResult + 12);
         baseY = c->vel[1] - ((CritterPackedType *)c->hdr)->floorOffset;
         c->floorContact[0] = floorResult[12];
         c->floorContact[1] = floorResult[13];
