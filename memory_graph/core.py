@@ -10026,6 +10026,7 @@ def tu_briefing(
     limit: int = 100,
     roster_only: bool = False,
     law_join: bool = True,
+    summary: bool = False,
 ) -> dict[str, Any]:
     """One-call spawn briefing for a TU-scoped pass.
 
@@ -10044,6 +10045,12 @@ def tu_briefing(
     35.7%. It is a RE-READ form, not a substitute for the spawn briefing —
     the omitted sections carry the mandatory-step-1 hypotheses and the
     cross-fleet claim vetoes, and the returned note says so.
+
+    ``summary`` (run-53 item 9) is the MIDDLE tier those two leave empty: it
+    keeps whole everything a lane may not skip — the hypotheses, the
+    cross-fleet claims, the roster, the staleness banner — and reduces the
+    rest to counts plus RECORD IDS. Unlike ``roster_only`` it is safe as a
+    first read. See `summarize_brief` for the byte census behind it.
     """
     tu = tu.replace("\\", "/").strip("/")
     if tu.startswith("src/"):
@@ -10538,7 +10545,7 @@ def tu_briefing(
                 " REMEASURE before quoting one."
             ),
         }
-    return {
+    full = {
         "tu": [row["object_name"] for row in modules],
         # 10b comes FIRST, before the roster: a recorded untried hypothesis
         # outranks fresh analysis, and one skipped by its own author was
@@ -10645,6 +10652,102 @@ def tu_briefing(
             " owners. Every number here is stale — see staleness_banner."
         ),
     }
+    return summarize_brief(full) if summary else full
+
+
+# Fields whose ROWS are briefing heads a reader must SEE, not counts. Every
+# one of them is something AGENTS.md calls mandatory: an untried hypothesis is
+# step 1 (discipline 10b), a foreign active claim is a VETO, and a pin freezes
+# the source.
+_SUMMARY_KEEP_WHOLE = ("tu", "open_hypotheses", "active_claims",
+                       "staleness_banner", "report_generated_at",
+                       "report_age_hours", "fuzzy_staleness",
+                       "unabsorbed_staleness")
+
+
+def summarize_brief(full: dict) -> dict:
+    """A middle tier between the full brief and `--roster-only`.
+
+    RUN-53 ITEM 9, AND A DESIGN REVERSAL. The item asked for "a
+    --compact/summary mode" as though none existed. TWO do, and one command
+    shows it: `python memory_graph/gdlmem.py brief --help` lists
+    `--roster-only`, and gdlmem's global `--compact` drops JSON indentation.
+    Measured at c7b741799 on game/enemy/enemy: the full brief is 254,306
+    bytes over 5,063 lines and `--roster-only 1` is 15,238 — a 94% cut that
+    already hoists the repeated staleness paragraphs out of the rows.
+
+    So the premise is refuted and the COMPLAINT is still right, for a reason
+    the item did not name. `--roster-only` is documented as a RE-READ form
+    that "deliberately OMITS open_hypotheses, vetoed_axes, refutations,
+    live_attempts, active_claims, webfrank_pins" — i.e. every VETO and every
+    mandatory step-1 hypothesis. A lane's only two options were a 254 KB
+    briefing or a roster it is told not to start from, which is why one
+    scripted around its own briefing.
+
+    THIS TIER IS SAFE AS A FIRST READ. It keeps whole exactly what a lane may
+    not skip — the hypotheses, the cross-fleet claims, the roster, the
+    staleness banner — and replaces the bulk with COUNTS PLUS RECORD IDS, so
+    every omission is one `gdlmem.py record <id1>,<id2>` away rather than
+    gone. Where the bytes actually are, measured on the same TU: vetoed_axes
+    64,637 B over 21 rows (3,078 B/row), live_attempts 45,916 over 43, the
+    three law lists 36,600 over 120, webfrank_pins 16,717 over 10. The two
+    staleness paragraphs repeated on all 62 function rows are 29,202 B, 11.7%
+    of the payload — the item says three paragraphs; measured, the function
+    rows carry two.
+    """
+    out = {key: full[key] for key in _SUMMARY_KEEP_WHOLE if key in full}
+    rows = full.get("functions", []) or []
+    # HOIST, never DROP. The two staleness paragraphs live only on the ROWS
+    # in a full brief, so stripping them from every row without lifting one
+    # copy out would delete the warning instead of de-duplicating it — the
+    # opposite of what a staleness note is for.
+    for key in ("fuzzy_staleness", "unabsorbed_staleness"):
+        for row in rows:
+            if isinstance(row, dict) and row.get(key):
+                out.setdefault(key, row[key])
+                break
+    out["functions"] = [
+        {key: value for key, value in row.items()
+         if key not in ("fuzzy_staleness", "unabsorbed_staleness")}
+        for row in rows
+    ]
+    heads = {}
+    for key in ("vetoed_axes", "live_attempts", "refutations",
+                "webfrank_pins", "similar_residuals", "core_screen_laws",
+                "matching_laws", "tu_mentioned_laws", "raw_offset_debt",
+                "scaffold_rows"):
+        rows = full.get(key)
+        if isinstance(rows, dict):
+            # `similar_residuals` is keyed by function, not a list. Reporting
+            # only the list-shaped fields silently dropped it from `omitted`,
+            # so a reader could not tell it existed at all.
+            heads[key] = {"count": len(rows), "ids": sorted(rows)}
+            continue
+        if not isinstance(rows, list):
+            continue
+        ids = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            ident = (row.get("id") or row.get("record")
+                     or row.get("function") or row.get("law"))
+            if isinstance(ident, str):
+                ids.append(ident)
+        heads[key] = {"count": len(rows), "ids": ids}
+    out["omitted"] = heads
+    out["summary_note"] = (
+        "SUMMARY BRIEF — safe as a FIRST read, unlike --roster-only, which"
+        " omits the mandatory-step-1 hypotheses and the cross-fleet claim"
+        " VETOes. open_hypotheses, active_claims and the roster are here in"
+        " full. Everything under `omitted` is present as a COUNT and its"
+        " RECORD IDS: fetch any of them in one call with"
+        " `gdlmem.py record <id1>,<id2>,...`, and fetch them ALL by re-running"
+        " this brief without --summary. A parked/capped attempt is still a"
+        " VETO on its axis whether or not you read its body, so read"
+        " vetoed_axes' ids before probing an axis. Every number here is stale"
+        " — see staleness_banner."
+    )
+    return out
 
 
 _GC_ADDR_SUFFIX_RE = re.compile(r"_8[0-9A-Fa-f]{7}$")
@@ -11128,6 +11231,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             call=lambda root, db, **kw: tu_briefing(
                 kw["tu"], root=root, db_path=db, limit=kw["limit"],
                 roster_only=bool(kw["roster_only"]),
+                summary=bool(kw["summary"]),
                 law_join=not kw["no_law_join"]),
             params=(
                 SurfaceParam("tu", str, required=True,
@@ -11150,6 +11254,17 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                                   " hypotheses and the cross-fleet claim"
                                   " vetoes, so run the full brief before your"
                                   " first edit in a TU"),
+                SurfaceParam("summary", int, default=0, maximum=1,
+                             help="1 for the SUMMARY tier — safe as a FIRST"
+                                  " read, unlike --roster-only. Keeps the"
+                                  " mandatory-step-1 hypotheses, the"
+                                  " cross-fleet claim VETOes and the roster"
+                                  " whole; reduces vetoed_axes, live_attempts,"
+                                  " webfrank_pins and the law lists to counts"
+                                  " plus RECORD IDS you fetch with"
+                                  " `record <id1>,<id2>`. Measured on"
+                                  " game/enemy/enemy: full 254,306 B ->"
+                                  " summary 44,312 B (83% smaller)"),
             ),
         ),
         SurfaceOp(

@@ -3684,6 +3684,81 @@ class ValidateIncrementalTests(unittest.TestCase):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
 
 
+class SummaryBriefTests(unittest.TestCase):
+    """The middle tier between the full brief and --roster-only (item 9).
+
+    DESIGN REVERSAL: the queue item asked for "a --compact/summary mode" as
+    though none existed. Two do — `brief --roster-only` and gdlmem's global
+    `--compact` — and `gdlmem.py brief --help` shows the first in one command.
+    Measured at c7b741799 on game/enemy/enemy: full brief 254,306 bytes over
+    5,063 lines, --roster-only 15,238.
+
+    The COMPLAINT survives the refutation for a different reason: --roster-only
+    is documented as a RE-READ form that omits open_hypotheses, active_claims,
+    vetoed_axes and webfrank_pins — every VETO and every mandatory step-1
+    hypothesis — so a lane's only two choices were a 254 KB briefing or a
+    roster it is told not to start from. This tier is safe as a first read:
+    44,312 bytes, 83% smaller, with the un-skippable sections whole and the
+    rest reduced to counts plus record ids.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.full = core.tu_briefing("game/enemy/enemy", root=REPO_ROOT)
+        cls.summary = core.summarize_brief(cls.full)
+
+    def test_it_is_substantially_smaller(self):
+        full = len(json.dumps(self.full))
+        small = len(json.dumps(self.summary))
+        self.assertLess(small, full * 0.4, f"{small} vs {full}")
+
+    def test_the_unskippable_sections_survive_whole(self):
+        """What --roster-only drops is exactly what makes it unsafe first."""
+        for key in ("open_hypotheses", "active_claims", "tu"):
+            self.assertEqual(self.summary.get(key), self.full.get(key), key)
+
+    def test_the_roster_survives_without_the_repeated_paragraphs(self):
+        self.assertEqual(len(self.summary["functions"]),
+                         len(self.full["functions"]))
+        for row in self.summary["functions"]:
+            self.assertNotIn("fuzzy_staleness", row)
+            self.assertNotIn("unabsorbed_staleness", row)
+
+    def test_the_staleness_paragraphs_are_HOISTED_not_dropped(self):
+        """They live only on the rows in a full brief, so stripping them
+        without lifting one copy out would DELETE the warning."""
+        self.assertIn("REMEASURE", self.summary["fuzzy_staleness"])
+        self.assertIn("never means zero",
+                      self.summary["unabsorbed_staleness"])
+        self.assertTrue(self.summary["staleness_banner"])
+
+    def test_every_omitted_section_reports_a_count_and_its_ids(self):
+        omitted = self.summary["omitted"]
+        for key in ("vetoed_axes", "live_attempts", "webfrank_pins",
+                    "core_screen_laws", "similar_residuals"):
+            self.assertIn(key, omitted, key)
+            self.assertEqual(omitted[key]["count"],
+                             len(self.full[key]), key)
+
+    def test_a_dict_shaped_section_is_reported_too(self):
+        """`similar_residuals` is keyed by function, not a list; reporting
+        only list-shaped fields dropped it from `omitted` entirely."""
+        self.assertEqual(self.summary["omitted"]["similar_residuals"]["count"],
+                         len(self.full["similar_residuals"]))
+
+    def test_the_note_says_it_is_safe_first_and_how_to_get_the_rest(self):
+        note = self.summary["summary_note"]
+        self.assertIn("FIRST read", note)
+        self.assertIn("record <id1>", note)
+        self.assertIn("VETO", note)
+
+    def test_the_flag_is_reachable_from_the_briefing_surface(self):
+        result = core.tu_briefing("game/enemy/enemy", root=REPO_ROOT,
+                                  summary=True)
+        self.assertIn("summary_note", result)
+        self.assertNotIn("vetoed_axes", result)
+
+
 class VacuousExpiryTests(unittest.TestCase):
     """`stale` gains an EXPIRY dimension (run-53 item 8).
 
