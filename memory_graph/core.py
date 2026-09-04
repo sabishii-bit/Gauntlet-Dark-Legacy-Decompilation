@@ -6811,12 +6811,16 @@ def prune_attempts(
     if limit < 1:
         raise MemoryGraphError(f"attempt limit must be >= 1, got {limit}")
     grouped = _accepted_attempts_by_function(root)
-    superseded_ids = {
-        row["supersedes"]
-        for rows in grouped.values()
-        for row in rows
-        if row["supersedes"]
-    }
+    superseded_ids: set[str] = set()
+    for rows in grouped.values():
+        for row in rows:
+            supersedes = row["supersedes"]
+            if isinstance(supersedes, str):
+                superseded_ids.add(supersedes)
+            elif isinstance(supersedes, list):
+                superseded_ids.update(
+                    item for item in supersedes if isinstance(item, str)
+                )
     ejected: list[dict[str, Any]] = []
     kept: dict[str, list[str]] = {}
     for function, rows in sorted(grouped.items()):

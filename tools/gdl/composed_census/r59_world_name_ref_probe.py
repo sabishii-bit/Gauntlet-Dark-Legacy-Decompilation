@@ -10,6 +10,7 @@ No source, build graph, reference object, or postprocessor rule is modified.
 This tests raw instructions, not relocation/data equality or modified-game
 runtime behavior. A full `ninja` / main.dol: OK is the link-level authority.
 """
+import argparse
 import tempfile
 from pathlib import Path
 
@@ -57,6 +58,7 @@ def function_bytes(path, function):
 
 
 def main():
+    argparse.ArgumentParser(description=__doc__).parse_args()
     edge = read_edges()[UNIT]
     if not edge["raw"]:
         raise ValueError("expected world.c's pre-WebFrank raw compile edge")

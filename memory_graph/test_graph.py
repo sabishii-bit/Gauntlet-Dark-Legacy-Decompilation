@@ -167,6 +167,30 @@ class PruneAndCapTests(unittest.TestCase):
         after = prune_attempts(self.root, limit=5)
         self.assertEqual(after["functions_over_limit"], 0)
 
+    def test_merging_supersession_lists_eject_before_older_live_records(self):
+        # Merge records use a list; a set of the unflattened values crashes.
+        self._seed(7, superseded_pairs=(
+            ("attempt.r2", "attempt.r1"),
+            ("attempt.r7", ["attempt.r5", "attempt.r6"]),
+        ))
+        report = prune_attempts(self.root, limit=4)
+        self.assertEqual(
+            {row["id"] for row in report["ejected"]},
+            {"attempt.r1", "attempt.r5", "attempt.r6"},
+        )
+        self.assertTrue(all(row["superseded"] for row in report["ejected"]))
+        self.assertEqual(len(list(self.attempts.glob("*.json"))), 7)
+        prune_attempts(self.root, limit=4, apply=True)
+        self.assertEqual(
+            {p.stem for p in self.attempts.glob("*.json")},
+            {"attempt.r2", "attempt.r3", "attempt.r4", "attempt.r7"},
+        )
+        self.assertEqual(prune_attempts(self.root, limit=4)["ejected"], [])
+
+    def test_empty_supersession_list_does_not_eject_anything(self):
+        self._seed(5, superseded_pairs=(("attempt.r5", []),))
+        self.assertEqual(prune_attempts(self.root, limit=5)["ejected"], [])
+
     def test_byte_cap_grew_but_still_closes(self):
         record = _attempt("attempt.big", "function:test_fn",
                           axis="y" * 5000)  # over the old 4096 cap
