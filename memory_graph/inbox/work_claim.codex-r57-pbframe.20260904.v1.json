@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/pb/pb_frame.c"
+    ],
+    "scope": "RUN-57C exact-close lane for game/pb/pb_frame.c::pbFrameMode, the TU's sole open function. Fresh dispatch measurement at df433d199: target 958 / ours 959, ours-only one mr, so every postprocessor class is currently unreachable. Mandatory step 1 is the newest accepted record `attempt.PF_pbframemode-the-compensating-pair-is-separable-count-parity-reached-and-f1-dies-on-three-more-classes.20260904.v1`: reproduce the joint no-aRWork plus early pA1 assignment form, then perform its zero-build promotion-ranking census of the target's six promoted values against the source declaration/lifetime list. Do not repeat the vetoed aRWork-alone, clamp-order, store-interleave, double-cast split, or three dead F1 classes. The live question is whether tplA1 can outrank the 0x60712435 constant while holding the joint parity form. Goal exact function and TU flip; no WebFrank pins at dispatch. Continue genuinely distinct axes under the exact-match mandate, and park only on a single named compiler mechanism with the complete current law screen. Record through scratch+propose-record, commit retained milestones with -F and explicit paths, full gates, never push."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:pbFrameMode",
+  "id": "work_claim.codex-r57-pbframe.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-r57-pbframe",
+  "recorded_at": "2026-09-04T18:13:50Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
