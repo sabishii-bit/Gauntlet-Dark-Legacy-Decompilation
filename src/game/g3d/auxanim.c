@@ -286,9 +286,9 @@ exit:
 
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 {
-    f32 r;
     f32 k;
     s32 f;
+    s32 d;
     f32 ra;
     f32 de;
     f32 fr2;
@@ -305,8 +305,8 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         ra = (f32)tm->rate;
         de = (f32)(frame - tm->unk4e);
         fr2 = (f32)tm->frames;
-        r = CalcTexScroll(de, ra, fr2, frame, &out);
-        MBTreeSetUVScaleAdd(out, r, 1.0f, 0.0f, ctx, 1);
+        MBTreeSetUVScaleAdd(out, CalcTexScroll(de, ra, fr2, frame, &out), 1.0f,
+                            0.0f, ctx, 1);
         break;
     }
     case -3: {
@@ -314,8 +314,8 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         ra = (f32)tm->rate;
         de = (f32)(frame - tm->unk4e);
         fr2 = (f32)tm->frames;
-        r = CalcTexScroll(de, ra, fr2, frame, &out2);
-        MBTreeSetUVScaleAdd(1.0f, 0.0f, out2, r, ctx, 1);
+        MBTreeSetUVScaleAdd(1.0f, 0.0f, out2,
+                            CalcTexScroll(de, ra, fr2, frame, &out2), ctx, 1);
         break;
     }
     case -4:
@@ -348,8 +348,9 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
     case -6:
         break;
     default:
-        f = frame - tm->unk4e;
-        if (f < 0) {
+        d = frame - tm->unk4e;
+        f = d;
+        if (d < 0) {
             f = 0;
         } else {
             if (tm->rate > 0) {
