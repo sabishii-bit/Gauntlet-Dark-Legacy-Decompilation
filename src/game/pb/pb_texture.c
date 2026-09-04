@@ -214,10 +214,13 @@ static void* sTlutRegionCallback(u32 name) {
  * Returns the region index (a texture handle). GCN-only. */
 int fn_800C6BB4(u8 sizeClass, s32 handle) {
     u8* mgr = (u8*)&lbl_802C7438;
-    s32 first = lbl_80348FC8[sizeClass];
-    s32 last  = lbl_80348FD0[sizeClass];
+    s32 last;
+    s32 first;
     u64 held;
     s32 i;
+
+    first = lbl_80348FC8[sizeClass];
+    last = lbl_80348FD0[sizeClass];
 
     for (i = first; i < last; i++) {
         if (mgr[i] < 0xff)
@@ -242,15 +245,18 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
         }
     }
     {
-        s32 j = first + 1;
+        s32 j = first;
         s32 best = mgr[first];
-        u8* p = mgr + j;
+        u8* p;
         u64 locks = lbl_803450E0;
         u8* hp;
         u32 old;
         s32 hi;
         u32 lo;
+        PbTexMgr* globals;
 
+        j++;
+        p = mgr + j;
         for (; j < last; j++, p++) {
             if ((locks & __shl2i(0, 1, j)) == 0) {
                 if (*p > best) {
@@ -259,13 +265,14 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
                 }
             }
         }
+        globals = gWinGlobals;
         hp = mgr + first * 4;
         old = *(s32*)(hp += offsetof(PbTlutMgrView, handles));
         hi = (s16)(old >> 16);
         lo = old & 0xFFFF;
         if (hi != -1) {
             PbTextureDescView* desc = (PbTextureDescView*)
-                ((TEXDESCENT*)gWinGlobals->tbl)[hi].desc;
+                ((TEXDESCENT*)globals->tbl)[hi].desc;
             PbTextureObject* t = &desc->texObjects[(s16)lo];
             t->region = -1;
             t->paletteRegion = -1;
