@@ -724,9 +724,7 @@ extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
 extern void CritterCollideStart(f32 rad, f32* pos, s32 a);
 extern void* CritterMoveNodeCol(f32 rad, f32 zero, f32* from, f32* to,
                                 void* hit, s32 a, s32 b);
-/* NextGridItem is declared down at fn_8004646C, not here: closest_enemy calls
- * it with no prototype in scope, and hoisting one above that call costs the
- * function a stack slot (frame 192 -> 184). */
+extern s32 NextGridItem(void);
 extern f32 lbl_803468B0;
 extern f64 lbl_80346868;
 
