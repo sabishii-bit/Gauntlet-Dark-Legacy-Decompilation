@@ -1936,8 +1936,8 @@ void move_logic00(s32 index)
         lbl_80344720 = base;
         {
             f32 cand = base;
-            s32 found = 0;
             s32 off = 0;
+            s32 found = 0;
             do {
                 f32 d;
                 if (e->route > 0) {
