@@ -1,0 +1,36 @@
+{
+  "attempted_axis": "Re-derive the two non-register words from the aligned view, screen the exhausted source class, and prove the narrow permutation plus live-zero form plus value-equality recolor composition against the raw object and retail image.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED: the target copies a live zero while retail 1.2.5 rematerialises it, and the accepted class law plus the superseded function record cover the source construction, chained-assignment, explicit-IV and register-hint axes. claim.law.WF_live-zero-family-straddles-the-copy-form-boundary-and-only-half-of-it-needed-a-new-class.20260902.v1 APPLIED: this is the served li-versus-copy polarity and equivalent_copy_form is required before recolor. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED: the sole pre-recolor permutation exchanges two independent definitions and wr_perm_hash plus check_permutation_dependences accept it. claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1 SCREENED: ordered-datum screen is BENIGN and FULL L3 datum verification used the retail image. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and NOT triggered because counts are exactly 111/111. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 SCREENED: ordered datum sequences are identical and no pool transposition exists. Core-screen laws were read in full before the pass; no de-fakematch scaffold or raw-offset law changes the two-word diagnosis.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.WF_live-zero-family-straddles-the-copy-form-boundary-and-only-half-of-it-needed-a-new-class.20260902.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "residual": "NONE after the guarded composition. Completed rule hashes: before 1d1ac9b381c90d725992c5b839108324f0d280bc116859065c37fd4db2cd23ee, after 9e4cf60988a450a22fb50bc0a56e65528a00f0b9072ddb3aa5942a9c4a099fa3. The value-equality substitutions are ours g30 -> target g5 at +0x7c,+0x84,+0x8c,+0x94,+0xbc and ours g11 -> target g29 at +0xa8,+0xe4. No unproven audit escape is used.",
+    "scope": "src/game/world/world.c::WorldSaveInitState; source byte-unchanged. The completed guarded rule is staged separately for the active config owner because config/GUNE5D/webfrank.json is outside this lane's claim.",
+    "verification": "Fresh probe: fuzzy 97.6487%, real 64, T111/O111, multiset target-only +1 addi / ours-only -1 li. wf_word_diff: 31 differing words, 29 REGFIELD-ONLY plus 2 IMMEDIATE, mnemonic divergence 0 and relocation-symbol mismatch 0. fnasm identifies the entire non-register mechanism at +0x64/+0x68: target `addi r5,r29,0; addi r12,r31,232`, ours `addi r12,r31,232; li r11,0`. wr_perm_hash for [0x64,0x6c), order [1,0] accepted the independent swap and produced all four byte/relocation hashes. equivalent_copy_form at +0x64 uses constant_dataflow_recolor with our_source r30. Strict recolor then correctly refused at +0xe4; wr_ve_derive demanded exactly seven substitutions and proved value-equality with zero comparison exchanges. wr_try_rule with orig/GUNE5D/sys/main.dol at FULL datum strength returned `WEBFRANK WorldSaveInitState: value-equality recolor proved (7 substitution(s), 0 comparison exchange(s))` and `BYTE-EQUAL; 1 stage(s) applied`. wf_ordered_datum_screen returned BENIGN, ordered datum sequences IDENTICAL."
+  },
+  "function": "function:WorldSaveInitState",
+  "id": "attempt.R57_worldsaveinitstate-live-zero-composed-exact-close.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:27:03Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: +1 addi  ours-only: -1 li; insns T111/O111"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.world-save-init-state-zero-web-closure.20260829.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "instruction_permutation",
+    "verify_relocation_binding",
+    "equivalent_copy_form:constant_dataflow_recolor",
+    "copy_register_fields",
+    "verify_value_equality_recolor",
+    "verify_datum_binding"
+  ],
+  "windows_tried": [
+    "0x64:0x6c:1,0"
+  ]
+}
