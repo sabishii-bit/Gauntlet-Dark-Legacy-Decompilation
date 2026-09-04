@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/sound/sounds_evt.c",
+      "game/world/newcam.c",
+      "game/audio/dcsdrv.c"
+    ],
+    "scope": "FLIP-DISTANCE CLOSE lane - three TUs each ONE function from a flip (claim.CX_the-flip-queue-is-not-empty-six-nonmatching-tus-are-one-function-from-a-flip-and-a-code-percent-band-cannot-see-them.20260903.v1 - open it, the blockers are quoted verbatim there): (1) AudioSetupBossStreams (sounds_evt, 98.43/3304B, count-asymmetric 827-vs-826 = ONE instruction) - find the missing insn structurally (fndiff --ops cluster, nm expansion check if a lift is implied); TU has 1 pin (AudioPlayerEatSFX). (2) fn_8006DC64 (newcam, 87.88/720B, 'DIFFERING WORDS = 58, MNEMONIC DIVERGENCE = 33 ... SCHEDULE-REORDER' - least-explored of the three; 5 pins in TU, raw probes). (3) dcsHandleRequest (dcsdrv, 98.66/1644B, 'REGFIELD-ONLY 65, OPCODE 2' - TWO words gate an otherwise pure 65-word recolor; NO pins in TU; source-probe the 2 OPCODE words first - if they close and the 65-word recolor remains, file a rule-request record w/ the full decode verdict for the next postprocessor lane instead of forcing it). EVERY close: flip screen step 0, full flip audit (textorder + data), finish_tu, full ninja + retail sha1 per flip. Verify every inherited signature's cluster list live at HEAD. Byte-exact or typed park; one commit per landed fn; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; defake baseline per TU; claims --owns per unit. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:AudioSetupBossStreams",
+  "id": "work_claim.flipdist-closes.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NC",
+  "recorded_at": "2026-09-04T00:41:45Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
