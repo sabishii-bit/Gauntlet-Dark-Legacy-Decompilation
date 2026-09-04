@@ -127,18 +127,20 @@ s32 WorldDynCollide(u32 objmask, u32 sidemask, f32 x, f32 y, f32 z, f32 f4,
                     WorldObjCollide(o, o->field36, 0, r);
                     ret = ExitCollisionEarly();
                     if (ret)
-                        return ret;
+                        goto exit;
                 }
             }
             head = ((u16*)e)[1];
         }
         ret = ExitCollisionEarly();
         if (ret)
-            return ret;
+            break;
         ret = NextDynGrid(&cx, &cz, vx, vy, vz, r, (s32)x, (s32)y, (s32)z, (s32)y);
         if (!ret)
-            return ret;
+            break;
     }
+exit:
+    return ret;
 }
 
 /* DDA step: advance (*cellx,*cellz) to the next grid cell the swept segment
