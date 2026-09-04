@@ -6641,9 +6641,29 @@ void enemy_update(void)
     }
 }
 
+/* Scale the enemy's melee damage by its remaining health band.  Written as a
+ * helper so the two early exits lower as the target's unfused `bne ->calc /
+ * b ->store` pair (claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-
+ * by-a-goto.20260903.v3); inlined back into damage_enemy. */
+static inline f32 scale_fight_damage(f32 fight, f32 health, f32 upper,
+                                     f32 lower, s32 type)
+{
+    if (health > upper) {
+        goto done;
+    }
+    if (type == E_DEATH) {
+        return fight;
+    }
+    if (health > lower) {
+        return (f32)(lbl_80346A30 * fight);
+    }
+    return (f32)(lbl_80346A28 * fight);
+done:
+    return fight;
+}
+
 /* Apply damage and accumulated hit direction, then run the enemy-specific
  * heal, reaction, death, sound, skin and burst-effect cascades. */
-#pragma dont_inline on
 s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
                  s32 effect_position_arg, s32 hit_direction_arg,
                  s32 play_effects)
@@ -6656,7 +6676,6 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     f32 effect_pos[3];
     u8 unused1[4];
     f32 saved_matrix[16];
-    f32 fight;
     s32 enemy_index;
 
     if (e->state == DECORATION) {
@@ -6819,37 +6838,14 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         e->health = (f32)((f64)e->health - applied);
     }
 
-    fight = gCurLevel->ene_damage * lbl_8011B900[e->type];
     {
         f32 threshold = gCurLevel->ene_health * lbl_8011BA10[e->type];
-        f32 upper = (f32)(lbl_80346A30 * threshold);
-        f32 lower = (f32)(lbl_80346A28 * threshold);
 
-        /* Goto-free guard form, kept for readability AND score.  It replaced a
-         * pair of `if (...) goto store_fight;` guards plus a label, and fixed
-         * this function's instruction-count parity (570 -> 571), which realigned
-         * every downstream branch displacement and dropped fndiff real 151 -> 66
-         * - the effect claim.law.guard-polarity-restructure-fixes-count-parity-
-         * not-form predicts.  Two forms measured identical to this one and are
-         * dead axes: splitting the `&&` into two nested ifs (MWCC re-merges it
-         * through the same cror), and an empty-true-block `if (t != D) {} else
-         * goto;`.  Keeping the first guard as a goto restores the target's
-         * matching `bgt` but loses parity again (back to real 151).
-         * The target's remaining `bne ->calc; b ->store` pair is the P6
-         * goto-pair wall (front-end inversion of a conditional over an
-         * adjacent unconditional jump): the full goto triple, the same with
-         * an intervening label, and a do-while(0)+break carrier all measured
-         * 2026-08-31 and every one collapsed to the identical beq (570/151)
-         * - see attempt.parked.damage-enemy-p6-goto-pair for the roster. */
-        if (e->health <= upper && e->type != E_DEATH) {
-            if (e->health > lower) {
-                fight = (f32)(lbl_80346A30 * fight);
-            } else {
-                fight = (f32)(lbl_80346A28 * fight);
-            }
-        }
+        e->atts.fight = scale_fight_damage(
+            gCurLevel->ene_damage * lbl_8011B900[e->type], e->health,
+            (f32)(lbl_80346A30 * threshold), (f32)(lbl_80346A28 * threshold),
+            e->type);
     }
-    e->atts.fight = fight;
 
     if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
         ((u8*)e->generator)[0xE6] = 7;
@@ -6928,7 +6924,6 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     }
     return 0;
 }
-#pragma dont_inline off
 
 void kill_enemy(s32 index)
 {
