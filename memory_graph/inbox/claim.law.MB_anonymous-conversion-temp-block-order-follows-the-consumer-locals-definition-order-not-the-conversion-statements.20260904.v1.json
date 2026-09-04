@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function where reordering two same-typed conversion STATEMENTS moves the anonymous staging-temp addresses while the consuming locals' definition order is held fixed; or, on MBWorldToScreen3D itself, `python tools/gdl/probe.py game/mb/mb_camera.c MBWorldToScreen3D --ops` at 39128d179 reporting a non-zero IMMEDIATE-row count with the numerator assignments in their committed (y-first) order, which would mean the block assignment was decided by something else that merely moved at the same time. The NEUTRAL-IDENTICAL half is falsified by any object-hash change from one of the five orderings listed in the value, all of which are re-runnable as literal source edits from attributes.probed_form of attempt.MB_mbworldtoscreen3d-the-conversion-temp-block-order-is-set-by-the-consumer-locals-definition-order.20260904.v1 and NC's.",
+  "id": "claim.law.MB_anonymous-conversion-temp-block-order-follows-the-consumer-locals-definition-order-not-the-conversion-statements.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T05:33:48Z",
+  "schema_version": 1,
+  "subject": "function:MBWorldToScreen3D",
+  "valid_from": "2026-09-04",
+  "value": "When MWCC stages a group of int->double magic-number conversions into anonymous 8-byte stack temporaries, the ADDRESSES those temporary blocks get are not reachable by reordering or re-declaring the conversions themselves; they follow the DEFINITION ORDER OF THE LOCALS THAT CONSUME THEM, one statement downstream. Measured on MBWorldToScreen3D at 47ae4d37c -> 39128d179, where six staging doubles form two per-axis 24-byte blocks and the whole residual was which axis owned the low block. Five orderings of the conversion statements and their declarations are NEUTRAL-IDENTICAL -- the object hash does not move: swapping the xScale/yScale pair, swapping the centeredX/centeredY pair, swapping both pairs together (NC PROBE 7), swapping the two f32 and the two f64 DECLARATIONS (NC PROBE 8), and regrouping the four statements per-axis instead of per-role (MB PROBE 1). Exchanging the two statements that first DEFINE the consuming locals -- `xNumerator = (f32)((f64)viewport->xoff + centeredX);` and `yNumerator = (f32)((f64)viewport->yoff + centeredY);`, a two-line edit that touches no conversion, cast, constant or declaration -- moved all six temps to the target's addresses: 17 aligned IMMEDIATE words -> 0, raw differing words 55 -> 32, real 96 -> 62, fuzzy 90.7981% -> 93.8942%, at unchanged T104/O104, unchanged IDENTICAL opcode multiset and unchanged frame 136/136. The discriminant between the classes is whether the local's LIVE RANGE outlives the statement: the conversion results die inside their own expression and the front end normalises their order away, while xNumerator/yNumerator survive to a later use, so their definition order is priced by the allocator. UPDATE statements to an already-defined local do NOT count as definitions -- exchanging the two `*= projected[2];` lines is NEUTRAL-IDENTICAL (MB PROBE 4)."
+}
