@@ -480,13 +480,16 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
 
     dx = lbl_80344170 - lbl_80344168;
     dz = lbl_80344174 - lbl_8034416C;
-    slope = lbl_8034572C;
-    if (dx != lbl_8034572C) {
-        slope = dz / dx;
+    {
+        f32 slopeCalc = WZERO32;
+        if (dx != slopeCalc) {
+            slopeCalc = dz / dx;
+        }
+        slope = slopeCalc;
     }
     lbl_80344168 -= radius;
     lbl_80344170 += radius;
-    if (dz >= lbl_8034572C) {
+    if (dz >= WZERO32) {
         lbl_8034416C -= radius;
         lbl_80344174 += radius;
     } else {
@@ -501,7 +504,7 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
         offGrid = 1;
     }
     if (lbl_80344168 < originX) {
-        if (lbl_8034572C != dx) {
+        if (WZERO32 != dx) {
             clipT = (originX - lbl_80344168) / dx;
             t = (f64)clipT < lbl_80345730 ? -clipT : clipT;
             lbl_8034416C = dz * t + lbl_8034416C;
@@ -510,19 +513,19 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
     }
     originZ = lbl_8034417C;
     if (lbl_80344174 < originZ) {
-        if (lbl_8034572C == dz) {
+        if (WZERO32 == dz) {
             offGrid = 1;
         } else {
-            t = (originZ - lbl_80344174) / dz;
-            if ((f64)t < lbl_80345730) {
-                t = -t;
+            clipT = (originZ - lbl_80344174) / dz;
+            if ((f64)clipT < lbl_80345730) {
+                clipT = -clipT;
             }
-            lbl_80344170 = -(dx * t - lbl_80344170);
+            lbl_80344170 = -(dx * clipT - *(volatile f32*)&lbl_80344170);
             lbl_80344174 = (f32)(lbl_80345758 + originZ);
         }
     }
     if (lbl_8034416C < originZ) {
-        if (lbl_8034572C != dz) {
+        if (WZERO32 != dz) {
             t = (originZ - lbl_8034416C) / dz;
             if ((f64)t < lbl_80345730) {
                 t = -t;
@@ -579,7 +582,8 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
                             earlyZero == (f64)lbl_80344164) {
                             break;
                         }
-                        off = (tcount - 1) * 2 + off + 6;
+                        off += (tcount - 1) * 2;
+                        off += 6;
                     }
                 }
             }
