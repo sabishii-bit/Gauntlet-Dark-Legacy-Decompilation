@@ -576,6 +576,31 @@ one, and supersede the law if your target contradicts it.
    law records were still being cited.
    Record DRAFTS go through `gdlmem propose-record`, not into git.
 
+   **`tools/gdl/composed_census/` IS A SHARED PROMOTION SURFACE, and a
+   tool lane's claim on `tools/gdl` does NOT close it** (the run-53
+   carve-out, made standing). A tool lane owns `tools/gdl` for the run,
+   but promotion is how every OTHER lane's scratch work becomes durable,
+   and a whole-prefix claim would either block that for the run or force
+   each promoting lane to negotiate. So `composed_census/` stays open to
+   promotions from any lane while `tools/gdl/*.py` — the core tools —
+   stays exclusive. The obligations that make it safe are the ones
+   already above, and they are what a promoting lane owes: lane-prefix
+   the BASENAME (a), never hardcode a foreign lane's scratch path (b),
+   write generated artifacts under `build/` via `--out` (c), and RUN the
+   script once from the repo root before the promoting commit lands.
+   A lane that MODIFIES a composed_census tool another lane owns this
+   run (as opposed to adding one) is editing that lane's file and needs
+   the same coordination as any other shared edit — the carve-out is for
+   ADDING tools, not for editing each other's.
+
+   Two adjacent facts a lane hits immediately, both measured: a filtered
+   grep over `tools/gdl/*.py` CANNOT see this directory at all (trap
+   6c — that glob excludes it, and half the tool corpus lives here), and
+   the eligibility/derivation tools a rule author needs
+   (`wf_rederive_pin.py`, `t16_rederive_body.py`, `wr_try_rule.py`,
+   `wr_perm_hash.py`) are all here rather than in `tools/gdl/`, which is
+   why the Mandatory-result-policy section spells their FULL paths.
+
    **Every scratch and generated filename is LANE-PREFIXED, and no tool
    hardcodes another lane's scratch path.** Three rules, each measured:
 
