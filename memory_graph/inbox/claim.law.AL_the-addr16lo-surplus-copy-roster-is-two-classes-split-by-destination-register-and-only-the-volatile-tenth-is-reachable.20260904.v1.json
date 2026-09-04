@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/al_dest_split.py",
+    "tools/gdl/composed_census/al_addrlo_positive.py"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "sda-global",
+      "relocation",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any shape-B member (destination callee-saved) whose surplus copy is removed by a source edit -- declaration order or otherwise -- falsifies the clause-(a) half and reopens 40 functions; run `python tools/gdl/composed_census/al_dest_split.py` for the current membership and probe any row it prints under B. Conversely, a shape-V member that does NOT respond to declaration order falsifies the clause-(b) half; three of the four remaining V rows are untried. The split itself is falsified if al_dest_split's shape attribution disagrees with the aligned `fnasm <unit> <fn> --diff` view on any row -- the tool reads the copy's destination out of our own object and classifies it against CS = r14..r31, so a row where the surplus copy is not the instruction it paired is a mis-attribution.",
+  "id": "claim.law.AL_the-addr16lo-surplus-copy-roster-is-two-classes-split-by-destination-register-and-only-the-volatile-tenth-is-reachable.20260904.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-04T04:03:52Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "THE 'ADDR16_LO HOME COPY CLASS' IS NOT ONE CLASS. Every roster of it published so far counts two shapes together, and the two have OPPOSITE dispositions, so the combined roster is unworkable as a work queue and its size has been overstating the opportunity by roughly ten to one. claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1 already named the discriminant -- the DESTINATION register of the paid copy -- but no census had ever applied it, and claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1's 40-function P roster is built on the union ('paid-copy count, CS *and* volatile homes'), as is the run-53 re-measurement. SPLIT IT AND THE NUMBERS ARE: shape B, destination CALLEE-SAVED (`lis rT,SYM@ha ; addi rV,rT,SYM@lo ; mr rCS,rV`), 40 functions -- clause (a), source-unreachable, S=0 image-wide, do not probe; shape V, destination VOLATILE (`... ; mr rVOL,rT`), 5 functions -- clause (b), where declaration ORDER is a live lever. MEASURED at run 53 with tools/gdl/composed_census/al_dest_split.py: of the 45-function P roster, 40 are B, 5 are V (_AdsThread, ProcessCritterList, check_prefs_loaded, setup_vmu_entries and move_logic22). ONE TU CARRIES BOTH AND IS THE CLEANEST DEMONSTRATION: in game/enemy/enemy, fn_80046680 is shape B -- target `@0x70 addi r26,r3,0 @gPlayers(ADDR16_LO)` against ours `@0x70 addi r0,r3,0 @gPlayers(ADDR16_LO)` then `@0x74 mr r26,r0`, destination r26 callee-saved -- while move_logic22 is shape V -- target `@0x164 addi r4,r3,0 @sMilestones(ADDR16_LO)` against ours `@0x164 addi r3,r3,0 @sMilestones(ADDR16_LO)` then `@0x17c mr r4,r3`, destination r4 volatile. A ONE-LINE declaration-order swap took the V member from T227/O228 to T227/O227 with an IDENTICAL multiset (attempt.AL_movelogic22-decl-order-closes-the-volatile-half-and-both-mandated-levers-are-neutral-identical.20260904.v1, commit cdf25509e); the same class of edit is vetoed on the B member by clause (a). CONSEQUENCE FOR PLANNING: a work order promising that closing this class yields '40+ functions' is promising the UNREACHABLE half. The reachable queue is the four remaining V rows, and they sit in four different TUs (game/audio/adstream, game/enemy/critter, game/sys/memcard, game/ui/select), so it is a four-lane errand, not a flip path for any single TU."
+}
