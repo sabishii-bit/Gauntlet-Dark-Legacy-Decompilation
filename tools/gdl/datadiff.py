@@ -97,6 +97,28 @@ DOL = REPO / "orig" / VERSION / "sys" / "main.dol"
 DATA_SECTIONS = (".rodata", ".data", ".sdata", ".sdata2")
 
 
+def _unit_key(unit):
+    """The canonical unit spelling, kept identical to `fndiff.unit_key`.
+
+    Run-56 item 3. AGENTS.md names `fndiff.unit_key` as THE normalizer and
+    says the core tools accept `game/x/y`, `game/x/y.c`, `src/game/x/y.c` and
+    the backslash forms. datadiff did not normalize, so the documented
+    `src/...` spelling of a REAL unit landed on the `no splits entry` branch
+    and exited 0 — indistinguishable from a mistyped unit. Imported when
+    fndiff is importable (it is IMPORTABLE CORE: no side effects at import),
+    duplicated here only as a fallback so datadiff never fails to run over a
+    path problem.
+    """
+    try:
+        from fndiff import unit_key
+    except ImportError:
+        text = str(unit).replace("\\", "/").strip().strip("/")
+        if text.startswith("src/"):
+            text = text[len("src/"):]
+        return re.sub(r"\.(c|cpp)$", "", text)
+    return unit_key(unit)
+
+
 def dol_read(va, size):
     data = DOL.read_bytes()
     text_off = struct.unpack(">7I", data[0x00:0x1C])
@@ -763,11 +785,40 @@ def main():
     starts = claimed_starts(units)
     debt = []
     section_debt = []
+    unresolved = []
     for t in targets:
         key = next((k for k in units if k.rsplit(".", 1)[0] == t or k == t), None)
         if key is None:
-            print(f"[{t}] no splits entry")
-            continue
+            # RUN-56 ITEM 3, and the third recurrence of run-50 item 3's rule
+            # in this same tool: EMPTY OUTPUT CAN NEVER MEAN SUCCESS. Measured
+            # at 105dbd1ea, `python tools/gdl/datadiff.py --sections
+            # game/does/not/exist` printed `[game/does/not/exist] no splits
+            # entry` and EXITED 0, so a scripted flip gate read a mistyped unit
+            # as zero blockers; `textorder.py` exits 2 on the same input.
+            #
+            # Half of this is a SPELLING bug, not a typo. `src/game/enemy/
+            # critter` is a spelling AGENTS.md says the core tools accept
+            # (fndiff.unit_key is the one normalizer), and datadiff did not
+            # normalize, so a correct unit named the documented way landed on
+            # this branch too. Normalize first, then refuse.
+            #
+            # TWO-SIDED CALIBRATION at 105dbd1ea over configure.py's 255
+            # `Object()` rows against splits.txt's 257 units: exactly ONE row
+            # resolves to no splits entry —
+            # `TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s`, an assembly file,
+            # not a C unit — and ZERO rows have a splits entry with an unbuilt
+            # object. So refusing costs one `.s` row and catches every
+            # mistyped unit.
+            normalized = _unit_key(t)
+            key = next((k for k in units
+                        if k.rsplit(".", 1)[0] == normalized or k == normalized),
+                       None)
+            if key is None:
+                print(f"[{t}] no splits entry -- UNRESOLVED UNIT, nothing was"
+                      " compared (this is a REFUSAL, not a clean result)")
+                unresolved.append(t)
+                continue
+            print(f"[{t}] resolved to splits unit {key}")
         if only_deadstrip:
             obj = ours_object(key.rsplit(".", 1)[0])
             if not obj.exists():
@@ -806,6 +857,13 @@ def main():
               " bss claim slack (no DOL bytes).")
         print("  --strict-slack counts these as flip blockers again;"
               " OURS-LARGER, a nonzero tail and a differing head always do.")
+    if unresolved:
+        print(f"\nUNRESOLVED UNIT(S): {len(unresolved)} of {len(targets)}"
+              f" argument(s) match no splits.txt entry -- {', '.join(unresolved)}."
+              " NO comparison was made for them; do not read this run as a"
+              " clean gate. Exit 2 (a mistyped unit), distinct from exit 1"
+              " (real blockers found).")
+        return 2
     return 1 if bad else 0
 
 

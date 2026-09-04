@@ -515,7 +515,36 @@ one, and supersede the law if your target contradicts it.
    check — it now completes in under a second (the old "never block
    on it" advice described a quadratic bug, fixed run 33 at 3,400x).
    validate reports dangling citations from pruned records as DEBT,
-   not failure; staging stays strict. The memory_graph suite
+   not failure; staging stays strict.
+   **IF YOUR SESSION CANNOT RUN `gdlmem build`, THE SANCTIONED FALLBACK
+   IS `propose-record` + `gdlmem validate` + both suites, and the
+   integrator runs `build` at merge — do not fight the classifier and do
+   not skip the gate.** Run 55's GC lane reported `build` blocked by its
+   permission classifier while `validate` was not; run 56 could not
+   reproduce the block (`python memory_graph/gdlmem.py build` exits 0
+   here), so it is a property of a SESSION, not of the repository — but
+   the fallback needed writing down either way, because a worker
+   forbidden the gate its own contract mandates otherwise ships
+   ungated. The fallback is sound in one measured direction and not the
+   other, so `validate` now says which: its `build_gate` block reports
+   `equivalent_to_build_record_gate`. Two-sided calibration over five
+   perturbations of one synthetic corpus, run through BOTH surfaces:
+   validate is STRICTER than the build on a malformed inbox file and on
+   a schema-invalid one (it raises; the build lists them in
+   `inbox_rejected` and still exits 0), EQUAL on a duplicate record id
+   and on a malformed durable record, and WEAKER on exactly one thing —
+   an unresolvable `function:`/entity reference, which it passes and the
+   build importer rejects. That one gap opens only when no database
+   exists, because the reference stage is guarded by `database.exists()`:
+   measured with the DB moved aside, `validate` exits 0 with
+   `references_checked: false` and does NOT create one, while any
+   ordinary read command (`laws`) does. So the false all-clear is
+   reachable exactly once per fresh worktree, by the lane whose FIRST
+   graph command is the fallback gate itself. Quote the fallback as a
+   gate only with `equivalent_to_build_record_gate: true`; if it is
+   false, run `gdlmem ensure` and re-run validate. `attempt_overflow`
+   and the derived tables (law applications, residual-signature index)
+   stay build-only in every case. The memory_graph suite
    (`python -m memory_graph.test_graph`) runs 66-88s vs 3-4s for
    tools/gdl (measured run 34) — between items of a multi-item lane,
    run only the test class your change touches; the FULL suite is
@@ -668,6 +697,28 @@ one, and supersede the law if your target contradicts it.
    `t20_msg1.txt`, `t20_purity_census.py` — and never read back a
    scratchpad file by a generic name you did not write in the same tool
    call.
+
+   **AND NEVER ENUMERATE A SHARED DIRECTORY BY PATTERN TO DECIDE WHAT TO
+   ACT ON** (run 56, from GC's run-55 report). Prefixing your own names
+   protects the files you WRITE; it does nothing about the ones you READ
+   BACK with a glob. `*.json`, `*.txt`, `memory_graph/inbox/` and
+   `<scratchpad>/*` all resolve to every lane's work, and a glob cannot
+   tell yours from theirs — so `git add memory_graph/inbox` or a tool
+   pointed at a directory sweeps in whatever the rest of the fleet has
+   staged there. GC reports nearly committing 24 foreign claims that way,
+   over a scratchpad holding 388 stale drafts. THE RULE: pass every tool an
+   EXPLICIT LIST of the files you wrote THIS SESSION, and commit with
+   explicit pathspecs (the shared-checkout rule below, which is the same
+   hazard one directory over). This is also why `propose-record` exists:
+   it places the file for you, so you never name the inbox yourself.
+   PROVENANCE, stated because the rule's numbers have none: GC's 24-and-388
+   figures live in `work_claim.tool-queue-26.20260904.v1`'s scope prose and
+   in no record — `python memory_graph/gdlmem.py search "388"` returns
+   thirteen records, all of them about instruction offsets and byte counts,
+   and `search "scratchpad glob foreign claims stale drafts"` returns only
+   the work_claim itself. The MECHANISM is live and cheap to confirm in any
+   worktree: at 62b46ac21 `memory_graph/inbox/` held 6 work_claims, 5 of
+   them other lanes'. The rule does not depend on the exact count.
 
 18. **A record closing a defect must screen for WHAT ELSE HAS THIS SHAPE,
    and say what it found.** Fixing the instance is half the work; the
@@ -1124,6 +1175,18 @@ python tools/gdl/aritycheck.py [--verdict PHANTOM-CANDIDATE]  # parameter
     # view cannot decide the row — read the target half) and a SHORT/FULL
     # split (only FULL sites pay for a phantom parameter, so a row with
     # 0 FULL sites has no payer).
+python tools/gdl/whenrun.py <commit> [<commit> ...]   # a commit CITATION,
+    # read as a date, an AGE IN DAYS and a RUN NUMBER. Records are anchored
+    # to commits by policy and freshness is how two disagreeing records are
+    # ranked, so an anchor nobody can read is an age that cannot enter the
+    # ranking: `"measured at c0f978273"` resolved to nothing before run 56.
+    # The run comes from history itself (the integrator's `Stage run-N work
+    # claims` commit), so it needs no table — but it is a FLOOR, because runs
+    # 6, 8, 29 and 32 staged no marker; `--runs` prints the table and the
+    # gaps. `--scan-records` resolves every citation in the corpus: 956 of
+    # the 1,194 hash-shaped tokens are commits here and 238 are not (source
+    # sha1s, body digests, worker-branch commits), and the tool says which
+    # rather than guessing.
 python tools/gdl/matchtool.py probe <unit> --brief
 python tools/gdl/lowmatch.py --max 50 --min-size 200 --sort impact
 python configure.py progress
@@ -1630,6 +1693,75 @@ each screen below costs one command and would have caught its lane):
   the reporter's own shell. A present-tense number in an order needs a
   record id (already a rule above); an ABSENCE needs its query, which is
   the same rule pointed at the other kind of claim.
+- **AN ORDER NAMES FILES, NEVER FAMILIES** (run 56, from run 55's
+  ownership collision). A scope written as a family — "the webfrank
+  surfaces", "the wf_* tools", "the memcard TUs" — is a prefix each lane
+  expands differently, and the two expansions differ exactly where it
+  matters: `wf_word_diff.py`, `webfrank_audit.py` and
+  `ws_datum_tier_audit.py` all read as "webfrank surfaces" while belonging
+  to the TOOL lane, and `tools/gdl/webfrank.py` reads as "a tools/gdl file"
+  while belonging to the postprocessor lane. The tools cannot arbitrate it
+  either: `owned_units` is a LIST OF PATHS, so a family label reaches the
+  claim screen as either nothing or a prefix that over-claims — and the
+  prose screen "cannot read a negation, so a lane that names another lane's
+  TUs in order to exclude them is reported as their co-owner" (the run-46
+  measurement above). Write the exceptions by FILENAME in the scope and in
+  `owned_units`, both directions: what the lane owns, and what it does not
+  own inside a prefix it otherwise does. Run 56's own order does this
+  ("owns tools/gdl + memory_graph EXCEPT webfrank.py/webfrank.json —
+  wf_word_diff/webfrank_audit/ws_datum_tier_audit are YOURS"), and
+  `claimscope.py --audit` then resolves it mechanically: it printed the
+  nesting row `tools/gdl/webfrank.py resolves to claude-fleet-worker-WF
+  (the more specific entry); claude-fleet-worker-T26 keeps the rest of
+  tools/gdl`. PROVENANCE: this lesson is carried by
+  `work_claim.tool-queue-26.20260904.v1` and by no record —
+  `gdlmem search "name files not families"` returns five records and none
+  of them is about ownership.
+- **A CHANGED-UNIT-SET ASSERTION CARRIES THE `git diff --name-only` THAT
+  PRODUCED IT** (run 56). "the units run N changed", "the TUs this touched",
+  "the files affected" are all one claim, they are all used as a SCOPE, and
+  a remembered scope is wrong in both directions at once. Measured, and the
+  record to cite is
+  `attempt.CU_expiry-sweep-over-run-53-54-units-ten-expired-including-four-on-one-function-and-the-order-s-unit-list-was-wrong.20260904.v1`:
+  its order named "enemy, critter, mb_camera, gamemain, memcard,
+  movieplayer, dbgtext, dcsdrv", while
+  `git diff --name-only c7b741799 84f85a96a -- src config configure.py`
+  returns `config/GUNE5D/webfrank.json`, `configure.py`,
+  `src/game/enemy/critter.c`, `src/game/enemy/enemy.c`,
+  `src/game/game/combat.c`, `src/game/game/gamemain.c`,
+  `src/game/mb/mb_camera.c`, `src/game/sys/memcard.c` — so movieplayer and
+  dcsdrv were NOT changed and combat.c WAS and the order omitted it. Two
+  wrong exclusions and one wrong inclusion in one eight-item list. The
+  command is the claim: paste it with its output beside the set, the way
+  discipline 19 requires for an absence and the run-46 rule requires for an
+  order's numbers. Use `tools/gdl/whenrun.py <commit>` when the range is
+  given as a run rather than as two hashes.
+- **A CENSUS THAT ADVERTISES A LEVER SHIPS WITH ITS DENIAL SCREEN**
+  (run-56 item 4). A census computed from BYTES cannot see the graph, so it
+  will happily head a roster `DECL-ORDER LEVER LIVE` and list a function
+  whose accepted, unsuperseded denial denies that exact axis — measured on
+  `al_dest_split.py` and `ProcessCritterList`, whose denial scope reads
+  "(a) DECLARATION ORDER of the function's four locals, measured across
+  three distinct orders". Neither artifact is wrong; the join was missing.
+  It costs one command:
+
+  ```text
+  python tools/gdl/composed_census/t26_denial_screen.py --census <census.json>
+  python tools/gdl/composed_census/t26_denial_screen.py --function F --axis "declaration order"
+  python tools/gdl/composed_census/t26_denial_screen.py --calibrate
+  ```
+
+  Run it over the census JSON before the roster goes into a work order, and
+  put its verdict in the order. A flagged row is not a refutation of the
+  census — a denial can have expired — so the tool hands back each denial's
+  `expiry_check`: run that, then either re-measure the row or supersede the
+  denial, and never silently prefer one artifact to the other. Two facts
+  worth carrying: the screen compares AXES, not words (its first cut matched
+  phrases and reported "no contradiction" on its own seed case, because the
+  census spells the axis `DECL-ORDER` and the record spells it
+  `DECLARATION ORDER`), and it reads only the DENYING half of a scope,
+  because 20 of the corpus's 68 axis mentions sit in "It does NOT deny …"
+  clauses whose whole purpose is to say the axis is open.
 - **A tool item's fix belongs to the lane that owns the tool, but the
   MEASUREMENT belongs to the reporter** — quote the failing command and
   its verbatim output in the item, not a paraphrase of what it seemed to

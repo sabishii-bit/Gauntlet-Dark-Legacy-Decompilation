@@ -1,0 +1,16 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py",
+    "tools/gdl/tests/test_t26_pool_relocated_datum.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "A WRONG-POOL-VALUE row whose ours-side datum IS covered by a relocation in our object and whose byte difference is nonetheless a real constant disagreement -- i.e. a case where relocation coverage is not sufficient for benignity. Or, in the other direction, a POOL-RELOCATED row that a linked comparison shows really does read a different datum. Both are decided by `python tools/gdl/fndiff.py <unit> <fn> --clean` against `objdump -r` on build/GUNE5D/src/<unit>.o.",
+  "id": "claim.law.T26_a-shape-test-for-a-relocation-filled-table-calls-an-all-zero-constant-benign-so-the-discriminant-is-the-relocation-table.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T17:03:48Z",
+  "schema_version": 1,
+  "subject": "tool:fndiff",
+  "valid_from": "2026-09-04",
+  "value": "A POOL DATUM CAN ONLY BE BYTE-COMPARED ACROSS THE LINK BOUNDARY WHERE NOTHING RELOCATES IT, AND THE DISCRIMINANT IS THE OBJECT'S RELOCATION TABLE, NEVER THE SHAPE OF THE BYTES. Our side is an UNLINKED object; the target side is read from the LINKED retail DOL. A datum the linker fills in -- a jump table, a pointer table -- is placeholders here and resolved addresses there, so comparing those bytes measures the link and the difference is guaranteed rather than informative. fndiff had a guard for exactly this (`is_pointer_table`) and only `datum_key`, the --datum multiset view, called it; `pool_row_findings`, the --clean POOL-DEFECT classifier, compared raw bytes with no relocation check at all. THE SHAPE HEURISTIC IS NOT A SOUND SUBSTITUTE, measured: `is_pointer_table` returns True for any all-zero blob (`not any(blob)`), and an f64 0.0 is eight zero bytes. Over all 257 paired units at 5366a3a2f it fires on exactly ONE of the 76 WRONG-POOL-VALUE rows -- game/ui/auxscreen::CaptionTextSub, where our `@355` holds 0000000000000000 against the target's 403e000000000000 (f64 30.0). That is a genuine wrong constant, so wiring the existing guard into the classifier, which is the obvious one-line cure, would have HIDDEN A REAL DEFECT and fixed nothing measurable. The shipped discriminant reads `objdump -r` and asks whether a relocation covers the datum's bytes (fndiff.datum_is_relocated); rows that answer yes are classed POOL-RELOCATED, benign and counted, never scored. TWO-SIDED at the same commit: 0 pool rows have a relocated datum today, so the guard reclassifies nothing and can hide nothing, while its subjects demonstrably exist -- `@164` and `@165` in build/GUNE5D/src/game/ui/auxscreen.o are relocation-covered .data tables one pooled jump table away from firing. The REPORTED instance (PJ, run 55: 'a jump-table @N renumber is reported as a WRONG-POOL-VALUE regression') does NOT reproduce at HEAD; the mechanism it names does."
+}

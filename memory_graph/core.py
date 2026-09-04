@@ -3503,7 +3503,7 @@ def search_memory(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
     limit: int = 20,
-) -> dict[str, list[dict[str, Any]]]:
+) -> dict[str, Any]:
     ensure_database(root, db_path)
     fts = _fts_query(query)
     pattern = f"%{query}%"
@@ -3575,12 +3575,59 @@ def search_memory(
                 (pattern, pattern, limit),
             )
         ]
-    return {
+        # RUN-56 ITEM 2. Every bucket above ends in `LIMIT ?`, so a full
+        # bucket is a FLOOR and the caller cannot tell it from a total. That
+        # matters here more than anywhere else on the surface: AGENTS.md's
+        # absence rule tells lanes to settle "no record covers Y" with
+        # `gdlmem.py search`, and a silently capped bucket answers a
+        # does-it-exist question with a windowed one (trap 6c, one layer
+        # down). `find` and `laws` have published `truncated` since
+        # 3d5347184 (2026-08-31); `search` and `tool` did not, and MEASURED
+        # over 30 realistic queries at the default limit of 20, 28 of 30 cap
+        # at least one bucket — the silence is the normal case, not the edge
+        # one. The totals are real COUNTs, not floors, so a reader can size
+        # the raise instead of guessing at it.
+        totals = {
+            "records": connection.execute(
+                "SELECT count(*) FROM record_fts WHERE record_fts MATCH ?",
+                (fts,)).fetchone()[0],
+            "documents": connection.execute(
+                "SELECT count(*) FROM document_chunk_fts"
+                " WHERE document_chunk_fts MATCH ?", (fts,)).fetchone()[0],
+            "symbols": connection.execute(
+                "SELECT count(*) FROM binary_symbol s"
+                " LEFT JOIN binary_module m ON m.id=s.module_id"
+                " WHERE s.raw_name LIKE ? OR m.object_name LIKE ?",
+                (pattern, pattern)).fetchone()[0],
+            "entities": connection.execute(
+                "SELECT count(*) FROM entity"
+                " WHERE name LIKE ? OR entity_key LIKE ?",
+                (pattern, pattern)).fetchone()[0],
+        }
+    shown = {"records": len(records), "documents": len(documents),
+             "symbols": len(symbols), "entities": len(entities)}
+    dropped = {key: totals[key] - shown[key] for key in shown}
+    truncated = {key: value for key, value in dropped.items() if value > 0}
+    result: dict[str, Any] = {
         "records": records,
         "documents": documents,
         "symbols": symbols,
         "entities": entities,
+        "limit": limit,
+        "totals": totals,
+        "truncated": bool(truncated),
     }
+    if truncated:
+        result["truncated_buckets"] = truncated
+        result["warning"] = (
+            "RESULT SET TRUNCATED at limit=" + str(limit) + ": "
+            + ", ".join(f"{key} shows {shown[key]} of {totals[key]}"
+                        for key in sorted(truncated))
+            + ". NEVER use a truncated result as a NEGATIVE screen (an"
+            " absence claim, a park/veto check) — raise --limit until"
+            " truncated=false, or narrow the query."
+        )
+    return result
 
 
 def _symbol_row(connection: sqlite3.Connection, query: str, platform: str) -> sqlite3.Row | None:
@@ -4125,6 +4172,15 @@ def tool_context(
             """,
             (pattern, pattern, pattern, pattern, pattern, pattern, query, limit),
         ).fetchall()
+        total_tools = connection.execute(
+            """
+            SELECT count(*) FROM tool_catalog t
+            WHERE t.name LIKE ? OR t.tool_key LIKE ? OR t.source_path LIKE ?
+               OR t.purpose LIKE ? OR t.usage_json LIKE ?
+               OR t.constraints_json LIKE ?
+            """,
+            (pattern, pattern, pattern, pattern, pattern, pattern),
+        ).fetchone()[0]
     tools: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
@@ -4139,6 +4195,18 @@ def tool_context(
         query, tools, root=root, db_path=db_path, limit=limit)
     result = {"query": query, "tools": tools, "laws": laws,
               "legacy_provenance": evidence}
+    # RUN-56 ITEM 2, same class as `search` above: the tool_catalog query
+    # ends in `LIMIT ?`, so a full page reads as the whole answer. Measured:
+    # 3 of 10 realistic `tool` queries cap at the default limit of 20.
+    result["limit"] = limit
+    result["tools_total"] = total_tools
+    result["truncated"] = total_tools > len(tools)
+    if result["truncated"]:
+        result["warning"] = (
+            f"RESULT SET TRUNCATED at limit={limit}: tools shows"
+            f" {len(tools)} of {total_tools}. Raise --limit before reading"
+            " this as the whole tool set."
+        )
     result["laws_note"] = (
         "Laws about how this TOOL behaves. `subject_anchored` rows are"
         " anchored with `subject: tool:<slug>` / `workflow:<slug>` — the"
@@ -11867,7 +11935,10 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             name="validate", mcp_name="memory_validate",
             doc=("Validate durable and inbox records, including reference "
                  "resolution (incremental: unchanged records are served from "
-                 "a content-hash cache)."),
+                 "a content-hash cache). This is the SANCTIONED WORKER "
+                 "FALLBACK for `build`; the result's `build_gate` block says "
+                 "whether this run actually equalled the build's record "
+                 "gate."),
             call=lambda root, db, **kw: validate_records(
                 root, db_path=db, refresh=kw["refresh"]),
             params=(
@@ -12398,6 +12469,96 @@ def _validate_cache_path(root: Path) -> Path:
 VALIDATE_CACHE_FORMAT = 2
 
 
+def _validate_build_gate(
+    root: Path, database: Path, references_checked: bool
+) -> dict[str, Any]:
+    """Say, in the result, whether this `validate` equals the build's gate.
+
+    RUN-56 ITEM 1 (env/contract reconciliation). AGENTS.md names
+    `gdlmem build` as the memory graph's write-path gate, and a worker whose
+    session permits `validate` but not `build` has no documented fallback.
+    Measured this run: `python memory_graph/gdlmem.py build` runs clean here
+    (exit 0), so the block is a property of the REPORTER's session, not of
+    the repository — but the contract gap is real, and the fallback has to
+    be honest about what it does and does not cover.
+
+    TWO-SIDED CALIBRATION, five perturbations of one synthetic corpus run
+    through BOTH `validate_records` and the build's own `_import_records`:
+
+      A clean record, unresolvable `function:` reference
+                          -> validate `valid: true`  / build REJECTS
+      B malformed JSON in inbox/
+                          -> validate RAISES         / build rejects-and-continues
+      C schema-invalid record in inbox/ (no `kind`)
+                          -> validate RAISES         / build rejects-and-continues
+      D duplicate record id across two files
+                          -> validate RAISES         / build IntegrityError
+      E malformed JSON under records/
+                          -> validate RAISES         / build raises
+
+    So validate is STRICTER than the build on B and C (it refuses what the
+    build merely lists in `inbox_rejected`), equal on D and E, and WEAKER on
+    exactly one thing: A, reference resolution — and only when no database
+    exists, because the reference stage is guarded by `database.exists()`.
+
+    The negative side decides how loud this has to be. Measured by moving
+    this worktree's `build/gdlmem/memory.sqlite` aside: `validate` exits 0
+    with `references_checked: false` and does NOT create the database, while
+    any ordinary read command (`laws --tag core-screen`) does create it. So
+    the weak state is reachable exactly once per fresh worktree — by the
+    lane whose FIRST graph command is the fallback gate itself, which is
+    precisely the blocked worker this item is about. Advisory, not a
+    refusal: a fresh worktree validating cleanly is not an error, and the
+    stage is not skipped for any other reason.
+    """
+    covered = [
+        "per-record schema — the same `_validate_record` the build importer"
+        " calls, over records/ AND inbox/",
+        "duplicate record ids corpus-wide (a property of the SET, never"
+        " cached)",
+    ]
+    if references_checked:
+        covered.append(
+            "reference resolution — the build's own"
+            " `_probe_record_references`, against the existing database")
+    gate: dict[str, Any] = {
+        "equivalent_to_build_record_gate": bool(references_checked),
+        "covered_here": covered,
+        "stricter_than_build_here": [
+            "a malformed or schema-invalid file under inbox/ RAISES here;"
+            " the build rejects it into `inbox_rejected` and still exits 0",
+        ],
+        "always_build_only": [
+            "attempt_overflow — functions past the 5-attempt cap",
+            "derived-table materialization (law applications, residual"
+            " signature index, exact-name candidates)",
+        ],
+    }
+    if references_checked:
+        gate["not_covered_here"] = []
+        gate["worker_fallback"] = (
+            "SANCTIONED FALLBACK, complete: propose-record (which validates"
+            " fully at staging) + this validate + both test suites. The"
+            " integrator runs `gdlmem build` at merge."
+        )
+    else:
+        gate["not_covered_here"] = [
+            "REFERENCE RESOLUTION: no graph database at"
+            f" {_repo_relative(root, database)}, so a record naming an"
+            " entity/symbol that does not resolve passes here and is"
+            " REJECTED by the build importer. This is the ONE measured"
+            " direction in which validate is weaker than the build.",
+        ]
+        gate["worker_fallback"] = (
+            "SANCTIONED FALLBACK, INCOMPLETE as run: quote this result as a"
+            " gate only after re-running it with a database present. Run"
+            " `python memory_graph/gdlmem.py ensure` (or any read command,"
+            " which creates one as a side effect), then re-run validate and"
+            " check that `equivalent_to_build_record_gate` is true."
+        )
+    return gate
+
+
 def validate_records(
     root: Path = REPO_ROOT, db_path: Path | None = None, refresh: int = 0
 ) -> dict[str, Any]:
@@ -12530,6 +12691,7 @@ def validate_records(
         "record_count": len(paths),
         "schema_version": SCHEMA_VERSION,
         "references_checked": references_checked,
+        "build_gate": _validate_build_gate(root, database, references_checked),
         "schema_checks_cached": schema_cached,
         "reference_checks_cached": references_cached,
         # THREE NUMBERS, ALL REPORTED, NONE TRUNCATED (run-53 item 1). The
