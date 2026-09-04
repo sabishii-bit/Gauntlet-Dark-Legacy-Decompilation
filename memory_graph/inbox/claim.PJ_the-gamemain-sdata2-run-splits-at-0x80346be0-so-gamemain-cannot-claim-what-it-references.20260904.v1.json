@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "sda-global",
+      "relocation",
+      "build-hygiene",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.PJ_the-gamemain-sdata2-run-splits-at-0x80346be0-so-gamemain-cannot-claim-what-it-references.20260904.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-04T14:55:56Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/gamemain",
+  "valid_from": "2026-09-04",
+  "value": "THE .sdata2 RUN game/game/gamemain.c REFERENCES ABOVE THE ENEMY POOL IS TWO TRANSLATION UNITS' POOLS, NOT ONE, AND THE BOUNDARY IS DECIDABLE FROM THE BYTES ALONE. gamemain.c references 89 addresses in 0x80346A70..0x80346CB4 (measured at 84f85a96a by grepping every `lbl_8034xxxx` in src/ and bucketing by referencing unit). Reading that whole span as gamemain's pool -- which is what the standing decomposition implies and what a claim would encode -- is refuted by DEDUPLICATION: MWCC emits one pool datum per distinct f32/f64 value per TU and, under this project's `-str reuse,readonly`, one datum per distinct string. Decoding 0x80346A70..0x80346CB8 out of the retail DOL finds NINE duplicated numeric values -- f32 3.0 at 0x80346A80/0x80346CB4, f32 2.0 at 0x80346AB8/0x80346C78, f32 0.5 at 0x80346AD4/0x80346C50, f32 5.0 at 0x80346B08/0x80346BE8, f64 0.0 at 0x80346B10/0x80346C70, f32 -1.0 at 0x80346B20/0x80346C80, f64 0.5 at 0x80346B90/0x80346C28, f64 3.0 at 0x80346B98/0x80346C40, f64 1.0 at 0x80346BA8/0x80346C20 -- plus the duplicated STRING \"%s%d\" at 0x80346A90 and 0x80346CA8. ONE CUT SEPARATES EVERY PAIR, and the admissible cut window is 0x80346BAC..0x80346BE8: below it lies each pair's first member, above it the second. game/world/gauntworld.c's LOWEST reference in the whole gap is 0x80346BE0, which lies inside that window and is the only value in it consistent with gamemain owning its own highest own-pool reference (0x80346BD8, f64 0.7). SO: gamemain.c's pool is 0x80346A70..0x80346BE0 (0x170 bytes) and 0x80346BE0..0x80346CB8 is gauntworld.c's; the 16 addresses both TUs reference are gamemain reaching into gauntworld's pool, exactly the own-pool-ghost class one TU boundary over. CONSEQUENCES. (1) A splits.txt `.sdata2 start:0x80346A70 end:0x80346CB8` line under game/game/gamemain.c would be WRONG and would take gauntworld's data with it. (2) gamemain's own object emits 0xBF of .sdata2 against a 0x170 pool, so the claim needs the same literal conversion enemy needs, and gauntworld -- whose gap references run 0x80346BE0..0x80347100 -- is a THIRD member of this dependency chain that no prior record names. (3) The correct ordering for the region is enemy, then gamemain, then gauntworld, each converting its own ghosts before any of them claims, because a TU's section is contiguous in the link and each claim removes the split-provided definitions the next TU is still borrowing."
+}
