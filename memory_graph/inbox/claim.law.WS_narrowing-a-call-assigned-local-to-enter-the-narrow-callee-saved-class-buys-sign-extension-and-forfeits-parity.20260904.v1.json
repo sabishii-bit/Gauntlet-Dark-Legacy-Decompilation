@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "attempt.WS_crittercollideitems-the-width-class-loses-count-parity-so-the-recolor-ships.20260904.v1 (the probe, its verbatim probe.py/regnorm output, and the revert)",
+    "config/GUNE5D/webfrank.json (game/enemy/critter::CritterCollideItems \u2014 the rule that ships BECAUSE this axis is dead)",
+    "tools/gdl/probe.py (the count-parity and multiset lines the measurement rests on)"
+  ],
+  "attributes": {
+    "tags": [
+      "param-retype",
+      "decl-order",
+      "register-web",
+      "postprocessor",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A local assigned from a WIDER source -- a call returning s32, or a wider expression -- retyped narrower in a function MWCC compiles with our cflags, holding instruction-count parity with the target (no `extsh`/`extsb`/`extsh.` pair appearing, and no compensating instruction removed elsewhere). One such measurement refutes the count claim. The law also dies in a weaker but still useful direction if the toll turns out to be an artefact of the COMPARISON use rather than of the assignment: retype such a local in a function whose only uses are narrow STORES and, if the extension words appear there too, the mechanism named here (truncate at the definition, re-extend at the test) is wrong even though the cost is real. Both experiments cost one build each; the first lives at attempt.WS_crittercollideitems-the-width-class-loses-count-parity-so-the-recolor-ships.20260904.v1's probed_form, which is the exact edit to invert.",
+  "id": "claim.law.WS_narrowing-a-call-assigned-local-to-enter-the-narrow-callee-saved-class-buys-sign-extension-and-forfeits-parity.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T15:00:28Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-04",
+  "value": "BOUNDARY REFINEMENT of claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1, and a COST the width class carries that the law does not state. MV is right that MWCC groups NARROW/byte-typed locals as their own class ahead of every word-sized local, and that reordering WITHIN a class moves a web while a cross-class reorder is byte-identical. The tempting corollary -- that RETYPING a local is therefore a cheap way to move it between classes when reordering has failed -- is FALSE for a specific and very common local shape, and that shape is the one a stuck recolor keeps producing: a local ASSIGNED FROM A WIDER CALL and thereafter only COMPARED. MEASURED on game/enemy/critter::CritterCollideItems at 84f85a96a, which four earlier probes had left as a pure 33-word REGFIELD-ONLY recolor with a 9-live-range callee-saved permutation, and whose own attempt record named the width class as the last untried source lever. `s32 type;` -> `s16 type;`, nothing else changed. `type` is assigned from `fn_8005D5C8(c, item)`, which returns s32, and is then tested against 0, 2 and 3. The narrowing does not relabel a web: it inserts a TRUNCATION at the definition and a RE-EXTENSION at the first test. probe.py: `target 148 insns, ours 149`, `net count: OURS is longer by 1`, `opcode multiset: DIFFERS target-only: +1 mr. ours-only: -1 extsh -1 extsh.`, `replace T[37:38]@94-98=['mr.'] O[37:39]@94-9c=['extsh', 'extsh.']`, with regnorm naming the two genuine structural rows `@0x94 T 'mr. r31,r3' / O 'extsh r30,r3'` and `@0x98 T 'beq <fn+0x224>' / O 'extsh. r0,r30'`. THE CONSEQUENCE IS DISPOSITIVE, NOT MERELY EXPENSIVE, AND THAT IS THE POINT: instruction-count parity is the precondition of EVERY postprocessor class (claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1), so on a function whose only remaining route is a recolor, entering the narrow width class and finishing through the postprocessor are MUTUALLY EXCLUSIVE BY CONSTRUCTION. The probe cannot even be arbitrated on fuzzy -- probe.py returned `CONFLICT-UNARBITRATED real 66 -> 65 IMPROVED but multiset 0t -> 3t vs best DIVERGED`, and the count alone settles it without the arbiter, because the function has left the class whatever fuzzy says. SCOPE, stated narrowly on purpose: this is about a local whose VALUE ARRIVES WIDE (from a call, or any expression MWCC types wider than the declaration) and whose uses are COMPARISONS rather than stores. A local genuinely holding a narrow value from a narrow source, or one whose uses are narrow stores, pays no such toll and MV's class is reachable for it. PRACTICAL RULE: before spending a build on a width retype as a recolor lever, read where the value comes FROM. If the source is wider than the proposed declaration, the retype is refuted before compiling -- the extension words are forced by the ABI of the assignment, not chosen by the allocator -- and the axis should be recorded dead rather than probed. This closed the last open source axis on CritterCollideItems and is why its recolor rule shipped."
+}
