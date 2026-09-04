@@ -2481,7 +2481,56 @@ def revert_reach_warning(fn, counts):
     return "\n".join(lines)
 
 
-def discard_refusal(fn, unit, inside, outside, entangled):
+def _diff_pathspec(unit, source_path=None):
+    """A pathspec `git diff` actually accepts for this unit.
+
+    RUN-56 ITEM 8, found while reproducing it. The refusal told the reader to
+    run `git diff -- game/ui/btext` — a UNIT KEY, which git resolves against
+    no path in this repository. Measured at e810cbeae with one hunk inside
+    TextHeightMLines and one in FontHeight: the printed command prints ZERO
+    lines and exits 0, while `git diff -- src/game/ui/btext.c` prints 21.
+    So the remedy for "there is work outside your function" was a command
+    whose output says there is no work at all.
+    """
+    if source_path:
+        return str(source_path).replace("\\", "/")
+    text = str(unit).replace("\\", "/").strip("/")
+    if not text.startswith("src/"):
+        text = "src/" + text
+    return text if text.endswith((".c", ".cpp")) else text + ".c"
+
+
+def _hunk_preview(rows, source_lines, limit_hunks=4, limit_lines=8):
+    """The CONTENT of the named hunks, or "" when it cannot be read.
+
+    RUN-56 ITEM 8 (GC): the refusal named its hunks by LINE NUMBER only, and
+    the decision it asks the reader to make — is this another function's work
+    or the other half of my own edit? — is answered by looking at them. The
+    message already says probe cannot see whose they are; it can at least
+    show what they are, which turns a two-step (read this, then go run git)
+    into one.
+    """
+    if not source_lines:
+        return []
+    out = []
+    for kind, first, last in rows[:limit_hunks]:
+        lo = max(1, int(first))
+        hi = min(len(source_lines), max(lo, int(last) - 1))
+        body = source_lines[lo - 1:hi][:limit_lines]
+        if not body:
+            continue
+        out.append(f"    [{kind} L{first}-{last}]")
+        for offset, line in enumerate(body):
+            out.append(f"      {lo + offset:>6}| {line.rstrip()}")
+        if hi - lo + 1 > limit_lines:
+            out.append(f"      ... {hi - lo + 1 - limit_lines} more line(s)")
+    if len(rows) > limit_hunks:
+        out.append(f"    ... {len(rows) - limit_hunks} more hunk(s) not shown")
+    return out
+
+
+def discard_refusal(fn, unit, inside, outside, entangled,
+                    source_lines=None, source_path=None):
     """The refusal text for a --discard that would destroy other work.
 
     MEASURED TWICE: `--discard` restores the WHOLE FILE to HEAD, and every
@@ -2535,12 +2584,14 @@ def discard_refusal(fn, unit, inside, outside, entangled):
             f" ({spans_of(outside_spans)}) — restoring the whole file"
             " destroys them, and that is the one thing this flag cannot"
             " undo.")
+        lines.extend(_hunk_preview(outside_spans, source_lines))
     if straddling:
         lines.append(
             f"  {len(straddling)} hunk(s) STRADDLE {fn}'s boundary"
             f" ({spans_of(straddling)}) — each contains lines both inside"
             " and outside the function, so no scoped restore can separate"
             " them.")
+        lines.extend(_hunk_preview(straddling, source_lines))
     if not outside_spans:
         lines.append(
             f"  No hunk lies wholly outside {fn}: every other differing line"
@@ -2572,8 +2623,9 @@ def discard_refusal(fn, unit, inside, outside, entangled):
         lines.append(
             "  WHICH REMEDY depends on something probe CANNOT see: whether"
             f" those hunks are ANOTHER function's work or the other half of"
-            f" the edit you made to {fn}. Read `git diff -- {unit}` and"
-            " decide before running either.")
+            f" the edit you made to {fn}. The lines above are the hunks"
+            " themselves; for the full diff run"
+            f" `git diff -- {_diff_pathspec(unit, source_path)}`.")
         lines.append(
             "  --discard --whole-file  restore the WHOLE TU to HEAD. Correct"
             " when the outside hunks are part of YOUR edit — a helper lifted"
@@ -5399,15 +5451,27 @@ def main():
                   " this TU carry uncommitted work.]")
         elif counts is not None:
             inside, outside, entangled = counts
+            # RUN-56 ITEM 8: the refusal names hunks by line number, and the
+            # decision it asks for is made by READING them. The spans index
+            # the WORKING file, so that is what is sliced.
+            try:
+                current_lines = split_lines(
+                    source.read_bytes().decode("latin-1"), keepends=False)
+            except OSError:
+                current_lines = None
             if entangled and not scoped:
-                print(discard_refusal(fn, unit, inside, outside, entangled))
+                print(discard_refusal(fn, unit, inside, outside, entangled,
+                                      source_lines=current_lines,
+                                      source_path=source))
                 return 1
             if scoped:
                 straddling = [row for row in entangled
                               if row[0] == "straddling"]
                 if straddling:
                     print(discard_refusal(fn, unit, inside, outside,
-                                          entangled))
+                                          entangled,
+                                          source_lines=current_lines,
+                                          source_path=source))
                     return 1
                 try:
                     new_text, notes = scoped_revert(
