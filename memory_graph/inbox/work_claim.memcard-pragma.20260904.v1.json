@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/sys/memcard.c"
+    ],
+    "scope": "MEMCARD lane - the live pragma leak + close work: (1) AL's run-53 finding (recorded w/ falsification command in its records): src/game/sys/memcard.c:267 carries a dangling `#pragma opt_propagation off` w/ NO closer - 33 of 35 fns compile under it unintentionally. CAUTION - the leak may be LOAD-BEARING: matched fns in this TU reached their bytes UNDER the leak. Method: close the region properly (explicit reset after the intended fn per the EO pragma-leak law), then measure EVERY fn (defake_gate check): if all stay at bytes -> the leak was inert, commit; if matched fns REGRESS -> the leak is load-bearing, REVERT, and record which fns depend on it (that is evidence about retail's own per-fn optimization state - valuable either way); if OPEN fns IMPROVE under the fix, keep w/ per-fn measurements. (2) Image-wide dangling-pragma screen: al_pragma_extent is live in composed_census - run it over all TUs, publish every unclosed region as a claim record (candidates not bugs; each needs the per-TU load-bearing test before anyone fixes it). (3) Close work on memcard's open fns (roster by structural residual; drawMemCardMessage is EQ-served w/ a strengthened denial - read attempt.CX_drawmemcardmessage-denial-restated... before touching; loadGauntletSave's ordered-datum defect claim was REFUTED run 49 - do not resurrect it). Byte-exact or typed park; one commit per item; fresh fuzzy per keep; 3-attempt cap; pins screened (memcard has 5 - raw reads); defake baseline; both suites + ninja 'main.dol: OK'; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:drawMemCardMessage",
+  "id": "work_claim.memcard-pragma.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MC",
+  "recorded_at": "2026-09-04T05:09:25Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

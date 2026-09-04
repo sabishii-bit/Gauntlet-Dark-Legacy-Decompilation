@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/game/gamemain.c"
+    ],
+    "scope": "STRING-POOL ALIGNMENT lane - the FS run-53 lead (attempt.FS_gamemain-fmt-is-the-string-pool-enum-typing-applied-literals-banked.20260904.v1 - READ IT FIRST and quote the three probes): real string literals under `-str reuse,pool,readonly` reproduce the target's pooled base+offset ADDRESSING on gamemain but pack the pool TIGHT (11-byte spacing) where retail 4-ALIGNS (12). (1) Find the alignment lever: MWCC -str suboptions, -align variants, or any archive-documented pooling control (research/ + the compiler docs in the archive; ml_fmath/atree flag hunts are precedent); a decisive A/B on gamemain's banked literal form = one build per candidate flag; NEUTRAL-IDENTICAL/exact-spacing decisive. (2) If the pool 4-aligns: land the literal form on gamemain (byte-exact bar - every fn stays at bytes or closes), then CENSUS the blob-extern class tree-wide (`extern char lbl_*[]` + `+N` arithmetic) and publish the roster w/ per-TU payoff as a claim record - do NOT convert other TUs this run. (3) If no flag aligns: probe source-side padding (literal spelling w/ explicit pad, e.g. trailing-NUL widths) 3-attempt cap, then a typed park naming the exact packing delta. Scores expected flat unless literals land exact - say so. Pins: gamemain has 4 (raw reads). defake baseline; both suites + ninja 'main.dol: OK' per commit; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:init_next_level",
+  "id": "work_claim.string-pool-sweep.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SP",
+  "recorded_at": "2026-09-04T05:09:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
