@@ -902,6 +902,8 @@ def _count_asymmetry_evidence(window):
             if match.group(1) != match.group(2):
                 return True
     return False
+
+
 # How far from the phrase the evidence may sit. Record prose is one long
 # paragraph, but this is deliberately NOT the whole record: a record may
 # discuss a count-asymmetric SIBLING while closing THIS function on verifier
@@ -5241,6 +5243,20 @@ def hypothesis_count_consequence_warning(hypothesis: Any) -> str | None:
         return None
     text = " ".join(str(value or "") for value in hypothesis.values())
     if not text.strip():
+        return None
+    # THE EXPLICIT KEY SILENCES IT, WHICH IS WHAT THE MESSAGE PROMISES
+    # (run-51, found while authoring this lane's own record). The message
+    # says "a `count_consequence` key silences this", and the check never
+    # looked for the KEY — it scanned the concatenated VALUES for count
+    # vocabulary, so the honest answer for a change that compiles nothing
+    # ("none: no compiled source is involved") warned anyway. MEASURED over
+    # all 225 hypothesis blocks in records/ and inbox/: 27 carry the key, 2
+    # of those warn today — this record and the already-accepted
+    # attempt.CV_ordered-datum-defect-queue-all-twelve-rows-refuted
+    # .20260903.v1, which answered "none - this is a screen-calibration
+    # change, no source edit and no instruction-count consequence". The
+    # other 163 warnings carry no key at all and are untouched.
+    if str(hypothesis.get(HYPOTHESIS_COUNT_FIELD) or "").strip():
         return None
     if _COUNT_CONSEQUENCE_RE.search(text):
         return None

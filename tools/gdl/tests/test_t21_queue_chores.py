@@ -94,6 +94,42 @@ class FunctionFacetSpellings(unittest.TestCase):
         self.assertGreater(plain["count"], 0)
 
 
+class CountConsequenceAdvisory(unittest.TestCase):
+    """Found while authoring this lane's OWN record: the advisory promises
+    that "a `count_consequence` key silences this" and never looked for the
+    key — it scanned the concatenated hypothesis VALUES for count vocabulary,
+    so the honest answer for a change that compiles nothing warned anyway.
+
+    MEASURED over all 225 hypothesis blocks in records/ and inbox/: 27 carry
+    the key, 2 of those warned (this lane's record, and the already-accepted
+    attempt.CV_ordered-datum-defect-queue-all-twelve-rows-refuted
+    .20260903.v1). The other 163 warnings carry no key and are untouched.
+    """
+
+    BASE = {"statement": "reorder the two declarations",
+            "cheapest_refuting_observation": "savedregs after the swap",
+            "screened_against_target": "no — not built"}
+
+    def test_no_key_and_no_count_vocabulary_still_warns(self):
+        self.assertIsNotNone(
+            core.hypothesis_count_consequence_warning(dict(self.BASE)))
+
+    def test_an_explicit_key_silences_it_as_the_message_promises(self):
+        block = dict(self.BASE, count_consequence="none: nothing compiles")
+        self.assertIsNone(core.hypothesis_count_consequence_warning(block))
+
+    def test_an_empty_key_does_not_silence_it(self):
+        for value in ("", "   ", None):
+            block = dict(self.BASE, count_consequence=value)
+            self.assertIsNotNone(
+                core.hypothesis_count_consequence_warning(block), repr(value))
+
+    def test_count_vocabulary_in_the_prose_still_silences_it(self):
+        block = dict(self.BASE,
+                     statement="the cure is count-neutral at T104/O104")
+        self.assertIsNone(core.hypothesis_count_consequence_warning(block))
+
+
 class OwnedUnitsAudit(unittest.TestCase):
     def test_the_run50_defect_is_caught_and_the_right_unit_offered(self):
         claim = {"owner": "claude-fleet-worker-PR",
