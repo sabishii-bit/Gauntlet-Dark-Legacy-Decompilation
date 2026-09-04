@@ -416,6 +416,32 @@ extern EffectInfoEntry EffectInfo[];
 
 /* PrintWorldMemSizes / GetEnemyType externs. */
 extern char  lbl_80112788[];       /* debug format-string table */
+
+/* Byte offsets of the individual string literals inside the pooled .rodata
+ * constant object lbl_80112788 (0x80112788, size 0x24C).  Each entry is a
+ * NUL-terminated literal padded to a 4-byte boundary; the values below are
+ * read from the retail image.  Only the boss .wad names consumed by
+ * init_next_level_8005638C are named here. */
+enum {
+    STR_LEVELS_LEVEL_S = 0,    /* "levels/level%s" */
+    STR_DRAGON_WAD     = 16,   /* "dragon.wad"  */
+    STR_CHIMERA_WAD    = 28,   /* "chimera.wad" */
+    STR_DJINN_WAD      = 40,   /* "djinn.wad"   */
+    STR_DRIDER_WAD     = 52,   /* "drider.wad"  */
+    STR_PBOSS_WAD      = 64,   /* "pboss.wad"   */
+    STR_YETI_WAD       = 76,   /* "yeti.wad"    */
+    STR_LICH_WAD       = 88,   /* "lich.wad"    */
+    STR_WRAITH_WAD     = 100,  /* "wraith.wad"  */
+    STR_SKORNE1_WAD    = 112,  /* "skorne1.wad" */
+    STR_SKORNE2_WAD    = 124,  /* "skorne2.wad" */
+    STR_GARM_WAD       = 136,  /* "garm.wad"    */
+    STR_GOLEMI_WAD     = 148,  /* "golemI.wad"  */
+    STR_GOLEMF_WAD     = 160,  /* "golemF.wad"  */
+    STR_GOLEM_WAD      = 172,  /* "golem.wad"   */
+    STR_GENERAL_WAD    = 184,  /* "general.wad" */
+    STR_GAR_S_WAD      = 196   /* "gar_%s.wad"  */
+};
+
 extern s32   lbl_80257680[];       /* per-level enemy type table */
 typedef struct WorldMemTable {
     u8  _0[140];
@@ -5039,54 +5065,54 @@ static s32 init_next_level_8005638C(s32 arg0)
         *(s32*)(w += 140) = 0;
         flag = 1;
         switch (t) {
-        case 34:
-            CritterLoadFile(lbl_80346C04, fmt + 16);
+        case E_DRAGON:
+            CritterLoadFile(lbl_80346C04, fmt + STR_DRAGON_WAD);
             break;
-        case 35:
-            CritterLoadFile(lbl_80346C04, fmt + 28);
+        case E_CHIMERA:
+            CritterLoadFile(lbl_80346C04, fmt + STR_CHIMERA_WAD);
             break;
-        case 36:
-            CritterLoadFile(lbl_80346C04, fmt + 40);
+        case E_DJINN:
+            CritterLoadFile(lbl_80346C04, fmt + STR_DJINN_WAD);
             break;
-        case 37:
-            CritterLoadFile(lbl_80346C04, fmt + 52);
+        case E_DRIDER:
+            CritterLoadFile(lbl_80346C04, fmt + STR_DRIDER_WAD);
             break;
-        case 38:
-            CritterLoadFile(lbl_80346C04, fmt + 64);
+        case E_PBOSS:
+            CritterLoadFile(lbl_80346C04, fmt + STR_PBOSS_WAD);
             break;
-        case 39:
-            CritterLoadFile(lbl_80346C04, fmt + 76);
+        case E_YETI:
+            CritterLoadFile(lbl_80346C04, fmt + STR_YETI_WAD);
             break;
-        case 41:
-            CritterLoadFile(lbl_80346C04, fmt + 88);
+        case E_LICH:
+            CritterLoadFile(lbl_80346C04, fmt + STR_LICH_WAD);
             break;
-        case 40:
-            CritterLoadFile(lbl_80346C04, fmt + 100);
+        case E_WRAITH:
+            CritterLoadFile(lbl_80346C04, fmt + STR_WRAITH_WAD);
             break;
-        case 42:
-            CritterLoadFile(lbl_80346C04, fmt + 112);
+        case E_SKORNE1:
+            CritterLoadFile(lbl_80346C04, fmt + STR_SKORNE1_WAD);
             break;
-        case 43:
-            CritterLoadFile(lbl_80346C04, fmt + 124);
+        case E_SKORNE2:
+            CritterLoadFile(lbl_80346C04, fmt + STR_SKORNE2_WAD);
             break;
-        case 44:
-            CritterLoadFile(lbl_80346C04, fmt + 136);
+        case E_GARM:
+            CritterLoadFile(lbl_80346C04, fmt + STR_GARM_WAD);
             break;
-        case 29:
+        case E_GOLEM:
             if (sMusicTrackHi == 9) {
-                CritterLoadFile(lbl_80346C04, fmt + 148);
+                CritterLoadFile(lbl_80346C04, fmt + STR_GOLEMI_WAD);
             } else if (sMusicTrackHi == 6) {
-                CritterLoadFile(lbl_80346C04, fmt + 160);
+                CritterLoadFile(lbl_80346C04, fmt + STR_GOLEMF_WAD);
             } else {
-                CritterLoadFile(lbl_80346C04, fmt + 172);
+                CritterLoadFile(lbl_80346C04, fmt + STR_GOLEM_WAD);
             }
             break;
-        case 33:
-            CritterLoadFile(lbl_80346C04, fmt + 184);
+        case E_GENERAL:
+            CritterLoadFile(lbl_80346C04, fmt + STR_GENERAL_WAD);
             break;
-        case 32: {
+        case E_GARGOYLE: {
             char buf[16];
-            sprintf(buf, fmt + 196, *(char**)(tbl + off + 236) + 16);
+            sprintf(buf, fmt + STR_GAR_S_WAD, *(char**)(tbl + off + 236) + 16);
             CritterLoadFile(lbl_80346C04, buf);
             break;
         }
