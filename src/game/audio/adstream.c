@@ -850,7 +850,6 @@ s32 adsUpdateStream(ADSTREAM* stream) {
  * Xbox: AdsPutBuffer. */
 s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
     s32 hres = 0;
-    char* strs = lbl_801174A8;
     u8* wrEnd;
     u8* wp;
     s32 tail;
@@ -859,10 +858,11 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
     s32 amt16;
     s32 part;
     s32 cofsz;
-    u8* dst;
+    char* dst;
     s32 saved;
     u8 unused[8];
 
+    dst = lbl_801174A8;
     wrEnd = (u8*)s->buffer + s->ringSize;
     wp = (u8*)s->ringPtr + s->ringRead;
     if (wp > wrEnd) {
@@ -872,7 +872,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
     over = (s->ringRead + len) - s->ringSize;
     if ((u32)len >= (u32)s->fileRemaining && s->fileRemaining > 0) {
         printf(lbl_80349328);
-        printf(strs + 48, len - s->fileRemaining);
+        printf(dst + 48, len - s->fileRemaining);
         amt = s->fileRemaining;
         amt16 = (s->fileRemaining + 15) & ~15;
     } else {
@@ -881,8 +881,8 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         }
         amt16 = len & ~15;
         if (over > 0) {
-            printf(strs);
-            printf(strs + 88, len - amt16);
+            printf(dst);
+            printf(dst + 88, len - amt16);
         }
         amt = amt16;
         len = amt16;
@@ -905,7 +905,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         goto done;
     }
     s->fileRemaining += 40;
-    dst = (u8*)s + 0x54;
+    dst = (char*)s + 0x54;
     if ((u8*)s->ringPtr + 40 > wrEnd) {
         part = wrEnd - (u8*)s->ringPtr;
         memcpy(dst, s->ringPtr, part);
@@ -918,7 +918,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         s->ringRead -= 40;
     }
     cofsz = (s->blocks * 192) >> 1;
-    dst = (u8*)s + 0x7C;
+    dst = (char*)s + 0x7C;
     s->fileRemaining += cofsz;
     if ((u8*)s->ringPtr + cofsz > wrEnd) {
         part = wrEnd - (u8*)s->ringPtr;
