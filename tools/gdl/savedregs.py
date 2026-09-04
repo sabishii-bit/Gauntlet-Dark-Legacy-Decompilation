@@ -735,6 +735,39 @@ def emission_order(defs):
     return [row[0] for row in defs]
 
 
+def unseen_findings(lpairs):
+    """Short phrases for the findings the FIRST-DEFINITION table cannot show.
+
+    Run-51 item 7. Each of these is already reported, accurately, in the
+    scope paragraphs at the bottom of the report; this is the same
+    information as a headline, because a report is read from the top and the
+    verdict is what a lane acts on.
+
+    `permuted` is deliberately NOT here: a callee-saved permutation changes
+    the first definitions themselves, so the table's own rows show it. These
+    three do not:
+
+      intruder    ours spends a callee-saved register where the target uses a
+                  volatile — the save set pays for a range that needs nothing
+      escaped     the target keeps a value callee-saved across a call or loop
+                  and ours does not
+      later-web   a definition BEYOND the first holds a different value in
+                  the same register in the two streams
+    """
+    counts, _maps = lifetime_summary(lpairs)
+    later_role = sum(1 for label, _t, _o, verdict, _n in lpairs
+                     if verdict.startswith("DIFFERENT ROLE")
+                     and not label.endswith("[0]"))
+    out = []
+    if counts["intruder"]:
+        out.append(f"{counts['intruder']} VOLATILE ROLE PROMOTED IN OURS")
+    if counts["escaped"]:
+        out.append(f"{counts['escaped']} LIFETIME ESCAPED TO A VOLATILE")
+    if later_role:
+        out.append(f"{later_role} LATER-WEB MISMATCH")
+    return out
+
+
 def scope_banner(target_rows, our_rows, registers, lpairs,
                  count_diffs):
     """The lines that say what this table did NOT compare.
@@ -1003,12 +1036,35 @@ def format_table(unit, fn, target_rows, our_rows, show_uses=False,
             " class ahead of every word-sized local). Reorder WITHIN a class"
             " to move a web one position; a cross-class reorder is"
             " byte-identical and proves the boundary rather than moving it.")
-    elif len(target_defs) == len(our_defs):
+    # THE FINDINGS THIS TABLE CANNOT SEE, COUNTED BEFORE THE VERDICT IS
+    # WRITTEN (run-51 item 7). They were reported — accurately — in the scope
+    # paragraphs at the bottom, and MEASURED at 6a017ec3c over all 3,005
+    # scorable functions they sit at mean line 29.3 of the report, as deep as
+    # line 60 of 66 (T21_scratch/t21_savedregs_position.py).
+    unseen = unseen_findings(lifetime_pairs(target_rows, our_rows))
+    if not moved and len(target_defs) == len(our_defs):
         lines.append("  ASSIGNMENT MATCHES: every callee-saved register"
                      " holds the same value at its FIRST definition in both"
                      " streams. That closes the first-definition assignment"
-                     " question and nothing else — read the scope lines"
-                     " below before treating it as an all-clear.")
+                     " question and nothing else"
+                     + (" — read the scope lines below before treating it as"
+                        " an all-clear." if not unseen else
+                        ", AND IT IS NOT AN ALL-CLEAR HERE: see the line"
+                        " directly below."))
+    if unseen:
+        # Directly under the verdict it qualifies, because it is the sentence
+        # that decides what class of work the function needs. MEASURED over
+        # the same 3,005 functions (T21_scratch/t21_savedregs_allclear.py):
+        # 150 carry one of these findings, and EIGHT of them print
+        # `ASSIGNMENT MATCHES` at the same time — the exact combination that
+        # produced the recorded misreading, and the eight include
+        # game/movie/movieplayer::fn_800D8BCC, the function three records
+        # took this table's all-clear as a premise for.
+        lines.append(
+            "  THE SAVE SET IS WRONG IN A WAY THIS TABLE'S ROWS DO NOT SHOW:"
+            f" {'; '.join(unseen)}. Read the named paragraph(s) below before"
+            " any declaration-order work — this is a LIFETIME/volatile"
+            " question, not a first-definition assignment one.")
 
     # THE PIN PARAGRAPH, directly under the verdict it qualifies and ABOVE
     # the scope lines: on a pinned function it decides whether the verdict

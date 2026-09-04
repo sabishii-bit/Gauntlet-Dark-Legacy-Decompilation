@@ -640,6 +640,37 @@ _PPC_MNEMONIC = (
 )
 
 
+# SAVEDREGS' OWN TABLE IS A STREAM READING (run-51 item 7b). `savedregs.py`
+# exists to answer exactly the question this gate asks — which local lands in
+# which callee-saved register, read out of BOTH streams with no build — and
+# its verdict block quotes the two ROLES with the destination register
+# stripped:
+#
+#     r26: target holds `li 0`, ours holds `add r30,r28`
+#
+# `r26` appears in NO instruction there, so a record quoting savedregs'
+# verdict verbatim named a register the gate could not see cited, and two
+# submissions were refused for quoting the defs census itself. The two
+# accepted forms are the tool's own, and neither can be typed casually:
+#
+#   ROLE ROW    `r26: target holds `...`, ours holds `...``
+#   TABLE ROW   a register immediately followed by its `@0x` offset column,
+#               which is the first-definition table's shape
+_SAVEDREGS_ROLE_ROW_RE = re.compile(
+    r"\b([rf](?:3[01]|[12]\d|\d)):\s*target holds\s*`[^`]*`,"
+    r"\s*ours holds\s*`[^`]*`")
+_SAVEDREGS_TABLE_ROW_RE = re.compile(
+    r"\b([rf](?:3[01]|[12]\d|\d))(?:\s+\d+/\d+)?\s+@0x[0-9A-Fa-f]+\b")
+
+
+def _savedregs_cited_registers(text):
+    """Registers a savedregs TABLE or ROLE row names in `text`."""
+    out = set()
+    for pattern in (_SAVEDREGS_ROLE_ROW_RE, _SAVEDREGS_TABLE_ROW_RE):
+        out.update(pattern.findall(text or ""))
+    return out
+
+
 def _cited_instruction_spans(text, register):
     """Spans where `register` appears inside a quoted PPC INSTRUCTION.
 
@@ -693,11 +724,21 @@ def register_definition_gaps(statement, record_text):
     unaffected: run 37/38's failure named r20 in prose with no instruction
     quoted anywhere, which this still refuses.
 
+    A SAVEDREGS TABLE OR ROLE ROW DISCHARGES IT TOO (run-51 item 7b).
+    savedregs.py answers this gate's own question — which local lands in
+    which callee-saved register, read out of BOTH streams, no build — and
+    its verdict row strips the destination register from the two roles
+    (`r26: target holds `li 0`, ours holds `add r30,r28``), so quoting the
+    tool's answer verbatim left `r26` in no instruction at all. Two
+    submissions were refused for exactly that.
+
     Pure over two strings so every branch is tested without a graph.
     """
     text = record_text or ""
+    from_savedregs = _savedregs_cited_registers(text)
     return [register for register in _named_registers(statement)
-            if not _cited_instruction_spans(text, register)]
+            if register not in from_savedregs
+            and not _cited_instruction_spans(text, register)]
 
 
 def register_anchor_gaps(statement, record_text):
