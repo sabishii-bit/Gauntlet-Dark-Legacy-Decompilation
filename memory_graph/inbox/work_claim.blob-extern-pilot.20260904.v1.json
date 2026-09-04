@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/sys/ml_mem.c"
+    ],
+    "scope": "BLOB-EXTERN CONVERSION lane - the SP vein (claim.SP_string-blob-extern-roster-21-tus-364-sites-zero-foreign-blockers.20260904.v1 + the SP law: plain -str reuse,readonly already emits retail's layout - per-literal 4-aligned objects + pooled addressing; NO flag change needed; the FS mixture-artifact rule: convert ALL of a function's sites in one probe, never a subset): (1) PILOT: game/sys/ml_mem.c - the roster's only SELF row (10 sites) AND a Matching TU that already owns its .rodata run in splits.txt = the cheapest end-to-end proof incl. the data side. Convert its blob sites to real literals; the unit must STAY GREEN (byte-exact bar, retail sha1); verify the .rodata claim still binds (doldiff + datadiff). (2) Then the top OPEN roster TUs EXCLUDING gamemain + enemy (PJ's) and memcard (load-bearing pragma + 5 pins - skip entirely): sfx 52 sites, tower 25, pb_diag 24, select 21, attract 20, sounds_evt 19 - extend owned_units per TU at selection (claimscope --audit + claims --owns); per fn: ALL sites in one probe, byte-exact bar (real may DROP where blob offsets were compensating - measure fresh fuzzy per keep; a real drop at parity is the goal state); pins screened per TU (pb_diag + sfx carry several - raw reads; a conversion that renumbers an anonymous pool aborts pin replay = re-derive w/ t16_rederive_body per 15b or revert). (3) Bank the enemy/gauntworld extern-aliasing investigation as RECORDS only (their externs point INSIDE gamemain's 0x664 run - map the exact symbols + what a fix needs; no edits, gamemain is PJ's). One commit per TU converted; both suites + ninja 'main.dol: OK' per commit; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:AllocFile",
+  "id": "work_claim.blob-extern-pilot.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-BE",
+  "recorded_at": "2026-09-04T14:14:32Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

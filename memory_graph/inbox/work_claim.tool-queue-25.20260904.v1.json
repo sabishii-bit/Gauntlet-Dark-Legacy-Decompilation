@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl",
+      "memory_graph"
+    ],
+    "scope": "TOOL lane (owns tools/gdl + memory_graph EXCEPT webfrank surfaces - WS's): observations + verbatim output ONLY (the format is now standing policy); reproduce w/ the reporter's command; derive cures yourself; two-sided calibration; one commit per item. (1) WV run-54: 'nothing in the schema marks a prescription as separable from its diagnosis, so brief surfaces both at equal weight' - the hypothesis field carried an unsound cure at the schema's highest confidence (fn: move_logic00). (2) WV: 'wf_word_diff printed RELOC-SYMBOL MISMATCH = 0 and DECODE: REGFIELD-ONLY 53 for move_logic00 both before and after - it cannot name-compare our anonymous @688/@689 against the target's lbl_ symbols'. (3) CR run-54: 'webfrank_audit --grep CritterCollideItems printed 0 register-only; 0 eligible ... for a function that was in fact eligible' (TU-prefix arg, silent zero on a function name). (4) CR: 'I quoted a record number one commit stale ... a multi-probe pass invalidates its own earlier measurements, and nothing in the loop re-checks them at commit time'. (5) MC run-54: 'probe.py --revert restored the EDITED state ... re-banked the edited tree as BASELINE anyway - overwriting the clean revert point I had correctly banked first'. (6) MC: 'defake_gate arbitrates regressions but reports improvements bare ... IMPROVED writeGauntletSave real 137 -> 108 unqualified - that row is a fuzzy regression and a parity loss'. (7) SP run-54: 'defake_gate demands fuzzy arbitration it makes impossible - the baseline file stores no fuzzy' + 'the unpriced section(s) advice is unactionable mid-pass: re-taking discards the anchor'. (8) WV+T24: trap 6a is wider than documented - 'Select-String on a long python stream corrupts the exit code the same way' + 'Select-String is case-insensitive by default so Ran |OK|FAILED matches every ok test line'. (9) CR: 'the run-53 CR record's law_screen states the decl-swap cure is already satisfied; the AL law's falsifier calls the same function the one untried row - both accepted the same day, three hours apart, and disagree' (a cited-law-falsifier-vs-newest-record consistency screen; also WV's ws_datum_tier_audit docstring now false: move_logic00 is re-served). Scoped tests between items; FULL suites per commit; ninja 'main.dol: OK'; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:TextHeightMLines",
+  "id": "work_claim.tool-queue-25.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T25",
+  "recorded_at": "2026-09-04T14:14:56Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

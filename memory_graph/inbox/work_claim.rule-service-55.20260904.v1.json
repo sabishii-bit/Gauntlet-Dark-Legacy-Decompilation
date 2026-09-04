@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl/webfrank.py",
+      "config/GUNE5D/webfrank.json",
+      "game/mb/mb_camera.c"
+    ],
+    "scope": "POSTPROCESSOR lane (sole owner of webfrank surfaces): four banked rule requests, each w/ a decoded record - READ AND QUOTE EACH before authoring: (1) FLAGSHIP: MBWorldToScreen3D (mb_camera, real 62, unpinned until now) - attempt.MB_mbworldtoscreen3d-the-conversion-temp-block-order-is-set-by-the-consumer-locals-definition-order.20260904.v1 carries the FULL decode: composition = copy_register_fields FIRST + instruction_permutation SECOND (cluster B is a 3-atom right rotation w/ a WAR hazard in OUR colouring - our fmuls@0x14c writes f2, our fnmsubs@0x148 reads f2 - so permutation-first refuses per claim.law.C1_permute-recolor-composition...; the MBCameraUpdate pin is the stage-order precedent); suggested windows 0xe0:0xe8 order [1,0] (dependence-legal 2-atom transposition) + 0x144:0x150 order [2,0,1]. Provenance = MB's 7 probed forms + NC's 11 (attempt.NC_mbworldtoscreen3d-the-projected0-store...). If it serves byte-equal: mb_camera data is measured CLEAN (0 blockers, extab 100%) + other 5 fns at 100 - textorder + full flip audit + finish_tu + ninja + retail sha1 = A FLIP. (2-4) CR's three critter requests (its run-54 records): CritterCollideItems (33 regfield words, 9 live ranges - plain recolor); CritterDamagePlayer (composed: 2 independent adjacent transpositions + recolor across THREE live ranges - a whole-function map is UNSOUND, use per-range windows); CritterLoadDone + CritterLoadStartNext (ONE permutation shape for both twins - WARNING from the record: wf_word_diff labels it RECOLOR by index alignment, it is a 2-insn swap; do NOT author a recolor). (5) The 13 dangling citations in webfrank.json (T24's unresolved_citations report w/ did_you_mean - 8 resolve uniquely by prefix, 3 are trailing-period ids; repair all resolvable, report the remainder). Every ship: verify_datum_binding + ordered-datum screen on anonymous-pool fns, refusal tests failing w/o their guard, forced replay per webfrank.py change, configure per json edit, both suites. Instrumented refusal over forcing, always. Closes = EQUIVALENT; STRICT unmoved; quote the split before/after + linked per flip. Gate = 'main.dol: OK' + sha1 per flip. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:MBWorldToScreen3D",
+  "id": "work_claim.rule-service-55.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WS",
+  "recorded_at": "2026-09-04T14:14:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/pb/pb_error.c",
+      "game/g3d/auxanim.c"
+    ],
+    "scope": "CLOSE lane - two distance-2 TUs whose ONLY cost is two functions each (the CX roster; RE-VERIFY sections + textorder live per TU before believing it - the run-51 lesson): (1) pb_error: fn_800C1174 (96.13/600B) + fn_800C13CC (93.78/204B). (2) auxanim: DoTexModSeqSub (96.0/804B) + InitOAnimList (95.59/324B). Per fn: probe + decode verdict FIRST (structural residual ranking, never fuzzy order); laws --query + records behind every rec= count before any probe; respect typed DO-NOT-RETRY; the fresh law shelf is deep - the consumer-locals definition-order law, the CSE-barrier law, the pointer-local/address-CSE law, the compare-form dictionary, the parenthesised-sum rotation law, the per-guard goto-vs-return split, the conserving-resize law - run laws --residual per roster row and read what joins. Both TUs closing = flip screen step 0 + full audit + finish_tu + ninja + retail sha1 each = up to 2 FLIPS. Then roster extend if budget (claimscope --audit + claims --owns; pb_texture's 2 fns are the sibling shape). Byte-exact (STRICT) or typed park; one commit per landed fn; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; count-parity categorical; pins screened per TU; defake baseline per TU; both suites + ninja 'main.dol: OK'; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:fn_800C1174",
+  "id": "work_claim.close-distance-2.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-GC",
+  "recorded_at": "2026-09-04T14:14:37Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "research"
+    ],
+    "scope": "CUSTODIAL/INVESTIGATION lane round 4 (standing): NO source edits; findings = records; tool work -> T25; webfrank prose -> WS. (1) HONESTY CONTROL round 2: spot-audit 3 seeded-random EQUIVALENT fns end-to-end (random seed 55; population now 156 - raw residual vs rule vs linked bytes vs retail; the run-52 protocol). (2) POST-RULE INTEGRITY: the 6 rules shipped runs 53-54 (fn_800C03E0, damage_enemy, move_logic00, move_logic22 + the dbgtext/dcsdrv flips) - doldiff + ws_datum_tier_audit + ordered-datum screens at HEAD; any CORRESPONDENCE-only row gets its justification quoted or flagged. (3) LAW RECONCILIATION sweep over the addr16/live-zero family: CR found a same-day law-vs-record contradiction (AL falsifier vs CR law_screen on ProcessCritterList) AND counter-exampled NC's volatile-destination law; enumerate the family's live laws, run each law's falsifier against its roster's NEWEST records, propose supersessions/scope-narrowings for every contradiction found. (4) EXPIRY sweep over run-53/54 changed units (enemy, critter, mb_camera, gamemain, memcard, movieplayer, dbgtext, dcsdrv + tool-cited denials). (5) FLIP ROSTER refresh post-54 (open fns + sections + textorder per NonMatching TU; the CX consumable format) - name the top 5 w/ exact blockers for run 56. Quote the split at both ends (expected unchanged except WS/GC landings); both suites + ninja 'main.dol: OK' per commit; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:LineLineDist",
+  "id": "work_claim.custodial-4.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CU",
+  "recorded_at": "2026-09-04T14:14:37Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
