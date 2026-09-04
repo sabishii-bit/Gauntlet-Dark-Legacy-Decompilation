@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Reconstruct the entry/table-address forms and exhaust source ways to preserve the target's special-pointer callee-saved home copy.",
+  "attributes": {
+    "law_screen": "claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1 APPLIED: target is exactly one callee-saved home copy longer after a defining addi. claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1 SCREENED: modelDesc, modelEntry, rom, and globals were each dead at the site and reused; only u8* carriers preserved addressing, and both compiled byte-identically without the copy. claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1 and claim.law.CB_block-scope-splits-a-copy-only-across-a-cfg-join-not-in-straight-line-code.20260901.v1 SCREENED/APPLIED: same-scope and block-scope copies folded, while an explicit CFG split emitted extra branches/duplicate addi rather than the target shape. claim.law.NM_declaration-order-colours-callee-saved-registers-while-assignment-order-sets-emission-order.20260903.v1 SCREENED: texture/special declaration swaps were byte-neutral. claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real.20260901.v1 APPLIED to parity variants; they lost fuzzy or introduced a real displacement defect. claim.law.lwzu-idiom-web-retention and claim.law.direct-global-member-flips-index-base-association SCREENED: no retained update-form carrier exists here, and direct global syntax widened/rematerialized the base. The full current matching-law screen was read before the probes; no other law names a source-reachable target-only saved-home copy.",
+    "laws_applied": "[\"claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1\", \"claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1\", \"claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1\", \"claim.law.CB_block-scope-splits-a-copy-only-across-a-cfg-join-not-in-straight-line-code.20260901.v1\", \"claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real.20260901.v1\"]",
+    "probed_form": "KEPT: `model = key >> 16; texnum = (u16)key; modelEntry = globals->tbl; modelEntry += model * sizeof(TEXDESCENT);`, ROM offset `(((u32)key & 0xFFFF) << 4)`, and used-table `entry += model * sizeof(TEXDESCENT)`. REVERTED copy axes: `special = specialBase; special += 1452`; block-local versus function-local special; reuse of modelDesc/modelEntry/rom/globals; direct manager expression; typed PbSpecialTlut pointer; void*/volatile-pointee cast transit; volatile pointer object; integer cast transit; comma-expression assignment in the handle condition; branch-specific base assignments; identical two-arm assignment; early live special alias; two-stage texture staging; local opt_propagation/common_subs experiments; declaration swaps. The closest parity form was `void* specialRaw = manager + region*16 + 1452; modelDesc = (u8*)specialRaw;` and emitted T173/O173 with exact opcode multiset, but loaded the handle as `lwz ...,12(r3)` instead of target `lwz ...,1464(r3)`. Two-stage texture staging emitted parity but traded the missing target addi for ours-only `mr r30,r0`, proving a crossed texture/special web rather than closure.",
+    "residual": "The target computes the special-table base in r3, loads handle at 1464(r3), computes the public special pointer with `addi r3,r3,1452`, then retains an otherwise redundant `addi r30,r3,0`. Ours coalesces the last two operations into `addi r29,r3,1452`, making the function one instruction short and swapping the long-lived texture/special homes. All later branch displacements are count drift; the remaining data/register order includes the known first/last pool-address transposition and cannot be adjudicated for a postprocessor until count parity exists.",
+    "scope": "src/game/pb/pb_texture.c::fn_800C7558 only. No WebFrank rule added because the retained object is count-asymmetric and wf_word_diff refuses it by construction.",
+    "verification": "Retained fresh metrics: real 122 -> 107, fuzzy 90.3353% -> 95.6358%, instructions 173/171 -> 173/172, target-only +1 addi, frame 56/56. defake_gate check --rebuild --update-improved reported only fn_800C7558 improved and no net all-or-nothing Data loss; extab is 96/96 and extabindex remains 0/144 all-or-nothing, 143/144 per-byte. Full ninja printed build/GUNE5D/main.dol: OK. `python -m unittest discover tools/gdl/tests -b` ran green; graph changed suite skipped because no graph/tool/config paths changed."
+  },
+  "denial": {
+    "expiry_check": "Run `python tools/gdl/probe.py game/pb/pb_texture fn_800C7558 --ops --fuzzy` and `python tools/gdl/regnorm.py game/pb/pb_texture fn_800C7558`; this denial expires if count reaches 173/173 while the handle load remains target-form `lwz ...,1464(base)` and no new genuine structural row appears.",
+    "falsifier": "A source form that emits the handle load from the unadjusted manager/index base, then `addi scratch,base,1452`, then a distinct addi/mr into the callee-saved special-pointer home, without adding another saved web, widening the frame, or changing any other opcode.",
+    "premise_measurement": "`python tools/gdl/probe.py game/pb/pb_texture fn_800C7558 --ops --fuzzy` on the retained tree reports real 107, fuzzy 95.6358%, T173/O172, target-only +1 addi; `regnorm.py` reports 0 genuine structural rows and identifies target +0x128 as the sole unpaired instruction after schedule artifacts.",
+    "scope": "Only the tested source-level ways to force target +0x128 `addi r30,r3,0` in game/pb/pb_texture::fn_800C7558; this does not deny a future compiler patch or a new mechanically proven instruction-count-changing postprocessor class."
+  },
+  "function": "function:fn_800C7558",
+  "held_fixed": "The retained early model/status/used-table reconstruction and exact 56-byte frame were held fixed while the special-pointer identity, type, scope, cast, declaration order, CFG shape, and copy staging were varied one axis at a time.",
+  "id": "attempt.R57_fn800c7558-home-copy-source-exhaustion.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T18:09:44Z",
+  "residual": {
+    "capability_needed": "instruction-count-changing allocator home-copy equivalence",
+    "family": "copy-form",
+    "measured_at": "2026-09-04",
+    "signature": "+1 addi"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

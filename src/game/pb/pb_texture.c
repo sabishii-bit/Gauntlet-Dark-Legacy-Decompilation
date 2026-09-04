@@ -603,6 +603,7 @@ void fn_800C73E0(void) {
  * to the texture object (GXInitTexObjTlut). Returns non-zero on success. */
 int fn_800C7558(s32 key) {
     PbTexMgr* globals;
+    u8* modelEntry;
     u8* modelDesc;
     PbRomTexture* rom;
     PbTextureObject* texture;
@@ -620,22 +621,26 @@ int fn_800C7558(s32 key) {
     manager = (u8*)&lbl_802C7438;
     which = 1;
     globals = gWinGlobals;
-    modelDesc = *(u8**)((u8*)globals->tbl + ((u32)key >> 16) * sizeof(TEXDESCENT) +
-                        offsetof(TEXDESCENT, desc));
-    rom = (PbRomTexture*)((u8*)((PbTextureDescView*)modelDesc)->romTextures +
-                          (u16)key * sizeof(PbRomTexture));
     model = (u32)key >> 16;
     texnum = (u16)key;
-    if (*(s32*)((u8*)globals->tbl + ((u32)key >> 16) * 0x10 + 0x10) != 0 ||
+    modelEntry = (u8*)globals->tbl;
+    modelEntry += model * sizeof(TEXDESCENT);
+    modelDesc = *(u8**)((u8*)globals->tbl + model * sizeof(TEXDESCENT) +
+                        offsetof(TEXDESCENT, desc));
+    rom = (PbRomTexture*)((u8*)((PbTextureDescView*)modelDesc)->romTextures +
+                          (((u32)key & 0xFFFF) << 4));
+    if (*(s32*)(modelEntry + 0x10) != 0 ||
         (rom->flags & 0x100) != 0) {
         model = 0;
         texnum = 0;
         rom = (PbRomTexture*)MBRomTexPtr(0);
     }
     if (lbl_80345110 == 0) {
-        u8* used = ((PbTextureDescView*)*(u8**)((u8*)globals->tbl +
-                                                model * sizeof(TEXDESCENT) +
-                                                offsetof(TEXDESCENT, desc)))->usedFlags;
+        u8* entry = (u8*)globals->tbl;
+        u8* used;
+        entry += model * sizeof(TEXDESCENT);
+        used = ((PbTextureDescView*)*(u8**)(entry +
+                                             offsetof(TEXDESCENT, desc)))->usedFlags;
         used[texnum] |= 1 << lbl_80343F78;
     }
 
