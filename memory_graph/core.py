@@ -1651,7 +1651,29 @@ def _size_of(value: Any) -> int:
     return len(json.dumps(value, sort_keys=True).encode("utf-8"))
 
 
-def record_size_report(record: Mapping[str, Any]) -> dict[str, Any]:
+def apply_staging_stamps(record: dict[str, Any], now=None) -> list[str]:
+    """Stamp `valid_from`/`recorded_at` exactly as staging does.
+
+    Extracted so the `--size` PREFLIGHT can measure the record the GATE
+    will see (run-52 item 4/6). `stage_record_proposal` writes both stamps
+    BEFORE `_validate_record` runs the 16 KB attempt cap, so a preflight
+    reading the authored file measured a record that never reaches the
+    gate. Returns the keys it added, so a caller can say what the
+    difference is instead of just reporting a bigger number.
+    """
+    now = now or datetime.now(timezone.utc)
+    added = []
+    if "valid_from" not in record:
+        record["valid_from"] = now.strftime("%Y-%m-%d")
+        added.append("valid_from")
+    if "recorded_at" not in record:
+        added.append("recorded_at")
+    record["recorded_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return added
+
+
+def record_size_report(record: Mapping[str, Any],
+                       as_staged: bool = False) -> dict[str, Any]:
     """Encoded size of a record plus where the bytes actually are.
 
     The 16 KB attempt cap used to be enforced only at the END of authoring,
@@ -1661,7 +1683,25 @@ def record_size_report(record: Mapping[str, Any]) -> dict[str, Any]:
     uses (`json.dumps(sort_keys=True)`), so the numbers add up to the
     number the gate compares, and paths are reported two levels deep
     because `attributes.*` is where the weight lives.
+
+    ``as_staged`` measures the record the GATE will see rather than the one
+    on disk (run-52 item 6). `stage_record_proposal` stamps `valid_from`
+    and `recorded_at` before `_validate_record` applies the cap, so the
+    preflight under-reported by exactly those two keys — 67 bytes when both
+    are absent (`, "recorded_at": "2026-09-04T02:09:23Z"` is 39 and
+    `, "valid_from": "2026-09-04"` is 28), which is the ~60-70 B a lane
+    measured over three trim cycles. A preflight that says UNDER when the
+    gate will say OVER is worse than no preflight: it costs a full
+    authoring round-trip to discover.
     """
+    if as_staged:
+        staged = dict(record)
+        stamps = apply_staging_stamps(staged)
+        report = record_size_report(staged, as_staged=False)
+        report["measured"] = "as staged (the record the gate will see)"
+        report["staging_stamps_added"] = stamps
+        report["staging_overhead_bytes"] = report["bytes"] - _size_of(record)
+        return report
     total = _size_of(record)
     fields: list[dict[str, Any]] = []
     for key, value in record.items():
@@ -6317,9 +6357,9 @@ def stage_record_proposal(
                             for n, text in enumerate(failures, 1)))
     now = datetime.now(timezone.utc)
     # Freshness stamps: valid_from is the author's semantic date (defaulted to
-    # today), recorded_at is always the actual staging moment.
-    record.setdefault("valid_from", now.strftime("%Y-%m-%d"))
-    record["recorded_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # today), recorded_at is always the actual staging moment. Shared with the
+    # `--size` preflight so the two measure the same record (run-52 item 6).
+    apply_staging_stamps(record, now)
     if record.get("kind") == "attempt":
         attributes = record.get("attributes")
         law_screen = (

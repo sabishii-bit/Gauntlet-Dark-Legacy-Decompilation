@@ -360,7 +360,11 @@ def main(argv: list[str] | None = None) -> int:
             record_id_in_flight = record.get("id")
 
             def size_report():
-                report = record_size_report(record)
+                # AS STAGED, never as authored (run-52 item 6): staging
+                # stamps valid_from/recorded_at before the cap is applied,
+                # so a preflight over the file on disk under-reports by up
+                # to 67 bytes and can say UNDER where the gate says OVER.
+                report = record_size_report(record, as_staged=True)
                 report["largest_fields_line"] = format_size_fields(
                     report["largest_fields"])
                 report["verdict"] = (
@@ -371,6 +375,13 @@ def main(argv: list[str] | None = None) -> int:
                     if report["cap_applies"] else
                     f"no size cap applies to a {report['kind']!r} record"
                 )
+                if report.get("staging_overhead_bytes"):
+                    report["verdict"] += (
+                        f" (measured AS STAGED: {report['bytes']} B includes"
+                        f" {report['staging_overhead_bytes']} B of staging"
+                        f" stamps {report['staging_stamps_added']} the gate"
+                        " will add; the file on disk is smaller and is not"
+                        " what the cap sees)")
                 return report
 
             # --size COMPOSES with --dry-run (run-41 item 7). It used to be a

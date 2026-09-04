@@ -5975,6 +5975,81 @@ class T22AlreadyTriedFieldsTests(unittest.TestCase):
         self.assertEqual([r["field"] for r in rows], ["attributes.residual"])
 
 
+class T22SizePreflightMatchesTheGateTests(unittest.TestCase):
+    """`--size` measures the record the GATE sees (run-52 item 6).
+
+    `stage_record_proposal` stamps `valid_from` and `recorded_at` BEFORE
+    `_validate_record` applies the 16 KB attempt cap, and the preflight
+    measured the authored file. Measured on a boundary record built at
+    exactly the cap: authored 16384 B (`over_by` 0, "within the cap"),
+    staged 16451 B, and the gate refuses `OVER BY 67` — the ~60-70 B a
+    lane spent three trim cycles chasing. A preflight that says UNDER
+    where the gate says OVER costs a full authoring round-trip.
+    """
+
+    def record(self, padding):
+        return {
+            "id": "attempt.T22_size-boundary.20260904.v1",
+            "kind": "attempt", "schema_version": 1,
+            "function": "function:TextHeightMLines", "outcome": "neutral",
+            "attempted_axis": "boundary probe",
+            "attributes": {"law_screen": "none applicable: tooling",
+                           "residual": "x" * padding},
+        }
+
+    def boundary(self):
+        """The largest padding whose AUTHORED size is within the cap."""
+        lo, hi = 0, 20000
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if core._size_of(self.record(mid)) <= core.ATTEMPT_BYTE_CAP:
+                lo = mid
+            else:
+                hi = mid - 1
+        return self.record(lo)
+
+    def test_the_two_stamps_cost_exactly_sixty_seven_bytes(self):
+        record = {"id": "attempt.x.20260904.v1", "kind": "attempt"}
+        before = core._size_of(record)
+        added = core.apply_staging_stamps(record)
+        self.assertEqual(added, ["valid_from", "recorded_at"])
+        self.assertEqual(core._size_of(record) - before, 67)
+
+    def test_an_author_supplied_valid_from_is_not_overwritten(self):
+        record = {"id": "attempt.x.20260904.v1", "kind": "attempt",
+                  "valid_from": "2026-01-01"}
+        added = core.apply_staging_stamps(record)
+        self.assertEqual(added, ["recorded_at"])
+        self.assertEqual(record["valid_from"], "2026-01-01")
+
+    def test_the_authored_measurement_is_the_defect(self):
+        report = core.record_size_report(self.boundary())
+        self.assertEqual(report["over_by"], 0)
+
+    def test_as_staged_agrees_with_the_gate_at_the_boundary(self):
+        record = self.boundary()
+        report = core.record_size_report(record, as_staged=True)
+        self.assertGreater(report["over_by"], 0)
+        self.assertEqual(report["staging_overhead_bytes"], 67)
+        staged = dict(record)
+        core.apply_staging_stamps(staged)
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._validate_record(staged, "test")
+        self.assertIn(f"OVER BY {report['over_by']}", str(caught.exception))
+        self.assertIn(str(report["bytes"]), str(caught.exception))
+
+    def test_as_staged_does_not_mutate_the_callers_record(self):
+        record = self.boundary()
+        core.record_size_report(record, as_staged=True)
+        self.assertNotIn("recorded_at", record)
+        self.assertNotIn("valid_from", record)
+
+    def test_a_comfortable_record_still_reads_as_within_the_cap(self):
+        report = core.record_size_report(self.record(100), as_staged=True)
+        self.assertEqual(report["over_by"], 0)
+        self.assertTrue(report["cap_applies"])
+
+
 if __name__ == "__main__":
     argv = list(sys.argv)
     base = None
