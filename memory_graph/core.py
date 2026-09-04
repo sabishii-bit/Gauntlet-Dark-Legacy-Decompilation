@@ -7402,9 +7402,30 @@ def mechanism_sentences_naming(
 
 
 def webfrank_pin_mechanisms(
-    root: Path = REPO_ROOT, query: str | None = None
+    root: Path = REPO_ROOT, query: str | None = None,
+    include_without_mechanism: bool = False,
 ) -> list[dict[str, Any]]:
     """Search the `mechanism` prose on config/GUNE5D/webfrank.json pins.
+
+    ``include_without_mechanism`` decides whether a pin carrying NO mechanism
+    prose is returned at all. False for the SEARCH surfaces (`laws --query`
+    / `--residual`), which exist to search that prose and have nothing to
+    match without it; True for `brief`'s PIN SCREEN, which exists to
+    enumerate every FROZEN function in a TU, where a missing mechanism is not
+    a reason to omit one.
+
+    RUN-51 ITEM 6, reported as "dbgtext holds 2 rules, brief lists 1" and
+    measured at 6c2e07f78 over config/GUNE5D/webfrank.json as far larger:
+    **41 of 154 pins (27%) carry no mechanism**, so 27 of the 52 pinned TUs
+    listed fewer pins than they hold and ELEVEN listed ZERO — game/anim/anim,
+    game/anim/anim_play, game/audio/mempool, game/g3d/g3dpad,
+    game/g3d/sndvoice, game/game/pmotion, game/mb/mb_tree,
+    game/pb/pb_winglobals, game/sound/sounds, game/sound/sounds_evt,
+    game/sys/ml_mem. For those the mandatory screen read exactly like "this
+    TU has no pins", which is AGENTS.md trap 4's named failure mode: the
+    freeze gets discovered through a failed ninja instead. The worst live
+    case in run 51 is game/enemy/enemy at 3 of 10, under an active flip
+    claim.
 
     Requested by the GW lane: a pin's mechanism note carries the full
     derivation of a closed residual — the single densest description of that
@@ -7429,7 +7450,9 @@ def webfrank_pin_mechanisms(
                 continue
             mechanism = rule.get("mechanism")
             if not isinstance(mechanism, str):
-                continue
+                if not include_without_mechanism:
+                    continue
+                mechanism = ""
             function = rule.get("function") or ""
             haystack = f"{unit} {function} {mechanism}".lower()
             if tokens and not all(token in haystack for token in tokens):
@@ -7461,8 +7484,18 @@ def webfrank_pin_mechanisms(
                 "mechanism": text,
                 "mechanism_chars": len(text),
                 "source": "config/GUNE5D/webfrank.json",
-                "note": "a PIN, not a law: its source is FROZEN — screen it"
-                        " before editing the function (AGENTS.md trap 4)",
+                "note": ("a PIN, not a law: its source is FROZEN — screen it"
+                         " before editing the function (AGENTS.md trap 4)"
+                         if text else
+                         "a PIN, not a law: its source is FROZEN — screen it"
+                         " before editing the function (AGENTS.md trap 4)."
+                         " THIS PIN CARRIES NO `mechanism` PROSE, so nothing"
+                         " here records WHY it exists or what residual it"
+                         " closes: the freeze is real and its derivation is"
+                         " not written down. Treat it as undocumented debt,"
+                         " not as a lesser pin — 41 of 154 pins are in this"
+                         " state and they were invisible to this screen"
+                         " until run 51."),
             })
     return out
 
@@ -9574,6 +9607,42 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
     return found
 
 
+def _tu_matches_pin_unit(tu: str, unit: str) -> bool:
+    """Does a `brief` TU argument name the webfrank unit `unit`?
+
+    `brief` takes a PATH FRAGMENT, so `dbgtext` must match
+    `game/pb/dbgtext`, and a full spelling (`src/game/pb/dbgtext.cpp`) must
+    match it too. The old test was the plain pair `tu in unit or unit in tu`,
+    and the second half has no boundary: MEASURED at 6c2e07f78 over the 52
+    pinned units, `game/anim/anim` matched `game/anim/anim_play` and
+    `game/sound/sounds` matched `game/sound/sounds_evt` — 4 cross-matches in
+    2 pairs, each putting a FOREIGN TU's frozen function into a lane's pin
+    screen under the wrong unit. The fragment direction keeps its substring
+    test (a fragment is what it is); the longer-than-the-unit direction now
+    requires a path boundary.
+    """
+    text = (tu or "").strip().replace("\\", "/").strip("/")
+    if text.startswith("src/"):
+        text = text[4:]
+    for ext in (".cpp", ".c"):
+        if text.endswith(ext):
+            text = text[:-len(ext)]
+    if not text:
+        return False
+    return text in unit or text == unit or text.endswith("/" + unit)
+
+
+def _normalized_tu(tu: str) -> str:
+    """A `brief` TU argument reduced to the webfrank unit spelling."""
+    text = (tu or "").strip().replace("\\", "/").strip("/")
+    if text.startswith("src/"):
+        text = text[4:]
+    for ext in (".cpp", ".c"):
+        if text.endswith(ext):
+            text = text[:-len(ext)]
+    return text
+
+
 def _pin_provenance(root: Path, tu: str,
                     roster_names=None) -> list[dict[str, Any]]:
     """webfrank.json pins for this TU, each with its SOURCE-EXHAUSTION class.
@@ -9588,8 +9657,19 @@ def _pin_provenance(root: Path, tu: str,
     very park the rule then SUPERSEDED, so classing against live records
     alone reports "no trail" for exactly the best-evidenced pins.
     """
-    pins = [pin for pin in webfrank_pin_mechanisms(root, None)
-            if tu.rstrip("/") in pin["unit"] or pin["unit"] in tu]
+    # EVERY pin, mechanism or not (run-51 item 6): this is the mandatory
+    # freeze screen, not a prose search. 41 of 154 pins carry no mechanism
+    # and were silently absent here, leaving eleven pinned TUs reading like
+    # unpinned ones.
+    every = webfrank_pin_mechanisms(root, None,
+                                    include_without_mechanism=True)
+    # An EXACT unit spelling wins over the fragment reading. `game/anim/anim`
+    # is both a real unit and a substring of `game/anim/anim_play`, and the
+    # fragment reading put anim_play's frozen function in anim's screen.
+    exact = [pin for pin in every
+             if pin["unit"] == _normalized_tu(tu)]
+    pins = exact or [pin for pin in every
+                     if _tu_matches_pin_unit(tu, pin["unit"])]
     if not pins:
         return []
     wanted = {pin["function"] for pin in pins}
