@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/tests/test_rule_derive_emit.py (ClassMapCoverageTests.test_every_shipped_rule_key_is_in_the_map \u2014 the gate that fires, and BOOKKEEPING, the set to amend)",
+    "tools/gdl/rule_derive.py (RULE_CLASSES \u2014 the registry it screens against)",
+    "attempt.WS_mbworldtoscreen3d-the-recolor-caused-rotation-needs-the-post-recolor-stage-and-mb_camera-flips.20260904.v1 (the measurement, in attributes.residual)"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Add an `unreachability` object to any rule entry in config/GUNE5D/webfrank.json and run `python -m unittest discover tools/gdl/tests -b`. If it passes, BOOKKEEPING has been amended (or the test removed) and this law is spent -- the inline branch is then available and preferable, since it puts the denial in the file the reader is already holding. The law is also refuted, in the opposite direction, if `webfrank.py` ever rejects the unknown key at build time: the claim that the build is indifferent and only the suite objects is what makes this a trap rather than an ordinary validation error, and a build-time refusal would make it self-announcing.",
+  "id": "claim.law.WS_the-cx-inline-unreachability-branch-is-refused-by-a-green-gate-so-discharge-by-citation.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T15:01:53Z",
+  "schema_version": 1,
+  "subject": "tool:webfrank",
+  "valid_from": "2026-09-04",
+  "value": "THE INLINE BRANCH OF claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1 IS NOT MERELY UNDOCUMENTED, IT IS ACTIVELY REFUSED BY A GREEN-GATE -- so until the registry is amended, every pin discharging CX must use the CITATION branch. CX gives a rule author two ways to discharge the unreachability obligation: an `unreachability`-shaped {scope, premise_measurement, expiry_check, falsifier} block INLINE in the pin, or a citation to a record carrying a typed `denial`. It notes the schema 'has nowhere to put one'. MEASURED at fe993bb35, taking the inline branch first on game/mb/mb_camera::MBWorldToScreen3D: the BUILD is entirely happy -- webfrank.apply_patch reads its patch dict with .get() and rejects no unknown key, so `ninja` printed `build/GUNE5D/main.dol: OK` and the rule still served BYTE-EQUAL with the extra key present -- and the TEST SUITE FAILS: `python -m unittest discover tools/gdl/tests -b` gives `FAIL: test_rule_derive_emit.ClassMapCoverageTests.test_every_shipped_rule_key_is_in_the_map`, `AssertionError: Lists differ: ['unreachability'] != [] : a rule class ships that --emit cannot describe`. THE TWO SURFACES ARE INDEPENDENT AND THAT IS THE TRAP: a rule author who adds the block, rebuilds, sees green and commits has shipped a red suite, because the postprocessor validates the patch and the TEST validates the SCHEMA, and only the second knows the key exists. THE REGISTRY: the screen is `RULE_CLASSES` in tools/gdl/rule_derive.py against `BOOKKEEPING = {'function', 'before_sha256', 'after_sha256', 'audit', 'mechanism'}` in tools/gdl/tests/test_rule_derive_emit.py. THE CORRECT AMENDMENT IS TO `BOOKKEEPING`, NOT TO `RULE_CLASSES`: a RULE_CLASSES row advertises a verifier ('verifier', 'proves', 'refuses', 'requires_target') and an `unreachability` block has none, and adding it there would then have to satisfy the sibling assertion `test_every_map_entry_is_a_class_that_actually_ships`. Adding it to BOOKKEEPING is one line and admits the key as documentation, which is what it is. WHY THIS WENT UNFIXED IN RUN 55: both files sit inside the tool lane's `tools/gdl` prefix claim while the postprocessor lane's claim names only `tools/gdl/webfrank.py`, so the lane that hit the failure was not the lane that could fix it -- an ownership seam, not a disagreement. THE STANDING RULE UNTIL IT IS AMENDED: discharge CX by CITATION -- put the typed {scope, premise_measurement, expiry_check, falsifier} block in your attempt record, whose schema already has a `denial` field and already gates it, and have the pin's mechanism prose name that record plus its expiry_check command. That is sound, it is what three run-55 pins do, and its only cost is that the denial sits one hop from the file a reader is holding."
+}
