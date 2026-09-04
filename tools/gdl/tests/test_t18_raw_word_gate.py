@@ -140,8 +140,22 @@ class RawWordsLine(unittest.TestCase):
     def test_unmeasurable_says_so_rather_than_printing_a_zero(self):
         line = probe.raw_words_line(None, None, None, None, False)
         self.assertIn("not measurable", line)
-        self.assertIn("count-asymmetric", line)
         self.assertNotIn("RAW WORDS = 0", line)
+        # RUN-51 ITEM 4: it used to assert BOTH causes with an "or"
+        # ("count-asymmetric, OR the raw body could not be read") on a
+        # function that was neither. With no measured cause it now says the
+        # cause was not determined, and denies the count-asymmetry reading
+        # rather than offering it.
+        self.assertIn("NOT determined", line)
+        self.assertIn("NOT evidence of count asymmetry", line)
+
+    def test_a_measured_cause_replaces_the_guess(self):
+        reason = ("game/game/gamemain::fn_80051C78 (raw postprocess body):"
+                  " COUNT-ASYMMETRIC — target 105, ours 103 insns (ours -2)")
+        line = probe.raw_words_line(None, None, None, None, False,
+                                    reason=reason)
+        self.assertIn("target 105, ours 103", line)
+        self.assertNotIn("NOT determined", line)
 
 
 PRIOR_BEST = {"best_real": 16, "best_multiset": 0, "best_insns": "T86/O86",

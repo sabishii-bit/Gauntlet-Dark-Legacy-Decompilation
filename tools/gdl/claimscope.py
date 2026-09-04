@@ -352,6 +352,62 @@ def warn_or_refuse(unit, tool, repo=REPO, enforce=True, stream=None):
     return 0
 
 
+def real_units(repo=REPO):
+    """Every unit path that actually exists as a source file in this tree."""
+    base = Path(repo) / "src"
+    out = set()
+    if base.is_dir():
+        for path in base.rglob("*"):
+            if path.suffix in (".c", ".cpp") and path.is_file():
+                out.add(normalize(path.relative_to(base).as_posix()))
+    return out
+
+
+def audit_owned_units(claims=None, repo=REPO):
+    """Owned-unit entries that name NO unit in this tree (run-51 item 9c).
+
+    A claim's `owned_units` list is the ONLY channel the tools screen
+    (AGENTS.md, run 46), so an entry that names nothing protects nothing —
+    silently, because a unit no claim covers reads as FREE. Measured in run
+    50: the PR lane's seed TU was unprotected because its claim said
+    `game/ps2/ml_mem.c` while the file is `src/game/sys/ml_mem.c`; the
+    directory is wrong and the basename is right, which is exactly the shape
+    a basename lookup catches and no existing check looked for.
+
+    A DIRECTORY PREFIX (`tools/gdl`, `memory_graph`) is a legitimate entry
+    that names no source file, so it is verified as a directory instead and
+    reported as `prefix`, never as a miss.
+    """
+    claims = claims if claims is not None else load_claims(repo)
+    units = real_units(repo)
+    by_base = {}
+    for unit in units:
+        by_base.setdefault(unit.rsplit("/", 1)[-1], []).append(unit)
+    rows = []
+    for claim in claims:
+        for entry in claim["owned_units"]:
+            key = normalize(entry)
+            path, _block = split_block(key)
+            path = normalize(path)
+            if path in units:
+                continue
+            if (Path(repo) / path).is_dir() or (Path(repo) / key).exists():
+                rows.append({"owner": claim["owner"], "claim": claim["id"],
+                             "entry": entry, "status": "prefix"})
+                continue
+            base = path.rsplit("/", 1)[-1]
+            rows.append({
+                "owner": claim["owner"], "claim": claim["id"],
+                "entry": entry, "status": "UNRESOLVED",
+                "did_you_mean": sorted(by_base.get(base, [])),
+                "note": ("this entry names no source file and no directory in"
+                         " this tree, so every unit it was meant to protect"
+                         " reads as FREE to every tool that screens"
+                         " owned_units"),
+            })
+    return rows
+
+
 def main():
     args = [a for a in sys.argv[1:]]
     if "--self" in args:
@@ -378,6 +434,19 @@ def main():
     if "--blocks" in args:
         print(json.dumps(webfrank_block_owners(claims), indent=2))
         return 0
+    if "--audit" in args:
+        rows = audit_owned_units(claims)
+        bad = [row for row in rows if row["status"] == "UNRESOLVED"]
+        print(json.dumps({
+            "active_claims": len(claims),
+            "owned_unit_entries": sum(len(c["owned_units"]) for c in claims),
+            "unresolved": len(bad),
+            "rows": rows,
+            "note": ("an UNRESOLVED entry protects nothing: the units it was"
+                     " meant to cover read as FREE to probe.py and"
+                     " defake_gate.py. Fix the claim before dispatching."),
+        }, indent=2))
+        return 1 if bad else 0
     units = [a for a in args if not a.startswith("-")]
     if not units:
         print(__doc__)

@@ -207,6 +207,40 @@ def rule_rows(unit_filter=None):
     return rows
 
 
+# THE --out FILE DESCRIBES ITSELF (run-51 item 9a). The emitted object's only
+# key was `rules`, whose rows carry `attempt_records` and
+# `probed_form_records` — names that read as LISTS OF RECORD IDS and are
+# COUNTS. Two joins were written against them before the shape was noticed.
+# Renaming the fields would break every consumer of the file, so the file now
+# says what each field is, and what it is not, beside the data.
+OUT_SCHEMA = {
+    "rows_key": "rules",
+    "row_is": ("ONE WEBFRANK RULE (a pinned function), not one attempt and"
+               " not one record"),
+    "join_key": ["unit", "function"],
+    "fields": {
+        "unit": "str — repo-relative unit path, no src/ and no extension",
+        "function": "str — the pinned symbol, as webfrank.json spells it",
+        "words": "int|null — raw differing words (wf_word_diff)",
+        "insns": "int|null — instruction count of the function",
+        "atoms": "int — size of the rule body",
+        "stages": "list[str] — the rule's postprocessor stage keys",
+        "stage_count": "int — len(stages)",
+        "proof": "str — strict | value-eq | UNPROVEN",
+        "classification": "str|null — webfrank_audit's residual class",
+        "provenance": ("str|null — the FIRST record id cited in the pin's"
+                       " mechanism prose, or null. A SINGLE ID, not a list"),
+        "attempt_records": ("int COUNT of attempt records anchored on this"
+                            " function. NOT a list of record ids — the name"
+                            " reads like one and is not; join through"
+                            " `gdlmem find --function <function>` to get the"
+                            " ids"),
+        "probed_form_records": ("int COUNT of those attempts carrying a"
+                                " literal probed_form. NOT a list of ids"),
+    },
+}
+
+
 def _sort_key(row):
     return (row["words"] if row["words"] is not None else 10 ** 6,
             row["insns"] or 10 ** 6, row["unit"], row["function"])
@@ -271,7 +305,8 @@ def main(argv=None):
     if args.out:
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
         with open(args.out, "w") as handle:
-            json.dump({"rules": rows}, handle, indent=2, sort_keys=True)
+            json.dump({"schema": OUT_SCHEMA, "rules": rows}, handle,
+                      indent=2, sort_keys=True)
         print("wrote %s" % args.out)
     return 0
 

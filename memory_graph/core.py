@@ -640,6 +640,37 @@ _PPC_MNEMONIC = (
 )
 
 
+# SAVEDREGS' OWN TABLE IS A STREAM READING (run-51 item 7b). `savedregs.py`
+# exists to answer exactly the question this gate asks — which local lands in
+# which callee-saved register, read out of BOTH streams with no build — and
+# its verdict block quotes the two ROLES with the destination register
+# stripped:
+#
+#     r26: target holds `li 0`, ours holds `add r30,r28`
+#
+# `r26` appears in NO instruction there, so a record quoting savedregs'
+# verdict verbatim named a register the gate could not see cited, and two
+# submissions were refused for quoting the defs census itself. The two
+# accepted forms are the tool's own, and neither can be typed casually:
+#
+#   ROLE ROW    `r26: target holds `...`, ours holds `...``
+#   TABLE ROW   a register immediately followed by its `@0x` offset column,
+#               which is the first-definition table's shape
+_SAVEDREGS_ROLE_ROW_RE = re.compile(
+    r"\b([rf](?:3[01]|[12]\d|\d)):\s*target holds\s*`[^`]*`,"
+    r"\s*ours holds\s*`[^`]*`")
+_SAVEDREGS_TABLE_ROW_RE = re.compile(
+    r"\b([rf](?:3[01]|[12]\d|\d))(?:\s+\d+/\d+)?\s+@0x[0-9A-Fa-f]+\b")
+
+
+def _savedregs_cited_registers(text):
+    """Registers a savedregs TABLE or ROLE row names in `text`."""
+    out = set()
+    for pattern in (_SAVEDREGS_ROLE_ROW_RE, _SAVEDREGS_TABLE_ROW_RE):
+        out.update(pattern.findall(text or ""))
+    return out
+
+
 def _cited_instruction_spans(text, register):
     """Spans where `register` appears inside a quoted PPC INSTRUCTION.
 
@@ -693,11 +724,21 @@ def register_definition_gaps(statement, record_text):
     unaffected: run 37/38's failure named r20 in prose with no instruction
     quoted anywhere, which this still refuses.
 
+    A SAVEDREGS TABLE OR ROLE ROW DISCHARGES IT TOO (run-51 item 7b).
+    savedregs.py answers this gate's own question — which local lands in
+    which callee-saved register, read out of BOTH streams, no build — and
+    its verdict row strips the destination register from the two roles
+    (`r26: target holds `li 0`, ours holds `add r30,r28``), so quoting the
+    tool's answer verbatim left `r26` in no instruction at all. Two
+    submissions were refused for exactly that.
+
     Pure over two strings so every branch is tested without a graph.
     """
     text = record_text or ""
+    from_savedregs = _savedregs_cited_registers(text)
     return [register for register in _named_registers(statement)
-            if not _cited_instruction_spans(text, register)]
+            if register not in from_savedregs
+            and not _cited_instruction_spans(text, register)]
 
 
 def register_anchor_gaps(statement, record_text):
@@ -819,6 +860,56 @@ _WINDOW_SHAPE_RE = re.compile(
     re.I,
 )
 
+# THE COUNT-ASYMMETRY EXEMPTION (run-51 item 8).
+#
+# `outside every postprocessor class` is a phrase this project's TOOLS print.
+# `wf_word_diff` answers a count-asymmetric function with "— outside every
+# postprocessor class by construction", and `probe --raw` printed the same
+# sentence in its fallback line, so a record quoting the measurement it was
+# handed tripped a gate about verifier enumeration. PR and NC each lost a
+# submission that way, and AGENTS.md documents the identical false-positive
+# class for the run-44 slot gate: "that same gate's first EVIDENCE predicate
+# looked only for the literal tool name and scored eight records as
+# violations that quote the tool's OUTPUT verbatim".
+#
+# The exemption is not "it came from a tool" — it is that the claim has a
+# DIFFERENT AND COMPLETE DISCHARGE. Count asymmetry puts a function outside
+# every postprocessor class as a THEOREM (every shipped class is
+# instruction-count-preserving), so no verifier subset was run, none could
+# have been, and `verifiers_run` has nothing true to say. Proposal gate B
+# already forces such a record to quote its counts as N/N, which is the
+# evidence this looks for.
+_COUNT_ASYMMETRY_WORD_RE = re.compile(
+    r"count[- ]asymmetr\w*|\binstruction[- ]count[- ]delta\w*\b", re.I)
+# A quoted count PAIR only counts when the two numbers actually differ.
+# CALIBRATION CAUGHT THIS: the first draft accepted any `T\d+/O\d+`, and
+# attempt.HV_startshieldfx-and-drawblitflatquad-refuted-from-the-permute-
+# class.20260901.v1 quotes `insns T141/O141` — count PARITY — beside "NOT a
+# webfrank candidate at all" for a 6-token multiset difference. That is a
+# genuine gate-G target and the draft exempted it.
+_COUNT_PAIR_RES = (
+    re.compile(r"\bT(\d+)\s*/\s*O(\d+)\b"),
+    re.compile(r"\b(\d+)\s*vs\.?\s*(\d+)\s*ins\w*\b", re.I),
+)
+
+
+def _count_asymmetry_evidence(window):
+    """Does this text window establish that the two counts DIFFER?"""
+    if _COUNT_ASYMMETRY_WORD_RE.search(window or ""):
+        return True
+    for pattern in _COUNT_PAIR_RES:
+        for match in pattern.finditer(window or ""):
+            if match.group(1) != match.group(2):
+                return True
+    return False
+
+
+# How far from the phrase the evidence may sit. Record prose is one long
+# paragraph, but this is deliberately NOT the whole record: a record may
+# discuss a count-asymmetric SIBLING while closing THIS function on verifier
+# refusals, and a whole-record window would exempt it.
+_COUNT_ASYMMETRY_WINDOW = 240
+
 _POSTPROCESSOR_CLOSED_RE = re.compile(
     r"(?:postprocessor|webfrank)[- ](?:path|route|class)"
     r"\s*(?:is|are|remains?|stays?)?\s*(?:therefore\s+)?closed"
@@ -830,6 +921,30 @@ _POSTPROCESSOR_CLOSED_RE = re.compile(
     r"|not (?:a )?(?:webfrank|postprocessor)[- ](?:candidate|class)",
     re.I,
 )
+
+
+def postprocessor_closure_claim(substance):
+    """The closure phrase gate G must tax, or None (run-51 item 8).
+
+    Every match is checked against the COUNT-ASYMMETRY exemption above: a
+    match whose neighbourhood carries count-asymmetry evidence is discharged
+    by the COUNTS, not by a verifier subset, and the scan CONTINUES to the
+    next match rather than stopping — a record can quote the tool's
+    count-asymmetry sentence for one function AND separately claim a
+    verifier closure, and only the second is gate G's business.
+
+    Pure over one string, so both sides of the calibration are decided
+    without a corpus.
+    """
+    text = substance or ""
+    for match in _POSTPROCESSOR_CLOSED_RE.finditer(text):
+        lo = max(0, match.start() - _COUNT_ASYMMETRY_WINDOW)
+        hi = min(len(text), match.end() + _COUNT_ASYMMETRY_WINDOW)
+        if _count_asymmetry_evidence(text[lo:hi]):
+            continue
+        return match
+    return None
+
 
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
@@ -5129,6 +5244,20 @@ def hypothesis_count_consequence_warning(hypothesis: Any) -> str | None:
     text = " ".join(str(value or "") for value in hypothesis.values())
     if not text.strip():
         return None
+    # THE EXPLICIT KEY SILENCES IT, WHICH IS WHAT THE MESSAGE PROMISES
+    # (run-51, found while authoring this lane's own record). The message
+    # says "a `count_consequence` key silences this", and the check never
+    # looked for the KEY — it scanned the concatenated VALUES for count
+    # vocabulary, so the honest answer for a change that compiles nothing
+    # ("none: no compiled source is involved") warned anyway. MEASURED over
+    # all 225 hypothesis blocks in records/ and inbox/: 27 carry the key, 2
+    # of those warn today — this record and the already-accepted
+    # attempt.CV_ordered-datum-defect-queue-all-twelve-rows-refuted
+    # .20260903.v1, which answered "none - this is a screen-calibration
+    # change, no source edit and no instruction-count consequence". The
+    # other 163 warnings carry no key at all and are untouched.
+    if str(hypothesis.get(HYPOTHESIS_COUNT_FIELD) or "").strip():
+        return None
     if _COUNT_CONSEQUENCE_RE.search(text):
         return None
     return (
@@ -5781,7 +5910,7 @@ def _apply_proposal_gates(
             and str(record.get("outcome", "")).lower() in HELD_FIXED_OUTCOMES
             and _WEBFRANK_VERIFIER_RE.search(substance)
             and not _record_field(record, "verifiers_run")):
-        closed = _POSTPROCESSOR_CLOSED_RE.search(substance)
+        closed = postprocessor_closure_claim(substance)
         if closed:
             fail(
                 "a record closing the POSTPROCESSOR path for a function"
@@ -7402,9 +7531,30 @@ def mechanism_sentences_naming(
 
 
 def webfrank_pin_mechanisms(
-    root: Path = REPO_ROOT, query: str | None = None
+    root: Path = REPO_ROOT, query: str | None = None,
+    include_without_mechanism: bool = False,
 ) -> list[dict[str, Any]]:
     """Search the `mechanism` prose on config/GUNE5D/webfrank.json pins.
+
+    ``include_without_mechanism`` decides whether a pin carrying NO mechanism
+    prose is returned at all. False for the SEARCH surfaces (`laws --query`
+    / `--residual`), which exist to search that prose and have nothing to
+    match without it; True for `brief`'s PIN SCREEN, which exists to
+    enumerate every FROZEN function in a TU, where a missing mechanism is not
+    a reason to omit one.
+
+    RUN-51 ITEM 6, reported as "dbgtext holds 2 rules, brief lists 1" and
+    measured at 6c2e07f78 over config/GUNE5D/webfrank.json as far larger:
+    **41 of 154 pins (27%) carry no mechanism**, so 27 of the 52 pinned TUs
+    listed fewer pins than they hold and ELEVEN listed ZERO — game/anim/anim,
+    game/anim/anim_play, game/audio/mempool, game/g3d/g3dpad,
+    game/g3d/sndvoice, game/game/pmotion, game/mb/mb_tree,
+    game/pb/pb_winglobals, game/sound/sounds, game/sound/sounds_evt,
+    game/sys/ml_mem. For those the mandatory screen read exactly like "this
+    TU has no pins", which is AGENTS.md trap 4's named failure mode: the
+    freeze gets discovered through a failed ninja instead. The worst live
+    case in run 51 is game/enemy/enemy at 3 of 10, under an active flip
+    claim.
 
     Requested by the GW lane: a pin's mechanism note carries the full
     derivation of a closed residual — the single densest description of that
@@ -7429,7 +7579,9 @@ def webfrank_pin_mechanisms(
                 continue
             mechanism = rule.get("mechanism")
             if not isinstance(mechanism, str):
-                continue
+                if not include_without_mechanism:
+                    continue
+                mechanism = ""
             function = rule.get("function") or ""
             haystack = f"{unit} {function} {mechanism}".lower()
             if tokens and not all(token in haystack for token in tokens):
@@ -7461,8 +7613,18 @@ def webfrank_pin_mechanisms(
                 "mechanism": text,
                 "mechanism_chars": len(text),
                 "source": "config/GUNE5D/webfrank.json",
-                "note": "a PIN, not a law: its source is FROZEN — screen it"
-                        " before editing the function (AGENTS.md trap 4)",
+                "note": ("a PIN, not a law: its source is FROZEN — screen it"
+                         " before editing the function (AGENTS.md trap 4)"
+                         if text else
+                         "a PIN, not a law: its source is FROZEN — screen it"
+                         " before editing the function (AGENTS.md trap 4)."
+                         " THIS PIN CARRIES NO `mechanism` PROSE, so nothing"
+                         " here records WHY it exists or what residual it"
+                         " closes: the freeze is real and its derivation is"
+                         " not written down. Treat it as undocumented debt,"
+                         " not as a lesser pin — 41 of 154 pins are in this"
+                         " state and they were invisible to this screen"
+                         " until run 51."),
             })
     return out
 
@@ -9284,9 +9446,29 @@ def find_records(
         sql += " AND r.record_kind = ?"
         params.append(kind)
     if function:
+        # THREE SPELLINGS, because the corpus anchors records on more than
+        # one kind of entity (run-51 item 9b). Six accepted tool-lane attempt
+        # records carry `function: "project:gdl"` — a PROJECT anchor in the
+        # function field — and `find --function` matched neither
+        # `project:gdl` (the argument was split on ':' and rebuilt as
+        # `function:gdl`) nor `gdl`. Both spellings returned
+        # `"count": 0`, which reads as "no such record" and is how a lane
+        # loses its own predecessors: T9, T16, T17, T19, T20 and
+        # WF_t17-ordered-datum-rescreen were all unreachable by this facet.
+        #   1. `function:<name>`  the ordinary anchor
+        #   2. the argument VERBATIM, for a caller that pastes the field
+        #   3. any entity whose suffix after ':' is <name>, for a caller who
+        #      types the bare word
+        # Clause 3 CANNOT merge two entities today: measured over all 572
+        # entities (87 of them non-`function:` prefixed), suffix collisions
+        # with a function name number ZERO. Re-run that census before
+        # widening it further.
         name = function.split(":", 1)[-1]
-        sql += " AND fe.entity_key = ?"
-        params.append(f"function:{name}")
+        sql += (" AND (fe.entity_key = ? OR fe.entity_key = ?"
+                "      OR (fe.entity_key NOT LIKE 'function:%'"
+                "          AND substr(fe.entity_key,"
+                "                     instr(fe.entity_key, ':') + 1) = ?))")
+        params.extend([f"function:{name}", function, name])
     if tu:
         sql += " AND bm.object_name LIKE ?"
         params.append(f"%{tu}%")
@@ -9574,6 +9756,42 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
     return found
 
 
+def _tu_matches_pin_unit(tu: str, unit: str) -> bool:
+    """Does a `brief` TU argument name the webfrank unit `unit`?
+
+    `brief` takes a PATH FRAGMENT, so `dbgtext` must match
+    `game/pb/dbgtext`, and a full spelling (`src/game/pb/dbgtext.cpp`) must
+    match it too. The old test was the plain pair `tu in unit or unit in tu`,
+    and the second half has no boundary: MEASURED at 6c2e07f78 over the 52
+    pinned units, `game/anim/anim` matched `game/anim/anim_play` and
+    `game/sound/sounds` matched `game/sound/sounds_evt` — 4 cross-matches in
+    2 pairs, each putting a FOREIGN TU's frozen function into a lane's pin
+    screen under the wrong unit. The fragment direction keeps its substring
+    test (a fragment is what it is); the longer-than-the-unit direction now
+    requires a path boundary.
+    """
+    text = (tu or "").strip().replace("\\", "/").strip("/")
+    if text.startswith("src/"):
+        text = text[4:]
+    for ext in (".cpp", ".c"):
+        if text.endswith(ext):
+            text = text[:-len(ext)]
+    if not text:
+        return False
+    return text in unit or text == unit or text.endswith("/" + unit)
+
+
+def _normalized_tu(tu: str) -> str:
+    """A `brief` TU argument reduced to the webfrank unit spelling."""
+    text = (tu or "").strip().replace("\\", "/").strip("/")
+    if text.startswith("src/"):
+        text = text[4:]
+    for ext in (".cpp", ".c"):
+        if text.endswith(ext):
+            text = text[:-len(ext)]
+    return text
+
+
 def _pin_provenance(root: Path, tu: str,
                     roster_names=None) -> list[dict[str, Any]]:
     """webfrank.json pins for this TU, each with its SOURCE-EXHAUSTION class.
@@ -9588,8 +9806,19 @@ def _pin_provenance(root: Path, tu: str,
     very park the rule then SUPERSEDED, so classing against live records
     alone reports "no trail" for exactly the best-evidenced pins.
     """
-    pins = [pin for pin in webfrank_pin_mechanisms(root, None)
-            if tu.rstrip("/") in pin["unit"] or pin["unit"] in tu]
+    # EVERY pin, mechanism or not (run-51 item 6): this is the mandatory
+    # freeze screen, not a prose search. 41 of 154 pins carry no mechanism
+    # and were silently absent here, leaving eleven pinned TUs reading like
+    # unpinned ones.
+    every = webfrank_pin_mechanisms(root, None,
+                                    include_without_mechanism=True)
+    # An EXACT unit spelling wins over the fragment reading. `game/anim/anim`
+    # is both a real unit and a substring of `game/anim/anim_play`, and the
+    # fragment reading put anim_play's frozen function in anim's screen.
+    exact = [pin for pin in every
+             if pin["unit"] == _normalized_tu(tu)]
+    pins = exact or [pin for pin in every
+                     if _tu_matches_pin_unit(tu, pin["unit"])]
     if not pins:
         return []
     wanted = {pin["function"] for pin in pins}

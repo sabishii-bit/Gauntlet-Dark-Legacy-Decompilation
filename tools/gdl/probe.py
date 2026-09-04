@@ -287,6 +287,15 @@ hunk is inside the named function the two are the same bytes and nothing
 changes. Its success line always said "uncommitted work on other
 functions in this TU is gone", which is a receipt, not a guard.
 
+A DISCARD THAT REVERTS NOTHING EXITS 6 (run-51 item 5). `--discard
+--function <fn>` when every uncommitted hunk lies OUTSIDE <fn>, and plain
+`--discard` when the file already matches HEAD, both used to print a
+success line and exit 0 — indistinguishable from a real discard to any
+script, while `git diff` still showed the edit. `--revert` in the same
+shape already exited PARTIAL_RESTORE_EXIT. A discard that DID revert
+hunks still exits 0 even when sibling hunks survive: that is the
+documented contract of --function, not a failure.
+
 (3) NO RESTORE MAY DELETE COMMITTED WORK. Both banked states (the rolling
 snapshot and the session .base) are stamped with the commit they were
 taken at, exactly as defake_gate anchors its baselines, and any restore
@@ -1135,7 +1144,41 @@ def _wf_word_diff_module():
         return None
 
 
-def raw_word_residual(unit, fn):
+# dtk suffixes LOCAL symbol names with their address, so the target's
+# `long2str_800E74B8` and our static `long2str` are one function under two
+# spellings and every tool here strips the suffix to pair them. For a name
+# whose PREFIX is the placeholder kind, the suffix IS the identity: stripping
+# `fn_800D967C` yields the string `fn`, `lbl_8023D000` yields `lbl`.
+# cs_constsweep._strip_dtk records the lesson from the `lbl` half ("fndiff
+# learned this the hard way: stripping collapsed every pool label to bare
+# 'lbl'") and matchtool, fnskel, cv_crossjoin, rs_composed_census and
+# fndiff.parse all guard the prefix. probe.py was the one module that did not,
+# and the `fn` half is what claim.law.MP_probe-raw-drops-the-raw-word-count-
+# for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-
+# tu.20260903.v1 measured: every `fn_*` name collapsed to `fn`.
+#
+# CALIBRATED TWO-SIDED over the 1,641 function names in the 53 raw
+# postprocess bodies `--raw` scores (T21_scratch/t21_suffix_census.py, run 51):
+#   275 names match the strip regex, and 275 of 275 (100%) are prefix-guarded
+#       `fn_*` names whose stripped form is the bare string `fn`
+#   POSITIVES 260 names measurable under the FULL spelling and NOT under the
+#             stripped one — every one of them a raw word count the loop
+#             could never print
+#   NEGATIVES 0 names measurable under the stripped spelling and not the full
+#             one, so the guard takes nothing away
+#   15 further names are measurable under NEITHER spelling: genuinely
+#      count-asymmetric functions, which is what the fallback message is for
+PLACEHOLDER_NAME_PREFIXES = ("fn_", "lbl_", "jumptable_")
+
+
+def strip_dtk_suffix(name):
+    """`long2str_800E74B8` -> `long2str`; `fn_800D967C` -> itself."""
+    if name.startswith(PLACEHOLDER_NAME_PREFIXES):
+        return name
+    return re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+
+
+def raw_word_residual(unit, fn, fn_stripped=None, notes=None):
     """(words, insns, mnemonic_divergence, pinned) for the RAW body, or None.
 
     Run-48 item 1. The differing-WORD count is the number AGENTS.md makes
@@ -1151,10 +1194,21 @@ def raw_word_residual(unit, fn):
     count-asymmetric function raises SystemExit inside word_streams, and a
     function outside every postprocessor class by construction has no word
     residual to report.
+
+    Both SPELLINGS are tried (run-51 item 1), in the order the caller gives
+    them, exactly as `score_function` and `object_digest` already do — the
+    single non-tolerant use of the stripped name is the defect the MP law
+    measured. `word_streams` resolves the name in BOTH objects with an exact
+    `webfrank._find_symbol` lookup, so a name that only one object carries
+    fails whichever spelling is passed; trying both is what makes the
+    placeholder names (which both objects spell identically) measurable.
     """
     module = _wf_word_diff_module()
     if module is None:
         return None
+    names = [fn]
+    if fn_stripped and fn_stripped != fn:
+        names.append(fn_stripped)
     try:
         # wf_word_diff resolves the raw object itself (cn_analyze.our_object,
         # which knows only the `body` stage) while `--raw` builds whatever
@@ -1167,20 +1221,43 @@ def raw_word_residual(unit, fn):
         measured_at = Path(_our_object(unit)[0]).resolve()
         if measured_at != Path(raw_object_target(unit)).resolve():
             return None
-        _kind, insns, rows, mnemonic = module.word_diff(unit, fn)
-        pinned = fn in module.rule_served_functions(unit, module.ROOT)
-        # The PER-WORD decode (run-48 item 4), so the loop's CLASS line is
-        # the same one wf_word_diff prints and carries the same correction:
-        # a MNEMONIC-divergence-of-zero function whose words are branch
-        # displacements or literals is not a register-assignment question.
-        decode = module.decode_counts(
-            rows, module.reloc_types_by_index(unit, fn, insns))
-    except Exception:
+        served = module.rule_served_functions(unit, module.ROOT)
+        for name in names:
+            try:
+                # SystemExit, not Exception: word_streams raises SystemExit
+                # for a count-asymmetric function and for a missing object,
+                # and SystemExit is a BaseException — the blanket `except
+                # Exception` below never caught it, so a count-asymmetric
+                # function under `--raw` terminated the probe instead of
+                # printing the fallback line its own docstring promises.
+                _kind, insns, rows, mnemonic = module.word_diff(unit, name)
+            except (Exception, SystemExit) as error:
+                # WHICH failure it was, when the caller asks (run-51 item 4's
+                # sibling screen). The fallback line used to assert BOTH
+                # causes with an "or" — "count-asymmetric, or the raw body
+                # could not be read" — and the MP law's whole complaint was
+                # that it named the one conclusion that takes a function out
+                # of every postprocessor class on a function squarely in one.
+                asym = getattr(module, "CountAsymmetric", None)
+                if notes is not None and asym and isinstance(error, asym):
+                    notes.append(error.report())
+                continue
+            pinned = name in served
+            # The PER-WORD decode (run-48 item 4), so the loop's CLASS line
+            # is the same one wf_word_diff prints and carries the same
+            # correction: a MNEMONIC-divergence-of-zero function whose words
+            # are branch displacements or literals is not a
+            # register-assignment question.
+            decode = module.decode_counts(
+                rows, module.reloc_types_by_index(unit, name, insns))
+            return len(rows), insns, mnemonic, pinned, decode
         return None
-    return len(rows), insns, mnemonic, pinned, decode
+    except (Exception, SystemExit):
+        return None
 
 
-def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None):
+def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None,
+                   reason=None):
     """The RAW-WORD line printed under a `--raw` verdict, or "".
 
     Pure over the measurement so both the delta arithmetic and the class
@@ -1190,16 +1267,40 @@ def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None):
     not be taken — the class line then falls back to the mnemonic reading.
     """
     if words is None:
-        return ("[RAW WORDS: not measurable — the two streams are"
-                " count-asymmetric, or the raw body could not be read. A"
-                " count-asymmetric function is outside every postprocessor"
-                " class by construction, so there is no word residual to"
-                " arbitrate on.]")
+        if reason:
+            # The MEASURED cause, not the two-cause "or". `reason` is
+            # wf_word_diff's own CountAsymmetric report, which carries the
+            # labelled counts.
+            return f"[RAW WORDS: {reason}]"
+        return ("[RAW WORDS: not measurable, and the cause was NOT"
+                " determined — the raw body could not be read for either"
+                " spelling of this name. This is NOT evidence of count"
+                " asymmetry: a count-asymmetric function reports itself, with"
+                " its two counts, and that report would be printed here"
+                " instead.]")
     delta = ("" if prev_words is None
              else f" ({words - prev_words:+d} vs the last probe's"
                   f" {prev_words})")
     unreachable = (0 if not decode
                    else decode.get("BRANCH", 0) + decode.get("IMMEDIATE", 0))
+    if not words:
+        # A residual CLASS on a function with no residual is a sentence about
+        # nothing, and it reads as a finding: the old line said "CLASS:
+        # RECOLOR — index-aligned, only register fields differ" over zero
+        # differing words. wf_word_diff prints its CLASS line only `if rows`;
+        # this is the same rule in the loop. (Reachable at all only since the
+        # run-51 fix — `fn_*` names could never get here.)
+        return (f"RAW WORDS = 0{delta} of {insns} insns — every instruction"
+                " WORD of the raw body equals the target's, so there is no"
+                " residual to classify. Words are not the whole object: the"
+                " RELOC-SYMBOL screen is the one class this count is blind"
+                " to (claim.law.SA_a-wrong-global-that-shares-an-instruction-"
+                "word-is-invisible-to-every-score-including-the-word-count"
+                ".20260902.v1)."
+                + ("\n  PINNED: a webfrank rule serves this function, and the"
+                   " raw body already matches without it — a promotion"
+                   " candidate: the rule can be DELETED (AGENTS.md promotion"
+                   " directive), not merely replayed." if pinned else ""))
     if mnemonic == 0 and unreachable:
         klass = (f"RECOLOR-SHAPED BUT NOT RECOLOURABLE — index-aligned, but"
                  f" {decode.get('BRANCH', 0)} BRANCH and"
@@ -1435,7 +1536,7 @@ def rescore_after_restore(unit, fn, state_file, why):
     The point is only that the numbers a later probe compares against
     describe the tree that is actually here.
     """
-    fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
+    fn_stripped = strip_dtk_suffix(fn)
     real, insns = score_function(unit, fn, fn_stripped, [])
     if real is None:
         print(f"[{why}: could not re-score {fn} after the restore — fndiff"
@@ -3519,6 +3620,23 @@ def tu_sibling_regressions(unit):
                  " — NOT the current HEAD, so a row here may predate this"
                  " edit; re-take with --at-head to be sure")
         return verdicts, f"{path} anchored at {anchor}{drift}"
+    except SystemExit as error:
+        # defake_gate.run_fndiff refuses with SystemExit when fndiff did not
+        # MEASURE the unit — a BaseException the `except Exception` below
+        # never caught, so before run-51 item 2 the refusal could only be
+        # reached by not being raised at all. The refusal is the honest
+        # answer here: the caller turns a None into TU-SCOPE UNGATED, which
+        # is fail-closed and says the check did not run, instead of naming
+        # every sibling in the TU as destroyed.
+        detail = str(error).strip().splitlines()
+        head = detail[0] if detail else "fndiff did not measure this unit"
+        return None, (
+            f"the TU cross-check could not measure the unit — {head}"
+            " (under --raw this is the ordinary case: --raw exists BECAUSE a"
+            " drifted pin blocks the postprocessed build, and this"
+            " cross-check needs that same build. The baseline is a"
+            " postprocessed-object measurement, so it cannot be compared"
+            " against a raw one either)")
     except Exception as error:
         return None, f"the TU cross-check raised {type(error).__name__}: {error}"
 
@@ -4000,8 +4118,106 @@ def report_fuzzy(unit, fn, fn_stripped):
     return val
 
 
+def insn_gap(insns):
+    """(target, ours, ours - target) from a score_function `insns`, or None.
+
+    `score_function` returns `"T682/O680"` or the literal `"exact"`; anything
+    else (None, an unparsable string) means the counts are not known and the
+    caller must not pretend otherwise.
+    """
+    if insns == "exact":
+        return None, None, 0
+    match = re.match(r"^T(\d+)/O(\d+)$", insns or "")
+    if not match:
+        return None
+    target, ours = int(match.group(1)), int(match.group(2))
+    return target, ours, ours - target
+
+
+def count_parity_note(base_insns, cur_insns):
+    """(headline_override, note) for a COUNT-CHANGING edit, or (None, None).
+
+    RUN-51 ITEM 3. `--arbitrate` printed `fuzzy FELL — REVERT to the banked
+    state even though real IMPROVED` for an edit that moved the instruction
+    count TOWARD the target and emptied the ours-only opcode multiset. That
+    recommendation is not merely unsupported by the governing law — the law
+    says the OPPOSITE for exactly this state:
+
+      claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1
+      "read `fndiff --count`'s insn parity FIRST. If the change restored
+       parity, prefer real and expect fuzzy to lag. If the change left parity
+       unchanged or broke it, prefer fuzzy and go read the --ops multiset"
+
+    and it was derived on precisely this shape: damage_enemy went 570/571 ->
+    571/571 with real 151 -> 66 while fuzzy REGRESSED 99.4046 -> 99.2207,
+    because an off-by-one count displaces every downstream branch and fuzzy's
+    offset-tolerant measure barely notices.
+    claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1 is the
+    same finding from two more functions (140/139 -> 140/140 and 355/354 ->
+    355/355, both fuzzy DOWN, both the better result).
+
+    The arbiter's fuzzy-decides rule is sound where it was scoped — EQUAL
+    counts, where the two streams differ in what the instructions ARE — and
+    the loop simply never read the counts, so it applied that rule outside
+    its scope and could not say so.
+
+    TWO-SIDED CALIBRATION of the trigger (the two states' ours-vs-target gap
+    differs), over all 3,032 comparable function pairs in 257 units
+    (T21_scratch/t21_parity_population.py):
+      POSITIVES 117 functions (3.9%) sit OFF count parity today, so a
+                parity-restoring edit is possible on them and the shipped
+                arbiter can invert the law; 46 of those are a gap of exactly
+                +1, the shape the law was derived on
+      NEGATIVES 2,915 functions (96.1%) are AT parity; an edit there leaves
+                both counts equal, this branch cannot fire, and the arbiter
+                text is unchanged
+    Unknown counts (`insns` absent or unparsable) also return (None, None):
+    an unread count may not become a verdict.
+    """
+    base, cur = insn_gap(base_insns), insn_gap(cur_insns)
+    if base is None or cur is None:
+        return None, None
+    base_gap, cur_gap = base[2], cur[2]
+    if base_gap == cur_gap:
+        return None, None
+    counts = (f"ours {base[1]} -> {cur[1]} against target"
+              f" {cur[0] if cur[0] is not None else base[0]}"
+              if base[1] is not None and cur[1] is not None else
+              f"count gap {base_gap:+d} -> {cur_gap:+d}")
+    law = ("claim.law.insn-count-parity-outranks-local-opcode-fidelity"
+           ".20260831.v1")
+    if cur_gap == 0:
+        return ("COUNT PARITY RESTORED — KEEP the current state, and read"
+                " the aligned diff before believing any fuzzy loss",
+                f"  COUNT PARITY: this edit RESTORED instruction-count parity"
+                f" ({counts}). {law} scopes the fuzzy-decides rule to EQUAL"
+                " counts and inverts it here: an off-by-one count displaces"
+                " every downstream branch, so `real` is normally right and"
+                " fuzzy is expected to LAG (damage_enemy: 570/571 -> 571/571,"
+                " real 151 -> 66, fuzzy 99.4046 -> 99.2207 — kept). Confirm"
+                " with `fndiff --ops` and the aligned `fnasm --diff`; the"
+                " diff read remains the operative step.")
+    if base_gap == 0:
+        return ("COUNT PARITY LOST — REVERT",
+                f"  COUNT PARITY: this edit BROKE instruction-count parity"
+                f" ({counts}). Parity is categorical: whatever either metric"
+                f" says, a state at parity outranks one that is not ({law}).")
+    if abs(cur_gap) < abs(base_gap):
+        direction = "TOWARD"
+    else:
+        direction = "AWAY FROM"
+    return (f"OUT OF SCOPE — the instruction COUNT moved {direction} the"
+            " target, so the fuzzy-decides rule does not apply; no"
+            " keep/revert is recommended from these two numbers",
+            f"  COUNT PARITY: neither state is at parity ({counts}), and the"
+            f" gap moved {direction} it. {law} scopes the fuzzy-decides rule"
+            " to EQUAL counts, so the fuzzy delta below is reported but does"
+            " NOT arbitrate. Close the count first, then re-arbitrate.")
+
+
 def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
-                    moved=(), size=None, total_code=None):
+                    moved=(), size=None, total_code=None,
+                    base_insns=None, cur_insns=None):
     """The four-number arbitration readout, as pure text.
 
     A real/fuzzy DISAGREEMENT is the whole reason this mode exists, so the
@@ -4012,10 +4228,18 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     Fuzzy that is UNMEASURED never becomes a verdict — it prints
     INCONCLUSIVE, because `real` alone cannot arbitrate a disagreement it is
     one half of.
+
+    THE INSTRUCTION COUNTS ARE PART OF THE READOUT (run-51 item 3), and they
+    are read BEFORE the fuzzy delta: see `count_parity_note`. Both `insns`
+    arguments default to None so a caller that has no counts gets exactly the
+    old text.
     """
 
     def fz(value):
         return "n/a" if value is None else f"{value:.4f}%"
+
+    def ic(value):
+        return "" if not value else f"  insns {value}"
 
     lines = [
         "ARBITRATION (one call, both states built; no verdict computed,"
@@ -4025,9 +4249,12 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
         " word HERE is --rebase-best (defake_gate now takes that spelling"
         " too). Same word, two meanings, in two tools one loop alternates"
         " between — so read the ARBITER line below, then run the accept.",
-        f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}",
-        f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}",
+        f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}"
+        f"{ic(base_insns)}",
+        f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}"
+        f"{ic(cur_insns)}",
     ]
+    parity_verdict, parity_note = count_parity_note(base_insns, cur_insns)
     real_delta = None
     if base_real is not None and cur_real is not None:
         real_delta = cur_real - base_real
@@ -4037,7 +4264,16 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
                                               size, total_code))
         lines.append(f"  DELTA              real {real_delta:+d} "
                      f" fuzzy {fuzzy_text}")
-    if base_fuzzy is None or cur_fuzzy is None:
+    if parity_verdict is not None:
+        # The count is read FIRST and it OVERRIDES, because the fuzzy-decides
+        # rule is scoped to equal counts. The fuzzy delta still prints below.
+        lines.append(f"  ARBITER: {parity_verdict}")
+        lines.append(parity_note)
+        if base_fuzzy is not None and cur_fuzzy is not None:
+            lines.append(
+                f"  (fuzzy delta at unequal counts: "
+                f"{cur_fuzzy - base_fuzzy:+.4f} — reported, not arbitrating)")
+    elif base_fuzzy is None or cur_fuzzy is None:
         lines.append(
             "  ARBITER: INCONCLUSIVE — fuzzy is unmeasured on"
             f" {'the banked' if base_fuzzy is None else 'the current'} state"
@@ -4307,7 +4543,8 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
     size, total = function_weight(unit, fn, fn_stripped)
     print(arbitrate_table(label, banked[0], banked[2], current[0], current[2],
                           moved=moved_sections(banked[3], current[3]),
-                          size=size, total_code=total))
+                          size=size, total_code=total,
+                          base_insns=banked[1], cur_insns=current[1]))
     return 0
 
 
@@ -4740,6 +4977,24 @@ FUZZY_NO_NUMBER_EXIT = 4
 # that wants to branch on exactly that needs its own code.
 PARTIAL_RESTORE_EXIT = 5
 
+# A restore that DECLINED: it ran, it found the function, and it reverted
+# nothing, because everything uncommitted in the TU lies outside the function
+# it was pointed at (or, whole-file, because the tree already IS HEAD).
+# Run-51 item 5, reproduced at 7d8142f77 on game/movie/movieplayer with one
+# added line inside `MoviePlayer::~MoviePlayer`:
+#
+#   $ probe.py game/movie/movieplayer fn_800D967C --discard --function
+#   discarded (function-scoped): src\game\movie\movieplayer.cpp — 0 hunk(s)
+#   inside fn_800D967C reverted; 1 hunk(s) elsewhere in the TU left untouched
+#   EC=0                                   <- and `git diff` still shows +1/-0
+#
+# The prose says it plainly; the EXIT CODE said "done". `--revert` in the
+# same shape already exits PARTIAL_RESTORE_EXIT, so the two spellings of one
+# operation disagreed. Distinct from 5 because nothing was restored AT ALL:
+# a caller retrying with --whole-file wants to tell "reverted some" from
+# "reverted none".
+NOTHING_RESTORED_EXIT = 6
+
 
 def unknown_flags(argv, known=KNOWN_FLAGS):
     """[(flag, [suggestions])] for every `--flag` this tool does not know."""
@@ -4828,7 +5083,7 @@ def main():
         # before the ordinary build/score path because it owns its own
         # builds, banks nothing, and computes no verdict.
         return run_arbitrate(
-            unit, fn, re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn), source,
+            unit, fn, strip_dtk_suffix(fn), source,
             raw_flag=["--raw"] if "--raw" in sys.argv else [],
             vs_baseline="--vs-baseline" in sys.argv,
             vs_head="--vs-head" in sys.argv)
@@ -4880,8 +5135,17 @@ def main():
                 except ValueError as error:
                     print(f"cannot discard --function: {error}")
                     return 1
+                declined = new_text == source.read_bytes().decode("latin-1")
                 source.write_bytes(new_text.encode("latin-1"))
-                print(f"discarded (function-scoped): {source} — {notes}")
+                if declined:
+                    print(f"NOTHING DISCARDED: {source} is unchanged —"
+                          f" {notes}. This invocation reverted nothing: every"
+                          f" uncommitted hunk in this TU lies OUTSIDE {fn}."
+                          " Re-run with --whole-file to take them all back"
+                          " deliberately, or point --function at the function"
+                          " that actually carries the edit.")
+                else:
+                    print(f"discarded (function-scoped): {source} — {notes}")
                 restore_transient_pins(unit)
                 warn_outside_edits(source, None)
                 if "--no-rebuild" in sys.argv:
@@ -4891,10 +5155,19 @@ def main():
                                           "--discard --function")
                 else:
                     invalidate_prev_state(state_file, "--discard --function")
-                return 0
+                return NOTHING_RESTORED_EXIT if declined else 0
+        # The same question one level out: a whole-file discard of a tree
+        # that already IS HEAD reverted nothing either, and said "discarded".
+        declined = source.read_bytes() == head_bytes_now
         source.write_bytes(head_bytes_now)
-        print(f"discarded: {source} restored to HEAD (whole file —"
-              " uncommitted work on other functions in this TU is gone)")
+        if declined:
+            print(f"NOTHING DISCARDED: {source} already matches HEAD —"
+                  " this TU carries no uncommitted source change. (Header"
+                  " edits and webfrank.json are outside this file and are"
+                  " reported separately below.)")
+        else:
+            print(f"discarded: {source} restored to HEAD (whole file —"
+                  " uncommitted work on other functions in this TU is gone)")
         restore_transient_pins(unit)
         # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
         warn_outside_edits(source, None)
@@ -4904,7 +5177,7 @@ def main():
             rescore_after_restore(unit, fn, state_file, "--discard")
         else:
             invalidate_prev_state(state_file, "--discard")
-        return 0
+        return NOTHING_RESTORED_EXIT if declined else 0
     # NAMED BANKS (run-42 item 3). The rolling snapshot is one slot that
     # every banking verdict overwrites, so a multi-axis lane had nowhere to
     # keep the base it wanted to come back to; SA hand-rolled scratch copies
@@ -5134,8 +5407,10 @@ def main():
 
     raw_flag = ["--raw"] if raw else []
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
-    # names; accept either spelling here so one name works everywhere.
-    fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
+    # names; accept either spelling here so one name works everywhere. The
+    # PREFIX guard is what keeps `fn_800D967C` from becoming the string `fn`
+    # (see strip_dtk_suffix).
+    fn_stripped = strip_dtk_suffix(fn)
     real, insns = score_function(unit, fn, fn_stripped, raw_flag)
 
     if real is None:
@@ -5150,11 +5425,13 @@ def main():
     # `probe --raw` followed by a hand-paired `wf_word_diff.py` call.
     raw_words = raw_insns = raw_mnemonic = raw_decode = None
     raw_pinned = False
+    raw_notes = []
     if raw:
-        measured = raw_word_residual(unit, fn_stripped)
+        measured = raw_word_residual(unit, fn, fn_stripped, raw_notes)
         if measured is not None:
             (raw_words, raw_insns, raw_mnemonic, raw_pinned,
              raw_decode) = measured
+    raw_reason = raw_notes[0] if raw_notes else None
 
     if "--stateless" in sys.argv:
         # Sweep mode: no state read, no banking, no verdict-vs-best —
@@ -5164,7 +5441,7 @@ def main():
               " or compared; pair with git for reverts")
         if raw:
             print(raw_words_line(raw_words, None, raw_insns, raw_mnemonic,
-                                 raw_pinned, raw_decode))
+                                 raw_pinned, raw_decode, raw_reason))
         return 0
 
     # The opcode-multiset token count is the STRUCTURE metric: `real` is a
@@ -5530,7 +5807,7 @@ def main():
     # to fetch with a second, hand-paired tool call on every A/B.
     if raw:
         line = raw_words_line(raw_words, prev_words, raw_insns, raw_mnemonic,
-                              raw_pinned, raw_decode)
+                              raw_pinned, raw_decode, raw_reason)
         if line:
             print(line)
         print(f"  Read the residual with `python tools/gdl/fnasm.py {unit}"

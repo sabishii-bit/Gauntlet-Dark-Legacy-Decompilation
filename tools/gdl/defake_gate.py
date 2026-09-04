@@ -1619,12 +1619,49 @@ def format_roster(unit, rows, has_baseline):
 
 
 def run_fndiff(unit, flag):
+    """fndiff's stdout for one view, or SystemExit when it did not measure.
+
+    ANY non-zero return code is a refusal now (run-51 item 2). It used to
+    refuse only when the output contained `missing:`, and the other failure
+    — fndiff's own `NINJA FAILED rebuilding <obj>:` banner, printed on
+    STDOUT with return code 1 — flowed straight through as if it were a
+    roster. `parse_classify` finds no rows in a build log, so `snapshot`
+    returned `{}` and `compare(baseline, {})` reported EVERY function in the
+    baseline as `function vanished from object`.
+
+    REPRODUCED at 5010e1b74 on game/movie/movieplayer with the build broken
+    (any cause; the field case is a WEBFRANK abort under `--raw`, where the
+    postprocessed object is exactly what a drifted pin blocks):
+
+        run_fndiff --classify stdout length: 1058
+        first 300 chars: 'NINJA FAILED rebuilding
+          build\\GUNE5D\\src\\game\\movie\\movieplayer.o:\\n[1/2] MWCC ...'
+        snapshot entries: 0
+        verdict rows: 52  REGRESSION: 52  'vanished': 52
+            ('PlayVQMovie', 'REGRESSION', 'function vanished from object')
+
+    which is the `TU-SCOPE REGRESSED  51 BYTE-EXACT sibling(s) lost` of
+    claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-
+    suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1
+    (51 = 52 minus the probed function, which the caller filters out). The
+    gate refused the bank either way, so the OUTCOME was right — but it was
+    reached through a named list of destroyed functions that do not exist,
+    and a lane cannot tell that finding from a real one.
+
+    THE DISCRIMINANT IS THE RETURN CODE, NOT AN EMPTY ROSTER: an empty
+    roster from a SUCCESSFUL fndiff is a legitimate measurement (a unit with
+    no functions), and refusing on emptiness would turn that into an error.
+    """
     result = subprocess.run(
         [sys.executable, str(FNDIFF), unit, flag],
         capture_output=True, text=True,
     )
-    if result.returncode != 0 and "missing:" in (result.stdout + result.stderr):
-        raise SystemExit(f"fndiff failed for {unit}:\n{result.stdout}{result.stderr}")
+    if result.returncode != 0:
+        raise SystemExit(
+            f"fndiff {flag} did not measure {unit} (exit"
+            f" {result.returncode}) — every reading built on this would"
+            " describe an object that was never produced:\n"
+            f"{result.stdout}{result.stderr}")
     return result.stdout
 
 
