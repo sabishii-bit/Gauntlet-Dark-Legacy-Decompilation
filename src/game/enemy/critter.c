@@ -1042,6 +1042,7 @@ f32 *delta;
     f32 contact[3];
     u8 unusedLow[4];
     void *surface;
+    f32 *cpos;
     f32 *from;
     f32 wallRadius;
     f32 radius;
@@ -1058,7 +1059,8 @@ f32 *delta;
     s32 offset;
     s32 grounded;
 
-    from = c->pos;
+    cpos = c->pos;
+    from = cpos;
     surface = NULL;
     minRise = (f32)(-16.0 * (f64)gClockFrameStep);
     wallRadius = ((CritterPackedType *)c->hdr)->wallRadius;
@@ -1096,16 +1098,19 @@ f32 *delta;
         surface = EnemyWallCollide(wallRadius, from, probe, contact);
     }
 
-    result = 0;
     if (surface != NULL) {
-        CritterWorldDamage(c, surface, c->pos, contact);
-        if ((*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x38) == 0) {
-            if (SlideAlongWall(wallRadius, from, delta, contact,
-                               lbl_8023CA98 + 4) < 0) {
-                delta[2] = delta[0] = 0.0f;
-                result = 2;
-            }
+        CritterWorldDamage(c, surface, cpos, contact);
+        if ((*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x38) != 0) {
+            result = 0;
+        } else if (SlideAlongWall(wallRadius, from, delta, contact,
+                                  lbl_8023CA98 + 4) < 0) {
+            delta[0] = delta[2] = 0.0f;
+            result = 2;
+        } else {
+            result = 0;
         }
+    } else {
+        result = 0;
     }
 
     direction[0] = delta[0];
@@ -1113,20 +1118,19 @@ f32 *delta;
     direction[2] = delta[2];
     length = NormalVector(direction);
     reach = wallRadius + length;
-    probe[0] = c->pos[0] + direction[0] * reach;
-    probe[1] = c->pos[1] + direction[1] * reach;
-    probe[2] = c->pos[2] + direction[2] * reach;
+    probe[0] = cpos[0] + direction[0] * reach;
+    probe[1] = cpos[1] + direction[1] * reach;
+    probe[2] = cpos[2] + direction[2] * reach;
     reachLimit = (f32)(2.0 * (f64)reach);
     bottom = -(f64)radius - 3.0;
-    grounded = 0;
     if ((surface = FloorCollide(probe, (s32)floorResult, 0, 2,
                                 1.0f, radius, bottom)) != NULL) {
-        CritterWorldDamage(c, surface, c->pos, floorResult + 12);
+        CritterWorldDamage(c, surface, cpos, floorResult + 12);
         grounded = 1;
         baseY = c->vel[1] - ((CritterPackedType *)c->hdr)->floorOffset;
-        *(f32 *)((u8 *)c + offsetof(Critter, floorContact)) = floorResult[12];
-        *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 4) = floorResult[13];
-        *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 8) = floorResult[14];
+        c->floorContact[0] = floorResult[12];
+        c->floorContact[1] = floorResult[13];
+        c->floorContact[2] = floorResult[14];
         floorY = floorResult[13];
         difference = floorY - baseY;
         if (difference < 0.0f) {
@@ -1136,30 +1140,30 @@ f32 *delta;
             grounded = 0;
         } else if ((f64)length > 0.0 &&
                    (f64)difference > 0.1 * (f64)length) {
-            probe[0] = c->pos[0] + delta[0];
-            probe[1] = c->pos[1] + delta[1];
-            probe[2] = c->pos[2] + delta[2];
+            probe[0] = cpos[0] + delta[0];
+            probe[1] = cpos[1] + delta[1];
+            probe[2] = cpos[2] + delta[2];
             surface = FloorCollide(probe, (s32)floorResult, 0, 2,
                                    1.0f, radius, bottom);
             if (surface == NULL) {
                 grounded = 0;
             } else {
-                *(f32 *)((u8 *)c + offsetof(Critter, floorContact)) = floorResult[12];
-                *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 4) = floorResult[13];
-                *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 8) = floorResult[14];
+                c->floorContact[0] = floorResult[12];
+                c->floorContact[1] = floorResult[13];
+                c->floorContact[2] = floorResult[14];
                 floorY = floorResult[13];
             }
         }
         if (grounded == 0) {
-            surface = FloorCollide(c->pos, (s32)floorResult, 0, 2,
+            surface = FloorCollide(cpos, (s32)floorResult, 0, 2,
                                    1.0f, radius, bottom);
             if (surface == NULL) {
                 floorY = baseY;
             } else {
                 floorY = floorResult[13];
-                *(f32 *)((u8 *)c + offsetof(Critter, floorContact)) = floorResult[12];
-                *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 4) = floorResult[13];
-                *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 8) = floorResult[14];
+                c->floorContact[0] = floorResult[12];
+                c->floorContact[1] = floorResult[13];
+                c->floorContact[2] = floorResult[14];
             }
         }
         difference = floorY - baseY;
@@ -1167,10 +1171,12 @@ f32 *delta;
             difference = minRise;
         }
         delta[1] += difference;
+    } else {
+        grounded = 0;
     }
     if (grounded == 0) {
         result |= 0x10;
-        delta[2] = delta[0] = 0.0f;
+        delta[0] = delta[2] = 0.0f;
     }
     *(u32 *)((u8 *)c + 0x448) = result;
     if (surface != NULL) {
