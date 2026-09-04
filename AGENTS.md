@@ -1659,6 +1659,32 @@ each screen below costs one command and would have caught its lane):
   the reporter's own shell. A present-tense number in an order needs a
   record id (already a rule above); an ABSENCE needs its query, which is
   the same rule pointed at the other kind of claim.
+- **A CENSUS THAT ADVERTISES A LEVER SHIPS WITH ITS DENIAL SCREEN**
+  (run-56 item 4). A census computed from BYTES cannot see the graph, so it
+  will happily head a roster `DECL-ORDER LEVER LIVE` and list a function
+  whose accepted, unsuperseded denial denies that exact axis — measured on
+  `al_dest_split.py` and `ProcessCritterList`, whose denial scope reads
+  "(a) DECLARATION ORDER of the function's four locals, measured across
+  three distinct orders". Neither artifact is wrong; the join was missing.
+  It costs one command:
+
+  ```text
+  python tools/gdl/composed_census/t26_denial_screen.py --census <census.json>
+  python tools/gdl/composed_census/t26_denial_screen.py --function F --axis "declaration order"
+  python tools/gdl/composed_census/t26_denial_screen.py --calibrate
+  ```
+
+  Run it over the census JSON before the roster goes into a work order, and
+  put its verdict in the order. A flagged row is not a refutation of the
+  census — a denial can have expired — so the tool hands back each denial's
+  `expiry_check`: run that, then either re-measure the row or supersede the
+  denial, and never silently prefer one artifact to the other. Two facts
+  worth carrying: the screen compares AXES, not words (its first cut matched
+  phrases and reported "no contradiction" on its own seed case, because the
+  census spells the axis `DECL-ORDER` and the record spells it
+  `DECLARATION ORDER`), and it reads only the DENYING half of a scope,
+  because 20 of the corpus's 68 axis mentions sit in "It does NOT deny …"
+  clauses whose whole purpose is to say the axis is open.
 - **A tool item's fix belongs to the lane that owns the tool, but the
   MEASUREMENT belongs to the reporter** — quote the failing command and
   its verbatim output in the item, not a paraphrase of what it seemed to
