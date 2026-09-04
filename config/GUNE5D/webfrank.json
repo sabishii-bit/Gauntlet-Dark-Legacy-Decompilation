@@ -2641,6 +2641,36 @@
         "copy_register_fields": true
       }
     ],
+    "game/world/dynobjgrid": [
+      {
+        "function": "CreateDynobjGrid",
+        "before_sha256": "4a4e935071bd22b5445663c587389bd9fc64aba29318180c460c73d4bb46b2d2",
+        "after_sha256": "dd5416ca8711786437f0cb2ad5d2e15166d41f41605270da229ae9d050fd75f5",
+        "mechanism": "attempt.R57_createdynobjgrid-consumer-order-and-composed-exact-close.20260904.v1. SOURCE-EXHAUSTION PROVENANCE and the typed denial required by claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1 are in that record: after the source-level consumer-order win, explicit world-base aliasing, counter declaration placement, split-for and while inner-loop forms, reverse int-vs-s32 extern types, and explicit byte-offset induction all folded, preserved the residual, or regressed. RAW SHAPE at f36d322a08 is 164/164, 66 differing words: 65 register-field rows and one copy-form opcode. THREE NARROW STAGES close it. PERMUTATION [0x1e0,0x1f4), order [4,1,0,3,2], rotates the three relocated EMB_SDA21 loads from our dyngrid/num_dyngridx/dyngrid_list issue order to retail's dyngrid_list/dyngrid/num_dyngridx order while preserving the two interleaved independent copies. All five atoms have disjoint destinations and no RAW/WAR/WAW relation in our colouring; check_permutation_dependences accepts the order in its strictest form. Each relocation rides its load atom, both relocation hashes are non-empty, and verify_relocation_binding checks the moved symbol-to-atom bindings against the target. FORM at +0x1fc is our addi copy against retail's mr copy; unconditional_recolor re-encodes retail's copy form around our registers and leaves only register fields. RECOLOR then closes the remaining 65 words under verify_consistent_recolor's position-consistent whole-CFG bisimulation, with no value-equality or unproven escape. wr_try_rule proves BYTE-EQUAL with the retail image at full L3 datum strength; wr_ve_derive independently refuses value_equality_recolor as unnecessarily broad.",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 164,
+          "permuted_instructions": 5,
+          "differing_words": 66
+        },
+        "instruction_permutation": {
+          "start": "0x1e0",
+          "end": "0x1f4",
+          "order": [4, 1, 0, 3, 2],
+          "before_sha256": "e8397b685df7fa53942f7c557ae55cba7830625acf802183da54ea9c99100edd",
+          "after_sha256": "0c44a4de411615edd4d0a168b571c69c115a66831c46d0fa23571c142e343b93",
+          "before_relocations_sha256": "659f5d36bd2fa7fe1d3834c63f702685f8b2f4d92174b00a89b8c3717f1c7135",
+          "after_relocations_sha256": "0880edcd00def497559957494d3393d1a6a44b3f730854e6537adee2406bae0f"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x1fc",
+            "proof": "unconditional_recolor"
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/world/gauntworld": [
       {
         "function": "DoWorldAnimation",

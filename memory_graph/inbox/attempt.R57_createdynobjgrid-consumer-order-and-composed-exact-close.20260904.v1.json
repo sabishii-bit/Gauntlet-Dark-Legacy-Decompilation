@@ -1,0 +1,44 @@
+{
+  "attempted_axis": "Reconstruct conversion-temp consumer order, then exhaust source forms for the surviving relocated-load schedule plus copy-form/recolor topology and prove the narrow composed WebFrank close",
+  "attributes": {
+    "law_screen": "claim.law.MB_anonymous-conversion-temp-block-order-follows-the-consumer-locals-definition-order-not-the-conversion-statements.20260904.v1 applied: ordering xloRaw/xhi/zlo/zhi/xlo removed all ten stack-home immediate rows and improved real 142 to 130. claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 applied: the five atoms are independent in our colouring and the shipped dependence audit accepts [4,1,0,3,2]. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 applied: all three SDA21 relocations move with their atoms and verify_relocation_binding checks the before/after relocation hashes. claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1 applied: this record carries a typed denial and repo-reachable expiry command. claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 applied narrowly: equivalent_copy_form uses unconditional_recolor at +0x1fc and strict verify_consistent_recolor proves the remainder; value_equality_recolor was run and refused as unnecessarily broad.",
+    "laws_applied": "[\"claim.law.MB_anonymous-conversion-temp-block-order-follows-the-consumer-locals-definition-order-not-the-conversion-statements.20260904.v1\",\"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\",\"claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1\",\"claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1\",\"claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1\"]",
+    "probed_form": "Retained conversion chronology: xloRaw=(s32)...; xhi=(s32)...; zlo=(s32)...; zhi=(s32)...; xlo=(s32)... . Reverted source axes: WorldInfo* world=&gWorldInfo with all accesses through world; cx=xlo; for(;cx<=xhi;cx++); cx=xlo; while(cx<=xhi){...;cx++;}; s32 offset=0 with d=(DynObj*)((u8*)dynobj_list+offset) and offset+=68; reverse int declarations for the TU scalar externs; and moving i after the bounds locals.",
+    "residual": "No postprocessed text residual remains after the proved composition. Raw compiler output remains a measured schedule-window plus copy-form and strict recolor residual, pinned by before_sha256 and fail-closed on drift.",
+    "scope": "src/game/world/dynobjgrid.c conversion assignment order; config/GUNE5D/webfrank.json one fail-closed rule for game/world/dynobjgrid::CreateDynobjGrid",
+    "verification": "defake_gate from 8780c52f9: CreateDynobjGrid real 142->130; fresh fuzzy 95.7866%->95.8476%; T164/O164. wf_word_diff: 66 rows, 65 register-field and 1 opcode before postprocessing. wr_perm_hash proves the 5-atom permutation and relocation hashes. wr_try_rule with orig/GUNE5D/sys/main.dol at FULL L3 datum strength: BYTE-EQUAL. wr_ve_derive refuses value_equality_recolor because the strict recolor proof succeeds. Full ninja prints build/GUNE5D/main.dol: OK; NextDynGrid and InitDynobjGrid remain exact."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/world/dynobjgrid CreateDynobjGrid",
+    "falsifier": "Raw compiler output reaches 164/164 with zero differing words, or reaches a different residual in which the +0x1e0..+0x1f4 relocated-load rotation or +0x1fc addi-versus-mr form site is absent.",
+    "premise_measurement": "At f36d322a08, python tools/gdl/composed_census/wf_word_diff.py game/world/dynobjgrid CreateDynobjGrid reports 164/164, 66 differing words: 65 REGFIELD-ONLY and one OPCODE. The aligned view shows ours schedules dyngrid, num_dyngridx, dyngrid_list across +0x1e0/+0x1e8/+0x1f0 while retail schedules dyngrid_list, dyngrid, num_dyngridx, with two independent register copies interleaved. Explicit world-base alias, loop-counter declaration placement, split-for and while inner-loop forms, reverse int-vs-s32 extern types, and an explicit byte-offset induction were measured neutral, folded, or regressive; none changed this residual into the retail topology.",
+    "scope": "Only the source-level emission-order and register-web axes for CreateDynobjGrid's surviving +0x1e0..+0x1fc residual at the measured raw body hash; it does not deny future source matching if a new compiler-reachable AST class is found."
+  },
+  "function": "function:CreateDynobjGrid",
+  "held_fixed": "The function's values, control flow, nested-loop bounds, cell updates, exact 164/164 instruction count, and exact NextDynGrid/InitDynobjGrid siblings were held fixed while conversion order and source topology were varied.",
+  "id": "attempt.R57_createdynobjgrid-consumer-order-and-composed-exact-close.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:11:46Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: +1 mr ours-only: -1 addi; insns T164/O164; raw differing words 66 (65 register-field, 1 opcode)"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.createdynobjgrid.20260831.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "instruction_permutation",
+    "verify_relocation_binding",
+    "equivalent_copy_form",
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ],
+  "windows_tried": [
+    "0x1e0:0x1f4:4,1,0,3,2"
+  ]
+}
