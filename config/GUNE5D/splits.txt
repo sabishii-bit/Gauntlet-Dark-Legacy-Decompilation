@@ -252,6 +252,8 @@ game/world/world.c:
 	extab       start:0x80007490 end:0x80007520
 	extabindex  start:0x8000B728 end:0x8000B800
 	.text       start:0x800A87C8 end:0x800AB8E0
+	.data       start:0x80126C30 end:0x80126C68
+	.sdata2     start:0x80348768 end:0x803487C0
 
 game/anim/action.c:
 	extab       start:0x80007520 end:0x80007538
