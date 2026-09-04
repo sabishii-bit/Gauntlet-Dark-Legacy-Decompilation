@@ -972,7 +972,7 @@ void AllocEnemy(s32 id, s32 model)
     }
     pool[7 + lbl_8034471C] = id;
 
-    if (id == 29 || id == 33) {
+    if (id == E_GOLEM || id == E_GENERAL) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].f0) {
                 name = (char*)&tbl[i].f4;
@@ -982,7 +982,7 @@ void AllocEnemy(s32 id, s32 model)
         name = 0;
 alloc_fmt1:
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
-    } else if (id == 32) {
+    } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].f0) {
                 name = (char*)&tbl[i].f4;
@@ -1048,7 +1048,7 @@ void LoadEnemy(s32 id, s32 model)
     }
     pool[7 + lbl_8034471C] = id;
 
-    if (id == 29 || id == 33) {
+    if (id == E_GOLEM || id == E_GENERAL) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].f0) {
                 name = (char*)&tbl[i].f4;
@@ -1058,7 +1058,7 @@ void LoadEnemy(s32 id, s32 model)
         name = 0;
 load_fmt1:
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
-    } else if (id == 32) {
+    } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].f0) {
                 name = (char*)&tbl[i].f4;
@@ -1368,7 +1368,7 @@ void fn_80050DD8(char* buf, s32 id, s32 qty)
     char* name;
     s32 i;
 
-    if (id == 29 || id == 33) {
+    if (id == E_GOLEM || id == E_GENERAL) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].f0) {
                 name = (char*)&tbl[i].f4;
@@ -1378,7 +1378,7 @@ void fn_80050DD8(char* buf, s32 id, s32 qty)
         name = 0;
 f1:
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
-    } else if (id == 32) {
+    } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].f0) {
                 name = (char*)&tbl[i].f4;
@@ -1602,7 +1602,7 @@ void GetEnemyTypes(void)
                 words = tbl;
                 words += i * 4;
                 value = *(s32*)(words += offsetof(EnemyTypeRow, type));
-                if (value >= 0 && value < 28) {
+                if (value >= 0 && value < E_NTYPES) {
                     *(s32*)words = -1;
                 } else {
                     *(volatile s32*)words = -1;
@@ -1618,63 +1618,63 @@ s32 GetEnemySubtype(s32 type)
     s32 subtype = 0;
 
     switch (type) {
-    case 0:
-    case 3:
-    case 6:
-    case 9:
-    case 12:
-    case 15:
-    case 18:
-    case 21:
-    case 22:
+    case E_SCORP:
+    case E_RAT:
+    case E_SNAKE:
+    case E_SPIDER:
+    case E_MAGGOT:
+    case E_WOLF:
+    case E_DOG:
+    case E_ACID:
+    case E_HAND:
         subtype = 1;
         break;
-    case 1:
-    case 4:
-    case 7:
-    case 10:
-    case 13:
-    case 19:
-    case 23:
+    case E_TROLL:
+    case E_GRUNT:
+    case E_SORCERER:
+    case E_LIZARDMAN:
+    case E_ZOMBIE:
+    case E_SKELETON:
+    case E_IMP:
         subtype = 3;
         break;
-    case 2:
-    case 5:
-    case 8:
-    case 11:
-    case 14:
-    case 16:
-    case 17:
-    case 20:
-    case 24:
-    case 25:
-    case 27:
+    case E_DEMON:
+    case E_KNIGHT:
+    case E_MUMMY:
+    case E_TREEFOLK:
+    case E_PLAGUE:
+    case E_ICE:
+    case E_WORM:
+    case E_GHOST:
+    case E_WARLOCK:
+    case E_SKY:
+    case E_GARM2:
         subtype = 4;
         break;
-    case 29:
-    case 33:
+    case E_GOLEM:
+    case E_GENERAL:
         subtype = 5;
         break;
-    case 30:
+    case E_DEATH:
         subtype = 6;
         break;
-    case 31:
+    case E_IT:
         subtype = 7;
         break;
-    case 32:
+    case E_GARGOYLE:
         subtype = 8;
         break;
-    case 34:
-    case 35:
-    case 36:
-    case 37:
-    case 38:
-    case 39:
-    case 40:
-    case 41:
-    case 42:
-    case 43:
-    case 44:
+    case E_DRAGON:
+    case E_CHIMERA:
+    case E_DJINN:
+    case E_DRIDER:
+    case E_PBOSS:
+    case E_YETI:
+    case E_WRAITH:
+    case E_LICH:
+    case E_SKORNE1:
+    case E_SKORNE2:
+    case E_GARM:
         subtype = 9;
         break;
     }
@@ -4903,12 +4903,12 @@ void fn_80057024(void)
         for (off = 0, i = 0; i < 8; i++, off += 4) {
             s32 raw = *(s32*)(tbl + off + 332);
             s32 t = raw;
-            if (raw < 32) {
-                if (raw == 29) {
+            if (raw < E_GARGOYLE) {
+                if (raw == E_GOLEM) {
                     continue;
                 }
             } else {
-                if (raw >= 45) {
+                if (raw >= E_MAXTYPES) {
                     goto chk;
                 }
                 continue;
