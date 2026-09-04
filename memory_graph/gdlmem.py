@@ -108,6 +108,37 @@ def result_row_counts(result: object) -> dict[str, int]:
     return counts
 
 
+def argparse_help(text: str | None) -> str | None:
+    """Registry prose, made safe to hand to argparse.
+
+    RUN-52 ITEM 5. argparse `%`-formats every help string against a dict
+    when it prints help, so ONE literal percent sign in authored prose
+    makes `--help` raise. Measured at b10073b6c across all 28
+    subcommands: exactly one was unreachable, and it was `brief` —
+    AGENTS.md's own "one-call spawn briefing", the command every lane
+    starts a TU with:
+
+        $ python memory_graph/gdlmem.py brief --help
+        TypeError: %o format: an integer is required, not dict
+
+    from `roster_only`'s "the roster is 35.7% of it" ("% o" is a valid
+    octal spec with a space flag). So the flag that exists to keep a
+    brief small — the item's own `--section`-shaped complaint, a 40KB
+    spill for <10% signal — could not be discovered from the tool.
+
+    Escaping belongs HERE, at the argparse boundary, and not in the
+    prose: `find --include-candidates` had already been worked around by
+    doubling the sign in the registry itself, so `param.help` reads
+    "~30-50%% precision" for every OTHER consumer of the same registry
+    (the MCP adapter serves it verbatim), while the identical sentence
+    at core.py's note string spells it "~30-50% precision". One fact,
+    two spellings, each wrong in the other's surface. Measured over the
+    20 surface ops: 3 percent signs in authored prose and ZERO argparse
+    named specs (`%(default)s`), so nothing here wants formatting.
+    """
+    return None if text is None else text.replace("%", "%%")
+
+
 def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -134,17 +165,18 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
 
     ops = {}
     for op in build_surface_ops():
-        sub = subparsers.add_parser(op.name, help=op.doc)
+        sub = subparsers.add_parser(op.name, help=argparse_help(op.doc))
         for param in op.params:
             if param.required:
-                sub.add_argument(param.name, help=param.help or None)
+                sub.add_argument(param.name,
+                                 help=argparse_help(param.help or None))
             else:
                 sub.add_argument(
                     "--" + param.name.replace("_", "-"),
                     dest=param.name,
                     type=param.annotation if param.annotation in (int, str) else str,
                     default=param.default,
-                    help=param.help or None,
+                    help=argparse_help(param.help or None),
                 )
         ops[op.name] = op
 
