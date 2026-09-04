@@ -84,15 +84,29 @@ class ScreenListsEveryPin(unittest.TestCase):
         search = core.webfrank_pin_mechanisms(REPO, None)
         self.assertTrue(all(row["mechanism"] for row in search))
 
-    def test_dbgtext_lists_both_of_its_pins(self):
+    def test_dbgtext_lists_every_one_of_its_pins(self):
+        # Derived from the config, never hardcoded: the assertion under test
+        # is "the screen enumerates every FROZEN function in the TU", and a
+        # frozen literal set tests the config's CONTENTS instead, so a lane
+        # that legitimately ships or promotes a rule fails a test about a
+        # surface it did not touch. (Run 53: shipping the provenanced
+        # fn_800C03E0 rule failed the literal form.)
+        import json
+        data = json.loads(CONFIG.read_text(encoding="utf-8-sig"))
+        expected = {rule["function"]
+                    for rule in (data.get("units") or {})["game/pb/dbgtext"]}
         names = {row["function"]
                  for row in core._pin_provenance(REPO, "game/pb/dbgtext")}
-        self.assertEqual(names, {"dbgTextInit", "fn_800C031C"})
+        self.assertEqual(names, expected)
 
     def test_a_mechanismless_pin_says_its_derivation_is_missing(self):
-        rows = [row for row in core._pin_provenance(REPO, "game/pb/dbgtext")
-                if row["function"] == "dbgTextInit"]
-        self.assertEqual(len(rows), 1)
+        # Any mechanism-less pin, chosen from the config for the same reason:
+        # promoting or annotating one particular pin must not fail this.
+        rows = [row for row in core.webfrank_pin_mechanisms(
+                    REPO, None, include_without_mechanism=True)
+                if not row.get("mechanism")]
+        if not rows:
+            self.skipTest("no mechanism-less pin left in the config")
         self.assertIn("NO `mechanism` PROSE", rows[0]["note"])
         self.assertIn("FROZEN", rows[0]["note"])
 

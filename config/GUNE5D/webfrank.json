@@ -1706,6 +1706,40 @@
           ],
           "compare_exchanges": []
         }
+      },
+      {
+        "function": "fn_800C03E0",
+        "before_sha256": "e03e556475629dccf699f6ad824b072962506dd6099954d2d8a28307c9edcf7e",
+        "after_sha256": "0d23ab0d7df8d62763dc8de7b69c01c36c4b04b5b1a34de6fe54879cd2072545",
+        "mechanism": "WHOLE-FUNCTION CALLEE-SAVED RECOLOR, 433/433 instructions, 202 differing words, every one REGFIELD-ONLY with MNEMONIC DIVERGENCE 0 and RELOC-SYMBOL MISMATCH 0 (wf_word_diff.py game/pb/dbgtext fn_800C03E0). The permutation is a 4-cycle over the initialised-local group read straight off savedregs.py: target fmts=r26 tblA=r27 tblB=r28 qline=r29 div=r30 line=r31 against ours tblA=r27 fmts=r28 tblB=r29 qline=r30 div=r26 line=r31, i.e. target->ours fmts 26->28, tblB 28->29, qline 29->30, div 30->26, with shift=r23 agreeing in both. Declaration order CANNOT produce it: the three initialised pointers are emitted in declaration order in both streams (0x18 tblA @lbl_802C45CC, 0x20 fmts @lbl_80116450, 0x24 tblB @lbl_80127DE8) while the target numbers them 27, 26, 28 -- non-monotone in either direction -- so the target's fmts is demoted one slot below tblA by an allocator priority tie-break, not by its position in the list. THE COMPOSITION, three stages. (1) instruction_permutation over [0x3cc,0x3d8) order [2,0,1]: the target initialises four zero webs at 0x3c8..0x3d4 and we initialise ours in a different order, which makes the running renaming two-valued at the use at +0x3d8 (target `addi r0,r16,12` against ours `addi r0,r20,12`). copy_register_fields alone REFUSES there with `+0x3cc: base register presence differs (g0 vs g19)` and the form stage alone gets one step further and REFUSES with `+0x3d8: use of g20 does not correspond to g16 under the running renaming`; rotating our three definitions [2,0,1] restores the correspondence. The window is relocation-free in both objects, so both relocation hashes are the empty-string hash. (2) equivalent_copy_form at 0x3cc, proof constant_dataflow_recolor, our_source 18. (3) copy_register_fields over the remaining 202 register-field words. Verified BYTE-EQUAL through the real apply_patch with the datum screen at FULL strength against orig/GUNE5D/sys/main.dol: `BYTE-EQUAL (raw postprocess body); 206 word(s) changed`. NOT A `pure REGFIELD-ONLY` CANDIDACY CLAIM ABOUT THE WHOLE FUNCTION: fndiff --ops reads `multiset DIFFERS, target-only +1 addi, ours-only -1 li` on the SAME bytes because `li rD,K` IS `addi rD,r0,K` and the two share a primary opcode; rA=0 in a d-form slot is the literal zero and NOT GPR 0, so no copy_register_fields rule may rewrite it (claim.law.WP_the-ra-zero-flag-belongs-to-the-field-not-to-the-position-a-value-lands-in.20260903.v1), which is exactly why stage (1) exists. SOURCE-EXHAUSTION PROVENANCE, eight probes over two runs, all on fn_800C03E0's local declaration block with statements, loop bodies and T433/O433 held fixed. Run 52 (attempt.WP_fn800c03e0-declaration-order-pays-but-one-swap-is-a-relocation-regression-and-the-rule-is-withheld.20260904.v1): P1 fmts/tblB transposed -> real 508->498 but RELOC-SYMBOL MISMATCH 2 (it transposes the two @lo materialisations so +0x0c and +0x1c relocate the other symbol behind an identical word -- disqualifying, and invisible to real, fuzzy, the multiset and the word count alike); P2 div moved between the s32 cursors -> NEUTRAL-IDENTICAL; P3 line/qline transposed -> real 498->474 and KEPT alone at real 484 reloc-clean; P4 tblA/tblB transposed -> REGRESSED to 508; P5 i/k transposed -> NEUTRAL-IDENTICAL; P6 the isolation probe that discarded P1. Run 53 added the two axes that record left open, both aimed at buying the fmts colour WITHOUT moving an @lo pair: P7 declaration-initializer binding, `u32 div = lbl_802C45CC[19] >> 10;` replacing the separate first statement -> NEUTRAL-IDENTICAL, bytes=bdd4514eec07; P8 the scalar/pointer transposition inside the initialised class, `u32 shift = 10;` moved between fmts and tblB (which preserves the fmts->tblB @lo order and so cannot repeat P1's regression) -> NEUTRAL-IDENTICAL, bytes=bdd4514eec07, the same hash as P7 and as the baseline. Both run-53 probes therefore prove class boundaries rather than moving anything: the initialised group's internal numbering is reachable from source ONLY by transposing the two @lo materialisations, and that transposition is the relocation regression. The remaining 4-cycle is an allocator priority tie-break with no source expression left, which is what admits the rule.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 433,
+          "permuted_instructions": 3
+        },
+        "instruction_permutation": [
+          {
+            "start": "0x3cc",
+            "end": "0x3d8",
+            "order": [
+              2,
+              0,
+              1
+            ],
+            "before_sha256": "821c10da07262fe6fef891490e3c3af2f6071251f93ca3fba0098a39c7bb3753",
+            "after_sha256": "0bfef4e0d3216d10afdf2ef87e9b8976e53b17c5551443ebce9e62d364d6210b",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x3cc",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 18
+          }
+        ],
+        "copy_register_fields": true
       }
     ],
     "game/pb/pb_objects": [
