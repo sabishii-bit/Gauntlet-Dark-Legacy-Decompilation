@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import importlib.util
 import io
+import itertools
 import json
 import shutil
 import sqlite3
@@ -4534,6 +4535,63 @@ class RecordSizePreflightTests(unittest.TestCase):
         self.assertIn("OVER BY", message)
         self.assertIn("attributes.probed_form", message)
         self.assertIn("--size", message)
+
+    # --- run-54 item 6: the trim plan -------------------------------------
+    def test_the_plan_names_the_smallest_set_that_covers_the_overage(self):
+        """NC spent five round trips shedding 1,852 bytes
+        (18236 -> 17319 -> 17011 -> 16766 -> 16500 -> 16417 -> clean)
+        against a report that said where the weight was and never how much
+        had to go."""
+        report = core.record_size_report(self._oversize())
+        plan = report["trim_plan"]
+        self.assertTrue(plan)
+        # LEAVES only: summing a parent and its children double-counts.
+        for row in plan:
+            self.assertNotEqual(row["field"], "attributes")
+        self.assertGreaterEqual(plan[-1]["cumulative_bytes"],
+                                report["over_by"])
+        # ... and it is the SMALLEST such prefix.
+        if len(plan) > 1:
+            self.assertLess(plan[-2]["cumulative_bytes"], report["over_by"])
+        self.assertEqual(
+            [row["cumulative_bytes"] for row in plan],
+            list(itertools.accumulate(row["bytes"] for row in plan)))
+
+    def test_a_record_within_the_cap_gets_headroom_and_no_plan(self):
+        # NEGATIVE side: 1,381 of 1,393 accepted attempt records are under
+        # 90% of the cap and must see no plan at all.
+        report = core.record_size_report(
+            {"schema_version": 1, "id": "attempt.small.v1", "kind": "attempt",
+             "function": "function:F", "attempted_axis": "a",
+             "outcome": "neutral"})
+        self.assertEqual(report["over_by"], 0)
+        self.assertNotIn("trim_plan", report)
+        self.assertGreater(report["headroom_bytes"], 0)
+
+    def test_the_cap_is_reported_beside_the_other_gates_not_instead(self):
+        """FS run-53: the entity screen validates LAST, after size.
+
+        Being over the cap is not structural invalidity, so it must not
+        short-circuit the reference/dedup/entity screens the way a missing
+        `id` does.
+        """
+        record = self._oversize()
+        record["attributes"].pop("law_screen")     # a second, later failure
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=ev_root(), report_all=True)
+        message = str(caught.exception)
+        self.assertIn("OVER BY", message)
+        self.assertIn("law_screen", message)
+        self.assertIn("problem(s), all of them reported together", message)
+
+    def test_a_structural_failure_still_short_circuits(self):
+        # NEGATIVE side: a record with no `kind` leaves the later checks
+        # nothing to read, and must still stop at the structural error.
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal({"schema_version": 1, "id": "attempt.x"},
+                                  root=ev_root(), report_all=True)
+        self.assertIn("missing record fields", str(caught.exception))
+        self.assertNotIn("OVER BY", str(caught.exception))
 
 
 class ResourceExhaustionReportingTests(unittest.TestCase):

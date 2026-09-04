@@ -1704,25 +1704,60 @@ def record_size_report(record: Mapping[str, Any],
         return report
     total = _size_of(record)
     fields: list[dict[str, Any]] = []
+    leaves: list[dict[str, Any]] = []
     for key, value in record.items():
         size = _size_of(value)
         fields.append({"field": str(key), "bytes": size})
         if isinstance(value, Mapping):
             for sub_key, sub_value in value.items():
-                fields.append({
-                    "field": f"{key}.{sub_key}", "bytes": _size_of(sub_value),
-                })
+                row = {"field": f"{key}.{sub_key}",
+                       "bytes": _size_of(sub_value)}
+                fields.append(row)
+                leaves.append(row)
+        else:
+            leaves.append({"field": str(key), "bytes": size})
     fields.sort(key=lambda item: (-item["bytes"], item["field"]))
+    leaves.sort(key=lambda item: (-item["bytes"], item["field"]))
     cap = ATTEMPT_BYTE_CAP if record.get("kind") == "attempt" else None
-    return {
+    over_by = max(0, total - cap) if cap is not None else 0
+    report = {
         "id": record.get("id"),
         "kind": record.get("kind"),
         "bytes": total,
         "cap": cap,
         "cap_applies": cap is not None,
-        "over_by": max(0, total - cap) if cap is not None else 0,
+        "over_by": over_by,
         "largest_fields": fields[:8],
     }
+    if cap is not None:
+        report["headroom_bytes"] = max(0, cap - total)
+    # THE TRIM PLAN (run-54 item 6). Reporting the largest fields told a
+    # lane where the weight IS; it never said how much had to GO, so each
+    # trim was a guess and the cap was rediscovered one round trip at a
+    # time. NC measured five: 18236 -> 17319 -> 17011 -> 16766 -> 16500 ->
+    # 16417 -> clean, five builds of a record to remove 1,852 bytes. This
+    # names the SMALLEST PREFIX of the heaviest LEAF fields whose combined
+    # bytes cover `over_by`, with a running cumulative total, so the lane can
+    # see where the line falls before editing anything. Leaves only: the
+    # `largest_fields` list carries both `attributes` and `attributes.x`, and
+    # summing those double-counts.
+    if over_by:
+        plan, running = [], 0
+        for row in leaves:
+            running += row["bytes"]
+            plan.append(dict(row, cumulative_bytes=running))
+            if running >= over_by:
+                break
+        report["trim_plan"] = plan
+        report["trim_plan_note"] = (
+            f"REMOVE AT LEAST {over_by} bytes. Emptying the"
+            f" {len(plan)} field(s) listed would free {running} — they are"
+            " the heaviest LEAVES, so the numbers are additive (the"
+            " largest_fields list is not: it carries a parent and its"
+            " children). Trimming rather than emptying frees less, so aim"
+            " past the line, and re-run `propose-record --size <file>` to"
+            " see the delta from your last measurement.")
+    return report
 
 
 def format_size_fields(fields: Iterable[Mapping[str, Any]]) -> str:
@@ -1954,7 +1989,46 @@ def _validate_schema_fields(record: dict[str, Any], source: Path) -> None:
                     )
 
 
-def _validate_record(record: dict[str, Any], source: Path) -> None:
+def attempt_cap_refusal(record: Mapping[str, Any],
+                        source: Any = "<proposal>") -> str | None:
+    """The 16 KB refusal message for an attempt record, or None if it fits.
+
+    Split out of `_validate_record` (run-54 item 6). Being over the cap is
+    not STRUCTURAL invalidity — the record has a good `id` and `kind` and
+    every later gate could read it — but it was raised from inside the
+    structural validator, whose failure deliberately short-circuits the rest
+    of the proposal checks ("a structurally invalid record cannot be carried
+    through the remaining checks without inventing answers"). So an over-cap
+    draft learned about its size, and only on the NEXT round trip about the
+    reference, dedup and entity screens, which is FS's run-53 report that
+    the entity screen validates last. The proposal path now applies this
+    through `fail()` and keeps going; import and build still raise on it.
+    """
+    if record.get("kind") != "attempt":
+        return None
+    report = record_size_report(record)
+    if not report["over_by"]:
+        return None
+    plan = report.get("trim_plan") or []
+    frees = plan[-1].get("cumulative_bytes", 0) if plan else 0
+    return (
+        f"{source}: attempt record is {report['bytes']} bytes (cap"
+        f" {ATTEMPT_BYTE_CAP}, OVER BY {report['over_by']}); keep the"
+        " do-not-retry head compact — fold history into one-line"
+        " axis_log entries and put deep forensics in an evidence"
+        " record or the commit itself.\nLARGEST FIELDS: "
+        + format_size_fields(report["largest_fields"])
+        + "\nTRIM PLAN: " + format_size_fields(plan)
+        + f" (emptying those frees {frees} against an overage of"
+          f" {report['over_by']})"
+        + "\nFull breakdown, and the DELTA since your last measurement,"
+        " without re-running validation:"
+        " `gdlmem.py propose-record --size <file>`"
+    )
+
+
+def _validate_record(record: dict[str, Any], source: Path,
+                     skip_size_cap: bool = False) -> None:
     required = {"schema_version", "id", "kind"}
     missing = sorted(required - record.keys())
     if missing:
@@ -1996,19 +2070,10 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
         raise MemoryGraphError(f"{source}: claim needs object or value")
     if kind == "evidence" and "claim" not in record and "edge" not in record:
         raise MemoryGraphError(f"{source}: evidence needs claim or edge")
-    if kind == "attempt":
-        report = record_size_report(record)
-        if report["over_by"]:
-            raise MemoryGraphError(
-                f"{source}: attempt record is {report['bytes']} bytes (cap"
-                f" {ATTEMPT_BYTE_CAP}, OVER BY {report['over_by']}); keep the"
-                " do-not-retry head compact — fold history into one-line"
-                " axis_log entries and put deep forensics in an evidence"
-                " record or the commit itself.\nLARGEST FIELDS: "
-                + format_size_fields(report["largest_fields"])
-                + "\nFull breakdown without re-running validation:"
-                " `gdlmem.py propose-record --size <file>`"
-            )
+    if kind == "attempt" and not skip_size_cap:
+        message = attempt_cap_refusal(record, source)
+        if message:
+            raise MemoryGraphError(message)
     anchors: list[str] = []
     attributes = record.get("attributes", {})
     if isinstance(attributes, dict):
@@ -6404,7 +6469,13 @@ def stage_record_proposal(
                 " reviewed change if a new pattern class is real)"
             )
     try:
-        _validate_record(record, Path("<proposal>"))
+        # THE SIZE CAP IS NOT STRUCTURAL (run-54 item 6). It is applied just
+        # below through `fail()`, which in report_all mode COLLECTS and keeps
+        # going, so an over-cap draft learns about its references, duplicates
+        # and entity screens in the same call instead of on the next round
+        # trip. Structural failures still short-circuit, because they really
+        # do leave the later checks nothing to read.
+        _validate_record(record, Path("<proposal>"), skip_size_cap=True)
     except MemoryGraphError as error:
         fail(str(error))
         # A structurally invalid record cannot be carried through the
@@ -6412,6 +6483,9 @@ def stage_record_proposal(
         # what every one of them reads. Report what is known and stop.
         finish()
         raise
+    cap_message = attempt_cap_refusal(record)
+    if cap_message:
+        fail(cap_message)
     gate_warnings = _apply_proposal_gates(record, collect_failures=failures)
     if warnings is not None:
         warnings.extend(gate_warnings)
