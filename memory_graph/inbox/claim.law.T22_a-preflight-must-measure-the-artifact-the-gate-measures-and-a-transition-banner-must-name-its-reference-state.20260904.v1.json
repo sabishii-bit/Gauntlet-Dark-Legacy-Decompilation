@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py (apply_staging_stamps, record_size_report as_staged)",
+    "memory_graph/test_graph.py::T22SizePreflightMatchesTheGateTests",
+    "tools/gdl/probe.py (count_class_line)",
+    "tools/gdl/tests/test_t22_count_parity_reference.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "build-hygiene",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "For (1): build a record whose authored size is within ATTEMPT_BYTE_CAP and whose staged size is not, run `propose-record --size` on it and then `_validate_record` on the staged form; if the two verdicts agree without `as_staged`, the staging stamps no longer precede the cap check and this half is moot. For (2): `count_class_line(prev, now, baseline_insns=base)` returning a GAINED/LOST line whose parity direction disagrees with base -> now refutes the shipped reference. memory_graph/test_graph.py::T22SizePreflightMatchesTheGateTests and tools/gdl/tests/test_t22_count_parity_reference.py pin both, including the negative sides.",
+  "id": "claim.law.T22_a-preflight-must-measure-the-artifact-the-gate-measures-and-a-transition-banner-must-name-its-reference-state.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T03:15:29Z",
+  "schema_version": 1,
+  "subject": "tool:probe",
+  "valid_from": "2026-09-04",
+  "value": "TWO TOOLS, ONE FAILURE: a number reported against an UNNAMED or WRONG reference reads as a measurement of the thing the reader cares about. Both instances were measured this run and both are one-line reference errors, not algorithm errors. (1) PREFLIGHT vs GATE. `gdlmem.py propose-record --size` measured the record ON DISK while `stage_record_proposal` stamps `valid_from` and `recorded_at` BEFORE `_validate_record` applies the 16 KB attempt cap. The two stamps cost EXACTLY 67 bytes when both are absent (`, \"recorded_at\": \"2026-09-04T02:09:23Z\"` = 39, `, \"valid_from\": \"2026-09-04\"` = 28), which is the ~60-70 B a lane spent three trim cycles chasing. Demonstrated on a boundary record built to exactly the cap: authored 16384 B, the preflight said `over_by 0` / `within the 16384-byte attempt cap`, and the gate refused the same record `is 16451 bytes (cap 16384, OVER BY 67)`. A preflight that says UNDER where the gate says OVER is worse than no preflight -- it costs a full authoring round-trip -- so the preflight now runs the staging stamps itself and reports `staging_overhead_bytes` in the verdict. (2) TRANSITION vs BASELINE. probe's COUNT-PARITY banner is a CLASS statement about the function ('this function has just become eligible for a postprocessor class') computed against `last_insns`, i.e. whatever the previous probe left behind. Measured, attempt.CR_critterremovecolnodesub-the-two-pointer-hitnode-split-costs-one-instruction-or-folds-back.20260904.v1: a function that was T77/O77 at HEAD and throughout, one failed probe at T77/O78, and the next probe announced `COUNT-PARITY GAINED insns T77/O78 -> T77/O77` -- 'true only against probe (1)'s failed state ... The banner compares to the PREVIOUS PROBE, not to the commit, and reads like an achievement.' Run 49's `--discard` re-score closed ONE route to a stale previous state; it did not make the reference right. The banner now computes against `baseline_insns` (the clean-state count the first probe banks, which the first-baseline trap already requires), NAMES the reference in the line, reports an intermediate probe only as context, and emits `COUNT-PARITY HELD ... NOT a class change` where it used to claim a gain. THE GENERAL RULE: any tool line of the form `X -> Y` must print WHICH state Y is being compared against, and a preflight must run the gate's own serializer over the gate's own input. NEGATIVE SIDE HELD IN BOTH CASES: a genuine parity gain still announces itself (baseline T289/O290 -> T289/O289 on draw_power_meter, attempt.NC_draw-power-meter-pooled-base-buys-count-parity-and-the-tu-wide-pooling-claim-is-false.20260903.v1, and it survives an intermediate probe that also lost parity), and a comfortably sized record still reads as within the cap."
+}
