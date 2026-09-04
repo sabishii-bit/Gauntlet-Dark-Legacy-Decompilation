@@ -879,6 +879,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
         if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
             for (j = 0; j < ((CritterPackedType *)c->hdr)->colCount; j++) {
                 u8 *hn = (u8 *)c + j * sizeof(CritterHitNode);
+                f32 *npos;
                 node = hn + offsetof(Critter, hitnodes);
                 if (*(void **)(hn + (offsetof(Critter, hitnodes) +
                                      offsetof(CritterHitNode, active))) == NULL) {
@@ -892,15 +893,13 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
                 if ((*(s16 *)(desc + offsetof(CritterColDescriptor, flags)) & 8) == 0) {
                     continue;
                 }
-                center[0] = *(f32 *)(node + offsetof(CritterHitNode, position)) +
-                            delta[0];
-                center[1] = *(f32 *)(node + offsetof(CritterHitNode, position) + 4) +
-                            delta[1];
-                center[2] = *(f32 *)(node + offsetof(CritterHitNode, position) + 8) +
-                            delta[2];
+                npos = (f32 *)(node + offsetof(CritterHitNode, position));
+                center[0] = npos[0] + delta[0];
+                center[1] = npos[1] + delta[1];
+                center[2] = npos[2] + delta[2];
                 desc = *(u8 **)(node + offsetof(CritterHitNode, descriptor));
                 result = fn_8005F0F4(
-                    item, (f32 *)(node + offsetof(CritterHitNode, position)),
+                    item, npos,
                     center, out, *(f32 *)(desc + offsetof(CritterColDescriptor, radius)), *(f32 *)(desc + offsetof(CritterColDescriptor, radius)));
                 if (result >= dzero) {
                     break;
