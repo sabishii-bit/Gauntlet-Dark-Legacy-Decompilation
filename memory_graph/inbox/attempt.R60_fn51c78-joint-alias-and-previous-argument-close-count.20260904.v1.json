@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Transfer the verified joint propagation/element-alias repair, then recover the missing argument/result copies and screen the remaining source register identities.",
+  "attributes": {
+    "axis_log": [
+      "20260831 raw-pointer-plus-offset respelling alone: identical105/103; preserved old negative, new joint axis is distinct."
+    ],
+    "law_screen": "Read the old function cap plus full direct-global-member/address-association and pointer-declaration laws; old raw-offset-only respelling remains vetoed. claim.law.R60_joint-propagation-and-element-alias-can-close-r0-address-form.20260904.v1 APPLIED: all three indexed-memory forms become add plus displacement with the cached base preserved. claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 applied as a tested extension to volatile identities: reusing i for the final search reduced24 differing words to20. Pointer/cur/i declaration order neutral. The full matching-law corpus was screened earlier this pass; no count-asymmetric postprocessor claim was made.",
+    "probed_form": "Reproducer: r60_enemy_source_probe.py milestones at a22302608,19 candidates plus raw-fidelity baseline. Propagation off alone: identical103 instructions. With first, first-two, all-three per-access `u8* row = (u8*)mp + idx * sizeof(s32); *(s32*)(row + offsetof(MilestonePool, slots))` aliases: addresses progressively close, still103. With all aliases, passing existing `prev` instead of equal-valued `cur` to fn_800511D0 restores105 instructions; a separate next local is identical. Reversing equality operands alone keeps103; with prev gives105/26 differing words. A single grouped distance expression `dz*dz + (dx*dx + dy*dy)` removes the split-d2 temporary:105/24. Pointer before bestDist or at top, cur-first and i-first declaration orders: neutral24. Hoisting count and assigning prev after declarations:23; reusing i for count:23; reusing i for final-loop k:20 KEPT. Reusing best as cur:104 REJECTED. Two initial hoisted-count scratch candidates failed because they placed declarations after statements under C89; corrected declaration placement was then measured, not counted as compiler evidence.",
+    "semantics": "prev is assigned cur before the call and intervening stores do not modify that local, so changing the call's source variable does not change its value. The single distance expression retains exactly the previous sum grouping. i is dead after nearest selection and is reset before the final search; no cross-loop state is lost. No new padding, aggregate wrapper, volatile access or raw numerical field offset.",
+    "verification": "Raw whole-object baseline fidelity; fresh source-only probe98.9048%,real40,T105/O105; slotdiff SLOT MAP IDENTICAL. Strict webfrank_audit1eligible0rejected; wr_try_rule BYTE-EQUAL with FULL L3 retail datum proof. Separate closure record carries rule provenance."
+  },
+  "denial": {
+    "expiry_check": "Re-run the milestones scratch matrix against a pre-retention source snapshot and a real-edge baseline object, then inspect current raw target/body words after a changed TU/compiler/source alignment; postprocessed real0 is not a raw-source test.",
+    "falsifier": "A source identity arrangement producing fewer than20 differing register words at105/105 without changing opcode, relocation, datum, frame or slot correspondence.",
+    "premise_measurement": "Before T105/O103, real66, fuzzy90.0286%; after source T105/O105, real40, fuzzy98.9048%, 20 raw differing words. slotdiff reports identical40-byte frame, save boundaryr30 and all six slots before and after.",
+    "scope": "Only measured source declaration/identity variants at the new 105/105 alignment, not all possible source or the successful joint alias/propagation axis."
+  },
+  "function": "function:fn_80051C78",
+  "held_fixed": "Loop bounds, store order, milestone distance evaluation grouping, nearest-selection semantics and cycle termination; each matrix step changes only the named source identities or optimizer-control bracket, with a byte-identical real-edge baseline.",
+  "id": "attempt.R60_fn51c78-joint-alias-and-previous-argument-close-count.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-04T23:30:23Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "opcode multiset: IDENTICAL"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.fn80051c78-index-base-association-park.20260831.v1",
+  "valid_from": "2026-09-04"
+}

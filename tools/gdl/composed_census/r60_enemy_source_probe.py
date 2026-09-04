@@ -425,16 +425,59 @@ def resource_variants(body):
     yield "joint_inline_index_reset", pragma(helper + caller, "opt_propagation")
 
 
+def milestone_variants(body):
+    """Joint controlled propagation and per-access bases, not raw respelling."""
+    def pragma(text):
+        return "#pragma opt_propagation off\n" + text + "\n#pragma opt_propagation reset\n"
+    first = replace_once(body, "        mp->slots[i] = -1;", "        u8* row = (u8*)mp + i * sizeof(s32);\n        *(s32*)(row + offsetof(MilestonePool, slots)) = -1;")
+    store = replace_once(first, "        mp->slots[count] = cur;", "        {\n            u8* row = (u8*)mp + count * sizeof(s32);\n            *(s32*)(row + offsetof(MilestonePool, slots)) = cur;\n        }")
+    all_sites = replace_once(store, "            if (mp->slots[k] == cur) {", "            u8* row = (u8*)mp + k * sizeof(s32);\n            if (*(s32*)(row + offsetof(MilestonePool, slots)) == cur) {")
+    yield "propagation_off", pragma(body)
+    yield "joint_first_alias", pragma(first)
+    yield "joint_two_aliases", pragma(store)
+    yield "joint_all_aliases", pragma(all_sites)
+    yield "joint_previous_as_argument", pragma(all_sites.replace("cur = fn_800511D0(cur,", "cur = fn_800511D0(prev,"))
+    yield "joint_comparison_operand", pragma(all_sites.replace("if (*(s32*)(row + offsetof(MilestonePool, slots)) == cur)", "if (cur == *(s32*)(row + offsetof(MilestonePool, slots)))"))
+    explicit = all_sites.replace("        cur = fn_800511D0(cur, lbl_80346984);", "        {\n            s32 next = fn_800511D0(prev, lbl_80346984);\n            cur = next;\n        }")
+    yield "joint_next_result", pragma(explicit)
+    closed = all_sites.replace("cur = fn_800511D0(cur,", "cur = fn_800511D0(prev,")
+    closed = closed.replace("if (*(s32*)(row + offsetof(MilestonePool, slots)) == cur)", "if (cur == *(s32*)(row + offsetof(MilestonePool, slots)))")
+    yield "joint_previous_and_operand", pragma(closed)
+    single = replace_once(closed, "            f32 d2 = dx * dx + dy * dy;\n\n            d2 = dz * dz + d2;", "            f32 d2 = dz * dz + (dx * dx + dy * dy);")
+    yield "joint_single_distance_expression", pragma(single)
+    for base, name in ((closed, "split_distance"), (single, "single_distance")):
+        pointer_first = replace_once(base, "        f32 bestDist = lbl_803468B0;\n        u8* m = sMilestones;", "        u8* m = sMilestones;\n        f32 bestDist = lbl_803468B0;")
+        yield "joint_pointer_first_" + name, pragma(pointer_first)
+        top = replace_once(base, "    s32 best;", "    u8* m;\n    s32 best;")
+        top = replace_once(top, "        u8* m = sMilestones;", "        m = sMilestones;")
+        yield "joint_pointer_top_" + name, pragma(top)
+    yield "joint_cur_decl_first", pragma(replace_once(single, "    s32 best;\n    s32 cur;\n    s32 i;", "    s32 cur;\n    s32 best;\n    s32 i;"))
+    yield "joint_i_decl_first", pragma(replace_once(single, "    s32 best;\n    s32 cur;\n    s32 i;", "    s32 i;\n    s32 best;\n    s32 cur;"))
+    count_top = replace_once(single, "    s32 best;", "    s32 count;\n    s32 best;")
+    count_top = replace_once(count_top, "        s32 count = lbl_80344724;\n        s32 prev = cur;\n        s32 k;", "        s32 prev;\n        s32 k;\n        count = lbl_80344724;\n        prev = cur;")
+    yield "joint_count_decl_top", pragma(count_top)
+    prefix, tail = single.split("    cur = best;", 1)
+    for old, new in (("count", "i"), ("k", "i"), ("cur", "best")):
+        part = tail.replace("s32 " + old + " =", old + " =").replace("        s32 " + old + ";\n", "")
+        if old == "count":
+            part = replace_once(part, "        count = lbl_80344724;\n        s32 prev = cur;\n        s32 k;", "        s32 prev;\n        s32 k;\n        count = lbl_80344724;\n        prev = cur;")
+        part = re.sub(r"\b" + old + r"\b", new, part)
+        lead = prefix + "    cur = best;"
+        if old == "cur":
+            lead = prefix.replace("    s32 cur;\n", "")
+        yield "joint_reuse_" + old + "_as_" + new, pragma(lead + part)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -486,7 +529,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

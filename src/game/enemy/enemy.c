@@ -8759,6 +8759,8 @@ void fn_800516F8(s32 slot)
     }
 }
 
+/* Preserve the cached-pool element addresses through propagation. */
+#pragma opt_propagation off
 void fn_80051C78(void)
 {
     MilestonePool* mp = (MilestonePool*)lbl_80250E00;
@@ -8768,7 +8770,8 @@ void fn_80051C78(void)
     s32 i;
 
     for (i = 0; i < 128; i++) {
-        mp->slots[i] = -1;
+        u8* row = (u8*)mp + i * sizeof(s32);
+        *(s32*)(row + offsetof(MilestonePool, slots)) = -1;
     }
     lbl_80344724 = 0;
     best = -1;
@@ -8781,9 +8784,7 @@ void fn_80051C78(void)
             f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
             f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
             f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
-            f32 d2 = dx * dx + dy * dy;
-
-            d2 = dz * dz + d2;
+            f32 d2 = dz * dz + (dx * dx + dy * dy);
             if (d2 > 0.0f) {
                 volatile f32 tmp;
                 f64 y = __frsqrte(d2);
@@ -8804,18 +8805,21 @@ void fn_80051C78(void)
     for (;;) {
         s32 count = lbl_80344724;
         s32 prev = cur;
-        s32 k;
 
         lbl_80344724 = count + 1;
-        mp->slots[count] = cur;
-        cur = fn_800511D0(cur, lbl_80346984);
+        {
+            u8* row = (u8*)mp + count * sizeof(s32);
+            *(s32*)(row + offsetof(MilestonePool, slots)) = cur;
+        }
+        cur = fn_800511D0(prev, lbl_80346984);
         count = lbl_80344724;
-        for (k = 0; k < count; k++) {
-            if (mp->slots[k] == cur) {
+        for (i = 0; i < count; i++) {
+            u8* row = (u8*)mp + i * sizeof(s32);
+            if (cur == *(s32*)(row + offsetof(MilestonePool, slots))) {
                 break;
             }
         }
-        if (k < count) {
+        if (i < count) {
             break;
         }
         if (prev == cur) {
@@ -8823,6 +8827,7 @@ void fn_80051C78(void)
         }
     }
 }
+#pragma opt_propagation reset
 
 char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
 {

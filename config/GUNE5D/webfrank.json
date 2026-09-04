@@ -1506,6 +1506,13 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "fn_80051C78",
+        "before_sha256": "5fba9c99ab2157768af6c045d8ec61416f8803c9b7c4197bd1ec5bb2fe28e28b",
+        "after_sha256": "e961741e7273271996cd6871143e819c5b96b80c5db86d072d9325455cf4cec3",
+        "mechanism": "attempt.R60_fn51c78-strict-recolor-closure.20260904.v1. SOURCE-EXHAUSTION provenance: attempt.R60_fn51c78-joint-alias-and-previous-argument-close-count.20260904.v1. Source first closes three addressing-form differences via joint element aliases and propagation control; passing the existing equal-valued prev local restores the two missing copies. Single-expression distance arithmetic and reusing an already-dead loop index reduce register differences. Nineteen source candidates are recorded. Retained source has105/105 instructions, exact40-byte frame/slots, identical opcode order and20 raw register words. Strict renaming and full retail datum binding pass; wr_try_rule returns BYTE-EQUAL. No permutation or widened verifier. This practical closure is not a proof of universal source-unreachability.",
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_80051164",
         "before_sha256": "f38366455e254106f9054a3ef653ffb77867fc22845c794f2d0a1f36a1120655",
         "after_sha256": "f5386bf0130caa9134c122209b465ffb512db22ec8dfed5fd1f2e171418707f5",

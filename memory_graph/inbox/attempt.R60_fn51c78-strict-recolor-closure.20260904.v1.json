@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "Strict recolor after source closes all address forms and two missing copies.",
+  "attributes": {
+    "law_screen": "At105/105 with20 raw differing register words, identical opcode order, identical frame/slots and no permutation, form-aware decoding plus strict renaming bisimulation applies. Before source reconstruction this function was105/103 and categorically ineligible; no guard was weakened to close it.",
+    "source_exhaustion": "attempt.R60_fn51c78-joint-alias-and-previous-argument-close-count.20260904.v1 provides19 literal source variants and a bounded cap, not a universal source-unreachability claim.",
+    "verification": "webfrank_audit reports1eligible0rejected; wr_try_rule BYTE-EQUAL (raw postprocess body),1stage, FULL L3 datum proof against retail image. before5fba9c99ab2157768af6c045d8ec61416f8803c9b7c4197bd1ec5bb2fe28e28b; aftere961741e7273271996cd6871143e819c5b96b80c5db86d072d9325455cf4cec3. Full build, exact reporting and collateral census are required before integration."
+  },
+  "function": "function:fn_80051C78",
+  "id": "attempt.R60_fn51c78-strict-recolor-closure.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T23:30:28Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ]
+}

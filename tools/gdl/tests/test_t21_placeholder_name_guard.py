@@ -53,6 +53,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools" / "gdl"))
@@ -178,12 +179,14 @@ class RawWordResidualSpellings(unittest.TestCase):
         # word_streams raises SystemExit, which is a BaseException: the old
         # blanket `except Exception` never caught it, so the fallback line
         # the docstring promises was unreachable and the probe died instead.
-        unit, fn = "game/enemy/enemy", "fn_80051C78"
-        if not (REPO / "build" / "GUNE5D" / "src" / "game" / "enemy"
-                / ".postprocess" / "body" / "enemy.o").exists():
-            self.skipTest("needs a built enemy raw body")
-        self.assertIsNone(probe.raw_word_residual(
-            unit, fn, probe.strip_dtk_suffix(fn)))
+        # fn_80051C78 was the live asymmetric fixture, but now has count
+        # parity. Exercise the actual exception path without requiring a
+        # particular game function to remain unfinished forever.
+        module = probe._wf_word_diff_module()
+        self.assertIsNotNone(module)
+        with patch.object(module, "word_diff", side_effect=SystemExit("count-asymmetric")) as read:
+            self.assertIsNone(probe.raw_word_residual(MOVIEPLAYER, "fn_800D967C"))
+        read.assert_called_once_with(MOVIEPLAYER, "fn_800D967C")
 
 
 @unittest.skipUnless(
