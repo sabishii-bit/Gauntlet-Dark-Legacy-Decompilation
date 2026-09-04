@@ -11678,6 +11678,29 @@ def attempt_staleness(
         if isinstance(subject, str) and subject:
             entry["function"] = subject.split(":", 1)[-1]
         reopen.append(entry)
+    # VACUOUS EXPIRY CHECKS (run-53 item 8), in the SAME walk as
+    # anchor_path_missing and for the same reason: both are pure joins of
+    # record metadata against something outside the record, and neither has a
+    # score to move. `anchor_path_missing` asks whether a record's evidence
+    # still EXISTS; this asks whether a typed denial's `expiry_check` can ever
+    # DECIDE anything.
+    pinned = webfrank_pinned_functions(root)
+    for row in anchor_rows:
+        try:
+            record = json.loads(row["raw_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        verdict = vacuous_expiry_reason(record, pinned)
+        if verdict is None:
+            continue
+        entry = {"record": row["record_id"],
+                 "reason": "vacuous_expiry_check",
+                 "expiry_check": verdict["expiry_check"],
+                 "reads": verdict["reads"]}
+        subject = record.get("function") or record.get("subject")
+        if isinstance(subject, str) and subject:
+            entry["function"] = subject.split(":", 1)[-1]
+        reopen.append(entry)
     return {
         "stale_solved": stale,
         "postprocessor_walls": walls,
@@ -11715,8 +11738,103 @@ def attempt_staleness(
             " one day: verify via git log against the claimed scope, then"
             " remove the claim in a standalone cleanup commit (AGENTS.md"
             " cross-fleet concurrency)."
+            " vacuous_expiry_check means the record's typed denial names an"
+            " expiry_check that reads the POSTPROCESSED object of a"
+            " webfrank-PINNED function, so it can never decide anything: a"
+            " pinned function reads real 0 with an identical multiset BY"
+            " CONSTRUCTION, which makes the denial either immortal (the"
+            " trigger can never fire) or falsely expired (the trigger's"
+            " nonzero premise can never be shown again) — see"
+            " claim.law.CX_an-expiry-check-that-reads-the-postprocessed-"
+            "object-of-a-pinned-function-can-never-fire.20260904.v2. THE"
+            " REPAIR IS REWRITING THE CHECK AGAINST THE RAW BODY, not"
+            " deleting the denial: add `--raw`, or name a raw-reading tool"
+            " (composed_census/wf_word_diff.py, hv_try.py,"
+            " wr_const_closure_probe.py). This dimension does NOT run the"
+            " check — `stale` performs no builds — it reports that running it"
+            " would prove nothing."
         ),
     }
+
+
+# Tools whose DEFAULT read is the POSTPROCESSED object.
+_POSTPROCESS_READERS = ("probe.py", "fndiff.py", "savedregs.py",
+                        "slotdiff.py", "regnorm.py")
+# Tools that read the RAW pre-postprocess body by construction. A check
+# naming one of these is sound on a pinned function and must NOT be flagged.
+_RAW_READERS = ("wf_word_diff.py", "hv_try.py", "wr_const_closure_probe.py",
+                "wr_try_rule.py", "wf_rederive_pin.py", "t16_rederive_body.py",
+                "hv_bypass.py", "wr_perm_hash.py")
+
+
+def webfrank_pinned_functions(root: Path) -> set:
+    """Every function name carrying a rule in config/GUNE5D/webfrank.json."""
+    path = root / "config" / "GUNE5D" / "webfrank.json"
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    units = config.get("units", {}) if isinstance(config, dict) else {}
+    return {entry.get("function")
+            for rows in units.values() if isinstance(rows, list)
+            for entry in rows if isinstance(entry, dict)}
+
+
+def vacuous_expiry_reason(record: dict, pinned: set):
+    """Why this record's typed denial can never expire, or None.
+
+    RUN-53 ITEM 8. A typed denial must carry an `expiry_check` — the command
+    that would show the denial no longer holds. When that command reads the
+    POSTPROCESSED object of a webfrank-PINNED function it decides nothing: a
+    pinned function reads `real 0` with an IDENTICAL opcode multiset by
+    construction, so the denial is either immortal or falsely expired
+    (claim.law.CX_an-expiry-check-that-reads-the-postprocessed-object-of-a-
+    pinned-function-can-never-fire.20260904.v2).
+
+    THE SCREEN IS NOT A TOOL-NAME LIST, and that is the whole difficulty: the
+    same law records that a name-list screen REFUSED TWO SOUND DENIALS,
+    because `--raw` and several composed_census tools read the raw body. So a
+    check is exempt when it passes `--raw` or names a raw-reading tool.
+
+    TWO-SIDED, measured over the live corpus at c7b741799 (170 typed denials,
+    all four denial fields present on every one; 153 pinned functions):
+
+        naive tool-name screen                  19 rows
+        raw-aware screen (shipped)               9 rows
+        exempted by a RAW read                  10 rows  (53% of the naive
+                                                 screen's hits were FALSE)
+
+    The ten exemptions are named because each removes rows: seven pass
+    `--raw` (DoWorldAnimation, InitItemInfoData, fn_800DA6A4, getSinCos,
+    cam_orient_to_80029E8C, CritterLineNodeColSub) and three name a raw
+    reader (init_all_dir_info via hv_try.py, PlayerProcessPowerups x2 via
+    wf_word_diff.py, scroll_credits via wr_const_closure_probe.py). The last
+    two are exactly the pair the law says a name-list screen wrongly refused,
+    so they are the calibration's own regression test.
+
+    This function RUNS NOTHING: `stale` performs no builds, and the verdict
+    is that running the check would prove nothing, never that it fired.
+    """
+    denial = record.get("denial")
+    if not isinstance(denial, dict):
+        attributes = record.get("attributes")
+        denial = attributes.get("denial") if isinstance(attributes, dict) \
+            else None
+    if not isinstance(denial, dict):
+        return None
+    check = denial.get("expiry_check")
+    if not isinstance(check, str) or not check.strip():
+        return None
+    subject = record.get("function") or record.get("subject") or ""
+    function = subject.split(":", 1)[-1] if isinstance(subject, str) else ""
+    if function not in pinned:
+        return None
+    reads = [tool for tool in _POSTPROCESS_READERS if tool in check]
+    if not reads:
+        return None
+    if "--raw" in check or any(tool in check for tool in _RAW_READERS):
+        return None
+    return {"expiry_check": check, "reads": reads}
 
 
 def _validate_cache_path(root: Path) -> Path:

@@ -3684,6 +3684,93 @@ class ValidateIncrementalTests(unittest.TestCase):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
 
 
+class VacuousExpiryTests(unittest.TestCase):
+    """`stale` gains an EXPIRY dimension (run-53 item 8).
+
+    A typed denial whose `expiry_check` reads the POSTPROCESSED object of a
+    webfrank-PINNED function can never decide anything: the pinned function
+    reads real 0 with an identical multiset by construction
+    (claim.law.CX_an-expiry-check-that-reads-the-postprocessed-object-of-a-
+    pinned-function-can-never-fire.20260904.v2).
+
+    TWO-SIDED at c7b741799 over 170 typed denials and 153 pinned functions:
+    the naive tool-name screen the law warns against hits 19; the shipped
+    raw-aware screen hits 9; 10 are exempted by a RAW read, so 53% of the
+    naive screen's hits were false. Two of those ten (scroll_credits via
+    wr_const_closure_probe.py, init_all_dir_info via hv_try.py) are the pair
+    the law records a name-list screen wrongly refusing.
+    """
+
+    PINNED = {"CritterGetTargetPlayers"}
+
+    def denial(self, check, function="function:CritterGetTargetPlayers"):
+        return {"id": "attempt.x.20260904.v1", "kind": "attempt",
+                "function": function,
+                "denial": {"scope": "s", "premise_measurement": "p",
+                           "expiry_check": check, "falsifier": "f"}}
+
+    def test_a_postprocess_read_of_a_pinned_function_is_flagged(self):
+        verdict = core.vacuous_expiry_reason(
+            self.denial("python tools/gdl/probe.py game/x/y f --ops"),
+            self.PINNED)
+        self.assertIsNotNone(verdict)
+        self.assertEqual(verdict["reads"], ["probe.py"])
+
+    def test_a_raw_flag_exempts_the_check(self):
+        """Seven live rows are exempt this way; without it the screen has a
+        53% false-positive rate."""
+        self.assertIsNone(core.vacuous_expiry_reason(
+            self.denial("python tools/gdl/probe.py game/x/y f --raw"),
+            self.PINNED))
+
+    def test_a_raw_reading_tool_exempts_the_check(self):
+        """The pair the law says a name-list screen wrongly refused."""
+        for tool in ("composed_census/wr_const_closure_probe.py",
+                     "composed_census/hv_try.py",
+                     "composed_census/wf_word_diff.py"):
+            self.assertIsNone(core.vacuous_expiry_reason(
+                self.denial(f"python tools/gdl/{tool} game/x/y f"),
+                self.PINNED), tool)
+
+    def test_an_unpinned_function_is_never_flagged(self):
+        """On an unpinned function the postprocessed object IS the compiler's
+        own output, so the check decides normally."""
+        self.assertIsNone(core.vacuous_expiry_reason(
+            self.denial("python tools/gdl/probe.py game/x/y f --ops",
+                        function="function:NotPinnedAnywhere"),
+            self.PINNED))
+
+    def test_a_record_with_no_denial_block_is_ignored(self):
+        self.assertIsNone(core.vacuous_expiry_reason(
+            {"id": "a", "kind": "attempt", "function": "function:X"},
+            self.PINNED))
+
+    def test_the_attributes_spelling_is_read_too(self):
+        record = {"id": "a", "kind": "attempt",
+                  "function": "function:CritterGetTargetPlayers",
+                  "attributes": {"denial": {
+                      "scope": "s", "premise_measurement": "p",
+                      "expiry_check": "python tools/gdl/fndiff.py x y --ops",
+                      "falsifier": "f"}}}
+        self.assertIsNotNone(
+            core.vacuous_expiry_reason(record, self.PINNED))
+
+    def test_the_pinned_set_comes_from_webfrank_json(self):
+        pinned = core.webfrank_pinned_functions(REPO_ROOT)
+        self.assertIn("CritterGetTargetPlayers", pinned)
+        self.assertGreater(len(pinned), 100)
+
+    def test_stale_reports_the_rows_with_their_own_reason(self):
+        result = core.attempt_staleness(REPO_ROOT)
+        rows = [row for row in result["reopen_candidates"]
+                if row.get("reason") == "vacuous_expiry_check"]
+        self.assertTrue(rows, "the live corpus carries this class")
+        for row in rows:
+            self.assertIn("expiry_check", row)
+            self.assertIn("reads", row)
+            self.assertNotIn("--raw", row["expiry_check"])
+
+
 class GraphRebuildCostTests(unittest.TestCase):
     """T10 run-40 item 1: propose-record was its own cache-buster.
 
