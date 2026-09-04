@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Requires the built GUNE5D raw world object, split target object, and configured GC/1.2.5 compiler edge. Writes generated scratch files only beneath build and cleans its own temporary directory. Verifies instruction bytes only: use full ninja main.dol: OK for relocation/data closure. WorldNameRef is a specifically user-approved compatibility wrapper, not a recovered original game type or blanket authorization for other source scaffolding."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r59_world_name_ref_probe.py",
+  "id": "tool.r59-world-name-ref-probe.20260904T205944Z.ed3f2364",
+  "kind": "tool",
+  "name": "r59-world-name-ref-probe",
+  "purpose": "Reproduce the approved world.c one-pointer local compatibility idiom against a scalar negative control using the actual Ninja compiler edge.",
+  "recorded_at": "2026-09-04T20:59:44Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r59_world_name_ref_probe.py",
+  "status": "active",
+  "tool_key": "tool:r59-world-name-ref-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run after a complete ninja build from the repository root; exits nonzero on missing artifacts, fidelity failure, changed source shape, failed raw exactness, or changed scalar +1 instruction residual."
+  ],
+  "valid_from": "2026-09-04T20:59:44+00:00"
+}
