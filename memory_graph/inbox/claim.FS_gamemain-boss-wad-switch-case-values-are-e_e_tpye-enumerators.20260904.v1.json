@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "switch-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.FS_gamemain-boss-wad-switch-case-values-are-e_e_tpye-enumerators.20260904.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-09-04T03:54:28Z",
+  "schema_version": 1,
+  "subject": "function:init_next_level",
+  "valid_from": "2026-09-04",
+  "value": "The `switch (t)` in init_next_level_8005638C selects on an ENEMY TYPE ID and its case values are the PDB's `enum e_e_tpye` (research/xbox_symbols/misc.h:16684, Midway's own misspelling; already transcribed into include/game/enemy.h and already included by gamemain.c). The map is self-validating: each case's wad-name string, read from the retail image at lbl_80112788, IS its enumerator's name. case 34 E_DRAGON->'dragon.wad'; 35 E_CHIMERA->'chimera.wad'; 36 E_DJINN->'djinn.wad'; 37 E_DRIDER->'drider.wad'; 38 E_PBOSS->'pboss.wad'; 39 E_YETI->'yeti.wad'; 41 E_LICH->'lich.wad'; 40 E_WRAITH->'wraith.wad'; 42 E_SKORNE1->'skorne1.wad'; 43 E_SKORNE2->'skorne2.wad'; 44 E_GARM->'garm.wad'; 29 E_GOLEM->'golemI.wad'/'golemF.wad'/'golem.wad' by sMusicTrackHi (9/6/else); 33 E_GENERAL->'general.wad'; 32 E_GARGOYLE->sprintf('gar_%s.wad', <name>+16). Sixteen for sixteen. The first argument is lbl_80346C04 = .sdata2:0x80346C04 size 0x8 data:string, whose bytes are 'critter\\0' -- so the real call reads CritterLoadFile(\"critter\", \"dragon.wad\"): a wad directory and a wad file. TWO CORROBORATIONS THAT THE RECONSTRUCTION'S ODD CASE ORDER IS CORRECT, not a transcription slip: (a) the source's `case 41:` sits BEFORE `case 40:` and the pool likewise places 'lich.wad' (+88) before 'wraith.wad' (+100), so pool order == source first-use order and the two agree; (b) the jump table is dense over exactly 16 entries -- the target computes `addi r0,r4,-29` / `cmplwi r0,15` / `bgt default` before indexing jumptable_8011C754, which brackets the switch at type ids 29..44 inclusive, i.e. E_GOLEM..E_GARM, the whole boss range of the enum. RANGE CONSTANTS ELSEWHERE IN THE TU read the same enum: `raw < 32` = below E_GARGOYLE, `raw >= 45` = E_MAXTYPES, `value < 28` = E_NTYPES (the boundary between the 0..27 ordinary enemies and the boss block)."
+}

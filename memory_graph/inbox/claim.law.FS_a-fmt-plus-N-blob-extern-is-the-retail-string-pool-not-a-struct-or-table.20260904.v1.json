@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "pool-layout",
+      "defake",
+      "symbol-identity",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Dump the bytes at the blob symbol's address from orig/GUNE5D/sys/main.dol (the addresses come from config/GUNE5D/symbols.txt). If the run at `base + N` is NOT NUL-terminated text -- if the N-spacing is uniform across entries of visibly different content lengths, or the bytes decode as pointers/floats/records -- this law does not cover that site and the struct reading stands. Equally falsified if a `base + N` family is found whose target codegen spends a lis/addi PAIR per site rather than one addi off a single materialised base, since that is separate objects, not a pool.",
+  "id": "claim.law.FS_a-fmt-plus-N-blob-extern-is-the-retail-string-pool-not-a-struct-or-table.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T03:54:26Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/gamemain",
+  "valid_from": "2026-09-04",
+  "value": "A `char* fmt = lbl_<ADDR>;` local followed by `fmt + N` argument sites is the retail build's POOLED STRING-CONSTANT OBJECT addressed base+offset, not a struct, table or enum-indexed array -- and an apparent fixed STRIDE in the N values is an artifact of 4-byte literal alignment, never evidence of a record size. MEASURED at eae588b7c on game/game/gamemain.c's init_next_level_8005638C, whose switch calls CritterLoadFile(lbl_80346C04, fmt + N) with N = 16,28,40,52,64,76,88,100,112,124,136 (cases 34-44) and 148/160/172 (case 29) -- a clean stride of 12 from +16 that reads exactly like a 12-byte record table. THE BYTES REFUTE IT. symbols.txt: `lbl_80112788 = .rodata:0x80112788; // type:object size:0x24C` (no `data:string` tag, i.e. dtk named a whole contiguous run with ONE symbol -- AGENTS.md residual discipline 3). Dumped from orig/GUNE5D/sys/main.dol at 0x80112788: +0 'levels/level%s', +16 'dragon.wad', +28 'chimera.wad', +40 'djinn.wad', +52 'drider.wad', +64 'pboss.wad', +76 'yeti.wad', +88 'lich.wad', +100 'wraith.wad', +112 'skorne1.wad', +124 'skorne2.wad', +136 'garm.wad', +148 'golemI.wad', +160 'golemF.wad', +172 'golem.wad', +184 'general.wad', +196 'gar_%s.wad', then +208 'C5XCNODE#0', +220 \"Can't find WORLDOBJ: C5XCNODE#0\", +252 'C5XCNODE#1', +296 'PBOSSEYEBALL', +312 'A5XPXLNC_LNING', +328 'F2XPNC_LNING', +344 \"Can't find WORLDOBJ: %s\", +368..+568 the eleven PrintWorldMemSizes report formats. The wad names are 8-11 chars, so every one of them occupies 9-12 bytes and every one rounds up to 12 -- THAT is the stride. THE DISCRIMINATOR that kills the fixed-width-array reading is the same blob's heterogeneous entries: 'levels/level%s' (15 bytes) -> next at +16, 'PBOSSEYEBALL' (13) -> next at +16 further, \"Can't find WORLDOBJ: %s\" (24) -> next at exactly +24. A char[N][12] table cannot produce 16/16/24 spacings; 4-byte alignment of a heterogeneous pool produces all of them. CODEGEN CONFIRMATION (tools/gdl/fnasm.py game/game/gamemain init_next_level_8005638C): the target materialises the base ONCE -- `14: lis r3,0 @lbl_80112788(ADDR16_HA)` / `18: addi r30,r3,0 @lbl_80112788(ADDR16_LO)` -- and then spends ONE instruction per site, `144: addi r4,r30,16`, `154: addi r4,r30,28`, ..., plus `78: addi r4,r30,0` for the sprintf format at +0. Separate string objects cannot be addressed that way: the compiler would not know their inter-object distances and would emit a lis/addi pair per site. One base + compile-time offsets IS the pool. GENERAL FORM: before reading a `base + N` argument family as a struct, dump the bytes at the base symbol; if they are NUL-terminated text the answer is the string pool and the correct source spelling is a string literal, with the reachability of that literal decided separately by the TU's -str flags."
+}
