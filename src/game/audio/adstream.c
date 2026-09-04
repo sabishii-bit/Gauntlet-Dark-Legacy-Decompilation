@@ -123,7 +123,11 @@ extern f32 lbl_80349308;   /* SRC ratio divisor */
 extern f64 lbl_80349310;   /* SRC fraction scale (65536.0) */
 extern f64 lbl_80349318;   /* u32->f64 conversion bias */
 extern f64 lbl_80349320;   /* s32->f64 conversion bias */
-extern char lbl_801174A8[]; /* "AdsPutBuffer..." message pool */
+const char lbl_801174A8[] = "DCSERROR: ";
+const char lbl_801174B4[] =
+    "SPU UNDERRUN, loop-glitch likely\n\0\0\0"
+    "AdsPutBuffer EOF -- %d bytes UNSENT\n\0\0\0\0"
+    "AdsPutBuffer overrun! %d bytes UNSENT\n\0";
 extern char lbl_80349328[6]; /* short EOF tag (sdata2) */
 extern char lbl_80349330[5];
 extern char lbl_80349338[5];
@@ -209,8 +213,8 @@ s32 adsMoveCookedToSpu(ADSTREAM* stream) {
         if (self->status != 0) {
             s32 volume;
 
-            printf("DCSERROR: ");
-            printf("SPU UNDERRUN, loop-glitch likely\n");
+            printf(lbl_801174A8);
+            printf(lbl_801174B4);
             dcsMemTryLock(self->spuReadBase +
                               self->refillState * halfVoiceLoop,
                           self->voice[0], adsLockCallback, 0);
@@ -584,8 +588,7 @@ s32 _AdsThread(void) {
     case 0x2000:
         lock = dcsMemLockOwner(0, 0);
         if (s->keyCount != 0) {
-            i = 0;
-            s->keyCount = i;
+            s->keyCount = (i = 0);
             s->status = 0x1000;
             if (s->endCount != 0) {
                 s->endCount = i;
@@ -905,7 +908,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         goto done;
     }
     s->fileRemaining += 40;
-    dst = (char*)s + 0x54;
+    dst = (char*)s->_pad54;
     if ((u8*)s->ringPtr + 40 > wrEnd) {
         part = wrEnd - (u8*)s->ringPtr;
         memcpy(dst, s->ringPtr, part);
@@ -918,7 +921,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         s->ringRead -= 40;
     }
     cofsz = (s->blocks * 192) >> 1;
-    dst = (char*)s + 0x7C;
+    dst = (char*)s->_pad7C;
     s->fileRemaining += cofsz;
     if ((u8*)s->ringPtr + cofsz > wrEnd) {
         part = wrEnd - (u8*)s->ringPtr;

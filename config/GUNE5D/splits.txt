@@ -555,6 +555,8 @@ game/audio/adstream.c:
 	extab       start:0x80008118 end:0x800081A8
 	extabindex  start:0x8000C9F4 end:0x8000CACC
 	.text       start:0x800D6234 end:0x800D7CFC
+	.rodata     start:0x801174A8 end:0x80117528
+	.sdata2     start:0x80349308 end:0x80349328
 
 game/g3d/g3dpad.c:
 	extab       start:0x800081A8 end:0x800081B8
