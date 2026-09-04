@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/tests/test_t25_parity_qualifier.py",
+    "tools/gdl/tests/test_t25_audit_scope.py",
+    "tools/gdl/tests/test_t25_restore_does_not_bank.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any of the three instances producing its qualified output on the case it was said to miss, at a commit before the fixes: `git stash`-free reproduction is `git show 84f85a96a:tools/gdl/webfrank_audit.py` run with `--grep CritterCollideItems` (must print `0 eligible in 0 TUs`), and the defake_gate half is falsified if `defake_gate.compare` at 84f85a96a returns anything but a bare `IMPROVED` for base {real 137, ti 190, bi 190} against cur {real 108, ti 190, bi 191} -- the case is pinned in tools/gdl/tests/test_t25_parity_qualifier.py. If either prints a qualified verdict there, this law's premise is wrong.",
+  "id": "claim.law.T25_a-qualifier-whose-precondition-excludes-its-own-case-prints-an-unqualified-number-that-reads-as-screened.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T15:33:45Z",
+  "schema_version": 1,
+  "subject": "tool:defake-gate",
+  "valid_from": "2026-09-04",
+  "value": "A number a guard COULD NOT HAVE PRODUCED is indistinguishable, in the output, from a number the guard examined and passed. Three instances measured in one lane, in three different tools, each with the same shape: the qualifying branch's own precondition excludes the case it exists to catch, and the unqualified arm prints.\n\n(1) defake_gate's IMPROVED-CARRIER arbiter requires `base.ti == cur.ti and base.bi == cur.bi` -- counts that did NOT move. A COUNT-PARITY LOSS is by definition counts that did, so the one row class claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 governs was the one class reaching the bare `IMPROVED real A -> B` arm (MC, run 54: `IMPROVED writeGauntletSave real 137 -> 108 unqualified - that row is a fuzzy regression and a parity loss`), while probe's own arbiter prints `ARBITER: COUNT PARITY LOST -- REVERT` for the same edit. The fix is a parity-GAP comparison, not a `ti != bi` test: measured at f0b1b3fe1 over 3,032 built pairs, 2,918 are at parity (the population that can lose it) and 114 are already off it (the population a `ti != bi` test would false-flag on every improvement).\n\n(2) webfrank_audit's `--grep` filters UNIT PATHS. Given a function name it selects nothing and prints `0 register-only; 0 eligible in 0 TUs` -- a sentence identical to the one it prints after scanning the whole image (CR, run 54, on CritterCollideItems, which `--function CritterCollideItems` reports as `1 register-only; 1 eligible in 1 TUs; 592 code bytes`). Calibrated at e8e3959d0: 2,981 of the image's 3,024 function names (98.6%) match ZERO of the 256 unit paths, and the 43 that do are SDK functions whose name IS their unit path (CARDCheck -> dolphin/card/CARDCheck), where the grep selects the right TU anyway.\n\n(3) probe's `--revert` re-scored through the ordinary banking path, so a restore -- which is not a probe -- wrote the POST-RESTORE tree into the rolling snapshot (MC, run 54).\n\nTHE RULE: when a guard cannot fire, the tool must say the guard did not run, and an EMPTY SELECTION must refuse rather than report zeros. `wf_word_diff`'s `not comparable` column and `_fuzzy_note`'s `no fuzzy anchor` message are the shape that already gets this right."
+}

@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "tools/gdl/tests/test_t25_anon_pool_datum.py"
+  ],
+  "attributes": {
+    "tags": [
+      "relocation",
+      "postprocessor",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any of the ten surviving rows shown to be benign under `python tools/gdl/composed_census/wf_ordered_datum_screen.py --unit <unit> --function <fn>` while its two datum byte-arrays genuinely differ would show the value comparison is not decidable here; conversely, a jumptable, unlinked-table or target-anonymous row that IS a real defect would show an exclusion is too wide. Re-run `python tools/gdl/composed_census/wf_word_diff.py <unit> <fn>` on any of the six functions: the `ANON-POOL DATUM` block prints the rows and the per-class exclusion counts, so both directions are one command.",
+  "id": "claim.law.T25_a-name-based-relocation-screen-cannot-see-an-anonymous-pool-datum-transposition-and-prints-zero.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T15:33:44Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-wf-word-diff",
+  "valid_from": "2026-09-04",
+  "value": "A relocation screen that compares SYMBOL NAMES is structurally blind to every row where one side's symbol is a compiler-private anonymous pool entry, and it reports that blindness as the number 0. Measured at 84f85a96a: `python tools/gdl/composed_census/wf_word_diff.py game/enemy/enemy.c move_logic00` printed `RELOC-SYMBOL MISMATCH = 0` while +0x1e4 relocates lbl_80346840 (400921fb54524550 = pi) in the target and @689 (401921fb54524550 = 2*pi) in ours -- the datum transposition attempt.WV_movelogic00-re-served-as-permute-plus-recolor-because-the-retracted-rules-defect-was-a-datum-transposition-no-recolor-can-reach.20260904.v1 had to find with wf_ordered_datum_screen.py. The cause is one `continue` in `reloc_symbol_mismatches`: when `resolve_reloc_symbol_positional` returns None for either side the row is dropped, and 2,741 rows in 625 of the 2,841 reloc-comparable functions take that path image-wide.\n\nTHE ROWS ARE DECIDABLE BY VALUE, with fndiff's own readers (`target_datum_bytes`, `ours_datum_bytes`, `_datum_prefix_equal`) and no new comparison layer. By value the 2,741 split 2,561 VALUE-EQUAL / 145 VALUE-DIFFERS / 35 undecidable.\n\nTHREE EXCLUSION CLASSES ARE MANDATORY, each measured by READING the 145 rather than counting them: (1) JUMPTABLE, 122 rows -- the payload is linked branch addresses and ours are zeros until link, so byte-exact functions inside the 100%-matched zlib and MSL regions flag (zlib/inflate::inflate, MSL/printf::parse_format); (2) OUR DATUM ALL-ZERO at equal length, 13 rows -- an unlinked address table whose content is the linker's (MSL/printf::longlong2str 132B, dolphin/dvd::stateReady 32B, mb_font::MBRenderText 84B); (3) TARGET-SIDE ANONYMOUS NAME, 2 rows -- `@N` IS NOT GLOBALLY UNIQUE: `@40` is defined TWICE in config/GUNE5D/symbols.txt (.rodata 0x80117848 size 0x1A and .sdata 0x803440AC size 0x4), so a name->address map answers with whichever came last, which made TRK_MINNOW_DOLPHIN/Portable/nubinit::TRKNubWelcome -- `fndiff --clean` MATCH, 0 real diff lines -- read as \"OFF\" versus \"MetroTRK\".\n\nTen rows in six functions survive: move_logic00 (pi vs 2*pi), ui/options::show_optmenu (\"Accept\" vs \"Select\"), world/camera::camera_mode_follow (0.7 and 0.25 against one shared 4330000000000000), game/player::write_health_and_items, anim/action::DoPlayerAction, and pb_diag::pbDiagDrawInfo (NOT-DECIDABLE: target `whichatree`, ours `lbl_8023D180`). A surviving row is EVIDENCE TO READ, not a verdict -- the screen that DECIDES a pool-order residual remains wf_ordered_datum_screen.py, which pairs ordered datum sequences instead of offsets."
+}
