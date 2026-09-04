@@ -1136,6 +1136,64 @@
         "copy_register_fields": true
       }
     ],
+    "game/sys/cardutil": [
+      {
+        "function": "cardDoWrite",
+        "before_sha256": "239106fbd4a726a590c93386b2dd71c4587a243955feca9f3be447bb42a32055",
+        "after_sha256": "2a9ebf86dd62203c6d7060eb1b28f629eb12bbc4031408d10e42802850737d7a",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 263,
+          "permuted_instructions": 6
+        },
+        "mechanism": "263/263 instructions with an IDENTICAL opcode multiset and 45 differing raw words, all register fields. SOURCE EXPLORATION: attempt.CU_carddowrite-statement-order-closes-both-immediates-and-declaration-order-recolors.20260903.v1 retained the second-loop statement chronology that removed both aligned-immediate rows and retained the declaration order that reduced the residual; attempt.NC_carddowrite-the-five-wide-declaration-group-does-not-pivot-the-scratch-pair.20260903.v1 measured a fifth explicit induction local and rejected it on the scratch-pair observation. This run executed NC's mandatory remaining nested-group hypothesis: splitting the declarations with a true nested block was NEUTRAL-IDENTICAL at real 86 / fuzzy 98.8783%, and the scratch pair remained target `lwz r6` / `add r7` against ours `lwz r4` / `add r5`. PERMUTATION [0x2f8,0x310), order [4,5,0,2,1,3]: the region is six independent `li rD,0` atoms. Their semantic roles in our emitted order are iconCount, ciCount, spShift, fmtShift, i, address induction; retail orders i, address induction, iconCount, spShift, ciCount, fmtShift. Reordering only these definitions aligns each semantic web before recolouring. Every atom reads no register, writes a distinct volatile GPR, and has no memory, control, CR, relocation or special-register effect, so check_permutation_dependences accepts the six-atom reorder without a dead-final-write escape; both relocation hashes are the checked empty-set hash. RECOLOR: after the permutation, all remaining 43 differing words form a position-consistent renaming across the icon-loop bodies and are machine-proven by verify_consistent_recolor. verify_datum_binding runs against the retail DOL and reports 21 name-bound proofs. The finished composed rule was replayed through webfrank.apply_patch and produced the retail function bytes exactly without value_equality_recolor or an unproven_recolor_audit escape.",
+        "instruction_permutation": [
+          {
+            "start": "0x2f8",
+            "end": "0x310",
+            "order": [
+              4,
+              5,
+              0,
+              2,
+              1,
+              3
+            ],
+            "before_sha256": "0900ccb217e0754ff52d5f45732b403395093922f0c8f9c8ea718fcfa72b87fc",
+            "after_sha256": "73d2354d30504f1d1118154ade864398da811d39398c0d1b4f613de0d8d9166f",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
+        "function": "cardDoLoad",
+        "before_sha256": "9650a70a87d7fd90f67d19f5bba1088149b89be9d0a091726027e8bfc8d0bdd7",
+        "after_sha256": "2e5dacf3614c811938a1d2fbdf45fef625c8dd6ac5a01fdabc5328dc42701f48",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 257,
+          "permuted_instructions": 2
+        },
+        "mechanism": "257/257 instructions with an IDENTICAL opcode multiset. The source reconstruction closed the former one-instruction asymmetry and all structural, immediate, branch and relocation differences; the remaining 46 real diff lines are one independent prologue transposition plus register fields. PERMUTATION [0x14,0x1c), order [1,0]: ours emits the two parameter homes as `addi r27,r4,0` then `addi r31,r3,0`, while retail emits them in the opposite order. The atoms read distinct incoming registers and write distinct callee-saved registers; neither consumes or overwrites the other's result, the region has no memory or control effect, and check_permutation_dependences accepts the swap with no dead-write escape. The window has no relocations in either object, confirmed by the empty before/after relocation hashes. RECOLOR: after that transposition, the remaining words are volatile register colouring in the icon loops and are machine-proven end to end by verify_consistent_recolor; verify_datum_binding runs against the retail DOL and reports name-bound proofs for 24 datum uses. Source probes retained the typed CardDirEntry access, shared delete/freeblocks control flow, two-step aligned read length, second-loop update chronology, named saved-register aliases, and loop-local declaration order; seven further declaration/initializer/parameter-order forms were neutral or regressed. The finished rule was replayed through webfrank.apply_patch and produced the retail function bytes exactly without an unproven_recolor_audit escape.",
+        "instruction_permutation": [
+          {
+            "start": "0x14",
+            "end": "0x1c",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "cdbfa61dbce1401878334a325b0f77e2b6a6490ba23092afb59d1d19dffcf66a",
+            "after_sha256": "f40001d34b6d36564aa103609c5c58f2bcc5f78ea5c0c12485038d3a1a79d0d2",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/sys/memcard": [
       {
         "function": "add_vmu_file",
