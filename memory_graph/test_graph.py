@@ -11,6 +11,7 @@ Run:  python memory_graph/test_graph.py
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib.util
 import io
@@ -5846,6 +5847,207 @@ class ChangedModeTests(unittest.TestCase):
         with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
             self.assertTrue(changed_gate(stream=stream))
         self.assertIn("RUN (cannot read git", stream.getvalue())
+
+
+class T22SubcommandHelpTests(unittest.TestCase):
+    """Every subcommand can print its own help (run-52 item 5).
+
+    argparse `%`-formats help strings when it renders them, so one literal
+    percent sign in authored registry prose makes `--help` raise. Measured
+    at b10073b6c across all 28 subcommands: exactly one was unreachable,
+    and it was `brief` — the command AGENTS.md tells every lane to start a
+    TU with:
+
+        $ python memory_graph/gdlmem.py brief --help
+        TypeError: %o format: an integer is required, not dict
+
+    from roster_only's "the roster is 35.7% of it" ("% o" being a valid
+    octal conversion with a space flag). The flag that keeps a brief small
+    could not be discovered from the tool that has it.
+    """
+
+    def test_every_subparser_formats_its_help(self):
+        parser, _ops = gdlmem.build_parser()
+        actions = [a for a in parser._actions
+                   if isinstance(a, argparse._SubParsersAction)]
+        self.assertTrue(actions, "no subparsers found")
+        names = sorted(actions[0].choices)
+        self.assertIn("brief", names)
+        self.assertGreaterEqual(len(names), 28)
+        for name in names:
+            with self.subTest(subcommand=name):
+                actions[0].choices[name].format_help()
+
+    def test_brief_help_shows_the_flag_that_scopes_it(self):
+        parser, _ops = gdlmem.build_parser()
+        sub = [a for a in parser._actions
+               if isinstance(a, argparse._SubParsersAction)][0]
+        text = sub.choices["brief"].format_help()
+        self.assertIn("--roster-only", text)
+        # The literal percent survives as a percent, not as a format spec.
+        self.assertIn("35.7% of it", text)
+
+    def test_the_registry_prose_carries_no_argparse_escapes(self):
+        # find.include_candidates had been worked around by doubling the
+        # sign IN THE REGISTRY, which shipped "30-50%%" to every other
+        # consumer of the same string. Escaping is the CLI's job.
+        for op in core.build_surface_ops():
+            for text, where in ([(op.doc, f"{op.name}.doc")]
+                                + [(p.help, f"{op.name}.{p.name}")
+                                   for p in op.params]):
+                if text:
+                    self.assertNotIn("%%", text, where)
+
+    def test_the_escape_helper_is_a_no_op_on_none(self):
+        self.assertIsNone(gdlmem.argparse_help(None))
+        self.assertEqual(gdlmem.argparse_help("35.7% of it"),
+                         "35.7%% of it")
+
+
+class T22AlreadyTriedFieldsTests(unittest.TestCase):
+    """A field meaning ALREADY TRIED is not a source of untried work.
+
+    claim.law.EN_brief-open-hypotheses-mines-the-attempted-axis-field-and-
+    labels-already-refuted-work-untried.20260904.v1. Two-sided calibration
+    over all 1366 attempt records (533 emittable rows) rejected BOTH cures
+    the law proposed: dropping `attempted_axis` outright removes 56 rows of
+    which only 34 are wrong-by-construction, and suppressing on a denial
+    removes 200 rows (37.5% of the section) while still missing 39 of the
+    56. The shipped screen is outcome-conditional and covers the two
+    siblings the law did not name.
+    """
+
+    @staticmethod
+    def record(outcome, **fields):
+        base = {"kind": "attempt", "id": "attempt.x.20260904.v1",
+                "function": "f", "outcome": outcome}
+        attrs = {k[len("attr_"):]: v for k, v in fields.items()
+                 if k.startswith("attr_")}
+        base.update({k: v for k, v in fields.items()
+                     if not k.startswith("attr_")})
+        if attrs:
+            base["attributes"] = attrs
+        return base
+
+    AXIS = "The one untried branch skeleton is the guard1 goto pair."
+
+    def test_a_parked_records_attempted_axis_is_not_offered(self):
+        rows = core._open_hypotheses(
+            self.record("parked", attempted_axis=self.AXIS))
+        self.assertEqual([r for r in rows if r["field"] == "attempted_axis"],
+                         [])
+
+    def test_capped_and_negative_are_screened_too(self):
+        for outcome in ("capped", "negative", "refuted"):
+            with self.subTest(outcome=outcome):
+                rows = core._open_hypotheses(
+                    self.record(outcome, attempted_axis=self.AXIS))
+                self.assertEqual(rows, [])
+
+    def test_probed_form_and_axis_log_are_the_same_shape(self):
+        # The discipline-18 screen: the law named only attempted_axis.
+        for field in ("probed_form", "axis_log"):
+            with self.subTest(field=field):
+                rows = core._open_hypotheses(
+                    self.record("parked", **{"attr_" + field: self.AXIS}))
+                self.assertEqual(rows, [])
+
+    def test_an_improved_record_keeps_the_row_with_a_caveat(self):
+        rows = core._open_hypotheses(
+            self.record("improved", attempted_axis=self.AXIS))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["field"], "attempted_axis")
+        self.assertIn("records what this attempt TRIED",
+                      rows[0]["field_caveat"])
+
+    def test_the_typed_hypothesis_is_never_screened(self):
+        rows = core._open_hypotheses({
+            "kind": "attempt", "outcome": "parked",
+            "hypothesis": {"statement": "Try the untried pointer split.",
+                           "cheapest_refuting_observation": "fnasm --diff"},
+        })
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["marker"], "TYPED")
+
+    def test_other_prose_fields_are_untouched_on_a_park(self):
+        rows = core._open_hypotheses(
+            self.record("parked", attr_residual=self.AXIS))
+        self.assertEqual([r["field"] for r in rows], ["attributes.residual"])
+
+
+class T22SizePreflightMatchesTheGateTests(unittest.TestCase):
+    """`--size` measures the record the GATE sees (run-52 item 6).
+
+    `stage_record_proposal` stamps `valid_from` and `recorded_at` BEFORE
+    `_validate_record` applies the 16 KB attempt cap, and the preflight
+    measured the authored file. Measured on a boundary record built at
+    exactly the cap: authored 16384 B (`over_by` 0, "within the cap"),
+    staged 16451 B, and the gate refuses `OVER BY 67` — the ~60-70 B a
+    lane spent three trim cycles chasing. A preflight that says UNDER
+    where the gate says OVER costs a full authoring round-trip.
+    """
+
+    def record(self, padding):
+        return {
+            "id": "attempt.T22_size-boundary.20260904.v1",
+            "kind": "attempt", "schema_version": 1,
+            "function": "function:TextHeightMLines", "outcome": "neutral",
+            "attempted_axis": "boundary probe",
+            "attributes": {"law_screen": "none applicable: tooling",
+                           "residual": "x" * padding},
+        }
+
+    def boundary(self):
+        """The largest padding whose AUTHORED size is within the cap."""
+        lo, hi = 0, 20000
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if core._size_of(self.record(mid)) <= core.ATTEMPT_BYTE_CAP:
+                lo = mid
+            else:
+                hi = mid - 1
+        return self.record(lo)
+
+    def test_the_two_stamps_cost_exactly_sixty_seven_bytes(self):
+        record = {"id": "attempt.x.20260904.v1", "kind": "attempt"}
+        before = core._size_of(record)
+        added = core.apply_staging_stamps(record)
+        self.assertEqual(added, ["valid_from", "recorded_at"])
+        self.assertEqual(core._size_of(record) - before, 67)
+
+    def test_an_author_supplied_valid_from_is_not_overwritten(self):
+        record = {"id": "attempt.x.20260904.v1", "kind": "attempt",
+                  "valid_from": "2026-01-01"}
+        added = core.apply_staging_stamps(record)
+        self.assertEqual(added, ["recorded_at"])
+        self.assertEqual(record["valid_from"], "2026-01-01")
+
+    def test_the_authored_measurement_is_the_defect(self):
+        report = core.record_size_report(self.boundary())
+        self.assertEqual(report["over_by"], 0)
+
+    def test_as_staged_agrees_with_the_gate_at_the_boundary(self):
+        record = self.boundary()
+        report = core.record_size_report(record, as_staged=True)
+        self.assertGreater(report["over_by"], 0)
+        self.assertEqual(report["staging_overhead_bytes"], 67)
+        staged = dict(record)
+        core.apply_staging_stamps(staged)
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._validate_record(staged, "test")
+        self.assertIn(f"OVER BY {report['over_by']}", str(caught.exception))
+        self.assertIn(str(report["bytes"]), str(caught.exception))
+
+    def test_as_staged_does_not_mutate_the_callers_record(self):
+        record = self.boundary()
+        core.record_size_report(record, as_staged=True)
+        self.assertNotIn("recorded_at", record)
+        self.assertNotIn("valid_from", record)
+
+    def test_a_comfortable_record_still_reads_as_within_the_cap(self):
+        report = core.record_size_report(self.record(100), as_staged=True)
+        self.assertEqual(report["over_by"], 0)
+        self.assertTrue(report["cap_applies"])
 
 
 if __name__ == "__main__":

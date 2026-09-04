@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py (alignment_counts, arbitrate_regressions)",
+    "tools/gdl/tests/test_t22_alignment_arbiter.py",
+    "tools/gdl/regnorm.py (aligned_pairs, Result.genuine, Result.unpaired)"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "defake",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a pair of states of one function whose unpaired counts differ and whose genuine counts are nevertheless comparable -- i.e. show that regnorm can emit a STRUCTURAL row for an instruction it left unpaired. tools/gdl/tests/test_t22_alignment_arbiter.py::UnpairedInstructionsCannotBeStructuralTests drives regnorm.analyze directly on a three-instruction pair and asserts the opposite (genuine 1 -> 2 while unpaired 1 -> 0, on a stream that GAINS count parity with the target); that class failing is the refutation. Alternatively, recount the census: if `unpaired == 0` no longer covers ~92% of functions the calibration behind `unpaired CHANGED` rather than `unpaired > 0` needs redoing.",
+  "id": "claim.law.T22_genuine-structural-rows-are-counted-over-the-paired-subsequence-so-the-structure-arbiter-is-undefined-across-an-alignment-change.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T03:15:26Z",
+  "schema_version": 1,
+  "subject": "tool:defake-gate",
+  "valid_from": "2026-09-04",
+  "value": "regnorm's GENUINE structural row count is a count over the PAIRED subsequence and nothing else. `aligned_pairs` pairs only min(len(target_block), len(ours_block)) rows of an unbalanced block and drops the tail into t_only/b_only; `Result.genuine` filters `Result.structural`, which only PAIRED rows ever enter. An instruction the aligner leaves unpaired therefore cannot produce a structural row AT ALL, and the genuine count's domain moves whenever the alignment does. CONSEQUENCE: comparing genuine(before) with genuine(after) is UNDEFINED when the two states' unpaired counts differ -- the numbers are counts over two different domains, and a genuine count that RISES may be reporting instructions that merely became visible. TWO RUN-51 SIGHTINGS, ONE ROOT, both on IMPROVING edits that defake_gate printed as `genuine structural rows N -> M ROSE -- structure agrees with real`: (a) game/enemy/critter::ProcessCritterList, regnorm HEAD `57 paired, 4 renaming, 5 STRUCTURAL (0 genuine), 9 unpaired (2 displaced)` against KEEP `60 paired, 7 renaming, 7 STRUCTURAL (2 genuine), 3 unpaired` at real 25 -> 29 and fresh fuzzy 84.0816% -> 94.5918% (attempt.CR_processcritterlist-pointer-materialisation-position-is-one-object-across-three-construct-classes.20260904.v1); (b) game/audio/dcsdrv::dcsHandleRequest, genuine 0 -> 1 across an edit that removed the region's unpaired cluster, real 144 -> 146 at fuzzy 98.6618% -> 99.0024% (claim.law.NC_source-order-picks-which-of-two-equal-constants-is-rematerialised-and-which-is-copied.20260904.v1). THE SOUND DIRECTION IS THE REFUSAL, NOT THE CLEARANCE: an unpaired count that MOVED proves the comparison undefined; an unpaired count that held does NOT prove it defined, because the same number of instructions can be unpaired in different places. So `unpaired differs` routes the row to the fuzzy arbiter and prints UNDEFINED with no direction word, while `unpaired equal` no longer licenses the bare assertion `structure agrees with real` -- that branch now carries the fuzzy delta and yields to a RISING fuzzy exactly as the flat branch does. THE TRIGGER IS `unpaired CHANGED`, NEVER `unpaired > 0`, and two-sided calibration is why: over all 3032 census rows in build/GUNE5D at dc40326c7, 2792 functions (92.1%) sit at unpaired 0 and can never trigger the changed-form at all, while of the 201 functions carrying a genuine count 176 (87.6%) have unpaired > 0 -- so a trigger keyed on the PRESENCE of unpaired clusters would silence the arbiter on 88% of its own customers. Among the rows the arbiter actually inspects (real > 0) unpaired > 0 is the norm: 240 of the 329 non-clean rows (72.9%), and all 16 disputed rows in game/enemy/critter's live baseline. The baseline now banks `unpaired` beside `genuine` (same regnorm pass, no extra cost); a baseline taken before run 52 carries none and the check says so once rather than per row."
+}

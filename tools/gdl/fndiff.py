@@ -269,6 +269,39 @@ def compiler_private_aliases_from_symbols(symbol_table):
 _OBJDUMP_CACHE: dict[tuple, str] = {}
 
 
+class ObjdumpFailed(RuntimeError):
+    """The dump did not happen. NOT an empty dump.
+
+    RUN-52 ITEM 9. `objdump()` returned `subprocess.run(...).stdout`
+    unconditionally, so every way of not producing a dump — a missing
+    object, a flag this binutils does not know — returned `''`, and every
+    reader built on it then returned an EMPTY result indistinguishable
+    from a genuine "nothing here". Measured at e7b394dc6 against
+    `build/GUNE5D/src/game/enemy/NOSUCH.o`: `relocation_symbols`,
+    `raw_signature` and `parse` each returned `{}` — the same value a
+    byte-clean object produces — from IMPORTABLE-CORE functions a census
+    calls in a loop. That is
+    claim.law.T21_a-measurement-that-did-not-happen-must-not-parse-as-a-
+    measurement-of-zero.20260904.v1 in the one place every score in this
+    project is read from.
+
+    The trigger is the RETURN CODE, and it is exact rather than a guess
+    about empty output. Calibrated both ways at e7b394dc6: all three
+    failure shapes (missing object, unrecognized option, both) exit 1 with
+    empty stdout, while over all 641 objects in `build/GUNE5D/{src,obj}`
+    times the five flag sets this project uses (`-t`, `-r`, `-dr -z
+    --no-show-raw-insn`, `-h`, `-s`) — 3,205 real dumps — ZERO exit
+    nonzero and ZERO come back empty at exit 0. So no legitimate call site
+    in the tree is affected.
+
+    It is a RuntimeError, deliberately: a plain Exception, so the
+    fail-soft `except Exception` guards that already wrap object reads
+    keep degrading, while an UNGUARDED reader now fails loudly instead of
+    reporting a clean sheet. (SystemExit would escape those guards
+    entirely — AGENTS.md discipline 20.)
+    """
+
+
 def objdump(objfile, *flags):
     """`objdump <flags> <objfile>`, memoized per PROCESS on the file's identity.
 
@@ -301,8 +334,19 @@ def objdump(objfile, *flags):
         key = None
     if key is not None and key in _OBJDUMP_CACHE:
         return _OBJDUMP_CACHE[key]
-    out = subprocess.run([str(OBJDUMP), *flags, str(path)],
-                         capture_output=True, text=True).stdout
+    done = subprocess.run([str(OBJDUMP), *flags, str(path)],
+                          capture_output=True, text=True)
+    if done.returncode != 0:
+        # FAIL-CLOSED (run-52 item 9). A dump that did not happen must not
+        # be readable as an empty one; see ObjdumpFailed. Nothing is
+        # cached, so a rebuild or a corrected flag simply works.
+        raise ObjdumpFailed(
+            f"objdump exited {done.returncode} and produced no dump:"
+            f" {OBJDUMP} {' '.join(flags)} {path}\n"
+            f"  {done.stderr.strip().splitlines()[0] if done.stderr.strip() else '(no stderr)'}\n"
+            "  An empty result from this call would read as a CLEAN"
+            " object; it is not a measurement at all.")
+    out = done.stdout
     if key is not None:
         if len(_OBJDUMP_CACHE) > 4096:      # a sweep, not a leak
             _OBJDUMP_CACHE.clear()

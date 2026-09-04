@@ -2198,7 +2198,7 @@ def extab_note(extab):
             " defake_gate.")
 
 
-def count_class_line(prev_insns, insns, extab=None):
+def count_class_line(prev_insns, insns, extab=None, baseline_insns=None):
     """The CATEGORICAL verdict, printed before any real/fuzzy comparison.
 
     MV, run 39 (run-40 item 8): an instruction-COUNT change is not a
@@ -2212,32 +2212,78 @@ def count_class_line(prev_insns, insns, extab=None):
     predictor, so a probe that GAINED or LOST parity read as an ordinary
     numeric move and the class change went unremarked.
 
-    Silent when parity did not change: this is a transition report, and
-    saying "still asymmetric" on every probe of a long-asymmetric function
-    is the kind of constant line readers learn to skip.
+    THE REFERENCE IS THE SESSION BASELINE, NOT THE PREVIOUS PROBE (run-52
+    item 4). Parity is a property of the FUNCTION against the target, so
+    "this function has just become eligible" is a claim about the function,
+    and it was being computed against whatever the last probe happened to
+    leave behind. Measured, attempt.CR_critterremovecolnodesub-the-two-
+    pointer-hitnode-split-costs-one-instruction-or-folds-back.20260904.v1:
+    a function that was T77/O77 at HEAD and throughout, one failed probe at
+    T77/O78, and the NEXT probe announced `COUNT-PARITY GAINED insns
+    T77/O78 -> T77/O77` — "true only against probe (1)'s failed state ...
+    The banner compares to the PREVIOUS PROBE, not to the commit, and reads
+    like an achievement." Run 49 fixed the `--discard` path by re-scoring
+    the restored tree; this fixes the reference itself, which lies on every
+    path where the previous probe is not the state a record will cite.
+
+    `baseline_insns` is the clean-state count the FIRST probe of the
+    function banked (the first-baseline trap already requires that probe).
+    When it is available the transition is computed against it and the
+    previous probe is reported only as context; without it the old
+    previous-probe reference stands, and the line SAYS which one it used.
+    A parity that never moved against the baseline is never an achievement,
+    but it is not silence either when an intermediate probe moved it —
+    silence there is what let the ghost banner read as a result.
+
+    Silent when parity did not change against EITHER reference: this is a
+    transition report, and saying "still asymmetric" on every probe of a
+    long-asymmetric function is the kind of constant line readers learn to
+    skip.
     """
     now = _parity(insns)
     before = _parity(prev_insns)
-    if now is None or before is None:
+    base = _parity(baseline_insns)
+    if now is None or (before is None and base is None):
         return ""
-    was_equal = before[0] == before[1]
     is_equal = now[0] == now[1]
+    if base is not None:
+        reference, ref_insns, ref_label = base, baseline_insns, \
+            "the SESSION BASELINE"
+    else:
+        reference, ref_insns, ref_label = before, prev_insns, \
+            "the PREVIOUS PROBE (no session baseline banked)"
+    was_equal = reference[0] == reference[1]
+    # Context line: an intermediate probe whose parity differs from now is
+    # worth naming whichever way the verdict goes — it is the state whose
+    # ghost produced the false banner.
+    prev_note = ""
+    if (base is not None and before is not None
+            and (before[0] == before[1]) != is_equal):
+        prev_note = (f" (the PREVIOUS PROBE was {prev_insns}; that state is"
+                     " not what a record or a commit compares against)")
     if was_equal == is_equal:
-        return ""
+        if not prev_note:
+            return ""
+        held = ("HELD" if is_equal else "still ABSENT")
+        return (f"COUNT-PARITY {held}  insns {insns}, unchanged against"
+                f" {ref_label} {ref_insns}{prev_note}. NOT a class change:"
+                " nothing was gained or lost here.")
     if is_equal:
-        return (f"COUNT-PARITY GAINED  insns {prev_insns} -> {insns}:"
-                " ours and target now hold the SAME instruction count. This"
+        return (f"COUNT-PARITY GAINED  insns {ref_insns} -> {insns} against"
+                f" {ref_label}: ours and target now hold the SAME"
+                " instruction count. This"
                 " is a CLASS change, not a score change — a count-asymmetric"
                 " residual is outside EVERY postprocessor class, and this"
                 " function has just become eligible for one. Read it before"
-                " the real/fuzzy line below." + extab_note(extab))
-    return (f"COUNT-PARITY LOST  insns {prev_insns} -> {insns}:"
+                " the real/fuzzy line below." + prev_note + extab_note(extab))
+    return (f"COUNT-PARITY LOST  insns {ref_insns} -> {insns} against"
+            f" {ref_label}:"
             f" ours and target now differ by {abs(now[0] - now[1])}"
             " instruction(s). This is a CLASS change, not a score change —"
             " while the counts differ NO postprocessor rule can close this"
             " function, so a fuzzy or real gain here buys a state no rule"
             " can finish. Read it before the real/fuzzy line below."
-            + extab_note(extab))
+            + prev_note + extab_note(extab))
 
 
 def restore_scope_counts(base_text, cur_text, fn):
@@ -2273,6 +2319,61 @@ def restore_scope_counts(base_text, cur_text, fn):
         else:
             entangled.append(("straddling", j1 + 1, j2 + 1))
     return inside, outside, entangled
+
+
+def revert_reach_warning(fn, counts):
+    """What to say when the edit being SCORED lies outside ``fn``'s span.
+
+    RUN-52 ITEM 7. probe's restore family is function-scoped, and it says
+    so correctly — at RESTORE time. NC's lane made every edit in a static
+    helper defined outside the function's own span (the body it was
+    matching is produced by those helpers), so `--revert-best` refused,
+    correctly, at the end: "the revert loop was silently unavailable all
+    lane". The tool knew from the FIRST probe and did not say.
+
+    The trigger is the condition itself, not a prediction of it: this is
+    `restore_scope_counts` against the SNAPSHOT the restore would use, so
+    it fires exactly when a restore would fail to reach the edit and is
+    silent otherwise. The body-only edit — measured as roughly four fifths
+    of single-TU edits in `coupled_scope_survivors` — prints nothing.
+
+    A BASELINE-time warning was designed first and REFUTED by its own
+    calibration: "this function's body contains inlined static helpers"
+    fires on 315 of the 479 (unit, function) pairs that call a static
+    helper at all — 65.8%, measured image-wide over 310 units — which is a
+    constant line rather than a warning, and its detector also mis-parsed
+    `static void (*fn)(...)` shapes as a helper named `void`.
+    """
+    if not counts:
+        return ""
+    inside, outside, entangled = counts
+    straddling = [row for row in entangled if row[0] == "straddling"]
+    if not outside and not straddling:
+        return ""
+    where = ", ".join(f"L{a}-L{b}" for _kind, a, b in entangled) or "?"
+    lines = []
+    if inside:
+        lines.append(
+            f"REVERT REACHES PART OF THIS EDIT: {inside} hunk(s) are inside"
+            f" {fn} and {outside + len(straddling)} are not ({where}).")
+    else:
+        lines.append(
+            f"REVERT REACHES NONE OF THIS EDIT: every differing hunk"
+            f" ({outside + len(straddling)}, at {where}) lies outside"
+            f" {fn}'s own source span.")
+    lines.append(
+        "  probe's restore family (--revert, --revert-best, --restore) is"
+        f" FUNCTION-SCOPED to {fn}'s span, so it cannot put back what is"
+        " outside it — a body assembled from static helpers defined"
+        " elsewhere in the TU is edited outside the span by construction.")
+    if straddling:
+        lines.append(
+            f"  {len(straddling)} hunk(s) STRADDLE the boundary; a scoped"
+            " restore refuses those outright rather than splitting one.")
+    lines.append(
+        "  Use `--revert --whole-file` (or git) to take this edit back. The"
+        " score below is real; only the undo is out of reach.")
+    return "\n".join(lines)
 
 
 def discard_refusal(fn, unit, inside, outside, entangled):
@@ -3936,7 +4037,8 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     # silently disable banking. It changes what the verdict MEANS, never
     # what it IS.
     state["count_class"] = count_class_line(state.get("last_insns"), insns,
-                                            extab)
+                                            extab,
+                                            state.get("baseline_insns"))
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -5801,6 +5903,20 @@ def main():
         arbiter = immediate_arbiter_line(
             immediates, prev_immediates, real, prev_real)
     print(insert_after_headline(verdict, arbiter))
+    # WHETHER THE REVERT LOOP CAN REACH THIS EDIT (run-52 item 7), said at
+    # the probe that MAKES the edit rather than at the restore that refuses
+    # it. Silent on a body-only edit; fires exactly when a scoped restore
+    # would come up short, because the trigger IS that condition.
+    if snap is not None and snap.exists() and source is not None:
+        try:
+            reach = revert_reach_warning(
+                fn, restore_scope_counts(
+                    snap.read_bytes().decode("latin-1"),
+                    source.read_bytes().decode("latin-1"), fn))
+        except (OSError, ValueError):
+            reach = ""
+        if reach:
+            print(reach)
     # THE RAW WORD COUNT (run-48 item 1), directly under the verdict it
     # qualifies. On the pinned backlog it is the ONLY sound arbiter — fuzzy
     # scores the postprocessed object — and it was the one number a lane had

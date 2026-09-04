@@ -6,7 +6,7 @@
     "laws_applied": [
       "claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1",
       "claim.law.offsetof-rename-isolated-site-outlier.20260830.v1",
-      "claim.law.offsetof-rename-safe-on-capped-and-parked-functions.20260830.v1"
+      "claim.law.offsetof-rename-safe-on-capped-and-parked-functions.20260831.v1"
     ],
     "residual": "26 lines in two named clusters. CLUSTER A (about 20 lines, the first 80-row loop): a 4-cycle permutation of the callee-saved set - target {v36:r20, q36:r22, q32:r23, &ei[i].zmod:r21} vs ours {r22, r21, r20, r23}, i.e. target->ours is the cycle r20->r22->r21->r23->r20. Instruction stream, schedule and every displacement are IDENTICAL through this region; only the four register numbers rotate. This one IS a candidate for the WebFrank register stage (no instruction permutation is involved at all, so the claim.law.webfrank-permutation-is-audited-in-our-colouring discriminant does not bite), but per the lane's hard rule no rule was authored - flagging only. CLUSTER B (6 lines): the three trailing NULL-arm sites p1068/p1140/p1152, each of which regresses in isolation by 12-32 lines while its five structurally identical neighbours each improve by exactly 2. All twelve pointer locals are materialised in the target too (addi r14..r25,r31,K at 0x1fc-0x228, in exactly our source's assignment order), so the asymmetry is real original-source spelling, not a missing hoist.",
     "scope": "src/game/sfx/sfx.c InitEffects only; portable C; 5 of 8 NULL-arm stores converted to the base-relative form; no header edits",

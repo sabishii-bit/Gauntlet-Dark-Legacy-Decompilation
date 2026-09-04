@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py (_open_hypotheses, _ALREADY_TRIED_FIELDS, _FAILED_OUTCOMES)",
+    "memory_graph/test_graph.py::T22AlreadyTriedFieldsTests"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python memory_graph/gdlmem.py --out <path> brief game/enemy/enemy` and read open_hypotheses: a row whose `field` is `attempted_axis`, `attributes.probed_form` or `attributes.axis_log` on a record whose outcome is parked/capped/negative refutes the shipped screen. To refute the CALIBRATION instead, recount: if dropping `attempted_axis` outright removed only rows on parked records (rather than 22 of 56 on improved/exact ones), the narrow cure this record rejects would have been correct. memory_graph/test_graph.py::T22AlreadyTriedFieldsTests pins both directions.",
+  "id": "claim.law.T22_a-field-that-records-what-was-tried-cannot-source-an-untried-work-section-and-the-outcome-is-the-discriminant.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T03:15:28Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "`brief`'s OPEN 10b HYPOTHESES section is what AGENTS.md discipline 10b makes the next lane's MANDATORY STEP 1, ranked above fresh analysis. A field whose SEMANTICS are `what this attempt already tried` cannot source a row there: mining it is wrong BY CONSTRUCTION, not by extraction precision, and the row is self-contradictory on its face (`field: attempted_axis` printed beside `marker: untried`). CONFIRMS claim.law.EN_brief-open-hypotheses-mines-the-attempted-axis-field-and-labels-already-refuted-work-untried.20260904.v1 and REFUTES BOTH CURES IT PROPOSED. Measured over all 1366 attempt records in the corpus (533 rows the section can emit): (1) the law's NARROW fix, dropping `attempted_axis` outright, removes 56 rows (10.5%) of which only 34 sit on a park/cap/negative record -- 39% of what it removes is on an `improved`/`exact` record where the field legitimately ends in a next step, so the blanket drop discards evidence for no reason; (2) the law's WIDER fix, suppressing every row whose record carries a denial, removes 200 rows (37.5% of the whole section) and STILL misses 39 of the 56, so it is simultaneously over-broad and not a substitute. THE DISCRIMINANT IS THE RECORD'S OUTCOME, and the class has THREE members, not one: the discipline-18 screen found `attributes.probed_form` (19 rows, 15 on parks -- the field literally enumerates the forms already probed) and `attributes.axis_log` (7 rows, 4 on parks -- the log of prior probes) carry the identical semantics, and the law named only `attempted_axis`. Shipped: those three fields are skipped when the record's outcome is parked/capped/negative/refuted -- 53 rows corpus-wide, every one wrong by construction, 533 -> 480 -- and KEPT with an explicit `field_caveat` otherwise. The typed `hypothesis` field is never touched (242 rows, safe by construction); `attributes.residual` (171 rows) keeps its rows and its recorded 30-50% prose-extraction precision. VERIFIED BY THE EN LAW'S OWN FALSIFIER: `gdlmem.py brief game/enemy/enemy` open_hypotheses now contains no row with `field: attempted_axis` (9 rows, fields = attributes.residual and hypothesis only), and `brief game/audio/dcsdrv` -- whose only row was an attempted_axis row on a parked record -- returns none."
+}

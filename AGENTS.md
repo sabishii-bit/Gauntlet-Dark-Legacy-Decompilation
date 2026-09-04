@@ -643,6 +643,48 @@ one, and supersede the law if your target contradicts it.
    paragraph is incomplete in the same way a park with no `probed_form`
    is: the next lane cannot tell whether the neighbourhood was examined
    or merely not mentioned.
+19. **A PRESENCE OR ABSENCE CLAIM ABOUT THE TREE QUOTES THE QUERY THAT
+   PRODUCED IT.** Run 46 wrote this rule for work ORDERS ("an order that
+   asserts an ABSENCE quotes the query and its empty result", in the
+   dispatch screens below); run 51 shows it is not an order rule, it is a
+   WRITING rule, and the positive direction fails the same way. Measured:
+   a lane's record stated that `game/enemy/critter` "has no pins" and
+   shipped. It has EIGHT — `python memory_graph/gdlmem.py brief
+   game/enemy/critter` returns `webfrank_pins` of 8
+   (CritterGetTargetPlayers, CritterLineRootColSub,
+   CritterResolveMultipleTargets, CritterLineNodeColSub,
+   CritterLookForCriticalMove, CritterLineCollide, CritterDoTexmodNode,
+   ProcessCritter), and `config/GUNE5D/webfrank.json` lists the same
+   eight under that unit key. That is AGENTS.md first-five-minutes trap 4
+   — the mandatory pin screen — reported as done and not run. The claim
+   costs one command either way; write the command and its output beside
+   the claim, or do not make the claim. This applies to every "X has no
+   Y" and every "X already has Y" about the tree, in records, commit
+   messages and reports alike.
+20. **`SystemExit` IS NOT AN `Exception`, so `except Exception` cannot
+   fail-soft around a helper that refuses by raising one.** It derives
+   from `BaseException`: the interpreter exits and the fallback the
+   author wrote never runs — the tool "crashes" where it meant to degrade,
+   and the caller sees an exit code from a path that has no error in it.
+   probe.py carried three such sites (run 51). This project raises
+   SystemExit as a REFUSAL idiom on purpose, so the hazard is structural
+   rather than rare: measured at HEAD, **31 functions across 19 modules**
+   under `tools/gdl`, `tools/gdl/composed_census` and `memory_graph` can
+   raise one, including `wf_word_diff`'s `CountAsymmetric` subclass and
+   `defake_gate.run_fndiff`. The screen is one command with no build:
+
+   ```text
+   python tools/gdl/composed_census/t22_systemexit_blind_handlers.py
+   ```
+
+   It parses every module, finds the SystemExit raisers, and reports each
+   `try` that has an `except Exception` handler and calls one — split into
+   HANDLED (the handler also lists SystemExit) and UNHANDLED, exiting 1 on
+   any unhandled row. At 2f4add563: 1 block, HANDLED 1, UNHANDLED 0. Run it
+   after adding any fail-soft guard around a project helper, and write
+   `except (Exception, SystemExit)` — or a separate `except SystemExit`
+   with its own verdict, which is what probe does — never the blanket form
+   alone.
 
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.
@@ -1367,6 +1409,19 @@ Dispatch screens (run 35: 2 of 6 lanes were sent to already-complete
 regions, and a third inherited a residual claim that was 30x wrong —
 each screen below costs one command and would have caught its lane):
 
+- **`python tools/gdl/claimscope.py --audit` before the fleet is spawned,
+  and its output goes in the dispatch note.** The `owned_units` list is the
+  ONLY channel `probe.py` and `defake_gate.py` screen (they exit 3 on a
+  foreign unit), and every failure mode of that list is silent: a claim
+  with no list makes every unit UNDECIDABLE rather than free, an entry
+  naming a path that does not exist protects nothing, and two lanes listing
+  one unit is a collision nobody is told about. `--audit` answers all three
+  in one call — it prints `active_claims`, `owned_unit_entries`,
+  `unresolved`, and a per-entry `status` (`prefix` / `unit` / unresolved)
+  — and it costs one command. Measured at run 52's dispatch: 6 active
+  claims, 12 owned-unit entries, 0 unresolved. `--index` prints the live
+  unit→owner map and any two-lane conflicts; `--self` prints the lane id
+  the tools will read from `LANE_LOCK`.
 - **Fresh-TU work orders**: the integrator runs
   `tools/gdl/composed_census/mt_region_census.py` over the target prefix at
   DISPATCH time and quotes the target TUs' current `Object()` states from

@@ -1651,7 +1651,29 @@ def _size_of(value: Any) -> int:
     return len(json.dumps(value, sort_keys=True).encode("utf-8"))
 
 
-def record_size_report(record: Mapping[str, Any]) -> dict[str, Any]:
+def apply_staging_stamps(record: dict[str, Any], now=None) -> list[str]:
+    """Stamp `valid_from`/`recorded_at` exactly as staging does.
+
+    Extracted so the `--size` PREFLIGHT can measure the record the GATE
+    will see (run-52 item 4/6). `stage_record_proposal` writes both stamps
+    BEFORE `_validate_record` runs the 16 KB attempt cap, so a preflight
+    reading the authored file measured a record that never reaches the
+    gate. Returns the keys it added, so a caller can say what the
+    difference is instead of just reporting a bigger number.
+    """
+    now = now or datetime.now(timezone.utc)
+    added = []
+    if "valid_from" not in record:
+        record["valid_from"] = now.strftime("%Y-%m-%d")
+        added.append("valid_from")
+    if "recorded_at" not in record:
+        added.append("recorded_at")
+    record["recorded_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return added
+
+
+def record_size_report(record: Mapping[str, Any],
+                       as_staged: bool = False) -> dict[str, Any]:
     """Encoded size of a record plus where the bytes actually are.
 
     The 16 KB attempt cap used to be enforced only at the END of authoring,
@@ -1661,7 +1683,25 @@ def record_size_report(record: Mapping[str, Any]) -> dict[str, Any]:
     uses (`json.dumps(sort_keys=True)`), so the numbers add up to the
     number the gate compares, and paths are reported two levels deep
     because `attributes.*` is where the weight lives.
+
+    ``as_staged`` measures the record the GATE will see rather than the one
+    on disk (run-52 item 6). `stage_record_proposal` stamps `valid_from`
+    and `recorded_at` before `_validate_record` applies the cap, so the
+    preflight under-reported by exactly those two keys — 67 bytes when both
+    are absent (`, "recorded_at": "2026-09-04T02:09:23Z"` is 39 and
+    `, "valid_from": "2026-09-04"` is 28), which is the ~60-70 B a lane
+    measured over three trim cycles. A preflight that says UNDER when the
+    gate will say OVER is worse than no preflight: it costs a full
+    authoring round-trip to discover.
     """
+    if as_staged:
+        staged = dict(record)
+        stamps = apply_staging_stamps(staged)
+        report = record_size_report(staged, as_staged=False)
+        report["measured"] = "as staged (the record the gate will see)"
+        report["staging_stamps_added"] = stamps
+        report["staging_overhead_bytes"] = report["bytes"] - _size_of(record)
+        return report
     total = _size_of(record)
     fields: list[dict[str, Any]] = []
     for key, value in record.items():
@@ -6317,9 +6357,9 @@ def stage_record_proposal(
                             for n, text in enumerate(failures, 1)))
     now = datetime.now(timezone.utc)
     # Freshness stamps: valid_from is the author's semantic date (defaulted to
-    # today), recorded_at is always the actual staging moment.
-    record.setdefault("valid_from", now.strftime("%Y-%m-%d"))
-    record["recorded_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # today), recorded_at is always the actual staging moment. Shared with the
+    # `--size` preflight so the two measure the same record (run-52 item 6).
+    apply_staging_stamps(record, now)
     if record.get("kind") == "attempt":
         attributes = record.get("attributes")
         law_screen = (
@@ -9708,15 +9748,58 @@ def _ungated_prose_denial(record: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+# Fields whose MEANING is "what this record already tried". Mining them for
+# an UNTRIED hypothesis is wrong by construction, not by precision — see
+# `_open_hypotheses`.
+_ALREADY_TRIED_FIELDS = frozenset({
+    "attempted_axis", "attributes.probed_form", "attributes.axis_log",
+})
+# The outcomes that say the trying FAILED. ('refuted' is not an outcome in
+# this corpus — refutation travels in `refutes` — and is listed so a later
+# vocabulary addition does not silently fall through.)
+_FAILED_OUTCOMES = frozenset({"parked", "capped", "negative", "refuted"})
+
+
 def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
     """Concrete untried hypotheses, TYPED first and prose second.
 
     A typed hypothesis is exact and carries its own kill-cost; a prose one is
     a phrase-match guess. Ranking the guess alongside the exact statement is
     how a briefing's mandatory step 1 ends up being a sentence fragment.
+
+    A FIELD THAT RECORDS WHAT WAS TRIED IS NOT A SOURCE OF UNTRIED WORK when
+    the record says the trying failed (run-52 item 5,
+    claim.law.EN_brief-open-hypotheses-mines-the-attempted-axis-field-and-
+    labels-already-refuted-work-untried.20260904.v1). AGENTS.md discipline
+    10b makes every row here the next lane's MANDATORY STEP 1, so a park's
+    own failed axis was being handed back as the first move to try, with
+    `"field": "attempted_axis"` printed next to `"marker": "untried"` in the
+    same row.
+
+    THE SCREEN IS OUTCOME-CONDITIONAL, and two-sided calibration is why.
+    Measured over all 1366 attempt records (533 emittable rows):
+
+      * dropping `attempted_axis` outright removes 56 rows (10.5%) — but
+        only 34 sit on a park/cap/negative record. The other 22 are on
+        `improved`/`exact` records, where the field legitimately ends in a
+        next step, so a blanket drop discards 39% of what it removes for
+        no reason. The law's own "narrow fix" is that blanket drop.
+      * the law's "wider fix" — suppress every row whose record carries a
+        denial — removes 200 rows (37.5% of the section) and STILL misses
+        39 of the 56, so it is both over-broad and not a substitute.
+      * the DISCIPLINE-18 SCREEN found two siblings with the identical
+        semantics: `attributes.probed_form` (19 rows, 15 on parks — the
+        field literally enumerates forms already probed) and
+        `attributes.axis_log` (7 rows, 4 on parks). The law named only
+        `attempted_axis`.
+
+    So: those three fields are skipped on a failed outcome (53 rows, every
+    one wrong by construction) and KEPT with a caveat otherwise. Nothing
+    from the typed `hypothesis` field is ever touched.
     """
     found: list[dict[str, str]] = []
     seen: set[str] = set()
+    outcome = str(record.get("outcome") or "").lower()
     typed = _record_field(record, "hypothesis")
     if isinstance(typed, dict) and str(typed.get("statement") or "").strip():
         statement = str(typed["statement"])
@@ -9738,6 +9821,9 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
                           if isinstance(value, str))):
         if not isinstance(text, str):
             continue
+        already_tried = field in _ALREADY_TRIED_FIELDS
+        if already_tried and outcome in _FAILED_OUTCOMES:
+            continue
         for sentence in _SENTENCE_SPLIT_RE.split(" ".join(text.split())):
             lowered = sentence.lower()
             marker = next((m for m in _HYPOTHESIS_MARKERS if m in lowered),
@@ -9748,11 +9834,18 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
             if key in seen:
                 continue
             seen.add(key)
-            found.append({
+            row = {
                 "marker": marker,
                 "field": field,
                 "text": sentence[:400] + (" …" if len(sentence) > 400 else ""),
-            })
+            }
+            if already_tried:
+                row["field_caveat"] = (
+                    f"`{field}` records what this attempt TRIED, not what is"
+                    f" untried. Kept only because the record's outcome is"
+                    f" `{outcome or 'unstated'}`, i.e. the trying succeeded;"
+                    " read the record before treating this as step 1.")
+            found.append(row)
     return found
 
 
@@ -10441,7 +10534,14 @@ def tu_briefing(
             " lane on that function, ranked ABOVE fresh analysis. These are"
             " extracted by phrase match — read the cited record before acting,"
             " and remeasure the record's NEGATIVE findings too, not only its"
-            " cure."
+            " cure. A row whose `field` is `hypothesis` is TYPED and exact;"
+            " every other field is prose at the 30-50% extraction precision"
+            " this corpus records. Rows mined from the three fields that mean"
+            " ALREADY TRIED (attempted_axis, attributes.probed_form,"
+            " attributes.axis_log) are suppressed entirely on a"
+            " parked/capped/negative record — 53 such rows corpus-wide were"
+            " being handed back as mandatory first moves — and carry a"
+            " `field_caveat` when the outcome says the trying succeeded."
         ),
         "vetoed_axes": vetoed_axes,
         "vetoed_axes_note": (
@@ -10980,7 +11080,11 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 SurfaceParam("include_candidates", int, default=0, maximum=1,
                              help="1 = also return quarantined"
                                   " family_candidate extractor guesses"
-                                  " (~30-50%% precision), labelled as such"),
+                                  # A single `%`: escaping for argparse is
+                                  # gdlmem.argparse_help's job, and doubling
+                                  # it here shipped "30-50%%" to every other
+                                  # consumer of this registry (run-52 item 5).
+                                  " (~30-50% precision), labelled as such"),
                 SurfaceParam("capability", str, default=None,
                              help="residual.capability_needed — which parks"
                                   " are waiting on a capability"),
