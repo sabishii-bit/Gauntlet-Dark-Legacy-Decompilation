@@ -1591,6 +1591,35 @@
           }
         ],
         "copy_register_fields": true
+      },
+      {
+        "function": "MBWorldToScreen3D",
+        "mechanism": "attempt.MB_mbworldtoscreen3d-the-conversion-temp-block-order-is-set-by-the-consumer-locals-definition-order.20260904.v1 filed this as a composed rule request with the residual decoded atom by atom, and it is the sixth attempt record on the function: attempt.NC_mbworldtoscreen3d-the-projected0-store-is-the-cse-barrier-and-moving-it-creates-the-f31-save-pair.20260904.v1 (11 probed forms), attempt.BG_mbworldtoscreen3d-the-yoff-hoist-carrier-is-refuted-and-the-added-local-toll-is-not-fixed.20260904.v1, attempt.FL_mbworldtoscreen3d-the-whole-residual-is-one-callee-saved-fpr-and-reordering-the-y-terms-does-not-create-it.20260903.v1, attempt.FQ_mbworldtoscreen3d-the-instruction-census-refutes-the-missing-value-and-three-more-construct-classes-die.20260903.v1 and attempt.FT_mbworldtoscreen3d-live-fp-census-refutes-the-pressure-premise-and-the-banked-viewport-local.20260903.v1 precede it, and MB's own seven probes closed the 17 IMMEDIATE conversion-temp words at SOURCE (real 96 -> 62) rather than by rule. What is left is count-neutral and register/schedule only: insns 104/104, opcode multiset IDENTICAL (104/104), frame 136/136, SLOT MAP IDENTICAL 21/21, and wf_word_diff DIFFERING WORDS = 32, MNEMONIC DIVERGENCE = 5, RELOC-SYMBOL MISMATCH = 0, DECODE REGFIELD-ONLY 27 / RA-ZERO 0 / IMMEDIATE 0 / BRANCH 0 / OPCODE 5 / RELOCATED 0 -- so neither stage closes it alone. TWO windows. CLUSTER A at +0xe0..+0xe8 is a 2-atom transposition, ours `fmuls f0,f2,f0` then `fsub f1,f1,f8` against the target's `fsub f1,f1,f9` then `fmuls f0,f2,f0`: the fmuls reads and writes f0 (and reads f2), the fsub reads and writes f1 (and reads f8), they share no register, so it is dependence-legal in OUR OWN colouring and rides the ORDINARY pre-recolor instruction_permutation stage, which claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 calls the right and only sound order for a permutation that can take it. CLUSTER B at +0x144..+0x150 is a 3-atom right rotation, ours `lfs f31,244(r10)` / `fnmsubs f11,f10,f2,f11` / `fmuls f2,f6,f3` against the target's `fmuls f3,f7,f3` / `lfs f13,244(r10)` / `fnmsubs f2,f11,f4,f2`, and it is a displacement CAUSED BY the recolor: our fmuls WRITES f2 while our fnmsubs READS f2, a WAR hazard that exists only because our build colours that web f2, and the same rotation in the target's colouring is between independent words because the fmuls there writes f3. That is the class claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 named and claim.law.WF_a-permutation-illegal-in-both-colourings-can-still-be-split-across-the-recolor.20260903.v1 refined, and the shipped stage for it is post_recolor_permutation, whose recolor target is built by unpermute_target_windows. THE STAGE ORDER IS MEASURED, NOT ASSUMED: authoring BOTH windows in the pre-recolor stage is refused verbatim by check_permutation_dependences with `instruction permutation breaks def-use chains: [(1, ('f', 2))]` -- the f2 hazard, named by the guard at the atom index that carries it -- and dropping cluster A to leave cluster B alone is refused with `unabsorbed words at +0xe0,+0xe4`. Only the split above reaches BYTE-EQUAL. Note for future readers that MB's record cites the MBCameraUpdate pin above as the stage-order precedent; MBCameraUpdate carries an ordinary pre-recolor instruction_permutation and is a precedent for COMPOSING the two stages, not for running the recolor first, which no pre-recolor window can do. UNREACHABILITY OBLIGATION, discharged by citation per claim.law.CX_a-pin-mechanism-asserting-source-unreachability-is-a-denial-and-must-carry-the-denial-block.20260904.v1: the typed {scope, premise_measurement, expiry_check, falsifier} denial for this pin lives in attempt.WS_mbworldtoscreen3d-the-recolor-caused-rotation-needs-the-post-recolor-stage-and-mb_camera-flips.20260904.v1, whose expiry_check is `python tools/gdl/composed_census/wf_word_diff.py game/mb/mb_camera MBWorldToScreen3D` -- if DECODE stops reading REGFIELD-ONLY 27 / OPCODE 5 the residual has moved and this pin is stale. The denial covers ONLY these 32 words; the function's other 17 IMMEDIATE words were closed at SOURCE, and mb_camera's five siblings are at real 0 with no rule.",
+        "before_sha256": "c85380b096e262cd745b24c6777bbfa26a2a44d3a5c292d1ac45f553cc46b99c",
+        "after_sha256": "8df292190eb3f2359d0811e5802ca5da6b1becb8112d5638edf4f27eee8c5a29",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 104
+        },
+        "instruction_permutation": [
+          {
+            "start": "0xe0",
+            "end": "0xe8",
+            "order": [1, 0],
+            "before_sha256": "44fa8732ff4687f705c6b8d7cb4cef9579d9aa33e27abad1570b8148b992c793",
+            "after_sha256": "07e147ade39a6d7deaec90b9ceace131c0a4769e892ec12870bfdfb749baf939",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "post_recolor_permutation": [
+          {
+            "start": "0x144",
+            "end": "0x150",
+            "order": [2, 0, 1]
+          }
+        ],
+        "copy_register_fields": true
       }
     ],
     "game/mb/mb_blit": [
