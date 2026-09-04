@@ -2321,6 +2321,61 @@ def restore_scope_counts(base_text, cur_text, fn):
     return inside, outside, entangled
 
 
+def revert_reach_warning(fn, counts):
+    """What to say when the edit being SCORED lies outside ``fn``'s span.
+
+    RUN-52 ITEM 7. probe's restore family is function-scoped, and it says
+    so correctly — at RESTORE time. NC's lane made every edit in a static
+    helper defined outside the function's own span (the body it was
+    matching is produced by those helpers), so `--revert-best` refused,
+    correctly, at the end: "the revert loop was silently unavailable all
+    lane". The tool knew from the FIRST probe and did not say.
+
+    The trigger is the condition itself, not a prediction of it: this is
+    `restore_scope_counts` against the SNAPSHOT the restore would use, so
+    it fires exactly when a restore would fail to reach the edit and is
+    silent otherwise. The body-only edit — measured as roughly four fifths
+    of single-TU edits in `coupled_scope_survivors` — prints nothing.
+
+    A BASELINE-time warning was designed first and REFUTED by its own
+    calibration: "this function's body contains inlined static helpers"
+    fires on 315 of the 479 (unit, function) pairs that call a static
+    helper at all — 65.8%, measured image-wide over 310 units — which is a
+    constant line rather than a warning, and its detector also mis-parsed
+    `static void (*fn)(...)` shapes as a helper named `void`.
+    """
+    if not counts:
+        return ""
+    inside, outside, entangled = counts
+    straddling = [row for row in entangled if row[0] == "straddling"]
+    if not outside and not straddling:
+        return ""
+    where = ", ".join(f"L{a}-L{b}" for _kind, a, b in entangled) or "?"
+    lines = []
+    if inside:
+        lines.append(
+            f"REVERT REACHES PART OF THIS EDIT: {inside} hunk(s) are inside"
+            f" {fn} and {outside + len(straddling)} are not ({where}).")
+    else:
+        lines.append(
+            f"REVERT REACHES NONE OF THIS EDIT: every differing hunk"
+            f" ({outside + len(straddling)}, at {where}) lies outside"
+            f" {fn}'s own source span.")
+    lines.append(
+        "  probe's restore family (--revert, --revert-best, --restore) is"
+        f" FUNCTION-SCOPED to {fn}'s span, so it cannot put back what is"
+        " outside it — a body assembled from static helpers defined"
+        " elsewhere in the TU is edited outside the span by construction.")
+    if straddling:
+        lines.append(
+            f"  {len(straddling)} hunk(s) STRADDLE the boundary; a scoped"
+            " restore refuses those outright rather than splitting one.")
+    lines.append(
+        "  Use `--revert --whole-file` (or git) to take this edit back. The"
+        " score below is real; only the undo is out of reach.")
+    return "\n".join(lines)
+
+
 def discard_refusal(fn, unit, inside, outside, entangled):
     """The refusal text for a --discard that would destroy other work.
 
@@ -5848,6 +5903,20 @@ def main():
         arbiter = immediate_arbiter_line(
             immediates, prev_immediates, real, prev_real)
     print(insert_after_headline(verdict, arbiter))
+    # WHETHER THE REVERT LOOP CAN REACH THIS EDIT (run-52 item 7), said at
+    # the probe that MAKES the edit rather than at the restore that refuses
+    # it. Silent on a body-only edit; fires exactly when a scoped restore
+    # would come up short, because the trigger IS that condition.
+    if snap is not None and snap.exists() and source is not None:
+        try:
+            reach = revert_reach_warning(
+                fn, restore_scope_counts(
+                    snap.read_bytes().decode("latin-1"),
+                    source.read_bytes().decode("latin-1"), fn))
+        except (OSError, ValueError):
+            reach = ""
+        if reach:
+            print(reach)
     # THE RAW WORD COUNT (run-48 item 1), directly under the verdict it
     # qualifies. On the pinned backlog it is the ONLY sound arbiter — fuzzy
     # scores the postprocessed object — and it was the one number a lane had
