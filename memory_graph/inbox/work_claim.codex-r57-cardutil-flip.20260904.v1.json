@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/sys/cardutil.c"
+    ],
+    "scope": "RUN-57 EXACT-FLIP lane for game/sys/cardutil.c. Fresh mt_region_census at e3463b2aa reports Object(NonMatching), 21/23 functions, zero gaps. cardDoWrite is freshly measured 263/263 with 43 raw differing words, all REGFIELD-ONLY, and has two mandatory typed hypotheses in attempt.NC_carddowrite-the-five-wide-declaration-group-does-not-pivot-the-scratch-pair.20260903.v1 and attempt.CU_carddowrite-statement-order-closes-both-immediates-and-declaration-order-recolors.20260903.v1; execute the newest applicable mandatory diagnosis/cure screen before new axes. cardDoLoad is freshly measured target 257/ours 258, outside every postprocessor class, and needs source count closure before any recolor analysis. No WebFrank pins exist in this TU. Goal is both exact and TU flip; exact postprocessor closure is allowed only after source exhaustion and proof. Exact or fully named typed park; one commit per retained milestone; full gates; never push."
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:cardDoWrite",
+  "id": "work_claim.codex-r57-cardutil-flip.20260904.v1",
+  "kind": "work_claim",
+  "owner": "codex-r57-cardutil",
+  "recorded_at": "2026-09-04T17:26:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
