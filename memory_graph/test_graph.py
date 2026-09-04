@@ -2253,6 +2253,49 @@ class RetrievalQueryTests(unittest.TestCase):
              ".20260831.v1"])
         self.assertNotIn("provenance_laws_unresolved", by_fn["test_fn"])
 
+    def test_the_pins_tier_answers_the_trap_4_screen_alone(self):
+        """Run-54 item 7: the mandatory freeze screen without the briefing.
+
+        Measured at 7c673e8b9: `brief game/game/gamemain` spends 176,136 B
+        over 261 rows and 4.71s to name four pinned functions, `--summary`
+        names none of them and `--roster-only` omits the section. Agreement
+        with the full brief was checked on all 53 pinned TUs (53/53).
+        """
+        screen = core.tu_pin_screen("game/test/foo", root=self.root)
+        full = tu_briefing("game/test/foo", root=self.root)
+        self.assertEqual(
+            [(p["function"], p["provenance"])
+             for p in screen["webfrank_pins"]],
+            [(p["function"], p["provenance"])
+             for p in full["webfrank_pins"]])
+        self.assertEqual(screen["pinned_functions"],
+                         [p["function"] for p in full["webfrank_pins"]])
+        self.assertEqual(screen["pin_count"], len(screen["webfrank_pins"]))
+        self.assertIsNone(screen["empty_note"])
+        # It is a SCREEN, not a briefing: it must say what it does not carry.
+        self.assertIn("PINS ONLY", screen["note"])
+        # The identical per-row legend is hoisted once (a third of the
+        # payload on a four-pin TU), and it must not simply vanish.
+        self.assertIn("Mandatory-policy bar", screen["provenance_note"])
+        for pin in screen["webfrank_pins"]:
+            self.assertNotIn("provenance_note", pin)
+        for omitted in ("open_hypotheses", "functions", "active_claims"):
+            self.assertNotIn(omitted, screen)
+
+    def test_the_pins_tier_is_reachable_through_brief(self):
+        self.assertEqual(
+            tu_briefing("game/test/foo", root=self.root, pins_only=True),
+            core.tu_pin_screen("game/test/foo", root=self.root))
+
+    def test_an_unpinned_tu_says_zero_is_not_a_lookup_success(self):
+        # NEGATIVE side: an unpinned TU and an unknown spelling both report
+        # 0, so 0 alone must never read as a measured all-clear.
+        for unit in ("game/test/unpinned", "not/a/real/unit"):
+            screen = core.tu_pin_screen(unit, root=self.root)
+            self.assertEqual(screen["pin_count"], 0, unit)
+            self.assertEqual(screen["pinned_functions"], [], unit)
+            self.assertIn("measured absence", screen["empty_note"], unit)
+
     def test_brief_roster_carries_the_unabsorbed_closability_column(self):
         """run-31 item 6.
 

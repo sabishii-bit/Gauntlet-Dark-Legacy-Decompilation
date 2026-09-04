@@ -10125,6 +10125,86 @@ def _pin_provenance(root: Path, tu: str,
     return pins
 
 
+def tu_pin_screen(tu: str, *, root: Path = REPO_ROOT) -> dict[str, Any]:
+    """JUST the pinned functions of a TU, with their provenance class.
+
+    AGENTS.md first-five-minutes trap 4 makes this a MANDATORY screen before
+    editing anything in a TU, and until now its only route was the full
+    briefing. Measured at 7c673e8b9:
+
+      game/game/gamemain   full 176,136 B / 261 rows / 4.71s   -> 4 pins
+      game/enemy/critter   full 311,858 B / 336 rows / 6.18s   -> 8 pins
+      game/enemy/enemy     full 217,176 B / 289 rows / 3.72s   -> 10 pins
+
+    The answer itself is 105, 243 and 210 bytes: the cheapest existing route
+    to the mandatory screen costs between 1,034x and 1,677x the answer. The
+    `--summary` tier does not help — it reduces `webfrank_pins` to a count
+    plus record ids, so on all three TUs it names NO pinned function at all,
+    and `--roster-only` omits the section by design. That is why a run-51
+    record could state a TU "has no pins" while it had eight: the screen was
+    the most expensive call in the tool.
+
+    This reads `config/GUNE5D/webfrank.json` and `memory_graph/records/`
+    only — no database build, no report, no roster. `roster_mentions` needs
+    the TU's function roster and is therefore absent here; the payload says
+    so rather than leaving its absence to be read as "there are none".
+
+    WHAT IT ACTUALLY DELIVERS, stated rather than implied by the ratio above:
+    the pin ROWS are kept whole, mechanism prose included, so gamemain's
+    screen is 6,751 B — a 26x cut, not a 1,677x one. Stripping the mechanism
+    would hit the smaller number and cost the lane the full brief again the
+    moment it wanted a derivation, which is the trade this tier exists to
+    avoid.
+
+    CALIBRATED TWO-SIDED at 7c673e8b9 over all 53 pinned TUs: the functions
+    and their provenance classes are IDENTICAL to the full brief's on 53 of
+    53 (0 disagreements), and the whole 53-TU sweep costs 10.3s against
+    4.71s for ONE full brief. Negative side: an unpinned TU
+    (`game/ps2/ml_fmath`) and an unknown spelling (`not/a/real/unit`) both
+    report pin_count 0 — indistinguishable, which is why `empty_note` says
+    so instead of letting 0 read as a measured all-clear.
+    """
+    pins = _pin_provenance(root, tu)
+    # The provenance legend is identical on every row and is ~700 B, so on a
+    # four-pin TU it is a third of the payload. Hoisted ONCE here; the full
+    # brief keeps it per row, and the classes themselves are untouched.
+    legend = next((pin.get("provenance_note") for pin in pins
+                   if pin.get("provenance_note")), None)
+    pins = [{key: value for key, value in pin.items()
+             if key != "provenance_note"} for pin in pins]
+    return {
+        "tu": _normalized_tu(tu),
+        "pin_count": len(pins),
+        "pinned_functions": [pin["function"] for pin in pins],
+        "provenance_note": legend,
+        "webfrank_pins": pins,
+        "webfrank_pins_note": (
+            "a pinned function's SOURCE IS FROZEN (AGENTS.md trap 4): the"
+            " postprocessor hash-asserts its body and the build aborts on"
+            " drift. Screen this list before editing anything in the TU."
+            " `provenance` classes each pin against the Mandatory-policy"
+            " source-exhaustion bar."
+        ),
+        "note": (
+            "PINS ONLY. This is the trap-4 freeze screen and nothing else:"
+            " it does NOT carry the mandatory-step-1 hypotheses, the"
+            " cross-fleet claim VETOes, the roster or the laws. Run the full"
+            " `brief` before your first edit in a TU. `roster_mentions`"
+            " (sentences in one pin's derivation that name a SIBLING) needs"
+            " the roster and is omitted here — its absence in this payload"
+            " is not evidence that there are none."
+        ),
+        "empty_note": (
+            "pin_count 0 means this TU has NO block in"
+            " config/GUNE5D/webfrank.json. That is a measured absence, not a"
+            " lookup failure — an unknown TU spelling reports 0 the same way,"
+            " so check the spelling against the unit paths the tools accept"
+            " (game/enemy/enemy) before quoting it."
+            if not pins else None
+        ),
+    }
+
+
 def tu_briefing(
     tu: str,
     *,
@@ -10134,6 +10214,7 @@ def tu_briefing(
     roster_only: bool = False,
     law_join: bool = True,
     summary: bool = False,
+    pins_only: bool = False,
 ) -> dict[str, Any]:
     """One-call spawn briefing for a TU-scoped pass.
 
@@ -10162,6 +10243,10 @@ def tu_briefing(
     tu = tu.replace("\\", "/").strip("/")
     if tu.startswith("src/"):
         tu = tu[len("src/"):]
+    # Answered before ensure_database: the pin screen needs neither the
+    # database nor the report, and the point of the tier is its cost.
+    if pins_only:
+        return tu_pin_screen(tu, root=root)
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
         modules = connection.execute(
@@ -11339,6 +11424,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 kw["tu"], root=root, db_path=db, limit=kw["limit"],
                 roster_only=bool(kw["roster_only"]),
                 summary=bool(kw["summary"]),
+                pins_only=bool(kw["pins"]),
                 law_join=not kw["no_law_join"]),
             params=(
                 SurfaceParam("tu", str, required=True,
@@ -11372,6 +11458,18 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                                   " `record <id1>,<id2>`. Measured on"
                                   " game/enemy/enemy: full 254,306 B ->"
                                   " summary 44,312 B (83% smaller)"),
+                SurfaceParam("pins", int, default=0, maximum=1,
+                             help="1 for the PIN SCREEN ONLY — AGENTS.md"
+                                  " trap 4's mandatory freeze check and"
+                                  " nothing else. No database, no report, no"
+                                  " roster. Measured: game/game/gamemain full"
+                                  " 176,136 B / 261 rows / 4.71s against a"
+                                  " 105-byte answer, and --summary names no"
+                                  " pinned function at all while"
+                                  " --roster-only omits the section. Run the"
+                                  " FULL brief before your first edit: this"
+                                  " tier carries no hypotheses and no claim"
+                                  " vetoes"),
             ),
         ),
         SurfaceOp(
