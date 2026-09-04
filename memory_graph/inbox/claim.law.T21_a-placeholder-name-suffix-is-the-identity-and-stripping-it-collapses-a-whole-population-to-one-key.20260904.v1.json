@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/tests/test_t21_placeholder_name_guard.py",
+    "tools/gdl/probe.py strip_dtk_suffix / PLACEHOLDER_NAME_PREFIXES",
+    "tools/gdl/fndiff.py PLACEHOLDER_NAME_PREFIXES / PLACEHOLDER_STEMS"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Dies if a name beginning `fn_`, `lbl_` or `jumptable_` is found whose trailing `_80XXXXXX` is a dtk decoration rather than its identity \u2014 i.e. a symbol whose stripped form names a DIFFERENT, real symbol in the same object. Screen with `python tools/gdl/tests/test_t21_placeholder_name_guard.py` and with a census of config/GUNE5D/symbols.txt for a bare `fn`/`lbl`/`jumptable` symbol (measured 0 at 0f4151839). Also dies if a lane measures a verdict CHANGE from the fndiff relocation guard: the two-sided census that shipped it read 0/0 over 3,032 pairs, and any non-zero row refutes the blind-spot framing in favour of a live-defect one.",
+  "id": "claim.law.T21_a-placeholder-name-suffix-is-the-identity-and-stripping-it-collapses-a-whole-population-to-one-key.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T01:55:16Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "dtk suffixes LOCAL symbol names with their address so the target's `long2str_800E74B8` pairs with our static `long2str`, and every tool here strips `_80XXXXXX` to make that pairing. For a name whose PREFIX is a placeholder kind the suffix IS the identity, and the strip collapses the whole population to a single key: `fn_800D967C` -> `fn`, `lbl_8023D000` -> `lbl`, `jumptable_80118904` -> `jumptable`. THE PROJECT ALREADY KNEW THIS FOR HALF THE CASES: cs_constsweep._strip_dtk records \"fndiff learned this the hard way: stripping collapsed every pool label to bare 'lbl'\", and matchtool.parse, fnskel, cv_crossjoin.key, rs_composed_census and fndiff.parse's FUNCTION-NAME path all carry an `if not name.startswith('fn_')` guard. THREE PLACES DID NOT, and each is a different failure mode. (1) probe.py computed `fn_stripped` unguarded at three sites and passed it ALONE to raw_word_residual, so `probe --raw` could never print a raw word count for any `fn_*` name and printed a fallback asserting the one conclusion that removes a function from every postprocessor class (claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1). MEASURED over the 1,641 function names in the 53 raw postprocess bodies `--raw` scores: 275 names match the strip regex and 275 of 275 (100%) are `fn_*`; 260 are measurable under the FULL spelling and not the stripped one (POSITIVES), 0 the other way (NEGATIVES), 15 are genuinely count-asymmetric. (2) fndiff.parse's RELOCATION strip guarded `lbl` and `jumptable` and never added `fn`, so 2,004 relocations across 641 objects recorded their callee as the bare symbol `fn`: calling the WRONG unnamed function was invisible to `--clean`, to `real` and to the wf_word_diff RELOC-SYMBOL screen alike, which is the class claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1 exists for. CALIBRATED TWO-SIDED over all 3,032 comparable function pairs in 257 units: 0 pairs equal-today-and-differing-with-the-guard, 0 the other way \u2014 so this is a BLIND SPOT closed, not a live miscall repaired, and no lane pays a re-baseline for it. (3) fndiff.symbol_addresses registered its stripped ALIASES unguarded: of the 4,713 symbols.txt names the regex touches, 4,686 are placeholder names and they minted exactly three keys \u2014 `lbl` from 4,282 names, `fn` from 307, `jumptable` from 97 \u2014 each resolving to whichever name parsed first. THE RULE: strip the dtk suffix only from a name that does NOT begin with a placeholder prefix, and derive the guard from one shared constant rather than repeating the tuple, because the two copies in fndiff had already drifted apart by one element."
+}

@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Run-51 TOOL lane: reproduce each of nine queue observations with the reporter's own command and quote the verbatim output BEFORE designing anything, derive each cure from the reproduction rather than from the item, and let two-sided calibration veto the design; one commit per item, scoped tests between, full suites and a green ninja per commit.",
+  "attributes": {
+    "law_screen": "claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1 APPLIED \u2014 items 1 and 2 are its two halves; both diagnoses reproduced exactly, both line numbers had moved, and the second half's cause was BROADER than recorded (any failing build, not only a WEBFRANK abort). claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED \u2014 item 3's arbiter implemented the fuzzy-decides rule outside the scope this law states, and the law's own words ('read fndiff --count's insn parity FIRST') are the cure. claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1 APPLIED \u2014 the two further count-restoring, fuzzy-losing cases it records are quoted in the new arbiter branch. claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1 APPLIED \u2014 item 1's sibling screen found the same blindness class in fndiff.parse's relocation strip (2,004 sites). claim.law.RC_wf-word-diff-reads-the-raw-pre-postprocess-body-so-pinned-functions-rank-first.20260902.v1 SCREENED, not applicable: item 4 changes the exit code and the count LABEL, not what the tool reads. claim.law.probe-revert-snapshot-goes-stale-across-commits SCREENED for item 5: the stale-restore guard is untouched; only the declined-restore exit code changed.",
+    "laws_applied": "[\"claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1\", \"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\", \"claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1\", \"claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1\"]",
+    "probed_form": "No source probe: this lane's edits are all under tools/gdl and memory_graph. The two reproduction edits (a `u32 words[116]` -> `[120]` class-size change, then an undefined-type member forcing a compile failure) were made to src/game/movie/movieplayer.cpp solely to drive the failing-build path of item 2, and were reverted; `git status --short` after each shows only LANE_LOCK untracked.",
+    "residual": "Item 5's third instance (`--revert` on an identical snapshot) is reported, not fixed \u2014 see hypothesis. Item 8's slot-gate half was REFUTED: `_SLOTDIFF_EVIDENCE_RE` already accepts the tool's OUTPUT as well as its name, which is the run-44 fix the item's own citation describes; a test now pins that so it cannot quietly stop being true. Item 6 surfaced 41 of 154 pins carrying NO mechanism prose \u2014 the freeze is real and its derivation is written down nowhere; that is undocumented postprocessor debt this lane made visible and did not pay down.",
+    "scope": "tools/gdl/probe.py, tools/gdl/fndiff.py, tools/gdl/defake_gate.py, tools/gdl/savedregs.py, tools/gdl/claimscope.py, tools/gdl/composed_census/wf_word_diff.py, tools/gdl/composed_census/t15_promotion_queue.py, memory_graph/core.py, and six new test modules under tools/gdl/tests. NO compiled source changed; two temporary reproduction edits to src/game/movie/movieplayer.cpp were reverted with `git checkout --` and the file is byte-identical to HEAD.",
+    "verification": "Nine commits on claude/tool-queue-21-20260906 (5010e1b74, 4d5643e81, 491f82e35, 7d8142f77, 6c2e07f78, 6a017ec3c, 03ed3d1cc, f672034a6, 14b3bb97d). Per commit: `python -m unittest discover tools/gdl/tests -b` all green (1,846 -> 1,927 tests as the new modules landed), `python -m memory_graph.test_graph -b` all green (440 tests), `ninja -j2` printing `build/GUNE5D/main.dol: OK`, and `git diff --check HEAD` plus `git diff --cached --check` both exiting 0. `python memory_graph/gdlmem.py validate` reports valid: true. Progress split unchanged at STRICT 57.17% (2,593 fns) + EQUIVALENT 11.25% (152 fns) \u2014 this lane touches no compiled source, so the split is expected flat and is quoted to show it did not move."
+  },
+  "function": "project:gdl",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/probe.py <unit> <fn> --revert --no-rebuild` on a tree whose snapshot equals the source: if it already exits non-zero, or if it does not re-score at all, the shape does not transfer and there is nothing to decide.",
+    "count_consequence": "none: no compiled source is involved.",
+    "screened_against_target": "no \u2014 this is a tool-behaviour claim, not a codegen one; it was read out of probe.py's revert branch at 6c2e07f78 and not exercised end to end.",
+    "statement": "probe's `--revert` path carries the SAME defect item 5 fixed in `--discard`: when the banked snapshot IS the working tree it prints `nothing to restore: <snapshot> IS the current working tree` and then FALLS THROUGH to an ordinary re-score, so it exits 0 having restored nothing. It was left alone because its exit code carries the VERDICT's meaning (conflict_gate writes it), so the fix needs a decision about what a verdict-bearing exit code means for a restore that declined \u2014 not the one-line change --discard took."
+  },
+  "id": "attempt.T21_tool-queue-21-nine-items-two-calibration-reversals-and-a-latent-2004-site-blind-spot.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T01:55:19Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "no-residual: this lane changed no compiled source"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-04"
+}

@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/tests/test_t21_unmeasured_tu_is_not_a_wipeout.py",
+    "tools/gdl/defake_gate.py run_fndiff",
+    "tools/gdl/probe.py tu_sibling_regressions"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Dies if a healthy invocation of `fndiff.py <unit> --classify|--count|--clean` is measured exiting non-zero \u2014 re-run the 771-invocation census (257 units x 3 flags) and any non-zero row means the refusal is taxing real measurements. Dies the other way if a build failure is found that leaves fndiff exiting 0 with a partial roster, because the return code would then not be the discriminant; check with `python tools/gdl/tests/test_t21_unmeasured_tu_is_not_a_wipeout.py` plus a deliberate compile break in any unit.",
+  "id": "claim.law.T21_a-measurement-that-did-not-happen-must-not-parse-as-a-measurement-of-zero.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T01:55:17Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "A tool that PARSES another tool's stdout must decide first whether the child MEASURED anything, because an unparsable failure and a genuinely empty result are the same empty structure afterwards, and every reading built on the empty structure is then a confident statement about an object that was never produced. MEASURED at 5010e1b74 on game/movie/movieplayer: defake_gate.run_fndiff refused only when the child's output contained `missing:`, while fndiff's OTHER failure prints `NINJA FAILED rebuilding <obj>:` on STDOUT and returns 1. That build log flowed on as if it were a roster; parse_classify finds no rows in a build log, snapshot returned `{}`, and compare(baseline, {}) reported EVERY function in the TU as `function vanished from object` \u2014 `snapshot entries: 0`, `verdict rows: 52  REGRESSION: 52  'vanished': 52`. That is the `TU-SCOPE REGRESSED  51 BYTE-EXACT sibling(s) lost` of claim.law.MP_probe-raw-drops-the-raw-word-count-for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-tu.20260903.v1 (51 = 52 minus the probed function). The gate refused the bank either way, so the OUTCOME was right and it was reached through a named list of destroyed functions that do not exist \u2014 and a lane cannot tell that finding from a real one. Under `probe --raw` this is the ORDINARY case, not an edge one: `--raw` exists BECAUSE a drifted pin blocks the postprocessed build, and the TU cross-check the same invocation runs needs exactly that build. THE DISCRIMINANT IS THE CHILD'S RETURN CODE, NOT THE EMPTINESS OF ITS OUTPUT, and the negative side is what proves it: measured over all 257 units x 3 flags = 771 invocations on a healthy tree, ZERO exit non-zero, and 100 of them return exit 0 with EMPTY stdout, because a fully matched unit emits no `--count` DIFF line at all (MSL/abort_exit, MSL/bsearch, MSL/ctype and 97 more). A gate keyed on emptiness would have refused 100 legitimate measurements across the fully matched MSL/SDK region; a gate keyed on the return code refuses none of them. The caller's half of the rule: the refusal must reach the caller as a REFUSAL \u2014 defake_gate.run_fndiff raises SystemExit, and probe.tu_sibling_regressions had to learn to catch SystemExit (a BaseException its blanket `except Exception` never saw) to turn it into TU-SCOPE UNGATED, which is fail-closed and says the check did not run instead of naming every sibling as destroyed."
+}

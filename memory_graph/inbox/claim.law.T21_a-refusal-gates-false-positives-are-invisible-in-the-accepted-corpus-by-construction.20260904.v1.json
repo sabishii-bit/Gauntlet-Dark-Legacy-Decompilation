@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/tests/test_t21_savedregs_verdict_and_gate_i.py",
+    "tools/gdl/tests/test_t21_gate_g_count_asymmetry.py",
+    "memory_graph/core.py postprocessor_closure_claim / _count_asymmetry_evidence"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Dies if a refusal gate is found whose false positives DO appear in the accepted corpus \u2014 i.e. accepted records that the gate would refuse and that are nonetheless correct as written. That population is exactly what `find --kind attempt` plus the gate predicate enumerates, and gate G's own six remaining trips are the place to look: if any of them is judged correct as written, this law's premise (refused submissions are absent, accepted ones are compliant) is false for that gate.",
+  "id": "claim.law.T21_a-refusal-gates-false-positives-are-invisible-in-the-accepted-corpus-by-construction.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T01:55:18Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "AGENTS.md requires every new gate or classifier to be calibrated TWO-SIDED against the live corpus. For a REFUSAL gate the accepted corpus can only supply the negative half, because its false positives are exactly the submissions it refused, and a refused submission never becomes an accepted record. MEASURED at 03ed3d1cc while widening Gate I to accept a savedregs table row as register-quoting discharge: over all 2,118 accepted records and 224 hypothesis statements the change moved ZERO gap lists, and only FOUR accepted records carry a savedregs table or role row at all \u2014 a corpus census would have read the change as pointless, while the reported cost was two lost submissions. The positive half has to be demonstrated BY CONSTRUCTION on the exact shipped output shape (`r26: target holds \\`li 0\\`, ours holds \\`add r30,r28\\`` discharges r26 and not r9), and the corpus census keeps its real job: proving the widening breaks nothing and the gate's proven catch still refuses. TWO CONSEQUENCES, both paid this run. (a) Report the positive number as ZERO-IN-CORPUS with the construction beside it, never as evidence of no defect. (b) Where a corpus census IS available for a refusal gate \u2014 the accepted records that would trip it TODAY \u2014 run it, because that population is the gate's future refusals and it is where a wrong exemption shows up: gate G's count-asymmetry exemption looked clean on its two intended targets and the same census caught a THIRD, attempt.HV_startshieldfx-and-drawblitflatquad-refuted-from-the-permute-class.20260901.v1, exempted by a draft that accepted any `T\\d+/O\\d+` pair as asymmetry evidence while that record quotes `insns T141/O141` \u2014 count PARITY \u2014 beside 'NOT a webfrank candidate at all'. The pair is now compared NUMERICALLY, and the exemption fell from 3 records to the 2 that name themselves `postprocessor-ineligible-count-asymmetric`, with the gate's proven catch (both HV_drawmemcardmessage records) still taxed."
+}
