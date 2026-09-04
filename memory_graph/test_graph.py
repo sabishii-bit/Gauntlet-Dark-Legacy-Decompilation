@@ -3647,6 +3647,31 @@ class ValidateIncrementalTests(unittest.TestCase):
         self.assertIn("dangling_citation_count", result)
         self.assertTrue(result["valid"])
 
+    def test_the_dangling_count_and_the_dangling_list_cannot_disagree(self):
+        """Run-53 item 1: the count was untruncated and the list was `[:60]`.
+
+        Above sixty rows the two silently disagreed (67 vs 60 at 7fe2f4a9f)
+        and the debt was not enumerable from the tool — the reader had to
+        write a script to see the rows the slice ate. This asserts the
+        equality directly, so the slice cannot come back unnoticed.
+        """
+        result = core.validate_records(REPO_ROOT)
+        self.assertEqual(result["dangling_citation_count"],
+                         len(result["dangling_citations"]),
+                         "dangling_citations must list EVERY counted row")
+        # The three published numbers are ordered by construction:
+        # citations >= distinct (path, id) pairs >= distinct missing ids.
+        self.assertGreaterEqual(result["dangling_citation_count"],
+                                result["dangling_citation_distinct_pairs"])
+        self.assertGreaterEqual(result["dangling_citation_distinct_pairs"],
+                                len(result["dangling_citation_ids"]))
+        for row in result["dangling_citations"]:
+            # `field` is what makes a row repairable: it names the key of the
+            # citing record to edit, and it is why one record stranding one
+            # id through both `supersedes` and `refutes` is two rows.
+            self.assertEqual({"path", "field", "cited"}, set(row))
+            self.assertTrue(row["field"])
+
     def test_a_new_proposal_is_still_strict_about_citations(self):
         record = {
             "schema_version": 1, "id": "attempt.rg-strict-probe.20260902.v1",

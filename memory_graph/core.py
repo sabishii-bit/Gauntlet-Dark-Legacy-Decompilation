@@ -4566,7 +4566,16 @@ def _probe_record_references(
     # worker caught it by hand). `supersedes` and the structured
     # `attributes.laws_applied` list are both checked; free-text mentions
     # in law_screen stay advisory.
-    cited: list[str] = []
+    # Each entry is (FIELD, id). The field label is what makes the debt
+    # ENUMERABLE downstream (run-53 item 1): validate reports one row per
+    # citation, and a record that names the same predecessor in BOTH
+    # `supersedes` and `refutes` legitimately produces two rows for one id.
+    # Measured over the accepted corpus at c7b741799: 59 citation rows are
+    # only 54 distinct (path, cited) pairs and 52 distinct stranded ids —
+    # three different numbers for "the debt", and without the field nothing
+    # in the output says which of them a reader is looking at, or which key
+    # to edit to repair a row.
+    cited: list[tuple[str, str]] = []
     # `describes_denial_of` joins these (run-36 item 9). Gate D has always
     # DESCRIBED it as "a CITATION, not a free-text opt-out ... which is
     # checkable" — but nothing checked it, so any string at all released the
@@ -4575,18 +4584,20 @@ def _probe_record_references(
     for citing_key in ("supersedes", "refutes"):
         value = record.get(citing_key)
         if isinstance(value, str):
-            cited.append(value)
+            cited.append((citing_key, value))
         elif isinstance(value, list):
             # A MERGING record names more than one predecessor (run-47 item
             # 10). Reading only the scalar spelling let every id in a list
             # skip the resolution check that exists so a citation cannot rot.
-            cited.extend(item for item in value if isinstance(item, str))
+            cited.extend((f"{citing_key}[{index}]", item)
+                         for index, item in enumerate(value)
+                         if isinstance(item, str))
     # Read through _record_field, because gate D releases on EITHER spelling
     # (top-level or attributes.) — checking only the top-level one would
     # leave the same hole one level down.
     describes = _record_field(record, "describes_denial_of")
     if isinstance(describes, str) and describes.strip():
-        cited.append(describes)
+        cited.append(("describes_denial_of", describes))
     laws_applied = (
         record.get("attributes", {}).get("laws_applied")
         if isinstance(record.get("attributes"), dict) else None
@@ -4605,7 +4616,8 @@ def _probe_record_references(
             raise MemoryGraphError(
                 "attributes.laws_applied must be a JSON list of record ids"
             )
-        cited.extend(laws_applied)
+        cited.extend((f"attributes.laws_applied[{index}]", law)
+                     for index, law in enumerate(laws_applied))
     if connection is not None:
         return _probe_references_with(connection, record, kind, entity_refs,
                                       cited, root,
@@ -4728,14 +4740,18 @@ def _cited_ids_that_resolve(connection: sqlite3.Connection,
 
 def _probe_references_with(
     connection: sqlite3.Connection, record: dict[str, Any], kind: Any,
-    entity_refs: list[str], cited: list[str], root: Path,
+    entity_refs: list[str], cited: list[tuple[str, str]], root: Path,
     strict_citations: bool = True,
-) -> list[str]:
+) -> list[dict[str, str]]:
     """The reference checks themselves, against an already-open connection.
 
     Split out of `_probe_record_references` so a bulk caller can hold ONE
     connection across every record; the checks are byte-for-byte the ones the
     build applies.
+
+    ``cited`` is a list of (FIELD, record id) pairs and the non-strict return
+    is a list of ``{"field", "cited"}`` rows, so a caller can report WHICH key
+    of the record strands the citation rather than only that one does.
     """
     for key in entity_refs:
         if not _reference_resolvable(connection, key, root):
@@ -4744,8 +4760,8 @@ def _probe_references_with(
                 entity_key_namespaces(connection),
                 _entity_key_suggestions(connection, key),
             ))
-    dangling: list[str] = []
-    for cited_id in cited:
+    dangling: list[dict[str, str]] = []
+    for citing_field, cited_id in cited:
         if cited_id == record.get("id"):
             raise MemoryGraphError("a record cannot cite itself")
         row = connection.execute(
@@ -4771,7 +4787,7 @@ def _probe_references_with(
                 # Reporting those as hard errors would make `validate` fail on
                 # the documented workflow's own output — the gate refusing the
                 # records that document it. Collected as debt instead.
-                dangling.append(cited_id)
+                dangling.append({"field": citing_field, "cited": cited_id})
                 continue
             # Run-50 item 7: if the id is a prefix of real records, say so
             # and name them. A citation missing only its `.YYYYMMDD.vN` is
@@ -11707,6 +11723,16 @@ def _validate_cache_path(root: Path) -> Path:
     return default_database_path(root).parent / "validate_cache.json"
 
 
+# The SHAPE of the cached reference results, versioned independently of the
+# record SCHEMA_VERSION. Run 53: the cached value went from list[str] to
+# list[{"field","cited"}] while SCHEMA_VERSION stayed 1, so gating the load on
+# the record schema alone would have loaded the old shape and crashed on
+# `row["field"]` — a stale cache reading as a tool defect. Bump this whenever
+# the cached value's shape changes; an unrecognised value simply discards the
+# cache and pays one full validation (0.5s over 2,193 records, measured).
+VALIDATE_CACHE_FORMAT = 2
+
+
 def validate_records(
     root: Path = REPO_ROOT, db_path: Path | None = None, refresh: int = 0
 ) -> dict[str, Any]:
@@ -11748,7 +11774,8 @@ def validate_records(
         try:
             loaded = json.loads(cache_path.read_text(encoding="utf-8"))
             if (isinstance(loaded, dict)
-                    and loaded.get("schema_version") == SCHEMA_VERSION):
+                    and loaded.get("schema_version") == SCHEMA_VERSION
+                    and loaded.get("cache_format") == VALIDATE_CACHE_FORMAT):
                 cache["schema"] = loaded.get("schema") or {}
                 cache["references"] = loaded.get("references") or {}
         except (OSError, json.JSONDecodeError):
@@ -11796,10 +11823,10 @@ def validate_records(
                 cached = cache["references"].get(key)
                 if cached is not None:
                     references_cached += 1
-                    for cited_id in cached:
+                    for row in cached:
                         dangling_citations.append(
                             {"path": _repo_relative(root, path),
-                             "cited": cited_id})
+                             "field": row["field"], "cited": row["cited"]})
                     continue
                 try:
                     stranded = _probe_record_references(
@@ -11811,10 +11838,10 @@ def validate_records(
                          "error": str(error)})
                 else:
                     cache["references"][key] = stranded
-                    for cited_id in stranded:
+                    for row in stranded:
                         dangling_citations.append(
                             {"path": _repo_relative(root, path),
-                             "cited": cited_id})
+                             "field": row["field"], "cited": row["cited"]})
     # The cache is written unconditionally. Skipping the write when ANY record
     # failed would have thrown away every good result alongside it, which is
     # how an incremental check silently stays non-incremental.
@@ -11822,6 +11849,7 @@ def validate_records(
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps({
             "schema_version": SCHEMA_VERSION,
+            "cache_format": VALIDATE_CACHE_FORMAT,
             "schema": cache["schema"],
             "references": cache["references"],
         }, sort_keys=True), encoding="utf-8")
@@ -11830,6 +11858,8 @@ def validate_records(
         # itself; the next run simply pays full price.
         pass
     stranded_ids = sorted({row["cited"] for row in dangling_citations})
+    stranded_pairs = {(row["path"], row["cited"])
+                      for row in dangling_citations}
     result = {
         "valid": not reference_errors,
         "record_count": len(paths),
@@ -11837,9 +11867,20 @@ def validate_records(
         "references_checked": references_checked,
         "schema_checks_cached": schema_cached,
         "reference_checks_cached": references_cached,
+        # THREE NUMBERS, ALL REPORTED, NONE TRUNCATED (run-53 item 1). The
+        # count is per CITATION, and `dangling_citations` used to be sliced
+        # `[:60]` while the count was not — so the two silently disagreed
+        # above sixty rows (67 vs 60 at 7fe2f4a9f) and the debt could not be
+        # enumerated from the tool at all. The slice is gone: gdlmem.py
+        # already spills any result over SPILL_THRESHOLD to a file AND
+        # reports `row_counts`, which is an honest size mechanism, so a
+        # second silent one underneath it only hid rows. Measured at
+        # c7b741799: 59 rows -> 15.6 KB, and the payload does not reach the
+        # 24 KB spill until roughly 200 rows.
         "dangling_citation_count": len(dangling_citations),
+        "dangling_citation_distinct_pairs": len(stranded_pairs),
         "dangling_citation_ids": stranded_ids,
-        "dangling_citations": dangling_citations[:60],
+        "dangling_citations": dangling_citations,
         "dangling_note": (
             "CORPUS DEBT, not a validation failure: an accepted record cites a"
             " record id that no longer exists. Most are the documented"
@@ -11848,7 +11889,16 @@ def validate_records(
             " that pointed at one — so failing the corpus on them would make"
             " the gate refuse the records that document it. A NEW proposal is"
             " still refused for a dangling citation (strict at staging,"
-            " tolerant over history)."
+            " tolerant over history). READING THE THREE COUNTS:"
+            " `dangling_citation_count` counts CITATIONS and equals"
+            " len(dangling_citations) exactly — every row is listed, nothing"
+            " is truncated; `dangling_citation_distinct_pairs` collapses the"
+            " rows where one record strands one id through TWO fields (a"
+            " record that both supersedes and refutes a pruned predecessor —"
+            " 5 such pairs at c7b741799, which is the whole 59-vs-54 gap);"
+            " `dangling_citation_ids` is the deduplicated set of MISSING ids"
+            " (52 there), i.e. how many records would have to come back."
+            " Each row's `field` names the key to edit to repair it."
         ),
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "cache": _repo_relative(root, cache_path),
