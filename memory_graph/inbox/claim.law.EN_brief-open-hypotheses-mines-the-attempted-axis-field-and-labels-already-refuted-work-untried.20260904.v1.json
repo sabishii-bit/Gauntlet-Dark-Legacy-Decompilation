@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "memory_graph/gdlmem.py brief (the open_hypotheses section and its `field` key)"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A `brief` run whose open_hypotheses section contains no row with `\"field\": \"attempted_axis\"`, or one where such a row is emitted with a marker other than untried/should-be-tried. Reproduce with `python memory_graph/gdlmem.py --out <path> brief game/enemy/enemy` and read the open_hypotheses list.",
+  "id": "claim.law.EN_brief-open-hypotheses-mines-the-attempted-axis-field-and-labels-already-refuted-work-untried.20260904.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-04T01:17:17Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-04",
+  "value": "`gdlmem.py brief <tu>` leads with OPEN 10b HYPOTHESES, and AGENTS.md discipline 10b makes every row there the next lane's MANDATORY STEP 1, ranked above fresh analysis. The extractor that fills that section reads a record's `attempted_axis` field -- the field that says WHAT THE RECORD TRIED -- and emits it as an untried hypothesis. When the record is a park whose axis FAILED, the brief hands the next lane the failed axis as its mandated first move, with the record's own refutation invisible.\n\nMEASURED on this run's own briefing, `python memory_graph/gdlmem.py brief game/enemy/enemy` at 0f4151839. Row 2 of open_hypotheses reads `{\"field\": \"attempted_axis\", \"function\": \"damage_enemy\", \"marker\": \"untried\", \"outcome\": \"parked\", \"record\": \"attempt.parked.damage-enemy-p6-goto-pair.20260831.v1\", \"text\": \"T@5ac bne+b vs ours beq) via the one untried branch skeleton: guard1 as `if (health > upper) goto store_fight;` ... combined with the guard2 goto pair ...\"}`. That text is a verbatim substring of that record's `attempted_axis`, and the SAME record's `attributes.residual` reports the axis as probe 1 of three, every one of which 'REGRESSED to the identical 570/151 beq collapse and reverted', closing with a typed DO-NOT-RETRY that covers it explicitly. The row is self-contradictory on its face -- `\"field\": \"attempted_axis\"` next to `\"marker\": \"untried\"` -- and the two fields that would have caught it (`outcome: parked`, and the record's own denial) are printed but not consulted.\n\nTHE COST IS EXACTLY ONE MANDATED WRONG MOVE PER OCCURRENCE, and it is paid by the lane least able to detect it: a lane that trusts the brief and skips the record, which is what the brief exists to allow. This lane read the record and lost only the read; the AGENTS.md rule that a mandated hypothesis outranks fresh analysis is what makes the failure mode expensive rather than merely noisy.\n\nWHAT ELSE HAS THIS SHAPE (the discipline-18 screen, run before writing this): the same brief's open_hypotheses carries seven rows drawn from FOUR different source fields -- `hypothesis` (1 row, the typed field, correct by construction), `attributes.residual` (5 rows), and `attempted_axis` (1 row). Only the typed `hypothesis` field is safe by construction; `attributes.residual` rows are prose and inherit the 30-50% precision the corpus already records for prose extraction on this codebase (claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1), and the `attempted_axis` row is wrong by CONSTRUCTION rather than by precision, because that field's meaning is the opposite of the section's. The narrow fix is to exclude `attempted_axis` as a source entirely; the wider one is to suppress any extracted row whose record carries a `denial` or `quarantine` block covering it, which the brief already computes for `vetoed_axes` a few lines further down."
+}
