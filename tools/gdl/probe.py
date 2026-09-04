@@ -3595,6 +3595,23 @@ def tu_sibling_regressions(unit):
                  " — NOT the current HEAD, so a row here may predate this"
                  " edit; re-take with --at-head to be sure")
         return verdicts, f"{path} anchored at {anchor}{drift}"
+    except SystemExit as error:
+        # defake_gate.run_fndiff refuses with SystemExit when fndiff did not
+        # MEASURE the unit — a BaseException the `except Exception` below
+        # never caught, so before run-51 item 2 the refusal could only be
+        # reached by not being raised at all. The refusal is the honest
+        # answer here: the caller turns a None into TU-SCOPE UNGATED, which
+        # is fail-closed and says the check did not run, instead of naming
+        # every sibling in the TU as destroyed.
+        detail = str(error).strip().splitlines()
+        head = detail[0] if detail else "fndiff did not measure this unit"
+        return None, (
+            f"the TU cross-check could not measure the unit — {head}"
+            " (under --raw this is the ordinary case: --raw exists BECAUSE a"
+            " drifted pin blocks the postprocessed build, and this"
+            " cross-check needs that same build. The baseline is a"
+            " postprocessed-object measurement, so it cannot be compared"
+            " against a raw one either)")
     except Exception as error:
         return None, f"the TU cross-check raised {type(error).__name__}: {error}"
 
