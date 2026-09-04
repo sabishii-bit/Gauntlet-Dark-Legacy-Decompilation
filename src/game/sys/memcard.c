@@ -263,6 +263,20 @@ typedef struct TexAnimHdr {
     u32 numFrames; /* +4 */
 } TexAnimHdr;
 
+/*
+ * This `off` has NO closer on purpose: it is the TU-wide setting, not a
+ * bracket around add_vmu_file.  Closing it after add_vmu_file's brace was
+ * measured twice (2026-09-01 and 2026-09-04) and REGRESSES the file both
+ * times: the build aborts on memCardErrorPrompt's webfrank body hash, and
+ * with the five pinned functions held OFF so it can link, saveMount
+ * (EXACT -> real 24) and vmu_exists (EXACT -> real 18) both come off their
+ * bytes.  See attempt.MC_memcard-opt-propagation-rescope-refuted.20260901.v1
+ * and attempt.MC_memcard-pragma-leak-is-load-bearing-reproduced.20260904.v1.
+ * FALSIFY: re-add `#pragma opt_propagation reset` after add_vmu_file's
+ * closing brace and run `python tools/gdl/defake_gate.py check
+ * game/sys/memcard --rebuild`; anything other than a failed build or a
+ * GATE FAILED naming saveMount and vmu_exists reopens this.
+ */
 #pragma opt_propagation off
 int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
 {
