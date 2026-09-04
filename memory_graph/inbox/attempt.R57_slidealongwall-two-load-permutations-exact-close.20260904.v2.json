@@ -1,0 +1,39 @@
+{
+  "attempted_axis": "Execute the mandatory direct vel[0] reread hypothesis, then jointly reconstruct the final reload/absolute-value web and close the two remaining independent-load schedules with hardened WebFrank.",
+  "attributes": {
+    "axis_log": "Mandatory direct-reread source form improved 88.2523% to 94.3925% and reduced genuine structural rows 4->0. The later joint probe improved 94.3925% to 96.3084%, real 114->90, held 107/107, and made the opcode multiset exact. Aligned view then isolated only OURS/TARGET load-order swaps at +0x0/+0x4 and +0x11c/+0x120. Both [1,0] permutations are read-only and dependency-safe; after them consistent recolor produced byte equality.",
+    "law_screen": "The complete 2026-09-04 `brief game/world/worldcol` screen (56 matching laws and 50 core-screen laws) was read. APPLIED: claim.law.reload-vs-cache-liveness.20260829.v1 diagnosed target reload versus our cached value; claim.law.store-placement-family.20260829.v1 and claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 motivated the joint volatile-final-read plus ternary carrier probe; claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 rejected every count-asymmetric intermediate; claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 required the aligned reread that found the two actual transpositions. SCREENED/NOT APPLICABLE after the joint source win: copy-form, value-equality, live-zero-remat, constant-hoist, pool-order, branch-pair, frame-slot, save-area, EH, and immediate laws, because raw counts/opcode multiset/relocation multiset were exact and only two dependency-safe load transpositions plus a consistent recolor remained. Hardened WebFrank policy applied with no value-equality or unproven escape.",
+    "laws_applied": "[\"claim.law.reload-vs-cache-liveness.20260829.v1\", \"claim.law.store-placement-family.20260829.v1\", \"claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1\", \"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\"]",
+    "probed_form": "RETAINED source: the mandatory direct `vel[0]` pen read followed by later `f32 vx = vel[0]`; final `vel[0] = *(volatile f32*)&vel[0] - dotx;`; later absolute update `vx = vx < WZERO64 ? -vx : vx;`. REVERTED: function-scope vx assignment (byte-neutral); direct vel[2] in pen followed by vz assignment (fuzzy regression 94.3925->89.3832); assignment-expression vx inside pen (88.3925); separate absVx with explicit else (count 107/108, 93.4112); block-scope removal and avx/vx declaration swap (both neutral). Joint volatile-final-read alone improved fuzzy to 95.3738 but made 107/108; pairing it with the ternary removed the speculative fmr and restored 107/107 with identical opcode streams.",
+    "residual": "None. WebFrank first swaps two read-only loads at [0x0,0x8), then two read-only loads (including the zero SDA21 relocation) at [0x11c,0x124); strict consistent recolor closes the remaining 46 register fields. All function/window byte hashes and relocation-set hashes fail closed on drift.",
+    "scope": "src/game/world/worldcol.c::SlideAlongWall and its fail-closed rule in config/GUNE5D/webfrank.json only; CTriListCollide and PointLineColl source bodies were not edited.",
+    "verification": "Raw `probe.py ... SlideAlongWall --fuzzy` = 96.3084%, real 90, T107/O107, opcode multiset exact; `wr_perm_hash.py` pinned bytes and relocation sets for both windows; `wr_try_rule.py ...` = BYTE-EQUAL at FULL datum strength; `wf_ordered_datum_screen.py --unit game/world/worldcol --function SlideAlongWall` = BENIGN; configured `ninja` prints WEBFRANK SlideAlongWall and `build/GUNE5D/main.dol: OK`; `fndiff.py ... --clean` = EXACT, 0 real lines; datadiff = 0 blockers."
+  },
+  "function": "function:SlideAlongWall",
+  "held_fixed": "SlideAlongWall semantics, GC/1.2.5 compiler configuration, WZERO64 volatility, the already-retained direct pen read/later vx read, and every sibling function in worldcol.c.",
+  "id": "attempt.R57_slidealongwall-two-load-permutations-exact-close.20260904.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-04T19:09:03Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-04",
+    "signature": "no residual; fndiff --clean EXACT 0"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.SP_slidealongwall-volatile-pool-reread.20260901.v1",
+  "valid_from": "2026-09-04",
+  "verifiers_run": [
+    "instruction_permutation",
+    "permutation dependence audit",
+    "verify_relocation_binding",
+    "copy_register_fields",
+    "verify_consistent_recolor"
+  ],
+  "windows_tried": [
+    "[0x0,0x8) order [1,0] before recolor",
+    "[0x11c,0x124) order [1,0] before recolor"
+  ]
+}

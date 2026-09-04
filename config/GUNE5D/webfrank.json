@@ -3718,6 +3718,38 @@
         ]
       },
       {
+        "function": "SlideAlongWall",
+        "before_sha256": "24a1e96d5db270c681c7968a3929b829dc4dbe11b1e8f5cc64431065761eeaa5",
+        "after_sha256": "83e76f9bc035f25b6cf05a3ebcba0e4aa97cde5844ed9aef7b881cedeb03663f",
+        "mechanism": "SOURCE EXHAUSTION AND MACHINE-PROVED CLOSE: attempt.R57_slidealongwall-two-load-permutations-exact-close.20260904.v2 supersedes the weak prose cap and records the mandatory direct vel[0] reread plus the deeper source matrix. The retained joint source form is essential: a volatile final vel[0] reread supplies the target's lfs at +0xf0, while expressing the later absolute-value update as `vx = vx < WZERO64 ? -vx : vx` eliminates our old speculative fmr at +0x50; together they restore exact 107/107 opcode parity. The raw remainder is two independent two-load order choices plus a global register recolor. First, OURS loads vel[2] then pos[2] at +0x0/+0x4 while target loads pos[2] then vel[2]; [0x0,0x8) order [1,0] swaps two read-only atoms. Second, OURS loads volatile zero then vel[2] at +0x11c/+0x120 while target uses the reverse order; [0x11c,0x124) order [1,0] swaps two read-only atoms and carries the SDA21 relocation with the zero load. check_permutation_dependences accepts both windows in OUR colouring, including exact relocation bijection and exit-dead analysis. After those schedule repairs, copy_register_fields plus verify_consistent_recolor proves a position-consistent whole-function renaming; no value-equality or unproven audit escape is used. wr_try_rule.py reports BYTE-EQUAL against the raw postprocess body at FULL datum strength, and wf_ordered_datum_screen.py reports BENIGN. The rule therefore closes a source-exhausted MIXED schedule/register residual under the hardened guards and fails closed on body, window-byte, relocation-set, symbol-table, or compiler drift.",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 107,
+          "permuted_instructions": 4
+        },
+        "instruction_permutation": [
+          {
+            "start": "0x0",
+            "end": "0x8",
+            "order": [1, 0],
+            "before_sha256": "eab2c7e597517cdcdffc0d294ef8272f645a60959cb182d07ed29fd985fc6d8f",
+            "after_sha256": "45e4cdbeb382c620721698f21df757436cbc6fcf31a22cf7c7f63493f90c9e6b",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x11c",
+            "end": "0x124",
+            "order": [1, 0],
+            "before_sha256": "985c71f9427fa193f493e112df77b8f0275cf5746add20c82833fec441304913",
+            "after_sha256": "d6d63e36b37b7a293debafd7f150856e6a3d6da3af6fc9fef29385450f070989",
+            "before_relocations_sha256": "438acd62d2031fa664e4a79fa7369f00ffab083ca1ab532a99106ba22c88840b",
+            "after_relocations_sha256": "709b5bd8d0bd960b75bb7c05bc9e601ffb2a535c2865a706312b6590bcc3a94c"
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "PointLineColl",
         "before_sha256": "e487333a52c22e046b8840f61bb9b27bb21740a5afa10013edc54ea21236800e",
         "after_sha256": "65edab4d13307a9e1c563622c5e01fa829b455fba9a9a97b5a5f1a1dbab43fa2",

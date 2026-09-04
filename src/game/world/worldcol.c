@@ -246,16 +246,14 @@ u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
     result = 1;
     if (flag != 0 || (vx > lbl_8034572C && dotx > lbl_8034572C) ||
         ((z1 = WZERO32, vx < z1) && dotx < z1)) {
-        if (vx < WZERO64) {
-            vx = -vx;
-        }
+        vx = vx < WZERO64 ? -vx : vx;
         if (dotx < WZERO64) {
             adotx = -dotx;
         } else {
             adotx = dotx;
         }
         if (adotx < lbl_80345738 * radius + vx) {
-            vel[0] = vel[0] - dotx;
+            vel[0] = *(volatile f32*)&vel[0] - dotx;
         } else {
             result = 0xFFFFFFFF;
             vel[0] = WZERO32;
