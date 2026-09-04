@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/pb/pb_frame.c",
+      "game/g3d/auxanim.c"
+    ],
+    "scope": "WALL-BREAK lane, two TUs each one fn from a flip: (1) pbFrameMode (pb_frame, real 131, T958/O959 - the +1 = the aRWork compensating pair, proven inseparable TWICE (one mr vs a callee-saved promotion); count-asymmetric = no rule can serve it, so the pair IS the flip gate. Re-derive it against the NEW law shelf (none existed when the pair was proven): the consumer-locals definition-order law, the CSE-barrier law (a store through an addressed local array + uses-left-after decide the callee-saved), the reload-barrier law, the extern-type law - aRWork is an addressed local array, which is EXACTLY the CSE-barrier law's subject; probe whether a use-position change flips the promotion the pair compensates. Also the banked F1 single-expression NESTING hypothesis (BG run-52: target = conv2-staging, conv1-staging, conv1-result, conv2-result - a nesting not a grouping; the double-cast SPLIT is dead by law, the nesting form was never tried). Honest typed park naming the wall if all die - the TU then needs a compiler-variant or stays open, say which. (2) auxanim: DoTexModSeqSub (real 118 - GC's run-55 record: declare the SECOND output buffer, the whole slot map is the target's shifted 8 bytes; mandatory step 1) + InitOAnimList (real 54 - walking-cursor REFUTED, alias load-bearing; needs a new axis: the CSE-barrier and consumer-locals laws postdate its cap). Both closing = auxanim FLIPS (flip screen step 0 + finish_tu + sha1). Byte-exact or typed park; one commit per landed fn; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap per mechanism; count-parity categorical; zero pins both TUs (verify live); defake baseline per TU; both suites + ninja 'main.dol: OK'; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name. Never enumerate the shared scratchpad by pattern - pass tools explicit lists of files you wrote this session.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:pbFrameMode",
+  "id": "work_claim.pbframe-wall.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PF",
+  "recorded_at": "2026-09-04T15:51:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

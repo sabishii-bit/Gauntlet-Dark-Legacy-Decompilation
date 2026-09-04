@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/game/gamemain.c",
+      "game/world/gauntworld.c"
+    ],
+    "scope": "SPLIT-MAP CORRECTION lane - the run-55 structural finding (claim.BE_the-enemy-gauntworld-blob-aliasing-is-not-aliasing-it-is-a-text-split-misassignment-inside-gamemain.20260904.v1 - READ IT FIRST, its function-to-module map is the work order): per the Xbox PDB, gamemain's split holds an ENEMY.OBJ block at its bottom (init_enemy_vars, format_brain, SetEnemyObj, AllocEnemy, LoadEnemy, GetEnemyType, EnemyTypePrefix/Desc, EnemyDescType + interleaved fn_*) and a gauntworld.obj block at its top (FindWobjWanim 0x80055CB8 .. NextWorldLevel incl. world_update, PrintWorldMemSizes, GetEnemyTypes, GetEnemySubtype); the real GAMEMAIN.OBJ is 0x800522E8-0x80055AFC. (0) SETTLE init_next_level FIRST: PDB says GAMEMAIN.OBJ but it sits inside the gauntworld block and reads gauntworld's string base (2:1 against the PDB row) - decide from the retail bytes + section bases, record the verdict, it gates everything. (1) EXECUTE the gauntworld-block move (gamemain top block -> gauntworld.c): move the function definitions, adjust the splits.txt .text boundaries, keep EVERY function at its bytes (defake zero rows across BOTH TUs), textorder both TUs after, full gate + retail sha1. Watch: gamemain's 4 pins (raw reads; a move that renumbers pools aborts replay - re-derive per 15b or revert); the PJ reverted-clean protocol applies - NEVER ship a half-move. (2) The enemy-block move (gamemain bottom -> enemy.c) SECOND, same bar - enemy has 13 rules; expect pin re-derivations. (3) The sounds_evt+sounds merge (one SOUNDS.OBJ in two files) lands as a PLAN RECORD only this run - map the exact function assignment + splits change + risks, no edits (neither TU is owned). Note default_options @0x800520CC = GAMEDEFS.OBJ w/ no TU - investigate, record. If any phase's re-derivation cascade exceeds budget: revert that phase clean, bank the typed decomposition. Scores expected flat throughout (real drops at parity are wins - the moved fns may LOSE their cross-TU base fakematches and genuinely improve; measure fresh fuzzy per phase). Extend owned_units for enemy.c at phase 2 (claims --owns first). One commit per phase; both suites + ninja 'main.dol: OK' + sha1 per commit; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name. Never enumerate the shared scratchpad by pattern - pass tools explicit lists of files you wrote this session.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:init_next_level",
+  "id": "work_claim.split-map-correction.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SM",
+  "recorded_at": "2026-09-04T15:51:20Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/mb/mb_model.c",
+      "game/world/world.c"
+    ],
+    "scope": "ADDR16_LO APPLICATION lane - the THIRD crack (claim.law.GC_a-named-pointer-local-pays-an-addr16-lo-home-copy-for-an-array-decay-and-writes-its-home-directly-for-an-address-of-struct.20260904.v1 - quote it + its 3 recorded constraints: costs 4 bytes of block floor; does NOT transfer to a scalar (becomes SDA-addressable, sibling went real 42->180); the named local is still required): (1) ZERO-BUILD CENSUS: for every fn in the 40-fn class-P roster (the addrlo laws' roster; al_* census tools live in composed_census), classify each site's extern as struct-typed vs array-decay vs scalar; publish the eligible sublist w/ predicted outcomes BOTH WAYS. (2) APPLY the lever on the eligible members, cheapest first - known shapes: StartWorldLoad (world.c, real 63, the AL run-52 record's frame-destruction probes are DEAD AXES - the extern-type lever is new), MBOX_BGLoadModelStart (mb_model, real 46, count-SYMMETRIC - if source walls, it is WebFrank-eligible per AL's flag, file the request w/ full decode), fn_80046680/generate_enemy are enemy.c = SM's phase-2 TU, coordinate via claims --owns before touching or skip. (3) fn_800C13CC (pb_error) is WF's TU this run - hand any finding off by record. 3-attempt cap per fn; NEUTRAL-IDENTICAL decisive; count-parity categorical; the block-floor cost is a KNOWN trade - measure the pad compensation (conserving-resize law) before conceding; extend owned_units at selection (claims --owns per TU; verify pins live, raw reads); byte-exact or typed park; one commit per landed fn; fresh fuzzy per keep; defake baseline per TU; both suites + ninja 'main.dol: OK'; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name. Never enumerate the shared scratchpad by pattern - pass tools explicit lists of files you wrote this session.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:StartWorldLoad",
+  "id": "work_claim.addr16-extern-type.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-AT",
+  "recorded_at": "2026-09-04T15:51:21Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl/webfrank.py",
+      "config/GUNE5D/webfrank.json",
+      "game/pb/pb_error.c"
+    ],
+    "scope": "POSTPROCESSOR lane (owns webfrank surfaces + game/pb/pb_error.c): (1) THE PB_ERROR FLIP PATH: both open fns share ONE mechanism - an extsh/addi transposition (fn_800C1174 @0x1ec residual + fn_800C13CC's entire remaining cluster; GC's run-55 records carry the decode + typed denials of the source axes - quote them). Screen + serve the transposition (permutation class; remember the twins precedent: one shape, per-fn windows). fn_800C1174 also carries 2 IMMEDIATE rows from a 4-byte block-floor difference - SOURCE work (you own the TU): GC's record names the trade (unused[8]->unused[4] closed the frame before; the remaining 2 rows are addi r31,r1,16-vs-20) - probe the block-floor compensation; if both fns reach real 0 (source+rule): flip screen step 0, full audit, finish_tu, ninja + sha1 = pb_error FLIPS. (2) MBOX_BGLoadModelStart screen (mb_model, count-symmetric per AL run-52 - the surplus mr offsets a missing add; screen for servability, serve or instrumented refusal; coordinate w/ AT who may close it at source first - claims --owns + records). (3) The 6 CORRESPONDENCE rows CU flagged (atree::fn_8001267C, enemy::do_enemies, enemy::fn_8004646C, controls::do_vibe, controls::InitControls, mb_particle::MBPsysSetDebugNode): add the stated .bss-correspondence justification to each pin's mechanism prose (or flag any that is NOT the benign case - verify, do not assume). (4) PJ's webfrank criticism: the permutation abort at webfrank.py:2425 names no unit/function (the body-hash abort one frame up does) - fix it, your file. Every ship: verify_datum_binding + ordered-datum screen, refusal tests failing w/o their guard, forced replay per webfrank.py change, configure per json edit, both suites. Closes EQUIVALENT except source closes (STRICT); quote the split before/after + linked per flip. Gate = 'main.dol: OK' + sha1 per flip. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name. Never enumerate the shared scratchpad by pattern - pass tools explicit lists of files you wrote this session.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:fn_800C1174",
+  "id": "work_claim.pberror-flip.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-04T15:51:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}

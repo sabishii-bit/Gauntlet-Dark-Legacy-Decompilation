@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl",
+      "memory_graph"
+    ],
+    "scope": "TOOL lane (owns tools/gdl + memory_graph EXCEPT webfrank.py/webfrank.json (WF's) - wf_word_diff/webfrank_audit/ws_datum_tier_audit are YOURS, named explicitly per the name-files-not-families lesson): observations + verbatim output only; reproduce w/ the reporter's command; two-sided calibration; one commit per item. (1) GC run-55: 'gdlmem build is blocked by the session's permission classifier while validate is not ... a worker cannot run the gate its own contract mandates' (env/contract reconciliation - document the sanctioned fallback: validate + suites, integrator runs build at merge). (2) CU run-55: 'gdlmem find --tu caps silently at 25 ... my 60 anchored denials is a FLOOR, and nothing in the output says so'. (3) CU: 'datadiff --sections game/does/not/exist -> no splits entry, EXIT=0' (a scripted flip gate reads a mistyped unit as zero blockers; textorder exits 2 on the same input). (4) CU: 'al_dest_split.py heads its V section DECL-ORDER LEVER LIVE (4 function(s)) and lists ProcessCritterList - a function with an accepted typed denial of exactly that axis' (shipped census vs accepted denial - the contradiction detector question). (5) CU: 'progress.py's docstring does not say report.json unit names carry a main/ prefix' (a full wasted pass) + '\"measured at c0f978273\" is unreadable as an age ... nothing resolves a commit to a run'. (6) PJ run-55: 'a jump-table @N renumber is reported as a WRONG-POOL-VALUE regression ... our zeros are relocation placeholders in the object; the target side is linked bytes' (fires on every pool renumber). (7) WS run-55: 'ha_close.prove() calls apply_patch without the retail image, so the datum screen silently degrades' (the derivation tool and the proving tool disagree on the strongest check) + 'a refusal from a multi-window rule doesn't name the window'. (8) GC: 'probe --discard's refusal names the outside hunks by line number only ... printing their content makes the decision mechanical'. (9) AGENTS: the never-glob-scratchpad rule (GC: 24 foreign claims nearly committed; 388 stale drafts existed) + orders-name-files-not-families + a changed-unit-set assertion carries its git diff --name-only. Scoped tests between items; FULL suites per commit; ninja 'main.dol: OK'; never push. Promotion directive in force: source-exact closes DELETE their rule in the same commit. Precedence rule: if this order vetoes an axis that a cited record marks mandatory, the RECORD wins unless the order overrides it by name. Never enumerate the shared scratchpad by pattern - pass tools explicit lists of files you wrote this session.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-04",
+  "function": "function:TextHeightMLines",
+  "id": "work_claim.tool-queue-26.20260904.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T26",
+  "recorded_at": "2026-09-04T15:51:23Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-04"
+}
