@@ -1838,14 +1838,12 @@ void CritterDamagePlayer(Player *player, Critter *c,
     damage_player(playerIndex, damage, 1, damageFlags, direction);
 
     {
-        u8 *hit;
+        Player *hit;
         u8 *counter;
-        hit = (u8 *)(playerIndex * sizeof(Player));
-        hit = (u8 *)gPlayers + (u32)hit;
-        ((Player *)hit)->bossdamage = lbl_80346470;
+        hit = &gPlayers[playerIndex];
+        hit->bossdamage = lbl_80346470;
         counter = (u8 *)c + playerIndex * 0x10;
-        ((Player *)hit)->fxhittime =
-            (f32)(lbl_80346500 + (f64)sMusicFadeBase);
+        hit->fxhittime = (f32)(lbl_80346500 + (f64)sMusicFadeBase);
         *(f32 *)(counter + 0x1BC) += damage;
         *(f32 *)(counter + 0x1C0) = sMusicFadeBase;
     }
@@ -3278,8 +3276,9 @@ s32 ProcessCritterList(void)
 
     activePlayers = 0;
     total = 0;
+    player = gPlayers;
     lbl_80344664++;
-    for (player = gPlayers, i = 0; i < 4; i++, player++) {
+    for (i = 0; i < 4; i++, player++) {
         if (player->state == 1) {
             activePlayers++;
         }
