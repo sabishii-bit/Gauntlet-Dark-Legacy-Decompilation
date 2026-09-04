@@ -373,8 +373,46 @@ def mnemonic_divergence(ours, tgt):
     )
 
 
-DECODE_CLASSES = ("REGFIELD-ONLY", "IMMEDIATE", "BRANCH", "OPCODE",
+DECODE_CLASSES = ("REGFIELD-ONLY", "RA-ZERO", "IMMEDIATE", "BRANCH", "OPCODE",
                   "RELOCATED")
+
+# PPC d-form instructions whose rA field means THE LITERAL VALUE ZERO when it
+# is 0, not GPR 0 (run-53 item 4). `register_slot_mask` marks the rA slot as a
+# register field for all of them — correctly, it is a five-bit register slot —
+# so a pair differing only there scored REGFIELD-ONLY and read as reachable by
+# a copy_register_fields rule. It is not: a renaming maps one register onto
+# another, and it can never map a register's CONTENTS onto a literal. This is
+# the same fact webfrank.decode_copy_form is built on ("addi treats a zero rA
+# field as the literal value zero rather than as GPR 0, so addi rD,0,0 is
+# li rD,0 — a constant load, not a copy of r0").
+#
+# The UPDATE forms (lwzu 33, lbzu 35, stwu 37, stbu 39, lhzu 41, lhau 43,
+# sthu 45, lfsu 49, lfdu 51, stfsu 53, stfdu 55) are EXCLUDED: rA==0 is an
+# INVALID encoding there rather than a literal, so the asymmetry cannot arise
+# from legal codegen. Measured at c7b741799: excluding those 11 opcodes
+# removed ZERO rows from the live population, which is the point — the
+# exclusion is a correctness guard, not a filter that was doing work.
+_RA_ZERO_IS_LITERAL = frozenset({
+    14,  # addi        (=> li when rA==0)
+    15,  # addis       (=> lis when rA==0)
+    32, 34, 36, 38, 40, 42, 44,   # lwz lbz stw stb lhz lha sth
+    46, 47,                        # lmw stmw
+    48, 50, 52, 54,                # lfs lfd stfs stfd
+})
+
+
+def ra_zero_asymmetry(ours_word, target_word):
+    """Does exactly ONE side put the literal zero in its rA slot?
+
+    True means the differing rA bits are not a register field on both sides,
+    so no renaming produces the difference however small the word count is.
+    """
+    opcode = ours_word >> 26
+    if opcode != target_word >> 26 or opcode not in _RA_ZERO_IS_LITERAL:
+        return False
+    return (((ours_word >> 16) & 0x1F) == 0) != (
+        ((target_word >> 16) & 0x1F) == 0)
+
 
 # Every class a shipped postprocessor rule can reach lives inside the four
 # five-bit register slots. `register_slot_mask` returns 0 for a branch and for
@@ -457,6 +495,13 @@ def decode_word_class(ours_word, target_word, reloc_types=()):
       IMMEDIATE      same instruction, and the differing bits fall OUTSIDE
                      every register slot — a literal or displacement, which
                      no shipped class reaches either
+      RA-ZERO        same instruction, the differing bits DO lie in register
+                     slots, but exactly one side puts the LITERAL ZERO in its
+                     rA field, where a zero rA means the value 0 and not GPR 0
+                     (`addi rD,0,K` is `li rD,K`; `lwz rD,d(0)` is an absolute
+                     address). No renaming maps a register's contents onto a
+                     literal, so copy_register_fields cannot reach it — the
+                     li<->copy subset needs an `equivalent_copy_form` arrow
       REGFIELD-ONLY  same instruction, and every differing bit lies inside
                      one of PowerPC's four five-bit register slots
 
@@ -465,6 +510,22 @@ def decode_word_class(ours_word, target_word, reloc_types=()):
     forms (`li rD,x` is `addi rD,0,x`), and crediting a bit as a register
     field on the strength of one side's form would call a real difference
     recolourable.
+
+    RUN-53 ITEM 4. The intersection is NOT enough on its own, because the rA
+    slot is a genuine five-bit register field in BOTH words' forms — what
+    differs is what a ZERO in it means. So `mr rD,r3` (addi rD,r3,0) against
+    `li rD,0` (addi rD,0,0) intersected to a full mask and scored
+    REGFIELD-ONLY. TWO-SIDED, measured at c7b741799 over the 127 scannable
+    non-matching functions (117 of 244 are count-asymmetric or have no
+    object): 4,244 REGFIELD-ONLY rows, of which **64 in 39 functions** carry
+    this asymmetry (56 addi, 8 lwz) and 4,180 keep their class. The number
+    that decides it is the VERDICT flip: of the 7 functions whose DECODE line
+    today says "all differing words are register fields, the only class a
+    shipped rule reaches", **3 are wrong** — critter::CritterLoadDone and
+    critter::CritterLoadStartNext at 2 of 2 words each, and
+    dbgtext::fn_800C03E0 at 1 of 202. The first two are Tier-A candidates
+    whose real refusal reads `+0x98: base register presence differs
+    (g3 vs g0)`, which is this fact stated by the verifier after the fact.
     """
     if opcode_key(ours_word) != opcode_key(target_word):
         return "OPCODE"
@@ -477,6 +538,8 @@ def decode_word_class(ours_word, target_word, reloc_types=()):
             & wf.register_slot_mask(target_word))
     if diff & ~mask:
         return "IMMEDIATE"
+    if ra_zero_asymmetry(ours_word, target_word):
+        return "RA-ZERO"
     return "REGFIELD-ONLY"
 
 
@@ -522,8 +585,13 @@ def decode_summary(counts, total):
         n for name, n in counts.items()
         if name not in REACHABLE_DECODE_CLASSES
         and name not in LINKER_OWNED_DECODE_CLASSES)
+    # `.get(name, 0)`, not `counts[name]`: a caller that hands in a partial
+    # dict (every hand-built one in the test suite did) used to KeyError the
+    # moment a class was added, which turns "this tool grew a class" into
+    # three unrelated-looking crashes.
     line = ("  DECODE: "
-            + ", ".join(f"{name} {counts[name]}" for name in DECODE_CLASSES))
+            + ", ".join(f"{name} {counts.get(name, 0)}"
+                        for name in DECODE_CLASSES))
     if unreachable:
         line += (f" — {unreachable} of {total} word(s) lie OUTSIDE every"
                  " register-field class, so NO copy_register_fields rule can"
@@ -531,6 +599,15 @@ def decode_summary(counts, total):
                  " word is refused twice over: register_slot_mask returns 0"
                  " for it and permute_instruction_atoms refuses any region"
                  " containing a control op.")
+        if counts.get("RA-ZERO"):
+            line += (f" {counts['RA-ZERO']} of them are RA-ZERO: the bits DO"
+                     " sit in register slots, but one side's rA field holds"
+                     " the LITERAL zero (a zero rA means the value 0, not"
+                     " GPR 0), and no renaming maps a register's contents"
+                     " onto a literal. The addi li<->copy subset is reachable"
+                     " with an `equivalent_copy_form` arrow, not with a"
+                     " register-field rule; a differing lwz base is reachable"
+                     " by neither.")
     elif counts.get("RELOCATED"):
         line += (f" — no word here is outside the register-field class, but"
                  f" {counts['RELOCATED']} differ only in bits a RELOCATION"
@@ -753,14 +830,24 @@ def main():
                   " fields differ. Cure is a register-assignment question"
                   " (declaration order, width, type).")
         elif mnem == 0:
+            # NAME THE CLASSES THAT ACTUALLY FIRED. This line used to hardcode
+            # "N BRANCH and M IMMEDIATE", so once RA-ZERO joined the
+            # non-reachable set the CLASS line read "0 BRANCH and 0 IMMEDIATE
+            # word(s) sit outside every register slot" directly above a DECODE
+            # line saying "2 of 2 word(s) lie OUTSIDE" — the tool
+            # contradicting itself in adjacent sentences (run-53 item 4).
+            blocking = ", ".join(
+                f"{counts[name]} {name}" for name in DECODE_CLASSES
+                if name not in REACHABLE_DECODE_CLASSES
+                and name not in LINKER_OWNED_DECODE_CLASSES
+                and counts[name])
             print("  CLASS: RECOLOR-SHAPED BUT NOT RECOLOURABLE — the streams"
                   " are index-aligned (0 mnemonic divergence), which is what"
                   " the old CLASS line read, but"
-                  f" {counts['BRANCH']} BRANCH and {counts['IMMEDIATE']}"
-                  " IMMEDIATE word(s) sit outside every register slot. Those"
-                  " are not a register-assignment question and no shipped"
-                  " rule reaches them — read the DECODE line below before"
-                  " sizing any recolor work.")
+                  f" {blocking} word(s) sit outside the register-field class."
+                  " Those are not a register-assignment question and no"
+                  " copy_register_fields rule reaches them — read the DECODE"
+                  " line below before sizing any recolor work.")
         else:
             print(f"  CLASS: SCHEDULE-REORDER — {mnem} instruction(s) differ"
                   " in MNEMONIC at the same index, so the streams are not"
