@@ -4093,8 +4093,106 @@ def report_fuzzy(unit, fn, fn_stripped):
     return val
 
 
+def insn_gap(insns):
+    """(target, ours, ours - target) from a score_function `insns`, or None.
+
+    `score_function` returns `"T682/O680"` or the literal `"exact"`; anything
+    else (None, an unparsable string) means the counts are not known and the
+    caller must not pretend otherwise.
+    """
+    if insns == "exact":
+        return None, None, 0
+    match = re.match(r"^T(\d+)/O(\d+)$", insns or "")
+    if not match:
+        return None
+    target, ours = int(match.group(1)), int(match.group(2))
+    return target, ours, ours - target
+
+
+def count_parity_note(base_insns, cur_insns):
+    """(headline_override, note) for a COUNT-CHANGING edit, or (None, None).
+
+    RUN-51 ITEM 3. `--arbitrate` printed `fuzzy FELL — REVERT to the banked
+    state even though real IMPROVED` for an edit that moved the instruction
+    count TOWARD the target and emptied the ours-only opcode multiset. That
+    recommendation is not merely unsupported by the governing law — the law
+    says the OPPOSITE for exactly this state:
+
+      claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1
+      "read `fndiff --count`'s insn parity FIRST. If the change restored
+       parity, prefer real and expect fuzzy to lag. If the change left parity
+       unchanged or broke it, prefer fuzzy and go read the --ops multiset"
+
+    and it was derived on precisely this shape: damage_enemy went 570/571 ->
+    571/571 with real 151 -> 66 while fuzzy REGRESSED 99.4046 -> 99.2207,
+    because an off-by-one count displaces every downstream branch and fuzzy's
+    offset-tolerant measure barely notices.
+    claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1 is the
+    same finding from two more functions (140/139 -> 140/140 and 355/354 ->
+    355/355, both fuzzy DOWN, both the better result).
+
+    The arbiter's fuzzy-decides rule is sound where it was scoped — EQUAL
+    counts, where the two streams differ in what the instructions ARE — and
+    the loop simply never read the counts, so it applied that rule outside
+    its scope and could not say so.
+
+    TWO-SIDED CALIBRATION of the trigger (the two states' ours-vs-target gap
+    differs), over all 3,032 comparable function pairs in 257 units
+    (T21_scratch/t21_parity_population.py):
+      POSITIVES 117 functions (3.9%) sit OFF count parity today, so a
+                parity-restoring edit is possible on them and the shipped
+                arbiter can invert the law; 46 of those are a gap of exactly
+                +1, the shape the law was derived on
+      NEGATIVES 2,915 functions (96.1%) are AT parity; an edit there leaves
+                both counts equal, this branch cannot fire, and the arbiter
+                text is unchanged
+    Unknown counts (`insns` absent or unparsable) also return (None, None):
+    an unread count may not become a verdict.
+    """
+    base, cur = insn_gap(base_insns), insn_gap(cur_insns)
+    if base is None or cur is None:
+        return None, None
+    base_gap, cur_gap = base[2], cur[2]
+    if base_gap == cur_gap:
+        return None, None
+    counts = (f"ours {base[1]} -> {cur[1]} against target"
+              f" {cur[0] if cur[0] is not None else base[0]}"
+              if base[1] is not None and cur[1] is not None else
+              f"count gap {base_gap:+d} -> {cur_gap:+d}")
+    law = ("claim.law.insn-count-parity-outranks-local-opcode-fidelity"
+           ".20260831.v1")
+    if cur_gap == 0:
+        return ("COUNT PARITY RESTORED — KEEP the current state, and read"
+                " the aligned diff before believing any fuzzy loss",
+                f"  COUNT PARITY: this edit RESTORED instruction-count parity"
+                f" ({counts}). {law} scopes the fuzzy-decides rule to EQUAL"
+                " counts and inverts it here: an off-by-one count displaces"
+                " every downstream branch, so `real` is normally right and"
+                " fuzzy is expected to LAG (damage_enemy: 570/571 -> 571/571,"
+                " real 151 -> 66, fuzzy 99.4046 -> 99.2207 — kept). Confirm"
+                " with `fndiff --ops` and the aligned `fnasm --diff`; the"
+                " diff read remains the operative step.")
+    if base_gap == 0:
+        return ("COUNT PARITY LOST — REVERT",
+                f"  COUNT PARITY: this edit BROKE instruction-count parity"
+                f" ({counts}). Parity is categorical: whatever either metric"
+                f" says, a state at parity outranks one that is not ({law}).")
+    if abs(cur_gap) < abs(base_gap):
+        direction = "TOWARD"
+    else:
+        direction = "AWAY FROM"
+    return (f"OUT OF SCOPE — the instruction COUNT moved {direction} the"
+            " target, so the fuzzy-decides rule does not apply; no"
+            " keep/revert is recommended from these two numbers",
+            f"  COUNT PARITY: neither state is at parity ({counts}), and the"
+            f" gap moved {direction} it. {law} scopes the fuzzy-decides rule"
+            " to EQUAL counts, so the fuzzy delta below is reported but does"
+            " NOT arbitrate. Close the count first, then re-arbitrate.")
+
+
 def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
-                    moved=(), size=None, total_code=None):
+                    moved=(), size=None, total_code=None,
+                    base_insns=None, cur_insns=None):
     """The four-number arbitration readout, as pure text.
 
     A real/fuzzy DISAGREEMENT is the whole reason this mode exists, so the
@@ -4105,10 +4203,18 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     Fuzzy that is UNMEASURED never becomes a verdict — it prints
     INCONCLUSIVE, because `real` alone cannot arbitrate a disagreement it is
     one half of.
+
+    THE INSTRUCTION COUNTS ARE PART OF THE READOUT (run-51 item 3), and they
+    are read BEFORE the fuzzy delta: see `count_parity_note`. Both `insns`
+    arguments default to None so a caller that has no counts gets exactly the
+    old text.
     """
 
     def fz(value):
         return "n/a" if value is None else f"{value:.4f}%"
+
+    def ic(value):
+        return "" if not value else f"  insns {value}"
 
     lines = [
         "ARBITRATION (one call, both states built; no verdict computed,"
@@ -4118,9 +4224,12 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
         " word HERE is --rebase-best (defake_gate now takes that spelling"
         " too). Same word, two meanings, in two tools one loop alternates"
         " between — so read the ARBITER line below, then run the accept.",
-        f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}",
-        f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}",
+        f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}"
+        f"{ic(base_insns)}",
+        f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}"
+        f"{ic(cur_insns)}",
     ]
+    parity_verdict, parity_note = count_parity_note(base_insns, cur_insns)
     real_delta = None
     if base_real is not None and cur_real is not None:
         real_delta = cur_real - base_real
@@ -4130,7 +4239,16 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
                                               size, total_code))
         lines.append(f"  DELTA              real {real_delta:+d} "
                      f" fuzzy {fuzzy_text}")
-    if base_fuzzy is None or cur_fuzzy is None:
+    if parity_verdict is not None:
+        # The count is read FIRST and it OVERRIDES, because the fuzzy-decides
+        # rule is scoped to equal counts. The fuzzy delta still prints below.
+        lines.append(f"  ARBITER: {parity_verdict}")
+        lines.append(parity_note)
+        if base_fuzzy is not None and cur_fuzzy is not None:
+            lines.append(
+                f"  (fuzzy delta at unequal counts: "
+                f"{cur_fuzzy - base_fuzzy:+.4f} — reported, not arbitrating)")
+    elif base_fuzzy is None or cur_fuzzy is None:
         lines.append(
             "  ARBITER: INCONCLUSIVE — fuzzy is unmeasured on"
             f" {'the banked' if base_fuzzy is None else 'the current'} state"
@@ -4400,7 +4518,8 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
     size, total = function_weight(unit, fn, fn_stripped)
     print(arbitrate_table(label, banked[0], banked[2], current[0], current[2],
                           moved=moved_sections(banked[3], current[3]),
-                          size=size, total_code=total))
+                          size=size, total_code=total,
+                          base_insns=banked[1], cur_insns=current[1]))
     return 0
 
 
