@@ -545,9 +545,9 @@ void DoPlayerAction(void* player)
     Player* pl = (Player*)player;
     f32* pf = (f32*)player;
     animinfo* atree = (animinfo*)((u8*)player + 0x80);
+    char** action_names = lbl_80126C68;
     void* node = (u8*)player + 0x7C;
     ACTIONDEF* defs = (ACTIONDEF*)((u8*)player + 0x210);
-    char** action_names = lbl_80126C68;
     s32 rpt = 0;
     s32 next;
     s32 cur;
@@ -555,9 +555,9 @@ void DoPlayerAction(void* player)
     s32 atkCur;
     s32 atkD;
     f32 speed;
-    s32 mode = 0;
-    s32 didt = 0;
-    u32 frame = 0;
+    s32 mode;
+    s32 didt;
+    u32 frame;
     s32 d;
     s32 act;
     s32 seq;
@@ -571,20 +571,24 @@ void DoPlayerAction(void* player)
 
     next = p[0x83];
     cur = p[0x82];
+    act = next;
     *((u8*)p + 0x93) |= 2;
     atkNext = PlayerAttackType(next);
     atkCur = PlayerAttackType(cur);
     speed = 0.0f;
     d = cur;
-    if (next >= 0x73 && atkCur != 0 && atkCur < 0xB) {
+    mode = 0;
+    didt = 0;
+    frame = 0;
+    if (act >= 0x73 && atkCur != 0 && atkCur < 0xB) {
         d = 0;
     }
-    if (next >= 0x1D && next < 0x20) {
+    if (act >= 0x1D && act < 0x20) {
         mode = 2;
     }
-    if (next >= 0x83 && next <= 0x94) {
+    if (act >= 0x83 && act <= 0x94) {
         mode = 2;
-        if (next == 0x94) {
+        if (act == 0x94) {
             rpt = 2;
         } else {
             rpt = 1;
@@ -599,7 +603,6 @@ void DoPlayerAction(void* player)
         p[0x242] = 0;
     }
     p[0x201] = 0;
-    act = next;
     dance = 0;
     switch (d) {
     case 0x7D:
@@ -1606,6 +1609,9 @@ void DoPlayerAction(void* player)
                 p[0x240] |= 0x4000;
             }
             break;
+        case 0x6D:
+        case 0x6E:
+            break;
         case 8:
         case 0x11:
         case 0x13:
@@ -1877,7 +1883,7 @@ void DoPlayerAction(void* player)
         } else if (cur == 8) {
             pf[0x292] = 1.5f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x77 && cur <= 0x78) {
+        } else if (cur >= 0x77 && cur <= 7) {
             pf[0x292] = 0.0f;
             pf[0x293] = 0.0f;
         } else if (cur >= 9 && cur <= 0x10) {
@@ -1902,7 +1908,7 @@ void DoPlayerAction(void* player)
                          "ACTION:%s NEXT:%s D:%s INT:%d RPT:%d DIDT:%d",
                          action_names[cur], action_names[act],
                          action_names[next], mode, rpt, didt);
-        dbgTextPrintfCol(1, 0x1D, "  SEQ:%s  frame:%.1f/%d",
+        dbgTextPrintfCol(1, 0x1D, "  SEQ:%s  frame:%.1f/%d      ",
                          (char*)((s32)atree->seqheader + atree->animseq * 0x30),
                          atree->frame, (s32)atree->numframes);
     }
