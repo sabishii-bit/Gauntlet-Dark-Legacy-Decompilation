@@ -315,6 +315,502 @@ static void enemy_bss_order(void)
     gEnemies[0].type = E_SCORP;
 }
 
+/* ---------------------------------------------------------------------------
+ * Declarations hoisted out of the old inter-function gaps so the function
+ * DEFINITION ORDER below can follow the target's .text order (verified by
+ * tools/gdl/textorder.py).  Relative order is unchanged, and none of these
+ * emit storage, so the compiler sees the same declaration sequence as before.
+ * --------------------------------------------------------------------------- */
+
+extern f64 lbl_803468D8;        /* 100.0 */
+extern f64 lbl_80346988;        /* 6.0 */
+extern f64 lbl_803468F8;        /* 0.10471975513333334 */
+extern f32 lbl_80346964;        /* 1.5f */
+extern f64 lbl_80346968;        /* 240.0 */
+extern f32 lbl_80346970;        /* 999.0f */
+extern f64 lbl_803469A0;        /* 90.0 */
+extern f64 lbl_80346900;        /* 8.0 */
+extern f64 lbl_80346908;        /* pi/4 */
+extern f64 lbl_80346918;        /* pi/2 */
+extern f64 lbl_80346930;        /* 0.26179938783333334 */
+extern f64 lbl_80346840;        /* pi wrap high */
+extern f64 lbl_80346848;        /* 2*pi */
+extern f64 lbl_80346850;        /* -pi wrap low */
+extern f64 lbl_80346858;        /* 0.1 */
+extern f64 lbl_80346830;        /* 0.5 */
+extern f32 lbl_803468B0;        /* 100000.0f */
+extern f64 lbl_803468B8;        /* 3.0 */
+extern f32 lbl_80346984;        /* 0.1745329f milestone turn */
+extern u8 lbl_8011AF48[];       /* enemy.c .data anchor (turn tables at +4444/+4412...) */
+extern f64 lbl_80346948;        /* 4.0 */
+
+/* ----------------------------------------------------------------------------
+ * Per-enemy-type attribute tables inside the lbl_8011AF48 .data blob.
+ *
+ * The blob holds a structure-of-arrays block: a run of parallel 34-entry f32
+ * arrays, each indexed by the enemy's e_e_tpye, so a lookup is always
+ * `*(f32*)(lbl_8011AF48 + type * 4 + <array base>)`.  The array bases below are
+ * named from what each value is stored into at its consumers; the raw
+ * displacements stay inside a single additive expression per
+ * claim.law.offsetof-rename-preserves-protected-web (respelling the constant is
+ * neutral, restructuring the expression is not - see init_enemy).
+ *
+ * Evidence:
+ *   +1808 (elem 452) -> Enemy.hht     via gamemain.c init_enemy_vars
+ *   +1944 (elem 486) -> Enemy.rad     via gamemain.c init_enemy_vars
+ *   +2080 (elem 520) -> Enemy.attn_offset[1]  (init_enemy, `lfs f0,2080(r8)`)
+ *   +2216 (elem 554) -> Enemy.coll_offset[1]  (init_enemy, `lfs f0,2216(r8)`)
+ *   +2760 (elem 690) -> base health, scaled by gCurLevel->ene_health in BOTH
+ *                       init_enemy (`lfs f31,2760(r3)`) and init_enemy_vars,
+ *                       which reads the identical element as ((f32*)row)[690].
+ * The 136-byte (34-element) spacing between consecutive bases is what makes the
+ * SoA reading concrete; see
+ * claim.law.table-lookup-pre-keyed-on-segment-cast-repetition for why the
+ * addressing form here is not source-shape-controllable at every site.
+ * -------------------------------------------------------------------------- */
+#define ETYPE_ATTN_Y      2080 /* f32[34] attention-point height per type */
+#define ETYPE_COLL_Y      2216 /* f32[34] collision-point height per type */
+#define ETYPE_BASE_HEALTH 2760 /* f32[34] unscaled hit points per type    */
+
+/* do_enemy_collide @0x80045488 - the enemy collision core.  Sweeps the pending
+ * move (e->trans) against the world: probes walls (splitting the swept box for
+ * the 0x1d flyer type), resolves wall hits by damage + slide-or-stop, tests
+ * enemy-vs-enemy via fn_80045C30, snaps to the floor, reparents the mb-node to
+ * whatever surface it landed on, and - when the residual slide is tiny - runs
+ * the per-behaviour dead-end timers (turn/reverse).  Finally applies gravity
+ * toward the floor target, dealing fall damage past the drop threshold.
+ * Returns the collision class (0 none, 1 wall, 2 blocked). */
+extern void* fn_80045C30(Enemy* e, f32 rad, f32 arg, f32* oldpos, f32* trans,
+                         s32 collided);
+extern void MBNodeSetParent(void* node, void* parent);
+extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+extern s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c,
+                        s32 d);
+extern f64 lbl_80346860;
+extern f64 lbl_80346868;
+extern f64 lbl_80346838;
+extern f64 lbl_80346870;
+extern f64 lbl_80346880;
+extern f32 lbl_80346888;
+extern s32 lbl_8034473C;
+extern f64 lbl_80346830;
+extern s32 AddExp(s32 player, s32 amount, s32 mode);
+extern s32 damage_player(s32 player, f32 amount, s32 mode, u32 flags,
+                         f32* direction);
+extern s32 msgPost(s32 message, s32 player, void* position);
+extern s32 StartDeathFX(void* node, s32 kind, s32 flags);
+extern void AudioPlayEvt102Follow(f32* position, s32 player);
+extern void AudioPlayEvt104(f32* position);
+extern s32 SuicideExplosion(f32* position, f32 damage);
+extern void fn_8009DAC8(f32* position);
+extern s32 lbl_80344718;
+extern s32 lbl_803447E4;
+extern s32 lbl_80344B24;
+extern f64 lbl_80346898;
+extern f64 lbl_803468A8;
+extern f64 lbl_80346858;
+extern f64 lbl_80346890;
+extern f32 lbl_80344880;
+extern level_data* gCurLevel;
+extern void RequestEnemyAction(Enemy* enemy, s32 action);
+
+/* file-local view of world/worldcol.c's FloorCollisionResult; only the
+ * floorY field (0x34) is needed here. Layout verified against worldcol.c's
+ * FloorCollisionResult typedef (_pad00[0x34]; f32 floorY; ...). Used both
+ * for the scratch FloorCollide() output buffer below and (later in this
+ * file) for the shared gFloorCollisionResult global -- same shape, two
+ * different instances. */
+typedef struct FloorCollisionResultView {
+    u8 _pad00[0x34];
+    f32 floorY;
+} FloorCollisionResultView;
+
+
+/* ===================================================================== *
+ *  AI MOVE-LOGIC STATE HANDLERS  (do_ai jumptable, 0x80046B54..0x8004C650)
+ *  Each takes the enemy slot index, sets a desired facing/velocity, then
+ *  calls do_enemy_move(index) to commit the move + resolve collisions.
+ * ===================================================================== */
+
+/* --- move_logic shared externs --- */
+extern void RequestEnemyAction(Enemy* e, s32 action);
+extern f32 get_yaw(f32* to, f32* from);       /* dir angle from->to */
+extern void format_brain(s32 index);           /* AI-change transition hook */
+extern void set_enemy_trans(Enemy* e, f32 spd, f32 ang); /* accel along angle */
+extern f32 lbl_8011BF60[];    /* 0x8011BF60 imp retreat-speed ramp table */
+extern const f64 lbl_803469B8; /* 1.25 action-speed threshold */
+extern s32 lbl_80344748;      /* 0x80344748 current "IT" enemy slot */
+extern s32 RandInt(s32 n);
+extern level_data* gCurLevel;         /* 0x8034483C active level record */
+extern f32 sin(f32 x);
+extern f32 cos(f32 x);
+extern void fn_8009DDCC(f32* pos);   /* skeleton assemble fx */
+extern void fn_8009DD9C(f32* pos);   /* skeleton attack fx */
+extern void fn_8009DD6C(f32* pos);   /* dog pounce-ready fx */
+s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c, s32 d);
+extern void fn_8009E03C(Enemy* e);   /* skeleton bone-toss fx */
+extern s32 fn_8004C8CC(f32* pos, s32 index);   /* wall/object clearance probe */
+extern s32 FastWallCollide(f32* from, f32* to, void* hit, s32 mode); /* ray wall probe */
+extern s32 fn_8004CE38(Enemy* e);   /* 0x8004CE38 left/right look-ahead probe dir */
+extern void fn_80051568(s32 index); /* 0x80051568 guard-target refresh */
+extern u8* sItems;                  /* item array base (stride 0xF0) */
+extern f32 lbl_8011C0C4[];    /* 0x8011C0C4 wander search-angle offsets */
+extern f32 lbl_8011C0A4[];    /* 0x8011C0A4 corner search-angle offsets */
+extern f32 lbl_8011C084[];    /* 0x8011C084 guard corner search-angle offsets */
+extern f32 lbl_8011C044[];    /* 0x8011C044 flee corner search-angle offsets */
+extern f64 __frsqrte(f64 x);
+extern s32 ErrorPrintf(const char* fmt, ...);
+extern s32 sFlags;            /* 0x803445CC packed config flags */
+extern u64 gControllerButtons;      /* 0x803445C8 config-word pair (hi) + sFlags (lo) */
+extern u8 lbl_80112370[];           /* enemy debug string table */
+extern u8 sLookoutParams[];     /* 0x802584A8 prowl-node table (stride 0x6C) */
+extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
+extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
+extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
+
+/* Field displacements into the two world-node tables above.  Both records are
+ * owned by items.c, so this TU quotes their layouts rather than redefining the
+ * structs (a second, divergent copy of a record is the failure mode
+ * claim.law.swap-loop-is-record-layout-ground-truth was written about):
+ *   LookoutParam  include/game/item.h, 0x6C  - pos[3] @0x30, next @0x68
+ *   MilestoneParam src/game/world/items.c, 0x68 - matrix[16] @0x00, so the
+ *                  world translation row matrix[12..14] lands at 0x30..0x38.
+ * The walked pointers keep their `base + LITERAL` shape on purpose:
+ * claim.law.offsetof-fused-immediate-counter records that rewriting exactly
+ * these milestone matrix[12/13/14] reads into array-of-struct indexing costs
+ * the fused displacement (items.c update_player_milestone, real 46 -> 89). */
+#define LOOKOUT_POS_X    0x30
+#define LOOKOUT_POS_Y    0x34
+#define LOOKOUT_POS_Z    0x38
+#define LOOKOUT_NEXT     0x68
+#define MILESTONE_POS_X  0x30
+#define MILESTONE_POS_Y  0x34
+#define MILESTONE_POS_Z  0x38
+/* Item record (include/game/item.h, 0xF0): active @0xC4, minoff @0xCD. */
+#define ITEM_ACTIVE      0xC4
+#define ITEM_MINOFF      0xCD
+extern void GetMilestonePos(s32 idx, f32* out);  /* 0x80066054 */
+extern s32 fn_800511D0(s32 idx, f32 turn);        /* 0x800511D0 next-node picker */
+
+/* move_logic05 @0x80047844 (state 5, one of the two "wander" fallbacks reached
+ * from the recognized/closest gate).  IT-flee, drift a heading on a dead_end
+ * timer (rotating -pi/2 and cycling a 4-count), then sweep two clearance probes:
+ * a near ray (rad+0.5) via FastWallCollide and a far ray (speed) via the shared
+ * object probe; a block on either rotates the heading and re-arms the timer. */
+typedef struct EnemyMovePage05 {
+    u8 _0000[64];
+    f32 speed[45];
+    u8 _00f4[3364];
+    Enemy enemies[25];
+} EnemyMovePage05;
+
+
+/* move_logic10 @0x80048928 (state 10, lizardman "captain") - SKELETON + NOTES.
+ * This is the largest AI handler in the game (1086 GC insns, biggest on Xbox too).
+ * Only the shared gate opening is reconstructed; the full body is a multi-mode
+ * pack-hunter that has NOT been transcribed (deliberate under the light-touch pass).
+ *
+ * Full-body call inventory (from tools/gdl/fnasm.py game/enemy/enemy move_logic10):
+ *   get_yaw x18  - face/milestone bearings for each sub-mode
+ *   sin/cos     x7   - heading projection for the wander + corner probes
+ *   GetMilestonePos x6, find_neighbor_milestone x2, update_enemy_milestone x1
+ *                     - milestone-network navigation (shares the move_logic22 stack)
+ *   turn_enemy_ang x5, set_enemy_trans x5, do_enemy_move x5 - one move per sub-mode
+ *   format_brain x5   - AI-change transition per sub-mode
+ *   fqdist x4, fn_8004CE38 x3, fn_8004C8CC x3 - dist checks + corner probes
+ *   do_ai x2         - the flee/chase bail-outs
+ * Frame: 392 bytes, saves r25-r31 (_savefpr_25), pool base lbl_8011AF48 held in a
+ * nonvolatile.  Uses the lbl_80250E00 + index*916 + 3608 anchor like the others.
+ * TODO: transcribe the sub-mode state machine (Ghidra decompile_function 0x80048928
+ * then split the modes by e->mode1 / e->flag1 as in move_logic22 + move_logic07). */
+extern f64 lbl_80346920;      /* pi/2 turn step */
+extern f64 lbl_80346858;      /* 0.1 probe lift */
+extern f64 lbl_803468E0;      /* stuck-angle threshold */
+extern f32 lbl_8011C064[];    /* 0x8011C064 pack-hunter turn-step ramp */
+extern s32 find_neighbor_milestone(s32 ms, s32 nth); /* 0x8004C9DC */
+
+/* --- kill_enemy externs --- */
+extern int sprintf(char* buf, const char* fmt, ...);
+extern int toupper(int c);
+extern char* fn_80057ACC(s32 slot);                 /* current-level tag string */
+extern struct item* PlaceItem(s32 a, s32 b, char* name, s32 c);
+extern void StartBagFX(f32* pos, struct item* ip, f32 z); /* toss carried item */
+extern void AddItemSub(struct item* ip);           /* commit placed item */
+extern void del_target(f32* worldmat);               /* release camera target */
+extern void MBRemoveNode(struct mbnode* n, s32 a);   /* delete scene node */
+extern void SfxDeleteParented(struct mbnode* n, s32 a, s32 b);
+extern void AtreeDelete(void* atree);               /* free anim tree */
+extern s32 gTriggerCameraState;
+extern s32 lbl_80344734;      /* node-delete reentry guard */
+extern s32 ErrorPrintf(const char* fmt, ...);
+extern char lbl_80112468[];
+
+extern s32 heal_player(EnemyPlayerView* player, f32 amount);
+extern void do_heal_players(void* player, f32* matrix, f32 amount);
+extern void ModifyDamage(f32 armor, f32* damage, u32* damage_type, u32 shield);
+extern void CopyMat4(f32* source, f32* destination);
+extern void UpdateObjWorldMat(f32* matrix);
+extern void fn_8005A404(f32* matrix, f32* coll_offset, f32* attn_offset);
+extern void SetEnemyObj();
+extern void AudioPlayEvt101(f32* position);
+extern void AudioPlayEvt103(f32* position);
+extern void fn_8009DD48(void);
+extern void fn_8009DE5C(s32 type, f32* position);
+extern void fn_8009DE88(Enemy* enemy, s32 mode);
+extern void fn_8009DF7C(Enemy* enemy, s32 mode);
+extern void fn_800945D0(u8* position, u8* matrix, s32 damage_type, s32 alt,
+                        u32 type, f32 scale);
+extern void MBTreeSetAmbientAdd(struct mbnode* node, s32 value, s32 recurse);
+extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
+extern s32 gBossType;
+extern s32 lbl_80344768;
+extern f32 lbl_803447D8;
+extern s32 lbl_80344BE0;
+extern s32 lbl_80344BE4;
+extern s32 lbl_802897B8[];
+extern f32 lbl_8011B900[];
+extern f32 lbl_8011BA10[];
+extern f64 lbl_80346938;
+extern f64 lbl_80346948;
+extern f32 lbl_803469B0;
+extern f64 lbl_80346A08;
+extern f64 lbl_80346A10;
+extern f64 lbl_80346A18;
+extern f64 lbl_80346A28;
+extern f64 lbl_80346A30;
+
+/* kill_enemy @0x8004EFE4.  Drop the carried item (or place a "GARG<level>"
+ * egg for gargoyles), then tear the enemy down: health/state clear, grid
+ * release, shadow + special fx + scene node deletion, generator uncouple. */
+extern char lbl_80346A38[7]; /* "GARG%s" (sdata2) */
+
+extern s32 lbl_80344724;   /* 0x80344724 active milestone count */
+
+/* --- generate_enemy externs --- */
+extern s32 RandInt(s32 n);
+extern s32 check_enemy_pos(f32* start, f32* out, s32 slot);
+extern void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
+extern void UpdateObjWorldMat(f32* worldmat);              /* claim grid cell */
+extern void fn_8005A404(f32* worldmat, f32* coll_offset, f32* attn_offset);
+extern s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active);
+extern void StartGenFX(f32* pos, s32 level);
+extern s32 gBossType;
+extern s32 gBossDying;
+extern s32 gGameMode;      /* current game mode; see enum e_mode */
+extern s32 lbl_803447DC;      /* generators-disabled flag */
+extern s32 lbl_8034472C;      /* random-type rotation counter */
+extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
+extern u32 jumptable_8011C25C[];
+
+typedef struct EnemyGeneratorInfo {
+    s32 type;
+} EnemyGeneratorInfo;
+
+
+typedef struct EnemyGenerator {
+    EnemyGeneratorInfo* info;
+    u8 _pad004[0xDA];
+    s8 live_count;
+    u8 _pad0DF[2];
+    s8 first_enemy;
+    u8 _pad0E2;
+    s8 flag_e3;
+} EnemyGenerator;
+
+
+/* check_enemy_pos @0x8004F9AC -- validate a candidate spawn point for enemy
+ * `slot`: optionally offset it, reject wall/floor failures and steep drops,
+ * snap Y to the floor, then reject overlaps with world objects or other
+ * enemies (unless the overlap is the enemy's own generator).  Returns 1 when
+ * the position is usable, 0 when blocked by geometry/occupant, -1 on failure. */
+extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
+/* FloorCollisionResultView is declared near do_enemy_collide above. */
+extern FloorCollisionResultView gFloorCollisionResult; /* 0x8023CAE0 */
+extern f32 lbl_80346A40;
+extern f32 lbl_80346A44;
+extern f32 lbl_80346A48;
+extern f64 lbl_80346988;           /* max vertical snap distance */
+extern f64 lbl_80346830;           /* 0.5 */
+extern void* fn_8005EFAC(f32 rad, f32* probe, f32* pos, s32 a, s32 b);
+extern s32 fn_8005D3D8(s32 a, void* obj);
+
+/* 0x8004C8CC - wall/object clearance probe shared by the move_logic set */
+extern void* fn_8005EFAC(f32 rad, f32* probe, f32* pos, s32 a, s32 b);
+extern s32 fn_8005D3D8(s32 a, void* obj);
+extern f64 lbl_80346858;
+
+/* 0x80045FE4 - enemy-vs-world-object damage (type from wobj flag nibble) */
+extern u32 WorldObjGetAllFlags(void* wobj);
+extern f32 NormalVector2D(f32* v);
+extern f32 lbl_80346820;
+extern f32 lbl_803468A0;
+extern f32 lbl_803468A4;
+
+/* 0x8004CE38 - pick turn direction: which of +/-step headings nears the player */
+extern f64 lbl_80346920;        /* turn step */
+extern f64 lbl_80346840;        /* wrap high */
+extern f64 lbl_80346848;        /* full circle */
+extern f64 lbl_80346850;        /* wrap low */
+
+/* do_enemies @0x8004D078 -- per-frame master enemy loop.  Runs the critter
+ * list, then (when not paused) sweeps every enemy: a scripted-camera fast path,
+ * otherwise a player-aggro reset, an aggro-decay ramp, a milestone/aim probe,
+ * a two-radius visibility cull, and the main per-enemy state machine (alive /
+ * stunned / dying) with knockback damping and boss fade-out.  Draws the live
+ * enemy count when the debug flags are set. */
+extern void ProcessCritterList(void);
+extern s32 gScriptedCameraState;
+s32 fn_8004D958(s32 index);
+extern s32* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color, char* txt);
+extern s32 MBWorldSphereVisible3(f32* center, f32 radius);
+extern void fn_800516F8(s32 index);
+extern void fn_8009FEFC(s16 sound);
+extern void fn_8009FEA0(s16 sound);
+extern void AudioPlayEvt102(void);
+extern void ProcessSkinFX(f32* a, void* node, s32 c);
+extern void fn_8005A338(f32* mat, f32* colloff, f32* attnoff);
+extern void fn_8004DF58(Enemy* e);
+extern f32 atan2(f32 y, f32 x);
+extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
+extern s32 gBoss398;
+extern char gTextFormatBuf[];
+extern s32 lbl_803447B8;
+extern s32 lbl_80344718;
+extern s32 lbl_80344740;
+extern f32 lbl_803447D8;
+extern s32 lbl_803447E4;
+extern f32 lbl_8011B878[];        /* per-type aggro-decay ramp (0x88) */
+extern f32 lbl_80346980;
+extern f64 lbl_80346928;
+extern f32 lbl_803468F0;
+extern f64 lbl_80346810;
+extern f64 lbl_80346818;
+extern f64 lbl_80346940;
+extern f64 lbl_80346878;
+extern f32 lbl_803469C0;
+extern char lbl_803469C4[3];
+extern f32 lbl_803469C8;
+extern f32 lbl_803469CC;
+extern f32 lbl_803469D0;
+extern f32 lbl_803469D4;
+extern const f32 lbl_803469D8;
+extern f64 lbl_803469E0;
+extern f64 lbl_803469E8;
+extern s32 lbl_80344BF8;
+extern f64 lbl_80346830;
+extern f64 lbl_80346838;
+extern f64 lbl_80346868;
+extern f64 lbl_803469F0;
+extern s32 heal_player(EnemyPlayerView* player, f32 amount);
+extern void StartGemFX(f32* position, s32 kind);
+extern void fn_8009E08C(Enemy* enemy);
+extern void AudioPlayerHit(s32 player, s32 kind);
+
+/* 0x8004D958 - per-enemy frame update: lifetime, owner change, boss-death
+ * cull, AI step + type-24 hover bob timer */
+extern s32 gBossDying;
+extern void fn_800945D0(u8* pos, u8* a, s32 b, s32 c, u32 type, f32 scale);
+
+extern f32 lbl_803468B0;
+extern f32 fn_80034C88(f32 x);
+extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
+                               f32* from, f32* to, f32* hit, s32 directional);
+
+/* fn_8004646C @0x8004646C -- sweep the enemy's move (oldc->newc) against the
+ * critter-node mesh and the neighbouring enemies pulled from the item grid,
+ * returning the id of the closest blocking enemy (or a node hit tagged with
+ * 0x10000), skipping self, dead/idle occupants, already-linked pack members,
+ * and short obstacles when charging.  -1 = clear. */
+extern void CritterCollideStart(f32 rad, f32* pos, s32 a);
+extern void* CritterMoveNodeCol(f32 rad, f32 zero, f32* from, f32* to,
+                                void* hit, s32 a, s32 b);
+extern s32 NextGridItem(void);
+extern f32 lbl_803468B0;
+extern f64 lbl_80346868;
+
+extern u8 lbl_8011AF48[];
+extern f32 lbl_80344880;
+extern f32 lbl_80346A40;
+extern f64 lbl_80346A28;
+extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
+/* SetEnemyObj's full prototype is declared down at init_enemy, not here: the
+ * unprototyped `extern void SetEnemyObj();` above is the only declaration in
+ * scope at damage_enemy's call site, exactly as before the reorder. */
+extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
+extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
+extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
+
+
+/* Forward declarations for the whole TU.  The definition order below is
+ * the target's .text order, so a callee is routinely defined after its
+ * caller; these prototypes are what let that order compile. */
+static void enemy_bss_order(void);
+f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction, f32* offset, s32* enemy_index, s32 flags);
+void do_enemy_move(s32 index);
+s32 do_enemy_collide(s32 index, f32 retryThreshold);
+static s32 EnemyMovingAwayFromBirth(Enemy* enemy, f32* oldPosition, f32* translation);
+void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold, f32* oldPosition, f32* translation, s32 collisionClass);
+void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
+void fn_80046140(s32 index);
+s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2, s32* hitWorld);
+s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc);
+s32 do_ai(s32 index);
+static f32 fabsf_(f32 x);
+void move_logic00(s32 index);
+void move_logic01(s32 index);
+void move_logic02(s32 index);
+void move_logic03(s32 index);
+void move_logic04(s32 index);
+void move_logic05(s32 index);
+void move_logic06(s32 index);
+void move_logic07(s32 index);
+void move_logic08(s32 index);
+void move_logic10(s32 index);
+void move_logic12(s32 index);
+void move_logic13(s32 index);
+void move_logic14(s32 index);
+void move_logic15(s32 index);
+void move_logic16(s32 index);
+void move_logic18(s32 index);
+void move_logic19(s32 index);
+void move_logic20(s32 index);
+void move_logic21(s32 index);
+void move_logic22(s32 index);
+void move_logic23(s32 index);
+void move_logic24(s32 index);
+void move_logic28(s32 index);
+void move_logic29(s32 index);
+void move_logic30(s32 index);
+static void update_vel(Enemy* e, f32 k);
+void move_logic31(s32 index);
+s32 fn_8004C8CC(f32* pos, s32 index);
+s32 find_neighbor_milestone(s32 ms, s32 nth);
+f32 turn_enemy_ang(Enemy* e, f32 want);
+void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle);
+s32 fn_8004CE38(Enemy* e);
+s32 fn_8004CFAC(f32* pos, f32* target);
+void fn_8004D030(s32 index, s32 ticks);
+void do_enemies(void);
+s32 fn_8004D958(s32 index);
+void fn_8004DB3C(Enemy* enemy, s32 delta);
+void fn_8004DC2C(Enemy* enemy);
+void fn_8004DF58(Enemy* enemy);
+void fn_8004E448(Enemy* enemy, s32 arg, f32* pos);
+void update_enemy_milestone(Enemy* enemy);
+void adjust_msidx(Enemy* enemy);
+void enemy_update(void);
+s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type, s32 effect_position_arg, s32 hit_direction_arg, s32 play_effects);
+void kill_enemy(s32 index);
+void fn_8004F1DC(Enemy* enemy);
+void uncouple_enemy(s32 index);
+s32 check_vacancy(s32 index, f32* pos);
+s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew, struct item* gen, s32 imp, f32 ang);
+s32 fn_8004F87C(s32 type, s32 level, s32 spew);
+s32 check_enemy_pos(f32* start, f32* out, s32 slot);
+static f32 gendir_8004FBC8(f32* input, f32* output, s32 direction);
+s32 find_enemy_slot(s32 type, s32 level);
+void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
+
 f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
                   f32* offset, s32* enemy_index, s32 flags)
 {
@@ -390,56 +886,6 @@ next_enemy:
     }
     return best_distance;
 }
-
-extern f64 lbl_803468D8;        /* 100.0 */
-extern f64 lbl_80346988;        /* 6.0 */
-extern f64 lbl_803468F8;        /* 0.10471975513333334 */
-extern f32 lbl_80346964;        /* 1.5f */
-extern f64 lbl_80346968;        /* 240.0 */
-extern f32 lbl_80346970;        /* 999.0f */
-extern f64 lbl_803469A0;        /* 90.0 */
-extern f64 lbl_80346900;        /* 8.0 */
-extern f64 lbl_80346908;        /* pi/4 */
-extern f64 lbl_80346918;        /* pi/2 */
-extern f64 lbl_80346930;        /* 0.26179938783333334 */
-extern f64 lbl_80346840;        /* pi wrap high */
-extern f64 lbl_80346848;        /* 2*pi */
-extern f64 lbl_80346850;        /* -pi wrap low */
-extern f64 lbl_80346858;        /* 0.1 */
-extern f64 lbl_80346830;        /* 0.5 */
-extern f32 lbl_803468B0;        /* 100000.0f */
-extern f64 lbl_803468B8;        /* 3.0 */
-extern f32 lbl_80346984;        /* 0.1745329f milestone turn */
-extern u8 lbl_8011AF48[];       /* enemy.c .data anchor (turn tables at +4444/+4412...) */
-extern f64 lbl_80346948;        /* 4.0 */
-
-/* ----------------------------------------------------------------------------
- * Per-enemy-type attribute tables inside the lbl_8011AF48 .data blob.
- *
- * The blob holds a structure-of-arrays block: a run of parallel 34-entry f32
- * arrays, each indexed by the enemy's e_e_tpye, so a lookup is always
- * `*(f32*)(lbl_8011AF48 + type * 4 + <array base>)`.  The array bases below are
- * named from what each value is stored into at its consumers; the raw
- * displacements stay inside a single additive expression per
- * claim.law.offsetof-rename-preserves-protected-web (respelling the constant is
- * neutral, restructuring the expression is not - see init_enemy).
- *
- * Evidence:
- *   +1808 (elem 452) -> Enemy.hht     via gamemain.c init_enemy_vars
- *   +1944 (elem 486) -> Enemy.rad     via gamemain.c init_enemy_vars
- *   +2080 (elem 520) -> Enemy.attn_offset[1]  (init_enemy, `lfs f0,2080(r8)`)
- *   +2216 (elem 554) -> Enemy.coll_offset[1]  (init_enemy, `lfs f0,2216(r8)`)
- *   +2760 (elem 690) -> base health, scaled by gCurLevel->ene_health in BOTH
- *                       init_enemy (`lfs f31,2760(r3)`) and init_enemy_vars,
- *                       which reads the identical element as ((f32*)row)[690].
- * The 136-byte (34-element) spacing between consecutive bases is what makes the
- * SoA reading concrete; see
- * claim.law.table-lookup-pre-keyed-on-segment-cast-repetition for why the
- * addressing form here is not source-shape-controllable at every site.
- * -------------------------------------------------------------------------- */
-#define ETYPE_ATTN_Y      2080 /* f32[34] attention-point height per type */
-#define ETYPE_COLL_Y      2216 /* f32[34] collision-point height per type */
-#define ETYPE_BASE_HEALTH 2760 /* f32[34] unscaled hit points per type    */
 
 void do_enemy_move(s32 index)
 {
@@ -864,59 +1310,6 @@ void do_enemy_move(s32 index)
     }
 }
 
-/* do_enemy_collide @0x80045488 - the enemy collision core.  Sweeps the pending
- * move (e->trans) against the world: probes walls (splitting the swept box for
- * the 0x1d flyer type), resolves wall hits by damage + slide-or-stop, tests
- * enemy-vs-enemy via fn_80045C30, snaps to the floor, reparents the mb-node to
- * whatever surface it landed on, and - when the residual slide is tiny - runs
- * the per-behaviour dead-end timers (turn/reverse).  Finally applies gravity
- * toward the floor target, dealing fall damage past the drop threshold.
- * Returns the collision class (0 none, 1 wall, 2 blocked). */
-extern void* fn_80045C30(Enemy* e, f32 rad, f32 arg, f32* oldpos, f32* trans,
-                         s32 collided);
-extern void MBNodeSetParent(void* node, void* parent);
-extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
-extern s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c,
-                        s32 d);
-extern f64 lbl_80346860;
-extern f64 lbl_80346868;
-extern f64 lbl_80346838;
-extern f64 lbl_80346870;
-extern f64 lbl_80346880;
-extern f32 lbl_80346888;
-extern s32 lbl_8034473C;
-extern f64 lbl_80346830;
-extern s32 AddExp(s32 player, s32 amount, s32 mode);
-extern s32 damage_player(s32 player, f32 amount, s32 mode, u32 flags,
-                         f32* direction);
-extern s32 msgPost(s32 message, s32 player, void* position);
-extern s32 StartDeathFX(void* node, s32 kind, s32 flags);
-extern void AudioPlayEvt102Follow(f32* position, s32 player);
-extern void AudioPlayEvt104(f32* position);
-extern s32 SuicideExplosion(f32* position, f32 damage);
-extern void fn_8009DAC8(f32* position);
-extern s32 lbl_80344718;
-extern s32 lbl_803447E4;
-extern s32 lbl_80344B24;
-extern f64 lbl_80346898;
-extern f64 lbl_803468A8;
-extern f64 lbl_80346858;
-extern f64 lbl_80346890;
-extern f32 lbl_80344880;
-extern level_data* gCurLevel;
-extern void RequestEnemyAction(Enemy* enemy, s32 action);
-
-/* file-local view of world/worldcol.c's FloorCollisionResult; only the
- * floorY field (0x34) is needed here. Layout verified against worldcol.c's
- * FloorCollisionResult typedef (_pad00[0x34]; f32 floorY; ...). Used both
- * for the scratch FloorCollide() output buffer below and (later in this
- * file) for the shared gFloorCollisionResult global -- same shape, two
- * different instances. */
-typedef struct FloorCollisionResultView {
-    u8 _pad00[0x34];
-    f32 floorY;
-} FloorCollisionResultView;
-
 s32 do_enemy_collide(s32 index, f32 retryThreshold)
 {
     u8* pool = (u8*)lbl_80250E00;
@@ -1327,6 +1720,52 @@ collision_done:
     return floorObject;
 }
 
+#pragma dont_inline on
+#pragma opt_propagation off
+#pragma opt_common_subs off
+void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
+{
+    u32 flags;
+    u32 damageType;
+    f32 dir[3];
+
+    flags = WorldObjGetAllFlags(wobj);
+    if (*(s32*)e == 27) {
+        return;
+    }
+    if ((flags & 0xF0000) == 0) {
+        return;
+    }
+    if (flags & 0x02000000) {
+        if (!(flags & 0x08000000)) {
+            return;
+        }
+    }
+    dir[0] = oldpos[0] - hitnrm[0];
+    dir[1] = lbl_80346820;
+    dir[2] = oldpos[2] - hitnrm[2];
+    NormalVector2D(dir);
+    damageType = flags & 0xF0000;
+    switch (damageType) {
+    case 0x10000:
+        damage_enemy(e, lbl_803468A0, -1, 0, (s32)hitnrm, (s32)dir, 1);
+        break;
+    case 0x20000:
+        damage_enemy(e, lbl_803468A0, -1, 16, (s32)hitnrm, (s32)dir, 1);
+        break;
+    case 0x30000:
+    case 0x40000:
+    case 0x50000:
+        damage_enemy(e, lbl_803468A4, -1, 32, (s32)hitnrm, (s32)dir, 1);
+        break;
+    case 0x60000:
+        break;
+    }
+}
+#pragma opt_propagation reset
+#pragma opt_common_subs reset
+#pragma dont_inline off
+
 void fn_80046140(s32 index)
 {
     u8* pool = (u8*)lbl_80250E00;
@@ -1415,303 +1854,196 @@ void fn_80046140(s32 index)
     }
 }
 
-/* ===================================================================== *
- *  AI MOVE-LOGIC STATE HANDLERS  (do_ai jumptable, 0x80046B54..0x8004C650)
- *  Each takes the enemy slot index, sets a desired facing/velocity, then
- *  calls do_enemy_move(index) to commit the move + resolve collisions.
- * ===================================================================== */
+extern s32 NextGridItem(void);
 
-/* --- move_logic shared externs --- */
-extern void RequestEnemyAction(Enemy* e, s32 action);
-extern f32 get_yaw(f32* to, f32* from);       /* dir angle from->to */
-extern void format_brain(s32 index);           /* AI-change transition hook */
-extern void set_enemy_trans(Enemy* e, f32 spd, f32 ang); /* accel along angle */
-extern f32 lbl_8011BF60[];    /* 0x8011BF60 imp retreat-speed ramp table */
-extern const f64 lbl_803469B8; /* 1.25 action-speed threshold */
-extern s32 lbl_80344748;      /* 0x80344748 current "IT" enemy slot */
-extern s32 RandInt(s32 n);
-extern level_data* gCurLevel;         /* 0x8034483C active level record */
-extern f32 sin(f32 x);
-extern f32 cos(f32 x);
-extern void fn_8009DDCC(f32* pos);   /* skeleton assemble fx */
-extern void fn_8009DD9C(f32* pos);   /* skeleton attack fx */
-extern void fn_8009DD6C(f32* pos);   /* dog pounce-ready fx */
-s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c, s32 d);
-extern void fn_8009E03C(Enemy* e);   /* skeleton bone-toss fx */
-extern s32 fn_8004C8CC(f32* pos, s32 index);   /* wall/object clearance probe */
-extern s32 FastWallCollide(f32* from, f32* to, void* hit, s32 mode); /* ray wall probe */
-extern s32 fn_8004CE38(Enemy* e);   /* 0x8004CE38 left/right look-ahead probe dir */
-extern void fn_80051568(s32 index); /* 0x80051568 guard-target refresh */
-extern u8* sItems;                  /* item array base (stride 0xF0) */
-extern f32 lbl_8011C0C4[];    /* 0x8011C0C4 wander search-angle offsets */
-extern f32 lbl_8011C0A4[];    /* 0x8011C0A4 corner search-angle offsets */
-extern f32 lbl_8011C084[];    /* 0x8011C084 guard corner search-angle offsets */
-extern f32 lbl_8011C044[];    /* 0x8011C044 flee corner search-angle offsets */
-extern f64 __frsqrte(f64 x);
-extern s32 ErrorPrintf(const char* fmt, ...);
-extern s32 sFlags;            /* 0x803445CC packed config flags */
-extern u64 gControllerButtons;      /* 0x803445C8 config-word pair (hi) + sFlags (lo) */
-extern u8 lbl_80112370[];           /* enemy debug string table */
-extern u8 sLookoutParams[];     /* 0x802584A8 prowl-node table (stride 0x6C) */
-extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
-extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
-extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
-
-/* Field displacements into the two world-node tables above.  Both records are
- * owned by items.c, so this TU quotes their layouts rather than redefining the
- * structs (a second, divergent copy of a record is the failure mode
- * claim.law.swap-loop-is-record-layout-ground-truth was written about):
- *   LookoutParam  include/game/item.h, 0x6C  - pos[3] @0x30, next @0x68
- *   MilestoneParam src/game/world/items.c, 0x68 - matrix[16] @0x00, so the
- *                  world translation row matrix[12..14] lands at 0x30..0x38.
- * The walked pointers keep their `base + LITERAL` shape on purpose:
- * claim.law.offsetof-fused-immediate-counter records that rewriting exactly
- * these milestone matrix[12/13/14] reads into array-of-struct indexing costs
- * the fused displacement (items.c update_player_milestone, real 46 -> 89). */
-#define LOOKOUT_POS_X    0x30
-#define LOOKOUT_POS_Y    0x34
-#define LOOKOUT_POS_Z    0x38
-#define LOOKOUT_NEXT     0x68
-#define MILESTONE_POS_X  0x30
-#define MILESTONE_POS_Y  0x34
-#define MILESTONE_POS_Z  0x38
-/* Item record (include/game/item.h, 0xF0): active @0xC4, minoff @0xCD. */
-#define ITEM_ACTIVE      0xC4
-#define ITEM_MINOFF      0xCD
-extern void GetMilestonePos(s32 idx, f32* out);  /* 0x80066054 */
-extern s32 fn_800511D0(s32 idx, f32 turn);        /* 0x800511D0 next-node picker */
-
-/* float magnitude via sign-bit clear (matches the enemy AI's inline fabs). */
-static f32 fabsf_(f32 x)
+s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
+                s32* hitWorld)
 {
-    *(u32*)&x &= 0x7FFFFFFF;
-    return x;
-}
+    s32 startNode = gEnemies[index].coll_enenum;
+    f64 minimum_hht;
+    f32 dist;
+    f32 best = lbl_803468B0;
+    s32 result = -1;
+    s32 hint = -1;
+    void* nodeCol;
+    s32 node;
+    Enemy* self;
+    u8 stack_top[16];
+    f32 scratch[3];
+    u8 stack_gap[12];
+    f32 delta[3];
+    u8 stack_bottom[28];
 
-/* Choose the turn direction on the axis with the larger separation. */
-s32 fn_8004CFAC(f32* pos, f32* target)
-{
-    u8 framePad[8];
-    f32 x = pos[0];
-    f32 targetX = target[0];
-    f32 dx = x - targetX;
-    f32 z;
-    f32 targetZ;
-    f32 dz;
-    u8 unused[12];
+    if (hitWorld == NULL && startNode < 0x10000) {
+        hint = startNode;
+    }
+    CritterCollideStart(rad, newc, 0);
+    nodeCol = CritterMoveNodeCol(rad, 0.0f, oldc, newc, scratch, -1, 2);
+    if (nodeCol != NULL) {
+        return *(s16*)nodeCol | 0x10000;
+    }
+    StartItemGrid(rad, newc);
+    self = &gEnemies[index];
+    minimum_hht = lbl_80346868;
+    for (;;) {
+        Enemy* other;
+        s32 st;
+        s32 linked;
 
-    *(u32*)&dx &= 0x7FFFFFFF;
-    z = pos[2];
-    targetZ = target[2];
-    dz = z - targetZ;
-    *(u32*)&dz &= 0x7FFFFFFF;
-
-    if (dx >= dz) {
-        if (z < targetZ) {
-            return 1;
+        if (hint < 0) {
+            node = NextGridItem();
+        } else {
+            node = hint;
+            hint = -1;
         }
-        return -1;
-    }
-    if (x < targetX) {
-        return -1;
-    }
-    return 1;
-}
-
-/* Arm an enemy's dead-end timer and clear blocked desired actions. */
-void fn_8004D030(s32 index, s32 ticks)
-{
-    Enemy* enemy = &gEnemies[index];
-
-    if (enemy->dead_end > 0) {
-        return;
-    }
-    enemy->dead_end = ticks;
-    if (ticks < 60) {
-        return;
-    }
-    if (enemy->daction == 3 || enemy->daction == 4) {
-        enemy->daction = 0;
-    }
-}
-
-/* Fade an enemy and its shadow, hiding both when fully opaque. */
-void fn_8004DB3C(Enemy* enemy, s32 delta)
-{
-    s32 alpha = MBTreeGetAlpha(enemy->objgrp.node);
-    s32 value;
-
-    if ((delta > 0 && alpha >= 255) || (delta < 0 && alpha == 0)) {
-        return;
-    }
-    value = alpha + delta * gFrameTicks;
-    if (value < 0) {
-        delta = 0;
-    } else if (value > 255) {
-        delta = 255;
-    } else {
-        delta = value;
-    }
-    if (delta == 255) {
-        MBTreeSetFlags(enemy->objgrp.node, 2, 0);
-        MBTreeSetFlags(enemy->shadow, 2, 0);
-    } else {
-        MBTreeSetAlpha(enemy->objgrp.node, delta, 1);
-        MBTreeSetAlpha(enemy->shadow, delta, 1);
-        MBTreeClearFlags(enemy->objgrp.node, 2, 0);
-        MBTreeClearFlags(enemy->shadow, 2, 0);
-    }
-}
-
-/* Select and launch an enemy missile, then dispatch its positional sound. */
-void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
-{
-    s32 kind;
-
-    if (enemy->algorithm == 28 || enemy->algorithm == 29) {
-        kind = 2;
-    } else if (enemy->algorithm == 16 || enemy->algorithm == 23) {
-        kind = 0;
-    } else if (enemy->algorithm == 17 || enemy->algorithm == 26) {
-        kind = 1;
-    } else {
-        kind = 2;
-    }
-
-    if (EnemyStartMissile(enemy, arg, pos, kind) != 0) {
-        if (kind == 0) {
-            fn_8009DE2C(pos);
-        }
-        if (kind == 2) {
-            if (enemy->type == 2) {
-                fn_8009DCE4(pos);
-            } else {
-                fn_8009DDFC(pos);
-            }
-        }
-    }
-}
-
-/* Advance an enemy after it reaches its assigned milestone. */
-void update_enemy_milestone(Enemy* enemy)
-{
-    u8 frame_pad[12];
-    f32 milestone[3];
-    f32 vertical;
-    u8 local_pad[12];
-    f32 dx;
-    f32 dz;
-
-    if (enemy->plr_ms >= 0) {
-        GetMilestonePos(enemy->plr_ms, milestone);
-        dx = *(f32*)((u8*)enemy + 0x34) - milestone[0];
-        dz = *(f32*)((u8*)enemy + 0x3C) - milestone[2];
-        vertical = *(f32*)((u8*)enemy + 0x38) - milestone[1];
-        *(u32*)&vertical &= 0x7FFFFFFF;
-        if ((f64)vertical < lbl_803469F8 &&
-            (f64)fqdist(dx, dz) < lbl_80346A00) {
-            adjust_msidx(enemy);
-            enemy->plr_ms = -1;
-            enemy->operation_count = enemy->operation_speed;
-            if (enemy->ms_idx > 0) {
-                if (enemy->ms_idx > 0) {
-                    enemy->ms_idx--;
-                }
-                enemy->max_msidx = enemy->ms_idx;
-            }
-            if (enemy->algorithm == 10) {
-                enemy->collided = 0;
-                enemy->route = 0;
-                enemy->stuck_count = 0;
-            }
-        }
-    }
-}
-
-/* Track this enemy's target milestone in the player's recent-history ring. */
-void adjust_msidx(Enemy* enemy)
-{
-    s32* player = (s32*)((u8*)gPlayerWords + enemy->closest * PLAYER_STRIDE);
-    s32 i;
-
-    for (i = 0; i < 5; i++) {
-        if (enemy->plr_ms == player[PW(milestone) + i]) {
+        if (node < 0) {
             break;
         }
-    }
-    if (i < 5) {
-        enemy->ms_idx = i;
-        if (enemy->max_msidx < enemy->ms_idx) {
-            enemy->max_msidx = enemy->ms_idx;
+        other = &gEnemies[node];
+        if (node == index) {
+            continue;
         }
-    } else {
-        enemy->ms_idx = 0;
-        enemy->max_msidx = 4;
-        enemy->plr_ms = -1;
+        st = other->state;
+        if (st == 0 || st == 8) {
+            continue;
+        }
+        {
+            Enemy* c = self;
+
+            goto load_linked_enemy;
+check_linked_enemy:
+            if (linked == node) {
+                linked = -1;
+                goto linked_enemy_done;
+            }
+            c = &gEnemies[linked];
+load_linked_enemy:
+            linked = c->next_enemy;
+            if (linked >= 0) {
+                goto check_linked_enemy;
+            }
+            linked = 0;
+linked_enemy_done:
+            ;
+        }
+        if (linked != 0) {
+            continue;
+        }
+        if ((f64)other->hht <= minimum_hht) {
+            if (other->type == E_GOLEM) {
+                continue;
+            }
+        }
+        delta[0] = other->objgrp.coll_pos[0] - newc[0];
+        delta[1] = other->objgrp.coll_pos[1] - newc[1];
+        delta[2] = other->objgrp.coll_pos[2] - newc[2];
+        {
+            dist = NormalVector2D(delta);
+
+            if (dist >= best) {
+                continue;
+            }
+            if (LineCylinderCollide(&other->objgrp.coll_pos[0],
+                                    rad + other->rad,
+                                    hht + other->hht, oldc,
+                                    newc, scratch, 1) == 0) {
+                continue;
+            }
+            best = dist;
+        }
+        result = node;
+        if (hitWorld != NULL) {
+            continue;
+        }
+        if (node != startNode) {
+            continue;
+        }
+        break;
     }
+    return result;
 }
 
-/* Advance texture modifiers for each loaded enemy type while gameplay runs.
- *
- * `resources` walks the lbl_80250E00 combined bss pool (see the TU .bss
- * layout note above this file's declarations).  Identification attempt
- * (2026-08-30, secondary de-fakematch pass):
- *   +0x564  EXACT match for gWadAtreeHeaders (0x80251364 - 0x80250E00 =
- *           0x564; verified by address arithmetic against the declared
- *           bss layout) - this reads gWadAtreeHeaders[index] as a void*,
- *           the per-type WAD/atree texmod-owner pointer DoTexMods() wants.
- *           NOT rewritten to the `gWadAtreeHeaders` symbol: fnasm.py shows
- *           this function's own base address relocates against
- *           lbl_80250E00 directly, so switching to the sub-object's own
- *           extern name would change the relocation target even though the
- *           resolved address is identical (claim.law.walked-base-symbol-
- *           identity.20260830.v1) - kept as the raw blob-base + literal
- *           offset for that reason, now with the identity documented.
- *   +0x20   first-level index table, inside lbl_80250E00's own declared
- *           0x40-byte anchor.  No covering struct found: gdlmem.py struct
- *           probes for gen_head/generator/enemy_gen/gen_record/gentable/
- *           gen_table/texmod_owner/enemy_texmod all returned no PDB match,
- *           and no other function in the TU references this slot range.
- *           Left as a raw offset - no name to adopt without inventing one.
- */
-void enemy_update(void)
+/* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
+ * b!=0 restricts the sweep to the nearest live player. */
+s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
 {
-    u8* resources;
-    u8* cursor;
+    s32 last;
     s32 i;
+    s32 j;
+    u8* p;
+    u8* q;
+    u8* e = (u8*)gEnemies + index * 916;
+    s32 ret = -1;
+    s32 start;
+    f32 best1;
+    f32 best = lbl_803468B0;
+    f32 hit[3];
+    u8 _pad4[8];
+    f32 d;
+    f32 dy;
+    f32 dx;
+    f32 dz;
+    u8 _spare[36];
 
-    resources = (u8*)lbl_80250E00;
-    if ((gGameBusy | gGameplayPauseTimer) == 0) {
-        for (i = 0; i < lbl_8034471C; i++) {
-            cursor = resources + i * sizeof(s32);
-            cursor = resources + *(s32*)(cursor + 0x20) * sizeof(void*);
-            if (*(void**)(cursor + 0x564) != 0) {
-                DoTexMods(*(void**)(cursor + 0x564));
+    if (b != 0) {
+        start = 0;
+        last = 3;
+    } else {
+        if (*(s16*)(e + offsetof(Enemy, closest)) < 0) {
+            return -1;
+        }
+        best1 = best;
+        p = (u8*)gPlayerWords;
+        last = -1;
+        /* PLAYER_STRIDE is an object-like macro for the same literal:
+         * claim.law.sizeof-defeats-loop-stride-induction only bans the
+         * sizeof(Player) respelling, which costs the loop's induction form. */
+        for (i = 0; i < 4; i++, p += PLAYER_STRIDE) {
+            if (*(s32*)(p + offsetof(Player, state)) == 1) {
+                /* A player whose mikey is live (field_A1C > 2) is ranged
+                 * against the mikey object's collision position (the mikey
+                 * OBJGRP embed) instead of the player's own effectpos. */
+                if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                         *(f32*)(p + offsetof(Player, mikey_coll_pos[0]));
+                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                         *(f32*)(p + offsetof(Player, mikey_coll_pos[1]));
+                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                         *(f32*)(p + offsetof(Player, mikey_coll_pos[2]));
+                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+                } else {
+                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                         *(f32*)(p + offsetof(Player, effectpos[0]));
+                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                         *(f32*)(p + offsetof(Player, effectpos[1]));
+                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                         *(f32*)(p + offsetof(Player, effectpos[2]));
+                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+                }
+                if (d < best1) {
+                    best1 = d;
+                    last = i;
+                }
+            }
+        }
+        start = last;
+    }
+    q = (u8*)gPlayerWords + start * PLAYER_STRIDE;
+    for (j = start; j <= last; j++, q += PLAYER_STRIDE) {
+        if (*(s32*)(q + offsetof(Player, state)) == 1) {
+            if (LineCylinderCollide((f32*)(q + offsetof(Player, effectpos[0])),
+                                    rad + *(f32*)(q + offsetof(Player, col_radius)),
+                                    hht + *(f32*)(q + offsetof(Player, col_height)),
+                                    oldc, newc, hit, 1) != 0) {
+                d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
+                if (d < best) {
+                    ret = j;
+                    best = d;
+                }
             }
         }
     }
-}
-
-/* Test a proposed enemy location and hide the slot again when it is blocked. */
-s32 check_vacancy(s32 index, f32* pos)
-{
-    Enemy* enemy = &gEnemies[index];
-    f32 adjusted[3];
-
-    adjusted[0] = pos[0];
-    adjusted[1] = pos[1];
-    adjusted[2] = pos[2];
-    adjusted[1] += enemy->coll_offset[1];
-
-    if (check_enemy_pos(adjusted, 0, index) <= 0) {
-        MBTreeSetFlags(enemy->objgrp.node, 2, 0);
-        if (enemy->shadow != 0) {
-            MBTreeSetFlags(enemy->shadow, 2, 0);
-        }
-        enemy->state = INACTIVE;
-        return 0;
-    }
-    return -1;
+    return ret;
 }
 
 /* do_ai @0x80046854 - central AI dispatcher.  Zeroes the per-frame translation,
@@ -1855,6 +2187,13 @@ s32 do_ai(s32 index)
         return -1;
     }
     return 0;
+}
+
+/* float magnitude via sign-bit clear (matches the enemy AI's inline fabs). */
+static f32 fabsf_(f32 x)
+{
+    *(u32*)&x &= 0x7FFFFFFF;
+    return x;
 }
 
 /* move_logic00 @0x80046B54 (state 0 + 9, base wander/seek).  IT-flee / chase
@@ -2314,17 +2653,6 @@ void move_logic04(s32 index)
     do_enemy_move(index);
 }
 
-/* move_logic05 @0x80047844 (state 5, one of the two "wander" fallbacks reached
- * from the recognized/closest gate).  IT-flee, drift a heading on a dead_end
- * timer (rotating -pi/2 and cycling a 4-count), then sweep two clearance probes:
- * a near ray (rad+0.5) via FastWallCollide and a far ray (speed) via the shared
- * object probe; a block on either rotates the heading and re-arms the timer. */
-typedef struct EnemyMovePage05 {
-    u8 _0000[64];
-    f32 speed[45];
-    u8 _00f4[3364];
-    Enemy enemies[25];
-} EnemyMovePage05;
 #pragma opt_propagation off
 void move_logic05(s32 index)
 {
@@ -2567,6 +2895,7 @@ void move_logic06(s32 index)
     do_enemy_move(index);
 }
 #pragma opt_propagation reset
+
 /* move_logic07 @0x80047F9C (state 7, rat-style corner-hugging chase).  IT-flee /
  * recognized gates, face a milestone/player, then when the dead_end timer allows
  * pick a corner-avoidance heading (fn_8004CE38 route + lbl_8011C0A4 offset table),
@@ -2919,30 +3248,6 @@ void move_logic08(s32 index)
     do_enemy_move(index);
 }
 #pragma opt_propagation reset
-
-/* move_logic10 @0x80048928 (state 10, lizardman "captain") - SKELETON + NOTES.
- * This is the largest AI handler in the game (1086 GC insns, biggest on Xbox too).
- * Only the shared gate opening is reconstructed; the full body is a multi-mode
- * pack-hunter that has NOT been transcribed (deliberate under the light-touch pass).
- *
- * Full-body call inventory (from tools/gdl/fnasm.py game/enemy/enemy move_logic10):
- *   get_yaw x18  - face/milestone bearings for each sub-mode
- *   sin/cos     x7   - heading projection for the wander + corner probes
- *   GetMilestonePos x6, find_neighbor_milestone x2, update_enemy_milestone x1
- *                     - milestone-network navigation (shares the move_logic22 stack)
- *   turn_enemy_ang x5, set_enemy_trans x5, do_enemy_move x5 - one move per sub-mode
- *   format_brain x5   - AI-change transition per sub-mode
- *   fqdist x4, fn_8004CE38 x3, fn_8004C8CC x3 - dist checks + corner probes
- *   do_ai x2         - the flee/chase bail-outs
- * Frame: 392 bytes, saves r25-r31 (_savefpr_25), pool base lbl_8011AF48 held in a
- * nonvolatile.  Uses the lbl_80250E00 + index*916 + 3608 anchor like the others.
- * TODO: transcribe the sub-mode state machine (Ghidra decompile_function 0x80048928
- * then split the modes by e->mode1 / e->flag1 as in move_logic22 + move_logic07). */
-extern f64 lbl_80346920;      /* pi/2 turn step */
-extern f64 lbl_80346858;      /* 0.1 probe lift */
-extern f64 lbl_803468E0;      /* stuck-angle threshold */
-extern f32 lbl_8011C064[];    /* 0x8011C064 pack-hunter turn-step ramp */
-extern s32 find_neighbor_milestone(s32 ms, s32 nth); /* 0x8004C9DC */
 
 #pragma opt_propagation off
 void move_logic10(s32 index)
@@ -3567,8 +3872,6 @@ void move_logic10(s32 index)
 }
 #pragma opt_propagation reset
 
-
-
 /* move_logic12 @0x80049A1C (state 12, maggot-egg tether).  Shares the IT-flee /
  * chase gate, then runs a small generator-egg state machine: snap to the dest,
  * flag the egg, and hatch back when the egg reports ready. */
@@ -3667,6 +3970,7 @@ void move_logic12(s32 index)
     }
 }
 #pragma opt_propagation reset
+
 /* move_logic13 @0x80049C70 (state 13, zombie chain-follower).  Follows its
  * prev_enemy link toward the chain head; if the debug flag is set it dumps the
  * prev/next indices.  Each frame it faces its parent, measures the gap (inline
@@ -5160,417 +5464,41 @@ action_done31:
     do_enemy_move(index);
 }
 
-/* --- kill_enemy externs --- */
-extern int sprintf(char* buf, const char* fmt, ...);
-extern int toupper(int c);
-extern char* fn_80057ACC(s32 slot);                 /* current-level tag string */
-extern struct item* PlaceItem(s32 a, s32 b, char* name, s32 c);
-extern void StartBagFX(f32* pos, struct item* ip, f32 z); /* toss carried item */
-extern void AddItemSub(struct item* ip);           /* commit placed item */
-extern void del_target(f32* worldmat);               /* release camera target */
-extern void MBRemoveNode(struct mbnode* n, s32 a);   /* delete scene node */
-extern void SfxDeleteParented(struct mbnode* n, s32 a, s32 b);
-extern void AtreeDelete(void* atree);               /* free anim tree */
-extern s32 gTriggerCameraState;
-extern s32 lbl_80344734;      /* node-delete reentry guard */
-extern s32 ErrorPrintf(const char* fmt, ...);
-extern char lbl_80112468[];
-
-extern s32 heal_player(EnemyPlayerView* player, f32 amount);
-extern void do_heal_players(void* player, f32* matrix, f32 amount);
-extern void ModifyDamage(f32 armor, f32* damage, u32* damage_type, u32 shield);
-extern void CopyMat4(f32* source, f32* destination);
-extern void UpdateObjWorldMat(f32* matrix);
-extern void fn_8005A404(f32* matrix, f32* coll_offset, f32* attn_offset);
-extern void SetEnemyObj();
-extern void AudioPlayEvt101(f32* position);
-extern void AudioPlayEvt103(f32* position);
-extern void fn_8009DD48(void);
-extern void fn_8009DE5C(s32 type, f32* position);
-extern void fn_8009DE88(Enemy* enemy, s32 mode);
-extern void fn_8009DF7C(Enemy* enemy, s32 mode);
-extern void fn_800945D0(u8* position, u8* matrix, s32 damage_type, s32 alt,
-                        u32 type, f32 scale);
-extern void MBTreeSetAmbientAdd(struct mbnode* node, s32 value, s32 recurse);
-extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
-extern s32 gBossType;
-extern s32 lbl_80344768;
-extern f32 lbl_803447D8;
-extern s32 lbl_80344BE0;
-extern s32 lbl_80344BE4;
-extern s32 lbl_802897B8[];
-extern f32 lbl_8011B900[];
-extern f32 lbl_8011BA10[];
-extern f64 lbl_80346938;
-extern f64 lbl_80346948;
-extern f32 lbl_803469B0;
-extern f64 lbl_80346A08;
-extern f64 lbl_80346A10;
-extern f64 lbl_80346A18;
-extern f64 lbl_80346A28;
-extern f64 lbl_80346A30;
-
-/* Apply damage and accumulated hit direction, then run the enemy-specific
- * heal, reaction, death, sound, skin and burst-effect cascades. */
-#pragma dont_inline on
-s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
-                 s32 effect_position_arg, s32 hit_direction_arg,
-                 s32 play_effects)
-{
-    EnemyPlayerView* player = NULL;
-    f32* effect_position = (f32*)effect_position_arg;
-    f32* hit_direction = (f32*)hit_direction_arg;
-    f32 old_health = e->health;
-    u8 unused0[4];
-    f32 effect_pos[3];
-    u8 unused1[4];
-    f32 saved_matrix[16];
-    f32 fight;
-    s32 enemy_index;
-
-    if (e->state == DECORATION) {
-        return -1;
-    }
-    if (e->state == DYING) {
-        return -1;
-    }
-    if (e->type == E_IT) {
-        return -1;
-    }
-
-    if (player_index >= 0) {
-        player = &gEnemyPlayers[player_index];
-    }
-    if (player != NULL) {
-        lbl_803447E4 = 1;
-    }
-
-    if (e->type == E_DEATH) {
-        if ((damage_type & 0x200) != 0) {
-            if (player != NULL && player->level > 75) {
-                f32 heal_scale = (f32)(lbl_80346A10 *
-                    (f64)(player->level - 75) + lbl_80346A08);
-                heal_player(player, e->health * heal_scale);
-            }
-            e->health = lbl_80346820;
-        } else if (e->state == SLEEP) {
-            if (play_effects != 0) {
-                fn_8009DE5C(e->type, &e->objgrp.worldmat[3][0]);
-            }
-            {
-                s16 endurance = e->endurance - 1;
-                e->endurance = endurance;
-                if (endurance <= 0) {
-                    e->state = ACTIVE;
-                    if (play_effects != 0) {
-                        AudioPlayEvt103(&e->objgrp.worldmat[3][0]);
-                    }
-                    CopyMat4(&e->objgrp.worldmat[0][0], saved_matrix);
-                    SetEnemyObj((u8*)e, e->type, 1);
-                    CopyMat4(saved_matrix, &e->objgrp.worldmat[0][0]);
-                    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
-                    fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset,
-                                 e->attn_offset);
-                    MBTreeClearFlags(e->objgrp.node, 2, 0);
-                }
-            }
-            return 0;
-        } else if (player != NULL && (player->flags & 0x80000) != 0) {
-            f64 one;
-
-            e->health = (f32)(e->health - (one = lbl_80346810));
-            if (e->org_lvl == 2) {
-                AddExp(player_index, 1, -2);
-            } else {
-                player->health = (f32)(player->health + one);
-            }
-        } else {
-            e->health = (f32)(e->health - lbl_80346810);
-            if (player != NULL) {
-                msgPost(0, player_index, player->position);
-            }
-        }
-
-        if ((f64)e->health <= (f64)lbl_80346820) {
-            if (play_effects != 0) {
-                AudioPlayEvt101(&e->objgrp.worldmat[3][0]);
-            }
-            e->health = lbl_80346820;
-            enemy_index = (s32)(e - gEnemies);
-            e->state = DYING;
-            e->area = (s16)player_index;
-            if (e->algorithm == 18) {
-                SuicideExplosion(e->objgrp.coll_pos,
-                    (f32)(lbl_803468A8 * gCurLevel->ene_damage));
-                fn_8009DAC8(e->objgrp.coll_pos);
-            }
-            uncouple_enemy(enemy_index);
-            if (player != NULL) {
-                player->character_stats[player->character].kills++;
-            }
-            return 1;
-        }
-        return 0;
-    }
-
-    e->watchdog = 0;
-    if ((damage_type & 0x800000) != 0 && player != NULL) {
-        f32 healed = amount;
-        if (healed > e->health) {
-            healed = e->health;
-        }
-        do_heal_players(player, &e->objgrp.worldmat[0][0], healed);
-    }
-
-    if (player_index >= 0 && gCurLevel->plevel > lbl_80346820) {
-        f32 level = (f32)player->level;
-        f32 target_level = gCurLevel->plevel;
-        f32 scale = lbl_803468F0;
-
-        if (level < target_level) {
-            scale = (f32)(lbl_80346810 -
-                          lbl_80346878 * (target_level - level));
-        } else if (level > target_level) {
-            scale = (f32)(lbl_80346810 +
-                          lbl_80346858 * (level - target_level));
-        }
-        amount *= scale;
-    }
-
-    {
-        u32 shield = e->atts.armortype;
-        ModifyDamage(e->atts.armor, &amount, (u32*)&damage_type, shield);
-    }
-    if ((f64)lbl_803447D8 < lbl_80346810) {
-        amount = (f32)(amount * lbl_80346868);
-    }
-    if (player_index >= 0 &&
-        (f64)amount < *(volatile f64*)&lbl_80346810) {
-        amount = lbl_803468F0;
-    }
-
-    e->damage += amount;
-    if ((damage_type & 0xF) != 0) {
-        e->damagetype &= ~0xF;
-    }
-    e->damagetype |= damage_type;
-    if (hit_direction != NULL) {
-        e->damagedir[0] = hit_direction[0] + e->damagedir[0];
-        e->damagedir[1] = hit_direction[1] + e->damagedir[1];
-        e->damagedir[2] = hit_direction[2] + e->damagedir[2];
-    }
-
-    effect_pos[0] = e->objgrp.attn_pos[0];
-    effect_pos[1] = e->objgrp.attn_pos[1];
-    effect_pos[2] = e->objgrp.attn_pos[2];
-
-    if (e->type == E_GOLEM) {
-        if (lbl_80344768 >= 3) {
-            amount = (f32)(amount * lbl_80346A18);
-        } else if (lbl_80344768 >= 2) {
-            amount = (f32)(amount * lbl_80346830);
-        }
-    }
-    if (amount <= lbl_80346820) {
-        play_effects = 0;
-    } else {
-        e->damage_count++;
-    }
-
-    {
-        f64 applied;
-
-        if (gGameOptions[0] == 3) {
-            applied = lbl_80346A20;
-        } else {
-            applied = amount;
-        }
-        e->health = (f32)((f64)e->health - applied);
-    }
-
-    fight = gCurLevel->ene_damage * lbl_8011B900[e->type];
-    {
-        f32 threshold = gCurLevel->ene_health * lbl_8011BA10[e->type];
-        f32 upper = (f32)(lbl_80346A30 * threshold);
-        f32 lower = (f32)(lbl_80346A28 * threshold);
-
-        /* Goto-free guard form, kept for readability AND score.  It replaced a
-         * pair of `if (...) goto store_fight;` guards plus a label, and fixed
-         * this function's instruction-count parity (570 -> 571), which realigned
-         * every downstream branch displacement and dropped fndiff real 151 -> 66
-         * - the effect claim.law.guard-polarity-restructure-fixes-count-parity-
-         * not-form predicts.  Two forms measured identical to this one and are
-         * dead axes: splitting the `&&` into two nested ifs (MWCC re-merges it
-         * through the same cror), and an empty-true-block `if (t != D) {} else
-         * goto;`.  Keeping the first guard as a goto restores the target's
-         * matching `bgt` but loses parity again (back to real 151).
-         * The target's remaining `bne ->calc; b ->store` pair is the P6
-         * goto-pair wall (front-end inversion of a conditional over an
-         * adjacent unconditional jump): the full goto triple, the same with
-         * an intervening label, and a do-while(0)+break carrier all measured
-         * 2026-08-31 and every one collapsed to the identical beq (570/151)
-         * - see attempt.parked.damage-enemy-p6-goto-pair for the roster. */
-        if (e->health <= upper && e->type != E_DEATH) {
-            if (e->health > lower) {
-                fight = (f32)(lbl_80346A30 * fight);
-            } else {
-                fight = (f32)(lbl_80346A28 * fight);
-            }
-        }
-    }
-    e->atts.fight = fight;
-
-    if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
-        ((u8*)e->generator)[0xE6] = 7;
-        ((u8*)e->generator)[0xE0] = 3;
-    } else if (e->algorithm == 15 && e->generator != NULL) {
-        ((u8*)e->generator)[0xE3] = 0;
-    }
-
-    if ((f64)e->health <= lbl_80346898) {
-        if (e->type == gBossType) {
-            if ((f64)old_health > lbl_80346898 && player != NULL) {
-                player->character_stats[player->character].kills++;
-            }
-            return 1;
-        }
-
-        if (play_effects != 0) {
-            if (e->algorithm == 18) {
-                fn_8009DD48();
-            }
-            fn_8009DF7C(e, play_effects);
-        }
-        e->health = lbl_80346820;
-        enemy_index = (s32)(e - gEnemies);
-        e->state = DYING;
-        e->area = (s16)player_index;
-        if (e->algorithm == 18) {
-            SuicideExplosion(e->objgrp.coll_pos,
-                (f32)(lbl_803468A8 * gCurLevel->ene_damage));
-            fn_8009DAC8(e->objgrp.coll_pos);
-        }
-        uncouple_enemy(enemy_index);
-        if (player != NULL) {
-            player->character_stats[player->character].kills++;
-        }
-
-        if (player_index >= -1) {
-            if (e->objgrp.node != NULL) {
-                if (e->type == E_GOLEM && (damage_type & 0xF) == 0) {
-                    SetSkinFX(&e->skinfx, lbl_80344BE4, 15, 0,
-                              lbl_803469B0);
-                } else if (e->type == E_TREEFOLK &&
-                           (damage_type & 0xF) == 0) {
-                    SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
-                              lbl_803469B0);
-                } else if (e->type == E_KNIGHT &&
-                           (damage_type & 0xF) == 0) {
-                    SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
-                              lbl_803469B0);
-                } else if ((f64)e->hht > lbl_80346868) {
-                    SetSkinFX(&e->skinfx,
-                              lbl_802897B8[damage_type & 0xF], 10, 0,
-                              lbl_803469B0);
-                }
-                MBTreeSetAmbientAdd(e->objgrp.node, 999, 1);
-            }
-            if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
-                fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
-                            damage_type, 1, e->type, e->hht);
-            }
-        }
-        return 1;
-    }
-
-    if (play_effects != 0) {
-        fn_8009DE88(e, play_effects);
-    }
-    if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
-        if (effect_position != NULL && (f64)e->hht >= lbl_80346948) {
-            effect_pos[0] = *(f32*)((u8*)effect_position + 0);
-            effect_pos[1] = *(f32*)((u8*)effect_position + 4);
-            effect_pos[2] = *(f32*)((u8*)effect_position + 8);
-        }
-        fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
-                    damage_type, 0, e->type, e->hht);
-    }
-    return 0;
-}
-#pragma dont_inline off
-
-/* kill_enemy @0x8004EFE4.  Drop the carried item (or place a "GARG<level>"
- * egg for gargoyles), then tear the enemy down: health/state clear, grid
- * release, shadow + special fx + scene node deletion, generator uncouple. */
-extern char lbl_80346A38[7]; /* "GARG%s" (sdata2) */
-
-void kill_enemy(s32 index)
+s32 fn_8004C8CC(f32* pos, s32 index)
 {
     Enemy* e = &gEnemies[index];
-    struct item* item = 0;
-    s32 carried = 0;
-    char* p;
-    char buf[32];
+    s32 result;
+    f32 rad;
+    f32 hht;
+    f32 probe[3];
+    void* obj;
 
-    if (gTriggerCameraState != 0) {
-        return;
+    rad = (f32)(lbl_80346858 + *(f32*)((u8*)e + offsetof(Enemy, rad)));
+    hht = (f32)(lbl_80346858 + *(f32*)((u8*)e + offsetof(Enemy, hht)));
+    probe[0] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[0]));
+    probe[1] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[1]));
+    result = -1;
+    probe[2] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[2]));
+    probe[1] = pos[1];
+    if (fn_8004646C(rad, hht, index, probe, pos, 0, 0) >= 0) {
+        result = 0;
     }
-    if (e->gotitem != 0) {
-        item = e->gotitem;
-        e->gotitem = 0;
-        carried = 1;
-    } else {
-        switch (e->type) {
-        case E_GARGOYLE:
-            sprintf(buf, lbl_80346A38, fn_80057ACC(e->type));
-            for (p = buf; *p != 0; p++) {
-                *p = toupper(*p);
+    if (result != 0) {
+        obj = fn_8005EFAC(rad, probe, pos, 0, 0);
+        if (obj != 0) {
+            if (fn_8005D3D8(-1, obj) != 0) {
+                result = 0;
             }
-            item = PlaceItem(1, 16, buf, 0);
-            break;
         }
     }
-    if (item != 0) {
-        if (carried != 0) {
-            *((u8*)item + 205) = 10;
-            StartBagFX(e->objgrp.attn_pos, item, lbl_80346820);
-        } else {
-            *((u8*)item + 205) = 0;
-            MBTreeClearFlags(*(struct mbnode**)((u8*)item + 100), 2, 0);
-            if (**(s32**)item == 1) {
-                *(s16*)((u8*)item + 236) = 60;
-            }
-            *(f32*)((u8*)item + 52) = e->objgrp.worldmat[3][0];
-            *(f32*)((u8*)item + 56) = e->objgrp.worldmat[3][1];
-            *(f32*)((u8*)item + 60) = e->objgrp.worldmat[3][2];
-            AddItemSub(item);
+    if (result != 0) {
+        if (FastWallCollide(probe, pos, 0, 2) != 0) {
+            result = 0;
         }
     }
-    if (e->type == 27) {
-        fn_8004F1DC(e);
-    }
-    e->health = lbl_80346820;
-    e->state = 0;
-    del_target(&e->objgrp.worldmat[0][0]);
-    if (e->shadow != 0) {
-        MBRemoveNode(e->shadow, 0);
-        e->shadow = 0;
-    }
-    if (e->specialfx >= 0) {
-        e->specialfx = DeleteEffect(e->specialfx, 1);
-    }
-    if (e->type == 27) {
-        SfxDeleteParented(e->objgrp.node, 0, -1);
-    }
-    AtreeDelete(&e->atree);
-    lbl_80344734 = 1;
-    MBRemoveNode(e->objgrp.node, 0);
-    lbl_80344734 = 0;
-    e->objgrp.node = 0;
-    uncouple_enemy(index);
+    return result;
 }
 
-extern s32 lbl_80344724;   /* 0x80344724 active milestone count */
 /* find_neighbor_milestone @0x8004C9DC -- locate milestone id `ms` in the active
  * milestone list, then return the id `nth` slots away (reflecting at the ends),
  * preferring whichever candidate sits closer to the world origin. */
@@ -5729,22 +5657,6 @@ f32 turn_enemy_ang(Enemy* e, f32 want)
     return r;
 }
 
-/* --- generate_enemy externs --- */
-extern s32 RandInt(s32 n);
-extern s32 check_enemy_pos(f32* start, f32* out, s32 slot);
-extern void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
-extern void UpdateObjWorldMat(f32* worldmat);              /* claim grid cell */
-extern void fn_8005A404(f32* worldmat, f32* coll_offset, f32* attn_offset);
-extern s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active);
-extern void StartGenFX(f32* pos, s32 level);
-extern s32 gBossType;
-extern s32 gBossDying;
-extern s32 gGameMode;      /* current game mode; see enum e_mode */
-extern s32 lbl_803447DC;      /* generators-disabled flag */
-extern s32 lbl_8034472C;      /* random-type rotation counter */
-extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
-extern u32 jumptable_8011C25C[];
-
 /* Accelerate an enemy along an angle, caching the trig pair between calls. */
 void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
 {
@@ -5777,636 +5689,6 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
         }
     }
 }
-
-/* Resolve the generator/spew class shared by groups of enemy types. */
-s32 fn_8004F87C(s32 type, s32 level, s32 spew)
-{
-    switch (type) {
-    case 0:
-    case 3:
-    case 6:
-    case 9:
-    case 12:
-    case 15:
-    case 18:
-    case 21:
-    case 22:
-        if (spew != 2 && spew != 4) {
-            spew = RandInt(1) != 0 ? 4 : 2;
-        }
-        break;
-    case 2:
-    case 7:
-    case 14:
-    case 17:
-    case 24:
-        if (spew == 0) {
-            switch (level) {
-            default:
-                spew = 7;
-                break;
-            case 3:
-                spew = 30;
-                break;
-            case 4:
-                spew = 23;
-                break;
-            case 5:
-                spew = 17;
-                break;
-            case 6:
-                spew = 18;
-                break;
-            }
-        }
-        break;
-    case 1:
-    case 4:
-    case 5:
-    case 8:
-    case 10:
-    case 11:
-    case 13:
-    case 16:
-    case 19:
-    case 20:
-    case 25:
-    case 32:
-    case 33:
-        if (spew == 0) {
-            switch (level) {
-            default:
-                spew = 7;
-                break;
-            case 4:
-                spew = 23;
-                break;
-            case 5:
-                spew = 17;
-                break;
-            case 6:
-                spew = 18;
-                break;
-            }
-        }
-        break;
-    case 27:
-        spew = 31;
-        break;
-    case 30:
-        spew = 3;
-        break;
-    case 31:
-        spew = 27;
-        break;
-    case 29:
-        spew = 19;
-        break;
-    }
-    return spew;
-}
-
-/* Rotate a horizontal direction into one of the eight generator octants. */
-static f32 gendir_8004FBC8(f32* input, f32* output, s32 direction)
-{
-    f32 x = input[0];
-    f32 z = input[2];
-    f64 term;
-
-    output[1] = input[1];
-    switch (direction) {
-    default:
-        output[0] = x;
-        output[2] = z;
-        return lbl_80346820;
-    case 1:
-        output[0] = -x;
-        output[2] = -z;
-        return lbl_80346A4C;
-    case 2:
-        output[0] = -z;
-        output[2] = x;
-        return lbl_80346A50;
-    case 3:
-        output[0] = z;
-        output[2] = -x;
-        return lbl_80346A54;
-    case 4:
-        term = lbl_80346A58 * z;
-        output[0] = lbl_80346A58 * x + term;
-        output[2] = lbl_80346A58 * -x + term;
-        return lbl_80346A60;
-    case 5:
-        term = lbl_80346A58 * x;
-        output[0] = lbl_80346A58 * -z + term;
-        output[2] = lbl_80346A58 * z + term;
-        return lbl_80346A64;
-    case 6:
-        term = lbl_80346A58 * -x;
-        output[0] = lbl_80346A58 * z + term;
-        output[2] = lbl_80346A58 * -z + term;
-        return lbl_80346A68;
-    case 7:
-        term = lbl_80346A58 * -z;
-        output[0] = lbl_80346A58 * -x + term;
-        output[2] = lbl_80346A58 * x + term;
-        return lbl_80346A6C;
-    }
-}
-
-/* Point the Garm death effect toward its target (or the first active player). */
-void fn_8004F1DC(Enemy* enemy)
-{
-    volatile f32 enemyPos[3];
-    f32 matrix[12];
-    f32 direction[3];
-    s32 i;
-    f32* player = 0;
-
-    if (enemy->closest >= 0) {
-        player = gPlayerWords[enemy->closest];
-    } else {
-        for (i = 0; i < 4; i++) {
-            if (((s32*)gPlayerWords[i])[PW(state)] == 1) {
-                break;
-            }
-        }
-        if (i < 4) {
-            player = gPlayerWords[i];
-        }
-    }
-
-    if (player != 0) {
-        enemyPos[0] = enemy->objgrp.worldmat[3][0];
-        enemyPos[1] = enemy->objgrp.worldmat[3][1];
-        enemyPos[2] = enemy->objgrp.worldmat[3][2];
-        direction[0] = player[PW(pos)] - enemyPos[0];
-        direction[1] = player[PW(pos[1])] - enemyPos[1];
-        direction[2] = player[PW(pos[2])] - enemyPos[2];
-        NormalVector(direction);
-        CreateDirMatrix(matrix, direction, 0);
-        StartEnemyDeathFX(matrix);
-    }
-}
-
-/* generate_enemy @0x8004F4B4 (global).  Spawn an enemy of `type` at `pos`:
- * validate world/boss state and per-type limits, resolve random types
- * (-2/-3), take a slot, then for generator spawns search the 8 (or 2)
- * directions around the generator for a free position; finish by claiming
- * the grid cell, starting the E_START anim and the generator fx. */
-s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
-                   struct item* gen, s32 imp, f32 ang)
-{
-    u8* tbl = lbl_8011AF48;
-    s32 otype;
-    s32 mask = 0;
-    s32 slot;
-    s32 ndirs;
-    s32 start;
-    s32 d;
-    s32 i;
-    s32 r;
-    Enemy* e;
-    f32 startv[3];
-    f32 out[3];
-    f32 v[3];
-
-    if (gGameMode == MA_HSTABLE) {
-        return -1;
-    }
-    if (lbl_803447DC != 0 && gen != 0) {
-        return -4;
-    }
-    if (gBossType >= 0 && gBossDying != 0) {
-        return -4;
-    }
-    spew = fn_8004F87C(type, level, spew);
-    otype = type;
-    if (type == -2) {
-        RandInt(4);
-        level = 2;
-        i = lbl_8034472C;
-        lbl_8034472C = i + 1;
-        type = *(s32*)(tbl + ((i & 3) << 2) + 4284);
-        spew = *(s32*)(tbl + ((i & 3) << 2) + 4300);
-    } else if (type == -3) {
-        RandInt(4);
-        level = 3;
-        i = lbl_8034472C;
-        lbl_8034472C = i + 1;
-        type = *(s32*)(tbl + ((i & 3) << 2) + 4316);
-        spew = *(s32*)(tbl + ((i & 3) << 2) + 4332);
-    } else if (type < 0) {
-        return -6;
-    }
-    if (type != 30 && type != 31) {
-        if (lbl_802512B0[type] < 0) {
-            return -5;
-        }
-        if (lbl_802511FC[type] == 4 && level < 4) {
-            return -5;
-        }
-    }
-    slot = find_enemy_slot(type, imp);
-    if (slot < 0) {
-        return -2;
-    }
-    init_enemy(slot, pos, type, level, spew);
-    gEnemies[slot].generator = gen;
-    e = &gEnemies[slot];
-    if (gen == 0 || type == 30) {
-        e->genang_offset = lbl_80346820;
-    } else {
-        switch (otype) {
-        case 1:
-        case 4:
-        case 5:
-        case 7:
-        case 8:
-        case 10:
-        case 11:
-        case 14:
-        case 15:
-        case 19:
-        case 24:
-        case 25:
-            mask = 0xFFCE;
-            ndirs = 8;
-            break;
-        case 18:
-            ndirs = 2;
-            break;
-        case 0:
-        case 2:
-        case 3:
-        case 6:
-        case 12:
-        case 13:
-        case 16:
-        case 17:
-        case 20:
-        case 21:
-        case 22:
-        case 23:
-            ndirs = 8;
-            break;
-        default:
-            ndirs = 8;
-            break;
-        }
-        if (spew == 12) {
-            ndirs = 1;
-        }
-        startv[0] = pos[0];
-        startv[1] = pos[1];
-        startv[2] = pos[2];
-        startv[1] = startv[1] + e->coll_offset[1];
-        switch (type) {
-        case 17:
-            ang = 0.0f;
-            break;
-        default:
-            ang = ang + e->rad;
-            break;
-        }
-        v[0] = dir[0] * ang;
-        v[1] = 0.0f;
-        v[2] = dir[2] * ang;
-        start = RandInt(ndirs);
-        d = start;
-        do {
-            if ((mask & 0xFFFF & (1 << d)) == 0) {
-                e->genang_offset = gendir_8004FBC8(v, out, d);
-                r = check_enemy_pos(startv, out, slot);
-                if (r > 0) {
-                    goto placed;
-                }
-                if (r < 0) {
-                    mask |= 1 << d;
-                }
-            }
-            d = (d + 1) % ndirs;
-        } while (d != start);
-        MBTreeSetFlags(e->objgrp.node, 2, 0);
-        if (e->shadow != 0) {
-            MBTreeSetFlags(e->shadow, 2, 0);
-        }
-        e->state = 0;
-        return -3;
-    }
-placed:
-    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
-    fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
-    e->action = 1;
-    if (e->actionlist[1].animidx >= 0) {
-        InitAnim(lbl_80346820, &e->atree.animinfo,
-                 e->actionlist[1].animidx, 0, 1);
-    }
-    if (e->hht > 2.0 && level <= 3 && lbl_80251148[type] != 0) {
-        StartGenFX(pos, level);
-    }
-    return slot;
-}
-
-typedef struct EnemyGeneratorInfo {
-    s32 type;
-} EnemyGeneratorInfo;
-
-typedef struct EnemyGenerator {
-    EnemyGeneratorInfo* info;
-    u8 _pad004[0xDA];
-    s8 live_count;
-    u8 _pad0DF[2];
-    s8 first_enemy;
-    u8 _pad0E2;
-    s8 flag_e3;
-} EnemyGenerator;
-
-/* uncouple_enemy: detach enemy `index` from its generator's spawn list.
- * The prev_enemy/next_enemy relink below is transcribed from the verified GC
- * asm (uncouple_enemy @0x8004F2D8) and exercises the reconstructed Enemy
- * fields; the generator-record fixup (item*) is left as a comment because the
- * item struct belongs to another module.  NonMatching: shipped bytes come from
- * the original DOL. */
-void uncouple_enemy(s32 index) {
-    Enemy* e = &gEnemies[index];
-
-    if (e->prev_enemy >= 0) {
-        gEnemies[e->prev_enemy].next_enemy = e->next_enemy;
-        e->prev_enemy = -1;
-    }
-    if (e->next_enemy >= 0) {
-        gEnemies[e->next_enemy].prev_enemy = e->prev_enemy;
-        e->next_enemy = -1;
-    }
-    if (e->algorithm == E_DOG) {
-        lbl_80344748 = -1;
-        e->algorithm = -e->algorithm;
-    }
-    if (e->generator != 0) {
-        if (((EnemyGenerator*)e->generator)->first_enemy == index) {
-            ((EnemyGenerator*)e->generator)->first_enemy =
-                (s8)e->prev_enemy;
-        }
-        if (e->algorithm == 15) {
-            ((EnemyGenerator*)e->generator)->flag_e3 = 0;
-            ((EnemyGenerator*)e->generator)->live_count = 0;
-        }
-        if (((EnemyGenerator*)e->generator)->info->type == 3) {
-            if (((EnemyGenerator*)e->generator)->live_count > 0) {
-                ((EnemyGenerator*)e->generator)->live_count--;
-            }
-        } else {
-            ErrorPrintf(lbl_80112468, e->generator);
-        }
-        e->generator = 0;
-    }
-}
-
-/* check_enemy_pos @0x8004F9AC -- validate a candidate spawn point for enemy
- * `slot`: optionally offset it, reject wall/floor failures and steep drops,
- * snap Y to the floor, then reject overlaps with world objects or other
- * enemies (unless the overlap is the enemy's own generator).  Returns 1 when
- * the position is usable, 0 when blocked by geometry/occupant, -1 on failure. */
-extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
-/* FloorCollisionResultView is declared near do_enemy_collide above. */
-extern FloorCollisionResultView gFloorCollisionResult; /* 0x8023CAE0 */
-extern f32 lbl_80346A40;
-extern f32 lbl_80346A44;
-extern f32 lbl_80346A48;
-extern f64 lbl_80346988;           /* max vertical snap distance */
-extern f64 lbl_80346830;           /* 0.5 */
-extern void* fn_8005EFAC(f32 rad, f32* probe, f32* pos, s32 a, s32 b);
-extern s32 fn_8005D3D8(s32 a, void* obj);
-
-s32 check_enemy_pos(f32* start, f32* out, s32 slot)
-{
-    Enemy* e = &gEnemies[slot];
-    f32 rad = e->rad;
-    f32 hht = e->hht;
-    f32 pos[3];
-    u8 _ppad[4];
-    f64 half;
-    void* obj;
-    s32 grounded;
-
-    if (out != NULL) {
-        pos[0] = out[0] + start[0];
-        pos[1] = out[1] + start[1];
-        pos[2] = out[2] + start[2];
-        if (EnemyWallCollide(rad, start, pos, 0) != 0) {
-            return -1;
-        }
-    } else {
-        pos[0] = start[0];
-        pos[1] = start[1];
-        pos[2] = start[2];
-    }
-    e->objgrp.worldmat[3][0] = pos[0];
-    e->objgrp.worldmat[3][1] = pos[1];
-    e->objgrp.worldmat[3][2] = pos[2];
-    if (FloorCollide(pos, 0, 0, 2, lbl_80346A40, lbl_80346A44, lbl_80346A48)
-        != 0) {
-        grounded = 1;
-    } else {
-        grounded = 0;
-    }
-    if (grounded == 0) {
-        return -1;
-    }
-    {
-        f32 floorY = gFloorCollisionResult.floorY;
-        f32 dy = floorY - start[1];
-        u8 _dpad[8];
-
-        *(u32*)&dy &= 0x7FFFFFFF;
-        if (dy > lbl_80346988) {
-            return -1;
-        }
-        e->objgrp.worldmat[3][1] = floorY;
-    }
-    fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
-    if (fn_80046680(rad, hht, slot, 1, start, pos) >= 0) {
-        return 0;
-    }
-    half = lbl_80346830 * rad;
-    if (fn_8004646C((f32)half, hht, slot, start, pos, 0, 0) >= 0) {
-        return 0;
-    }
-    obj = fn_8005EFAC((f32)half, start, pos, 0, 0);
-    if (obj != NULL && obj != e->generator) {
-        if (fn_8005D3D8(-1, obj) != 0) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-/* find_enemy_slot: return a free/recyclable enemy slot for a new spawn.
- * Recycles the least-important live enemy through kill_enemy when the array is
- * full; returns -1 when the request cannot be satisfied. */
-s32 find_enemy_slot(s32 type, s32 level) {
-    s32 enemy_state;
-    Enemy* enemy;
-    s32 index;
-    s32 best_visible;
-    s32 visible;
-    f64 invis_add;
-    f64 dying_mult;
-    f32 distance;
-    f32 best_distance;
-    s32 best_index;
-    s32 count;
-
-    best_visible = 1;
-    index = 0;
-    best_index = 0;
-    count = gNumEnemies;
-    best_distance = lbl_80346820;
-    dying_mult = lbl_80346878;
-    invis_add = lbl_80346A20;
-    enemy = gEnemies;
-
-    for (index = 0; index < count; index++, enemy++) {
-        enemy_state = enemy->state;
-
-        if (enemy_state == INACTIVE) {
-            return index;
-        }
-        if (enemy->type != E_IT) {
-            distance = enemy->actual_dist;
-            visible = enemy->visactive;
-
-            if (enemy_state == DYING || enemy_state == SLEEP ||
-                enemy->birth_style != 0) {
-                distance *= dying_mult;
-            } else if (visible == 0) {
-                distance += invis_add;
-            }
-            if (distance > best_distance) {
-                best_distance = distance;
-                best_index = index;
-                best_visible = visible;
-            }
-        }
-    }
-
-    default_gen_count = 1;
-    if (type < E_NTYPES && level < best_visible) {
-        return -1;
-    }
-    if (best_visible != 0) {
-        lbl_80344728++;
-    }
-    kill_enemy(best_index);
-    {
-        Enemy* k = (Enemy*)((u8*)gEnemies + best_index * 916);
-        f32 reset_distance = lbl_803468F0;
-
-        k->close_dist = reset_distance;
-        k->actual_dist = reset_distance;
-    }
-    return best_index;
-}
-
-/* 0x8004C8CC - wall/object clearance probe shared by the move_logic set */
-extern void* fn_8005EFAC(f32 rad, f32* probe, f32* pos, s32 a, s32 b);
-extern s32 fn_8005D3D8(s32 a, void* obj);
-extern f64 lbl_80346858;
-
-s32 fn_8004C8CC(f32* pos, s32 index)
-{
-    Enemy* e = &gEnemies[index];
-    s32 result;
-    f32 rad;
-    f32 hht;
-    f32 probe[3];
-    void* obj;
-
-    rad = (f32)(lbl_80346858 + *(f32*)((u8*)e + offsetof(Enemy, rad)));
-    hht = (f32)(lbl_80346858 + *(f32*)((u8*)e + offsetof(Enemy, hht)));
-    probe[0] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[0]));
-    probe[1] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[1]));
-    result = -1;
-    probe[2] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[2]));
-    probe[1] = pos[1];
-    if (fn_8004646C(rad, hht, index, probe, pos, 0, 0) >= 0) {
-        result = 0;
-    }
-    if (result != 0) {
-        obj = fn_8005EFAC(rad, probe, pos, 0, 0);
-        if (obj != 0) {
-            if (fn_8005D3D8(-1, obj) != 0) {
-                result = 0;
-            }
-        }
-    }
-    if (result != 0) {
-        if (FastWallCollide(probe, pos, 0, 2) != 0) {
-            result = 0;
-        }
-    }
-    return result;
-}
-
-/* 0x80045FE4 - enemy-vs-world-object damage (type from wobj flag nibble) */
-extern u32 WorldObjGetAllFlags(void* wobj);
-extern f32 NormalVector2D(f32* v);
-extern f32 lbl_80346820;
-extern f32 lbl_803468A0;
-extern f32 lbl_803468A4;
-
-#pragma dont_inline on
-#pragma opt_propagation off
-#pragma opt_common_subs off
-void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
-{
-    u32 flags;
-    u32 damageType;
-    f32 dir[3];
-
-    flags = WorldObjGetAllFlags(wobj);
-    if (*(s32*)e == 27) {
-        return;
-    }
-    if ((flags & 0xF0000) == 0) {
-        return;
-    }
-    if (flags & 0x02000000) {
-        if (!(flags & 0x08000000)) {
-            return;
-        }
-    }
-    dir[0] = oldpos[0] - hitnrm[0];
-    dir[1] = lbl_80346820;
-    dir[2] = oldpos[2] - hitnrm[2];
-    NormalVector2D(dir);
-    damageType = flags & 0xF0000;
-    switch (damageType) {
-    case 0x10000:
-        damage_enemy(e, lbl_803468A0, -1, 0, (s32)hitnrm, (s32)dir, 1);
-        break;
-    case 0x20000:
-        damage_enemy(e, lbl_803468A0, -1, 16, (s32)hitnrm, (s32)dir, 1);
-        break;
-    case 0x30000:
-    case 0x40000:
-    case 0x50000:
-        damage_enemy(e, lbl_803468A4, -1, 32, (s32)hitnrm, (s32)dir, 1);
-        break;
-    case 0x60000:
-        break;
-    }
-}
-#pragma opt_propagation reset
-#pragma opt_common_subs reset
-#pragma dont_inline off
-
-/* 0x8004CE38 - pick turn direction: which of +/-step headings nears the player */
-extern f64 lbl_80346920;        /* turn step */
-extern f64 lbl_80346840;        /* wrap high */
-extern f64 lbl_80346848;        /* full circle */
-extern f64 lbl_80346850;        /* wrap low */
 
 s32 fn_8004CE38(Enemy* e)
 {
@@ -6464,322 +5746,50 @@ s32 fn_8004CE38(Enemy* e)
     return 1;
 }
 
-/* do_enemies @0x8004D078 -- per-frame master enemy loop.  Runs the critter
- * list, then (when not paused) sweeps every enemy: a scripted-camera fast path,
- * otherwise a player-aggro reset, an aggro-decay ramp, a milestone/aim probe,
- * a two-radius visibility cull, and the main per-enemy state machine (alive /
- * stunned / dying) with knockback damping and boss fade-out.  Draws the live
- * enemy count when the debug flags are set. */
-extern void ProcessCritterList(void);
-extern s32 gScriptedCameraState;
-s32 fn_8004D958(s32 index);
-extern s32* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color, char* txt);
-extern s32 MBWorldSphereVisible3(f32* center, f32 radius);
-extern void fn_800516F8(s32 index);
-extern void fn_8009FEFC(s16 sound);
-extern void fn_8009FEA0(s16 sound);
-extern void AudioPlayEvt102(void);
-extern void ProcessSkinFX(f32* a, void* node, s32 c);
-extern void fn_8005A338(f32* mat, f32* colloff, f32* attnoff);
-extern void fn_8004DF58(Enemy* e);
-extern f32 atan2(f32 y, f32 x);
-extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
-extern s32 gBoss398;
-extern char gTextFormatBuf[];
-extern s32 lbl_803447B8;
-extern s32 lbl_80344718;
-extern s32 lbl_80344740;
-extern f32 lbl_803447D8;
-extern s32 lbl_803447E4;
-extern f32 lbl_8011B878[];        /* per-type aggro-decay ramp (0x88) */
-extern f32 lbl_80346980;
-extern f64 lbl_80346928;
-extern f32 lbl_803468F0;
-extern f64 lbl_80346810;
-extern f64 lbl_80346818;
-extern f64 lbl_80346940;
-extern f64 lbl_80346878;
-extern f32 lbl_803469C0;
-extern char lbl_803469C4[3];
-extern f32 lbl_803469C8;
-extern f32 lbl_803469CC;
-extern f32 lbl_803469D0;
-extern f32 lbl_803469D4;
-extern const f32 lbl_803469D8;
-extern f64 lbl_803469E0;
-extern f64 lbl_803469E8;
-extern s32 lbl_80344BF8;
-extern f64 lbl_80346830;
-extern f64 lbl_80346838;
-extern f64 lbl_80346868;
-extern f64 lbl_803469F0;
-extern s32 heal_player(EnemyPlayerView* player, f32 amount);
-extern void StartGemFX(f32* position, s32 kind);
-extern void fn_8009E08C(Enemy* enemy);
-extern void AudioPlayerHit(s32 player, s32 kind);
-
-void fn_8004DC2C(Enemy* enemy)
+/* Choose the turn direction on the axis with the larger separation. */
+s32 fn_8004CFAC(f32* pos, f32* target)
 {
-    f32 scale;
-    f64 limit;
-    u32 damageType;
-    s32 type;
-    s32 typeCopy;
-    f64 angle;
-    u8 unused[8];
+    u8 framePad[8];
+    f32 x = pos[0];
+    f32 targetX = target[0];
+    f32 dx = x - targetX;
+    f32 z;
+    f32 targetZ;
+    f32 dz;
+    u8 unused[12];
 
-    typeCopy = enemy->type;
-    type = typeCopy;
-    if (type == gBossType) {
-        return;
-    }
-    if ((f64)enemy->damage >= lbl_80346810) {
-        damageType = enemy->damagetype;
-        if ((damageType & 0x10160) != 0 ||
-            ((f64)enemy->damage > (f64)lbl_803469CC &&
-             (damageType & 0x200) != 0)) {
-            RequestEnemyAction(enemy, E_HIT_REACT2);
-            if (enemy->type == E_GOLEM) {
-                enemy->flag1 = 1;
-            }
-            if (enemy->type == E_ACID) {
-                scale = lbl_80346820;
-            } else if ((f64)enemy->hht <= lbl_80346868 && enemy->type != E_IT) {
-                scale = lbl_803469D0;
-            } else if (enemy->type == E_GOLEM) {
-                scale = lbl_80346980;
-            } else {
-                scale = lbl_803469D4;
-            }
-            enemy->pushed[0] += enemy->damagedir[0] * scale;
-            enemy->pushed[1] += enemy->damagedir[1] * scale;
-            enemy->pushed[2] += enemy->damagedir[2] * scale;
-            scale = enemy->damagedir[2];
-            angle = atan2(enemy->damagedir[0], scale);
-            limit = lbl_80346840;
-            enemy->pushang = (f32)(limit + angle);
-            angle = enemy->pushang;
-            if (angle > limit) {
-                angle -= lbl_80346848;
-            } else if (angle <= lbl_80346850) {
-                angle = lbl_80346848 + angle;
-            }
-            enemy->pushang = (f32)angle;
-            scale = lbl_80346820;
-            enemy->damagedir[0] = scale;
-            enemy->damagedir[1] = scale;
-            enemy->damagedir[2] = scale;
-        } else if ((damageType & 0x10) != 0) {
-            if (type == E_GOLEM || type == E_ACID) {
-                enemy->flag1 = 1;
-            } else {
-                RequestEnemyAction(enemy, E_HIT_REACT1);
-                enemy->pushed[0] += enemy->damagedir[0] * lbl_803469D8;
-                enemy->pushed[1] += enemy->damagedir[1] * lbl_803469D8;
-                enemy->pushed[2] += enemy->damagedir[2] * lbl_803469D8;
-                scale = enemy->damagedir[2];
-                angle = atan2(enemy->damagedir[0], scale);
-                limit = lbl_80346840;
-                enemy->pushang = (f32)(limit + angle);
-                angle = enemy->pushang;
-                if (angle > limit) {
-                    angle -= lbl_80346848;
-                } else if (angle <= lbl_80346850) {
-                    angle = lbl_80346848 + angle;
-                }
-                enemy->pushang = (f32)angle;
-                scale = lbl_80346820;
-                enemy->damagedir[0] = scale;
-                enemy->damagedir[1] = scale;
-                enemy->damagedir[2] = scale;
-            }
-        } else {
-            if (type != E_GOLEM) {
-                RequestEnemyAction(enemy, E_HIT_REACT1);
-            } else {
-                enemy->flag1 = 1;
-            }
-        }
+    *(u32*)&dx &= 0x7FFFFFFF;
+    z = pos[2];
+    targetZ = target[2];
+    dz = z - targetZ;
+    *(u32*)&dz &= 0x7FFFFFFF;
 
-        if ((f64)(enemy->pushed[0] * enemy->pushed[0] +
-                  enemy->pushed[1] * enemy->pushed[1] +
-                  enemy->pushed[2] * enemy->pushed[2]) > lbl_803469E0) {
-            NormalVector(enemy->pushed);
-            limit = lbl_803469E8;
-            enemy->pushed[0] = (f32)(limit * enemy->pushed[0]);
-            enemy->pushed[1] = (f32)(limit * enemy->pushed[1]);
-            enemy->pushed[2] = (f32)(limit * enemy->pushed[2]);
+    if (dx >= dz) {
+        if (z < targetZ) {
+            return 1;
         }
-        scale = lbl_80346820;
-        enemy->damage = scale;
-        enemy->damagetype = 0;
-        if (enemy->health <= scale) {
-            RequestEnemyAction(enemy, E_DYING);
-        } else {
-            SetSkinFX(&enemy->skinfx, lbl_80344BF8, 1, 1, lbl_803468F0);
-        }
+        return -1;
     }
-    enemy->pushmag2 = enemy->pushed[0] * enemy->pushed[0] +
-                      enemy->pushed[2] * enemy->pushed[2];
+    if (x < targetX) {
+        return -1;
+    }
+    return 1;
 }
 
-void fn_8004DF58(Enemy* enemy)
+/* Arm an enemy's dead-end timer and clear blocked desired actions. */
+void fn_8004D030(s32 index, s32 ticks)
 {
-    u32 playerFlags;
-    EnemyPlayerView* player;
-    s32 damageMode;
-    f32 amount;
-    f32 direction[3];
-    f32 missilePosition[3];
-    f32 healedPosition[3];
-    f32 reflectedPosition[3];
-    u8 unused[16];
-    s32 hitKind;
+    Enemy* enemy = &gEnemies[index];
 
-    (void)unused;
-    playerFlags = 0;
-    if (((enemy->algorithm == 28 ||
-          (u16)(enemy->algorithm - 29) <= 1) &&
-         (enemy->attack_flag & 0xF) != 0) ||
-        (enemy->algorithm == 31 && (enemy->attack_flag & 2) != 0)) {
-        if (enemy->coll_pnum < 0) {
-            if (enemy->closest >= 0) {
-                missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
-                missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
-                missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
-            } else {
-                missilePosition[0] = enemy->objgrp.coll_pos[0];
-                missilePosition[1] = enemy->objgrp.coll_pos[1];
-                missilePosition[2] = enemy->objgrp.coll_pos[2];
-                missilePosition[0] = (f32)(lbl_803469F0 * sin(enemy->pyr[1]) +
-                                           missilePosition[0]);
-                missilePosition[2] = (f32)(lbl_803469F0 * cos(enemy->pyr[1]) +
-                                           missilePosition[2]);
-            }
-            fn_8004E448(enemy, (s32)missilePosition,
-                        enemy->objgrp.coll_pos);
-            enemy->attack_flag &= ~0xF;
-        }
+    if (enemy->dead_end > 0) {
+        return;
     }
-
-    if (enemy->attack_index >= 0 && (enemy->attack_flag & 0xF) != 0) {
-        player = &gEnemyPlayers[enemy->attack_index];
-        if (player->state == 1) {
-            damageMode = 1;
-            amount = enemy->atts.fight;
-            if ((f64)lbl_803447D8 < lbl_80346810) {
-                playerFlags |= 0x40000000;
-                amount = (f32)(amount * lbl_80346830);
-            } else {
-                if ((enemy->attack_flag & 2) != 0) {
-                    amount = (f32)(amount * lbl_80346838);
-                    if ((f64)enemy->hht > lbl_80346868) {
-                        playerFlags |= 0x10;
-                    }
-                }
-                if (enemy->type == E_GOLEM) {
-                    playerFlags |= 0x20;
-                }
-                if ((f64)enemy->hht <= lbl_80346868) {
-                    playerFlags |= 0x40000000;
-                }
-            }
-
-            if (player->attack_heal != 0) {
-                healedPosition[0] = enemy->objgrp.coll_pos[0];
-                healedPosition[1] = enemy->objgrp.coll_pos[1];
-                healedPosition[2] = enemy->objgrp.coll_pos[2];
-                player->damage_position[0] =
-                    healedPosition[0] - healedPosition[0];
-                player->damage_position[1] =
-                    healedPosition[1] - healedPosition[1];
-                player->damage_position[2] =
-                    healedPosition[2] - healedPosition[2];
-                damage_enemy(enemy, amount, -1, 0x200,
-                             (s32)player->damage_position,
-                             (s32)healedPosition, 1);
-                heal_player(player, amount);
-                amount = lbl_80346820;
-                playerFlags = 0x40000000;
-                StartGemFX(player->position, 1);
-            } else if (player->attack_reflect != 0) {
-                reflectedPosition[0] = enemy->objgrp.coll_pos[0];
-                reflectedPosition[1] = enemy->objgrp.coll_pos[1];
-                reflectedPosition[2] = enemy->objgrp.coll_pos[2];
-                player->damage_position[0] =
-                    reflectedPosition[0] - reflectedPosition[0];
-                player->damage_position[1] =
-                    reflectedPosition[1] - reflectedPosition[1];
-                player->damage_position[2] =
-                    reflectedPosition[2] - reflectedPosition[2];
-                damage_enemy(enemy, amount, -1, 0,
-                             (s32)player->damage_position,
-                             (s32)reflectedPosition, 1);
-                amount = lbl_80346820;
-                playerFlags = 0x40000000;
-                StartGemFX(player->position, 1);
-            }
-
-            if ((f64)enemy->hht <= lbl_80346868) {
-                if (enemy->type != E_IT) {
-                    goto generic_hit_sound;
-                }
-            }
-            if (enemy->type == E_DEMON || enemy->type == E_MUMMY ||
-                enemy->type == E_TREEFOLK) {
-            generic_hit_sound:
-                fn_8009E08C(enemy);
-                damageMode = 0;
-            } else if (enemy->type == E_GRUNT || enemy->type == E_KNIGHT ||
-                       enemy->type == E_LIZARDMAN) {
-                if (enemy->org_lvl >= 2) {
-                    hitKind = 3;
-                } else {
-                    hitKind = 4;
-                }
-                AudioPlayerHit(enemy->attack_index, hitKind);
-                damageMode = 0;
-            }
-            if ((playerFlags & 0x130) != 0) {
-                direction[0] = player->damage_position[0] -
-                               enemy->objgrp.coll_pos[0];
-                direction[1] = player->damage_position[1] -
-                               enemy->objgrp.coll_pos[1];
-                direction[2] = player->damage_position[2] -
-                               enemy->objgrp.coll_pos[2];
-                direction[1] = -direction[1];
-                NormalVector(direction);
-                damage_player(enemy->attack_index, amount, damageMode,
-                              playerFlags, direction);
-            } else {
-                damage_player(enemy->attack_index, amount, damageMode,
-                              playerFlags, 0);
-            }
-            lbl_803447E4 = 1;
-            enemy->attack_count++;
-            enemy->attack_flag &= ~0xF;
-        }
-        enemy->attack_index = -1;
+    enemy->dead_end = ticks;
+    if (ticks < 60) {
+        return;
     }
-
-    if ((enemy->attack_flag & 0x10) != 0) {
-        if (enemy->closest >= 0) {
-            missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
-            missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
-            missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
-        } else {
-            missilePosition[0] = enemy->objgrp.coll_pos[0];
-            missilePosition[1] = enemy->objgrp.coll_pos[1];
-            missilePosition[2] = enemy->objgrp.coll_pos[2];
-            missilePosition[0] = (f32)(lbl_803469F0 * sin(enemy->pyr[1]) +
-                                       missilePosition[0]);
-            missilePosition[2] = (f32)(lbl_803469F0 * cos(enemy->pyr[1]) +
-                                       missilePosition[2]);
-        }
-        fn_8004E448(enemy, (s32)missilePosition,
-                    enemy->objgrp.coll_pos);
-        enemy->flag1 = 1;
-        enemy->attack_flag &= ~0x10;
+    if (enemy->daction == 3 || enemy->daction == 4) {
+        enemy->daction = 0;
     }
 }
 
@@ -7135,11 +6145,7 @@ void do_enemies(void)
         *blit |= 0x40000;
     }
 }
-
-/* 0x8004D958 - per-enemy frame update: lifetime, owner change, boss-death
- * cull, AI step + type-24 hover bob timer */
-extern s32 gBossDying;
-extern void fn_800945D0(u8* pos, u8* a, s32 b, s32 c, u32 type, f32 scale);
+#pragma opt_propagation reset
 
 s32 fn_8004D958(s32 index)
 {
@@ -7211,222 +6217,1300 @@ stop:
     return index;
 }
 
-extern f32 lbl_803468B0;
-extern f32 fn_80034C88(f32 x);
-extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
-                               f32* from, f32* to, f32* hit, s32 directional);
-
-/* fn_8004646C @0x8004646C -- sweep the enemy's move (oldc->newc) against the
- * critter-node mesh and the neighbouring enemies pulled from the item grid,
- * returning the id of the closest blocking enemy (or a node hit tagged with
- * 0x10000), skipping self, dead/idle occupants, already-linked pack members,
- * and short obstacles when charging.  -1 = clear. */
-extern void CritterCollideStart(f32 rad, f32* pos, s32 a);
-extern void* CritterMoveNodeCol(f32 rad, f32 zero, f32* from, f32* to,
-                                void* hit, s32 a, s32 b);
-extern s32 NextGridItem(void);
-extern f32 lbl_803468B0;
-extern f64 lbl_80346868;
-
-s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
-                s32* hitWorld)
+/* Fade an enemy and its shadow, hiding both when fully opaque. */
+void fn_8004DB3C(Enemy* enemy, s32 delta)
 {
-    s32 startNode = gEnemies[index].coll_enenum;
-    f64 minimum_hht;
-    f32 dist;
-    f32 best = lbl_803468B0;
-    s32 result = -1;
-    s32 hint = -1;
-    void* nodeCol;
-    s32 node;
-    Enemy* self;
-    u8 stack_top[16];
-    f32 scratch[3];
-    u8 stack_gap[12];
-    f32 delta[3];
-    u8 stack_bottom[28];
+    s32 alpha = MBTreeGetAlpha(enemy->objgrp.node);
+    s32 value;
 
-    if (hitWorld == NULL && startNode < 0x10000) {
-        hint = startNode;
+    if ((delta > 0 && alpha >= 255) || (delta < 0 && alpha == 0)) {
+        return;
     }
-    CritterCollideStart(rad, newc, 0);
-    nodeCol = CritterMoveNodeCol(rad, 0.0f, oldc, newc, scratch, -1, 2);
-    if (nodeCol != NULL) {
-        return *(s16*)nodeCol | 0x10000;
+    value = alpha + delta * gFrameTicks;
+    if (value < 0) {
+        delta = 0;
+    } else if (value > 255) {
+        delta = 255;
+    } else {
+        delta = value;
     }
-    StartItemGrid(rad, newc);
-    self = &gEnemies[index];
-    minimum_hht = lbl_80346868;
-    for (;;) {
-        Enemy* other;
-        s32 st;
-        s32 linked;
-
-        if (hint < 0) {
-            node = NextGridItem();
-        } else {
-            node = hint;
-            hint = -1;
-        }
-        if (node < 0) {
-            break;
-        }
-        other = &gEnemies[node];
-        if (node == index) {
-            continue;
-        }
-        st = other->state;
-        if (st == 0 || st == 8) {
-            continue;
-        }
-        {
-            Enemy* c = self;
-
-            goto load_linked_enemy;
-check_linked_enemy:
-            if (linked == node) {
-                linked = -1;
-                goto linked_enemy_done;
-            }
-            c = &gEnemies[linked];
-load_linked_enemy:
-            linked = c->next_enemy;
-            if (linked >= 0) {
-                goto check_linked_enemy;
-            }
-            linked = 0;
-linked_enemy_done:
-            ;
-        }
-        if (linked != 0) {
-            continue;
-        }
-        if ((f64)other->hht <= minimum_hht) {
-            if (other->type == E_GOLEM) {
-                continue;
-            }
-        }
-        delta[0] = other->objgrp.coll_pos[0] - newc[0];
-        delta[1] = other->objgrp.coll_pos[1] - newc[1];
-        delta[2] = other->objgrp.coll_pos[2] - newc[2];
-        {
-            dist = NormalVector2D(delta);
-
-            if (dist >= best) {
-                continue;
-            }
-            if (LineCylinderCollide(&other->objgrp.coll_pos[0],
-                                    rad + other->rad,
-                                    hht + other->hht, oldc,
-                                    newc, scratch, 1) == 0) {
-                continue;
-            }
-            best = dist;
-        }
-        result = node;
-        if (hitWorld != NULL) {
-            continue;
-        }
-        if (node != startNode) {
-            continue;
-        }
-        break;
+    if (delta == 255) {
+        MBTreeSetFlags(enemy->objgrp.node, 2, 0);
+        MBTreeSetFlags(enemy->shadow, 2, 0);
+    } else {
+        MBTreeSetAlpha(enemy->objgrp.node, delta, 1);
+        MBTreeSetAlpha(enemy->shadow, delta, 1);
+        MBTreeClearFlags(enemy->objgrp.node, 2, 0);
+        MBTreeClearFlags(enemy->shadow, 2, 0);
     }
-    return result;
 }
 
-/* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
- * b!=0 restricts the sweep to the nearest live player. */
-s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
+void fn_8004DC2C(Enemy* enemy)
 {
-    s32 last;
-    s32 i;
-    s32 j;
-    u8* p;
-    u8* q;
-    u8* e = (u8*)gEnemies + index * 916;
-    s32 ret = -1;
-    s32 start;
-    f32 best1;
-    f32 best = lbl_803468B0;
-    f32 hit[3];
-    u8 _pad4[8];
-    f32 d;
-    f32 dy;
+    f32 scale;
+    f64 limit;
+    u32 damageType;
+    s32 type;
+    s32 typeCopy;
+    f64 angle;
+    u8 unused[8];
+
+    typeCopy = enemy->type;
+    type = typeCopy;
+    if (type == gBossType) {
+        return;
+    }
+    if ((f64)enemy->damage >= lbl_80346810) {
+        damageType = enemy->damagetype;
+        if ((damageType & 0x10160) != 0 ||
+            ((f64)enemy->damage > (f64)lbl_803469CC &&
+             (damageType & 0x200) != 0)) {
+            RequestEnemyAction(enemy, E_HIT_REACT2);
+            if (enemy->type == E_GOLEM) {
+                enemy->flag1 = 1;
+            }
+            if (enemy->type == E_ACID) {
+                scale = lbl_80346820;
+            } else if ((f64)enemy->hht <= lbl_80346868 && enemy->type != E_IT) {
+                scale = lbl_803469D0;
+            } else if (enemy->type == E_GOLEM) {
+                scale = lbl_80346980;
+            } else {
+                scale = lbl_803469D4;
+            }
+            enemy->pushed[0] += enemy->damagedir[0] * scale;
+            enemy->pushed[1] += enemy->damagedir[1] * scale;
+            enemy->pushed[2] += enemy->damagedir[2] * scale;
+            scale = enemy->damagedir[2];
+            angle = atan2(enemy->damagedir[0], scale);
+            limit = lbl_80346840;
+            enemy->pushang = (f32)(limit + angle);
+            angle = enemy->pushang;
+            if (angle > limit) {
+                angle -= lbl_80346848;
+            } else if (angle <= lbl_80346850) {
+                angle = lbl_80346848 + angle;
+            }
+            enemy->pushang = (f32)angle;
+            scale = lbl_80346820;
+            enemy->damagedir[0] = scale;
+            enemy->damagedir[1] = scale;
+            enemy->damagedir[2] = scale;
+        } else if ((damageType & 0x10) != 0) {
+            if (type == E_GOLEM || type == E_ACID) {
+                enemy->flag1 = 1;
+            } else {
+                RequestEnemyAction(enemy, E_HIT_REACT1);
+                enemy->pushed[0] += enemy->damagedir[0] * lbl_803469D8;
+                enemy->pushed[1] += enemy->damagedir[1] * lbl_803469D8;
+                enemy->pushed[2] += enemy->damagedir[2] * lbl_803469D8;
+                scale = enemy->damagedir[2];
+                angle = atan2(enemy->damagedir[0], scale);
+                limit = lbl_80346840;
+                enemy->pushang = (f32)(limit + angle);
+                angle = enemy->pushang;
+                if (angle > limit) {
+                    angle -= lbl_80346848;
+                } else if (angle <= lbl_80346850) {
+                    angle = lbl_80346848 + angle;
+                }
+                enemy->pushang = (f32)angle;
+                scale = lbl_80346820;
+                enemy->damagedir[0] = scale;
+                enemy->damagedir[1] = scale;
+                enemy->damagedir[2] = scale;
+            }
+        } else {
+            if (type != E_GOLEM) {
+                RequestEnemyAction(enemy, E_HIT_REACT1);
+            } else {
+                enemy->flag1 = 1;
+            }
+        }
+
+        if ((f64)(enemy->pushed[0] * enemy->pushed[0] +
+                  enemy->pushed[1] * enemy->pushed[1] +
+                  enemy->pushed[2] * enemy->pushed[2]) > lbl_803469E0) {
+            NormalVector(enemy->pushed);
+            limit = lbl_803469E8;
+            enemy->pushed[0] = (f32)(limit * enemy->pushed[0]);
+            enemy->pushed[1] = (f32)(limit * enemy->pushed[1]);
+            enemy->pushed[2] = (f32)(limit * enemy->pushed[2]);
+        }
+        scale = lbl_80346820;
+        enemy->damage = scale;
+        enemy->damagetype = 0;
+        if (enemy->health <= scale) {
+            RequestEnemyAction(enemy, E_DYING);
+        } else {
+            SetSkinFX(&enemy->skinfx, lbl_80344BF8, 1, 1, lbl_803468F0);
+        }
+    }
+    enemy->pushmag2 = enemy->pushed[0] * enemy->pushed[0] +
+                      enemy->pushed[2] * enemy->pushed[2];
+}
+
+void fn_8004DF58(Enemy* enemy)
+{
+    u32 playerFlags;
+    EnemyPlayerView* player;
+    s32 damageMode;
+    f32 amount;
+    f32 direction[3];
+    f32 missilePosition[3];
+    f32 healedPosition[3];
+    f32 reflectedPosition[3];
+    u8 unused[16];
+    s32 hitKind;
+
+    (void)unused;
+    playerFlags = 0;
+    if (((enemy->algorithm == 28 ||
+          (u16)(enemy->algorithm - 29) <= 1) &&
+         (enemy->attack_flag & 0xF) != 0) ||
+        (enemy->algorithm == 31 && (enemy->attack_flag & 2) != 0)) {
+        if (enemy->coll_pnum < 0) {
+            if (enemy->closest >= 0) {
+                missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
+                missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
+                missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
+            } else {
+                missilePosition[0] = enemy->objgrp.coll_pos[0];
+                missilePosition[1] = enemy->objgrp.coll_pos[1];
+                missilePosition[2] = enemy->objgrp.coll_pos[2];
+                missilePosition[0] = (f32)(lbl_803469F0 * sin(enemy->pyr[1]) +
+                                           missilePosition[0]);
+                missilePosition[2] = (f32)(lbl_803469F0 * cos(enemy->pyr[1]) +
+                                           missilePosition[2]);
+            }
+            fn_8004E448(enemy, (s32)missilePosition,
+                        enemy->objgrp.coll_pos);
+            enemy->attack_flag &= ~0xF;
+        }
+    }
+
+    if (enemy->attack_index >= 0 && (enemy->attack_flag & 0xF) != 0) {
+        player = &gEnemyPlayers[enemy->attack_index];
+        if (player->state == 1) {
+            damageMode = 1;
+            amount = enemy->atts.fight;
+            if ((f64)lbl_803447D8 < lbl_80346810) {
+                playerFlags |= 0x40000000;
+                amount = (f32)(amount * lbl_80346830);
+            } else {
+                if ((enemy->attack_flag & 2) != 0) {
+                    amount = (f32)(amount * lbl_80346838);
+                    if ((f64)enemy->hht > lbl_80346868) {
+                        playerFlags |= 0x10;
+                    }
+                }
+                if (enemy->type == E_GOLEM) {
+                    playerFlags |= 0x20;
+                }
+                if ((f64)enemy->hht <= lbl_80346868) {
+                    playerFlags |= 0x40000000;
+                }
+            }
+
+            if (player->attack_heal != 0) {
+                healedPosition[0] = enemy->objgrp.coll_pos[0];
+                healedPosition[1] = enemy->objgrp.coll_pos[1];
+                healedPosition[2] = enemy->objgrp.coll_pos[2];
+                player->damage_position[0] =
+                    healedPosition[0] - healedPosition[0];
+                player->damage_position[1] =
+                    healedPosition[1] - healedPosition[1];
+                player->damage_position[2] =
+                    healedPosition[2] - healedPosition[2];
+                damage_enemy(enemy, amount, -1, 0x200,
+                             (s32)player->damage_position,
+                             (s32)healedPosition, 1);
+                heal_player(player, amount);
+                amount = lbl_80346820;
+                playerFlags = 0x40000000;
+                StartGemFX(player->position, 1);
+            } else if (player->attack_reflect != 0) {
+                reflectedPosition[0] = enemy->objgrp.coll_pos[0];
+                reflectedPosition[1] = enemy->objgrp.coll_pos[1];
+                reflectedPosition[2] = enemy->objgrp.coll_pos[2];
+                player->damage_position[0] =
+                    reflectedPosition[0] - reflectedPosition[0];
+                player->damage_position[1] =
+                    reflectedPosition[1] - reflectedPosition[1];
+                player->damage_position[2] =
+                    reflectedPosition[2] - reflectedPosition[2];
+                damage_enemy(enemy, amount, -1, 0,
+                             (s32)player->damage_position,
+                             (s32)reflectedPosition, 1);
+                amount = lbl_80346820;
+                playerFlags = 0x40000000;
+                StartGemFX(player->position, 1);
+            }
+
+            if ((f64)enemy->hht <= lbl_80346868) {
+                if (enemy->type != E_IT) {
+                    goto generic_hit_sound;
+                }
+            }
+            if (enemy->type == E_DEMON || enemy->type == E_MUMMY ||
+                enemy->type == E_TREEFOLK) {
+            generic_hit_sound:
+                fn_8009E08C(enemy);
+                damageMode = 0;
+            } else if (enemy->type == E_GRUNT || enemy->type == E_KNIGHT ||
+                       enemy->type == E_LIZARDMAN) {
+                if (enemy->org_lvl >= 2) {
+                    hitKind = 3;
+                } else {
+                    hitKind = 4;
+                }
+                AudioPlayerHit(enemy->attack_index, hitKind);
+                damageMode = 0;
+            }
+            if ((playerFlags & 0x130) != 0) {
+                direction[0] = player->damage_position[0] -
+                               enemy->objgrp.coll_pos[0];
+                direction[1] = player->damage_position[1] -
+                               enemy->objgrp.coll_pos[1];
+                direction[2] = player->damage_position[2] -
+                               enemy->objgrp.coll_pos[2];
+                direction[1] = -direction[1];
+                NormalVector(direction);
+                damage_player(enemy->attack_index, amount, damageMode,
+                              playerFlags, direction);
+            } else {
+                damage_player(enemy->attack_index, amount, damageMode,
+                              playerFlags, 0);
+            }
+            lbl_803447E4 = 1;
+            enemy->attack_count++;
+            enemy->attack_flag &= ~0xF;
+        }
+        enemy->attack_index = -1;
+    }
+
+    if ((enemy->attack_flag & 0x10) != 0) {
+        if (enemy->closest >= 0) {
+            missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
+            missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
+            missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
+        } else {
+            missilePosition[0] = enemy->objgrp.coll_pos[0];
+            missilePosition[1] = enemy->objgrp.coll_pos[1];
+            missilePosition[2] = enemy->objgrp.coll_pos[2];
+            missilePosition[0] = (f32)(lbl_803469F0 * sin(enemy->pyr[1]) +
+                                       missilePosition[0]);
+            missilePosition[2] = (f32)(lbl_803469F0 * cos(enemy->pyr[1]) +
+                                       missilePosition[2]);
+        }
+        fn_8004E448(enemy, (s32)missilePosition,
+                    enemy->objgrp.coll_pos);
+        enemy->flag1 = 1;
+        enemy->attack_flag &= ~0x10;
+    }
+}
+
+/* Select and launch an enemy missile, then dispatch its positional sound. */
+void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
+{
+    s32 kind;
+
+    if (enemy->algorithm == 28 || enemy->algorithm == 29) {
+        kind = 2;
+    } else if (enemy->algorithm == 16 || enemy->algorithm == 23) {
+        kind = 0;
+    } else if (enemy->algorithm == 17 || enemy->algorithm == 26) {
+        kind = 1;
+    } else {
+        kind = 2;
+    }
+
+    if (EnemyStartMissile(enemy, arg, pos, kind) != 0) {
+        if (kind == 0) {
+            fn_8009DE2C(pos);
+        }
+        if (kind == 2) {
+            if (enemy->type == 2) {
+                fn_8009DCE4(pos);
+            } else {
+                fn_8009DDFC(pos);
+            }
+        }
+    }
+}
+
+/* Advance an enemy after it reaches its assigned milestone. */
+void update_enemy_milestone(Enemy* enemy)
+{
+    u8 frame_pad[12];
+    f32 milestone[3];
+    f32 vertical;
+    u8 local_pad[12];
     f32 dx;
     f32 dz;
-    u8 _spare[36];
 
-    if (b != 0) {
-        start = 0;
-        last = 3;
-    } else {
-        if (*(s16*)(e + offsetof(Enemy, closest)) < 0) {
-            return -1;
-        }
-        best1 = best;
-        p = (u8*)gPlayerWords;
-        last = -1;
-        /* PLAYER_STRIDE is an object-like macro for the same literal:
-         * claim.law.sizeof-defeats-loop-stride-induction only bans the
-         * sizeof(Player) respelling, which costs the loop's induction form. */
-        for (i = 0; i < 4; i++, p += PLAYER_STRIDE) {
-            if (*(s32*)(p + offsetof(Player, state)) == 1) {
-                /* A player whose mikey is live (field_A1C > 2) is ranged
-                 * against the mikey object's collision position (the mikey
-                 * OBJGRP embed) instead of the player's own effectpos. */
-                if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
-                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
-                         *(f32*)(p + offsetof(Player, mikey_coll_pos[0]));
-                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
-                         *(f32*)(p + offsetof(Player, mikey_coll_pos[1]));
-                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
-                         *(f32*)(p + offsetof(Player, mikey_coll_pos[2]));
-                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
-                } else {
-                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
-                         *(f32*)(p + offsetof(Player, effectpos[0]));
-                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
-                         *(f32*)(p + offsetof(Player, effectpos[1]));
-                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
-                         *(f32*)(p + offsetof(Player, effectpos[2]));
-                    d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+    if (enemy->plr_ms >= 0) {
+        GetMilestonePos(enemy->plr_ms, milestone);
+        dx = *(f32*)((u8*)enemy + 0x34) - milestone[0];
+        dz = *(f32*)((u8*)enemy + 0x3C) - milestone[2];
+        vertical = *(f32*)((u8*)enemy + 0x38) - milestone[1];
+        *(u32*)&vertical &= 0x7FFFFFFF;
+        if ((f64)vertical < lbl_803469F8 &&
+            (f64)fqdist(dx, dz) < lbl_80346A00) {
+            adjust_msidx(enemy);
+            enemy->plr_ms = -1;
+            enemy->operation_count = enemy->operation_speed;
+            if (enemy->ms_idx > 0) {
+                if (enemy->ms_idx > 0) {
+                    enemy->ms_idx--;
                 }
-                if (d < best1) {
-                    best1 = d;
-                    last = i;
-                }
+                enemy->max_msidx = enemy->ms_idx;
             }
-        }
-        start = last;
-    }
-    q = (u8*)gPlayerWords + start * PLAYER_STRIDE;
-    for (j = start; j <= last; j++, q += PLAYER_STRIDE) {
-        if (*(s32*)(q + offsetof(Player, state)) == 1) {
-            if (LineCylinderCollide((f32*)(q + offsetof(Player, effectpos[0])),
-                                    rad + *(f32*)(q + offsetof(Player, col_radius)),
-                                    hht + *(f32*)(q + offsetof(Player, col_height)),
-                                    oldc, newc, hit, 1) != 0) {
-                d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
-                if (d < best) {
-                    ret = j;
-                    best = d;
-                }
+            if (enemy->algorithm == 10) {
+                enemy->collided = 0;
+                enemy->route = 0;
+                enemy->stuck_count = 0;
             }
         }
     }
-    return ret;
 }
 
-extern u8 lbl_8011AF48[];
-extern f32 lbl_80344880;
-extern f32 lbl_80346A40;
-extern f64 lbl_80346A28;
-extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
-extern void SetEnemyObj(Enemy* e, s32 type, s32 level);
-extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
-extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
-extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
+/* Track this enemy's target milestone in the player's recent-history ring. */
+void adjust_msidx(Enemy* enemy)
+{
+    s32* player = (s32*)((u8*)gPlayerWords + enemy->closest * PLAYER_STRIDE);
+    s32 i;
+
+    for (i = 0; i < 5; i++) {
+        if (enemy->plr_ms == player[PW(milestone) + i]) {
+            break;
+        }
+    }
+    if (i < 5) {
+        enemy->ms_idx = i;
+        if (enemy->max_msidx < enemy->ms_idx) {
+            enemy->max_msidx = enemy->ms_idx;
+        }
+    } else {
+        enemy->ms_idx = 0;
+        enemy->max_msidx = 4;
+        enemy->plr_ms = -1;
+    }
+}
+
+/* Advance texture modifiers for each loaded enemy type while gameplay runs.
+ *
+ * `resources` walks the lbl_80250E00 combined bss pool (see the TU .bss
+ * layout note above this file's declarations).  Identification attempt
+ * (2026-08-30, secondary de-fakematch pass):
+ *   +0x564  EXACT match for gWadAtreeHeaders (0x80251364 - 0x80250E00 =
+ *           0x564; verified by address arithmetic against the declared
+ *           bss layout) - this reads gWadAtreeHeaders[index] as a void*,
+ *           the per-type WAD/atree texmod-owner pointer DoTexMods() wants.
+ *           NOT rewritten to the `gWadAtreeHeaders` symbol: fnasm.py shows
+ *           this function's own base address relocates against
+ *           lbl_80250E00 directly, so switching to the sub-object's own
+ *           extern name would change the relocation target even though the
+ *           resolved address is identical (claim.law.walked-base-symbol-
+ *           identity.20260830.v1) - kept as the raw blob-base + literal
+ *           offset for that reason, now with the identity documented.
+ *   +0x20   first-level index table, inside lbl_80250E00's own declared
+ *           0x40-byte anchor.  No covering struct found: gdlmem.py struct
+ *           probes for gen_head/generator/enemy_gen/gen_record/gentable/
+ *           gen_table/texmod_owner/enemy_texmod all returned no PDB match,
+ *           and no other function in the TU references this slot range.
+ *           Left as a raw offset - no name to adopt without inventing one.
+ */
+void enemy_update(void)
+{
+    u8* resources;
+    u8* cursor;
+    s32 i;
+
+    resources = (u8*)lbl_80250E00;
+    if ((gGameBusy | gGameplayPauseTimer) == 0) {
+        for (i = 0; i < lbl_8034471C; i++) {
+            cursor = resources + i * sizeof(s32);
+            cursor = resources + *(s32*)(cursor + 0x20) * sizeof(void*);
+            if (*(void**)(cursor + 0x564) != 0) {
+                DoTexMods(*(void**)(cursor + 0x564));
+            }
+        }
+    }
+}
+
+/* Scale the enemy's melee damage by its remaining health band.  Written as a
+ * helper so the two early exits lower as the target's unfused `bne ->calc /
+ * b ->store` pair (claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-
+ * by-a-goto.20260903.v3); inlined back into damage_enemy. */
+static inline f32 scale_fight_damage(f32 fight, f32 health, f32 upper,
+                                     f32 lower, s32 type)
+{
+    if (health > upper) {
+        goto done;
+    }
+    if (type == E_DEATH) {
+        return fight;
+    }
+    if (health > lower) {
+        return (f32)(lbl_80346A30 * fight);
+    }
+    return (f32)(lbl_80346A28 * fight);
+done:
+    return fight;
+}
+
+/* Apply damage and accumulated hit direction, then run the enemy-specific
+ * heal, reaction, death, sound, skin and burst-effect cascades. */
+s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
+                 s32 effect_position_arg, s32 hit_direction_arg,
+                 s32 play_effects)
+{
+    EnemyPlayerView* player = NULL;
+    f32* effect_position = (f32*)effect_position_arg;
+    f32* hit_direction = (f32*)hit_direction_arg;
+    f32 old_health = e->health;
+    u8 unused0[4];
+    f32 effect_pos[3];
+    u8 unused1[4];
+    f32 saved_matrix[16];
+    s32 enemy_index;
+
+    if (e->state == DECORATION) {
+        return -1;
+    }
+    if (e->state == DYING) {
+        return -1;
+    }
+    if (e->type == E_IT) {
+        return -1;
+    }
+
+    if (player_index >= 0) {
+        player = &gEnemyPlayers[player_index];
+    }
+    if (player != NULL) {
+        lbl_803447E4 = 1;
+    }
+
+    if (e->type == E_DEATH) {
+        if ((damage_type & 0x200) != 0) {
+            if (player != NULL && player->level > 75) {
+                f32 heal_scale = (f32)(lbl_80346A10 *
+                    (f64)(player->level - 75) + lbl_80346A08);
+                heal_player(player, e->health * heal_scale);
+            }
+            e->health = lbl_80346820;
+        } else if (e->state == SLEEP) {
+            if (play_effects != 0) {
+                fn_8009DE5C(e->type, &e->objgrp.worldmat[3][0]);
+            }
+            {
+                s16 endurance = e->endurance - 1;
+                e->endurance = endurance;
+                if (endurance <= 0) {
+                    e->state = ACTIVE;
+                    if (play_effects != 0) {
+                        AudioPlayEvt103(&e->objgrp.worldmat[3][0]);
+                    }
+                    CopyMat4(&e->objgrp.worldmat[0][0], saved_matrix);
+                    SetEnemyObj((u8*)e, e->type, 1);
+                    CopyMat4(saved_matrix, &e->objgrp.worldmat[0][0]);
+                    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
+                    fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset,
+                                 e->attn_offset);
+                    MBTreeClearFlags(e->objgrp.node, 2, 0);
+                }
+            }
+            return 0;
+        } else if (player != NULL && (player->flags & 0x80000) != 0) {
+            f64 one;
+
+            e->health = (f32)(e->health - (one = lbl_80346810));
+            if (e->org_lvl == 2) {
+                AddExp(player_index, 1, -2);
+            } else {
+                player->health = (f32)(player->health + one);
+            }
+        } else {
+            e->health = (f32)(e->health - lbl_80346810);
+            if (player != NULL) {
+                msgPost(0, player_index, player->position);
+            }
+        }
+
+        if ((f64)e->health <= (f64)lbl_80346820) {
+            if (play_effects != 0) {
+                AudioPlayEvt101(&e->objgrp.worldmat[3][0]);
+            }
+            e->health = lbl_80346820;
+            enemy_index = (s32)(e - gEnemies);
+            e->state = DYING;
+            e->area = (s16)player_index;
+            if (e->algorithm == 18) {
+                SuicideExplosion(e->objgrp.coll_pos,
+                    (f32)(lbl_803468A8 * gCurLevel->ene_damage));
+                fn_8009DAC8(e->objgrp.coll_pos);
+            }
+            uncouple_enemy(enemy_index);
+            if (player != NULL) {
+                player->character_stats[player->character].kills++;
+            }
+            return 1;
+        }
+        return 0;
+    }
+
+    e->watchdog = 0;
+    if ((damage_type & 0x800000) != 0 && player != NULL) {
+        f32 healed = amount;
+        if (healed > e->health) {
+            healed = e->health;
+        }
+        do_heal_players(player, &e->objgrp.worldmat[0][0], healed);
+    }
+
+    if (player_index >= 0 && gCurLevel->plevel > lbl_80346820) {
+        f32 level = (f32)player->level;
+        f32 target_level = gCurLevel->plevel;
+        f32 scale = lbl_803468F0;
+
+        if (level < target_level) {
+            scale = (f32)(lbl_80346810 -
+                          lbl_80346878 * (target_level - level));
+        } else if (level > target_level) {
+            scale = (f32)(lbl_80346810 +
+                          lbl_80346858 * (level - target_level));
+        }
+        amount *= scale;
+    }
+
+    {
+        u32 shield = e->atts.armortype;
+        ModifyDamage(e->atts.armor, &amount, (u32*)&damage_type, shield);
+    }
+    if ((f64)lbl_803447D8 < lbl_80346810) {
+        amount = (f32)(amount * lbl_80346868);
+    }
+    if (player_index >= 0 &&
+        (f64)amount < *(volatile f64*)&lbl_80346810) {
+        amount = lbl_803468F0;
+    }
+
+    e->damage += amount;
+    if ((damage_type & 0xF) != 0) {
+        e->damagetype &= ~0xF;
+    }
+    e->damagetype |= damage_type;
+    if (hit_direction != NULL) {
+        e->damagedir[0] = hit_direction[0] + e->damagedir[0];
+        e->damagedir[1] = hit_direction[1] + e->damagedir[1];
+        e->damagedir[2] = hit_direction[2] + e->damagedir[2];
+    }
+
+    effect_pos[0] = e->objgrp.attn_pos[0];
+    effect_pos[1] = e->objgrp.attn_pos[1];
+    effect_pos[2] = e->objgrp.attn_pos[2];
+
+    if (e->type == E_GOLEM) {
+        if (lbl_80344768 >= 3) {
+            amount = (f32)(amount * lbl_80346A18);
+        } else if (lbl_80344768 >= 2) {
+            amount = (f32)(amount * lbl_80346830);
+        }
+    }
+    if (amount <= lbl_80346820) {
+        play_effects = 0;
+    } else {
+        e->damage_count++;
+    }
+
+    {
+        f64 applied;
+
+        if (gGameOptions[0] == 3) {
+            applied = lbl_80346A20;
+        } else {
+            applied = amount;
+        }
+        e->health = (f32)((f64)e->health - applied);
+    }
+
+    {
+        f32 threshold = gCurLevel->ene_health * lbl_8011BA10[e->type];
+
+        e->atts.fight = scale_fight_damage(
+            gCurLevel->ene_damage * lbl_8011B900[e->type], e->health,
+            (f32)(lbl_80346A30 * threshold), (f32)(lbl_80346A28 * threshold),
+            e->type);
+    }
+
+    if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
+        ((u8*)e->generator)[0xE6] = 7;
+        ((u8*)e->generator)[0xE0] = 3;
+    } else if (e->algorithm == 15 && e->generator != NULL) {
+        ((u8*)e->generator)[0xE3] = 0;
+    }
+
+    if ((f64)e->health <= lbl_80346898) {
+        if (e->type == gBossType) {
+            if ((f64)old_health > lbl_80346898 && player != NULL) {
+                player->character_stats[player->character].kills++;
+            }
+            return 1;
+        }
+
+        if (play_effects != 0) {
+            if (e->algorithm == 18) {
+                fn_8009DD48();
+            }
+            fn_8009DF7C(e, play_effects);
+        }
+        e->health = lbl_80346820;
+        enemy_index = (s32)(e - gEnemies);
+        e->state = DYING;
+        e->area = (s16)player_index;
+        if (e->algorithm == 18) {
+            SuicideExplosion(e->objgrp.coll_pos,
+                (f32)(lbl_803468A8 * gCurLevel->ene_damage));
+            fn_8009DAC8(e->objgrp.coll_pos);
+        }
+        uncouple_enemy(enemy_index);
+        if (player != NULL) {
+            player->character_stats[player->character].kills++;
+        }
+
+        if (player_index >= -1) {
+            if (e->objgrp.node != NULL) {
+                if (e->type == E_GOLEM && (damage_type & 0xF) == 0) {
+                    SetSkinFX(&e->skinfx, lbl_80344BE4, 15, 0,
+                              lbl_803469B0);
+                } else if (e->type == E_TREEFOLK &&
+                           (damage_type & 0xF) == 0) {
+                    SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
+                              lbl_803469B0);
+                } else if (e->type == E_KNIGHT &&
+                           (damage_type & 0xF) == 0) {
+                    SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
+                              lbl_803469B0);
+                } else if ((f64)e->hht > lbl_80346868) {
+                    SetSkinFX(&e->skinfx,
+                              lbl_802897B8[damage_type & 0xF], 10, 0,
+                              lbl_803469B0);
+                }
+                MBTreeSetAmbientAdd(e->objgrp.node, 999, 1);
+            }
+            if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
+                fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
+                            damage_type, 1, e->type, e->hht);
+            }
+        }
+        return 1;
+    }
+
+    if (play_effects != 0) {
+        fn_8009DE88(e, play_effects);
+    }
+    if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
+        if (effect_position != NULL && (f64)e->hht >= lbl_80346948) {
+            effect_pos[0] = *(f32*)((u8*)effect_position + 0);
+            effect_pos[1] = *(f32*)((u8*)effect_position + 4);
+            effect_pos[2] = *(f32*)((u8*)effect_position + 8);
+        }
+        fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
+                    damage_type, 0, e->type, e->hht);
+    }
+    return 0;
+}
+
+void kill_enemy(s32 index)
+{
+    Enemy* e = &gEnemies[index];
+    struct item* item = 0;
+    s32 carried = 0;
+    char* p;
+    char buf[32];
+
+    if (gTriggerCameraState != 0) {
+        return;
+    }
+    if (e->gotitem != 0) {
+        item = e->gotitem;
+        e->gotitem = 0;
+        carried = 1;
+    } else {
+        switch (e->type) {
+        case E_GARGOYLE:
+            sprintf(buf, lbl_80346A38, fn_80057ACC(e->type));
+            for (p = buf; *p != 0; p++) {
+                *p = toupper(*p);
+            }
+            item = PlaceItem(1, 16, buf, 0);
+            break;
+        }
+    }
+    if (item != 0) {
+        if (carried != 0) {
+            *((u8*)item + 205) = 10;
+            StartBagFX(e->objgrp.attn_pos, item, lbl_80346820);
+        } else {
+            *((u8*)item + 205) = 0;
+            MBTreeClearFlags(*(struct mbnode**)((u8*)item + 100), 2, 0);
+            if (**(s32**)item == 1) {
+                *(s16*)((u8*)item + 236) = 60;
+            }
+            *(f32*)((u8*)item + 52) = e->objgrp.worldmat[3][0];
+            *(f32*)((u8*)item + 56) = e->objgrp.worldmat[3][1];
+            *(f32*)((u8*)item + 60) = e->objgrp.worldmat[3][2];
+            AddItemSub(item);
+        }
+    }
+    if (e->type == 27) {
+        fn_8004F1DC(e);
+    }
+    e->health = lbl_80346820;
+    e->state = 0;
+    del_target(&e->objgrp.worldmat[0][0]);
+    if (e->shadow != 0) {
+        MBRemoveNode(e->shadow, 0);
+        e->shadow = 0;
+    }
+    if (e->specialfx >= 0) {
+        e->specialfx = DeleteEffect(e->specialfx, 1);
+    }
+    if (e->type == 27) {
+        SfxDeleteParented(e->objgrp.node, 0, -1);
+    }
+    AtreeDelete(&e->atree);
+    lbl_80344734 = 1;
+    MBRemoveNode(e->objgrp.node, 0);
+    lbl_80344734 = 0;
+    e->objgrp.node = 0;
+    uncouple_enemy(index);
+}
+
+/* Point the Garm death effect toward its target (or the first active player). */
+void fn_8004F1DC(Enemy* enemy)
+{
+    volatile f32 enemyPos[3];
+    f32 matrix[12];
+    f32 direction[3];
+    s32 i;
+    f32* player = 0;
+
+    if (enemy->closest >= 0) {
+        player = gPlayerWords[enemy->closest];
+    } else {
+        for (i = 0; i < 4; i++) {
+            if (((s32*)gPlayerWords[i])[PW(state)] == 1) {
+                break;
+            }
+        }
+        if (i < 4) {
+            player = gPlayerWords[i];
+        }
+    }
+
+    if (player != 0) {
+        enemyPos[0] = enemy->objgrp.worldmat[3][0];
+        enemyPos[1] = enemy->objgrp.worldmat[3][1];
+        enemyPos[2] = enemy->objgrp.worldmat[3][2];
+        direction[0] = player[PW(pos)] - enemyPos[0];
+        direction[1] = player[PW(pos[1])] - enemyPos[1];
+        direction[2] = player[PW(pos[2])] - enemyPos[2];
+        NormalVector(direction);
+        CreateDirMatrix(matrix, direction, 0);
+        StartEnemyDeathFX(matrix);
+    }
+}
+
+/* uncouple_enemy: detach enemy `index` from its generator's spawn list.
+ * The prev_enemy/next_enemy relink below is transcribed from the verified GC
+ * asm (uncouple_enemy @0x8004F2D8) and exercises the reconstructed Enemy
+ * fields; the generator-record fixup (item*) is left as a comment because the
+ * item struct belongs to another module.  NonMatching: shipped bytes come from
+ * the original DOL. */
+void uncouple_enemy(s32 index) {
+    Enemy* e = &gEnemies[index];
+
+    if (e->prev_enemy >= 0) {
+        gEnemies[e->prev_enemy].next_enemy = e->next_enemy;
+        e->prev_enemy = -1;
+    }
+    if (e->next_enemy >= 0) {
+        gEnemies[e->next_enemy].prev_enemy = e->prev_enemy;
+        e->next_enemy = -1;
+    }
+    if (e->algorithm == E_DOG) {
+        lbl_80344748 = -1;
+        e->algorithm = -e->algorithm;
+    }
+    if (e->generator != 0) {
+        if (((EnemyGenerator*)e->generator)->first_enemy == index) {
+            ((EnemyGenerator*)e->generator)->first_enemy =
+                (s8)e->prev_enemy;
+        }
+        if (e->algorithm == 15) {
+            ((EnemyGenerator*)e->generator)->flag_e3 = 0;
+            ((EnemyGenerator*)e->generator)->live_count = 0;
+        }
+        if (((EnemyGenerator*)e->generator)->info->type == 3) {
+            if (((EnemyGenerator*)e->generator)->live_count > 0) {
+                ((EnemyGenerator*)e->generator)->live_count--;
+            }
+        } else {
+            ErrorPrintf(lbl_80112468, e->generator);
+        }
+        e->generator = 0;
+    }
+}
+
+/* Test a proposed enemy location and hide the slot again when it is blocked. */
+s32 check_vacancy(s32 index, f32* pos)
+{
+    Enemy* enemy = &gEnemies[index];
+    f32 adjusted[3];
+
+    adjusted[0] = pos[0];
+    adjusted[1] = pos[1];
+    adjusted[2] = pos[2];
+    adjusted[1] += enemy->coll_offset[1];
+
+    if (check_enemy_pos(adjusted, 0, index) <= 0) {
+        MBTreeSetFlags(enemy->objgrp.node, 2, 0);
+        if (enemy->shadow != 0) {
+            MBTreeSetFlags(enemy->shadow, 2, 0);
+        }
+        enemy->state = INACTIVE;
+        return 0;
+    }
+    return -1;
+}
+
+/* generate_enemy @0x8004F4B4 (global).  Spawn an enemy of `type` at `pos`:
+ * validate world/boss state and per-type limits, resolve random types
+ * (-2/-3), take a slot, then for generator spawns search the 8 (or 2)
+ * directions around the generator for a free position; finish by claiming
+ * the grid cell, starting the E_START anim and the generator fx. */
+s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
+                   struct item* gen, s32 imp, f32 ang)
+{
+    u8* tbl = lbl_8011AF48;
+    s32 otype;
+    s32 mask = 0;
+    s32 slot;
+    s32 ndirs;
+    s32 start;
+    s32 d;
+    s32 i;
+    s32 r;
+    Enemy* e;
+    f32 startv[3];
+    f32 out[3];
+    f32 v[3];
+
+    if (gGameMode == MA_HSTABLE) {
+        return -1;
+    }
+    if (lbl_803447DC != 0 && gen != 0) {
+        return -4;
+    }
+    if (gBossType >= 0 && gBossDying != 0) {
+        return -4;
+    }
+    spew = fn_8004F87C(type, level, spew);
+    otype = type;
+    if (type == -2) {
+        RandInt(4);
+        level = 2;
+        i = lbl_8034472C;
+        lbl_8034472C = i + 1;
+        type = *(s32*)(tbl + ((i & 3) << 2) + 4284);
+        spew = *(s32*)(tbl + ((i & 3) << 2) + 4300);
+    } else if (type == -3) {
+        RandInt(4);
+        level = 3;
+        i = lbl_8034472C;
+        lbl_8034472C = i + 1;
+        type = *(s32*)(tbl + ((i & 3) << 2) + 4316);
+        spew = *(s32*)(tbl + ((i & 3) << 2) + 4332);
+    } else if (type < 0) {
+        return -6;
+    }
+    if (type != 30 && type != 31) {
+        if (lbl_802512B0[type] < 0) {
+            return -5;
+        }
+        if (lbl_802511FC[type] == 4 && level < 4) {
+            return -5;
+        }
+    }
+    slot = find_enemy_slot(type, imp);
+    if (slot < 0) {
+        return -2;
+    }
+    init_enemy(slot, pos, type, level, spew);
+    gEnemies[slot].generator = gen;
+    e = &gEnemies[slot];
+    if (gen == 0 || type == 30) {
+        e->genang_offset = lbl_80346820;
+    } else {
+        switch (otype) {
+        case 1:
+        case 4:
+        case 5:
+        case 7:
+        case 8:
+        case 10:
+        case 11:
+        case 14:
+        case 15:
+        case 19:
+        case 24:
+        case 25:
+            mask = 0xFFCE;
+            ndirs = 8;
+            break;
+        case 18:
+            ndirs = 2;
+            break;
+        case 0:
+        case 2:
+        case 3:
+        case 6:
+        case 12:
+        case 13:
+        case 16:
+        case 17:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+            ndirs = 8;
+            break;
+        default:
+            ndirs = 8;
+            break;
+        }
+        if (spew == 12) {
+            ndirs = 1;
+        }
+        startv[0] = pos[0];
+        startv[1] = pos[1];
+        startv[2] = pos[2];
+        startv[1] = startv[1] + e->coll_offset[1];
+        switch (type) {
+        case 17:
+            ang = 0.0f;
+            break;
+        default:
+            ang = ang + e->rad;
+            break;
+        }
+        v[0] = dir[0] * ang;
+        v[1] = 0.0f;
+        v[2] = dir[2] * ang;
+        start = RandInt(ndirs);
+        d = start;
+        do {
+            if ((mask & 0xFFFF & (1 << d)) == 0) {
+                e->genang_offset = gendir_8004FBC8(v, out, d);
+                r = check_enemy_pos(startv, out, slot);
+                if (r > 0) {
+                    goto placed;
+                }
+                if (r < 0) {
+                    mask |= 1 << d;
+                }
+            }
+            d = (d + 1) % ndirs;
+        } while (d != start);
+        MBTreeSetFlags(e->objgrp.node, 2, 0);
+        if (e->shadow != 0) {
+            MBTreeSetFlags(e->shadow, 2, 0);
+        }
+        e->state = 0;
+        return -3;
+    }
+placed:
+    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
+    fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
+    e->action = 1;
+    if (e->actionlist[1].animidx >= 0) {
+        InitAnim(lbl_80346820, &e->atree.animinfo,
+                 e->actionlist[1].animidx, 0, 1);
+    }
+    if (e->hht > 2.0 && level <= 3 && lbl_80251148[type] != 0) {
+        StartGenFX(pos, level);
+    }
+    return slot;
+}
+
+/* Resolve the generator/spew class shared by groups of enemy types. */
+s32 fn_8004F87C(s32 type, s32 level, s32 spew)
+{
+    switch (type) {
+    case 0:
+    case 3:
+    case 6:
+    case 9:
+    case 12:
+    case 15:
+    case 18:
+    case 21:
+    case 22:
+        if (spew != 2 && spew != 4) {
+            spew = RandInt(1) != 0 ? 4 : 2;
+        }
+        break;
+    case 2:
+    case 7:
+    case 14:
+    case 17:
+    case 24:
+        if (spew == 0) {
+            switch (level) {
+            default:
+                spew = 7;
+                break;
+            case 3:
+                spew = 30;
+                break;
+            case 4:
+                spew = 23;
+                break;
+            case 5:
+                spew = 17;
+                break;
+            case 6:
+                spew = 18;
+                break;
+            }
+        }
+        break;
+    case 1:
+    case 4:
+    case 5:
+    case 8:
+    case 10:
+    case 11:
+    case 13:
+    case 16:
+    case 19:
+    case 20:
+    case 25:
+    case 32:
+    case 33:
+        if (spew == 0) {
+            switch (level) {
+            default:
+                spew = 7;
+                break;
+            case 4:
+                spew = 23;
+                break;
+            case 5:
+                spew = 17;
+                break;
+            case 6:
+                spew = 18;
+                break;
+            }
+        }
+        break;
+    case 27:
+        spew = 31;
+        break;
+    case 30:
+        spew = 3;
+        break;
+    case 31:
+        spew = 27;
+        break;
+    case 29:
+        spew = 19;
+        break;
+    }
+    return spew;
+}
+
+s32 check_enemy_pos(f32* start, f32* out, s32 slot)
+{
+    Enemy* e = &gEnemies[slot];
+    f32 rad = e->rad;
+    f32 hht = e->hht;
+    f32 pos[3];
+    u8 _ppad[4];
+    f64 half;
+    void* obj;
+    s32 grounded;
+
+    if (out != NULL) {
+        pos[0] = out[0] + start[0];
+        pos[1] = out[1] + start[1];
+        pos[2] = out[2] + start[2];
+        if (EnemyWallCollide(rad, start, pos, 0) != 0) {
+            return -1;
+        }
+    } else {
+        pos[0] = start[0];
+        pos[1] = start[1];
+        pos[2] = start[2];
+    }
+    e->objgrp.worldmat[3][0] = pos[0];
+    e->objgrp.worldmat[3][1] = pos[1];
+    e->objgrp.worldmat[3][2] = pos[2];
+    if (FloorCollide(pos, 0, 0, 2, lbl_80346A40, lbl_80346A44, lbl_80346A48)
+        != 0) {
+        grounded = 1;
+    } else {
+        grounded = 0;
+    }
+    if (grounded == 0) {
+        return -1;
+    }
+    {
+        f32 floorY = gFloorCollisionResult.floorY;
+        f32 dy = floorY - start[1];
+        u8 _dpad[8];
+
+        *(u32*)&dy &= 0x7FFFFFFF;
+        if (dy > lbl_80346988) {
+            return -1;
+        }
+        e->objgrp.worldmat[3][1] = floorY;
+    }
+    fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
+    if (fn_80046680(rad, hht, slot, 1, start, pos) >= 0) {
+        return 0;
+    }
+    half = lbl_80346830 * rad;
+    if (fn_8004646C((f32)half, hht, slot, start, pos, 0, 0) >= 0) {
+        return 0;
+    }
+    obj = fn_8005EFAC((f32)half, start, pos, 0, 0);
+    if (obj != NULL && obj != e->generator) {
+        if (fn_8005D3D8(-1, obj) != 0) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* Rotate a horizontal direction into one of the eight generator octants. */
+static f32 gendir_8004FBC8(f32* input, f32* output, s32 direction)
+{
+    f32 x = input[0];
+    f32 z = input[2];
+    f64 term;
+
+    output[1] = input[1];
+    switch (direction) {
+    default:
+        output[0] = x;
+        output[2] = z;
+        return lbl_80346820;
+    case 1:
+        output[0] = -x;
+        output[2] = -z;
+        return lbl_80346A4C;
+    case 2:
+        output[0] = -z;
+        output[2] = x;
+        return lbl_80346A50;
+    case 3:
+        output[0] = z;
+        output[2] = -x;
+        return lbl_80346A54;
+    case 4:
+        term = lbl_80346A58 * z;
+        output[0] = lbl_80346A58 * x + term;
+        output[2] = lbl_80346A58 * -x + term;
+        return lbl_80346A60;
+    case 5:
+        term = lbl_80346A58 * x;
+        output[0] = lbl_80346A58 * -z + term;
+        output[2] = lbl_80346A58 * z + term;
+        return lbl_80346A64;
+    case 6:
+        term = lbl_80346A58 * -x;
+        output[0] = lbl_80346A58 * z + term;
+        output[2] = lbl_80346A58 * -z + term;
+        return lbl_80346A68;
+    case 7:
+        term = lbl_80346A58 * -z;
+        output[0] = lbl_80346A58 * -x + term;
+        output[2] = lbl_80346A58 * x + term;
+        return lbl_80346A6C;
+    }
+}
+
+/* find_enemy_slot: return a free/recyclable enemy slot for a new spawn.
+ * Recycles the least-important live enemy through kill_enemy when the array is
+ * full; returns -1 when the request cannot be satisfied. */
+s32 find_enemy_slot(s32 type, s32 level) {
+    s32 enemy_state;
+    Enemy* enemy;
+    s32 index;
+    s32 best_visible;
+    s32 visible;
+    f64 invis_add;
+    f64 dying_mult;
+    f32 distance;
+    f32 best_distance;
+    s32 best_index;
+    s32 count;
+
+    best_visible = 1;
+    index = 0;
+    best_index = 0;
+    count = gNumEnemies;
+    best_distance = lbl_80346820;
+    dying_mult = lbl_80346878;
+    invis_add = lbl_80346A20;
+    enemy = gEnemies;
+
+    for (index = 0; index < count; index++, enemy++) {
+        enemy_state = enemy->state;
+
+        if (enemy_state == INACTIVE) {
+            return index;
+        }
+        if (enemy->type != E_IT) {
+            distance = enemy->actual_dist;
+            visible = enemy->visactive;
+
+            if (enemy_state == DYING || enemy_state == SLEEP ||
+                enemy->birth_style != 0) {
+                distance *= dying_mult;
+            } else if (visible == 0) {
+                distance += invis_add;
+            }
+            if (distance > best_distance) {
+                best_distance = distance;
+                best_index = index;
+                best_visible = visible;
+            }
+        }
+    }
+
+    default_gen_count = 1;
+    if (type < E_NTYPES && level < best_visible) {
+        return -1;
+    }
+    if (best_visible != 0) {
+        lbl_80344728++;
+    }
+    kill_enemy(best_index);
+    {
+        Enemy* k = (Enemy*)((u8*)gEnemies + best_index * 916);
+        f32 reset_distance = lbl_803468F0;
+
+        k->close_dist = reset_distance;
+        k->actual_dist = reset_distance;
+    }
+    return best_index;
+}
 
 /* 0x8004FE34 - initialise a freshly claimed enemy slot's object state.
  *
@@ -7439,6 +7523,13 @@ extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
  * floor at `pos`, its per-type variables are initialised, and its shadow node
  * is parked underneath it.
  */
+extern void SetEnemyObj(Enemy* e, s32 type, s32 level);
+
+/* init_enemy followed do_enemies in the pre-reorder file and so compiled under
+ * the `#pragma opt_propagation off` that do_enemies' body opens (its bare
+ * `#pragma reset` does not close it).  The reorder moves init_enemy out of that
+ * region, so the bracket is now explicit here. */
+#pragma opt_propagation off
 void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
     Enemy* e = &gEnemies[slot];
@@ -7518,3 +7609,4 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree(&e->atree, 0, 2);
     }
 }
+#pragma opt_propagation reset
