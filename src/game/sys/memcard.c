@@ -257,7 +257,6 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
  * into the in-memory dir table, then commit the whole save record to the
  * card.  (Was labelled saveSave; the actual player-data save is saveSave
  * below - this one only touches the directory + full commit.)
- * PARKED 79/79 real 10: base-accumulator r0 web + slwi r5 in-place rotation.
  */
 typedef struct TexAnimHdr {
     u32 type;      /* +0 */
