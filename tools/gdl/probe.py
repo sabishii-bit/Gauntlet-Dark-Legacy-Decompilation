@@ -1135,7 +1135,41 @@ def _wf_word_diff_module():
         return None
 
 
-def raw_word_residual(unit, fn):
+# dtk suffixes LOCAL symbol names with their address, so the target's
+# `long2str_800E74B8` and our static `long2str` are one function under two
+# spellings and every tool here strips the suffix to pair them. For a name
+# whose PREFIX is the placeholder kind, the suffix IS the identity: stripping
+# `fn_800D967C` yields the string `fn`, `lbl_8023D000` yields `lbl`.
+# cs_constsweep._strip_dtk records the lesson from the `lbl` half ("fndiff
+# learned this the hard way: stripping collapsed every pool label to bare
+# 'lbl'") and matchtool, fnskel, cv_crossjoin, rs_composed_census and
+# fndiff.parse all guard the prefix. probe.py was the one module that did not,
+# and the `fn` half is what claim.law.MP_probe-raw-drops-the-raw-word-count-
+# for-every-address-suffixed-name-and-its-tu-gate-false-alarms-on-a-pinned-
+# tu.20260903.v1 measured: every `fn_*` name collapsed to `fn`.
+#
+# CALIBRATED TWO-SIDED over the 1,641 function names in the 53 raw
+# postprocess bodies `--raw` scores (T21_scratch/t21_suffix_census.py, run 51):
+#   275 names match the strip regex, and 275 of 275 (100%) are prefix-guarded
+#       `fn_*` names whose stripped form is the bare string `fn`
+#   POSITIVES 260 names measurable under the FULL spelling and NOT under the
+#             stripped one — every one of them a raw word count the loop
+#             could never print
+#   NEGATIVES 0 names measurable under the stripped spelling and not the full
+#             one, so the guard takes nothing away
+#   15 further names are measurable under NEITHER spelling: genuinely
+#      count-asymmetric functions, which is what the fallback message is for
+PLACEHOLDER_NAME_PREFIXES = ("fn_", "lbl_", "jumptable_")
+
+
+def strip_dtk_suffix(name):
+    """`long2str_800E74B8` -> `long2str`; `fn_800D967C` -> itself."""
+    if name.startswith(PLACEHOLDER_NAME_PREFIXES):
+        return name
+    return re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+
+
+def raw_word_residual(unit, fn, fn_stripped=None):
     """(words, insns, mnemonic_divergence, pinned) for the RAW body, or None.
 
     Run-48 item 1. The differing-WORD count is the number AGENTS.md makes
@@ -1151,10 +1185,21 @@ def raw_word_residual(unit, fn):
     count-asymmetric function raises SystemExit inside word_streams, and a
     function outside every postprocessor class by construction has no word
     residual to report.
+
+    Both SPELLINGS are tried (run-51 item 1), in the order the caller gives
+    them, exactly as `score_function` and `object_digest` already do — the
+    single non-tolerant use of the stripped name is the defect the MP law
+    measured. `word_streams` resolves the name in BOTH objects with an exact
+    `webfrank._find_symbol` lookup, so a name that only one object carries
+    fails whichever spelling is passed; trying both is what makes the
+    placeholder names (which both objects spell identically) measurable.
     """
     module = _wf_word_diff_module()
     if module is None:
         return None
+    names = [fn]
+    if fn_stripped and fn_stripped != fn:
+        names.append(fn_stripped)
     try:
         # wf_word_diff resolves the raw object itself (cn_analyze.our_object,
         # which knows only the `body` stage) while `--raw` builds whatever
@@ -1167,17 +1212,30 @@ def raw_word_residual(unit, fn):
         measured_at = Path(_our_object(unit)[0]).resolve()
         if measured_at != Path(raw_object_target(unit)).resolve():
             return None
-        _kind, insns, rows, mnemonic = module.word_diff(unit, fn)
-        pinned = fn in module.rule_served_functions(unit, module.ROOT)
-        # The PER-WORD decode (run-48 item 4), so the loop's CLASS line is
-        # the same one wf_word_diff prints and carries the same correction:
-        # a MNEMONIC-divergence-of-zero function whose words are branch
-        # displacements or literals is not a register-assignment question.
-        decode = module.decode_counts(
-            rows, module.reloc_types_by_index(unit, fn, insns))
-    except Exception:
+        served = module.rule_served_functions(unit, module.ROOT)
+        for name in names:
+            try:
+                # SystemExit, not Exception: word_streams raises SystemExit
+                # for a count-asymmetric function and for a missing object,
+                # and SystemExit is a BaseException — the blanket `except
+                # Exception` below never caught it, so a count-asymmetric
+                # function under `--raw` terminated the probe instead of
+                # printing the fallback line its own docstring promises.
+                _kind, insns, rows, mnemonic = module.word_diff(unit, name)
+            except (Exception, SystemExit):
+                continue
+            pinned = name in served
+            # The PER-WORD decode (run-48 item 4), so the loop's CLASS line
+            # is the same one wf_word_diff prints and carries the same
+            # correction: a MNEMONIC-divergence-of-zero function whose words
+            # are branch displacements or literals is not a
+            # register-assignment question.
+            decode = module.decode_counts(
+                rows, module.reloc_types_by_index(unit, name, insns))
+            return len(rows), insns, mnemonic, pinned, decode
         return None
-    return len(rows), insns, mnemonic, pinned, decode
+    except (Exception, SystemExit):
+        return None
 
 
 def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None):
@@ -1200,6 +1258,24 @@ def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None):
                   f" {prev_words})")
     unreachable = (0 if not decode
                    else decode.get("BRANCH", 0) + decode.get("IMMEDIATE", 0))
+    if not words:
+        # A residual CLASS on a function with no residual is a sentence about
+        # nothing, and it reads as a finding: the old line said "CLASS:
+        # RECOLOR — index-aligned, only register fields differ" over zero
+        # differing words. wf_word_diff prints its CLASS line only `if rows`;
+        # this is the same rule in the loop. (Reachable at all only since the
+        # run-51 fix — `fn_*` names could never get here.)
+        return (f"RAW WORDS = 0{delta} of {insns} insns — every instruction"
+                " WORD of the raw body equals the target's, so there is no"
+                " residual to classify. Words are not the whole object: the"
+                " RELOC-SYMBOL screen is the one class this count is blind"
+                " to (claim.law.SA_a-wrong-global-that-shares-an-instruction-"
+                "word-is-invisible-to-every-score-including-the-word-count"
+                ".20260902.v1)."
+                + ("\n  PINNED: a webfrank rule serves this function, and the"
+                   " raw body already matches without it — a promotion"
+                   " candidate: the rule can be DELETED (AGENTS.md promotion"
+                   " directive), not merely replayed." if pinned else ""))
     if mnemonic == 0 and unreachable:
         klass = (f"RECOLOR-SHAPED BUT NOT RECOLOURABLE — index-aligned, but"
                  f" {decode.get('BRANCH', 0)} BRANCH and"
@@ -1435,7 +1511,7 @@ def rescore_after_restore(unit, fn, state_file, why):
     The point is only that the numbers a later probe compares against
     describe the tree that is actually here.
     """
-    fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
+    fn_stripped = strip_dtk_suffix(fn)
     real, insns = score_function(unit, fn, fn_stripped, [])
     if real is None:
         print(f"[{why}: could not re-score {fn} after the restore — fndiff"
@@ -4828,7 +4904,7 @@ def main():
         # before the ordinary build/score path because it owns its own
         # builds, banks nothing, and computes no verdict.
         return run_arbitrate(
-            unit, fn, re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn), source,
+            unit, fn, strip_dtk_suffix(fn), source,
             raw_flag=["--raw"] if "--raw" in sys.argv else [],
             vs_baseline="--vs-baseline" in sys.argv,
             vs_head="--vs-head" in sys.argv)
@@ -5134,8 +5210,10 @@ def main():
 
     raw_flag = ["--raw"] if raw else []
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
-    # names; accept either spelling here so one name works everywhere.
-    fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
+    # names; accept either spelling here so one name works everywhere. The
+    # PREFIX guard is what keeps `fn_800D967C` from becoming the string `fn`
+    # (see strip_dtk_suffix).
+    fn_stripped = strip_dtk_suffix(fn)
     real, insns = score_function(unit, fn, fn_stripped, raw_flag)
 
     if real is None:
@@ -5151,7 +5229,7 @@ def main():
     raw_words = raw_insns = raw_mnemonic = raw_decode = None
     raw_pinned = False
     if raw:
-        measured = raw_word_residual(unit, fn_stripped)
+        measured = raw_word_residual(unit, fn, fn_stripped)
         if measured is not None:
             (raw_words, raw_insns, raw_mnemonic, raw_pinned,
              raw_decode) = measured

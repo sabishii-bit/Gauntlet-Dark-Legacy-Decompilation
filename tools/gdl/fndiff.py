@@ -190,6 +190,15 @@ def pool_symbols():
 _SYMBOL_ADDRESSES = None
 
 
+# Names whose trailing `_80XXXXXX` is the IDENTITY, not a dtk decoration:
+# stripping one collapses a whole population to a single key. `parse` guards
+# these in the relocation path; this is the same tuple, so the two cannot
+# drift apart again (they already had — see the `fn` note in `parse`).
+PLACEHOLDER_NAME_PREFIXES = ("fn_", "lbl_", "jumptable_")
+# The same set as bare stems, for the relocation-text match in `parse`.
+PLACEHOLDER_STEMS = tuple(p[:-1] for p in PLACEHOLDER_NAME_PREFIXES)
+
+
 def symbol_addresses():
     """name -> absolute address for every symbols.txt entry (data identity)."""
     global _SYMBOL_ADDRESSES
@@ -204,7 +213,18 @@ def symbol_addresses():
                     name, addr = match.group(1), int(match.group(2), 16)
                     table[name] = addr
                     # parse() strips dtk address suffixes upstream; register
-                    # the stripped alias so lookups still resolve.
+                    # the stripped alias so lookups still resolve — but only
+                    # for names parse() actually strips. Unguarded, the same
+                    # collapse parse() guards against happened here too
+                    # (MEASURED at 0f4151839 over config/GUNE5D/symbols.txt:
+                    # of the 4,713 names the regex touches, 4,686 are
+                    # placeholder names and they minted exactly three keys —
+                    # `lbl` from 4,282 names, `fn` from 307, `jumptable` from
+                    # 97 — each resolving to whichever name parsed first).
+                    # The 27 real dtk local statics keep their alias, which is
+                    # what it is for.
+                    if name.startswith(PLACEHOLDER_NAME_PREFIXES):
+                        continue
                     stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
                     if stripped != name:
                         table.setdefault(stripped, addr)
@@ -388,8 +408,25 @@ def parse(objfile: Path):
             # sweep rows were this artifact and a real wrong-symbol defect
             # hid among them (claim.law.parse-strips-the-lbl-address-so-
             # signature-alone-cannot-clear-a-reloc-row).
+            # `fn` joined that guard tuple in run 51 (T21 item 1's discipline-
+            # 18 sibling screen). It is the same defect as the `lbl` half the
+            # paragraph above records — the suffix IS the identity — and it
+            # was simply never added when the lbl fix landed: MEASURED at
+            # 0f4151839, 2,004 relocations across 641 objects named a callee
+            # `fn_80XXXXXX` and every one of them was recorded as the symbol
+            # `fn`, so calling the WRONG unnamed function was invisible to
+            # `--clean`, to `real` and to the wf_word_diff RELOC-SYMBOL
+            # screen alike (the class claim.law.SA_a-wrong-global-that-shares-
+            # an-instruction-word-is-invisible-to-every-score-including-the-
+            # word-count.20260902.v1 exists for). CALIBRATED TWO-SIDED over
+            # all 3,032 comparable function pairs in 257 units
+            # (T21_scratch/t21_relguard_impact.py): 0 pairs equal-today-and-
+            # differing-with-the-guard and 0 the other way, i.e. no live
+            # verdict moves — the fix closes a BLIND SPOT, it does not fix a
+            # current miscall, and it costs no lane a re-baseline.
             def strip_dtk_suffix(m):
-                return m.group(0) if m.group(1) in ("lbl", "jumptable") \
+                return m.group(0) \
+                    if m.group(1) in PLACEHOLDER_STEMS \
                     else m.group(1)
             rel = re.sub(r"(\w+?)_80[0-9A-Fa-f]{6}(?=$|\+)",
                          strip_dtk_suffix, rel)
