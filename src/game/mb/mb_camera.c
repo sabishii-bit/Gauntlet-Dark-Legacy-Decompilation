@@ -107,10 +107,10 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     yDenomB = camera->viewport[1][1];
     yDenomA = camera->projection[1][1];
     yDepthScale = camera->viewport[3][1];
-    xNumerator =
-        (f32)((f64)viewport->xoff + centeredX);
     yNumerator =
         (f32)((f64)viewport->yoff + centeredY);
+    xNumerator =
+        (f32)((f64)viewport->xoff + centeredX);
     xNumerator *= projected[2];
     yNumerator *= projected[2];
     xNumerator -= projected[2] * camera->viewport[3][0];
