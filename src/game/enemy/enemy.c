@@ -4942,8 +4942,8 @@ void move_logic22(s32 index)
     }
     switch (e->mode1) {
     case 0: {
-        s32 i;
         u8* node;
+        s32 i;
         s32 best_idx = -1;
         f32 best_dist = lbl_803468B0;
 
