@@ -1,0 +1,37 @@
+{
+  "attributes": {
+    "baseline_fidelity": "Through the actual complete GC/1.2.5 Ninja compile edges, retained NMWException raw SHA-256 df1296a531804e2b9e1f305e66bc6901e6ced5c886f53da52b3a2fb8bb64ba4e and ExceptionPPC raw f6f248059d3cde25f39e2b52181497ce93bcea6557b34823ff5968e143a8a44f reproduce the measured pre-fix baselines. Fixed outputs are byte-identical to the pre-change linked objects: NMWException e0446ade83295b8364dcb915152aaf28175163555504df3cf3e63347b15ed2bb; ExceptionPPC 086d2a2a07d8d0619232f44bd975d728ef02189c412d2346d16614bd03b4b564.",
+    "guards": "The production CLI requires --kind, --input, --output; legacy in-place argv is refused. fix_object checks full input and postimage SHA-256, refuses resolved-path/hardlink aliasing, performs legacy layout operations only on unique temporary copies, preserves the prior output on refusal, and atomically publishes only the verified result. Unsupported compiler/metadata variants fail closed. fix_nmw/fix_exppc remain explicitly documented in-place research primitives, not production entry points.",
+    "law_screen": "Read the current laws roster. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 applies: the decisive test resolves the function's actual linked datum, not instruction scores. No compiler source-unreachability claim is used. context what__Q23std9exceptionCFv returns the R66 finding and no attempts; rg -n -F Runtime.PPCEABI.H/NMWException config/GUNE5D/webfrank.json returns no rows, and the TU brief has no WebFrank pin.",
+    "limits": "Whole-object fingerprints are intentionally narrow compatibility guards, not proof these rewrites are historically necessary. They are measured for the current unchanged full TUs, source/compiler configuration and deterministic emitted metadata. No console/emulator boot or gameplay test was performed. Normal matched score and source-linked coverage are unchanged; root will publish updated pipeline provenance at integration.",
+    "matching_refusal": "Reconfiguring matching with the unchanged MODIFIED! source and building NMWException.o exits 1: raw object hash 67aa79a... != supported df1296a..., changed source/compiler output is not eligible for a retail rewrite. The existing final output remains the modified 67aa79a... object rather than being silently rewritten. Source restoration followed by ninja -j2 succeeds with build/GUNE5D/main.dol: OK and the matching verifier PASS.",
+    "mod_measurement": "python configure.py --non-matching; ninja -j2; python tools/gdl/composed_census/r67_runtime_verify.py --mode editable --expect-string MODIFIED! --out build/r67_runtime_editable_modified.json. PASS: actual compiler output SHA-256 67aa79a638243fe4f40708c0c273fda0da57114eb6820e489ad1f749b679bacb, with 3/3 what instructions. The linked function at 0x800e3240 contains 3c608011 386378e8 4e800020, resolving the returned address to 0x801178e8. Both linked ELF and DOL contain MODIFIED! at that address. ELF SHA-256 2c09de419747a4955629d39af9947084a0f1cd2c68114471b998b28c39cc43fa; DOL cec64ff7f984f5f8f9b0e35752bffee81a4320ae1351a95659828e35c2f01c48.",
+    "mode_switches": "Actual default build-directory matching -> editable baseline -> edited editable -> matching refusal -> restored matching sequence completed. Both switches change the final object's Ninja producer command (fixup versus compiler), so cached outputs are rebuilt deterministically rather than relying on timestamps left stale by an in-place mutation. ninja -t deps reports VALID for both retained .postprocess/body Runtime objects; a subsequent ninja -d explain -j2 runs only the progress target, without runtime compile/fixup/link work.",
+    "neighborhood_screen": "Unfiltered rg -n 'fix_exception_objects|exception_fixup' . found the old configure custom edge, script, provenance and CE consumers, tests, README and R66 records. The sibling ExceptionPPC text/EH/rodata rewrite is included in the same raw/fixed boundary and hash guards, not left in place. Root owns and is updating build_provenance.py classification for the new singular fix_exception_object rule; legacy plural detection remains for older snapshots. The editable graph has only the target-independent atree export operation, and no Frank/WebFrank/P6/runtime/retail_dol edge. Residual risk: --non-matching still links only configure's Matching source objects; unfinished NonMatching TUs remain extracted fallback. This repair does not represent that mode as a fully source-built binary.",
+    "owned_files": [
+      "configure.py",
+      "tools/fix_exception_objects.py",
+      "tools/gdl/composed_census/r67_runtime_verify.py",
+      "tools/gdl/tests/test_r67_runtime_fixup.py"
+    ],
+    "prior_finding": "claim.R66_exception-runtime-fixup-overwrites-a-legitimate-mod-literal.20260905.v1",
+    "source_changes": "The temporary own-worktree NMWException.cpp edit changed only exception::what's literal from exception to MODIFIED! for the mod test. It was restored via apply_patch. git diff --numstat after restoration lists configure.py and tools/fix_exception_objects.py only among tracked files; no src/include/config change is retained.",
+    "verification": [
+      "python -m unittest discover tools/gdl/tests -b: all green",
+      "python -m memory_graph.test_graph -b: all green",
+      "python memory_graph/gdlmem.py validate: succeeds; existing corpus debt retained",
+      "python memory_graph/gdlmem.py build: succeeds",
+      "ninja -j2: build/GUNE5D/main.dol: OK after restored source and matching graph",
+      "python tools/gdl/composed_census/r67_runtime_verify.py --mode matching --out build/r67_runtime_matching_final.json: PASS"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R67_runtime-rewrites-are-isolated-from-editable-builds.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T20:48:51Z",
+  "schema_version": 1,
+  "subject": "tool:runtime-exception-fixup",
+  "valid_from": "2026-09-05",
+  "value": "Repaired the confirmed exception-runtime source-edit overwrite without changing source semantics or the matching DOL. Matching builds now compile both Runtime TUs into retained .postprocess/body objects and publish separately guarded fixed outputs. Editable --non-matching builds compile and link their untouched source output, with no runtime or retail-byte rewrite edge. A controlled exception::what return-literal edit reached its actual linked ELF and DOL datum; matching mode refused that changed raw object, and restoring source returned the full build to main.dol: OK. This establishes the runtime pipeline safety boundary, not a boot test or a fully reconstructed all-source game."
+}
