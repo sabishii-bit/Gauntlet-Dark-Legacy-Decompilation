@@ -106,16 +106,18 @@ objdiff, and make sure the linked DOL still passes the configured hash check.
 Please keep commits focused and avoid mixing unrelated cleanup with decompilation
 work.
 
-To link non-matching code for testing (final hash will not match):
+To build editable versions of the source-linked units (final hash will not match):
 
 ```sh
 python configure.py --non-matching
 ninja
 ```
 
-This mode selects editable source and bypasses Frank, WebFrank and P6Frank.
-It is not yet wholly rewrite-free: the exception-runtime layout fixup still
-runs in this mode and has a confirmed edited-string overwrite (details below).
+This mode bypasses Frank, WebFrank, P6Frank and the retail-layout exception
+runtime fixups. It does **not** promote `Object(NonMatching, ...)` units to the
+link: their extracted objects remain selected. An edit in one of those source
+files can compile successfully without appearing in the game. Consult the
+provenance manifest's `linked_object`/`linkage`, not just a successful build.
 
 One target-independent ELF visibility fixup runs in both build modes for
 `game/anim/atree.c`: GC 1.2.5 needs four cross-TU state objects to retain
@@ -165,6 +167,17 @@ relocations are correct. Demotions remain `UNRESOLVED` pending datum, addend,
 width and operand-position review; a datum multiset alone misses transpositions.
 Logs and hashes live beside its JSON in a unique generated `build/` directory.
 
+To adjudicate the source-linked subset against actual linked function bytes:
+
+```sh
+python tools/gdl/composed_census/r67_linked_shadow_audit.py --preflight build/GUNE5D/reconstruction_preflight.json
+```
+
+This checks complete function bytes in the ELF, built DOL and retail DOL at the
+target address and size. It does not clear the unlinked subset or certify raw
+compiler output. In the initial audit, all 17 linked demotions were exact after
+linking; the other 359 remained unresolved.
+
 Matching emitted bytes also does not prove that original source has been
 recovered. In `world.c`, `StartWorldLoad` and `LoadWorldDone` use the
 user-approved (2026-09-04) `WorldNameRef` compatibility wrapper: an ordinary
@@ -188,23 +201,25 @@ snapshots under hardware exceptions or debugging. Regression tests are in
 `tools/gdl/tests/test_address_fold.py`; the source-exhaustion and census
 records are searchable with `gdlmem.py context do_enemy_move`.
 
-`python configure.py --non-matching` bypasses WebFrank, P6Frank and the Frank
-object pipelines, so those rules do not require modders' edits to preserve
-their input hashes. The matching build intentionally refuses a changed pinned
-body. **This is not yet a wholly rewrite-free editable build:** the existing
-`tools/fix_exception_objects.py` is also scheduled in non-matching mode. It
-removes a weak runtime function, rewrites string/data layout and relocations,
-and mutates the two exception-runtime objects in place. Provenance reports
-that separately, not as raw compiler output or mere metadata cleanup. A
-controlled full-TU test confirmed that changing `exception::what()` to return
-the same-length `"MODIFIED!"` is silently overwritten back to `"exception"`.
-The reproducible diagnostic is
-`tools/gdl/composed_census/r66_exception_mod_probe.py`; its PASS means the
-experiment completed, while `mod_effect` says whether the edit survived.
-This defect is not fixed by the reporting work. Isolating retained raw runtime
-objects and removing the retail-layout rewrite from editable builds is the
-next safety task, including mode-switch and actual edited-link tests.
-Target-independent atree symbol export/rename processing also remains enabled.
+`python configure.py --non-matching` bypasses the target-bound object pipelines,
+so their rules do not require modders' edits to preserve input hashes. The
+matching build intentionally refuses changed pinned bodies. Its exception
+runtime compatibility stage removes a weak function and rewrites string/data
+layout, relocations and exception records; it is not merely metadata cleanup
+or a proven historical compiler requirement. Both raw runtime objects are now
+retained under `.postprocess/body/`, and separate `fix_exception_object` edges
+produce the hash-guarded matching objects without modifying their inputs.
+
+The prior in-place fixup could silently replace an edited `exception::what()`
+string with the retail literal. It is now disabled in editable builds. A real
+source edit to `"MODIFIED!"` survived into the resolved returned string in both
+the linked ELF and DOL; switching that edited source to matching mode refused,
+and restoring the source returned the matching DOL to its verified checksum.
+`tools/gdl/composed_census/r67_runtime_verify.py --mode matching` checks the
+retained raw/fixed boundary. With the deliberate source edit and an editable
+build, use `--mode editable --expect-string MODIFIED!` instead. These are
+compile/link tests, not console boot or gameplay tests. Target-independent
+atree symbol export/rename processing remains enabled in both modes.
 
 The user-approved weak square-root helper in
 `enemy.c` remains explicitly documented compatibility scaffolding, not a
