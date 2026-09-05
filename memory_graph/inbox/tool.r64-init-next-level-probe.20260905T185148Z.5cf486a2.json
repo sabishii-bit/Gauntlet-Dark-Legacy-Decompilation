@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Requires whole-raw-ELF reproduction through the actual Ninja command before probing; fails closed on source guard, compile, or fidelity errors.",
+    "Generated files stay in build/r64_init_next_level; production source is read-only. Raw instruction equality does not prove relocation, literal, semantic, or TU equality.",
+    "This is a bounded experiment over the R64 historical/retained source forms, not an exhaustive source/compiler/flag search or postprocessor-necessity proof."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r64_init_next_level_probe.py",
+  "id": "tool.r64-init-next-level-probe.20260905T185148Z.5cf486a2",
+  "kind": "tool",
+  "name": "r64_init_next_level_probe",
+  "purpose": "Reproduce finite full-TU source-form probes and the R64 counterexample to fixed implicit register homes in init_next_level.",
+  "recorded_at": "2026-09-05T18:51:48Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r64_init_next_level_probe.py",
+  "status": "active",
+  "tool_key": "tool:r64-init-next-level-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run from a configured worktree after building the raw gauntworld edge; default fifteen cases or repeated --case historical --case rotation6 --case best."
+  ],
+  "valid_from": "2026-09-05T18:51:48+00:00"
+}
