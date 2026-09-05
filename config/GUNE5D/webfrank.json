@@ -1506,6 +1506,19 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "GetEnemyType",
+        "before_sha256": "0b409341a0f6f532341434fc9f1fc80ad9785ffa07e23011fd1b262d042a87b2",
+        "after_sha256": "5132b0e943191e33da8fc4d64d9b56ea2017a4fe6f826daa74ea214f3974acd5",
+        "mechanism": "attempt.R60_getenemytype-independent-lookup-schedule-closure.20260904.v1. SOURCE-EXHAUSTION provenance: attempt.R60_getenemytype-missing-diagnostic-arguments-refute-copy-cap.20260904.v1. Restoring two omitted ErrorPrintf arguments generates the target's two incoming parameter copies; using the existing findWorldName inline leaves only an independent table-address/index-initialization swap. Seven further source/control variants are measured. At61/61, exact24-byte frame and all slots, only0xa0/0xa4 differ. This permutation alone passes the dependency and full retail datum proofs and returns BYTE-EQUAL; no recolor or widened verifier. A practical exact closure, not proof that no natural source schedule exists.",
+        "instruction_permutation": [{
+          "start": "0xa0", "end": "0xa8", "order": [1, 0],
+          "before_sha256": "ed521f561a4dd50f62a667ef8db0f0781309b74f55254bbfee140d104f047c1d",
+          "after_sha256": "7dbecb9b64c876db04420a0a708f76c05c3da1159e7da7b5c31770e124c87c54",
+          "before_relocations_sha256": "12ca4e179523bcc957c7006cbc7e44dd8da0ed51a931643455a3833233ea57da",
+          "after_relocations_sha256": "d595676a330c4365aeec638aff02c283ef0a6d7ef29e72f8240c702163ad820c"
+        }]
+      },
+      {
         "function": "fn_80051E1C",
         "before_sha256": "9b5d659311abd88da7bf93973281d34fe6e05670d42e36d67481debd706cbb50",
         "after_sha256": "904069ecf29093540c6128bfa144e8fd764df7472f62f9b436ea79f972d694fa",

@@ -646,6 +646,28 @@ def formatter_variants(body):
     yield "nested_switch_character_function_scope", "#pragma inline_depth(2)\n" + nested_switch + scope_char + "\n#pragma inline_depth(0)\n"
 
 
+def enemy_type_variants(body):
+    if 'ErrorPrintf(lbl_801124EC, name, w, l);' not in body:
+        raise ValueError("restore the target's two live diagnostic arguments first")
+    yield "index_decl_before_name", replace_once(body, "        char* name;\n        s32 i;", "        s32 i;\n        char* name;")
+    start, end = body.index("        char* name;"), body.index("    return result;")
+    direct = body[:start] + "        ErrorPrintf(lbl_801124EC, findWorldName(w), w, l);\n    }\n" + body[end:]
+    yield "existing_inline_name_argument", direct
+    yield "existing_inline_name_local", body[:start] + "        char* name = findWorldName(w);\n        ErrorPrintf(lbl_801124EC, name, w, l);\n    }\n" + body[end:]
+    named_base = replace_once(body, "        char* name;", "        char* name = (char*)lbl_8011AF48;")
+    named_base = named_base.replace("((Row36*)lbl_8011AF48)[i]", "((Row36*)name)[i]")
+    yield "reuse_name_as_table_base", named_base
+    for control in ("scheduling", "opt_propagation", "opt_common_subs"):
+        yield "inline_argument_" + control + "_off", "#pragma " + control + " off\n" + direct + "\n#pragma " + control + " reset\n"
+
+
+def enemy_type_control_variants(body):
+    if 'ErrorPrintf(lbl_801124EC, findWorldName(w), w, l);' not in body:
+        raise ValueError("controls require the retained live-argument inline lookup")
+    for control in ("scheduling", "opt_propagation", "opt_common_subs"):
+        yield control + "_off", "#pragma " + control + " off\n" + body + "\n#pragma " + control + " reset\n"
+
+
 def compile_baseline(edge, source_path, baseline_path, expected_path, out):
     # Read BEFORE compiling: a historical --baseline-object can be the same
     # pathname as baseline_path. Reading afterward would compare the new
@@ -662,14 +684,14 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter", "gettype", "gettype_controls"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -717,7 +739,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

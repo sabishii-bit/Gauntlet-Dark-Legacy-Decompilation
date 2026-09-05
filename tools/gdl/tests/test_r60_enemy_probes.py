@@ -26,6 +26,20 @@ class BaselineFidelity(unittest.TestCase):
                     source_probe.compile_baseline({"mw": "test", "cflags": ""}, Path("source.c"), obj, obj, Path(directory))
 
 
+class EnemyTypeControls(unittest.TestCase):
+    def test_controls_preserve_live_arguments_and_restore_pragmas(self):
+        body = "s32 GetEnemyType(s32 w, s32 l) { ErrorPrintf(lbl_801124EC, findWorldName(w), w, l); }\n"
+        forms = list(source_probe.enemy_type_control_variants(body))
+        self.assertEqual(len(forms), 3)
+        for name, text in forms:
+            control = name.removesuffix("_off")
+            self.assertEqual(text, "#pragma " + control + " off\n" + body + "\n#pragma " + control + " reset\n")
+
+    def test_old_missing_argument_body_is_refused(self):
+        with self.assertRaises(ValueError):
+            list(source_probe.enemy_type_control_variants("ErrorPrintf(lbl_801124EC, name);"))
+
+
 class ResourceForms(unittest.TestCase):
     BODY = """void fn_80051164(void)
 {

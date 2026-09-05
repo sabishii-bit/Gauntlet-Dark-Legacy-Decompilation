@@ -8310,17 +8310,7 @@ s32 GetEnemyType(s32 w, s32 l)
         }
     }
     if (result == -1) {
-        char* name;
-        s32 i;
-        for (i = 0; i < 44; i++) {
-            if (w == ((Row36*)lbl_8011AF48)[i].f0) {
-                name = (char*)&((Row36*)lbl_8011AF48)[i].f4;
-                goto have_name;
-            }
-        }
-        name = 0;
-have_name:
-        ErrorPrintf(lbl_801124EC, name);
+        ErrorPrintf(lbl_801124EC, findWorldName(w), w, l);
     }
     return result;
 }

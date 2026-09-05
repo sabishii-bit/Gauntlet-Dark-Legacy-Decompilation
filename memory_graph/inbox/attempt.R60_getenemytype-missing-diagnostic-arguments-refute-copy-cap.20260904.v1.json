@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Recover missing live diagnostic arguments, then inline lookup identity and scheduling controls.",
+  "attributes": {
+    "axis_log": [
+      "Prior20260831 park measured61/59 but performed no source probes; its missing-incoming-copy diagnosis transfers, its compiler-impossibility conclusion is refuted by the recovered diagnostic varargs."
+    ],
+    "law_screen": "Read the prior GetEnemyType target-only-param-home-copy park in full. Its61/59 diagnosis reproduces, but its no-source-path conclusion was diagnosis-only, with no literal source probes. Current residual +2 addi corpus screened: incoming-copy and pointer declaration identity observations do not establish necessity. Existing findWorldName inline is a new meaningful source identity. Independent permutation membership checked in our coloring before any patch; target address materialization and index initialization have disjoint register effects.",
+    "probed_form": "Live baseline at9ddedc1ad:91.9672%,real66,T61/O59. Restore both numeric varargs:97.7049%,real8,T61/O61,four differing words. r60_enemy_source_probe.py gettype: index declaration before name neutral; existing findWorldName(w) passed directly to ErrorPrintf reduces four to two words KEPT; storing helper result in local emits62 instructions; reusing name as table base neutral. Independent current-source gettype_controls baseline passes whole-object identity: scheduling off61/61 with15 words; propagation off61/61 with6 words; common_subs off61/61 with6 words, all rejected. No compatibility wrapper. An attempted historical-source replay failed whole-object fidelity and supplied NO measurement; controls were rerun from the actual retained source in a separate output directory.",
+    "semantic_evidence": "Retail datum0x801124EC is 'No enemy loaded: %s (type=%d subtype=%d)'. Old source supplied only name. Target +0x04 `addi r5,r3,0` and +0x10 `addi r6,r4,0` preserve w/l through the error call at+0xd8. Restoring ErrorPrintf(lbl_801124EC,name,w,l) creates exactly those two copies and changes59 to61 instructions. This directly refutes the prior claim that the copies were unreachable in source.",
+    "verification": "Fresh source98.0328%,real2,T61/O61,frame24 and all5slots identical. Only target +0xa0 li r4,0 then +0xa4 addi r3,r3,@lo differ; ours has these in reverse order. No remaining register recolor. Raw sibling census and complete build gates required before integration."
+  },
+  "denial": {
+    "expiry_check": "Recompile current source with raw whole-object baseline fidelity and inspect GetEnemyType without its postprocessor; never measure the pinned object as evidence for source exactness.",
+    "falsifier": "An ordinary lookup source form producing target index-before-address schedule at unchanged61/61 and exact relocations/frame/data.",
+    "premise_measurement": "Current raw61/61,real2,98.0328%; only the independent two-instruction pair at0xa0..0xa8 differs.",
+    "scope": "Only the measured lookup identity and three compiler controls at restored enemy TU scope; not all possible source schedules."
+  },
+  "function": "function:GetEnemyType",
+  "held_fixed": "Enemy type fallback logic, signed inputs, lookup table stride36 and44 rows, diagnostic string and return value. The two restored varargs are required by the retail format and register liveness, not new game behavior. All scratch current-source baselines must equal the complete raw Ninja object.",
+  "id": "attempt.R60_getenemytype-missing-diagnostic-arguments-refute-copy-cap.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-05T00:04:09Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "opcode multiset: IDENTICAL (61/61)"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.getenemytype-target-only-param-home-copy-park.20260831.v1",
+  "valid_from": "2026-09-05"
+}

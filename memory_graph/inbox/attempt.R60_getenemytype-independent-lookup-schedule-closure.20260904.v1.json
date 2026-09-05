@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "One independent instruction permutation after source restoration, with no recolor.",
+  "attributes": {
+    "law_screen": "Measured61/61, two differing raw words only. Our +0xa0 addi r3,r3,@lo reads/writes the table address; +0xa4 li r4,0 initializes the independent lookup offset. No memory, control, RAW/WAR/WAW interaction. The relocation travels with its address instruction. Full retail datum and existing instruction-permutation dependence proofs pass.",
+    "source_exhaustion": "attempt.R60_getenemytype-missing-diagnostic-arguments-refute-copy-cap.20260904.v1 records the semantic repair, four lookup forms and three compiler controls; bounded cap only, not universal source unreachability.",
+    "verification": "wr_try_rule game/enemy/enemy GetEnemyType returns BYTE-EQUAL (raw postprocess body),1stage, FULL retail datum screen. before0b409341a0f6f532341434fc9f1fc80ad9785ffa07e23011fd1b262d042a87b2 after5132b0e943191e33da8fc4d64d9b56ea2017a4fe6f826daa74ea214f3974acd5. No copy_register_fields, unproven audit or verifier changes. Integration requires full ninja and both suites."
+  },
+  "function": "function:GetEnemyType",
+  "id": "attempt.R60_getenemytype-independent-lookup-schedule-closure.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T00:04:13Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-05",
+  "verifiers_run": [
+    "instruction_permutation",
+    "verify_datum_binding"
+  ]
+}
