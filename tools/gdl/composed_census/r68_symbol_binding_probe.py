@@ -22,6 +22,12 @@ from tools.gdl.composed_census.r67_runtime_visibility_probe import inventory
 from tools.gdl.atree_exports import read_symbols
 
 CASES = {
+    "aux-next-level": {
+        "unit": "game/ui/auxscreen",
+        "names": {"init_next_level": "init_next_level_8005638C"},
+        "occurrences": 2,
+        "provider": "build/GUNE5D/src/game/world/gauntworld.o",
+    },
     "camera-helpers": {
         "unit": "game/world/camera",
         "names": {"get_attn_pos": "get_attn_pos_8002C9A8", "adjust_radius": "adjust_radius_8002B2D4"},

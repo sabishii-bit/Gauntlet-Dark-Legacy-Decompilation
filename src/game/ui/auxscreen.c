@@ -167,7 +167,7 @@ extern void MapMusicStart(void);
 extern void next_world(void);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
 extern void setup_player_display(s32 i);
-extern s32 init_next_level(s32 a);
+extern s32 init_next_level_8005638C(s32 a);
 extern void* LoadModel(char* name, s32 a, s32 b, s32 c);
 extern void* MBNewBlit(void* base, s32 a, s32 b);
 extern void* MBOX_FindTexture(char* name, s32 a);
@@ -1170,7 +1170,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     for (i = 0; i < 4; i++) {
         setup_player_display(i);
     }
-    rv = init_next_level(lvl);
+    rv = init_next_level_8005638C(lvl);
 
     if (movie == 0 && *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata)) != 0) {
         sprintf((char*)base, fmt + 24, (char*)gCurLevel + offsetof(level_data, name));
