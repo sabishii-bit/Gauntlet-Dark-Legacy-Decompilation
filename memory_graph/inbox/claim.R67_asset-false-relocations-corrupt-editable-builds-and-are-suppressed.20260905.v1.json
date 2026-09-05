@@ -33,6 +33,7 @@
     "neighbourhood_screen": "Whole verified 1.1MB range, every current extracted relocation, both named consumer anchors, all remaining bytes, complete matching and moved editable payload. Earlier isolated R62 suppressions correctly diagnosed the class but left 58 sites; the historical 33-site census is stale. No classification is extended to other data ranges.",
     "payload_sha256": "3ac9bbaaf14dffa0ce2dfc78db275bb566b1635cf4b903c17e45fa8a880049f3",
     "prior_range_evidence": "claim.embedded-static-payload-range-verified.20260831.v1",
+    "classification_limit": "Hashing identifies the inherited asset range; it does not prove absence of native pointers. Classification rests on serialized byte format, consumers and relocation neighborhoods from the prior range investigation plus this census. Do not generalize the prior record's alignment heuristic: real C chars/strings can be unaligned. Independent review matched all58 exact-site config additions to the before census. SHF_ALLOC is required for ELF-only reads; all reported after comparisons also check the DOL.",
     "proof_boundary": "Full asset byte preservation at link time only, not console boot or original source recovery. Editable build retains 42 unfinished source-object fallbacks and 84 auto data/BSS objects; a green matching DOL is not a complete source-only build. Existing asset data remains extracted, with no fake data-progress credit.",
     "range": [
       "0x80129734",

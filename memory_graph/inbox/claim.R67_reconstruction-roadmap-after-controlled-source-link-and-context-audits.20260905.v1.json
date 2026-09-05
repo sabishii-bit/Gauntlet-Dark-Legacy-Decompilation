@@ -1,0 +1,89 @@
+{
+  "attributes": {
+    "baseline_and_best_progress": {
+      "fuzzy_percent": 98.67,
+      "lenient_matched_percent": 71.92,
+      "matched_function_report": "2777/2990",
+      "source_linked_code_percent": 40.23,
+      "source_linked_units": "215/341",
+      "status": "unchanged; audit and linkage/mod-safety repairs, not matching credit"
+    },
+    "branch": "codex/reconstruction-foundation",
+    "evidence_ids": [
+      "claim.R67_linked-shadow-demotions-are-exact-after-link.20260905.v1",
+      "claim.R67_runtime-rewrites-are-isolated-from-editable-builds.20260905.v1",
+      "claim.R67_asset-false-relocations-corrupt-editable-builds-and-are-suppressed.20260905.v1",
+      "claim.R67_editable-default-is-not-all-configured-source-and-first-link-failures-are-actionable.20260905.v1",
+      "claim.R67_mb-blit-public-helper-visibility-restored-with-raw-tu-preservation.20260905.v1",
+      "attempt.R67_audio-stream-effective-strings-correct-and-prefix-ownership-moves-the-address-home-copy.20260905.v1",
+      "claim.R67_sound-data-context-beats-merge-necessity-and-recovers-the-movie-table.20260905.v1",
+      "claim.law.R67_mwcc-data-pooling-can-retain-unreferenced-static-tables.20260905.v1"
+    ],
+    "independent_root_reproductions": {
+      "all_configured_source": "Scratch unchanged control ELF SHA256 0e7a7de7b9d2bf0602ba1fb6360ff4bf823e57bfbd6564ffdc31f2f0a78c63aa equals actual editable ELF. Trial: 257 configured source/assembly + 84 auto data/BSS; exit 1/no ELF. Three false EH and three mb helper undefined names eliminated; 65 duplicate + 35 undefined diagnostics still reach the 100-error cap, not exhaustive. Matching mode restored, ninja prints main.dol: OK.",
+      "audio": "60 variants reproduced. Stock GC 1.2.5 diagnostic wrapper + 220-byte prefix + existing pad 248 emits target 93/93 instructions, frame 312/312, exact 372 unlinked body bytes; SHA256 b722175fd9add77a7ae3c07cb339ade9cae16b7470611ad79dde627e7a12e350. Other 39 raw bodies unchanged. Raw relocation tables differ by defined pool alias and SDA21 offset convention; normalized records agree. This is not a linked-TU/source-originality certificate. No scaffold retained.",
+      "linked_shadow": "17/17 linked score demotions equal 18004 complete function bytes in target/built DOL/ELF; 359 unlinked cases withheld.",
+      "sound": "Merged reset-pragma control: 151/151 raw bodies unchanged; separate evt real table prefix plus ordinary literals: 118/118 unchanged. Five independent arrays reconstruct 340 bytes and 32 pointer bindings at retail bases; both literal pools exact. Synthetic pooled-static control retains 2 unused strings while same-source -pool off retains 0. Exact defining GC TU and real LCF placement unresolved."
+    },
+    "integration_base": "4ea9874fd68df8fac4039580ebe655bf7dbddcc5",
+    "closed_worker_state": {
+      "audio": "MERGED 6f9239a827433bcdf24e6a7d10e9d36ce34c0bdd; W:/Repositories/GDL-R67-audio removed; codex/r67-audio deleted with git branch -d.",
+      "sound": "MERGED 08fbf57c0d12997ee580c3f8785381bacd749b8a; W:/Repositories/GDL-R67-sound removed; codex/r67-sound deleted with git branch -d.",
+      "runtime": "MERGED 02e5b85126999785030f92ac5143f3e893e76e1f including earlier488c4641/a3ccfb12; W:/Repositories/GDL-R67-runtime removed; codex/r67-runtime deleted with git branch -d.",
+      "cleanup_proof": "Each absolute target resolved exactly beneath W:/Repositories, tip passed merge-base --is-ancestor against feature HEAD, status contained only owned LANE_LOCK, recursive reparse census0. Removed owned locks, used native git worktree remove/prune, then nonforced branch -d. Main checkout/orig/build remained intact; original before-fix editable control ELF preserved under root build/ with verified SHA256."
+    },
+    "limitations": "No claim that all postprocessing can already be retired, that originalcompiler provenance is established, that the all-configured-source game boots, or that an exact instruction-only experiment flips a TU. Root reports/fixtures are generated under build; durable record/tool sources and commits preserve reproduction.",
+    "main_unchanged": "d76899a8894c2a7863607f90a026474b094d874f",
+    "measured_commands": [
+      "python tools/gdl/reconstruction_preflight.py --smoke-tools --out build/r67_preflight_post_asset.json",
+      "python tools/gdl/composed_census/r67_linked_shadow_audit.py --preflight build/r67_preflight_post_asset.json --out build/r67_linked_post_asset.json",
+      "python tools/gdl/composed_census/r67_audio_context_probe.py --flags --out build/r67_audio_root_reproduction.json",
+      "python tools/gdl/composed_census/r67_audio_effective_string_audit.py --out build/r67_audio_effective_root.json",
+      "python tools/gdl/composed_census/r67_sound_boundary_probe.py --out build/r67_sound_root.json",
+      "python tools/gdl/composed_census/r67_sound_pdb_type_probe.py research/xbox_symbols/shell3D.pdb --out build/r67_sound_pdb_root.json",
+      "python tools/gdl/composed_census/r67_runtime_visibility_probe.py --out build/r67_runtime_visibility_root_final.json",
+      "python tools/gdl/composed_census/r67_runtime_allsource_probe.py --out build/r67_runtime_allsource_root_final.json",
+      "python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/r67_asset_editable_final.json"
+    ],
+    "next_sequence": [
+      {
+        "approach": "Separate visibility from name/prototype compatibility and datum ownership. Compare source/target binding and real cross-TU call relocs, test changes against whole raw TUs. For duplicate data, identify exactly one source owner with correct size/content/alignment and remove only its corresponding extracted ownership. No dummy functions, blanket aliases or duplicate-tolerant link flags.",
+        "gate": "A successful scratch link using all configured source/assembly, with explicit remaining auto asset/data objects; then boot/edit smoke tests. Raw matching remains a separate gate.",
+        "observation": "All configured source compiles but cannot yet link together; remaining diagnostics include private/public and suffixed/unsuffixed names plus multiply owned data.",
+        "priority": 1
+      },
+      {
+        "approach": "Reconstruct complete independently typed tables, pool order, visibility, real consumers and EH ownership. Validate against DOL values/relocations; use PDB types as corroboration. Test TU grouping and pragma boundaries as hypotheses, not assumptions based on shared bases.",
+        "gate": "Whole-TU code/data/BSS/EH and relocation bindings verified at the actual production link, followed by safe source ownership promotion.",
+        "observation": "Sound literalization failures are sensitive to missing initialized data; a merge alone changes no raw function bytes. Audio raw capability changes with coupled local/pool context.",
+        "priority": 2
+      },
+      {
+        "approach": "Require byte-identical fresh baseline, effective pragma/flag sensitivity controls, held-fixed axes and whole-TU observations. Follow instruction/dataflow mechanism instead of nearest fuzzy score. Compare effective operand addresses and final linked bytes when representation differs.",
+        "gate": "Raw body plus relocation/data equality for natural source, or an explicitly qualified unresolved mechanism. Artificial shape controls stay diagnostic unless separately authorized.",
+        "observation": "A finite negative flag matrix did not predict a stock-compiler positive source-shape control. Stricter object scoring also demotes exact linked functions.",
+        "priority": 3
+      },
+      {
+        "approach": "Keep audited compatibility available and visible while reopening only cases with genuinely new source/context evidence. Investigate compiler variants only with baseline-valid positive/negative controls; no further broad compiler-decomp detour recommended from this evidence.",
+        "gate": "Any retirement uses full raw replacement plus data/relocation/EH/link proof. Editable source-linked changes remain unbound to retail bytes.",
+        "observation": "Guarded WebFrank proves a declared transformation, not impossibility of every natural source form; existing matching and editable requirements are different.",
+        "priority": 4
+      }
+    ],
+    "retained_repairs": [
+      "488c464166fc85d0e0cfa01e8c4aeb725feca069: separate hash-guarded runtime outputs, retained raw compiler objects, no runtime rewrite in editable mode. Actual edited exception::what string survives linked ELF/DOL; matching refuses changed raw input.",
+      "f13065404: exact-site DTK suppression of58 false inferred asset relocations. Full payload1108828B matches in normal and shifted editable ELF/DOL, formerly29changedwords/43bytes.",
+      "02e5b85126999785030f92ac5143f3e893e76e1f: six static tokens removed for three genuinely public mb_blit helpers, with42/42 raw bodies, relocations and initialized allocated section bytes unchanged."
+    ]
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R67_reconstruction-roadmap-after-controlled-source-link-and-context-audits.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation_roadmap",
+  "recorded_at": "2026-09-05T21:23:07Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "R67 produced actionable reconstruction repairs and positive compiler-capability controls, not a proof that WebFrank is necessary or unnecessary for every function. The strongest demonstrated project-wide obstacle is incomplete source/data ownership and cross-TU integration, which the normal mixed-source/extracted matching DOL can conceal. Priority is a faithful all-configured-source link and correct whole-TU data/interface context, followed by controlled raw compiler/source-shape closure. Do not interpret finite negative flag matrices, a high fuzzy score, a common pool base, or an instruction-only exact diagnostic as historical source/compiler proof. The project remains incomplete: no new TU flip in this audit, no new WebFrank rules, no compiler RE or new patch."
+}

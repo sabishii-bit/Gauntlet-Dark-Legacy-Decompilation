@@ -241,6 +241,68 @@ The user-approved weak square-root helper in
 `enemy.c` remains explicitly documented compatibility scaffolding, not a
 claim of recovered header provenance.
 
+### Reconstruction priorities from the R67 investigation
+
+The measured next milestone is **linking every configured source TU**, followed
+by exact code, data, relocations and exception metadata. It is not another
+fuzzy-score threshold. The ordinary editable build still links extracted
+objects for unfinished TUs. To expose the actual source-link failures without
+changing production link inputs:
+
+```sh
+python configure.py --non-matching
+ninja -j2
+ninja -j2 all_source
+python tools/gdl/composed_census/r67_runtime_allsource_probe.py
+python configure.py
+ninja -j2
+```
+
+The probe first reproduces the normal ELF exactly, then substitutes all
+configured source objects in a scratch link. Its `PASS` means the experiment
+ran faithfully, not that the trial linked. Initially, replacing 42 unfinished
+objects exposed duplicate data definitions and unresolved public symbols,
+while retaining 84 explicitly counted automatic data/BSS inputs. The linker
+stopped at its diagnostic cap: counts are lower bounds, and removing early
+errors can reveal new names without indicating a regression.
+
+The recommended order is:
+
+1. Repair genuine cross-TU visibility/name disagreements and reconcile each
+   source datum with its extracted owner. Keep pointer-bearing RTTI, exception
+   data and serialized assets distinct. Do not force the link with missing
+   function stubs, duplicate-tolerant flags or invented symbol aliases.
+2. Reconstruct complete TU context: initialized tables, literal and BSS pools,
+   prototypes, data visibility, source order and pragma boundaries. Use target
+   bytes and callers as authority; Xbox types are corroboration. Test proposed
+   TU merges rather than treating a shared pool address as proof of one TU.
+3. Run compiler/flag controls against a byte-identical fresh raw baseline.
+   Measure whole-TU effects and pragma overrides, not just the nearest function
+   score. A finite failed matrix is not evidence that no source form exists.
+4. Revisit guarded postprocessor cases only after those obligations are
+   controlled. Keep raw compiler results, transformed matching results and
+   editable-build behavior separately visible. A proven transformation does
+   not prove the transformation is necessary.
+
+Two experiments explain that ordering. Stock GC 1.2.5 emits the exact
+372-byte `AudioStreamPlay` instruction body under a diagnostic local wrapper,
+restored literal prefix and compensated existing pad. This proves that body
+shape is reachable, **not** that the artificial source is acceptable or its
+TU is matched; none of that scaffolding was retained. Separately, merging
+`sounds_evt` and `sounds` preserves all 151 raw bodies without closing their
+residuals. Five independent sound arrays reconstruct 340 data bytes and 32
+pointer bindings at retail bases, and normal compiler data pooling can retain
+their unreferenced filename table. Missing data context is a demonstrated
+lead; the exact original GC grouping and production placement remain open.
+
+Reproduce those bounded experiments with
+`r67_audio_context_probe.py --flags`, `r67_audio_effective_string_audit.py`,
+and `r67_sound_boundary_probe.py` under `tools/gdl/composed_census/`.
+Detailed findings, negative controls, scope limits and next hypotheses are
+structured memory-graph records, not this overview.
+
+### Postprocessor policy boundaries
+
 Three constraints govern the harness itself, quoted from `AGENTS.md`:
 
 - It is "used exactly within the constraints returned by

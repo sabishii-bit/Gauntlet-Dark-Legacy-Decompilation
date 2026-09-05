@@ -1,4 +1,5 @@
 import unittest
+import struct
 from unittest.mock import patch
 
 from tools.gdl.composed_census import r67_asset_relocation_audit as audit
@@ -66,6 +67,19 @@ class AssetAuditTests(unittest.TestCase):
         source, reloc = self.object_fixture({4: (1, 'fake', 0)}, 2)
         with source, reloc, self.assertRaises(ValueError):
             audit.object_relocations(None, bytes(audit.SIZE))
+
+    def test_nonallocated_elf_section_cannot_receive_payload_credit(self):
+        blob = bytearray(512 + audit.SIZE)
+        struct.pack_into('>I', blob, 0x20, 256)
+        struct.pack_into('>H', blob, 0x2e, 40)
+        struct.pack_into('>I', blob, 256 + 40 + 12, audit.START)
+        sections = [audit.webfrank.Section(0, '', 0, 0, 0, 0, 0, 0),
+                    audit.webfrank.Section(1, '.data', 1, 512, audit.SIZE, 0, 0, 0)]
+        with patch.object(audit, 'read_elf', return_value=(blob, sections, self.symbols(audit.START))):
+            with self.assertRaises(ValueError):
+                audit.linked_payload(None)
+            struct.pack_into('>I', blob, 256 + 40 + 8, 2)
+            self.assertEqual(audit.linked_payload(None), (audit.START, bytes(audit.SIZE)))
 
 
 if __name__ == '__main__':

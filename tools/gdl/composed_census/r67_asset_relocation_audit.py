@@ -1,7 +1,9 @@
 """Audit the verified GUNE5D embedded asset range, without interpreting its data.
 
-Read-only except the requested JSON report. Relocations inside this bounded,
-hash-identified serialized payload are extraction defects, not native pointers.
+Read-only except the requested JSON report. Classification as serialized data
+comes from claim.embedded-static-payload-range-verified.20260831.v1 and the
+examined relocation neighborhoods, not from hashing or alignment alone. Under
+that classification, these inferred relocations are not native pointers.
 Compare the entire payload at its actual linked address, including editable
 builds where that address moves. This is not a source or gameplay certificate.
 """
@@ -78,8 +80,9 @@ def linked_payload(path):
     shoff = struct.unpack_from('>I', blob, 0x20)[0]
     shsize = struct.unpack_from('>H', blob, 0x2e)[0]
     base = struct.unpack_from('>I', blob, shoff + shsize * index + 12)[0]
+    flags = struct.unpack_from('>I', blob, shoff + shsize * index + 8)[0]
     offset = start - base
-    if section.section_type != 1 or offset < 0 or offset + SIZE > section.size:
+    if section.section_type != 1 or not flags & 2 or offset < 0 or offset + SIZE > section.size:
         raise ValueError('linked payload outside allocated byte section')
     return start, blob[section.offset + offset:section.offset + offset + SIZE]
 
@@ -133,6 +136,7 @@ def audit(retail, obj, elf, dol=None):
         'status': 'PASS' if not rows and nonrelocated_exact and all(
             r['status'] == 'PASS' for r in comparisons.values()) else 'FAIL',
         'range': [hex(START), hex(END)], 'target_sha256': PAYLOAD_SHA256,
+        'classification_basis': 'Inherited asset-range evidence plus inspected relocation neighborhoods; hash verifies identity, not absence of native pointers.',
         'inferred_relocations': len(rows), 'relocations': rows,
         'object_nonrelocated_bytes_exact': nonrelocated_exact,
         'comparisons': comparisons, 'input_fingerprints': fingerprints,
