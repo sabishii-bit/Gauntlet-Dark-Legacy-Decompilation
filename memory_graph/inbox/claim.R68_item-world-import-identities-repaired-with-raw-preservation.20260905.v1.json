@@ -1,0 +1,49 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r68_interfaces_import_control.py",
+    "tools/gdl/tests/test_r68_interfaces_import_control.py"
+  ],
+  "attributes": {
+    "commands": [
+      "python tools/gdl/composed_census/r68_interfaces_import_control.py game/world/items --before build/r68_interfaces_items_names_before.json --rename sObjectsFile=sObjectsFile_80112AB8 --out build/r68_interfaces_items_names_after.json",
+      "python tools/gdl/composed_census/r68_interfaces_import_control.py game/world/gauntworld --before build/r68_interfaces_gauntworld_before.json --rename sObjectsFile=sObjectsFile_80112AB8 --rename AddItemWobj=AddItemWobj_80063DB0 --rename AtreeMatchAnyHeader=AtreeMatchAnyHeader_800674F4 --out build/r68_interfaces_gauntworld_names_after.json",
+      "python tools/gdl/defake_gate.py check game/world/items --rebuild",
+      "python tools/gdl/defake_gate.py check game/world/gauntworld --rebuild"
+    ],
+    "control_scope": "Fresh active-Ninja GC/1.2.5 whole-object identity checked before comparison. Only explicit one-to-one GLOBAL undefined-symbol renames allowed; definitions/merges refused. Every affected source function has matching target destination multiplicity, relocation type and addend; offsets may differ because bodies remain incompletely reconstructed.",
+    "law_screen": "Full current law corpus, both briefs, and contexts for all eight affected functions plus callees/data symbol screened before edits. Existing control-flow, stack and address-PRE caps not revisited; identifier-only source edit keeps instruction words and all non-name relocation fields fixed. All existing pins remain unchanged and verify.",
+    "limits": "This repairs unresolved import identity, not owned-data reconstruction. ItemStrings currently models a 0x561-byte span through a base whose exported target symbol names just the first12-byte string; no claim that the aggregate is original or independently emitted. That layout/ownership debt is unchanged. Pointer-vs-u32 Atree result declarations not harmonized by guess; no caller ABI certificate.",
+    "measured_at": "af68f26af with identifier-only source edits in src/game/world/items.c and src/game/world/gauntworld.c",
+    "providers": [
+      "build/GUNE5D/obj/auto_06_801116EC_rodata.o exports GLOBAL sObjectsFile_80112AB8 at .rodata+0x13cc, size12, bytes objects.ngc followed by NUL. Target address 0x80112AB8.",
+      "build/GUNE5D/src/game/world/.postprocess/body/items.o now exports both suffixed helpers following af68f26af; target items object exports same names."
+    ],
+    "tu_controls": [
+      {
+        "after_raw_sha256": "7a95bfcd5147dcfdc5520f447224e3ad501ce66c3894eb456a8ff01591b8a0f2",
+        "allocated_sections": 5,
+        "before_raw_sha256": "844a099f35e7de7b0978a0ed6b02b996916e336df9d2d546e3299916d3c833e6",
+        "functions": 53,
+        "relocations": 902,
+        "unit": "game/world/items"
+      },
+      {
+        "after_raw_sha256": "b03e8e2aa5c6259f0c42a27087da4de71df17989f39b2ef9df553d2da890a059",
+        "allocated_sections": 6,
+        "before_raw_sha256": "4f523fd37ffb8cf7cadfd3f7bb2c97cdbe0dbfd5af9a6b9cb668fa85d77f81ce",
+        "functions": 71,
+        "relocations": 2103,
+        "unit": "game/world/gauntworld"
+      }
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R68_item-world-import-identities-repaired-with-raw-preservation.20260905.v1",
+  "kind": "claim",
+  "predicate": "source_interface_repair",
+  "recorded_at": "2026-09-05T22:26:37Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "items and gauntworld now reference the actual existing sObjectsFile_80112AB8 export, and gauntworld calls the existing AddItemWobj_80063DB0 and AtreeMatchAnyHeader_800674F4 exports. Exactly 19 undefined-symbol relocation identities are corrected: ten item string-base sites, six world string-base sites and three world call sites. All 124 raw function bodies/positions, allocated data/BSS/exception metadata and other symbol/relocation fields are preserved. No alias, definition duplication, flag change or new transform is introduced."
+}

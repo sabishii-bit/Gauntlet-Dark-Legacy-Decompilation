@@ -142,7 +142,7 @@ extern s32            sWindowCameraVariant0;
 extern s32            sWindowCameraVariant1;
 extern char           sWeaponsName[8];
 extern char           sPowerupsName[0x28];
-extern ItemStrings    sObjectsFile;
+extern ItemStrings    sObjectsFile_80112AB8;
 extern s32            gBossType;
 extern void*          gSceneRoot;
 extern void*          sItemsRootNode;
@@ -700,7 +700,7 @@ void MatchTransporters(void)
  * special triggers and nodes that are link targets. */
 void LinkItemTriggers(void)
 {
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     s32 i;
     Item* item;
     s32 j;
@@ -1438,7 +1438,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     char name[36];
     char child_name[32];
     u8 stack_pad[20];
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     iteminfo** infos = &gWorldInfo.iteminfo;
     iteminfo* info_base = *infos;
     ItemRuntime* runtime = &sItemRuntime;
@@ -2187,7 +2187,7 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     ItemRuntime* runtime = &sItemRuntime;
     u8* target = target_ptr;
     WorldObj* wtarget = (WorldObj*)target_ptr;
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     f32 x = (f32)(0.1 * (f32)x_grid);
     f32 z = (f32)(0.1 * (f32)z_grid);
     s32 i;
@@ -2280,7 +2280,7 @@ void LoadPowerups(char* name) {
 void LoadItems(void)
 {
     ItemRuntime* runtime = &sItemRuntime;
-    ItemStrings* strings = &sObjectsFile;
+    ItemStrings* strings = &sObjectsFile_80112AB8;
 
     if (sItemFile0Handle < 0 && gBossType < 0) {
         sprintf(runtime->itemPath, strings->file0Format, WorldItemDesc());
@@ -2557,7 +2557,7 @@ void update_player_milestone(struct Player* player_ptr)
  */
 void AddLocatorInstList(void)
 {
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     locator* locators = gWorldInfo.locators;
     s32 locator_count = gWorldInfo.nlocators;
     ItemRuntime* runtime = &sItemRuntime;
