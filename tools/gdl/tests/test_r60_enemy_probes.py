@@ -216,6 +216,38 @@ class SpawnPoolForms(unittest.TestCase):
             list(source_probe.generate_pool_variants(self.BODY.replace("lbl_802511FC[type]", "pool->lbl_802511FC[type]")))
 
 
+class MovementAddressForms(unittest.TestCase):
+    BODY = """void do_enemy_move(s32 index)
+{
+    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + ENEMY_POOL_OFF);
+    s32 alg = e->algorithm;
+    f32 rad = e->rad;
+    f32 hht = e->hht;
+    s32 blocked = 0;
+    Enemy* other;
+    /* stun freeze + knockback integration */
+    use(e, alg, rad, hht, blocked);
+}
+"""
+
+    def test_staged_assignments_follow_all_declarations_in_original_order(self):
+        forms = dict(source_probe.movement_address_variants(self.BODY))
+        text = forms["staged_self"]
+        self.assertLess(text.index("    Enemy* other;"), text.index("    e ="))
+        self.assertIn("e = (Enemy*)((u8*)e + ENEMY_POOL_OFF);", text)
+        self.assertIn("alg = e->algorithm;\n    rad = e->rad;\n    hht = e->hht;\n    blocked = 0;", text)
+        self.assertTrue(text.endswith("    use(e, alg, rad, hht, blocked);\n}\n"))
+        self.assertNotIn("volatile", text)
+        self.assertIn("e = (Enemy*)((u8*)other + ENEMY_POOL_OFF);", forms["staged_other"])
+
+    def test_already_staged_and_missing_owner_refuse(self):
+        retained = dict(source_probe.movement_address_variants(self.BODY))["staged_self"]
+        with self.assertRaises(ValueError):
+            list(source_probe.movement_address_variants(retained))
+        with self.assertRaisesRegex(ValueError, "existing other"):
+            list(source_probe.movement_address_variants(self.BODY.replace("    Enemy* other;\n", "")))
+
+
 class EnemyTypeControls(unittest.TestCase):
     def test_controls_preserve_live_arguments_and_restore_pragmas(self):
         body = "s32 GetEnemyType(s32 w, s32 l) { ErrorPrintf(lbl_801124EC, findWorldName(w), w, l); }\n"

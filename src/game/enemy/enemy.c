@@ -885,11 +885,11 @@ next_enemy:
 
 void do_enemy_move(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + ENEMY_POOL_OFF);
-    s32 alg = e->algorithm;
-    f32 rad = e->rad;
-    f32 hht = e->hht;
-    s32 blocked = 0;
+    Enemy* e;
+    s32 alg;
+    f32 rad;
+    f32 hht;
+    s32 blocked;
     s32 collide;
     f32 moveDistance;
     s32 result;
@@ -907,6 +907,13 @@ void do_enemy_move(s32 index)
     u8 unused3[4];
     f32 half[3];
     u8 unused4[12];
+
+    e = (Enemy*)((u8*)lbl_80250E00 + index * sizeof(Enemy));
+    e = (Enemy*)((u8*)e + ENEMY_POOL_OFF);
+    alg = e->algorithm;
+    rad = e->rad;
+    hht = e->hht;
+    blocked = 0;
 
     /* stun freeze + knockback integration */
     if (e->stun_timer > 0) {
