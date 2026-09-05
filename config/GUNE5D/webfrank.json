@@ -1535,7 +1535,7 @@
       },
       {
         "function": "init_enemy_vars",
-        "before_sha256": "343b1616cd3e28daf965aaf177979207413b60a1ea5f212bf96a995ea6e069c8",
+        "before_sha256": "9fa9d1eb10fcd23557d92ad143be84e7bdda68cbbc6dabf1acca348633e98a4d",
         "after_sha256": "53de380a5a6436674e49371269fe0902bc0bb8c82fc8f96bda30795e8b761c5c",
         "mechanism": "SOURCE-EXHAUSTION: attempt.R60_initvars-named-loop-and-inline-tiers-close-structure.20260904.v1 records 86 bounded source candidates, not a universal impossibility claim. The previous 208/209 residual was structural: six indexed-versus-displacement loads, two extra zero definitions and one absent conditional-over-unconditional branch pair. Named fxhittime element induction, an ordinary inline health-tier result, an inlined damage early return and scoped opt_propagation off restore 208/208 with the identical instruction stream. The documented eight-byte reservation stands for unrecovered locals and restores frame40; it asserts no original local identity. Raw differing words44, all form-aware register fields, with exact branch immediates, frame/save/slot map and relocation order. Strict verify_consistent_recolor proves the entire CFG and verify_datum_binding passes against the retail DOL at FULL strength. No permutation, value-equality widening, unproven audit, operand substitution or relocation rewriting is used. Full raw TU inventory proves no collateral body changes.",
         "audit": {
@@ -1547,7 +1547,7 @@
       },
       {
         "function": "fn_800516F8",
-        "before_sha256": "f9c5a05fe9df89af97e45227b370ffec0ec34a0b752c05c396498a0cf4e6742e",
+        "before_sha256": "4f5188e58c5a02d421280f986bbef28565483b5fc3c0ee0b97d1068f52b3d58b",
         "after_sha256": "73752fde65dcbddbf9e008e6a0a121d69794bf3ce9a7ae4d1933ef09c3296d58",
         "mechanism": "attempt.R60_fn516f8-strict-recolor-after-distance-copy-and-slots.20260904.v1. SOURCE-EXHAUSTION provenance: attempt.R60_fn516f8-scoped-distance-chain-closes-copy-and-scratch-layout.20260904.v1. Seventy-five measured source candidates isolate the missing copy and four displaced rounding slots. Retained ordinary source hoists the four existing volatile truncation temporaries and stages the branch-selected measuredDistance in block scope before range=dist=measuredDistance. No compatibility wrapper, scratch-pointer helper, self-assignment, new volatile access or added padding is retained. Raw352/352, frame168 and all10 slots exact;59 differing words are a strict whole-CFG register renaming with identical opcode order and exact datum binding. Full-strength wr_try_rule returns BYTE-EQUAL. No permutation or widened proof. This bounded source cap is not evidence that all possible natural source forms are unreachable.",
         "copy_register_fields": true
@@ -1602,7 +1602,7 @@
       },
     {
       "function": "move_logic22",
-      "before_sha256": "c95fe0cda8ef6c86bd6bf1297c8cae8ea0e1e93ce12b8a834b673b2997e45e72",
+      "before_sha256": "1ef38a81fa5d7b20980d37e727a7fe3c7b5b5ba97693a3a262655c18ed96e7b7",
       "after_sha256": "6b5c6d4e19ec0913252863006111a84ead9b65de2faf73e90b7cd8692e807cba",
       "audit": {
         "classification": "REGISTER_ONLY",
@@ -1620,8 +1620,8 @@
           ],
           "before_sha256": "0c159a567645ccb5be9d4eed5b75893c96486304c180f71ff61ce90db560c89c",
           "after_sha256": "12891e8071e194eb938aa94d8edcb51a7f6b61739bd8df824e69fabadfbb74e8",
-          "before_relocations_sha256": "685530e9c312b4fe89ddee0637ce9eff4b883378b819552277820cce472f7065",
-          "after_relocations_sha256": "c4b170180d1bbd63d34d2f667a8f919fe1d47c2e4b59f1fc4854570fa96645f0"
+          "before_relocations_sha256": "82c03db0e4791ec0d53d56c29141469cd0246c32c91d25b6cb01abc6fd4e05fc",
+          "after_relocations_sha256": "dc4fc105155cfa0894f998ae9dfe196cdb3e64e65ec1d240e9a09ff89df28ed4"
         }
       ],
       "copy_register_fields": true
@@ -1648,15 +1648,15 @@
           ],
           "before_sha256": "1f25855d832a8568a492077e7ca0f60d8d010e14ee680ba02287bddc49d3b898",
           "after_sha256": "632794d5cba761fe5c5f2a052a45e51b74f2c67c045472e7d63bcd1fc3cf7fdc",
-          "before_relocations_sha256": "30e29a0d730ab587eedbfe3dc78612464cf6daf6f6b566149a101675d17dc2ce",
-          "after_relocations_sha256": "8b20a1384822727360e1029cf046e9cc5dda612ba0ced18508abd8b970b4f9bd"
+          "before_relocations_sha256": "367074387440b48d3f96c326e69f950a695c4f22994afa6854f263f5850fcc02",
+          "after_relocations_sha256": "8a7fa6f448c7d0a9429e67c94280a8c634477f37e0dc5c6a61e28dd60472c21a"
         }
       ],
       "copy_register_fields": true
     },
     {
       "function": "damage_enemy",
-      "before_sha256": "fe9b55b5947b5578227e7702b9ecfaf88119baf49ae633fa98cbf831fb29148f",
+      "before_sha256": "c0b5d1cbb358eb5bf21cdfd45ddc5cfaf6aed58b82ae6087c38f01024613edda",
       "after_sha256": "8f2b0c083256aba7f0187e8f0462a7ea975293704e6c22051a45ba17cda72d01",
       "audit": {
         "classification": "REGISTER_ONLY",
@@ -1715,7 +1715,7 @@
     },
       {
         "function": "closest_enemy",
-        "before_sha256": "df7ab68342e6b9d8443c3879d0b0edb444da2893851345d958ba3383bb2ec114",
+        "before_sha256": "8c1947818466285b0dac5a612d7d4212414c89d42c422d4eb73f70eed6b42474",
         "after_sha256": "9bfc8703f759703d8a454ad7dcaf6dd9a2c08aeab5c512d675d68f05c90b62fb",
         "audit": {
           "classification": "REGISTER_ONLY",

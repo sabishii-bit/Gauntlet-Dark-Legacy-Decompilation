@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "anchors": [
+      "tools/gdl/composed_census/r62_address_fold_census.py",
+      "tools/gdl/tests/test_r62_enemy_probes.py",
+      "d206a4587"
+    ],
+    "demand_record": "attempt.R62_do-enemy-move-address-fold-reproduces-after-pool-integration.20260905.v1",
+    "limitations": "Only contiguous add/addi/lwz windows, paired at the same offset, are equivalence candidates. Scheduled-apart windows, other load widths and more complex affine chains are outside the census; missing objects and count-asymmetric functions prevent an entire-project absence claim. Equality is normal-completion integer/load behavior, not identical register snapshots at intermediate hardware exceptions. Source impossibility is not established.",
+    "measurement_command": "python tools/gdl/composed_census/r62_address_fold_census.py",
+    "neighbouring_shapes": "Count forms separately from customers: ours has4 folded sites (do_enemy_move+0x28, ProcessEffects+0x1670/+0x16b0, fn_8005C1DC+0xb68) and3 unfolded sites; target has2 folded sites (DoOptions+0xcd4 and fn_8005C1DC+0xb68) and4 unfolded sites (do_enemy_move,fn_8004646C,GetScrollListMsg,DrawScrollListText). fn_8005C1DC already emits the same folded form as retail. Both forms exist in retail; this is not evidence of a blanket compiler-version incompatibility.",
+    "population": "2971 compiled/target function pairs:2871 equal-size,100 unequal-size.84 units lack compiled objects.32 same-offset add/addi/lwz paired windows:17 already equal,1 exact folded-vs-unfolded mismatch,8 refused for differing load addresses and6 for different final register states; zero scan errors. The one passing mismatch is the entire do_enemy_move residual and passes both raw and target boundary checks."
+  },
+  "epistemic_state": "proposed",
+  "id": "claim.R62_address-fold-census-one-complete-body-customer.20260905.v1",
+  "kind": "claim",
+  "predicate": "capability_proposal",
+  "recorded_at": "2026-09-05T06:47:26Z",
+  "schema_version": 1,
+  "subject": "function:do_enemy_move",
+  "valid_from": "2026-09-05",
+  "value": "Demand census for a narrow three-instruction address-fold proof: one complete-body customer, do_enemy_move,905/905 with three raw differing words. This is a proposal only, not permission to exceed the current WebFrank class ceiling. The read-only symbolic checker proves a common effective load address and all32 final GPR values for arbitrary incoming registers modulo2^32; it accepts only non-record/non-OE add, nonzero-RA addi and lwz, rejects SP/TOC/SDA destinations, relocations inside the window and control-flow entry into its interior. No object is rewritten. A production extension would additionally need target/hash binding, whole-function/relocation/datum gates, adversarial tests, a full forced pin replay and the mod-build bypass check."
+}

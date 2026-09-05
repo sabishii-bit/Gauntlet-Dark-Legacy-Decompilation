@@ -18,6 +18,8 @@ clean_extab: true
 
 modules: []
 block_relocations:
+- source: ".data:0x801796CC" # asset payload 80 00 98 E7, not move_logic00's ETI+7
+- source: ".data:0x801E521C" # asset payload 80 00 98 E6, not move_logic00's ETI+6
 - source: ".data:0x801FD3C0"
 - source: ".data:0x80215358" # compressed payload word, not an extabindex pointer
 - source: ".text:0x80067B5C"

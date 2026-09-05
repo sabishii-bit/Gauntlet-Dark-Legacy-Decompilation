@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Never writes production source, config or objects. Generated files stay under build/r62_enemy_pool. Does not establish universal source impossibility or authorize a rule."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r62_enemy_pool_probe.py",
+  "id": "tool.r62-enemy-pool-probe.20260905T064805Z.b4b4fd35",
+  "kind": "tool",
+  "name": "r62-enemy-pool-probe",
+  "purpose": "Bounded scratch-only enemy source experiments with whole-raw-object fidelity and optional real existing-pin replay.",
+  "recorded_at": "2026-09-05T06:48:05Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r62_enemy_pool_probe.py",
+  "status": "active",
+  "tool_key": "tool:r62-enemy-pool-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "Use current18-current22 on the current production source; historical axes require their original source and object pair. --verify replays existing pins into scratch output."
+  ],
+  "valid_from": "2026-09-05T06:48:05+00:00"
+}

@@ -130,8 +130,9 @@ game/enemy/enemy.c:
 	extab       start:0x80006018 end:0x80006258
 	extabindex  start:0x80009874 end:0x80009BD4
 	.text       start:0x800444C0 end:0x800520CC
-	.data       start:0x8011C0EC end:0x8011C2FC
+	.data       start:0x8011BFF8 end:0x8011C2FC
 	.bss        start:0x80250E00 end:0x8025758C
+	.sdata2     start:0x80346810 end:0x80346AAC
 
 game/game/gamemain.c:
 	extab       start:0x80006258 end:0x80006320

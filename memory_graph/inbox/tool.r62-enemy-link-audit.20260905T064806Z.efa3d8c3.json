@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Diagnostic, not a checksum-gate replacement. Never normalizes or patches either image. Without --expected it compares against original retail including known exception padding."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r62_enemy_link_audit.py",
+  "id": "tool.r62-enemy-link-audit.20260905T064806Z.efa3d8c3",
+  "kind": "tool",
+  "name": "r62-enemy-link-audit",
+  "purpose": "Read-only complete DOL comparison for compiled-enemy linkage, including headers, padding, layouts and every loaded byte.",
+  "recorded_at": "2026-09-05T06:48:06Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r62_enemy_link_audit.py",
+  "status": "active",
+  "tool_key": "tool:r62-enemy-link-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "Pass --built and --expected; the expected cleaned build must satisfy config/GUNE5D/build.sha1. Output includes both image digests."
+  ],
+  "valid_from": "2026-09-05T06:48:06+00:00"
+}
