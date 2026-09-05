@@ -904,8 +904,14 @@ sibling consumers; never invent names.
   `claim.R63_three-word-address-forwarding-proof-reviewed.20260905.v1`.
   Like compiler scheduling, it models normal completion, not identical
   intermediate register snapshots under hardware exceptions or debugging.
-- Progress reporting always publishes the STRICT/EQUIVALENT split; never
-  quote the combined matched% alone in a record or report.
+- Progress reports must distinguish untransformed output, derived compilers,
+  proven postprocessing, manual exceptions, and extracted fallback; publish
+  source-linked coverage separately. Never quote combined matched% alone.
+  The old STRICT/EQUIVALENT labels were not byte/relocation certificates:
+  they inherited lenient objdiff scoring and omitted P6 from the subtraction.
+  Use the generated build provenance and state each metric's scope. A shadow
+  `functionRelocDiffs=data_value` report is an adjudication queue, not a new
+  acceptance percentage or proof that every demotion is a source defect.
 - A verified fuzzy improvement is valuable even when not exact: keep and
   commit it after validation. Byte-exact remains the goal; exactness is not a
   prerequisite for retaining better work.
@@ -914,6 +920,31 @@ sibling consumers; never invent names.
   overall project progress.
 - Preserve unrelated user changes and dirty files.
 - The best retained result is monotonic: never replace it with a worse one.
+
+### Isolated reconstruction experiments (user-approved, 2026-09-05)
+
+Monotonicity applies to the best **integrated** result, not every intermediate
+experiment. On a named, isolated branch/worktree, retain a bounded frontier of
+plausible source hypotheses even when an intermediate score is worse. Preserve
+the verified baseline on a separate ref; record the held-fixed variables,
+source/header/compiler fingerprints, structural evidence, and next deciding
+test. Use existing probe banking/arbitration controls without overwriting the
+best bank with an experimental state. A count or fuzzy regression alone does
+not disprove a type, ABI, data, inlining, or TU-boundary hypothesis.
+
+This is not permission to merge regressions, weaken postprocessor guards,
+invent source semantics, or remove user-approved compatibility scaffolding
+indiscriminately. Review the combined hypothesis and whole-TU text, relocations,
+data/BSS, exception metadata and linked result before integration. A finite
+fixed-source flag sweep may reject its tested settings, but does not establish
+source-unreachability; require full-TU baseline fidelity and option-sensitive
+controls where source pragmas may mask command-line changes.
+
+For a user-requested feature-branch campaign, keep coordination and result
+proposals in that branch's inbox. Do not switch or write to `main` merely to
+bypass the memory graph's main-only acceptance guard. The integrator reviews
+them on the feature branch; formal acceptance waits for authorized main
+integration. Workers still own disjoint files and never push or accept records.
 
 Every outcome is one of:
 

@@ -4,7 +4,9 @@
     "owned_units": [
       "AGENTS.md",
       "README.md",
-      ".github/workflows/build.yml"
+      ".github/workflows/build.yml",
+      "tools/gdl/reconstruction_preflight.py",
+      "tools/gdl/tests/test_reconstruction_preflight.py"
     ],
     "scope": "Integration, CI and isolated-experiment protocol; planned tools/gdl/reconstruction_preflight.py and tools/gdl/tests/test_reconstruction_preflight.py. No game source changes.",
     "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."

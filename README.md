@@ -133,33 +133,39 @@ python configure.py progress
 
 ### Postprocessing, and how progress is reported
 
-Most objects are compared exactly as the compiler emitted them. A minority
-are rewritten first by the project's fail-closed Frank / WebFrank / P6Frank
-harness, which is why `configure.py progress` ends with a line of this
-shape:
+The normal build mixes source-built objects with extracted target objects for
+unfinished units. A green DOL checksum verifies that mixed build, not a complete
+source reconstruction. Its linked-source coverage is separate from objdiff's
+matching score.
 
-```text
-Postprocessor split: STRICT matched NN.NN% (N fns, compiler output byte-identical)
-  + EQUIVALENT N.NN% (N fns, WebFrank-assisted: individually declared
-  compiler-variance proofs; see config/GUNE5D/webfrank.json)
+Inspect build provenance and fresh diagnostic reports after `ninja`:
+
+```sh
+python tools/gdl/build_provenance.py --out build/GUNE5D/build_provenance.json
+python tools/gdl/reconstruction_preflight.py --smoke-tools
 ```
 
-The two halves mean different things and are not interchangeable:
+Provenance distinguishes stock/derived compiler output, postprocessor rule
+classes (including manual exceptions), and the actual source/fallback link
+selection. These dimensions overlap and must not be added as percentages.
+GC 1.2.5n and experimental 1.2.5s are derived compilers, even when their object
+is linked without a subsequent instruction rewrite. Hashes identify artifacts;
+they do not prove source semantics or historical compiler provenance.
 
-- **STRICT** — the compiler's own output is byte-identical to the retail
-  target. Nothing was rewritten.
-- **EQUIVALENT** — the object matches after a postprocessor rule that is
-  machine-proven equivalent under the rule's declared register-allocation,
-  scheduling or narrow value-equality proof. The rule closes the residual;
-  it does not establish that every possible source form has been exhausted.
+The former STRICT/EQUIVALENT progress split overstated what it measured: it
+used lenient relocation scoring and subtracted only WebFrank functions, not
+P6. Current reporting labels that scope instead of calling the remainder
+compiler-output byte identity. A proven postprocessor rule establishes its
+declared transformation, not exhaustive failure of every possible source form.
 
-`AGENTS.md` requires that both halves always be published together:
-"Progress reporting always publishes the STRICT/EQUIVALENT split; never
-quote the combined matched% alone in a record or report." A single
-"matched %" figure taken from the first `All:` line is the combined
-number and must not be quoted on its own.
+The preflight produces fresh normal and stricter relocation reports without
+changing production scoring. Its PASS means the requested diagnostics executed
+and their populations/inputs agree, **not** that the source is complete or all
+relocations are correct. Demotions remain `UNRESOLVED` pending datum, addend,
+width and operand-position review; a datum multiset alone misses transpositions.
+Logs and hashes live beside its JSON in a unique generated `build/` directory.
 
-STRICT describes emitted bytes, not proof that the original source has been
+Matching emitted bytes also does not prove that original source has been
 recovered. In `world.c`, `StartWorldLoad` and `LoadWorldDone` use the
 user-approved (2026-09-04) `WorldNameRef` compatibility wrapper: an ordinary
 one-pointer local struct that changes MWCC's register allocation. It is
