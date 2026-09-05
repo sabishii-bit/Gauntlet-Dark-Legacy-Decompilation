@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "Audit TU context, global storage and effective optimizer settings in isolated diagnostics; no production edit or new rule.",
+  "attributes": {
+    "axis_log": [
+      "Prior PP (historical): compound assignment, explicit gSysFlags = gSysFlags & ~mask, local flags copy, and ~mask & gSysFlags all emitted identical bodies; that record's statement-spelling cap remains scoped to those forms.",
+      "R64: nine isolated variants and ten full-TU variants all preserve the four-word body; no claim of global source unreachability."
+    ],
+    "law_screen": "Applied claim.law.R64_fixed-source-compiler-sweeps-do-not-establish-source-unreachability.20260905.v1 (bounded conclusions); claim.law.LG_scaffold-pragmas-and-qualifiers-go-stale-reaudit-them-after-any-real-fix.20260901.v1 (effective-setting checks); claim.law.webfrank-pinned-function-source-freeze.20260831.v1 (production frozen, diagnostic copies only). Prior PP statement-spelling axis screened and not re-run as new work.",
+    "probed_form": "Full-TU diagnostic removes exactly '#pragma optimization_level 4\\n#pragma peephole on\\n#pragma scheduling on' and independently uses baseline, '-opt level=1', '-opt nopeephole', '-schedule off', '-opt off'. Synthetic literal fixture in r64_flags_context.c keeps 'void sysClearFlags(u32 mask) { gSysFlags &= ~mask; }', varying isolated versus preceding-function context, 'extern u32 gSysFlags', 'static volatile u32 gSysFlags', an extra unused u32 argument, and explicit level1/off with or without the three restore pragmas.",
+    "residual": "Existing guarded rule remains. The raw single-use global-load scratch-register choice is still unidentified; no source-only closure found on these finite controls.",
+    "verification": "python tools/gdl/composed_census/r64_postprocess_audit.py completes; baseline_fidelity true; synthetic calibration and raw epilogue census recorded separately in the R64 claims. Source and build configuration unchanged."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/r64_postprocess_audit.py",
+    "falsifier": "Any listed sysClearFlags diagnostic emits a different raw body, or source/compiler/context changes invalidate baseline fidelity. A new axis is open work, not contradicted by these negatives.",
+    "premise_measurement": "Baseline whole sysservice object byte-identical. All ten full-TU flag/pragma variants and nine synthetic context variants emit the same 4-instruction sysClearFlags body, SHA-256 prefix fdc7bc6a4409. The current target still differs in two register-field words at 4/4. Positive padUpdate and optControl controls demonstrate effective flags after pragma removal.",
+    "scope": "Only the exact finite variants in r64_postprocess_audit.py and r64_flags_context.c are measured negative. This is not a denial of other source constructs, signatures, TU contexts, compiler versions or flag combinations."
+  },
+  "function": "function:sysClearFlags",
+  "held_fixed": "The load/AND-complement/store semantics, u32 mask and GC/1.2.5 base flags were held fixed except the explicitly named individual diagnostic variable. The extra-parameter variant is synthetic only. Shared source, interfaces, headers and pins were never changed.",
+  "id": "attempt.R64_sysclearflags-finite-context-and-unmasked-flag-controls.20260905.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-05T18:41:54Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.PP_sysclearflags-one-word-temp-colour-three-spellings-identical.20260903.v1",
+  "valid_from": "2026-09-05"
+}

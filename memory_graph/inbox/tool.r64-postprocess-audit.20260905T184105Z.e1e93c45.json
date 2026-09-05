@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Requires byte-identical baseline object before testing variants; synthetic mocked failure control is not a real-game measurement",
+    "Finite source/flag/context tests are not universal source-unreachability proofs; use raw body objects and explicit unit/function pairs"
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r64_postprocess_audit.py",
+  "id": "tool.r64-postprocess-audit.20260905T184105Z.e1e93c45",
+  "kind": "tool",
+  "name": "r64-postprocess-audit",
+  "purpose": "Reproduce finite compiler-context tests and audit evidence for postprocessor necessity without changing production inputs",
+  "recorded_at": "2026-09-05T18:41:05Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r64_postprocess_audit.py",
+  "status": "active",
+  "tool_key": "tool:r64-postprocess-audit",
+  "tool_kind": "census",
+  "usage": [
+    "Run after ninja; outputs diagnostic source/objects under build/r64_audit and JSON via --out"
+  ],
+  "valid_from": "2026-09-05T18:41:05+00:00"
+}

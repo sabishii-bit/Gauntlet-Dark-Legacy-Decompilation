@@ -1,0 +1,41 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r64_postprocess_audit.py",
+    "tools/gdl/composed_census/r64_flags_context.c",
+    "tools/gdl/tests/test_r64_postprocess_audit.py"
+  ],
+  "attributes": {
+    "command": "python tools/gdl/composed_census/r64_postprocess_audit.py",
+    "compiler_sha256": "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914",
+    "measured_at": "5c43a15ee",
+    "open_followups": [
+      "Make cv_probe refuse failed baselines in every mode; audit callers without assuming their historical baselines failed.",
+      "Progress subtracts only webfrank.json pins, so STRICT also includes postprocessed regFind. Include P6Frank and distinguish manual-equivalence exceptions.",
+      "Retire rules where recovered language constructs or independently justified flags/TU context produce raw exact bytes; preserve finite negative evidence.",
+      "Prioritize manual-equivalence exception pool_garbage_collect for source reconstruction or independent whole-function proof."
+    ],
+    "source_references": [
+      "attempt.MP_fn800d967c-source-exact-via-a-real-virtual-call-rule-deleted.20260903.v1",
+      "attempt.MP_fn800da60c-source-exact-via-a-real-virtual-call-rule-deleted.20260903.v1",
+      "claim.law.LG_scaffold-pragmas-and-qualifiers-go-stale-reaudit-them-after-any-real-fix.20260901.v1"
+    ],
+    "source_sha256": "ed81a1294db24c49c88a51e31185b4ec9f7b03e53a385c68fc22e920bdd0264a",
+    "tags": [
+      "matching",
+      "postprocessor",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run tools/gdl/composed_census/r64_postprocess_audit.py to reproduce finite calibrations and hashes. Changed outputs expire the corresponding numeric observations. Missing-compiler necessity would need independent original-build provenance or a compiler-internal/source-class reachability proof with explicit scope; failed fixed-source trials alone do not establish it.",
+  "id": "claim.law.R64_fixed-source-compiler-sweeps-do-not-establish-source-unreachability.20260905.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-05T18:40:33Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "supersedes": "claim.law.CV_pinned-residuals-are-unreachable-across-the-local-mwcc-archive.20260901.v1",
+  "valid_from": "2026-09-05",
+  "value": "NARROWING, not deletion of historical experiments: the CV archive sweep establishes finite failures against the reconstructed sources and settings actually tested. It does not establish that every WebFrank residual originates in an unavailable compiler revision, nor exhaust all source, flag, pragma and TU-context combinations. cv_probe.py --axes all generates 56 variants here (baseline plus individual optimizer, inline, alignment and compiler axes), not a Cartesian product of all options. Its separate mwopt generator produces baseline plus 16 selected cross-products. Fixed source cannot distinguish wrong source reconstruction from a different original compiler heuristic. Breaking siblings under a global compiler replacement also does not rule out independently justified per-TU settings. Historical CV measurements remain useful negative evidence on their exact axes; this supersession withdraws their universal causal conclusion and blanket do-not-retry instruction.\n\nSOURCE COUNTEREXAMPLES: movieplayer fn_800D967C and fn_800DA60C formerly required register/permutation rules, then matched using real C++ virtual calls instead of manual vtable pointer chases. Fresh raw wf_word_diff at 5c43a15ee: 13/13 and 38/38 instructions, zero differing words, zero relocation-symbol mismatches, neither pinned. Closures and deleted rules are in commits 4b44754f1 and a44183132 and the MP attempt records. Register-only differences can conceal a recoverable source-language fact.\n\nFLAG MASKING: sysservice.c restores optimization_level 4, peephole on and scheduling on inside the source, present since 18fefa0230 (2026-08-07), before CV. With these pragmas, padUpdate stays 107 instructions with identical body hash prefix c2debd5eccdc under baseline, -opt level=1, -opt nopeephole, -schedule off and -opt off. Removing ONLY those three lines in a diagnostic copy leaves baseline identical but makes each nondefault setting affect it: 115/112/107/115 instructions respectively, each a distinct body hash. Before-pragma control sysResetService responds to all four settings with or without the restores. Synthetic optControl changes 7 to 8 or 12 instructions under level1/off, then returns to 7 with restore pragmas enabled. An option may thus be masked for one function while visibly changing its sibling. This does not imply the exposed option matches the target.\n\nNEGATIVE CONTROL AGAINST OVERCORRECTION: sysClearFlags remains the same four raw instructions in all ten full-TU variants. Its isolated synthetic counterpart also stays identical with a preceding function, extern storage, volatile storage, an extra unused parameter, and the tested optimizer/pragma combinations (nine finite context variants). This weakens simple TU-neighbor/storage/arity explanations for this particular residual; it is not an all-source impossibility proof or a proposed prototype/storage change.\n\nTOOL TRUST GAP: a MOCKED deliberately different baseline in cv_probe --axes opt prints DIFFERS but returns 0 and performs 23 compile calls; only --axes check enforces fidelity. This is synthetic calibration, not evidence that historical real baselines failed. The new audit runner enforces whole-object baseline fidelity before experiments; actual sysservice fidelity was true.\n\nCURRENT INVENTORY: 256 compiler edges: GC/1.2.5 142, GC/1.2.5n 94, GC/1.1p1 20. 51 source units contain the scanned optimizer/inline/C++ pragma families. No classic Frank edge is active. There are 59 WebFrank-bearing edges (58 ordinary plus atree export), 183 rules over 181 distinct functions. P6Frank separately handles registry; exception-object fixup and retail-padding restoration are distinct mechanisms. These are build-graph counts, not claims that all 341 report units are compiled. One current WebFrank rule, pool_garbage_collect, remains an explicitly manually audited unproven_recolor_audit exception; not every rule is machine-proven.\n\nP6 POSITIVE CONTROL: the existing experimental 1.2.5s executable SHA-256 5a4d1e1715954ddefc87a5a0dfbe38b6c3916e22214957b21af3bd147a760667 freshly compiled registry with current flags to a whole object equal to current P6Frank output and different from stock raw output (object SHA-256 36003d6900a966ef0d19a013951f7baf7446042ab2d385483b1335f2ecab198e). No compiler or build setting was installed/changed. This demonstrates a compiler implementation of that transformation; it does not recover the original compiler or establish that the approach replaces WebFrank generally.\n\nCONCLUSION: postprocessing is currently a compatibility solution for particular reconstructed-source/compiler pairs, not demonstrated universal necessity. Distinguish source-model defects, measured compiler optimization choices, unidentified residuals, and linker/metadata artifacts. Small arithmetic/address/register differences do not themselves imply missing hardware behavior. Equal bytes prove a match, not original-source provenance; an equivalence proof proves a transformation within its model, not its necessity."
+}

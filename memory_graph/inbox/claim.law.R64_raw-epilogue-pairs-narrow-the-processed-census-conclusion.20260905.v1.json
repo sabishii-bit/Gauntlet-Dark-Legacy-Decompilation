@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r64_postprocess_audit.py",
+    "tools/gdl/composed_census/cr_epilogue_census.py"
+  ],
+  "attributes": {
+    "measured_at": "5c43a15ee",
+    "tags": [
+      "matching",
+      "postprocessor",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run python tools/gdl/composed_census/r64_postprocess_audit.py. Changed raw bodies/targets or eligible population expire numeric observations. The methodological finding expires if cr_epilogue_census population is changed to read raw body objects and pair by unit/function. No absence claim extends beyond the stated grammar and compiled-edge population.",
+  "id": "claim.law.R64_raw-epilogue-pairs-narrow-the-processed-census-conclusion.20260905.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-05T18:40:39Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "supersedes": "claim.law.CR_mwcc-epilogue-restore-order-is-contextual-and-our-build-reproduces-the-target-on-108-of-109-image-wide.20260904.v1",
+  "valid_from": "2026-09-05",
+  "value": "The earlier cr_epilogue_census skips .postprocess mirrors and consequently reads rewritten src objects, not raw compiler bodies, for pinned TUs. Its agreement formula compares global function-name sets rather than explicit unit/function pairs. That cannot establish raw compiler agreement or rule necessity. At 5c43a15ee the replacement r64_postprocess_audit measurement binds raw compiler edges to current target objects by unit and normalized function name: 3027 function pairs, zero missing-object errors, 110 pairs restoring both inline lfd and lmw. RAW restore order agrees in 108/110; mismatches are game/ui/btext::DrawGlowTextMLines and game/enemy/critter::CritterDamagePlayer. Only CritterDamagePlayer also differs in mtlr versus stack-adjust order. Raw shape counts: LMW_FIRST/ADDI_FIRST 87, LMW_FIRST/MTLR_FIRST 13, LFD_FIRST/ADDI_FIRST 9, LFD_FIRST/no-pair 1; target 88,14,7,1. Both orders exist in both raw and target streams, refuting a blanket unsupported-order explanation. This does not exclude a compiler revision or per-function pragma affecting a particular context. Scope: paired objects and inline-lfd/lmw tail grammar; millicode restores and other epilogues are outside the population. Reuse the older concrete CritterDamagePlayer diagnosis, not its universal dismissal of compiler/flag explanations."
+}
