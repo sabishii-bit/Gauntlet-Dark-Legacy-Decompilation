@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Reconstruct the selected-distance join and the four real sqrt truncation locals, then screen the surviving register choices.",
+  "attributes": {
+    "axis_log": [
+      "20260831 label correction was diagnosis only; its352/351 and four-slot discrepancy reproduce. This pass closes both through source, superseding the old structural park."
+    ],
+    "law_screen": "Read the old per-function label correction; it measured a structural352/351 gap but no source probe. claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1 APPLIED with a real branch join; the EnemyStartMissile straight-line negative does not share that join. claim.law.CL_assignment-in-condition-splits-a-carrier-mwcc-coalesces-as-a-statement.20260903.v1 screened and its condition-only forms do not restore count here. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED: the four volatile scratch slots below function-scope padLo shift into their target positions when hoisted immediately after ad. Parameter-save-area law screened but not applied: ad was already36 and only four scratch slots were low, so this is not a uniformly displaced argument floor. Full fmr query screened; no source invariant establishes universal unreachability.",
+    "probed_form": "r60_enemy_source_probe.py target_player atf368cba06:50 candidates. Scoped selected local alone351; range assignment-in-condition351; meaningful distance-return helper351; helper plus chained actual/range assignment352; helper return widened to f64 adds frsp and is rejected. Range/dist block scopes351; scratch-hoist alone351 with exact slots. Whole-function and helper-only propagation/CSE/scheduling controls351 except combined return-helper+propagation-off352 with wrong address forms/frame. Single distance expression353; folding its assignment into sqrt condition351. Output-pointer helper351. Float range widened with explicit rounding353. Visibility helper360. Declaration exchange351. Diagnostic self-assignment352 is artificial and rejected, never retained. Nested helper and scratch ownership/partition controls352 but have displaced slots, except caller-scratch-argument helper which proves exact via recolor but is rejected in favor of the simpler no-helper source. Ordinary caller block selected-distance chain352/352 with exact frame/slots KEPT; deleting existing low pad breaks frame/slots and is rejected. Guard-measurement chain352 has a schedule/operand residual, not preferred. target_player_colors on the retained real source:23 nonidentity permutations exhaust all24 orders of dist/kPi/range/bestSpecial; all remain352 with59 differing words (some byte-identical, others shift homes). Moving only range assignment into the condition loses the copy351; reversing chained assignment remains352 but86 words. Total75 candidates, no raw exact source result.",
+    "semantic_evidence": "Target352-instruction view has +0x428 fmr f1,f27 then +0x430 fmr f26,f1. Original source computed both alternative player distances into function-scope dist and then range=dist; the intermediate transfer was coalesced, leaving351 instructions. A block-scoped measuredDistance is defined in both real position-selection arms, then range=dist=measuredDistance preserves the exact two-transfer topology across that join. measuredDistance is the measurement, dist remains the unadjusted distance stored to actual_dist, and range receives the player-distance penalty before comparison/store. The four existing volatile sqrt round-trip locals are moved, not duplicated: target slots32/28/24/20 replace ours28/24/20/16. ad remains36 and frame168 remains unchanged. ENEMY_DISTANCE3 factors precisely the existing arithmetic with explicit caller-owned rounding locals; the old DIST3 macro and all other consumers are untouched.",
+    "verification": "Initial fresh98.8125%,real131,T352/O351. Retained raw98.8068%,real162,T352/O352; this is NOT a stand-alone fuzzy gain and is retained only atomically with the exact closure. wf_word_diff59 REGFIELD-ONLY,0mnemonic/relocation-symbol mismatches. regnorm CLEAN-RENAMING with59renaming,0structural,0unpaired. slotdiff frame168/save29/all10slots IDENTICAL. wr_try_rule strict recolor produces exact target at full retail datum strength. Inventory90enemy/28gamemain, no missing/unexpected and no collateral raw changes outside already-owned R60 improvements."
+  },
+  "denial": {
+    "expiry_check": "Rebuild raw body and run wf_word_diff/regnorm raw views and full-retail rule replay; do not use the pinned postprocessed score to decide a source cap. Recheck source identities after any TU/compiler change.",
+    "falsifier": "A natural source form reproducing the target's saved FPR and transient coordinate homes at the same352/352 instruction order, exact stack and relocation/data binding.",
+    "premise_measurement": "Raw352/352,59 register-field words, frame168 and ten-slot map exact. Source-only fuzzy slightly lower; final atomic recolor closes100%.",
+    "scope": "Measured scope, chained-result, helper, statement, type, compiler-control and local-order axes at the restored enemy boundary; not every possible source form."
+  },
+  "function": "function:fn_800516F8",
+  "held_fixed": "Player filtering, recognized/closest bookkeeping, special-shield priority, squared-distance grouping, all four Newton refinements, the existing volatile f32 store/reload operations, signed bitwise yaw absolute value, named constants and calls. No extra memory access, wrapper or padding is introduced. Every current-source scratch baseline equals the whole raw Ninja object.",
+  "id": "attempt.R60_fn516f8-scoped-distance-chain-closes-copy-and-scratch-layout.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-05T00:22:07Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "opcode multiset: IDENTICAL (352/352)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.fn-800516f8.20260831.v1",
+  "valid_from": "2026-09-05"
+}

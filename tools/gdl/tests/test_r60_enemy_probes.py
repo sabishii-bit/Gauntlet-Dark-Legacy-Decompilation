@@ -40,6 +40,40 @@ class EnemyTypeControls(unittest.TestCase):
             list(source_probe.enemy_type_control_variants("ErrorPrintf(lbl_801124EC, name);"))
 
 
+class TargetPlayerColors(unittest.TestCase):
+    BODY = """void fn_800516F8(s32 slot)
+{
+    f32 dist;
+    f64 kPi;
+    f32 range;
+    f32 bestSpecial;
+                    {
+                        f32 measuredDistance;
+                        measuredDistance = measure(slot);
+                        range = dist = measuredDistance;
+                    }
+                    if (range > sight) return;
+    use(dist, kPi, range, bestSpecial);
+}
+"""
+
+    def test_permutation_census_is_complete_and_body_unchanged(self):
+        forms = dict(source_probe.target_player_color_variants(self.BODY))
+        orders = {name: text for name, text in forms.items() if name.startswith("declarations_")}
+        self.assertEqual(len(orders), 23)
+        for text in orders.values():
+            self.assertEqual(text[text.index("                    {"):], self.BODY[self.BODY.index("                    {"):])
+            for declaration in ("f32 dist;", "f64 kPi;", "f32 range;", "f32 bestSpecial;"):
+                self.assertEqual(text.count(declaration), 1)
+
+    def test_chain_controls_are_distinct_and_unknown_shape_refused(self):
+        forms = dict(source_probe.target_player_color_variants(self.BODY))
+        self.assertIn("dist = range = measuredDistance;", forms["scoped_chain_reversed"])
+        self.assertIn("if ((range = dist) >", forms["condition_chain"])
+        with self.assertRaises(ValueError):
+            list(source_probe.target_player_color_variants("void f(void) {}"))
+
+
 class ResourceForms(unittest.TestCase):
     BODY = """void fn_80051164(void)
 {

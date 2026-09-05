@@ -8606,10 +8606,30 @@ void fn_80051568(s32 index)
     }
 }
 
+/* Same distance/rounding operation as DIST3, with the four real truncation
+ * temporaries owned by the caller instead of nested macro scopes. */
+#define ENEMY_DISTANCE3(dst, av, bv, kZ, kH, kT, rounding) \
+    { \
+        f32 dy_ = (av)[1] - (bv)[1]; \
+        f32 dx_ = (av)[0] - (bv)[0]; \
+        f32 dz_ = (av)[2] - (bv)[2]; \
+        (dst) = dx_ * dx_ + dy_ * dy_; \
+        (dst) = dz_ * dz_ + (dst); \
+        if ((dst) > (kZ)) { \
+            f64 y_ = __frsqrte((dst)); \
+            y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst)); \
+            y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst)); \
+            y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst)); \
+            (rounding) = (f32)((dst) * ((kH) * y_ * ((kT) - y_ * y_ * (dst)))); \
+            (dst) = (rounding); \
+        } \
+    }
+
 void fn_800516F8(s32 slot)
 {
     u8 unused[44];
     f32 ad;
+    volatile f32 distanceScratch0, distanceScratch1, distanceScratch2, distanceScratch3;
     u8* p;
     u8* e;
     s32 i;
@@ -8647,11 +8667,11 @@ void fn_800516F8(s32 slot)
         {
             f32 fd;
             if (*(s16*)(q + offsetof(Player, field_A1C)) > 2) {
-                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, mikey_coll_pos)),
-                      lbl_80346820, lbl_80346830, lbl_803468B8);
+                ENEMY_DISTANCE3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, mikey_coll_pos)),
+                                lbl_80346820, lbl_80346830, lbl_803468B8, distanceScratch0);
             } else {
-                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
-                      lbl_80346820, lbl_80346830, lbl_803468B8);
+                ENEMY_DISTANCE3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
+                                lbl_80346820, lbl_80346830, lbl_803468B8, distanceScratch1);
             }
             *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
         }
@@ -8691,14 +8711,17 @@ void fn_800516F8(s32 slot)
                     if (*(u32*)(p + offsetof(Player, flags)) & 4) {
                         continue;
                     }
-                    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
-                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, mikey_coll_pos)),
-                              kZero, kHalf, kThree);
-                    } else {
-                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
-                              kZero, kHalf, kThree);
+                    {
+                        f32 measuredDistance;
+                        if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                            ENEMY_DISTANCE3(measuredDistance, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, mikey_coll_pos)),
+                                            kZero, kHalf, kThree, distanceScratch2);
+                        } else {
+                            ENEMY_DISTANCE3(measuredDistance, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
+                                            kZero, kHalf, kThree, distanceScratch3);
+                        }
+                        range = dist = measuredDistance;
                     }
-                    range = dist;
                     if (range > *(f32*)(e + offsetof(Enemy, sight))) {
                         continue;
                     }
@@ -8748,6 +8771,8 @@ void fn_800516F8(s32 slot)
         *(f32*)(e + offsetof(Enemy, close_dist)) = big;
     }
 }
+
+#undef ENEMY_DISTANCE3
 
 /* Preserve the cached-pool element addresses through propagation. */
 #pragma opt_propagation off

@@ -1506,6 +1506,13 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "fn_800516F8",
+        "before_sha256": "f9c5a05fe9df89af97e45227b370ffec0ec34a0b752c05c396498a0cf4e6742e",
+        "after_sha256": "73752fde65dcbddbf9e008e6a0a121d69794bf3ce9a7ae4d1933ef09c3296d58",
+        "mechanism": "attempt.R60_fn516f8-strict-recolor-after-distance-copy-and-slots.20260904.v1. SOURCE-EXHAUSTION provenance: attempt.R60_fn516f8-scoped-distance-chain-closes-copy-and-scratch-layout.20260904.v1. Seventy-five measured source candidates isolate the missing copy and four displaced rounding slots. Retained ordinary source hoists the four existing volatile truncation temporaries and stages the branch-selected measuredDistance in block scope before range=dist=measuredDistance. No compatibility wrapper, scratch-pointer helper, self-assignment, new volatile access or added padding is retained. Raw352/352, frame168 and all10 slots exact;59 differing words are a strict whole-CFG register renaming with identical opcode order and exact datum binding. Full-strength wr_try_rule returns BYTE-EQUAL. No permutation or widened proof. This bounded source cap is not evidence that all possible natural source forms are unreachable.",
+        "copy_register_fields": true
+      },
+      {
         "function": "GetEnemyType",
         "before_sha256": "0b409341a0f6f532341434fc9f1fc80ad9785ffa07e23011fd1b262d042a87b2",
         "after_sha256": "5132b0e943191e33da8fc4d64d9b56ea2017a4fe6f826daa74ea214f3974acd5",

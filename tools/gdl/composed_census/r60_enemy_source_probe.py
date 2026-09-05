@@ -8,6 +8,7 @@ a proof of relocation/data equality; retained candidates still need all gates.
 import argparse
 import difflib
 import json
+import itertools
 import re
 from pathlib import Path
 
@@ -668,6 +669,167 @@ def enemy_type_control_variants(body):
         yield control + "_off", "#pragma " + control + " off\n" + body + "\n#pragma " + control + " reset\n"
 
 
+def target_player_variants(body):
+    start = body.index("                    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2)")
+    end = body.index("                    range = dist;", start)
+    selection = body[start:end]
+    scoped = body[:start] + "                    {\n                        f32 selectedDist;\n" + selection.replace("DIST3(dist,", "DIST3(selectedDist,") + "                        dist = selectedDist;\n                    }\n" + body[end:]
+    yield "selection_block_local", scoped
+    yield "range_assignment_condition", replace_once(body, "                    range = dist;\n                    if (range >", "                    if ((range = dist) >")
+    helper = """static inline f32 enemy_player_distance(u8* e, u8* p, f32 kZero, f64 kHalf, f64 kThree)
+{
+    f32 distance;
+""" + selection.replace("DIST3(dist,", "DIST3(distance,") + "    return distance;\n}\n\n"
+    called = body[:start] + "                    dist = enemy_player_distance(e, p, kZero, kHalf, kThree);\n" + body[end:]
+    yield "distance_return_helper", helper + called
+    yield "distance_return_helper_chained_assignment", helper + replace_once(called, "                    dist = enemy_player_distance(e, p, kZero, kHalf, kThree);\n                    range = dist;", "                    range = dist = enemy_player_distance(e, p, kZero, kHalf, kThree);")
+    yield "distance_return_helper_chained_condition", helper + replace_once(called, "                    dist = enemy_player_distance(e, p, kZero, kHalf, kThree);\n                    range = dist;\n                    if (range >", "                    if ((range = dist = enemy_player_distance(e, p, kZero, kHalf, kThree)) >")
+    yield "distance_return_helper_condition", helper + replace_once(called, "                    range = dist;\n                    if (range >", "                    if ((range = dist) >")
+    yield "distance_return_helper_f64", helper.replace("inline f32 enemy_player_distance", "inline f64 enemy_player_distance") + called
+    yield "range_block_scope", body.replace("    f32 range;\n", "").replace("                for (; i < 4; i++, p += 13148) {", "                for (; i < 4; i++, p += 13148) {\n                    f32 range;")
+    yield "dist_block_scope", body.replace("    f32 dist;\n", "").replace("                for (; i < 4; i++, p += 13148) {", "                for (; i < 4; i++, p += 13148) {\n                    f32 dist;")
+    # The four sqrt truncation slots are below every function-scope local
+    # in the macro baseline. Explicit hoisting changes scope, not memory
+    # accesses, and leaves the existing nominal local allocation unchanged.
+    macro = re.search(r"^#define DIST3\([^\n]+", (REPO / "src/game/enemy/enemy.c").read_text(encoding="utf-8"), re.M).group(0)
+    expansion = macro[macro.index("     {"):].strip()
+    calls = list(re.finditer(r"DIST3\((.*?)\);", body, re.S))
+    if len(calls) != 4:
+        raise ValueError("expected exactly four distance expansions")
+    hoisted = body
+    for number, match in reversed(list(enumerate(calls))):
+        parts, depth, at = [], 0, 0
+        for pos, char in enumerate(match[1]):
+            if char == "(": depth += 1
+            if char == ")": depth -= 1
+            if char == "," and depth == 0:
+                parts.append(match[1][at:pos].strip()); at = pos + 1
+        parts.append(match[1][at:].strip())
+        if len(parts) != 6:
+            raise ValueError("DIST3 argument split failed")
+        text = expansion.replace("volatile f32 tmp_;", "")
+        for key, value in zip(("dst", "av", "bv", "kZ", "kH", "kT"), parts):
+            text = re.sub(r"\b" + key + r"\b", lambda unused: value, text)
+        text = text.replace("tmp_", "distanceScratch" + str(number))
+        hoisted = hoisted[:match.start()] + text + hoisted[match.end():]
+    decls = "    volatile f32 distanceScratch0, distanceScratch1, distanceScratch2, distanceScratch3;\n"
+    hoisted = replace_once(hoisted, "    f32 ad;\n", "    f32 ad;\n" + decls)
+    yield "sqrt_scratch_function_scope", hoisted
+    yield "scratch_scope_and_range_condition", replace_once(hoisted, "                    range = dist;\n                    if (range >", "                    if ((range = dist) >")
+    for control in ("opt_propagation", "opt_common_subs", "scheduling"):
+        yield control + "_off", "#pragma " + control + " off\n" + hoisted + "\n#pragma " + control + " reset\n"
+        yield "return_helper_" + control + "_off", "#pragma " + control + " off\n" + helper + called + "\n#pragma " + control + " reset\n"
+        yield "helper_only_" + control + "_off", "#pragma " + control + " off\n" + helper + "\n#pragma " + control + " reset\n" + called
+    # One expression gives the sum a transient identity instead of writing
+    # the final distance home twice before sqrt. Floating grouping is fixed.
+    summed = hoisted.replace("(dist) = dx_ * dx_ + dy_ * dy_;         (dist) = dz_ * dz_ + (dist);", "(dist) = dz_ * dz_ + (dx_ * dx_ + dy_ * dy_);")
+    yield "single_distance_expression", summed
+    yield "single_expression_range_condition", replace_once(summed, "                    range = dist;\n                    if (range >", "                    if ((range = dist) >")
+    out_helper = helper.replace("inline f32 enemy_player_distance(u8* e", "inline void enemy_player_distance(f32* distance, u8* e").replace("    f32 distance;\n", "").replace("DIST3(distance,", "DIST3(*distance,").replace("    return distance;\n", "")
+    out_caller = called.replace("dist = enemy_player_distance(e, p, kZero, kHalf, kThree);", "enemy_player_distance(&dist, e, p, kZero, kHalf, kThree);")
+    yield "distance_output_pointer", out_helper + out_caller
+    yield "distance_output_pointer_propagation_off", "#pragma opt_propagation off\n" + out_helper + out_caller + "\n#pragma opt_propagation reset\n"
+    for name, variant in (("hoisted", hoisted), ("return_helper", helper + called)):
+        yield name + "_dist_range_decl_exchange", variant.replace("    f32 dist;", "    f32 range;").replace("    f32 range;\n    f32 bestSpecial;", "    f32 dist;\n    f32 bestSpecial;")
+        # DIAGNOSTIC ONLY: self-assignment isolates assignment-expression
+        # lowering but is artificial and MUST NOT be retained in src/.
+        # The later measuredDistance block is the ordinary-source control.
+        yield name + "_dist_range_chained", variant.replace("                    range = dist;", "                    range = (dist = dist);")
+    one_sum = summed.replace("(dist) = dz_ * dz_ + (dx_ * dx_ + dy_ * dy_);         if ((dist) >", "if (((dist) = dz_ * dz_ + (dx_ * dx_ + dy_ * dy_)) >")
+    yield "summed_distance_assignment_condition", one_sum
+    hs = hoisted.index("                    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2)")
+    he = hoisted.index("                    range = dist;", hs)
+    staged = hoisted[:hs] + "                    {\n                        f32 measuredDistance;\n" + re.sub(r"\bdist\b", "measuredDistance", hoisted[hs:he]) + "                        range = dist = measuredDistance;\n                    }\n" + hoisted[he+len("                    range = dist;\n"):]
+    yield "caller_staged_distance_chain", staged
+    yield "caller_staged_distance_chain_no_low_pad", staged.replace("    u8 padLo[4];\n", "")
+    transit = hoisted.replace("    f32 range;", "    f32 measuredRange;\n    f32 range;").replace("                    range = dist;", "                    range = measuredRange = dist;").replace("if (range > *(f32*)(e + offsetof(Enemy, sight)))", "if (measuredRange > *(f32*)(e + offsetof(Enemy, sight)))")
+    yield "caller_measurement_guard_chain", transit
+    yield "caller_measurement_guard_chain_no_low_pad", transit.replace("    u8 padLo[4];\n", "")
+    chain_called = replace_once(called, "                    dist = enemy_player_distance(e, p, kZero, kHalf, kThree);\n                    range = dist;", "                    range = dist = enemy_player_distance(e, p, kZero, kHalf, kThree);")
+    expanded_helper = helper
+    for number, match in reversed(list(enumerate(re.finditer(r"DIST3\((.*?)\);", helper, re.S)))):
+        parts, depth, at = [], 0, 0
+        for pos, char in enumerate(match[1]):
+            if char == "(": depth += 1
+            if char == ")": depth -= 1
+            if char == "," and depth == 0:
+                parts.append(match[1][at:pos].strip()); at = pos + 1
+        parts.append(match[1][at:].strip())
+        text = expansion.replace("volatile f32 tmp_;", "")
+        for key, value in zip(("dst", "av", "bv", "kZ", "kH", "kT"), parts):
+            text = re.sub(r"\b" + key + r"\b", lambda unused: value, text)
+        text = text.replace("tmp_", "helperScratch" + str(number))
+        expanded_helper = expanded_helper[:match.start()] + text + expanded_helper[match.end():]
+    expanded_helper = expanded_helper.replace("    f32 distance;", "    volatile f32 helperScratch0, helperScratch1;\n    f32 distance;")
+    yield "chain_helper_scratch_scope", expanded_helper + chain_called
+    for moved in (4, 8, 12):
+        # Repartition existing nominal allocation; never add dead bytes.
+        h = expanded_helper.replace("    f32 distance;", "    f32 distance;\n    u8 localGap[" + str(moved) + "];")
+        c = chain_called.replace("u8 unused[44]", "u8 unused[" + str(44 - moved) + "]")
+        yield "chain_helper_partition_" + str(moved), h + c
+    h = expanded_helper.replace("    f32 distance;", "    f32 distance;\n    u8 localGap[4];")
+    yield "chain_move_existing_low_pad", h + chain_called.replace("    u8 padLo[4];\n", "")
+    external_scratch = expanded_helper.replace("f64 kThree)", "f64 kThree, volatile f32* scratch0, volatile f32* scratch1)").replace("    volatile f32 helperScratch0, helperScratch1;\n", "").replace("helperScratch0", "(*scratch0)").replace("helperScratch1", "(*scratch1)")
+    explicit_caller = chain_called.replace("    f32 ad;", "    f32 ad;\n    volatile f32 scanScratch0, scanScratch1;").replace("enemy_player_distance(e, p, kZero, kHalf, kThree)", "enemy_player_distance(e, p, kZero, kHalf, kThree, &scanScratch0, &scanScratch1)")
+    yield "chain_caller_owns_scratch", external_scratch + explicit_caller
+    yield "chain_caller_scratch_before_ad", external_scratch + explicit_caller.replace("    f32 ad;\n    volatile f32 scanScratch0, scanScratch1;", "    volatile f32 scanScratch0, scanScratch1;\n    f32 ad;")
+    hs = hoisted.index("                    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2)")
+    he = hoisted.index("                    range = dist;", hs) + len("                    range = dist;")
+    all_scratch = hoisted[:hs] + "                    range = dist = enemy_player_distance(e, p, kZero, kHalf, kThree, &distanceScratch2, &distanceScratch3);" + hoisted[he:]
+    yield "chain_all_caller_scratch", external_scratch + all_scratch
+    yield "chain_all_caller_scratch_no_low_pad", external_scratch + all_scratch.replace("    u8 padLo[4];\n", "")
+    # Nested natural helpers: the per-vector operation and the player-view
+    # selection own separate locals, with no caller-supplied rounding slots.
+    vector_helper = """static inline f32 enemy_distance3(f32* av, f32* bv, f32 zero, f64 half, f64 three)
+{
+    f32 distance;
+    DIST3(distance, av, bv, zero, half, three);
+    return distance;
+}
+
+"""
+    nested_helper = helper
+    for match in reversed(list(re.finditer(r"DIST3\((.*?)\);", helper, re.S))):
+        args = match[1].split(",", 1)[1]
+        nested_helper = nested_helper[:match.start()] + "distance = enemy_distance3(" + args + ");" + nested_helper[match.end():]
+    yield "chain_nested_vector_helper", "#pragma inline_depth(2)\n" + vector_helper + nested_helper + chain_called + "\n#pragma inline_depth(0)\n"
+    yield "chain_nested_vector_no_low_pad", "#pragma inline_depth(2)\n" + vector_helper + nested_helper + chain_called.replace("    u8 padLo[4];\n", "") + "\n#pragma inline_depth(0)\n"
+    # The target's exact point of divergence is the value transfer at the
+    # join. Keep that transfer as a real chained result while allowing the
+    # nested distance calculation to write its caller-owned scratch slots.
+    for name, variant in (("plain", body), ("hoisted", hoisted)):
+        yield name + "_range_double", variant.replace("    f32 range;", "    f64 range;").replace("range += *(f32*)(p + 2600);", "range = (f32)(range + *(f32*)(p + 2600));")
+        # A meaningful inline split: evaluate the chosen player's distance,
+        # visibility and special-shield priority. Each former continue exits
+        # only this one player's consideration, never the caller's loop.
+        tail_start = variant.index("                    range = dist;")
+        tail_end = variant.index("\n                }", tail_start)
+        tail = variant[tail_start:tail_end].replace("continue;", "return bestSpecial;")
+        consumer = """static inline f32 enemy_consider_player(u8* e, u8* p, s32 i, f32 dist, f32 bestSpecial, f64 kK, f64 kPi)
+{
+    f32 ad;
+    f32 range;
+""" + tail + "\n    return bestSpecial;\n}\n\n"
+        caller = variant[:tail_start] + "                    bestSpecial = enemy_consider_player(e, p, i, dist, bestSpecial, kK, kPi);" + variant[tail_end:]
+        # Leave the now-dead caller declarations: allocation identity is a
+        # separate measured axis, not silently coupled to helper extraction.
+        yield name + "_visibility_helper", consumer + caller
+        yield name + "_visibility_helper_remove_dead", consumer + caller.replace("    f32 ad;\n", "").replace("    f32 range;\n", "")
+
+
+def target_player_color_variants(body):
+    block = "    f32 dist;\n    f64 kPi;\n    f32 range;\n    f32 bestSpecial;"
+    if block not in body:
+        raise ValueError("expected the retained distance/constant/range declaration block")
+    decls = block.splitlines()
+    for order in itertools.permutations(range(4)):
+        if order == (0, 1, 2, 3):
+            continue
+        yield "declarations_" + "".join(map(str, order)), replace_once(body, block, "\n".join(decls[i] for i in order))
+    yield "condition_chain", replace_once(body, "                        range = dist = measuredDistance;\n                    }\n                    if (range >", "                        dist = measuredDistance;\n                    }\n                    if ((range = dist) >")
+    yield "scoped_chain_reversed", replace_once(body, "range = dist = measuredDistance;", "dist = range = measuredDistance;")
+
+
 def compile_baseline(edge, source_path, baseline_path, expected_path, out):
     # Read BEFORE compiling: a historical --baseline-object can be the same
     # pathname as baseline_path. Reading afterward would compare the new
@@ -684,14 +846,14 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter", "gettype", "gettype_controls"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -739,7 +901,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

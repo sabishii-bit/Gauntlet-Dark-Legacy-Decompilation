@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Strict register renaming after source restores count, CFG and all stack slots.",
+  "attributes": {
+    "law_screen": "352/352,59 differing words, identical mnemonic and relocation order, no immediate/frame/control differences. Strict verify_consistent_recolor and full retail verify_datum_binding pass without permutation or alias/value-equality widening.",
+    "source_exhaustion": "attempt.R60_fn516f8-scoped-distance-chain-closes-copy-and-scratch-layout.20260904.v1 records75 source candidates and bounded cap; no universal necessity claim.",
+    "verification": "wr_try_rule on actual raw postprocess body returns BYTE-EQUAL,1stage,FULL retail datum proof. beforef9c5a05fe9df89af97e45227b370ffec0ec34a0b752c05c396498a0cf4e6742e after73752fde65dcbddbf9e008e6a0a121d69794bf3ce9a7ae4d1933ef09c3296d58. Raw source result is not banked alone; integration requires exact function, full ninja and both suites."
+  },
+  "function": "function:fn_800516F8",
+  "id": "attempt.R60_fn516f8-strict-recolor-after-distance-copy-and-slots.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T00:22:12Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-05",
+  "verifiers_run": [
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ]
+}
