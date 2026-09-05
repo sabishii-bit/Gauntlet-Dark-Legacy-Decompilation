@@ -43,14 +43,19 @@ def parsed(path):
     return fndiff.parse(path)
 
 
-def function_key(functions, name):
+def function_key(functions, name, object_path=None):
     """Mirror fndiff's unique dtk suffix normalization without fuzzy pairing."""
     if name in functions:
         return name
     if not name.startswith("fn_"):
         normalized = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-        if normalized != name and normalized in functions:
-            return normalized
+        if normalized != name and normalized in functions and object_path is not None:
+            # A made-up address suffix must not select another real function
+            # merely because the parser normalized that function's name.
+            names = {line.split()[-1] for line in fndiff.objdump(object_path, "-t").splitlines()
+                     if line.split()}
+            if name in names:
+                return normalized
     raise KeyError(f"function absent from parsed object: {name}")
 
 
@@ -59,13 +64,21 @@ def screen_against(unit, fn, bobj):
     tobj = ROOT / "build" / "GUNE5D" / "obj" / f"{unit}.o"
     tfns, bfns = parsed(tobj), parsed(bobj)
     return fndiff.datum_screen_from_lines(
-        tfns[function_key(tfns, fn)], bfns[function_key(bfns, fn)],
+        tfns[function_key(tfns, fn, tobj)], bfns[function_key(bfns, fn, bobj)],
         tobj, bobj)
 
 
-def object_paths(unit, requires_raw=False):
+def object_paths(unit, requires_raw=False, edges=None):
     final = ROOT / "build" / "GUNE5D" / "src" / f"{unit}.o"
     body = final.parent / ".postprocess" / "body" / final.name
+    if edges is not None:
+        if unit not in edges:
+            raise FileNotFoundError(f"no active compile edge for {unit}")
+        raw = (ROOT / edges[unit]["body_o"].replace("\\", "/")).resolve()
+        if not raw.is_relative_to(ROOT):
+            raise ValueError("raw object edge is outside this checkout")
+        # Use what this graph compiles, not an old body left by another mode.
+        return final, raw, raw != final
     # A pinned TU requires the raw body even if it went missing. Falling
     # back to final would turn a failed raw audit into apparent success.
     raw = body if requires_raw or body.is_file() else final
@@ -153,7 +166,7 @@ def screen_side(unit, fn, obj):
     return side
 
 
-def audit(pins, rule_count, roster, discovery, selection):
+def audit(pins, rule_count, roster, discovery, selection, edges=None):
     pinned_units = {unit for unit, _fn in pins}
     pin_set = set(pins)
     tally = Counter({key: 0 for key in (
@@ -162,7 +175,15 @@ def audit(pins, rule_count, roster, discovery, selection):
         "disagreements", "discovery_failures")})
     rows = []
     for unit, fn in roster:
-        final, raw, has_raw = object_paths(unit, unit in pinned_units)
+        try:
+            final, raw, has_raw = object_paths(unit, unit in pinned_units, edges)
+        except (FileNotFoundError, ValueError) as exc:
+            discovery = [*discovery, {"unit": unit, "function": fn,
+                                     "status": "UNRESOLVED", "error": str(exc)}]
+            tally["functions_selected"] += 1
+            tally["raw_unreadable"] += 1
+            tally["post_unreadable"] += 1
+            continue
         raw_result = screen_side(unit, fn, raw)
         post_result = screen_side(unit, fn, final)
         tally["functions_selected"] += 1
@@ -210,10 +231,11 @@ def main(argv=None):
     fndiff.OBJDUMP = args.objdump or ROOT / "build/binutils" / (
         "powerpc-eabi-objdump.exe" if os.name == "nt" else "powerpc-eabi-objdump")
     try:
+        from cv_probe import read_edges
         config = json.loads((ROOT / "config/GUNE5D/webfrank.json").read_text(encoding="utf-8"))
         pins, rule_count = pinned_functions(config)
         roster, discovery, selected = select_functions(pins, args.image, args.unit, args.function)
-        result = audit(pins, rule_count, roster, discovery, selected)
+        result = audit(pins, rule_count, roster, discovery, selected, read_edges())
     except (OSError, ValueError, RuntimeError, SystemExit) as exc:
         result = {"schema_version": SCHEMA_VERSION, "status": "FAIL", "error": str(exc)}
     output = Path(args.out)

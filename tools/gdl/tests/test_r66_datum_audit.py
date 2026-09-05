@@ -11,6 +11,8 @@ TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS / "composed_census"))
 import ce_eq_datum_audit as ce
 import ce_rank_rows as rank
+import datadiff
+import exception_metadata as eh
 
 
 def screen(delta=False):
@@ -31,7 +33,10 @@ class SharedDatumTests(unittest.TestCase):
                                      ce.ROOT / "build/GUNE5D/obj/u.o", ours)
 
     def test_suffix_resolution_does_not_strip_identity_placeholders(self):
-        self.assertEqual(ce.function_key({"DiffRate": []}, "DiffRate_8002951C"), "DiffRate")
+        with patch.object(ce.fndiff, "objdump", return_value="00000000 g F .text 00000004 DiffRate_8002951C"):
+            self.assertEqual(ce.function_key({"DiffRate": []}, "DiffRate_8002951C", "fixture.o"), "DiffRate")
+            with self.assertRaises(KeyError):
+                ce.function_key({"DiffRate": []}, "DiffRate_8000BAD0", "fixture.o")
         with self.assertRaises(KeyError):
             ce.function_key({"fn": []}, "fn_8002951C")
         self.assertEqual(ce.function_key({"dtor_800DB21C": []}, "dtor_800DB21C"), "dtor_800DB21C")
@@ -52,6 +57,27 @@ class SharedDatumTests(unittest.TestCase):
         self.assertNotEqual(final, raw)
         self.assertTrue(has_raw)
         self.assertIn(".postprocess", str(raw))
+
+    def test_active_p6_edge_requires_raw_even_without_webfrank_pin(self):
+        edges = {"game/sys/registry": {"body_o": "build/GUNE5D/src/game/sys/.postprocess/body/registry.o"}}
+        with patch.object(Path, "is_file", return_value=False):
+            final, raw, has_raw = ce.object_paths("game/sys/registry", edges=edges)
+        self.assertNotEqual(final, raw)
+        self.assertTrue(has_raw)
+        self.assertIn(".postprocess", str(raw))
+
+    def test_direct_compile_mode_does_not_read_leftover_raw_body(self):
+        edges = {"u": {"body_o": "build/GUNE5D/src/u.o"}}
+        with patch.object(Path, "is_file", return_value=True):
+            final, raw, has_raw = ce.object_paths("u", requires_raw=True, edges=edges)
+        self.assertEqual(final, raw)
+        self.assertFalse(has_raw)
+
+    def test_missing_compile_edge_is_an_unresolved_measurement(self):
+        result = ce.audit([], 0, [("u", "f")], [], {}, edges={})
+        self.assertEqual(result["status"], "UNRESOLVED")
+        self.assertEqual(result["tally"]["functions_selected"], 1)
+        self.assertEqual(result["tally"]["functions_screened_both"], 0)
 
     def test_missing_and_stale_objects_refuse_before_parse(self):
         with patch.object(Path, "is_file", return_value=False), patch.object(ce.fndiff, "parse") as parse:
@@ -155,6 +181,73 @@ class SharedDatumTests(unittest.TestCase):
         row = {"unit": "u", "function": "f", "raw": {"status": "UNRESOLVED", **screen(True)}}
         with self.assertRaisesRegex(ValueError, "PASS audit"):
             rank.ranked_rows({"schema_version": 1, "status": "PASS", "rows": [row], "tally": {}})
+
+
+class ExceptionAndSectionTests(unittest.TestCase):
+    def test_r60_and_datadiff_share_the_same_decoder(self):
+        import r60_enemy_source_probe
+        # The import-safety suite deliberately reloads core modules. Identity
+        # may differ across module generations; the implementation path must not.
+        self.assertEqual(r60_enemy_source_probe.exception_records.__code__.co_filename,
+                         eh.exception_records.__code__.co_filename)
+        self.assertEqual(r60_enemy_source_probe.compare_exception_records.__code__.co_filename,
+                         eh.compare_exception_records.__code__.co_filename)
+
+    def test_extab_payload_relocation_refuses_even_when_placeholder_bytes_equal(self):
+        import test_r60_enemy_probes
+        data, sections = test_r60_enemy_probes.ExceptionMetadata().fixture()
+        sections.append(eh.wf.Section(7, ".relaextab", 4, 128, 12, 5, 2, 12))
+        with patch.object(eh.wf, "_sections", return_value=sections):
+            with self.assertRaisesRegex(ValueError, "payload relocations"):
+                eh.exception_records(data)
+
+    def test_absent_eh_is_empty_but_a_missing_partner_refuses(self):
+        import test_r60_enemy_probes
+        data, sections = test_r60_enemy_probes.ExceptionMetadata().fixture()
+        with patch.object(eh.wf, "_sections", return_value=sections[:2]):
+            self.assertEqual(eh.exception_records(data), {})
+        with patch.object(eh.wf, "_sections", return_value=sections[:3]):
+            with self.assertRaisesRegex(ValueError, "one extab"):
+                eh.exception_records(data)
+
+    def test_record_order_is_not_a_metadata_difference(self):
+        records = {"a": {"length": 8, "metadata": "00"},
+                   "b": {"length": 12, "metadata": "11"}}
+        result = eh.compare_exception_records(records, dict(reversed(list(records.items()))))
+        self.assertEqual(result["changed"], {})
+        self.assertEqual(result["missing"], [])
+        self.assertEqual(result["extra"], {})
+
+    def test_extra_records_are_unresolved_not_silently_dead_stripped(self):
+        record = {"length": 8, "metadata": "00"}
+        with patch.object(Path, "read_bytes", return_value=b"fixture"), \
+                patch.object(eh, "exception_records", side_effect=[{"a": record}, {"a": record, "helper": record}]):
+            result = datadiff.exception_table("target.o", "ours.o")
+        self.assertEqual(result["status"], "UNRESOLVED")
+        self.assertEqual(set(result["extra"]), {"helper"})
+
+    def test_changed_records_are_a_failed_obligation(self):
+        with patch.object(Path, "read_bytes", return_value=b"fixture"), \
+                patch.object(eh, "exception_records", side_effect=[{"a": {"length": 8}}, {"a": {"length": 12}}]):
+            result = datadiff.exception_table("target.o", "ours.o")
+        self.assertEqual(result["status"], "FAIL")
+
+    def test_failed_objdump_does_not_produce_empty_sections(self):
+        from subprocess import CompletedProcess
+        with patch.object(Path, "is_file", return_value=True), \
+                patch.object(datadiff.subprocess, "run", return_value=CompletedProcess([], 1, "", "bad dump")):
+            with self.assertRaisesRegex(datadiff.MeasurementUnavailable, "bad dump"):
+                datadiff.section_sizes("fixture.o")
+
+    def test_missing_input_writes_an_unresolved_json_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "audit.json"
+            result = datadiff.main(["--sections", "game/no_such_unit", "--out", str(out)])
+            report = json.loads(out.read_text())
+        self.assertEqual(result, 2)
+        self.assertEqual(report["schema_version"], 1)
+        self.assertEqual(report["status"], "UNRESOLVED")
+        self.assertEqual(len(report["rows"]), 1)
 
 
 if __name__ == "__main__":
