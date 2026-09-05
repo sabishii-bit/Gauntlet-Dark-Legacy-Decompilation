@@ -1,0 +1,96 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r67_runtime_allsource_probe.py",
+    "tools/gdl/composed_census/r67_runtime_visibility_probe.py",
+    "tools/gdl/tests/test_r67_runtime_allsource.py"
+  ],
+  "attributes": {
+    "actual_link_command": "build\\compilers\\GC\\1.3.2\\mwldeppc.exe -fp hardware -nodefaults -lcf build\\GUNE5D\\ldscript.lcf -o build\\GUNE5D\\main.elf @build\\GUNE5D\\main.elf.rsp",
+    "control_elf_sha256": "08ca45cab02bfdec355592af0d47054f393d2f2b30abd0b18ed1e016ba08586f",
+    "duplicate_reproduction": "Compare native build/binutils/powerpc-eabi-nm.exe -S on each named source/extracted object, then powerpc-eabi-objdump.exe -s -j .data or .sdata for initialized datum bytes; all paths under build/GUNE5D. ELF NOBITS extents are not initialized physical file bytes.",
+    "duplicate_samples": [
+      "map_fade_a: source auxscreen .sdata+0,size4 and extracted auto_09_80343B18_sdata+0x38,size4 both 0000003c (section alignment8).",
+      "font_info: source btext .bss+0,size0x38 and extracted auto_08_8023E880_bss+0x260,size0x38; same zero-initialized extent, section alignment8.",
+      "EnemyMissileTree: source combat .bss+0,size0x150 and extracted auto_08_8023E880_bss+0x1dc8,size0x150; same zero-initialized extent, section alignment8.",
+      "crystal_order: source tower .data+0xa4,size0x38 and extracted auto_07_8011C2FC_data+0x8a18,size0x38 have exact datum bytes 0000000d0000000700000002000000010000000b0000000400000003000000090000000a0000000500000006000000080000000000000000; source section alignment8 versus extracted4.",
+      "optglobals: source options .bss+0,size0xa0 versus extracted auto_08_8025758C_bss+0x1d874,size0x40. Source explicitly models an aggregate covering tbuf/stack/sliders/prefs through0x80274ea0; optionsStack begins+0x40. This is aggregate/subobject overlap ownership requiring a layout audit, not proof that the entire source allocation is wrong."
+    ],
+    "linker_limit": "Local build/compilers/GC/1.3.2/mwldeppc.exe -help documents -maxerrors max, zero means no maximum/default 0. Observed actual trial still caps at 100 even with -maxerrors 1000; mechanism not diagnosed, do not claim exhaustive undefined-symbol inventory.",
+    "measured_at": "488c464166fc85d0e0cfa01e8c4aeb725feca069; native Windows, GUNE5D, GC/1.3.2 linker",
+    "next_actions": "Separate source-definition visibility repair from naming/data-ownership migration, and from asset-relocation suppression. Repeat all-configured-source trial after each verified class repair, keeping automatic asset/data fallback explicit. Do not present a passing ordinary --non-matching build as coverage for all unfinished source.",
+    "reproduce": [
+      "python configure.py --non-matching",
+      "ninja -j2",
+      "ninja -j2 all_source",
+      "python tools/gdl/composed_census/r67_runtime_allsource_probe.py --out build/r67_runtime_allsource.json",
+      "python tools/gdl/composed_census/r67_runtime_allsource_probe.py --max-errors 1000 --out build/r67_runtime_allsource_1000.json",
+      "python tools/gdl/composed_census/r67_runtime_visibility_probe.py --out build/r67_runtime_visibility.json",
+      "python configure.py",
+      "ninja -j2",
+      "python tools/gdl/composed_census/r67_runtime_verify.py --mode matching --out build/r67_runtime_matching_close.json"
+    ],
+    "trial_method": "Use ninja -t compdb link and the exact ordered schema-1 link edge inputs to write scratch response files. Change only -o and @rsp, plus optional diagnostic-only -maxerrors 1000 on both control and trial. Native ninja deletes a successful production response file; the control verifies reconstruction of its actual inputs rather than relying on a stale response artifact. Hash the production compiler, graph, linker script, source/extracted inputs, ELF and DOL before/after; all unchanged.",
+    "undefined_classification": [
+      {
+        "class": "implemented source definitions with incorrect cross-TU visibility",
+        "evidence": "mb_blit.c forward declarations 174-176 and definitions 1427/1489/1534 are static; source symbols are local t while extracted target symbols are global T. Target mb_font relocations at .text+0x6dc/+0xdf4 call mbBlitProject and +0x6f4/+0xe84 call mbBlitSetupVerts, confirming genuine retail cross-TU references. WorldObjCollide is static in worldcol.c forward166/definition768, source t at +0x10b0 versus target T at +0x10ac; target dynobjgrid .text+0x1dc has actual REL24 to WorldObjCollide. These calls are not invented helper placeholders. Only mb_blit visibility was experimentally varied; WorldObjCollide needs its own TU-wide source gate.",
+        "names": [
+          "mbInitBlitEntry",
+          "mbBlitProject",
+          "mbBlitSetupVerts",
+          "WorldObjCollide"
+        ]
+      },
+      {
+        "class": "local source-owned data names disagree with DTK-disambiguated extracted exports",
+        "evidence": "items/gauntworld source references unsuffixed sObjectsFile, while target uses sObjectsFile_80112AB8 from auto_06_801116EC_rodata.o (+0x13cc,size0xc). btext source references gScrollModes while target uses gScrollModes_80343BB0 from auto_09_80343B18_sdata.o (+0x98,size8). Need proper data ownership/name reconciliation rather than blanket aliases.",
+        "names": [
+          "sObjectsFile",
+          "gScrollModes"
+        ]
+      },
+      {
+        "class": "stale source names for existing exported data",
+        "evidence": "pb_diag extern declarations and uses retain the old labels. Current symbols are atree_scroll at0x8023D000 and whichatree at0x8023D180; target pb_diag relocations name whichatree at+0x12e2/+0x12ee and atree_scroll at+0x15d6/+0x15da. Editable atree exports the current global names.",
+        "names": [
+          "lbl_8023D000",
+          "lbl_8023D180"
+        ]
+      },
+      {
+        "class": "incomplete source/extracted RTTI data ownership",
+        "evidence": "These target movieplayer .rodata symbols begin MoviePlayer and MoviePlayerBase class-name strings. Retained auto_09_80343FC8_sdata.o RTTI records relocate to them, while compiled movieplayer emits anonymous class-data pools and undefined external vtable references. Reconcile class home/RTTI/name-string emission and source-owned section claims; don't label missing method implementation.",
+        "names": [
+          "lbl_80117648",
+          "lbl_80117654"
+        ]
+      },
+      {
+        "class": "generated EH names referenced from embedded asset payload",
+        "evidence": "Definitions are extracted audio.c extabindex+0x120 (audio_init), dcs.c extab+0x88 (dcsSampleStream), and movieplayer.cpp extab+0x268 (fn_800DB2F4). The failing references originate inside retained auto_07_80129734_data.o, including addends+1 and+7. Accepted claim.embedded-static-payload-range-verified.20260831.v1 establishes this entire heterogeneous little-endian asset range and identifies address-like inferred relocations as artifacts. Root R67 asset audit owns remeasurement/suppression; these undefined names do not warrant source aliases or synthetic EH entries.",
+        "names": [
+          "@eti_80008C5C",
+          "@etb_80008000",
+          "@etb_80008420"
+        ]
+      }
+    ],
+    "visibility_experiment": {
+      "baseline_raw_sha256": "a8c37f08be022ed55661483a8f93b919924b3821a10543ca6595f342f38401e8",
+      "held_fixed": "Every function body, function order, data declaration, header, compiler GC/1.2.5s, Ninja flags and pragma. No WebFrank processing in either measured output.",
+      "history_screen": "gdlmem context for all three helpers returned attempts=[] and claims=[]; brief mb_blit had no active claim and no visibility veto. DrawBlit/fn_800B27C4 pins screened and neither body edited. Read inline-and-deadstrip, function-granular dont-inline and same-TU storage-class laws; storage-class law is about data aggregates, not a necessity claim about function visibility. Full-TU comparison applied regardless.",
+      "probed_form": "Remove exactly static from declarations and definitions of mbInitBlitEntry, mbBlitProject, mbBlitSetupVerts, six tokens total, in a scratch copy of the complete TU.",
+      "result": "Fresh compiler control equals active raw object. 42/42 emitted function sets, all body bytes, function positions, named relocation tuples and allocated initialized section bytes unchanged. Three helper bindings LOCAL0 -> GLOBAL1, same as target GLOBAL1. mbInitBlitEntry528/528 bytes, mbBlitProject368/368, mbBlitSetupVerts436/436 (baseline/variant); target sizes likewise. This is tested linkage repair without opcode/allocator side effects, not evidence these bodies or their TU are fully retail-matched. No source edit retained.",
+      "unit": "game/mb/mb_blit"
+    }
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R67_editable-default-is-not-all-configured-source-and-first-link-failures-are-actionable.20260905.v1",
+  "kind": "claim",
+  "predicate": "measured_build_boundary",
+  "recorded_at": "2026-09-05T21:07:49Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "At 488c464166fc85d0e0cfa01e8c4aeb725feca069, --non-matching genuinely bypasses runtime/WebFrank/P6/retail rewrites but does NOT make configured NonMatching objects linker inputs. The actual default editable link has 341 inputs: 215 configured source/assembly and 126 extracted. ninja all_source compiles unfinished sources without linking them. A bounded scratch link that substitutes all 42 configured unfinished source objects, retaining 84 explicitly counted autogenerated data/BSS objects, fails before any boot test. Unchanged scratch control reproduces the production ELF byte-for-byte; the trial reports 65 multiply-defined plus 35 undefined diagnostics, 13 distinct undefined names, then too many link errors. These counts are LOWER BOUNDS, not exhaustive: a second actual link with documented -maxerrors 1000 still stops at 100 diagnostics. The failures include straightforward source-visibility mistakes and data ownership/name reconciliation; they are not evidence that unavailable compiler scheduling is the sole project blocker. No stubs, aliases, duplicate-tolerant flags, production source edits or default-mode changes were used to force the trial to link. Normal matching mode was restored and ninja prints main.dol: OK."
+}
