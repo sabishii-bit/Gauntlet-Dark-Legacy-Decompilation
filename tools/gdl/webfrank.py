@@ -15,6 +15,11 @@ relocation with its instruction atom, and verifies region, relocation, and full
 function hashes before and after. It never copies opcodes, immediates, branch
 encodings, relocation payloads, or data from the target.
 
+The separate opt-in ``address_fold`` value proof supports only the contiguous
+add/addi/lwz temporary/base idiom: equal load address and every exit GPR,
+identity everywhere else, no interior entry or relocated word. That proof
+can change the load displacement; the register-field masks remain unchanged.
+
 Every patch is guarded by complete before/after function SHA-256 hashes.  A
 source, compiler, or layout change therefore fails the build instead of
 silently applying a stale binary rewrite.
@@ -38,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # fndiff is the reader every other tool already goes through. Two spellings
 # of a path is how a warning silently stops being emitted.
 from fndiff import stale_marker_path  # noqa: E402
+from ppc_address_fold import prove_address_fold  # noqa: E402
 
 
 SHT_SYMTAB = 2
@@ -4411,6 +4417,119 @@ def copy_register_fields(current: bytes, target: bytes) -> tuple[bytes, int]:
     return bytes(output), changed
 
 
+def _apply_address_fold(
+    current: bytes, target_data: bytes, patch: dict,
+    data: bytes | bytearray, sections: list[Section], symbol: Symbol,
+) -> bytes:
+    """One isolated, target-bound address-forwarding proof; no composition.
+
+    R63 integrator review of claim.R62_address-fold-census-one-complete-body-
+    customer.20260905.v1. This is NOT a register-mask exemption: the separate
+    algebra proves identical load addresses and *all* exit registers. Every
+    other word must already equal the target. The normal final datum screen
+    and output hash remain mandatory after this stage.
+    """
+    allowed = {"function", "before_sha256", "after_sha256", "mechanism",
+               "denial", "address_fold"}
+    if set(patch) - allowed:
+        raise ValueError("address fold does not compose with other stages/options")
+    declaration = patch["address_fold"]
+    if (not isinstance(declaration, dict)
+            or set(declaration) != {"at", "proof"}
+            or declaration["proof"] != "add-addi-lwz-affine-v1"):
+        raise ValueError("address fold requires an explicit at/proof declaration")
+    raw_at = declaration["at"]
+    if type(raw_at) not in (str, int):
+        raise ValueError("address fold offset must be an integer")
+    at = _parse_int(raw_at)
+    if at % 4 or not 0 <= at <= len(current) - 12:
+        raise ValueError("address fold window is unaligned or out of range")
+    target_sections = _sections(target_data)
+    target_symbol = _find_symbol(target_data, target_sections, symbol.name)
+    if target_symbol.size != symbol.size or symbol.size % 4:
+        raise ValueError("address fold target/current function size mismatch")
+    target_start = target_sections[target_symbol.section_index].offset + target_symbol.value
+    target = target_data[target_start:target_start + target_symbol.size]
+    if _sha256(target) != patch["after_sha256"]:
+        raise ValueError("address fold target function hash changed")
+    if current[:at] != target[:at] or current[at + 12:] != target[at + 12:]:
+        raise ValueError("address fold requires byte identity outside its window")
+    our_relocations = _function_text_relocations_full(
+        data, sections, symbol.section_index, symbol.value, symbol.value + symbol.size)
+    target_relocations = _function_text_relocations_full(
+        target_data, target_sections, target_symbol.section_index,
+        target_symbol.value, target_symbol.value + target_symbol.size)
+    def relocation_shape(relocations):
+        result = {}
+        for offset, item in relocations.items():
+            # MWCC writes SDA21 at word+2; dtk writes it at word+0.
+            # Only that documented encoding convention is normalised here.
+            if item[0] == 109 and offset % 4 in (0, 2):
+                offset &= ~3
+            if offset in result:
+                raise ValueError("address fold duplicate relocation")
+            result[offset] = item[0]
+        return result
+
+    if relocation_shape(our_relocations) != relocation_shape(target_relocations):
+        raise ValueError("address fold relocation offsets/types differ")
+    for body, obj, secs, sym, relocations in (
+        (current, data, sections, symbol, our_relocations),
+        (target, target_data, target_sections, target_symbol, target_relocations),
+    ):
+        if any(at <= offset < at + 12 for offset in relocations):
+            raise ValueError("address fold relocation inside window")
+        entries = _jumptable_targets(obj, secs, sym.section_index,
+                                    sym.value, sym.value + sym.size)
+        # A symbol or ANY relocation resolving to the interior is a potential
+        # entry, including text address-taking and calls to fn+addend. This
+        # deliberately widens the jump-table detector, not its CFG edges.
+        for entry in _symbols(obj, secs):
+            if (entry.section_index == sym.section_index
+                    and sym.value + at < entry.value < sym.value + at + 12):
+                raise ValueError("address fold symbol in window interior")
+        symtabs = [s for s in secs if s.section_type == SHT_SYMTAB]
+        relocated_words = set()
+        for rela in secs:
+            if rela.section_type != SHT_RELA:
+                continue
+            table = next((s for s in symtabs if s.index == rela.link), None)
+            if table is None:
+                raise ValueError("address fold relocation lacks symbol table")
+            for pos in range(rela.offset, rela.offset + rela.size, rela.entry_size or 12):
+                offset, info, addend = struct.unpack_from(">IIi", obj, pos)
+                if (rela.info == sym.section_index
+                        and sym.value <= offset < sym.value + sym.size):
+                    word_index = (offset - sym.value) // 4
+                    if word_index in relocated_words:
+                        raise ValueError("address fold duplicate relocation in instruction")
+                    relocated_words.add(word_index)
+                sympos = table.offset + (info >> 8) * (table.entry_size or 16)
+                if _u16(obj, sympos + 14) == sym.section_index:
+                    destination = _u32(obj, sympos + 4) + addend - sym.value
+                    if at < destination < at + 12:
+                        raise ValueError("address fold address-taken window interior")
+        words = [_u32(body, offset) for offset in range(0, len(body), 4)]
+        successors, _ = _successors(words, {o // 4 for o in relocations},
+                                   {o // 4 for o in entries})
+        for origin, destinations in enumerate(successors):
+            if not at <= origin * 4 < at + 12:
+                if any(at < dest * 4 < at + 12 for dest in destinations):
+                    raise ValueError("address fold control flow enters window interior")
+            # _successors treats a call as fallthrough; an unrelocated local
+            # bl also has a destination which must not enter mid-proof.
+            word = words[origin]
+            if word >> 26 == 18 and word & 1 and origin * 4 not in relocations:
+                dest = origin * 4 + _sign_extend(word & 0x03fffffc, 26)
+                if at < dest < at + 12:
+                    raise ValueError("address fold local call enters window interior")
+        if any(at < entry < at + 12 for entry in entries):
+            raise ValueError("address fold address-taken window interior")
+    prove_address_fold(struct.unpack_from(">3I", current, at),
+                       struct.unpack_from(">3I", target, at))
+    return current[:at] + target[at:at + 12] + current[at + 12:]
+
+
 def apply_patch(
     data: bytearray, patch: dict, target_data: bytes | None = None,
     symbol_addresses: dict[str, tuple[str, int]] | None = None,
@@ -4512,6 +4631,15 @@ def apply_patch(
     deferred_exit: list = []
 
     changed = 0
+    if "address_fold" in patch:
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        rewritten = _apply_address_fold(
+            original_function, target_data, patch, data, sections, symbol)
+        data[start:end] = rewritten
+        changed = sum(original_function[at:at + 4] != rewritten[at:at + 4]
+                      for at in range(0, len(rewritten), 4))
+        print(f"WEBFRANK {symbol.name}: address-fold value proof ({changed} words)")
     permutation = patch.get("instruction_permutation")
     if patch.get("memory_disambiguation") and not permutation:
         raise ValueError(

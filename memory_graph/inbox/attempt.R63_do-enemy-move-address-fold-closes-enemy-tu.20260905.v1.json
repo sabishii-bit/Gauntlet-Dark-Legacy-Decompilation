@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Close the isolated allocator/peephole address-forwarding residual with the reviewed narrow relational proof, then link the entire enemy TU.",
+  "attributes": {
+    "datum": "Live real apply_patch with retail image: L1=68, L2=0, L3=21, L4=2. The only correspondence rows are +0x20/+0x24 ...bss.0+0 versus lbl_80250E00+0, the uninitialized enemy BSS base. The full linked image additionally proves these resolve to the correct address. Initialized .data772 and .sdata2 668 bytes are 100% equal; .bss0x678c sizes agree. No pool or relocation payload is rewritten.",
+    "followup": "The narrow census has one complete-body customer; it does not prove WebFrank is indispensable for the entire project. Keep the user's broader necessity audit separate from this verified TU closure. A natural source form may still retire this rule if it passes the same whole-TU gates.",
+    "law_screen": "Screened all 287 current non-provisional law heads and complete R62 source-cap/proposal records. Applied identical-multiset-is-blind-to-displacements, webfrank-pinned-function-source-freeze, webfrank-cannot-close-instruction-count-deltas, two-use-preoffset-pointer-keeps-add-then-addi (different mechanism, already source-probed), and claim.law.CH_sda21-relocation-offset-encoding-differs-between-our-objects-and-the-extracted-target.20260901.v1 (measured initial production-guard refusal). Renaming/permutation laws remain unchanged: an immediate difference is not a recolor. Pool/link reachability law governs the retained user-approved dead weak helper, whose linked exception/data bytes remain exact.",
+    "mechanism": "905/905, frame208, three raw words: target +0x28 'add r30,r31,r0', ours 'add r3,r31,r0'; target +0x2c 'addi r30,r30,3608', ours 'addi r30,r3,3608'; target +0x30 'lwz r3,524(r30)', ours 'lwz r3,4132(r3)'. This is the algorithm load. The same EA follows from 3608+524=4132, and the proof checks all final GPRs without a liveness exemption. All outside words were already equal. New proof review: claim.R63_three-word-address-forwarding-proof-reviewed.20260905.v1.",
+    "mod_probe": "Configured --non-matching --build-dir build/r63-mod with explicit local toolchain paths: zero webfrank/frank/p6frank build edges. Compiled enemy.o directly. Temporary blocked=0 -> blocked=1 in do_enemy_move compiled successfully, changing object SHA256 9645f06f3532bc0a542cc7b69b5b4b1f403156325b4eab4c4dcced334aa02c0f -> 1f216c40e7f893614044700e88d4ef24eb06fe0ef9efa9abe12a1656a68087eb. Feeding that edited object to matching WebFrank refused on the pinned input hash and wrote no output object. Source was reverted, ordinary configure restored, full ninja green. This proves edited-source object compilation/bypass, not an entire modified-game runtime test.",
+    "progress": "STRICT unchanged57.28% (2596 functions); EQUIVALENT14.31% (180) ->14.65% (181), +3620 exact code bytes. Complete compiled units214/341 ->215/341, complete code34.97% ->40.23%. enemy TU alone links56332 bytes. Project fuzzy remains98.67% rounded. Progress prose now refers to each declared proof instead of asserting every pin was universally unreachable across the compiler archive.",
+    "result": "EXACT after WebFrank; not raw-source exact. enemy.c is Object(Matching), 84/84 target functions and 56332/56332 code bytes exact, 1/1 complete unit. Its prior 24 pins are unchanged; do_enemy_move adds one rule for three words, giving 25. No source-body change is retained in this pass; only the stale TU header was updated.",
+    "source_exhaustion": "attempt.R62_do-enemy-move-address-fold-reproduces-after-pool-integration.20260905.v1 contains current18-current22 literal generators and the R60/R61 prior axes. Preserve their finite caps: typed/page/byte/getter/cursor association, declaration and initialization order, variable identity, scoped optimization controls and localized inline peephole controls never yielded exact raw code on the recorded alignments. Peephole-off emitted 909 rather than 905. The retained contactOwner reload, rad2 compound scaling, assignment-in-condition normalization, other=&gEnemies[n] copy, joint row/matrixGap fix and ABS_REVERSED order stay unchanged. These are finite observations, not a denial of future natural-source work.",
+    "verification": "wr_try_rule.py --from-config is BYTE-EQUAL; fndiff --clean reports MATCH, real0 (42 benign pool-name lines suppressed). ninja prints build/GUNE5D/main.dol: OK with the complete compiled TU linked. r62_enemy_link_audit.py against the prior verified cleaned image reports all2351264 bytes equal, including all sections, extab, extabindex, header and padding; SHA256 c78673c6ff0a29d802b4069f94e4696c3946deaa09e9908ac1e19bd056c707c1 on both. Forced touch/replay exercises58 WebFrank edges with the same green gate. python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph -b pass. The first suite run caught missing RULE_CLASSES metadata for address_fold; adding its verifier/refusal/draft schema resolved it without weakening a test."
+  },
+  "function": "function:do_enemy_move",
+  "id": "attempt.R63_do-enemy-move-address-fold-closes-enemy-tu.20260905.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T18:07:38Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-05",
+    "signature": "opcode multiset: IDENTICAL (905/905)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.R62_do-enemy-move-address-fold-reproduces-after-pool-integration.20260905.v1",
+  "valid_from": "2026-09-05",
+  "verifiers_run": [
+    "prove_address_fold",
+    "_apply_address_fold",
+    "whole-function input/target/output SHA256",
+    "relocation offset/type and interior-entry guards",
+    "verify_datum_binding with retail image",
+    "wr_try_rule.py BYTE-EQUAL",
+    "full linked DOL check; no recolor/permutation/unproven escape used"
+  ]
+}

@@ -506,7 +506,7 @@ config.libs = [
             Object(Matching, "game/audio/soundmgr.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(Matching, "game/sys/ml_mem.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_blit.c", cflags=cflags_demo),
-            Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_demo),
+            Object(Matching, "game/enemy/enemy.c", cflags=cflags_demo),
             Object(Matching, "game/mb/mb_objects.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/gamemain.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/controls.c", cflags=cflags_demo),
@@ -881,6 +881,7 @@ if not config.non_matching:
             "rule": "webfrank",
             "implicit": [
                 "tools/gdl/webfrank.py",
+                "tools/gdl/ppc_address_fold.py",
                 str(webfrank_config),
                 f"build/{config.version}/obj/{unit}.o",
                 webfrank_image,
@@ -1016,11 +1017,8 @@ elif args.mode == "progress":
             f" ({_matched_count - _asst_count} fns, compiler output"
             f" byte-identical) + EQUIVALENT"
             f" {100.0 * _asst_bytes / _total:.2f}%"
-            f" ({_asst_count} fns, WebFrank-assisted: proven equivalent"
-            f" modulo regalloc/schedule; variance unreachable across the"
-            f" local MWCC archive per"
-            f" claim.law.CV_pinned-residuals-are-unreachable-across-the-"
-            f"local-mwcc-archive)")
+            f" ({_asst_count} fns, WebFrank-assisted: individually declared"
+            f" compiler-variance proofs; see config/{config.version}/webfrank.json)")
     except Exception as _err:
         print(f"  (postprocessor split unavailable: {_err})")
 else:

@@ -140,8 +140,8 @@ shape:
 
 ```text
 Postprocessor split: STRICT matched NN.NN% (N fns, compiler output byte-identical)
-  + EQUIVALENT N.NN% (N fns, WebFrank-assisted: proven equivalent modulo
-  regalloc/schedule; origin of the variance unattributed)
+  + EQUIVALENT N.NN% (N fns, WebFrank-assisted: individually declared
+  compiler-variance proofs; see config/GUNE5D/webfrank.json)
 ```
 
 The two halves mean different things and are not interchangeable:
@@ -149,9 +149,9 @@ The two halves mean different things and are not interchangeable:
 - **STRICT** — the compiler's own output is byte-identical to the retail
   target. Nothing was rewritten.
 - **EQUIVALENT** — the object matches after a postprocessor rule that is
-  machine-proven equivalent to the compiler's output modulo register
-  allocation or instruction scheduling. The rule closes the residual; it
-  does not explain where the variance came from.
+  machine-proven equivalent under the rule's declared register-allocation,
+  scheduling or narrow value-equality proof. The rule closes the residual;
+  it does not establish that every possible source form has been exhausted.
 
 `AGENTS.md` requires that both halves always be published together:
 "Progress reporting always publishes the STRICT/EQUIVALENT split; never
@@ -169,6 +169,25 @@ The wrapper does not lock either function to fixed bytes when modders edit
 the source. Its compiler regression check is
 `python tools/gdl/composed_census/r59_world_name_ref_probe.py`; the complete
 linked build, not this instruction-only probe, verifies relocations/data.
+
+`enemy.c` is linked with 25 WebFrank rules. Its final `do_enemy_move` rule
+uses the reviewed `address_fold` proof, not a register-mask exemption:
+the contiguous `add; addi; lwz` alternatives compute the same load address
+(`3608 + 524 = 4132`) and every GPR is equal after the third instruction.
+Only this temporary/base forwarding idiom is supported; the entire function
+outside that window must already match. Input/target/output hashes,
+relocation/datum binding, and control-flow/entry checks still apply.
+The proof is for normal completion, not identical intermediate register
+snapshots under hardware exceptions or debugging. Regression tests are in
+`tools/gdl/tests/test_address_fold.py`; the source-exhaustion and census
+records are searchable with `gdlmem.py context do_enemy_move`.
+
+This does not make modders' edits depend on matching those hashes.
+`python configure.py --non-matching` bypasses all target-bound postprocessors
+and compiles the editable source directly. The matching build intentionally
+refuses a changed pinned body. The user-approved weak square-root helper in
+`enemy.c` remains explicitly documented compatibility scaffolding, not a
+claim of recovered header provenance.
 
 Three constraints govern the harness itself, quoted from `AGENTS.md`:
 

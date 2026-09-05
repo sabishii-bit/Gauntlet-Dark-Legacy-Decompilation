@@ -39,6 +39,16 @@ from tools.gdl.webfrank import (  # noqa: E402
 # (rule key, verifier entry point, what it proves, composition refusals).
 # NM read webfrank internals about eight times to assemble this by hand.
 RULE_CLASSES = {
+    "address_fold": {
+        "verifier": "_apply_address_fold -> prove_address_fold + verify_datum_binding",
+        "proves": "one add/addi/lwz temporary/base forwarding window has the"
+                  " same load address and all 32 final GPR values for arbitrary"
+                  " inputs; every outside word and relocation binding agrees",
+        "refuses": ["all composition, unproven_recolor_audit, relocated window"
+                    " words, interior entries, non-identical outside code,"
+                    " and any instruction form beyond the exact three-word idiom"],
+        "requires_target": True,
+    },
     "instruction_permutation": {
         "verifier": "permute_instruction_atoms + verify_relocation_binding",
         "proves": "the moved instructions are pairwise independent (no RAW,"
@@ -339,6 +349,11 @@ def emit(name, kind):
                      " verifier discharges>"}
             for run in runs
         ]
+    elif kind == "address_fold":
+        entry[kind] = {
+            "at": "<REQUIRED: start of the single three-instruction window>",
+            "proof": "add-addi-lwz-affine-v1",
+        }
     elif kind == "copy_register_fields":
         entry[kind] = True
     else:

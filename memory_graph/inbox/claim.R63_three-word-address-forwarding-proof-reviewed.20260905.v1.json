@@ -1,0 +1,30 @@
+{
+  "asserted_by": [
+    "tools/gdl/ppc_address_fold.py",
+    "tools/gdl/webfrank.py",
+    "tools/gdl/tests/test_address_fold.py"
+  ],
+  "attributes": {
+    "demand": "Fresh r62_address_fold_census.py on 341 configured units: 2971 function pairs, 2871 equal-size and 100 unequal-size; 84 units without compiled objects. 32 paired add/addi/lwz windows: 17 equal, one passing mismatched window in do_enemy_move, eight wrong-address refusals and six wrong-final-register refusals, zero errors. One complete-body customer, 905/905 instructions and three raw words; source-exhaustion demand is attempt.R62_do-enemy-move-address-fold-reproduces-after-pool-integration.20260905.v1. This same-offset grammar census is not a census of every possible addressing residual.",
+    "limits": "Normal instruction completion only: not identical intermediate register snapshots visible to hardware exception handlers, asynchronous observers or a debugger. No proof of recovered source, missing compiler flag, or global need for postprocessing. The ordinary mod build bypasses every target-dependent stage.",
+    "other_occurrences": "Our compiled forms include do_enemy_move, ProcessEffects twice, and fn_8005C1DC. Retail folded forms occur in DoOptions and fn_8005C1DC; retail unfolded forms occur in do_enemy_move, fn_8004646C, GetScrollListMsg and DrawScrollListText. These are forms, not additional complete-body customers. Both forms occur in retail, refuting a blanket version incompatibility inference.",
+    "review": "Codex root integrator reviewed the R62 proposal after the user's permission for an additional WebFrank rule and subsequent directive to figure out how to match it. Scope is this isolated address-forwarding proof, not a general compiler optimizer. The compiler observation is pass-level: disabling peephole removes the first-load fold but introduces four compare-fusion losses. No exact MWCC internal routine or universal source impossibility has been identified.",
+    "tags": [
+      "postprocessor",
+      "matching",
+      "relocation"
+    ],
+    "tests": "Every one-bit mutation of either measured three-word stream is refused. 500 generated register/displacement cases, including aliased add inputs, signed bounds and wraparound, agree with an independent concrete interpreter on all GPRs and the load address. ELF tests cover both directions/nonzero symbol values, malformed declarations, target/hash/size drift, outside-word changes, relocation drift/duplicates, SDA21 normalization, branch/call/address-taken interior entries, unknown computed branches, all composition refusals and final datum binding. Full tools/gdl and memory_graph suites passed; all 58 WebFrank build edges replayed and ninja printed main.dol: OK."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A pair accepted by prove_address_fold or _apply_address_fold that differs in normal-completion load address/value, any final GPR/flags/memory, or reaches a changed window through an unguarded interior entry; add its encoded instructions/ELF fixture to tools/gdl/tests/test_address_fold.py. An accepted malformed relocation or failed hash/datum binding is also a counterexample.",
+  "id": "claim.R63_three-word-address-forwarding-proof-reviewed.20260905.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-05T18:07:32Z",
+  "schema_version": 1,
+  "subject": "tool:webfrank",
+  "supersedes": "claim.R62_address-fold-census-one-complete-body-customer.20260905.v1",
+  "valid_from": "2026-09-05",
+  "value": "Reviewed narrow relational-value subcase: address_fold supports exactly one contiguous non-record/non-OE add; nonzero-RA addi; nonzero-RA lwz temporary/base forwarding window. One stream loads through its temporary with displacement K+D, the other through its advanced persistent base with displacement D. Signed displacement equality, common ordered add inputs, identical pointer/load destinations, equal effective load addresses, and all 32 final GPR expressions are independently required. The symbolic expressions are affine modulo 2^32, with one identical final word-load token. No memory write, flag, instruction count or control operation changes. The entire body outside the twelve-byte window must already equal the hash-bound target. No other stage/options may compose with it; window relocations and all discovered interior entries (branches, local calls, symbols, address-taking relocations) refuse. Whole-function input/target/output hashes, relocation shape and normal datum binding remain mandatory. Only SDA21's documented word+2 versus word+0 encoding convention is normalized, with duplicate relocations refused. This is a separate proof, never a broadened register mask or an arbitrary equivalent-stream facility."
+}

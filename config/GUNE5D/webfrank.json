@@ -1506,6 +1506,16 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "do_enemy_move",
+        "before_sha256": "a2927c9a7e7c9e4a4c29bb6398b603af63c8c4d66937d066b8714a613eba3b19",
+        "after_sha256": "10d25b85862382ab449336bee8c4cfaaa23e9c4c607e3d6d68309d93808d0022",
+        "address_fold": {
+          "at": "0x28",
+          "proof": "add-addi-lwz-affine-v1"
+        },
+        "mechanism": "R63 source-first closure, 905/905 instructions and exactly three raw differing words. At +0x28 target 'add r30,r31,r0', ours 'add r3,r31,r0'; +0x2c target 'addi r30,r30,3608', ours 'addi r30,r3,3608'; +0x30 target 'lwz r3,524(r30)', ours 'lwz r3,4132(r3)'. This is the algorithm load. MWCC's allocator/peephole forwards the base adjustment into the load displacement; peephole-off removes that fold but grows 905 to 909 by losing four unrelated compare fusions. The dedicated add-addi-lwz-affine-v1 proof establishes the same single load address (3608+524=4132) and all 32 exit GPR values for arbitrary incoming state modulo 2^32. No flags, memory writes, instruction count, relocations or control flow change. Identity outside +0x28..+0x34 is mandatory; symbols, relocations and branch entries into the window interior are forbidden. Whole-function hashes and the ordinary datum screen remain mandatory. SOURCE-EXHAUSTION: attempt.R62_do-enemy-move-address-fold-reproduces-after-pool-integration.20260905.v1 and its R60/R61 predecessors enumerate the finite source/flag probes. No claim that every possible C form is exhausted. One complete-body census customer: claim.R62_address-fold-census-one-complete-body-customer.20260905.v1. User permitted an additional rule and directed matching after the proposal; R63 integrator approved this isolated proof, not a general semantic rewrite. Normal-completion equivalence does not promise identical intermediate register snapshots under hardware exceptions or debugging. Mod/non-matching builds bypass this and all other target-bound rules."
+      },
+      {
         "function": "move_logic10",
         "before_sha256": "c9a84e0800e30cfd3ca7492bf99c6220a5dbf6ca2f3ba62af07f9734724466d6",
         "after_sha256": "87515e393b37eafc0f4a9b3593084f618654c4c462d3b1eec968607f8118df39",

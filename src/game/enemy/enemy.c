@@ -17,10 +17,10 @@
  * ENEMY.OBJ is a single very large translation unit.  On the GameCube build it
  * occupies one contiguous .text run, 0x800444C0 - 0x800520CC, sitting between
  * dynobjgrid.c (ends 0x800444C0) and gamemain.c (starts 0x800520CC).  This file
- * remains wired NonMatching while its large bodies are recovered incrementally;
- * dtk substitutes the original DOL bytes until the complete object is ready.
- * Per-function byte matching is used throughout so each recovered slice can be
- * verified independently.
+ * is linked Matching as of R63 (2026-09-05): all 84 target functions are exact
+ * after 25 audited WebFrank rules, including do_enemy_move's three-word address
+ * fold. `ninja` verifies the complete linked DOL; `--non-matching` bypasses the
+ * rules for editable-source builds. This is not an all-raw-compiler match.
  *
  * Data used throughout:
  *   gEnemies        0x80251C18  active enemy records, stride 0x394 (916) bytes.

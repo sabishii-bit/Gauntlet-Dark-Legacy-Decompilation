@@ -894,6 +894,16 @@ sibling consumers; never invent names.
   value-equality mode is the outer boundary — no class may cross into
   "any semantically equivalent stream". Proposals for new classes go to
   the integrator as records, never shipped unilaterally.
+  **Reviewed narrow address-forwarding case (R63):** `address_fold` supports
+  only a contiguous non-record/non-OE `add; addi; lwz` temporary/base fold.
+  Its algebra proves the same load address and all 32 final GPR values for
+  arbitrary incoming state. Every outside word must already match; hashes,
+  relocation/datum binding and interior-entry checks remain mandatory.
+  No other stage may compose with it. This is not a register-mask exemption
+  or an arbitrary equivalent-stream facility; see
+  `claim.R63_three-word-address-forwarding-proof-reviewed.20260905.v1`.
+  Like compiler scheduling, it models normal completion, not identical
+  intermediate register snapshots under hardware exceptions or debugging.
 - Progress reporting always publishes the STRICT/EQUIVALENT split; never
   quote the combined matched% alone in a record or report.
 - A verified fuzzy improvement is valuable even when not exact: keep and

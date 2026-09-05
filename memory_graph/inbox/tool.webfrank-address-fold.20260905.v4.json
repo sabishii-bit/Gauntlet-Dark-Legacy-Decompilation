@@ -1,0 +1,42 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "tools/gdl/webfrank.py",
+      "tools/gdl/ppc_address_fold.py",
+      "tools/gdl/tests/test_address_fold.py",
+      "tools/gdl/rule_derive.py",
+      "config/GUNE5D/webfrank.json"
+    ],
+    "matching_build_only": true,
+    "review_record": "claim.R63_three-word-address-forwarding-proof-reviewed.20260905.v1"
+  },
+  "constraints": [
+    "Every rule must be individually audited and fail closed on source, compiler, relocation, datum, or hash drift.",
+    "REGISTER_ONLY rules require form-aware differing-word validation and consistent-renaming proof; value-equality widening must explicitly declare every substitution or comparison exchange; explicitly unproven deep-allocator rules must retain their warning and audit note.",
+    "per_bctr_jumptable_edges is opt-in and requires every bctr to trace exactly one same-basic-block ADDR16_HA/LO -> lwzx -> mtctr chain to a relocation-complete table; ambiguity, missing slots, overlap, wrong relocation types, out-of-function targets, and target/current map disagreement refuse.",
+    "copy_alias_register_fields is restricted to target-bound use-only GPR fields whose old and new registers are CFG-must-equal at the site; RA-zero, destination/read-write fields, unsupported transfers, and whole-word target mismatches refuse.",
+    "Instruction permutations require dependency-audited independent straight-line atoms, relocation-preserving bijection, and dead-final-write proof.",
+    "address_fold is an isolated {at, proof: add-addi-lwz-affine-v1} declaration for one contiguous add/addi/lwz window only. The proof requires equal effective load addresses and all32 final GPR values, exact outside bytes, matching relocation offsets/types (only SDA21 halfword convention normalized), no window relocation or interior entry, and all ordinary target/hash/datum guards. Every other stage/option, including unproven_recolor_audit, refuses. It does not broaden register-field masks. Normal-completion proof only, not identical intermediate exception/debugger register snapshots.",
+    "Never broaden a rule or use WebFrank for unproved structural, immediate, branch, ABI, semantic, relocation-payload, or data differences.",
+    "The non-matching/mod build bypasses WebFrank completely."
+  ],
+  "entrypoint": "python tools/gdl/webfrank.py",
+  "id": "tool.webfrank-address-fold.20260905.v4",
+  "kind": "tool",
+  "name": "WebFrank",
+  "purpose": "Fail-closed matching-build correction for individually proven register allocation, value-equality, copy-alias use-field, dependency-audited permutation and the isolated three-word address-forwarding residual.",
+  "recorded_at": "2026-09-05T18:07:39Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/webfrank.py",
+  "status": "active_guarded",
+  "supersedes": "tool.webfrank-per-bctr-cfg.20260904.v3",
+  "tool_key": "tool:webfrank",
+  "tool_kind": "postprocessor",
+  "usage": [
+    "Run tools/gdl/webfrank_audit.py against raw postprocess bodies before proposing a register rule; its strict register-mask refusal does not evaluate the separate address_fold proof.",
+    "Use per_bctr_jumptable_edges only when the ordinary conservative CFG union creates cross-table paths in a multiple-bctr function and both objects carry exact relocation provenance.",
+    "For the reviewed address-fold shape, first run tools/gdl/composed_census/r62_address_fold_census.py and require finite source-exhaustion provenance. Derive an explicit fragment through tools/gdl/composed_census/wr_try_rule.py with the real target/image. No automatic blanket rules.",
+    "Treat a passing build rule as matching evidence only after full object, relocation, datum, test-suite, and linked-DOL gates pass."
+  ],
+  "valid_from": "2026-09-05"
+}
