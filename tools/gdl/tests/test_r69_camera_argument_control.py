@@ -102,6 +102,13 @@ class CameraArgumentControlTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'consume r3'):
             control.audit(before, after, target, provider)
 
+    def test_provider_set_requires_both_and_no_extras(self):
+        before, after, target, provider = audit_fixture()
+        for keys in ((), ('raw',), ('target',), ('raw', 'target', 'other')):
+            supplied = {key: copy.deepcopy(provider['raw']) for key in keys}
+            with self.subTest(keys=keys), self.assertRaisesRegex(ValueError, 'exactly target and raw'):
+                control.audit(before, after, target, supplied)
+
 
 if __name__ == '__main__':
     unittest.main()

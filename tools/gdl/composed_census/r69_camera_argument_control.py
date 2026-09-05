@@ -97,6 +97,8 @@ def entry_argument(function, callee):
 
 
 def audit(before, after, target, provider):
+    if set(provider) != {'target', 'raw'}:
+        raise ValueError('require exactly target and raw providers')
     controls = {
         'before': entry_argument(before['functions'][FUNCTION], 'DiffRate'),
         'after': entry_argument(after['functions'][FUNCTION], CONSUMER),
