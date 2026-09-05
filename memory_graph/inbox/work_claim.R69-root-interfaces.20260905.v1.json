@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "integrator": "codex/reconstruction-foundation",
+    "owned_units": [
+      "game/shop/shop.c",
+      "game/mb/mb_particle.c",
+      "config/GUNE5D/splits.txt"
+    ],
+    "scope": "Source export recovery in shop.c and mb_particle.c; root owns split integration and all-source link diagnostic infrastructure."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:setupNewPMode_800CDCE4",
+  "id": "work_claim.R69-root-interfaces.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex/reconstruction-foundation",
+  "recorded_at": "2026-09-05T23:13:56Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
