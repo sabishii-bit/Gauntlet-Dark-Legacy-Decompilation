@@ -1,0 +1,37 @@
+{
+  "attributes": {
+    "implementation": [
+      "tools/gdl/datadiff.py",
+      "tools/gdl/exception_metadata.py",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "tools/gdl/composed_census/ce_eq_datum_audit.py",
+      "tools/gdl/tests/test_r66_datum_audit.py",
+      "tools/gdl/tests/test_t20_extab_and_empty_sections.py"
+    ],
+    "measured_at": "6bdc9c4e6",
+    "measurements": [
+      "python tools/gdl/datadiff.py game/world/newcam --sections --out build/r66_datadiff_newcam.json exits 2 UNRESOLVED for unclaimed .rodata 0x26 and .sdata2 0xC8. Direct EH audit is PASS: extab target/ours 0x98/0x98, extabindex 0xE4/0xE4, records 19/19, missing0 changed0 extra0. The positional report snapshot extab 53.9474% is not a contrary function-metadata result; object record order differs.",
+      "python tools/gdl/datadiff.py dolphin/si/SIBios --sections --out build/r66_datadiff_sdk.json exits 0 PASS; 3 initialized-data bytes and 4 BSS allocation bytes remain existing slack advisories, not newly waived defects.",
+      "python tools/gdl/datadiff.py --sections --matching --out build/r66_datadiff_matching.json exits 2 UNRESOLVED: 213 literal Object(Matching) selections, 209 PASS, 4 UNRESOLVED, 0 FAIL. The selection is the tool's existing configure-text selector, not a claimed complete all-build-edge population. One unresolved row is the pre-existing assembly split-lookup mismatch. The other three are extra EH helper records: enemy_bss_order in enemy (72/73), SetObjectGuts in mb_objects (16/17), and six in DEMOInit (5/11); DEMOInit also has its previously known .sbss surplus. All target EH records compare equal. Among 51 EH-bearing selections, 48 PASS and 3 extra-record reviews; no unsupported payload-relocation refusal in this sample.",
+      "python tools/gdl/composed_census/ce_eq_datum_audit.py --unit game/sys/registry --function regFind --out build/r66_ce_registry.json exits0 PASS and records the raw .postprocess/body/registry.o separately from final registry.o. CE now consumes cv_probe.read_edges for active raw paths, so a missing required P6 body cannot fall back to the final transformed object and leftover body files in a direct-compile graph are ignored.",
+      "Final pinned CE replay remains181/181 screened from183 rules, 178equal and3candidates on each side, zero unreadable/disagreements. Explicit suffix-normalized function lookup now checks that the requested suffixed symbol actually exists, so a fabricated address suffix cannot select another function.",
+      "python -m unittest discover tools/gdl/tests -b all green; python -m memory_graph.test_graph -b all green; ninja -j2 prints build/GUNE5D/main.dol: OK. Existing report unchanged:98.67% fuzzy,71.92% reported combined matched, STRICT57.28% + EQUIVALENT14.65%,40.23% linked; these legacy tier labels are not new raw/relocation certifications."
+    ],
+    "negative_controls": "Tests refuse incomplete/wrong index relocations, relocated extab payload bytes, missing section partners/objects, failed objdump, absent compile edges and contradictory/unsupported audit schemas. Tests compare reordered records as equal and extra helper records as UNRESOLVED, not silently dead-stripped. A failed full-suite identity assertion was corrected to compare shared implementation code paths because the import-safety suite reloads modules; functional decoder tests remain intact.",
+    "neighborhood_screen": "rg -n 'cr\\.(objdata|relocs|poolbytes|datum_key)|ce_eq_datum_audit|report_extab_sections|section_sizes\\(' -- tools found the CE ranker consumer and the sibling af_data_base_census.section_sizes parser. The ranker was migrated; AF already accepts non-dot section names. Six datadiff subprocess readers now share checked dump_object. r60_enemy_source_probe imports exception_records/compare_exception_records from the new shared module; no source-probe axes changed. git diff --name-only HEAD -- src config configure.py printed no paths during this tool-only change.",
+    "related_records": [
+      "claim.law.R60_dotless-extab-sections-exist-in-objects-and-a-dot-only-parser-hid-them.20260905.v1",
+      "claim.R65_live-revision-audit-reporting-and-tool-integration-gaps.20260905.v1",
+      "claim.R66_shared-datum-audit-restored-with-explicit-candidate-and-coverage-status.20260905.v1"
+    ]
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R66_dotless-eh-audit-uses-shared-function-identity-and-keeps-extra-records-unresolved.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T20:12:04Z",
+  "schema_version": 1,
+  "subject": "tool:datadiff",
+  "valid_from": "2026-09-05",
+  "value": "datadiff now detects dotless extab/extabindex object sections and audits supported records by function identity through the decoder shared with the R60 source probe. It no longer repeats the refuted no-object-has-EH assertion or mistakes record order for differing function metadata. Extra records and unclaimed data are unresolved ownership/link-reachability candidates, not automatic source defects or permission to add split claims. Missing inputs and failed dumps do not become clean empty comparisons. The scope remains preflight, not whole-TU relocation or link equality."
+}

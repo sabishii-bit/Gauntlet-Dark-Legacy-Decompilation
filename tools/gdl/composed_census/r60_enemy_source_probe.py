@@ -17,6 +17,7 @@ from cn_analyze import load, target_object, wf
 from cv_probe import REPO, compile_with, read_edges
 from probe import function_span
 from fndiff import parse
+from exception_metadata import exception_records, compare_exception_records
 
 UNIT = "game/enemy/enemy"
 
@@ -1351,68 +1352,6 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
     if baseline.read_bytes() != expected_bytes:
         raise ValueError("whole-object baseline fidelity failed; rebuild first")
     return baseline
-
-
-def exception_records(data):
-    """Resolve extabindex entries to function names and actual extab bytes.
-
-    These sections have NO leading dot. A dot-only section-name regex is
-    not evidence that objects lack exception metadata. Extra emitted helper
-    records remain visible; this function makes no dead-strip/link claim.
-    """
-    if data[:6] != b"\x7fELF\x01\x02":
-        raise ValueError("expected big-endian ELF32")
-    sections = wf._sections(data)
-    index = next(s for s in sections if s.name == "extabindex")
-    extab = next(s for s in sections if s.name == "extab")
-    if index.size % 12:
-        raise ValueError("partial extabindex record")
-    reloc = {}
-    for rs in sections:
-        if rs.section_type != wf.SHT_RELA or rs.info != index.index:
-            continue
-        table = sections[rs.link]
-        strings = sections[table.link]
-        for at in range(rs.offset, rs.offset + rs.size, rs.entry_size or 12):
-            offset, info, addend = struct.unpack_from(">IIi", data, at)
-            if info & 255 != 1 or offset in reloc:
-                raise ValueError("expected unique ADDR32 index relocation")
-            sp = table.offset + (info >> 8) * (table.entry_size or 16)
-            if not table.offset <= sp < table.offset + table.size:
-                raise ValueError("index relocation symbol out of range")
-            name_at, value = struct.unpack_from(">II", data, sp)
-            section = wf._u16(data, sp + 14)
-            name = wf._cstring(data, strings.offset + name_at) if name_at else ""
-            reloc[offset] = (name, value + addend, section, addend)
-    expected_offsets = {o + k for o in range(0, index.size, 12) for k in (0, 8)}
-    if set(reloc) != expected_offsets:
-        raise ValueError("incomplete or unexpected index relocations")
-    starts = sorted({reloc[o + 8][1] for o in range(0, index.size, 12)})
-    ends = dict(zip(starts, starts[1:] + [extab.size]))
-    result = {}
-    for offset in range(0, index.size, 12):
-        name, _, fn_section, addend = reloc[offset]
-        _, start, section, _ = reloc[offset + 8]
-        if not name or name in result or addend or sections[fn_section].name != ".text":
-            raise ValueError("expected unique named function entry")
-        if section != extab.index or not 0 <= start < ends[start] <= extab.size:
-            raise ValueError("exception metadata outside extab")
-        result[name] = {
-            "length": wf._u32(data, index.offset + offset + 4),
-            "metadata": data[extab.offset + start:extab.offset + ends[start]].hex(),
-        }
-    return result
-
-
-def compare_exception_records(target, ours):
-    return {
-        "target_records": len(target), "ours_records": len(ours),
-        "missing": sorted(set(target) - set(ours)),
-        "extra": {k: ours[k] for k in sorted(set(ours) - set(target))},
-        "changed": {k: {"target": target[k], "ours": ours[k]}
-                    for k in target if k in ours and target[k] != ours[k]},
-        "scope": "Function-indexed metadata only. Extra records require a separate link-reachability check; not a whole-TU flip verdict.",
-    }
 
 
 def main():

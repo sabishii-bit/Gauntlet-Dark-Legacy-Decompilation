@@ -26,6 +26,13 @@ they are advisory, because a zero-reference static can be legitimate
 (claimed data a later flip will wire up, or a symbol another instrument
 already accounts for).
 
+`--sections --out PATH` emits schema-version 1 with PASS/FAIL/UNRESOLVED:
+exit 0 means the stated section obligations passed, exit 1 means a measured
+failed obligation, exit 2 means unreadable input or candidates still needing
+ownership/relocation/link review. It does not certify whole-object equality.
+Dotless extab/extabindex are read from objects and compared by function
+identity through exception_metadata, not by their emitted record order.
+
 ZERO-FILLED CLAIM SLACK IS ADVISORY, NOT A FLIP BLOCKER
 -------------------------------------------------------
 When every compared byte is EQUAL and the only residue is trailing claim
@@ -82,6 +89,7 @@ false-positives on exactly the string literals this law cares about.
 """
 
 import json
+import os
 import re
 import struct
 import subprocess
@@ -90,11 +98,28 @@ from pathlib import Path
 
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
-OBJDUMP = REPO / "build" / "binutils" / "powerpc-eabi-objdump.exe"
+OBJDUMP = REPO / "build" / "binutils" / (
+    "powerpc-eabi-objdump.exe" if os.name == "nt" else "powerpc-eabi-objdump")
 SPLITS = REPO / "config" / VERSION / "splits.txt"
 DOL = REPO / "orig" / VERSION / "sys" / "main.dol"
 
 DATA_SECTIONS = (".rodata", ".data", ".sdata", ".sdata2")
+
+
+class MeasurementUnavailable(RuntimeError):
+    """A missing/failed measurement, never an empty successful comparison."""
+
+
+def dump_object(obj, *flags):
+    obj = Path(obj)
+    if not obj.is_file():
+        raise MeasurementUnavailable(f"missing object: {obj}")
+    result = subprocess.run([str(OBJDUMP), *flags, str(obj)],
+                            capture_output=True, text=True)
+    if result.returncode:
+        raise MeasurementUnavailable(
+            f"objdump exited {result.returncode}: {result.stderr.strip()}")
+    return result.stdout
 
 
 def _unit_key(unit):
@@ -153,8 +178,7 @@ def parse_splits():
 
 def obj_sections(obj):
     """name -> bytes, from objdump -s."""
-    out = subprocess.run([str(OBJDUMP), "-s", str(obj)], capture_output=True,
-                         text=True).stdout
+    out = dump_object(obj, "-s")
     secs = {}
     name = None
     for line in out.splitlines():
@@ -173,8 +197,7 @@ def obj_sections(obj):
 
 def obj_relocs(obj):
     """section -> set of relocated word offsets."""
-    out = subprocess.run([str(OBJDUMP), "-r", str(obj)], capture_output=True,
-                         text=True).stdout
+    out = dump_object(obj, "-r")
     relocs = {}
     sec = None
     for line in out.splitlines():
@@ -211,8 +234,7 @@ def obj_symbols(obj):
       'O' in flags     -> an object (data), as opposed to a function/section
       'd' in flags     -> a section symbol
     """
-    out = subprocess.run([str(OBJDUMP), "-t", str(obj)],
-                         capture_output=True, text=True).stdout
+    out = dump_object(obj, "-t")
     syms = []
     for line in out.splitlines():
         m = SYM_RE.match(line.replace("\t", " "))
@@ -233,8 +255,7 @@ def obj_symbols(obj):
 
 def obj_reloc_refs(obj):
     """Every relocation target in the object as (symbol_name, addend)."""
-    out = subprocess.run([str(OBJDUMP), "-r", str(obj)],
-                         capture_output=True, text=True).stdout
+    out = dump_object(obj, "-r")
     refs = []
     for line in out.splitlines():
         m = REL_RE.match(line)
@@ -408,8 +429,7 @@ def check_unit(unit, claims, run_deadstrip=True, starts=None,
                strict_slack=False, debt=None):
     obj = ours_object(unit.rsplit(".", 1)[0])
     if not obj.exists():
-        print(f"[{unit}] SKIP: object not built ({obj})")
-        return 0
+        raise MeasurementUnavailable(f"[{unit}] object not built ({obj})")
     secs = obj_sections(obj)
     relocs = obj_relocs(obj)
     if run_deadstrip:
@@ -422,6 +442,7 @@ def check_unit(unit, claims, run_deadstrip=True, starts=None,
             continue
         if ours is None:
             print(f"[{unit}] {sec}: claimed 0x{claim[1]-claim[0]:X} but object emits nothing")
+            bad += 1
             continue
         if claim is None:
             print(f"[{unit}] {sec}: object emits 0x{len(ours):X} but nothing claimed")
@@ -478,19 +499,17 @@ def check_unit(unit, claims, run_deadstrip=True, starts=None,
 
 def section_sizes(obj):
     """{section name: size} from `objdump -h`."""
-    out = subprocess.run([str(OBJDUMP), "-h", str(obj)],
-                         capture_output=True, text=True).stdout
+    out = dump_object(obj, "-h")
     table = {}
     for m in re.finditer(
-            r"^\s*\d+\s+(\.\w[\w.]*)\s+([0-9a-f]{8})", out, re.M):
+            r"^\s*\d+\s+(\S+)\s+([0-9a-fA-F]{8})\s", out, re.M):
         table[m.group(1)] = int(m.group(2), 16)
     return table
 
 
 def section_bytes(obj, sec):
     """The raw bytes of one section from `objdump -s`."""
-    out = subprocess.run([str(OBJDUMP), "-s", "-j", sec, str(obj)],
-                         capture_output=True, text=True).stdout
+    out = dump_object(obj, "-s", "-j", sec)
     data = bytearray()
     for line in out.splitlines():
         m = re.match(r"^ [0-9a-f]+ ((?:[0-9a-f]{2,8} ?){1,4}) ", line)
@@ -557,26 +576,11 @@ def size_gap_class(target_bytes, our_bytes, bss=False):
 
 
 def refine_unclaimed(gap, target_len, claimed):
-    """Split OURS-LARGER into the CLAIM-DEBT case and the data case.
+    """Identify absent target ownership, without proving any source/data cure.
 
-    RUN-53 ITEM 6. `blocker-ours-larger`'s blurb — "OURS is LARGER than the
-    target, the DOL-range byte check is structurally blind to this" — is
-    written for a DATA defect, and lanes read it as one. It is usually not.
-    When the target side is exactly 0x0, the reason is almost always that
-    THE DTK SPLIT NEVER ASSIGNED THAT SECTION TO THIS TU, so there are no
-    target bytes to be larger than, and the cure is a line in
-    config/GUNE5D/splits.txt rather than any edit to the .c.
-
-    claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-
-    splits-txt-claim-debt-not-a-data-defect.20260904.v1 measured the distance
-    0-3 band: 38 blocker lines, all 38 of this shape, and all 38 unclaimed.
-    This does NOT assert that law — it CHECKS it per row, against the live
-    splits.txt, so a row whose section IS claimed keeps the data wording and
-    the law's own falsifier stays live.
-
-    Worked pair from the law, one file apart in splits.txt: `game/mb/mb_blit.c`
-    lists no .sdata2 and prints the blocker; `game/mb/mb_camera.c` lists
-    `.sdata2 start:0x80348B30 end:0x80348B38` and prints `100.0% bytes equal`.
+    The zero target size follows from missing split ownership. Emitted
+    surplus may be dead-stripped or may need reconstruction; size alone
+    decides neither. The conservative preflight refusal remains in place.
     """
     if gap == "blocker-ours-larger" and not target_len and not claimed:
         return "blocker-unclaimed-section"
@@ -593,14 +597,12 @@ GAP_BLURB = {
                             " byte check is structurally blind to this"),
     "blocker-unclaimed-section": (
         "UNCLAIMED SECTION — the target side is 0x0 because the dtk split"
-        " never assigned this section to this TU, not because our data is"
-        " wrong. This is CLAIM DEBT in config/GUNE5D/splits.txt and it is NOT"
-        " fixed in the .c: derive the address range with `python"
-        " tools/gdl/composed_census/af_data_base_census.py <unit>`, which"
-        " prints a paste-ready line, add it under this file's block, and"
-        " re-run. (claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-"
-        "flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1:"
-        " 38 of 38 blockers in the distance 0-3 band were this)"),
+        " assigned no bytes of this section to this TU. Ownership and"
+        " link-reachability review required: surplus may be dead-stripped;"
+        " its values are not proved correct or wrong. Use"
+        " tools/gdl/composed_census/af_data_base_census.py for CANDIDATE"
+        " bases, then verify bytes/relocations/ownership before changing"
+        " config/GUNE5D/splits.txt. Do not automatically add its claim."),
     "blocker-nonzero-tail": ("the target's extra bytes are NONZERO — real"
                              " bytes are missing from ours"),
     "blocker-head-differs": ("the compared head DIFFERS, so this is not a"
@@ -614,26 +616,14 @@ REPORT = REPO / "build" / VERSION / "report.json"
 def report_extab_sections(base):
     """[(name, size, fuzzy%)] for a unit's extab-family sections.
 
-    THEY ARE NOT IN ANY OBJECT (run-50 item 3, measured image-wide). This
-    file's section loop has probed `"extab"` and `"extabindex"` since it was
-    written -- spelled WITHOUT the leading dot, which is splits.txt's
-    spelling, while `section_sizes` reads `objdump -h` and every key it can
-    ever produce starts with a dot. So those two probes could never match.
-    Fixing the spelling would change nothing either: over all 257 paired
-    units, ZERO target objects and ZERO of our objects carry an extab-family
-    section under ANY spelling -- exception tables are a LINK-level artifact,
-    and objdiff's report is where they are measured. 95 report units carry
-    one.
-
-    This is the readout that was missing: on a `-Cpp_exceptions` TU an
-    instruction-COUNT change relocates every exception range, so the
-    extabindex match is the DATA a count-parity loss puts at risk, and its
-    size is the byte figure (game/pb/dbgtext: extab 56 at 100%, extabindex
-    84 at 100% -- the 84 a lane measured only by running defake_gate).
+    Supplemental report snapshot only, never a replacement for inspecting
+    the actual object sections. Objects DO contain dotless extab sections;
+    R60 refuted the old dot-only parser's circular absence claim. Missing
+    report data is harmless here because the direct metadata audit decides.
     """
     try:
         data = json.loads(REPORT.read_text(encoding="utf-8"))
-    except Exception:                                          # noqa: BLE001
+    except (OSError, ValueError):
         return []
     for unit in data.get("units", []):
         if unit.get("name", "").split("/", 1)[-1] == base:
@@ -644,7 +634,22 @@ def report_extab_sections(base):
     return []
 
 
-def section_table(unit_key, strict_slack=False, debt=None):
+def exception_table(target_object, our_object):
+    """Versioned identity-based metadata result, independent of record order."""
+    from exception_metadata import exception_records, compare_exception_records
+    try:
+        target = exception_records(Path(target_object).read_bytes())
+        ours = exception_records(Path(our_object).read_bytes())
+        result = compare_exception_records(target, ours)
+    except (OSError, ValueError) as exc:
+        return {"schema_version": 1, "status": "UNRESOLVED", "error": str(exc)}
+    result["schema_version"] = 1
+    result["status"] = ("FAIL" if result["missing"] or result["changed"] else
+                        "UNRESOLVED" if result["extra"] else "PASS")
+    return result
+
+
+def section_table(unit_key, strict_slack=False, debt=None, report=None):
     """--sections: ours-vs-target per-section size + match table.
 
     Compares our built object's data-class sections directly against the
@@ -663,19 +668,16 @@ def section_table(unit_key, strict_slack=False, debt=None):
     tgt_o = REPO / "build" / VERSION / "obj" / f"{base}.o"
     missing = [str(p) for p in (ours_o, tgt_o) if not p.exists()]
     if missing:
-        print(f"[{unit_key}] SKIP --sections: missing {missing}")
-        return 1
+        raise MeasurementUnavailable(f"[{unit_key}] UNRESOLVED --sections: missing {missing}")
 
     content = section_bytes
     ts, os_ = section_sizes(tgt_o), section_sizes(ours_o)
     # What this .c actually claims in splits.txt, so an OURS-LARGER row can be
     # told apart from an UNCLAIMED one per row instead of by assumption.
-    try:
-        claims = parse_splits().get(unit_key, {})
-    except (OSError, ValueError):
-        claims = {}
+    claims = parse_splits().get(unit_key, {})
     bad = 0
     compared = 0
+    rows = []
     for sec in DATA_SECTIONS + (".bss", ".sbss", ".sbss2"):
         tlen, olen = ts.get(sec), os_.get(sec)
         if tlen is None and olen is None:
@@ -699,6 +701,10 @@ def section_table(unit_key, strict_slack=False, debt=None):
                   + ("  [--strict-slack: counted as a blocker]"
                      if strict_slack and not gap.startswith("blocker")
                      else ""))
+            rows.append({"section": sec, "target_size": tlen or 0, "ours_size": olen or 0,
+                         "status": "UNRESOLVED" if gap in ("blocker-unclaimed-section", "blocker-ours-larger")
+                         else "FAIL" if blocks else "PASS", "classification": gap,
+                         "interpretation": GAP_BLURB[gap]})
             if blocks:
                 bad += 1
             elif debt is not None:
@@ -706,14 +712,21 @@ def section_table(unit_key, strict_slack=False, debt=None):
             continue
         if sec.startswith((".bss", ".sbss")):
             print(f"[{unit_key}] {sec}: size 0x{tlen:X} equal (bss)")
+            rows.append({"section": sec, "status": "PASS", "target_size": tlen,
+                         "ours_size": olen, "scope": "BSS allocation size only; no stored payload"})
             continue
         tb, ob = content(tgt_o, sec), content(ours_o, sec)
+        if len(tb) != tlen or len(ob) != olen:
+            raise MeasurementUnavailable(f"[{unit_key}] {sec}: section dump size does not match its header")
         same = sum(1 for a, b in zip(tb, ob) if a == b)
         pct = 100.0 * same / len(tb) if tb else 100.0
         mark = "" if pct == 100.0 else "  <- FLIP BLOCKER (reloc words may"\
             " account for some — cross-check the byte mode)"
         print(f"[{unit_key}] {sec}: size 0x{tlen:X}, {pct:.1f}% bytes"
               f" equal{mark}")
+        rows.append({"section": sec, "status": "PASS" if pct == 100.0 else "UNRESOLVED",
+                     "target_size": tlen, "ours_size": olen, "raw_bytes_equal_percent": pct,
+                     "scope": "raw section bytes; relocation payload identity remains a separate obligation"})
         if pct != 100.0:
             bad += 1
             # A percentage hides a finish-line residual: "98.2% equal"
@@ -727,28 +740,75 @@ def section_table(unit_key, strict_slack=False, debt=None):
             tail = f" … and {len(diffs) - 16} more" if len(diffs) > 16 else ""
             print(f"[{unit_key}] {sec}: {len(diffs)} byte(s) differ:"
                   f" {head}{tail}")
-    # EMPTY OUTPUT CAN NEVER MEAN SUCCESS (run-50 item 3). `--sections`
-    # printed NOTHING AT ALL for 78 of 257 units -- every unit whose two
-    # objects carry no data-class section between them -- and exited 0, so
-    # "all clear", "this unit has no data" and "I mistyped the unit" were
-    # one output. A lane hit it twice on game/pb/dbgtext and reported the
-    # tool as silent. Every run now ends with a verdict naming the count.
+    eh_names = sorted({name for name in ts.keys() | os_.keys()
+                       if name.lstrip(".") in ("extab", "extabindex")})
+    eh = None
+    if eh_names:
+        for name in eh_names:
+            print(f"[{unit_key}] {name}: OBJECT size target 0x{ts.get(name, 0):X}"
+                  f" vs ours 0x{os_.get(name, 0):X}; compared by function identity, not record position")
+        eh = exception_table(tgt_o, ours_o)
+        print(f"[{unit_key}] exception metadata: {eh['status']} "
+              f"target_records={eh.get('target_records', 'unreadable')} "
+              f"ours_records={eh.get('ours_records', 'unreadable')} "
+              f"missing={len(eh.get('missing', []))} changed={len(eh.get('changed', {}))} "
+              f"extra={len(eh.get('extra', {}))}")
+        if "error" in eh:
+            print(f"[{unit_key}] {eh['error']}")
+        for kind in ("missing", "changed", "extra"):
+            if eh.get(kind):
+                print(f"[{unit_key}] exception {kind}: {', '.join(eh[kind])}")
+        if eh["status"] != "PASS":
+            bad += 1
+        print(f"[{unit_key}] extra EH records require link-reachability review;"
+              " metadata equality is not whole-object/link equality")
     for name, size, fuzzy in report_extab_sections(base):
         pct = "n/a" if fuzzy is None else f"{fuzzy:.4f}%"
-        print(f"[{unit_key}] {name}: {size} bytes, {pct} matched  (LINK-level"
-              " section, from report.json -- no object carries it; an"
-              " instruction-COUNT change on a -Cpp_exceptions TU relocates"
-              " these ranges, and this size is the matched DATA at risk)")
+        print(f"[{unit_key}] {name}: {size} bytes, {pct} matched (report.json"
+              " snapshot, may be stale; not the direct metadata verdict)")
     print(f"[{unit_key}] --sections: {compared} object data section(s)"
           f" compared, {bad} blocker(s)"
           + ("  (NOTHING TO COMPARE: neither object carries a data-class"
-             " section -- this is a verdict, not silence)" if not compared
+             " or EH section -- this is a verdict, not silence)" if not compared and not eh_names
              else ""))
+    statuses = {r["status"] for r in rows}
+    if eh is not None:
+        statuses.add(eh["status"])
+    if report is not None:
+        report.append({"unit": unit_key, "status": "FAIL" if "FAIL" in statuses else
+                       "UNRESOLVED" if "UNRESOLVED" in statuses else "PASS",
+                       "sections": rows, "exception_metadata": eh,
+                       "target_object": str(tgt_o.relative_to(REPO)),
+                       "ours_object": str(ours_o.relative_to(REPO))})
     return bad
 
 
-def main():
-    args = sys.argv[1:]
+def main(argv=None):
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("units", nargs="*")
+    parser.add_argument("--matching", action="store_true")
+    parser.add_argument("--deadstrip", action="store_true")
+    parser.add_argument("--no-deadstrip", action="store_true")
+    parser.add_argument("--sections", action="store_true")
+    parser.add_argument("--strict-slack", action="store_true")
+    parser.add_argument("--out", type=Path, help="schema-1 --sections JSON; PASS/FAIL/UNRESOLVED")
+    parser.add_argument("--objdump", type=Path, help="override the native platform binutils executable")
+    options = parser.parse_args(argv)
+    global OBJDUMP
+    if options.objdump is not None:
+        OBJDUMP = options.objdump
+    if options.out and not options.sections:
+        parser.error("--out currently requires --sections")
+    args = (["--matching"] if options.matching else []) + options.units
+    if options.deadstrip:
+        args.append("--deadstrip")
+    if options.no_deadstrip:
+        args.append("--no-deadstrip")
+    if options.sections:
+        args.append("--sections")
+    if options.strict_slack:
+        args.append("--strict-slack")
     only_deadstrip = "--deadstrip" in args
     run_deadstrip = "--no-deadstrip" not in args
     only_sections = "--sections" in args
@@ -766,8 +826,8 @@ def main():
         for p in direct:
             obj = Path(p)
             if not obj.exists():
-                print(f"[{p}] SKIP: no such object")
-                continue
+                print(f"[{p}] UNRESOLVED: no such object")
+                return 2
             deadstrip_check(obj.name, obj, quiet_ok=False)
         args = [a for a in args if not a.endswith(".o")]
         if not args:
@@ -786,6 +846,7 @@ def main():
     debt = []
     section_debt = []
     unresolved = []
+    measurements = []
     for t in targets:
         key = next((k for k in units if k.rsplit(".", 1)[0] == t or k == t), None)
         if key is None:
@@ -817,21 +878,32 @@ def main():
                 print(f"[{t}] no splits entry -- UNRESOLVED UNIT, nothing was"
                       " compared (this is a REFUSAL, not a clean result)")
                 unresolved.append(t)
+                measurements.append({"unit": t, "status": "UNRESOLVED", "error": "no splits entry"})
                 continue
             print(f"[{t}] resolved to splits unit {key}")
         if only_deadstrip:
             obj = ours_object(key.rsplit(".", 1)[0])
             if not obj.exists():
-                print(f"[{key}] SKIP: object not built ({obj})")
+                print(f"[{key}] UNRESOLVED: object not built ({obj})")
+                unresolved.append(key)
                 continue
             deadstrip_check(key, obj, quiet_ok=False)
             continue
         if only_sections:
-            bad += section_table(key, strict_slack=strict_slack,
-                                 debt=section_debt)
+            try:
+                bad += section_table(key, strict_slack=strict_slack,
+                                     debt=section_debt, report=measurements)
+            except (OSError, ValueError, MeasurementUnavailable) as exc:
+                print(f"[{key}] UNRESOLVED: {exc}")
+                unresolved.append(key)
+                measurements.append({"unit": key, "status": "UNRESOLVED", "error": str(exc)})
             continue
-        bad += check_unit(key, units[key], run_deadstrip=run_deadstrip,
-                          starts=starts, strict_slack=strict_slack, debt=debt)
+        try:
+            bad += check_unit(key, units[key], run_deadstrip=run_deadstrip,
+                              starts=starts, strict_slack=strict_slack, debt=debt)
+        except (OSError, ValueError, MeasurementUnavailable) as exc:
+            print(f"[{key}] UNRESOLVED: {exc}")
+            unresolved.append(key)
     if debt and not strict_slack:
         shrink = [d for d in debt if d[3] == "shrinkable"]
         total = sum(d[2] for d in debt)
@@ -857,14 +929,22 @@ def main():
               " bss claim slack (no DOL bytes).")
         print("  --strict-slack counts these as flip blockers again;"
               " OURS-LARGER, a nonzero tail and a differing head always do.")
+    statuses = {row["status"] for row in measurements}
+    status = ("FAIL" if "FAIL" in statuses else "UNRESOLVED" if
+              unresolved or "UNRESOLVED" in statuses else "FAIL" if bad else "PASS")
+    if options.out:
+        options.out.parent.mkdir(parents=True, exist_ok=True)
+        options.out.write_text(json.dumps({"schema_version": 1, "status": status,
+            "scope": "object data/BSS and supported function-indexed exception records; not full relocation/link equality",
+            "units_selected": len(targets), "rows": measurements}, indent=2) + "\n", encoding="utf-8")
+        print(f"DATADIFF {status}: wrote {options.out}")
     if unresolved:
         print(f"\nUNRESOLVED UNIT(S): {len(unresolved)} of {len(targets)}"
-              f" argument(s) match no splits.txt entry -- {', '.join(unresolved)}."
+              f" argument(s) could not be compared -- {', '.join(unresolved)}."
               " NO comparison was made for them; do not read this run as a"
-              " clean gate. Exit 2 (a mistyped unit), distinct from exit 1"
-              " (real blockers found).")
-        return 2
-    return 1 if bad else 0
+              " clean gate. Exit 2 means unresolved input or candidates;"
+              " exit 1 means a measured failing obligation.")
+    return {"PASS": 0, "FAIL": 1, "UNRESOLVED": 2}[status]
 
 
 if __name__ == "__main__":

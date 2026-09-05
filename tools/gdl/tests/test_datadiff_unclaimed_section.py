@@ -1,4 +1,4 @@
-"""A `SIZE target 0x0` blocker is CLAIM debt, and now says so (run-53 item 6).
+"""A zero target size identifies missing ownership, not a proven data cure.
 
 Reproduced verbatim at c7b741799:
 
@@ -6,11 +6,10 @@ Reproduced verbatim at c7b741799:
     — OURS is LARGER than the target — the DOL-range byte check is
     structurally blind to this
 
-That blurb is written for a DATA defect and lanes read it as one. The target
-side is 0x0 because the dtk split never assigned .sdata2 to mb_blit.c: the
-cure is a line in config/GUNE5D/splits.txt, not an edit to the .c
-(claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-
-splits-txt-claim-debt-not-a-data-defect.20260904.v1).
+The target side is 0x0 because the dtk split never assigned .sdata2 to
+mb_blit.c. That fact does not prove the emitted data correct, nor require
+claiming it: unused surplus can be removed by the linker. R66 keeps the
+conservative refusal and requires ownership/value/link-reachability review.
 
 The refinement CHECKS the claim per row against the live splits.txt rather
 than asserting the law, so the law's falsifier stays live.
@@ -63,11 +62,13 @@ class RefineUnclaimedTests(unittest.TestCase):
                     "blocker-nonzero-tail", "blocker-head-differs"):
             self.assertEqual(dd.refine_unclaimed(gap, 0, claimed=False), gap)
 
-    def test_the_new_class_has_a_blurb_and_it_names_the_cure(self):
+    def test_the_new_class_requires_review_not_an_automatic_cure(self):
         blurb = dd.GAP_BLURB["blocker-unclaimed-section"]
         self.assertIn("splits.txt", blurb)
         self.assertIn("af_data_base_census.py", blurb)
-        self.assertIn("not fixed in the .c", blurb.lower())
+        self.assertIn("link-reachability review", blurb)
+        self.assertIn("not proved correct or wrong", blurb)
+        self.assertIn("Do not automatically add", blurb)
 
     def test_it_still_blocks(self):
         """Claim debt is a real flip blocker; only the CAUSE was misnamed."""
