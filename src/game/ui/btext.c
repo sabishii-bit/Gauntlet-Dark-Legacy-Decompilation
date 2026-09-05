@@ -114,7 +114,7 @@ s32 gLineSpacing;               /* 0x803443E0 */
 extern s32 lbl_803443E4;        /* 0x803443E4 - shared: also written as a
                                  * texture handle by gamemain.c and read as a
                                  * font override by options.c; NOT glow-only */
-extern s32 gScrollModes[2];     /* 0x80343BB0 */
+extern s32 gScrollModes_80343BB0[2]; /* extracted TU-local table, 0x80343BB0 */
 extern u32 glow_color;          /* 0x80343BC4 */
 extern s32 glow_radius;         /* 0x80343BCC */
 extern s32 glow_period;         /* 0x80343BD0 */
@@ -1320,7 +1320,7 @@ void FontInit(void)
     i = 0;
     modeIndex = i;
     for (; (s32)i < 2; i++, modeIndex++) {
-        StringInitSub(gScrollModes[modeIndex], &gScrollMsgList[i]);
+        StringInitSub(gScrollModes_80343BB0[modeIndex], &gScrollMsgList[i]);
     }
     for (i = 1; i < 0xd; i++) {
         LoadFonts(i, gFontDefs8x8[i], gFontDefs[i]);

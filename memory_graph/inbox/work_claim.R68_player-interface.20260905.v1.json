@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex/reconstruction-foundation",
+    "owned_units": [
+      "src/game/game/player.c"
+    ],
+    "scope": "Narrow source-interface repair of four FindStringMessageListSub calls in do_players to target-proven canonical callee; no allocator/body reshaping. Own player.c for this pass, no shared headers or other functions' edits. Full raw-TU control and existing pins required."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:do_players",
+  "id": "work_claim.R68_player-interface.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex/reconstruction-foundation",
+  "recorded_at": "2026-09-05T22:13:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}

@@ -1,0 +1,41 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r68_symbol_binding_probe.py",
+    "tools/gdl/tests/test_r68_symbol_binding.py",
+    "tools/gdl/composed_census/r67_runtime_allsource_probe.py"
+  ],
+  "attributes": {
+    "law_screen": "Full current law catalog screened. Relevant: webfrank-hash-pinned-site, WF_a-pool-fix-renumbers-relocation-hashes-not-body-hashes, PR_defake-gate-compares-relocation-names-while-fndiff-relocs-resolves-them, noop-cast-on-array-decay-not-neutral. This patch holds types, array rank, expressions, constants and definitions fixed; only exact identifiers change. Full raw/section/relocation comparison and real pin replay replace score-only inference. No existing body/schedule caps retried.",
+    "measured_base": "d91f9c860",
+    "remaining": "Both TUs remain NonMatching. pb_diag has unclaimed literal pools; btext has unclaimed initialized/BSS sections and existing StringTextHeightSub exception metadata mismatch. All-configured-source link, boot and mod smoke tests remain open. No claim that name witnesses alone certify arbitrary callsite semantics or whole-TU equality.",
+    "reproduce": [
+      "python tools/gdl/composed_census/r68_symbol_binding_probe.py pb-diag --out build/r68_pbdiag.json",
+      "python tools/gdl/composed_census/r68_symbol_binding_probe.py scroll-mode --out build/r68_scrollmode.json",
+      "python configure.py --non-matching; ninja -j2; ninja -j2 all_source; python tools/gdl/composed_census/r67_runtime_allsource_probe.py --out build/r67_runtime_r68_bindings.json; python configure.py; ninja -j2"
+    ],
+    "sources": [
+      "src/game/pb/pb_diag.c",
+      "src/game/ui/btext.c"
+    ],
+    "target_witnesses": [
+      "pb_diag target .text+0x12e2/0x12ee refers to whichatree; +0x15d6/0x15da to atree_scroll. Both are exported by built atree.o with the already-existing atree_exports path; target addresses 0x8023D180 and 0x8023D000, sizes0x60 and0x180. Source formerly used obsolete lbl_ names that no actual linker input defined.",
+      "btext target FontInit references gScrollModes_80343BB0. auto_09_80343B18_sdata.o globally defines this8-byte datum at .sdata+0x98; symbols.txt records TU-local gScrollModes@0x80343BB0. Source formerly imported the undisambiguated name. Existing extracted ownership remains explicit, not misrepresented as recovered source data."
+    ],
+    "verification": [
+      "r68_symbol_binding_probe pb-diag and scroll-mode PASS before and after source edits: fresh active-source compiler output byte-identical to raw Ninja object; 15/15 and46/46 raw bodies unchanged; all initialized allocated sections/BSS layout unchanged; only4 and1 named relocations change.",
+      "defake_gate check game/pb/pb_diag: GATE OK; game/ui/btext: GATE OK, FontInit naming drift only. No instruction improvement claimed.",
+      "python -m unittest discover tools/gdl/tests -b: all green.",
+      "configure.py --non-matching; ninja-j2; ninja-j2 all_source; r67_runtime_allsource_probe: experiment PASS, control ELF SHA256 0e7a7de7b9d2bf0602ba1fb6360ff4bf823e57bfbd6564ffdc31f2f0a78c63aa, trial exit1/noELF,65duplicate+35undefined diagnostics still capped100. gScrollModes/lbl_8023D000/lbl_8023D180 absent from exact linker diagnostic symbol list; adjust_radius/get_attn_pos/lbl_8011A1A8 newly reached.",
+      "Matching mode restored; ninja-j2 pins replay unchanged; dtk shasum -c config/GUNE5D/build.sha1 prints build/GUNE5D/main.dol: OK. Provenance retry PASS with341units/no failures; the earlier Ninja deps permission error was transient."
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R68_pbdiag-btext-existing-provider-bindings-restored.20260905.v1",
+  "kind": "claim",
+  "predicate": "verified_source_linkage_repair",
+  "recorded_at": "2026-09-05T22:13:29Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "Reconciled three stale source import names with existing target-proven providers: pbDiagDrawInfo now references atree_scroll and whichatree, and FontInit references the actual extracted gScrollModes_80343BB0 export. No alias, new storage, compiler flag, postprocessor rule or function body shape was added. Actual-Ninja-flags reversible controls preserve all 15 pb_diag and 46 btext raw function bodies, positions, bindings, allocated initialized section bytes/layout and BSS extents, with only the five explicitly named relocation changes. All existing pins replay unchanged. This repairs integration, not a TU flip or raw-match gain. A fresh all-configured-source trial no longer reports these three undefined names but still fails at the 100-error cap; new later diagnostics are not regressions."
+}
