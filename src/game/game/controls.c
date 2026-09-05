@@ -486,24 +486,26 @@ static u32 lbl_80240FC0[4];      /* 0x80240FC0 right-stick levels              *
 
 /* --- .sbss --- */
 
-static s32 lbl_803445D8;         /* 0x803445D8 assignment-disable bits         */
-static s32 lbl_803445DC;         /* 0x803445DC mtap serve selector             */
-static volatile u32 lbl_803445E0; /* 0x803445E0 pad access busy flag (spin-waited) */
-static s32 lbl_803445E4;         /* 0x803445E4 pad progress/watchdog code      */
-static s32 lbl_803445E8;         /* 0x803445E8 per-port flag                   */
-static s32 lbl_803445EC;         /* 0x803445EC mtap driver present             */
-s32 ctrls_initialized;    /* 0x803445F0                                 */
-static s32 lbl_803445F4;         /* 0x803445F4 in-controls-update flag         */
-static s32 lbl_803445F8;         /* 0x803445F8 "updated" staged-data flag      */
-static s32 lbl_803445FC;         /* 0x803445FC disable_player_controls         */
-static s32 lbl_80344600;         /* 0x80344600 aux_sel_active                  */
-static s32 lbl_80344604;         /* 0x80344604                                 */
-static s32 lbl_80344608[2];      /* 0x80344608 mtap slot status (port+2)       */
-static s32 lbl_80344610[2];      /* 0x80344610 mtap port status                */
-u32 lbl_80344618;         /* 0x80344618 all-player repeat edges         */
-u32 lbl_8034461C;         /* 0x8034461C all-player edges                */
-u32 lbl_80344620;         /* 0x80344620 all-player levels               */
-static u32 lbl_80344624;         /* 0x80344624 (pad)                           */
+/* MWCC emits this externally linked small-state run in reverse declaration
+ * order. The four bytes after all-player levels are link alignment, not a
+ * separate state variable. */
+u32 lbl_80344620;               /* 0x80344620 all-player levels               */
+u32 lbl_8034461C;               /* 0x8034461C all-player edges                */
+u32 lbl_80344618;               /* 0x80344618 all-player repeat edges         */
+s32 lbl_80344610[2];            /* 0x80344610 mtap port status                */
+s32 lbl_80344608[2];            /* 0x80344608 mtap slot status (port+2)       */
+s32 lbl_80344604;               /* 0x80344604                                 */
+s32 lbl_80344600;               /* 0x80344600 aux_sel_active                  */
+s32 lbl_803445FC;               /* 0x803445FC disable_player_controls         */
+s32 lbl_803445F8;               /* 0x803445F8 "updated" staged-data flag      */
+s32 lbl_803445F4;               /* 0x803445F4 in-controls-update flag         */
+s32 ctrls_initialized;          /* 0x803445F0                                 */
+s32 lbl_803445EC;               /* 0x803445EC mtap driver present             */
+s32 lbl_803445E8;               /* 0x803445E8 per-port flag                   */
+s32 lbl_803445E4;               /* 0x803445E4 pad progress/watchdog code      */
+volatile u32 lbl_803445E0;       /* 0x803445E0 pad access busy flag (spin-waited) */
+s32 lbl_803445DC;               /* 0x803445DC mtap serve selector             */
+s32 lbl_803445D8;               /* 0x803445D8 assignment-disable bits         */
 
 /* --- data owned by other TUs --- */
 extern char lbl_801120D0[]; /* "MTAP %d OPEN\n" string literal */
