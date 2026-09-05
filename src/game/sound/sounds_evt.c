@@ -2,6 +2,172 @@
 #include "game/leveldata.h"
 #include "game/player.h"
 
+/* Initialized SOUNDS tables, recovered from GameCube data. Xbox PDB array
+ * dimensions corroborate the independent tables (including MovieBanks,
+ * MovieMusic, food and turbo IDs); GC consumers and bytes decide order.
+ * Existing exported labels are retained for cross-TU references. Original
+ * file/function scope is not claimed: the Xbox procedures differ in order.
+ * MWCC naturally pools these arrays, including unused movie-bank entries.
+ * Do not replace them with a padded struct or cross-array pointer walk. */
+long lbl_801232C8[5] = {127, 127, 127, 127, 127};
+char lbl_801232DC[6][8] = {"MET", "ROPE", "CHAIN", "ICE", "STONE", "*ROCK"};
+char lbl_8012330C[16] = "abcdefghijk";
+static char* MovieBanks[32] = {"title.s", "story.s", "wizmus.s", "valmus.s", "warmus.s", "arcmus.s", "grunt_a.s", "grunt_b.s", "grunt_c.s", "grunt_d.s", "demon_a", "demon_b.s", "demon_c.s", "demon_d.s", "key.s", "atari.s", "3dfxsplash.s", "kata-sor.s", "kata-kni.s", "kata-dwf.s", "kata-jes.s", "grunt_g.s", "demon_k.s", "grunt_i.s", "demon_i.s", "grunt_j.s", "grunt_h.s", "attr-newgame.s", "attr-playme.s", "gamegiveaway.s", "skorne2garm.s", "completion.s"};
+static int MovieMusic[32] = {1, 1, -1, -1, -1, -1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+long lbl_8012341C[14] = {-1, 0xf0009, 0x100009, 0x110008, 0x120008, 0x130005, 0x140005, 0x150008, 0x160007, 0x170008, 0x180009, 0x190008, -1, 0x0};
+long lbl_80123454[14] = {-1, 0x1a0001, 0x1b0001, 0x1c0001, 0x1d0001, 0x1e0001, 0x1f0001, 0x200001, 0x210001, 0x220001, 0x230001, 0x240001, -1, 0x0};
+long lbl_8012348C[11] = {0x10032, 0x10033, 0x10034, 0x10035, 0x10036, 0x10037, 0x10038, 0x10039, 0x1003a, 0x1003b, 0x1003c};
+long lbl_801234B8[11] = {0x2000b, 0x2000a, 0x20009, 0x20008, 0x20007, 0x20006, 0x20005, 0x20004, 0x20003, 0x20002, 0x20001};
+long lbl_801234E4[8][4] = {
+    {0x40000, 0x40001, 0x40002, 0x40003},
+    {0x50000, 0x50001, 0x50002, 0x50003},
+    {0x60000, 0x60001, 0x60002, 0x60003},
+    {0x70000, 0x70001, 0x70002, 0x70003},
+    {0x80000, 0x80001, 0x80002, 0x80003},
+    {0x90000, 0x90001, 0x90002, 0x90003},
+    {0xa0000, 0xa0001, 0xa0002, 0xa0003},
+    {0xb0000, 0xb0001, 0xb0002, 0xb0003}
+};
+long lbl_80123564[8] = {0x40004, 0x50004, 0x60004, 0x70004, 0x80004, 0x90004, 0xa0004, 0xb0004};
+static int snd_eat[8][4] = {
+    {0x40008, 0x40008, 0x40008, 0x40008},
+    {0x50008, 0x50008, 0x50008, 0x50008},
+    {0x60008, 0x60008, 0x60008, 0x60008},
+    {0x70008, 0x70009, 0x7000a, 0x7000b},
+    {0x80008, 0x80008, 0x80008, 0x80008},
+    {0x90008, 0x90008, 0x90008, 0x90008},
+    {0xa0008, 0xa0008, 0xa0008, 0xa0008},
+    {0xb0008, 0xb0008, 0xb0008, 0xb0008}
+};
+static int snd_eat_default[8] = {0x40006, 0x50006, 0x60006, 0x70006, 0x80006, 0x90006, 0xa0006, 0xb0006};
+long lbl_80123624[8] = {0x40007, 0x50007, 0x60007, 0x70007, 0x80007, 0x90007, 0xa0007, 0xb0007};
+long lbl_80123644[8] = {0x40009, 0x50009, 0x60009, 0x7000c, 0x80009, 0x90009, 0xa0009, 0xb0009};
+long lbl_80123664[8] = {0x4000a, 0x5000a, 0x6000a, 0x7000d, 0x8000a, 0x9000a, 0xa000a, 0xb000a};
+long lbl_80123684[8] = {0x4000b, 0x5000b, 0x6000b, 0x7000e, 0x8000b, 0x9000b, 0xa000b, 0xb000b};
+long lbl_801236A4[8] = {0x4000c, 0x5000c, 0x6000c, 0x7000f, 0x8000c, 0x9000c, 0xa000c, 0xb000c};
+static int snd_turboA[8][4] = {
+    {0x4000e, 0x4000f, 0x40010, 0x4000d},
+    {0x5000e, 0x5000f, 0x50010, 0x5000d},
+    {0x6000e, 0x6000f, 0x60010, 0x6000d},
+    {0x70011, 0x70012, 0x70013, 0x70010},
+    {0x8000e, 0x8000f, 0x80010, 0x8000d},
+    {0x9000e, 0x9000f, 0x90010, 0x9000d},
+    {0xa000e, 0xa000f, 0xa0010, 0xa000d},
+    {0xb0010, 0xb0011, 0xb0012, 0xb000d}
+};
+static int snd_turboB[8] = {0x40011, 0x50011, 0x60011, 0x70014, 0x80011, 0x90011, 0xa0012, 0xb0013};
+static int snd_turboC[8] = {0x40012, 0x50012, 0x60012, 0x70015, 0x80012, 0x90012, 0xa0013, 0xb0014};
+long lbl_80123784[14] = {-1, 0x2f001b, 0x2e000e, 0x300018, 0x310016, -1, -1, 0x34001c, -1, 0x320015, 0x350013, 0x330015, -1, 0x0};
+long lbl_801237BC[5][4] = {
+    {0x2f, 0x2f, 0x2f, 0x2f},
+    {0x31, 0x31, 0x31, 0x31},
+    {0x33, 0x33, 0x33, 0x33},
+    {0x35, 0x35, 0x35, 0x35},
+    {0x36, 0x36, 0x36, 0x36}
+};
+long lbl_8012380C[8] = {0x40005, 0x50005, 0x60005, 0x70005, 0x80005, 0x90005, 0xa0005, 0xb0005};
+long lbl_8012382C[14][7] = {
+    {-1, -1, -1, -1, -1, -1, -1},
+    {0x25000f, -1, 0x25000d, 0x250000, 0x250002, 0x250002, -1},
+    {-1, 0x260027, -1, -1, -1, -1, -1},
+    {0x270031, 0x270032, 0x270030, -1, -1, -1, 0x270033},
+    {0x28002d, 0x280000, -1, 0x28002c, 0x28002e, 0x28002e, -1},
+    {-1, -1, -1, -1, -1, -1, -1},
+    {-1, 0x38001f, -1, -1, -1, -1, -1},
+    {-1, 0x290028, -1, -1, -1, -1, -1},
+    {-1, 0x2a001c, -1, -1, -1, -1, -1},
+    {-1, 0x2b0028, -1, -1, -1, -1, -1},
+    {-1, 0x2c002a, -1, -1, -1, -1, -1},
+    {-1, 0x2d0028, -1, -1, -1, -1, -1},
+    {-1, -1, -1, -1, -1, -1, -1},
+    {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
+};
+long lbl_801239B4[2][5] = {
+    {0x7, 0x7, 0x6, 0x8, 0x9},
+    {0x4d, 0x4d, 0x4c, 0x4e, 0x4f}
+};
+long lbl_801239DC[2][5] = {
+    {0x1c, 0x20, 0x1e, 0x1a, 0x22},
+    {0x1d, 0x21, 0x1f, 0x1b, 0x23}
+};
+long lbl_80123A04[14] = {-1, 0x250007, 0x260024, 0x270020, 0x280003, -1, -1, 0x290025, 0x2a0019, 0x2b0025, 0x2c0027, 0x2d0025, -1, 0x0};
+long lbl_80123A3C[14] = {-1, 0x250008, 0x260025, 0x270021, 0x280004, -1, -1, 0x290026, 0x2a001a, 0x2b0026, 0x2c0028, 0x2d0026, -1, 0x0};
+long lbl_80123A74[14] = {-1, 0x250009, 0x260026, 0x270022, 0x280005, -1, -1, 0x290027, 0x2a001b, 0x2b0027, 0x2c0029, 0x2d0027, -1, 0x0};
+long lbl_80123AAC[14] = {-1, 0x250041, 0x260001, 0x270027, 0x280001, 0x370000, 0x38001e, 0x290034, 0x2a002c, 0x2b0049, -1, -1, -1, 0x0};
+long lbl_80123AE4[14] = {-1, -1, -1, -1, 0x280002, -1, -1, -1, -1, 0x2b004b, -1, -1, -1, 0x0};
+long lbl_80123B1C[14] = {-1, 0x260002, -1, -1, -1, -1, -1, -1, -1, 0x2b004c, -1, -1, -1, 0x0};
+long lbl_80123B54[14] = {-1, 0x260003, -1, -1, -1, -1, -1, -1, -1, 0x2b004d, -1, -1, -1, 0x0};
+long lbl_80123B8C[2][14] = {
+    {-1, 0x25000a, -1, 0x270023, 0x280006, 0x36001a, 0x38001d, 0x29002a, -1, 0x2b004e, 0x2c002c, 0x2d002a, -1, 0x0},
+    {-1, -1, -1, 0x27002c, -1, -1, -1, -1, -1, -1, -1, 0x2d0033, -1, 0x0}
+};
+long lbl_80123BFC[14] = {-1, 0x25000b, -1, 0x270024, 0x280007, -1, -1, -1, 0x2a0027, 0x2b004f, -1, -1, -1, 0x0};
+long lbl_80123C34[14] = {-1, 0x25000c, -1, 0x270025, 0x280008, -1, -1, -1, 0x2a0028, 0x2b0050, -1, -1, -1, 0x0};
+long lbl_80123C6C[14][4] = {
+    {-1, -1, -1, -1},
+    {0x250006, 0x250004, 0x250005, 0x250003},
+    {0x260023, 0x260023, 0x260023, 0x260023},
+    {0x27001d, 0x27001e, 0x27001f, 0x27001d},
+    {0x28002b, 0x28002b, 0x28002b, 0x28002b},
+    {-1, -1, -1, -1},
+    {-1, -1, -1, -1},
+    {0x290024, 0x290024, 0x290024, 0x290041},
+    {0x2a0018, 0x2a0018, 0x2a0018, 0x2a0018},
+    {0x2b0024, 0x2b0024, 0x2b0024, 0x2b0024},
+    {0x2c0026, 0x2c0026, 0x2c0026, 0x2c004a},
+    {0x2d0024, 0x2d0024, 0x2d0024, 0x2d0024},
+    {-1, -1, -1, -1},
+    {0x0, 0x0, 0x0, 0x0}
+};
+static int bronze[4] = {0x3b0000, 0x3b0003, 0x3b0006, 0x3b0009};
+static int silver[4] = {0x3b0001, 0x3b0004, 0x3b0007, 0x3b000a};
+static int gold[4] = {0x3b0002, 0x3b0005, 0x3b0008, 0x3b000b};
+long lbl_80123D7C[16][9] = {
+    {0xe0048, 0xe0049, 0xe004a, 0xe004b, 0xe004c, 0xe004d, 0xe004e, 0xe004f, 0xe0050},
+    {0xe0024, 0xe0025, 0xe0026, 0xe0027, 0xe0028, 0xe0029, 0xe002a, 0xe002b, 0xe002c},
+    {0xe006c, 0xe006d, 0xe006e, 0xe006f, 0xe0070, 0xe0071, 0xe0072, 0xe0073, 0xe0074},
+    {0xe0000, 0xe0001, 0xe0002, 0xe0003, 0xe0004, 0xe0005, 0xe0006, 0xe0007, 0xe0008},
+    {0xe005a, 0xe005b, 0xe005c, 0xe005d, 0xe005e, 0xe005f, 0xe0060, 0xe0061, 0xe0062},
+    {0xe0036, 0xe0037, 0xe0038, 0xe0039, 0xe003a, 0xe003b, 0xe003c, 0xe003d, 0xe003e},
+    {0xe007e, 0xe007f, 0xe0080, 0xe0081, 0xe0082, 0xe0083, 0xe0084, 0xe0085, 0xe0086},
+    {0xe0012, 0xe0013, 0xe0014, 0xe0015, 0xe0016, 0xe0017, 0xe0018, 0xe0019, 0xe001a},
+    {0xe0051, 0xe0052, 0xe0053, 0xe0054, 0xe0055, 0xe0056, 0xe0057, 0xe0058, 0xe0059},
+    {0xe002d, 0xe002e, 0xe002f, 0xe0030, 0xe0031, 0xe0032, 0xe0033, 0xe0034, 0xe0035},
+    {0xe0075, 0xe0076, 0xe0077, 0xe0078, 0xe0079, 0xe007a, 0xe007b, 0xe007c, 0xe007d},
+    {0xe0009, 0xe000a, 0xe000b, 0xe000c, 0xe000d, 0xe000e, 0xe000f, 0xe0010, 0xe0011},
+    {0xe0063, 0xe0064, 0xe0065, 0xe0066, 0xe0067, 0xe0068, 0xe0069, 0xe006a, 0xe006b},
+    {0xe003f, 0xe0040, 0xe0041, 0xe0042, 0xe0043, 0xe0044, 0xe0045, 0xe0046, 0xe0047},
+    {0xe0087, 0xe0088, 0xe0089, 0xe008a, 0xe008b, 0xe008c, 0xe008d, 0xe008e, 0xe008f},
+    {0xe001b, 0xe001c, 0xe001d, 0xe001e, 0xe001f, 0xe0020, 0xe0021, 0xe0022, 0xe0023}
+};
+static int legend_snd1[11] = {0x2f001e, 0x2e000f, 0x300019, 0x310017, 0x370017, -1, 0x340021, -1, 0x320016, 0x350014, 0x330016};
+static int legend_snd2[11] = {0x2f001f, 0x2e0010, 0x30001a, -1, 0x370019, -1, -1, -1, 0x320018, 0x350016, 0x330017};
+static int legend_snd3[11] = {0x2f0020, 0x2e0011, 0x30001b, 0x310019, 0x37001a, -1, 0x340024, -1, 0x320019, 0x350017, 0x330018};
+static int legend_snd4[11] = {0x2f0021, 0x2e0012, 0x30001c, 0x31001a, 0x370018, -1, 0x340022, -1, 0x320017, 0x350015, 0x330019};
+long lbl_8012406C[14] = {-1, 0x25000e, -1, 0x270026, -1, -1, -1, 0x290029, 0x2a002b, 0x2b0029, 0x2c002b, 0x2d0029, 0x3b001a, 0x0};
+long lbl_801240A4[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, 0x2b0047, -1, -1, -1, 0x0};
+long lbl_801240DC[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, 0x2b0048, -1, -1, -1, 0x0};
+long lbl_80124114[13] = {-1, 0x250034, 0x260030, 0x27003c, 0x280038, 0x360019, 0x38001c, 0x290023, 0x2a0017, 0x2b0023, 0x2c0023, 0x2d0023, -1};
+long lbl_80124148[13] = {-1, 0x250033, 0x26002f, 0x27003b, 0x280037, 0x360018, 0x38001b, 0x290022, 0x2a0016, 0x2b0022, 0x2c0022, 0x2d0022, -1};
+long lbl_8012417C[11][8] = {
+    {0x2e000b, 0x2e000c, 0x2e000d, 0x2e000d, 0x2e000d, -1, -1, -1},
+    {0x2f0018, 0x2f0019, 0x2f001a, 0x2f001a, 0x2f001a, -1, -1, -1},
+    {0x300015, 0x300016, 0x300017, 0x300017, 0x300017, -1, -1, -1},
+    {0x310013, 0x310014, 0x310015, 0x310015, 0x310015, -1, -1, -1},
+    {0x330011, 0x330012, 0x330013, 0x330014, 0x330014, -1, -1, -1},
+    {0x320011, 0x320012, 0x320013, 0x320014, 0x320014, -1, -1, -1},
+    {0x35000f, 0x350010, 0x350011, 0x350012, 0x350012, -1, -1, -1},
+    {0x340018, 0x340019, 0x34001a, 0x34001b, 0x34001b, -1, -1, -1},
+    {0x370015, 0x370016, -1, -1, -1, -1, -1, -1},
+    {0x390014, 0x390014, -1, -1, -1, -1, -1, -1},
+    {0x3a0014, 0x3a0014, -1, -1, -1, -1, -1, -1}
+};
+long lbl_801242DC[9] = {-1, 0xe0093, 0xe0094, 0xe0095, 0xe0096, 0xe0097, 0xe0092, 0xe0090, 0xe0091};
+long lbl_80124300[9] = {-1, 0xe009b, 0xe009c, 0xe009d, 0xe009e, 0xe009f, 0xe009a, 0xe0098, 0xe0099};
+long lbl_80124324[3] = {0xe00a0, 0xe00a1, 0xe00a2};
+long lbl_80124330[4] = {0x10057, 0x10045, 0x10058, 0x10047};
+long lbl_80124340[4] = {0x10055, 0x10046, 0x10056, 0x10048};
+
 #define offsetof(type, member) ((u32)&(((type*)0)->member))
 
 /* struct audio_data -- the per-level audio descriptor level_data.audio points
@@ -47,8 +213,8 @@ struct sound_data {
  * Front slice of the SOUNDS audio module (Xbox SOUNDS.OBJ), covering the
  * game-event sound-trigger helpers in 0x8009C2CC-0x800A00A0 (~118 fns).
  * The tail name/speech/music slice lives in game/sound/sounds.c (0x800A00A0+);
- * together they are the single SOUNDS TU (shared .sdata2 float-literal pool
- * lbl_80348480..lbl_80348508 = -1,0.5,10,3,4,1,5,... ; shared sndFx callees).
+ * they share data/pool context, but their original GameCube TU boundary is
+ * unresolved. The Xbox SOUNDS.OBJ grouping alone does not establish it.
  *
  * NonMatching: dtk supplies the original bytes so the DOL stays byte-exact;
  * the object is compiled only for per-function objdiff comparison.
@@ -61,19 +227,12 @@ struct sound_data {
  * They are therefore left as fn_ pending an id table; the caller-domain and
  * play-primitive of every function are recorded in the scout report.
  *
- * STATUS (matching pass): 116/118 functions reconstructed; 102 byte-exact
- * after recovering the AudioExplodeWall call-argument temporaries, the
- * bridge/world-motion one-case switches, the AudioClick argument locals,
- * and SeverePain's
- * assignment-in-condition. Remaining residuals are semantically faithful;
- * AudioPlayerTurbo/AudioPlayerEatFood now have exact instruction counts,
- * and AudioEnterNextStage has a substantially closer control-flow and
- * argument-loading shape.
- * Deferred (too large for this light-touch pass, need dedicated sessions):
- *   fn_8009CB44           0x8009CB44 (0x23C) two-half lbl_8034476C<=1 range
- *                         dispatch over shared AudioWithName/QueAddEx bodies
- *   AudioSetupBossStreams 0x8009E108 (0xCE8) boss/wizard music+speech stream
- *                         name builder (sprintf/strcat, gBossType dispatch)
+ * Food/turbo accesses use the recovered independent arrays above. The
+ * original compiler pools their addressing naturally; the former padded
+ * views are not needed. Boss-stream formats are ordinary string literals.
+ * AudioSetupBossStreams still has one extra instruction, and its jump-table
+ * destinations therefore remain four bytes later than retail. Consult the
+ * memory graph and fresh reports for current function-level status.
  * ---------------------------------------------------------------------- */
 
 /* --- sound-engine callees (game/audio/sndfx.c + audio.c, 0x8001xxxx) --- */
@@ -95,47 +254,8 @@ extern void AudioSetTrackPan(int a, int b);
 extern int RandInt(int a);
 
 /* --- module data --- */
-extern s32 lbl_801232C8[]; /* per-player name/track id table + sibling id rows */
-extern s32 lbl_8012406C[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123454[]; /* sound-id table indexed by lbl_803448B4 */
 extern s32 lbl_803448B4;   /* SDA index into lbl_80123454 */
 extern u8 sSpeechNameBuf[]; /* speech scratch buffer; aliases id tables at offsets */
-extern s32 lbl_8012348C[]; /* sound-id table indexed by sel-2 */
-extern s32 lbl_801234E4[][4]; /* 2D sound-id table [player field8][rand], stride 16 */
-extern s32 lbl_8012341C[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_801234B8[]; /* sound-id table indexed by sel */
-extern s32 lbl_80123564[]; /* sound-id table indexed by player field8 */
-extern s32 lbl_80123624[]; /* sound-id table indexed by player field8 */
-extern s32 lbl_80123644[]; /* sound-id table indexed by player field8 */
-extern s32 lbl_801236A4[]; /* sound-id table indexed by player field8 */
-extern s32 lbl_8012382C[][7]; /* 2D sound-id table [sMusicTrackHi][idx], stride 28 */
-extern s32 lbl_801237BC[][4]; /* 2D sound-id table [row][pidx], stride 16 */
-extern s32 lbl_8012380C[]; /* sound-id table indexed by player field8 */
-extern s32 lbl_80123784[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_801239B4[][5]; /* 2D sound-id table [row][col], stride 20 */
-extern s32 lbl_801239DC[][5]; /* 2D sound-id table [row][col], stride 20 */
-extern s32 lbl_80123A04[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123A3C[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123A74[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123AAC[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123AE4[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123B1C[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123B54[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123B8C[][14]; /* 2D sound-id table [row][sMusicTrackHi], stride 56 */
-extern s32 lbl_80123D7C[][9]; /* 2D speech-id table [arg2][val/10-1], stride 36 */
-extern s32 lbl_80123BFC[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123C34[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80123C6C[][4]; /* 2D sound-id table [sMusicTrackHi][col] */
-extern s32 lbl_80124114[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_80124148[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_8012417C[][8]; /* 2D sound-id table [row][col], row stride 8 */
-extern s32 lbl_801240A4[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_801240DC[]; /* sound-id table indexed by sMusicTrackHi */
-extern s32 lbl_801242DC[]; /* sound-id lookup table */
-extern s32 lbl_80124300[]; /* sound-id lookup table */
-extern s32 lbl_80124324[]; /* sound-id lookup table */
-extern s32 lbl_80124330[]; /* announcer-voice id rotation table B */
-extern s32 lbl_80124340[]; /* announcer-voice id rotation table A */
 extern s32 lbl_8028B610[][2]; /* [idx] -> {id1, id2} event-follow pairs */
 extern Player gPlayers[4]; /* 0x80275AE0 player records, stride 0x335C */
 extern s32 sVoiceRotIdxA;  /* 0..3 announcer-voice rotation counter */
@@ -985,7 +1105,6 @@ extern int AudioFindSound(char* a, int b, int c);
 extern int LevelLetter(int a);
 extern s32 lbl_802577CC[]; /* level -> boss-stream select code (0..29) */
 extern s32 lbl_8025778C[]; /* level -> boss rank/tier */
-extern char lbl_80114A48[]; /* boss-stream format string pool */
 
 /* gBossType 36/37/41 use a shared sample set: truncate the speech name
  * at 14 chars and append the variant letter before the lookup. */
@@ -1037,7 +1156,6 @@ void AudioSetupBossStreams(register int idx, register char* name)
     register char* suffix = "DIE";
     register int sel;
     register SpeechBlock* speech = (SpeechBlock*)sSpeechNameBuf;
-    register char* formats = lbl_80114A48;
     int nvar;
 
     sel = lbl_802577CC[idx];
@@ -1055,11 +1173,11 @@ void AudioSetupBossStreams(register int idx, register char* name)
         sprintf(bufA, "GOL%c", (signed char)LevelLetter(0));
         sprintf(bufB, "GOL%c", (signed char)LevelLetter(0));
         nvar = 0;
-        sprintf(speech->name, formats + 348, (signed char)LevelLetter(0));
+        sprintf(speech->name, "S_GOL%cSTOMP", (signed char)LevelLetter(0));
         sMusicSlot0 = AudioFindSound(speech->name, -1, 1);
-        sprintf(speech->name, formats + 364, (signed char)LevelLetter(0));
+        sprintf(speech->name, "S_GOL%cBORN", (signed char)LevelLetter(0));
         sMusicSlot1 = AudioFindSound(speech->name, -1, 1);
-        sprintf(speech->name, formats + 376, (signed char)LevelLetter(0));
+        sprintf(speech->name, "S_GOL%cSWING", (signed char)LevelLetter(0));
         sMusicSlot2 = AudioFindSound(speech->name, -1, 1);
         suffix = "KILL";
         break;
@@ -1111,74 +1229,74 @@ void AudioSetupBossStreams(register int idx, register char* name)
         break;
     }
 
-    sprintf(speech->name, formats + 392, bufA, suffix);
+    sprintf(speech->name, "S_%s%sCLOSE", bufA, suffix);
     BossNameFixup(speech->name);
     speech->boss[0][idx] = AudioFindSound(speech->name, -1, 1);
 
-    sprintf(speech->name, formats + 392, bufB, suffix);
+    sprintf(speech->name, "S_%s%sCLOSE", bufB, suffix);
     BossNameFixup(speech->name);
     speech->boss[1][idx] = AudioFindSound(speech->name, -1, 1);
 
-    sprintf(speech->name, formats + 404, bufA, suffix);
+    sprintf(speech->name, "S_%s%sFAR", bufA, suffix);
     BossNameFixup(speech->name);
     speech->boss[2][idx] = AudioFindSound(speech->name, -1, 1);
 
-    sprintf(speech->name, formats + 404, bufB, suffix);
+    sprintf(speech->name, "S_%s%sFAR", bufB, suffix);
     BossNameFixup(speech->name);
     speech->boss[3][idx] = AudioFindSound(speech->name, -1, 1);
 
     if (nvar < 2) {
-        sprintf(speech->name, formats + 416, bufA);
+        sprintf(speech->name, "S_%sHITCLOSE", bufA);
         BossNameFixup(speech->name);
         speech->boss[4][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech->name, formats + 432, bufA);
+        sprintf(speech->name, "S_%sHITFAR", bufA);
         BossNameFixup(speech->name);
         speech->boss[5][idx] = AudioFindSound(speech->name, -1, 1);
     }
 
     if (nvar != 0) {
-        sprintf(speech->name, formats + 444, bufB);
+        sprintf(speech->name, "S_%sHIT1CLOSE", bufB);
         BossNameFixup(speech->name);
         speech->boss[6][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech->name, formats + 460, bufB);
+        sprintf(speech->name, "S_%sHIT2CLOSE", bufB);
         BossNameFixup(speech->name);
         speech->boss[7][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech->name, formats + 476, bufB);
+        sprintf(speech->name, "S_%sHIT1FAR", bufB);
         BossNameFixup(speech->name);
         speech->boss[8][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech->name, formats + 488, bufB);
+        sprintf(speech->name, "S_%sHIT2FAR", bufB);
         BossNameFixup(speech->name);
         speech->boss[9][idx] = AudioFindSound(speech->name, -1, 1);
     } else {
-        sprintf(speech->name, formats + 416, bufB);
+        sprintf(speech->name, "S_%sHITCLOSE", bufB);
         BossNameFixup(speech->name);
         speech->boss[6][idx] = AudioFindSound(speech->name, -1, 1);
         speech->boss[7][idx] = speech->boss[6][idx];
 
-        sprintf(speech->name, formats + 432, bufB);
+        sprintf(speech->name, "S_%sHITFAR", bufB);
         BossNameFixup(speech->name);
         speech->boss[8][idx] = AudioFindSound(speech->name, -1, 1);
         speech->boss[9][idx] = speech->boss[8][idx];
     }
 
     if (mode == 2) {
-        sprintf(speech->name, formats + 500, bufA);
+        sprintf(speech->name, "S_%sSTRIKE", bufA);
         BossNameFixup(speech->name);
         speech->boss[10][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech->name, formats + 500, bufB);
+        sprintf(speech->name, "S_%sSTRIKE", bufB);
         BossNameFixup(speech->name);
         speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     } else if (mode == 1) {
-        sprintf(speech->name, formats + 512, bufA);
+        sprintf(speech->name, "S_%sBITE", bufA);
         BossNameFixup(speech->name);
         speech->boss[10][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech->name, formats + 512, bufB);
+        sprintf(speech->name, "S_%sBITE", bufB);
         BossNameFixup(speech->name);
         speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     }
@@ -1493,13 +1611,6 @@ void AudioDamageTile(int pos, int idx)
 #pragma opt_common_subs off
 void AudioPlayerTurbo(int pidx, int sel, int arg3)
 {
-    typedef struct AudioTurboSoundIds {
-        u8 pad_0000[1020];
-        s32 snd_turbo_a[8][4];
-        s32 snd_turbo_b[8];
-        s32 snd_turbo_c[8];
-    } AudioTurboSoundIds;
-    AudioTurboSoundIds* t = (AudioTurboSoundIds*)lbl_801232C8;
     int f8;
     int slot;
     int flags;
@@ -1518,13 +1629,13 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
     } else {
         switch (sel) {
         case 0:
-            sndFxPlay3D(t->snd_turbo_a[f8][arg3], slot, 224, 19);
+            sndFxPlay3D(snd_turboA[f8][arg3], slot, 224, 19);
             break;
         case 1:
-            sndFxPlay3D(t->snd_turbo_b[f8], slot, 224, 17);
+            sndFxPlay3D(snd_turboB[f8], slot, 224, 17);
             break;
         case 2:
-            sndFxPlay3D(t->snd_turbo_c[f8], slot, 224, 16);
+            sndFxPlay3D(snd_turboC[f8], slot, 224, 16);
             break;
         }
     }
@@ -1533,28 +1644,22 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
 
 void AudioPlayerEatFood(int pidx, int foodType)
 {
-    typedef struct AudioFoodSoundIds {
-        u8 pad_0000[700];
-        s32 snd_eat[8][4];
-        s32 snd_eat_default[1];
-    } AudioFoodSoundIds;
     Player* player = &gPlayers[pidx];
     Player* p = player;
-    AudioFoodSoundIds* t = (AudioFoodSoundIds*)lbl_801232C8;
 
     if (RandInt(4) == 0) {
         if (!(p->flags & 0x400)) {
-            if (t->snd_eat[p->char_type][foodType] >= 0) {
+            if (snd_eat[p->char_type][foodType] >= 0) {
                 int pan = AudioAng((int)p->pos);
 
-                sndFxQueAdd(t->snd_eat[p->char_type][foodType],
+                sndFxQueAdd(snd_eat[p->char_type][foodType],
                             -1.0f, 1.0f, 192, pan, 66);
             }
         }
     } else {
         int id;
 
-        if ((id = t->snd_eat_default[p->char_type]) >= 0) {
+        if ((id = snd_eat_default[p->char_type]) >= 0) {
             int pan = AudioAng((int)p->pos);
 
             if (p->flags & 0x400) {
