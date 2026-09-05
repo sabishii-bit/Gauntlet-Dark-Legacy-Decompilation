@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "after_raw_sha256": "53a3a331c762b1125f1775c26dfedde24ef396d45971d3e89e7c5a2e76baab2b",
+    "baseline_commit": "a2ff77f29",
+    "before_raw_sha256": "702bb60664b4361ad74740ffa00151120ef982c0629d4d5cb30b3980f9b0bdcb",
+    "change_isolation": "21 sibling bodies unchanged, all function layouts/bindings unchanged, all allocated non-text sections including EH unchanged. The only relocation changes are DiffRate->DiffRate_8002951C at +0x2DC and the unchanged @520 SDA21 datum moving with its lfd from raw halfword+0x2BA to+0x2BE. All other symbols/relocations and source statements are preserved. Defake gate green and improvement banked after fresh fuzzy arbitration.",
+    "evidence": [
+      "src/game/world/camera.c",
+      "src/game/game/combat.c",
+      "config/GUNE5D/symbols.txt",
+      "tools/gdl/composed_census/r69_camera_argument_control.py",
+      "tools/gdl/tests/test_r69_camera_argument_control.py"
+    ],
+    "law_screen": "Screened current law roster and argument-signature laws. knr-extern-arity-can-be-faithful-not-a-defect APPLIED: the target does not need a last-moment mr because entry r3 already holds the index; prove the full reaching path, not only nearby setup. NM_an-unread-trailing-parameter-is-invisible-in-the-callee SCREENED: the callee genuinely uses this first integer parameter for address scaling and forwards it. Pinned-source-freeze APPLIED: all five pinned camera bodies and rules unchanged. ES_camera-mode-dest-pool-operand-order-and-staged-compare diagnosis rechecked with fnasm/slotdiff: same +8 local-slot discrepancy remains, no declaration/pad axis retried. CH_sda21-relocation-offset-encoding APPLIED: raw MWCC relocation follows the low halfword (+0x2BA->+0x2BE), not DTK word offset. No ABI normalization was inferred from Xbox prototypes or positional float/GPR counts.",
+    "limits": "No whole-function or TU exact claim: real150 remains, including the remeasured local-slot difference (target24/28 vs ours40/44 and slot36 uses2/3) and arithmetic scheduling. Standard matching DOL still selects extracted camera.o because the TU is NonMatching; the integrator owns selected/all-configured-source link trials. This narrow CFG certificate conservatively models direct branches and rejects unknown control flow; it is not a general PPC semantic equivalence proof. No rules retired, no flag/compiler changes, no wrappers or aliases.",
+    "reproducer": "Capture names-only checkpoint with r69_camera_import_control.py --out build/r69_camera_import_after.json. After two-line source repair and owning build, run r69_camera_argument_control.py --before build/r69_camera_import_after.json --out build/r69_camera_argument_after.json. PASS:22functions,5allocatedsections,1276relocations; r3-write before solely+0x2A4 word80600000, after/target no r3 writes on paths to call+0x2DC; target_equal_block0x2a4:0x2e0. Both source and raw object must reproduce fresh exact Ninja commands before comparison.",
+    "sibling_screen": "rg -n '\\bDiffRate\\s*\\(' src include yields no remaining call/declaration after repair. rg -n '\\bDiffRate_8002951C\\s*\\(' src include yields combat.c definition287 and camera.c declaration433/call3288 only. Target camera_orbit_update is a different address80027870; target camera_mode_follow+0x288 legitimately references it, and was not changed. Six sibling imports were independently repaired by the preceding names-only commit."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R69_camera-diffrate-missing-index-caused-frame-ticks-to-replace-the-camera-argument.20260905.v1",
+  "kind": "claim",
+  "predicate": "source_abi_repair",
+  "recorded_at": "2026-09-05T23:32:15Z",
+  "schema_version": 1,
+  "subject": "function:camera_mode_dest",
+  "valid_from": "2026-09-05",
+  "value": "camera_mode_dest called unprototyped DiffRate() without its camera index and referenced an undefined name. Retail calls the combat implementation DiffRate_8002951C at function+0x2DC, not camera_orbit_update. The target preserves entry r3 on every direct-CFG path reaching that call (nonzero camIdx exits at +0x28); the callee consumes r3 via `mulli r0,r3,396` at +0xC and passes it to CameraSupervisor at +0x44. The old source overwrote r3 with gFrameTicks at caller+0x2A4, so linking the missing name alone would deliver frame ticks as the camera index. Declaring DiffRate_8002951C(s32 camIdx) and calling it with camIdx makes stock GC/1.2.5 retain the index naturally. Exactly four body words change at +0x2A4/+0x2B4/+0x2B8/+0x2BC, reproducing all target bytes in [0x2A4,0x2E0). Counts stay 682/682 and frame208/savesr29 unchanged; real156->150 and fresh fuzzy97.5645->97.8724. This is demonstrated source reconstruction error, not a new compiler or postprocessing requirement. No WebFrank rule is added, changed or retired."
+}
