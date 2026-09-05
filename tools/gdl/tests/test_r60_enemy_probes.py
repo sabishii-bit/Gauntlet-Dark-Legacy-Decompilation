@@ -74,6 +74,76 @@ class TargetPlayerColors(unittest.TestCase):
             list(source_probe.target_player_color_variants("void f(void) {}"))
 
 
+class InitVarsForms(unittest.TestCase):
+    BODY = """void init_enemy_vars(s32 slot, s32 spew, f32 scale)
+{
+    u8* e;
+    s32 i4;
+    s32 tier;
+    f32 t;
+    f32 hi;
+    f32 lo;
+    f32 t2;
+    f32 hi2;
+    f32 lo2;
+    enemy->action = 0;
+    for (i4 = 0; i4 < 20; i4 += 4) {
+        *(f32*)(e + i4 + 692) = z;
+    }
+    z2 = lbl_80346820;
+    enemy->push_cnt = 0;
+    row = tbl + *(s32*)e * 4;
+    enemy->hht = (f32)(lbl_80346830 * ((f32*)row)[452]);
+    row = tbl + *(s32*)e * 4;
+    enemy->rad = ((f32*)row)[486];
+    row = tbl + *(s32*)e * 4;
+    t = gCurLevel->ene_health * ((f32*)row)[690];
+    tier = 0;
+    if (scale > hi) tier = 3;
+    else if (scale > lo) tier = 2;
+    else if (scale > z2) tier = 1;
+    enemy->org_lvl = (s16)tier;
+    enemy->mode2 = 0;
+    row = tbl + *(s32*)e * 4;
+    enemy->algorithm = (s16)((s32*)row)[894];
+    format_brain(slot);
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.invspeed = (f32)(lbl_80346810 / ((f32*)row)[588]);
+    if (!(ht > hi2)) {
+        if (ty != 30) {
+            if (ht > lo2) spd = (f32)(lbl_80346A30 * spd);
+            else spd = (f32)(lbl_80346A28 * spd);
+        }
+    }
+    enemy->atts.fight = spd;
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.armor = ((f32*)row)[656];
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.damagetype = ((s32*)row)[928];
+    row = tbl + *(s32*)e * 4;
+    enemy->atts.armortype = ((s32*)row)[962];
+}
+"""
+
+    def test_named_joint_form_preserves_slot_and_has_no_clear_wrapper(self):
+        forms = dict(source_probe.init_vars_variants(self.BODY))
+        text = forms["named_helpers_frame_8"]
+        self.assertIn("for (i4 = 0; i4 < 5; i4++)", text)
+        self.assertIn("enemy->fxhittime[i4] = z;", text)
+        self.assertNotIn("enemy_clear_hit_times", text)
+        self.assertIn("format_brain(slot);", text)
+        self.assertIn("u8 unrecovered_locals[8];", text)
+        self.assertTrue(text.endswith("#pragma opt_propagation reset\n"))
+
+    def test_parameter_order_census_and_shape_guard(self):
+        forms = list(source_probe.init_vars_variants(self.BODY))
+        self.assertEqual(len(forms), len({name for name, _ in forms}))
+        for helper in ("enemy_health_tier", "enemy_tier_damage"):
+            self.assertEqual(sum(name.startswith(helper + "_args_") for name, _ in forms), 23)
+        with self.assertRaises(ValueError):
+            list(source_probe.init_vars_variants("void f(void) {}"))
+
+
 class ResourceForms(unittest.TestCase):
     BODY = """void fn_80051164(void)
 {

@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Strict whole-function renaming after source restores loop, branch and addressing topology.",
+  "attributes": {
+    "law_screen": "208/208,44 form-aware register words, no structural, immediate, branch, frame or relocation-order differences. Narrow verify_consistent_recolor and full retail verify_datum_binding pass; no wider postprocessor capability needed.",
+    "source_exhaustion": "attempt.R60_initvars-named-loop-and-inline-tiers-close-structure.20260904.v1 records86 source candidates and a bounded typed denial.",
+    "verification": "Actual raw-body wr_try_rule returns BYTE-EQUAL at FULL retail datum strength,1stage. before343b1616cd3e28daf965aaf177979207413b60a1ea5f212bf96a995ea6e069c8 after53de380a5a6436674e49371269fe0902bc0bb8c82fc8f96bda30795e8b761c5c. Fresh final100.0000%,real0. Source/control/helper source is pinned by that raw body hash; no permutation, semantic substitution or unproven audit."
+  },
+  "function": "function:init_enemy_vars",
+  "id": "attempt.R60_initvars-strict-recolor-after-structural-source-recovery.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T00:38:51Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-05",
+  "verifiers_run": [
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ]
+}

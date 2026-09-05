@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Reconstruct array induction and inline return boundaries, then bound the surviving strict register-color residual.",
+  "attributes": {
+    "axis_log": [
+      "20260831 raw additive table expression, one-case switch, compound guard and for-versus-while negative results remain bounded vetoes on those exact forms. Their broader source-unreachable inference is refuted by this pass."
+    ],
+    "law_screen": "Complete current law corpus screened this pass; per-function old reconstruction and R60 live-slot records read. claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v3 APPLIED: type30 early return is inside an inlined damage helper, not an equivalent goto or one-case switch. claim.law.R60_joint-propagation-and-element-alias-can-close-r0-address-form.20260904.v1 screened: propagation off ALONE closes all six address forms here, aliases not needed. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 do NOT establish necessity here: this is duplicate zero definitions, not a surviving copy-vs-li pair; named element induction and a real inline tier result remove both extras. Frame is arbitrated by slotdiff, not real. No universal source impossibility is asserted.",
+    "probed_form": "r60_enemy_source_probe.py init_vars at9fcfae2fd:86 source candidates. Propagation off209 closes addresses/frame32; CSEoff209 does not. Early counter/tier definitions, actual use of their zeros by existing stores, u32 types and explicit block scopes are byte-identical at baseline. s16 counter211 and tier208 remove/add wrong conversion words, rejected. Raw clear helper208 removes first duplicate zero; named five-element member loop208 does the same with retail colors and is preferred. Inline damage return212 alone/210 with propagation off restores branch pair. Inline tier helper208 alone removes second zero; joint clear+tier+damage helpers plus propagation off208,72 words including frame. Replacing clear helper by named loop208,49 words; documented frame4 reservation remains49/frame32, frame8 gives44/frame40. Widening t/t2/hi2 locals neutral49; hi/lo209 and lo2 211 rejected. Exhausted all24 orders of each four-argument helper independently:46 nonidentity candidates remain208/44. Scheduling off208/138, CSEoff208/42; neither exact, default CSE retained. No raw exact candidate. This is a bounded source cap, not exhaustive proof over all C programs.",
+    "semantic_evidence": "Baseline target208/ours209 has six add+lfs/lwz displacement versus addi+lfsx/lwzx sites, two extra li zeros, and one missing branch. Target +0xe8 addi r0,r6,692 then stfsx and addi r6,r6,4 corresponds to five Enemy.fxhittime elements at verified offset0x2b4, not an explicit byte-counter source. Named element loop removes first duplicate zero without a clear wrapper. An inline scalar health-tier result removes second duplicate zero. Target +0x2c8 bne followed by +0x2cc b into join0x2ec is restored by damage helper's type30 early return. Scoped opt_propagation off restores six displacement operands without any patch to them. Frame40/save32 versus propagation-off frame32/save24 requires an eight-byte reservation; AGENTS explicitly permits this unrecovered-local idiom, and its original names/types are NOT claimed. Previous record observed the same eight-byte reservation and later replaced it with promoted hi2/lo2/t2 locals; propagation changes their allocation and the reservation is documented again.",
+    "verification": "Fresh source93.0481%,real131,T208/O209 -> raw98.4615%,real86,T208/O208 -> strict recolor100%,real0. wf_word_diff44 REGFIELD-ONLY, zero mnemonic/relocation-symbol mismatches. regnorm44 renaming,0structural,0unpaired,CLEAN-RENAMING. slotdiff frame40/save30/five-slot map identical. wr_try_rule on actual raw body BYTE-EQUAL,1stage,FULL retail datum strength. Raw inventory90enemy/28gamemain: no missing/unexpected, and no collateral changes beyond prior R60 owned closures."
+  },
+  "denial": {
+    "expiry_check": "Rebuild raw postprocess body and recheck wf_word_diff/regnorm/slotdiff/full-retail datum proof after source, TU or compiler changes; pinned real0 is not evidence for the source cap.",
+    "falsifier": "A natural source form preserving these208 instructions, exact stack and data binding while reproducing retail's transient tier and damage register homes.",
+    "premise_measurement": "Raw208/208,44 register words, identical frame40/save and relocation order, strict whole-CFG renaming proof.",
+    "scope": "Measured loop/scoping/helper/type/pragma/argument-order axes after all structural differences are closed, not all source reconstructions."
+  },
+  "function": "function:init_enemy_vars",
+  "held_fixed": "Incoming slot remains live into format_brain, field-store chronology, exact memory accesses, level/type table entries, thresholds and float rounding, type30 exemption and spew remapping. Scratch baselines require whole-object identity with the real GC1.2.5 Ninja edge; no foreign function edited.",
+  "id": "attempt.R60_initvars-named-loop-and-inline-tiers-close-structure.20260904.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-05T00:38:50Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-04",
+    "signature": "opcode multiset: IDENTICAL (208/208)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.init-enemy-vars-reconstruction.20260831.v1",
+  "valid_from": "2026-09-05"
+}

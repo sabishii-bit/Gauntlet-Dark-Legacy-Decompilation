@@ -830,6 +830,121 @@ def target_player_color_variants(body):
     yield "scoped_chain_reversed", replace_once(body, "range = dist = measuredDistance;", "dist = range = measuredDistance;")
 
 
+def init_vars_variants(body):
+    for control in ("opt_propagation", "opt_common_subs"):
+        yield control + "_off", "#pragma " + control + " off\n" + body + "\n#pragma " + control + " reset\n"
+    counter_early = replace_once(body, "    enemy->action = 0;", "    i4 = 0;\n    enemy->action = 0;").replace("for (i4 = 0; i4 < 20;", "for (; i4 < 20;")
+    yield "counter_defined_before_clear", counter_early
+    tier_early = replace_once(body, "    z2 = lbl_80346820;", "    tier = 0;\n    z2 = lbl_80346820;").replace("    tier = 0;\n    if (scale", "    if (scale")
+    yield "tier_defined_before_clear", tier_early
+    yield "both_zero_definitions_early", replace_once(tier_early, "    enemy->action = 0;", "    i4 = 0;\n    enemy->action = 0;").replace("for (i4 = 0; i4 < 20;", "for (; i4 < 20;")
+    helper = """static inline f32 enemy_tier_damage(s32 type, f32 health, f32 low, f32 damage)
+{
+    if (type == 30) {
+        return damage;
+    }
+    if (health > low) {
+        damage = (f32)(lbl_80346A30 * damage);
+    } else {
+        damage = (f32)(lbl_80346A28 * damage);
+    }
+    return damage;
+}
+
+"""
+    start = body.index("    if (!(ht > hi2))")
+    end = body.index("    enemy->atts.fight = spd;", start)
+    lifted = body[:start] + "    if (!(ht > hi2)) {\n        spd = enemy_tier_damage(ty, ht, lo2, spd);\n    }\n" + body[end:]
+    yield "damage_inline_return", helper + lifted
+    yield "damage_inline_return_propagation_off", "#pragma opt_propagation off\n" + helper + lifted + "\n#pragma opt_propagation reset\n"
+    # Preserve single-field table accesses as genuinely distinct block-local
+    # typed element aliases. The previous cap tested raw single expressions,
+    # never these aliases jointly with propagation control.
+    aliased = body
+    pattern = r"    row = tbl \+ \*\(s32\*\)e \* 4;\n(    [^\n]+\(\((?:f32|s32)\*\)row\)\[\d+\][^\n]*;)"
+    def alias(match):
+        stmt = match[1]
+        ctype = "s32" if "((s32*)row)" in stmt else "f32"
+        stmt = stmt.replace("((" + ctype + "*)row)", "tableRow")
+        return "    {\n        " + ctype + "* tableRow = (" + ctype + "*)(tbl + *(s32*)e * 4);\n    " + stmt + "\n    }"
+    aliased, count = re.subn(pattern, alias, aliased)
+    if count != 8:
+        raise ValueError("expected eight isolated table statements, got " + str(count))
+    yield "typed_table_row_blocks", aliased
+    yield "typed_table_row_blocks_propagation_off", "#pragma opt_propagation off\n" + aliased + "\n#pragma opt_propagation reset\n"
+    # Initialization identity is not initializer placement: actually consume
+    # the initialized counter/tier in an existing zero-valued state store.
+    zeros = replace_once(body, "    enemy->action = 0;", "    i4 = 0;\n    enemy->action = i4;").replace("for (i4 = 0; i4 < 20;", "for (; i4 < 20;")
+    zeros = replace_once(zeros, "    enemy->push_cnt = 0;", "    tier = 0;\n    enemy->push_cnt = tier;").replace("    tier = 0;\n    if (scale", "    if (scale")
+    yield "zero_values_shared_with_stores", zeros
+    yield "zero_values_shared_propagation_off", "#pragma opt_propagation off\n" + zeros + "\n#pragma opt_propagation reset\n"
+    zstart, zend = zeros.index("    if (!(ht > hi2))"), zeros.index("    enemy->atts.fight = spd;")
+    joint = zeros[:zstart] + "    if (!(ht > hi2)) {\n        spd = enemy_tier_damage(ty, ht, lo2, spd);\n    }\n" + zeros[zend:]
+    yield "shared_zeros_return_helper_propagation_off", "#pragma opt_propagation off\n" + helper + joint + "\n#pragma opt_propagation reset\n"
+    for ctype in ("u32", "s16"):
+        yield "counter_" + ctype, body.replace("    s32 i4;", "    " + ctype + " i4;")
+        yield "tier_" + ctype, body.replace("    s32 tier;", "    " + ctype + " tier;")
+    # Keep the actual clear and tier-selection loops in distinct inlined
+    # scopes; source only, and each standalone/helper-data cost is checked.
+    clear_begin = body.index("    for (i4 = 0;")
+    clear_end = body.index("    z2 = ", clear_begin)
+    clear_helper = "static inline void enemy_clear_hit_times(u8* e, f32 z)\n{\n    s32 i4;\n" + body[clear_begin:clear_end] + "}\n\n"
+    cleared = body[:clear_begin] + "    enemy_clear_hit_times(e, z);\n" + body[clear_end:]
+    yield "clear_loop_helper", clear_helper + cleared
+    clear_lifted = lifted[:clear_begin] + "    enemy_clear_hit_times(e, z);\n" + lifted[clear_end:]
+    yield "clear_and_damage_helpers", clear_helper + helper + clear_lifted
+    joint_helpers = clear_helper + helper + clear_lifted
+    yield "clear_and_damage_helpers_propagation_off", "#pragma opt_propagation off\n" + joint_helpers + "\n#pragma opt_propagation reset\n"
+    for label, base in (("plain", body), ("joint", joint_helpers)):
+        tier_start = base.index("    tier = 0;\n    if (scale")
+        tier_end = base.index("    enemy->org_lvl", tier_start)
+        selection = base[tier_start:tier_end]
+        tier_helper = "static inline s32 enemy_health_tier(f32 scale, f32 hi, f32 lo, f32 z2)\n{\n    s32 tier;\n" + selection + "    return tier;\n}\n\n"
+        with_tier = tier_helper + base[:tier_start] + "    tier = enemy_health_tier(scale, hi, lo, z2);\n" + base[tier_end:]
+        yield label + "_tier_helper", with_tier
+        yield label + "_tier_helper_propagation_off", "#pragma opt_propagation off\n" + with_tier + "\n#pragma opt_propagation reset\n"
+        if label == "joint":
+            # Prefer the actual named five-element member to a helper whose
+            # sole responsibility is a clear loop. Its induction width is
+            # intentionally one array element, not a byte offset.
+            named = replace_once(with_tier, clear_helper, "")
+            named = replace_once(named, "    enemy_clear_hit_times(e, z);", "    for (i4 = 0; i4 < 5; i4++) {\n        enemy->fxhittime[i4] = z;\n    }")
+            controlled = "#pragma opt_propagation off\n" + named + "\n#pragma opt_propagation reset\n"
+            yield "named_clear_tier_damage_propagation_off", controlled
+            for size in (4, 8):
+                # Existing contract permits dead frame reservations for
+                # unrecovered locals. Do not imply their original identity
+                # is known: the target's save-area displacement proves size
+                # but supplies no local name or type.
+                yield "named_helpers_frame_" + str(size), replace_once(controlled, "    u8* e;", "    u8 unrecovered_locals[" + str(size) + "];\n    u8* e;")
+            framed = replace_once(controlled, "    u8* e;", "    u8 unrecovered_locals[8];\n    u8* e;")
+            for name, formals, actuals in (
+                ("enemy_health_tier", ["f32 scale", "f32 hi", "f32 lo", "f32 z2"], ["scale", "hi", "lo", "z2"]),
+                ("enemy_tier_damage", ["s32 type", "f32 health", "f32 low", "f32 damage"], ["ty", "ht", "lo2", "spd"]),
+            ):
+                for order in itertools.permutations(range(4)):
+                    if order == (0, 1, 2, 3):
+                        continue
+                    reordered = replace_once(framed, name + "(" + ", ".join(formals) + ")", name + "(" + ", ".join(formals[i] for i in order) + ")")
+                    reordered = replace_once(reordered, name + "(" + ", ".join(actuals) + ")", name + "(" + ", ".join(actuals[i] for i in order) + ")")
+                    yield name + "_args_" + "".join(map(str, order)), reordered
+            for control in ("scheduling", "opt_common_subs"):
+                yield "framed_" + control + "_off", "#pragma " + control + " off\n" + framed + "\n#pragma " + control + " reset\n"
+            for local in ("t", "hi", "lo", "t2", "hi2", "lo2"):
+                yield "named_helpers_double_" + local, replace_once(controlled, "    f32 " + local + ";", "    f64 " + local + ";")
+        # Block-scoped ownership, as distinct from moving the initializer.
+        scoped = base.replace("    s32 tier;\n", "", 1)
+        tier_start = scoped.index("    tier = 0;\n    if (scale")
+        tier_end = scoped.index("    enemy->mode2", tier_start)
+        scoped = scoped[:tier_start] + "    {\n        s32 tier;\n" + scoped[tier_start:tier_end] + "    }\n" + scoped[tier_end:]
+        yield label + "_tier_scoped", scoped
+        yield label + "_tier_scoped_propagation_off", "#pragma opt_propagation off\n" + scoped + "\n#pragma opt_propagation reset\n"
+    named_clear = "    for (i4 = 0; i4 < 5; i4++) {\n        enemy->fxhittime[i4] = z;\n    }\n"
+    yield "named_clear_loop", body[:clear_begin] + named_clear + body[clear_end:]
+    scoped_clear = "    {\n        s32 i4;\n" + body[clear_begin:clear_end] + "    }\n"
+    yield "scoped_clear_loop", (body[:clear_begin] + scoped_clear + body[clear_end:]).replace("    s32 i4;\n", "", 1)
+
+
 def compile_baseline(edge, source_path, baseline_path, expected_path, out):
     # Read BEFORE compiling: a historical --baseline-object can be the same
     # pathname as baseline_path. Reading afterward would compare the new
@@ -846,14 +961,14 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -901,7 +1016,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants, "init_vars": init_vars_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

@@ -7712,8 +7712,41 @@ static char* findWorldName(s32 world)
     return 0;
 }
 
+#pragma opt_propagation off
+static inline s32 enemy_health_tier(f32 scale, f32 hi, f32 lo, f32 z2)
+{
+    s32 tier;
+    tier = 0;
+    if (scale > hi) {
+        tier = 3;
+    } else if (scale > lo) {
+        tier = 2;
+    } else if (scale > z2) {
+        tier = 1;
+    }
+    return tier;
+}
+
+/* The inlined early return preserves the retail branch pair at +0x2c8.
+ * The surrounding caller guard still handles the highest-health tier. */
+static inline f32 enemy_tier_damage(s32 type, f32 health, f32 low, f32 damage)
+{
+    if (type == 30) {
+        return damage;
+    }
+    if (health > low) {
+        damage = (f32)(lbl_80346A30 * damage);
+    } else {
+        damage = (f32)(lbl_80346A28 * damage);
+    }
+    return damage;
+}
+
 void init_enemy_vars(s32 slot, s32 spew, f32 scale)
 {
+    /* Retail reserves eight more bytes below its save area. Their original
+     * local identities are unrecovered; this is a frame reservation only. */
+    u8 unrecovered_locals[8];
     u8* e;
     Enemy* enemy;
     u8* tbl;
@@ -7767,8 +7800,8 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->attack_flag = 0;
     enemy->damage = z;
     enemy->damagetype = 0;
-    for (i4 = 0; i4 < 20; i4 += 4) {
-        *(f32*)(e + i4 + 692) = z;
+    for (i4 = 0; i4 < 5; i4++) {
+        enemy->fxhittime[i4] = z;
     }
     z2 = lbl_80346820;
     enemy->damagedir[0] = z2;
@@ -7789,14 +7822,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     t = gCurLevel->ene_health * ((f32*)row)[690];
     hi = (f32)(lbl_80346A30 * t);
     lo = (f32)(lbl_80346A28 * t);
-    tier = 0;
-    if (scale > hi) {
-        tier = 3;
-    } else if (scale > lo) {
-        tier = 2;
-    } else if (scale > z2) {
-        tier = 1;
-    }
+    tier = enemy_health_tier(scale, hi, lo, z2);
     enemy->org_lvl = (s16)tier;
     enemy->mode2 = 0;
     enemy->mode1 = 0;
@@ -7842,13 +7868,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     lo2 = (f32)(lbl_80346A28 * t2);
     spd = gCurLevel->ene_damage * ((f32*)row)[622];
     if (!(ht > hi2)) {
-        if (ty != 30) {
-            if (ht > lo2) {
-                spd = (f32)(lbl_80346A30 * spd);
-            } else {
-                spd = (f32)(lbl_80346A28 * spd);
-            }
-        }
+        spd = enemy_tier_damage(ty, ht, lo2, spd);
     }
     enemy->atts.fight = spd;
     row = tbl + *(s32*)e * 4;
@@ -7858,6 +7878,8 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     row = tbl + *(s32*)e * 4;
     enemy->atts.armortype = ((s32*)row)[962];
 }
+
+#pragma opt_propagation reset
 
 void format_brain(s32 index)
 {

@@ -1506,6 +1506,18 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "init_enemy_vars",
+        "before_sha256": "343b1616cd3e28daf965aaf177979207413b60a1ea5f212bf96a995ea6e069c8",
+        "after_sha256": "53de380a5a6436674e49371269fe0902bc0bb8c82fc8f96bda30795e8b761c5c",
+        "mechanism": "SOURCE-EXHAUSTION: attempt.R60_initvars-named-loop-and-inline-tiers-close-structure.20260904.v1 records 86 bounded source candidates, not a universal impossibility claim. The previous 208/209 residual was structural: six indexed-versus-displacement loads, two extra zero definitions and one absent conditional-over-unconditional branch pair. Named fxhittime element induction, an ordinary inline health-tier result, an inlined damage early return and scoped opt_propagation off restore 208/208 with the identical instruction stream. The documented eight-byte reservation stands for unrecovered locals and restores frame40; it asserts no original local identity. Raw differing words44, all form-aware register fields, with exact branch immediates, frame/save/slot map and relocation order. Strict verify_consistent_recolor proves the entire CFG and verify_datum_binding passes against the retail DOL at FULL strength. No permutation, value-equality widening, unproven audit, operand substitution or relocation rewriting is used. Full raw TU inventory proves no collateral body changes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 208,
+          "differing_words": 44
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_800516F8",
         "before_sha256": "f9c5a05fe9df89af97e45227b370ffec0ec34a0b752c05c396498a0cf4e6742e",
         "after_sha256": "73752fde65dcbddbf9e008e6a0a121d69794bf3ce9a7ae4d1933ef09c3296d58",
