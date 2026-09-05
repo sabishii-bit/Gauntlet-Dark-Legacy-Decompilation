@@ -4,9 +4,10 @@
     "owned_units": [
       "game/enemy/enemy.c",
       "tools/gdl/composed_census/r61_enemy_probe.py",
-      "tools/gdl/tests/test_r61_enemy_probe.py"
+      "tools/gdl/tests/test_r61_enemy_probe.py",
+      "tools/gdl/tests/test_af_data_base_census.py"
     ],
-    "scope": "Solo enemy.c exact closure: src/game/enemy/enemy.c, its config/GUNE5D/splits.txt and symbols.txt ownership entries, configure.py enemy Object entry, config/GUNE5D/webfrank.json enemy rules only; tools/gdl/composed_census/r61_enemy_probe.py and its test only. No compiler binary or verifier changes."
+    "scope": "Solo enemy.c exact closure: src/game/enemy/enemy.c, its config/GUNE5D/splits.txt and symbols.txt ownership entries, configure.py enemy Object entry, config/GUNE5D/webfrank.json enemy rules only; tools/gdl/composed_census/r61_enemy_probe.py and its test; tools/gdl/tests/test_af_data_base_census.py to update stale enemy BSS size/boundary expectations after the verified ownership correction. No compiler binary or verifier changes."
   },
   "claimed_at": "2026-09-05",
   "function": "function:do_enemy_move",
