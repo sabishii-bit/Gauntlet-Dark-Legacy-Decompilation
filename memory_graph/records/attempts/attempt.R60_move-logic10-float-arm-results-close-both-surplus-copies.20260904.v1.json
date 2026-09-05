@@ -1,7 +1,7 @@
 {
   "attempted_axis": "Recover the float-result to double-normalization boundary; then separate the still-structural entry pointer rematerialization from the register fields.",
   "attributes": {
-    "axis_log": "Prior three-arm normalization adds branches; no-double-temp form replaces the two fmr with two frsp and regresses fuzzy; declaration-rank hoist neutral. Those narrow caps still stand, but their extension to all portable source forms does not.",
+    "axis_log": "Prior three-arm normalization in cases1/default adds branches; no-double-temp form replaces the two fmr with two frsp and regresses fuzzy; declaration-rank hoist neutral. Separately, changing case0's already-correct three-arm normalizer into a two-arm form lost its target branch and regressed real476->633: preserve that case's distinct form. Assignment-in-condition versus declaration initializer was byte-identical before the result-web repair. These narrow caps survive pruning of their superseded20260831 records; their extension to all portable source forms does not.",
     "commit": "33a6c7e22",
     "law_screen": "Full current law corpus screened this pass, followed by the function's prior records and residual-signature searches. The old callee-saved-home-copy coalescing impossibility inference is REFUTED for the two surplus copies: a different source result-web boundary removes them without changing compiler. The precision and count-parity laws apply: retyping all inputs double is not this lever. slotdiff arbitrates layout. Form-aware word decoding, not identical mnemonics or regnorm's alignment artifact label, arbitrates the remaining pointer entry. No postprocessor eligibility or universal source impossibility is asserted.",
     "probed_form": [
