@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Requires fresh full raw Ninja compiler fidelity and complete table coverage; compares raw retail pointers to expected owning functions. PASS is ownership only, not equivalent case blocks, original boundaries, placement alignment, TU matching or runtime safety.",
+    "Source branch offsets are never patched. Different offsets and 8-byte source alignment versus 4-byte retail placement remain explicit debt. Only exact two configured cases supported."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r69_generated_table_ownership.py",
+  "id": "tool.r69-generated-table-ownership.20260905T232048Z.4d49b771",
+  "kind": "tool",
+  "name": "r69-generated-table-ownership",
+  "purpose": "Certify ownership of generated shop and particle switch tables independently of branch-offset equality",
+  "recorded_at": "2026-09-05T23:20:48Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r69_generated_table_ownership.py",
+  "status": "active",
+  "tool_key": "tool:r69-generated-table-ownership",
+  "tool_kind": "audit",
+  "usage": [
+    "<unit> --out build/r69_tables.json"
+  ],
+  "valid_from": "2026-09-05T23:20:48+00:00"
+}
