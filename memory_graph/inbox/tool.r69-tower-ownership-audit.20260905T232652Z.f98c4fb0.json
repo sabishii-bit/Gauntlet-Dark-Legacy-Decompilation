@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "PASS proves all 488 data bytes and 37 jump relocations at verified target homes; it is not a TU flip or executed source-link proof. All raw compiler inputs remain unchanged.",
+    "Uses the actual current Ninja command and refuses invalid baseline or stale input snapshots. With --before, raw function bytes, relocations, sections and exception metadata must remain unchanged.",
+    "Optional Xbox PDB names/types/scopes are only corroboration; crystal_order is an ITEMS int[8], not automatic authority for the GC s32[14] table. Writes only lane-prefixed build reports and control objects."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r69_tower_ownership_audit.py --out build/r69_tower_audit.json",
+  "id": "tool.r69-tower-ownership-audit.20260905T232652Z.f98c4fb0",
+  "kind": "tool",
+  "name": "r69-tower-ownership-audit",
+  "purpose": "Prove complete tower initialized data and current selected-source ownership independently of code scores",
+  "recorded_at": "2026-09-05T23:26:52Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r69_tower_ownership_audit.py",
+  "status": "active",
+  "tool_key": "tool:r69-tower-ownership-audit",
+  "tool_kind": "analysis",
+  "usage": [],
+  "valid_from": "2026-09-05T23:26:52+00:00"
+}
