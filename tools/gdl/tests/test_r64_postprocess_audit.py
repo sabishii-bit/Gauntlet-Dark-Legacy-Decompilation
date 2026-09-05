@@ -38,11 +38,8 @@ class AuditSafetyTests(unittest.TestCase):
             result = audit.fidelity_negative_control()
         self.assertIn('synthetic', result['kind'])
         self.assertIn('DIFFERS', result['output'])
-        self.assertGreaterEqual(result['compile_calls'], 1)
-        # Characterize, do not require, the upstream bug: a repaired cv_probe
-        # may legitimately refuse here, and this audit should report that.
-        if result['returncode'] == 0:
-            self.assertGreater(result['compile_calls'], 1)
+        self.assertEqual(result['returncode'], 2)
+        self.assertEqual(result['compile_calls'], 1)
 
 
 if __name__ == '__main__':
