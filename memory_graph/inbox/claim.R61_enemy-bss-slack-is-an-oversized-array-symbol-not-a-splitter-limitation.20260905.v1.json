@@ -1,0 +1,25 @@
+{
+  "attributes": {
+    "anchors": [
+      "config/GUNE5D/symbols.txt",
+      "config/GUNE5D/splits.txt",
+      "src/game/enemy/enemy.c",
+      "include/game/enemy.h",
+      "b209729ff"
+    ],
+    "held_fixed": "All source bytes, other symbol sizes, other split ranges, compiler options, current WebFrank rules, and the retail image.",
+    "law_screen": "claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1 applies: symbol extent and split end are a joint axis. attempt.EO_enemy-c-data-claims-land-two-of-three-and-the-sdata2-blocker-is-an-under-emitted-pool-not-a-missing-claim.20260904.v1 retained a real splitter refusal but misattributed its cause. Its pool under-emission finding remains valid and is NOT superseded by this BSS correction.",
+    "probed_form": "gEnemies size0x5978 ->0x5974 in symbols.txt, jointly with enemy.c .bss end0x80257590 ->0x8025758C in splits.txt; start0x80250E00 unchanged.",
+    "remaining": "do_enemy_move stays905/905,3raw differing words; the full constant pool still needs reconstruction. enemy.c remains NonMatching. The include/game/enemy.h introductory comment still quotes the old0x5978 total; the actual declared array and emitted symbol size are0x5974. Header comment correction can accompany a future header-owned edit.",
+    "verification": "defake_gate.py check game/enemy/enemy --rebuild: GATE OK. Full ninja -j2: build/GUNE5D/main.dol: OK. datadiff --sections: .data0x210100.0%; .bss size0x678C equal; .sdata2 remains the sole printed blocker with ours0x128,targetunclaimed0. objdump -t on BOTH target and compiled enemy.o: gEnemies value0xE18,size0x5974. Report Game Code data total126668->126664 removes the four padding bytes from the enemy ownership denominator; matched data71528 unchanged. This is ownership correction, not newly matched code or an enemy TU flip."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R61_enemy-bss-slack-is-an-oversized-array-symbol-not-a-splitter-limitation.20260905.v1",
+  "kind": "claim",
+  "predicate": "bss_ownership",
+  "recorded_at": "2026-09-05T04:21:38Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-09-05",
+  "value": "The former four-byte enemy.c BSS slack is resolved by correcting BOTH gEnemies' symbols.txt size and the splits.txt endpoint. The declared Enemy[25] occupies 25*916=22900=0x5974 bytes, not the former0x5978. At0x80251C18 its actual end is0x8025758C; gGameOptions begins at0x80257590 with four intervening alignment bytes. Shrinking only the split previously failed because the oversized gEnemies symbol crossed it, not because an unaligned split end was inherently prohibited. Updating both passes the splitter and the full DOL checksum. No source function, compiler option or WebFrank rule changes."
+}
