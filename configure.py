@@ -819,12 +819,8 @@ config.progress_categories = [
 ]
 config.progress_each_module = args.verbose
 
-# Post-compile fixup for the C++ exception runtime TUs: reproduces the
-# original CodeWarrior link-time weak-function dead-stripping that mwld's
-# CLI cannot perform (see tools/fix_exception_objects.py).
-exc_nmw_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/NMWException.o"
-exc_ppc_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/ExceptionPPC.o"
-exc_stamp = f"build/{config.version}/src/Runtime.PPCEABI.H/exception_fixup.stamp"
+# Compatibility fixups have distinct raw inputs and final outputs. They are
+# enabled below only for matching builds; editable builds retain source data.
 config.custom_build_rules = [
     {
         "name": "frank",
@@ -852,8 +848,8 @@ config.custom_build_rules = [
         "description": "P6FRANK $out",
     },
     {
-        "name": "fix_exception_objects",
-        "command": f"$python tools/fix_exception_objects.py {exc_nmw_obj} {exc_ppc_obj} $out",
+        "name": "fix_exception_object",
+        "command": "$python tools/fix_exception_objects.py --kind $exception_kind --input $in --output $out",
         "description": "FIXUP $out",
     },
     {
@@ -943,16 +939,19 @@ if not config.non_matching:
                 "p6frank_target": f"build/{config.version}/obj/{unit}.o",
             },
         }
-config.custom_build_steps = {
-    "post-compile": [
-        {
-            "rule": "fix_exception_objects",
-            "inputs": [exc_nmw_obj, exc_ppc_obj],
+if not config.non_matching:
+    for unit, kind in (
+        ("Runtime.PPCEABI.H/NMWException", "nmw"),
+        ("Runtime.PPCEABI.H/ExceptionPPC", "exppc"),
+    ):
+        if unit in config.object_postprocesses:
+            raise ValueError(f"multiple object postprocessors configured for {unit}")
+        config.object_postprocesses[unit] = {
+            "rule": "fix_exception_object",
             "implicit": ["tools/fix_exception_objects.py"],
-            "outputs": [exc_stamp],
-        },
-    ],
-}
+            "variables": {"exception_kind": kind},
+        }
+config.custom_build_steps = {}
 
 # Post-build: splice the retail DOL's unreproducible extab padding bytes from
 # the user's own original DOL into a copy of the verified cleaned-target

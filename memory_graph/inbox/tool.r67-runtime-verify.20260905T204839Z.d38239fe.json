@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Already-built default GUNE5D graph only. PASS certifies the inspected boundary and literal, not a boot test or an all-source game build. Only r67_runtime_ JSON output artifacts under build are writable."
+  ],
+  "entrypoint": "tools/gdl/composed_census/r67_runtime_verify.py",
+  "id": "tool.r67-runtime-verify.20260905T204839Z.d38239fe",
+  "kind": "tool",
+  "name": "r67-runtime-verify",
+  "purpose": "Read-only verification of runtime raw/fixed boundaries and the actual returned what string in linked ELF and DOL.",
+  "recorded_at": "2026-09-05T20:48:39Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r67_runtime_verify.py",
+  "status": "active",
+  "tool_key": "tool:r67-runtime-verify",
+  "tool_kind": "analysis",
+  "usage": [
+    "python tools/gdl/composed_census/r67_runtime_verify.py --mode matching --out build/r67_runtime_verify.json"
+  ],
+  "valid_from": "2026-09-05T20:48:39+00:00"
+}
