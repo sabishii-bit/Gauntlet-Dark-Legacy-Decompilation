@@ -152,6 +152,7 @@ def main(argv=None):
     parser.add_argument("--objdiff", type=Path,
                         help="native objdiff-cli executable (defaults to build/tools)")
     args = parser.parse_args(argv)
+    args.out = args.out.resolve()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     folder = Path(tempfile.mkdtemp(prefix="reconstruction_", dir=args.out.parent))
     result = {"schema_version": 1, "status": "FAIL", "stages": [],
