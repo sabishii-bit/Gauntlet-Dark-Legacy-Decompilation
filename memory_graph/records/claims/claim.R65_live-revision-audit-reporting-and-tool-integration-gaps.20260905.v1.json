@@ -1,0 +1,82 @@
+{
+  "attributes": {
+    "build": {
+      "anchors": [
+        "tools/project.py:add_unit",
+        "configure.py:progress_report_args",
+        "configure.py:Postprocessor split",
+        "config/GUNE5D/config.yml",
+        "tools/gdl/retaildol.py"
+      ],
+      "caveat": "configure.py's STRICT calculation subtracts WebFrank names only, not P6Frank, and inherits lenient relocation scoring. README's compiler-output-byte-identical interpretation is stronger than this calculation establishes.",
+      "command": "ninja -j2; python configure.py progress",
+      "linked_code": "431176 / 1071824 bytes = 40.22825%; 215 / 341 report units complete",
+      "linked_data_and_bss": "220444 / 2361748 bytes = 9.333934%; BSS is allocated memory, not stored DOL payload",
+      "result": "ninja printed build/GUNE5D/main.dol: OK; retaildol produced main.retail.dol with 2 bytes restored. All fuzzy 98.67%; reported combined matched 71.92%, split STRICT 57.28% (2596 functions) and EQUIVALENT 14.65% (181). These are the existing report's classifications, not newly certified raw/relocation-aware percentages."
+    },
+    "compiler_and_source_controls": {
+      "command": "python tools/gdl/composed_census/r64_postprocess_audit.py",
+      "postprocessing": "183 WebFrank rule entries on 181 functions in 59 units; one declared manual exception, game/audio/mempool::pool_garbage_collect. Existing experimental 1.2.5s registry object still equals the current P6Frank output. No compiler installation or pipeline change made.",
+      "result": "Fresh rerun confirms full baseline fidelity; 142 GC/1.2.5, 94 GC/1.2.5n, 20 GC/1.1p1 compile edges; 51 source units with scanned pragma families. cv --axes all has 56 variants, mwopt 17, not an exhaustive Cartesian sweep. Baseline-mismatch synthetic control still continues the opt sweep with exit 0 and 23 compile calls. padUpdate stays 107 instructions across flag changes with source restore pragmas, but changes to 115/112/107/115 under level1/nopeephole/noschedule/off when those pragmas alone are removed in scratch. This proves masked experiments, not a newly matching setting.",
+      "source_counterexamples": "Fresh wf_word_diff movieplayer fn_800D967C: 13 instructions, 0 words, 0 relocation-symbol mismatches, not pinned. fn_800DA60C: 38 instructions, same zero residual. Prior actual virtual-call reconstruction removed those rules. btricol's accepted joint ghost/volatile-removal experiment and the R64 declaration-order refutation show finite failed axes are not source-unreachability proofs."
+    },
+    "coverage": {
+      "auto_units": "Grouping build/GUNE5D/report.json units with metadata.auto_generated gives 84 units and 2117376 bytes of data/BSS: .data 14/1174680, .bss 13/899500, .rodata 15/24436, .sbss 10/4196, .sdata 5/1268, .sdata2 27/13296 (unit count/bytes). This is unassigned/extracted ownership, NOT a census of missing C declarations or bugs. Embedded assets, program data and BSS need separate dispositions.",
+      "commands": [
+        "python tools/gdl/composed_census/fq_flip_candidate_screen.py --near-lo 90 --out build/r65_flip_screen.json",
+        "python tools/gdl/composed_census/mt_region_census.py --prefix game/ --out build/r65_region.json"
+      ],
+      "remaining_near_functions": "Current report: newcam::fn_8006DC64 720 bytes at 87.88% fuzzy; mb_blit::MBDrawBlits 444 bytes at 98.83%, DrawBlitFlatQuad 568 bytes at 68.65%. No claim or dispatch was made.",
+      "result": "257/257 configured non-auto report units joined; Matching 215, NonMatching 42; READY 0, FNS-DONE 0. Near band >=90% matched code: newcam 22/23 functions, mb_blit 40/42. Game text span 0x8000cf40..0x8010c074 has zero uncovered split gaps; coverage is not proof of correct ownership.",
+      "section_commands": [
+        "python tools/gdl/datadiff.py game/world/newcam --sections",
+        "python tools/gdl/datadiff.py game/mb/mb_blit --sections"
+      ],
+      "section_observations": "newcam emits unclaimed .rodata 0x26 and .sdata2 0xC8; mb_blit emits unclaimed .sdata2 0x90. Those size/ownership findings do not establish that the emitted values are correct or automatically authorize claiming ranges. Dead-stripped surplus is also a possible disposition. Any flip plan needs a real section/relocation/link audit."
+    },
+    "ghidra": {
+      "access": "Connected MCP to Gauntlet-Dark-Legacy-Gamecube. Dynamic tool names were not exposed in this client snapshot; used read-only HTTP GETs advertised by that same instance's /mcp/schema. No database edits, reanalysis or compiler RE.",
+      "observations": "main.dol is PowerPC:BE:32:Gekko_Broadway. Function at 0x8005638C spans through 0x80056697; xref from 0x80053C2C is an unconditional call to it. Memory at 0x80112788 begins levels/level%s followed by dragon.wad. These independently reproduce selected evidence used in the existing gauntworld split record, not a proof of every TU boundary. Its inferred 16-argument function signature is not adopted as recovered source."
+    },
+    "measured_at": "2d475d3bc",
+    "related_records": [
+      "claim.law.R64_fixed-source-compiler-sweeps-do-not-establish-source-unreachability.20260905.v1",
+      "claim.law.R64_raw-epilogue-pairs-narrow-the-processed-census-conclusion.20260905.v1",
+      "claim.law.R60_dotless-extab-sections-exist-in-objects-and-a-dot-only-parser-hid-them.20260905.v1",
+      "claim.law.br-extern-ghost-and-volatile-scaffold-are-one-lever.20260901.v1",
+      "attempt.PP_pointlinedist2d-the-reassociated-product-was-a-real-source-bug.20260903.v1",
+      "attempt.SM_the-gauntworld-block-moves-out-of-gamemains-split-at-exact-parity-and-the-cost-is-three-inline-boundary-repairs.20260904.v1",
+      "claim.SM_the-sounds-evt-plus-sounds-merge-plan-one-object-two-files-and-the-size-falsifier-does-not-decide-it.20260904.v1"
+    ],
+    "relocation_experiment": {
+      "calibration": "fndiff --datum --raw reports VALUE-EQUAL for AudioClampMusicVol (9/9 relocations), what__Q23std13bad_exceptionCFv (2/2), and fn_80070144 (30/30), all of which the alternate report demotes. Equal datum multisets do not prove operand-position equality; these controls show the rows require interpretation, not that all 376 are false positives. Some demotions also occur in already linked SDK code. Do not dispatch 376 bug fixes or change gates blindly.",
+      "command": "build/tools/objdiff-cli.exe report generate -c functionRelocDiffs=data_value -o build/r65_strict_reloc_report.json",
+      "next_dispositions": [
+        "same resolved datum with a different symbol/addend or split granularity",
+        "different relocated pointer identity",
+        "wrong literal/width or operand binding",
+        "unresolved reference",
+        "actual code difference"
+      ],
+      "result": "Diagnostic alternate report only; production report/config unchanged. Fuzzy 98.620964%; combined matched 54.012974% (578924 bytes, 2401 functions). 524 function fuzzy scores change and 376 lose their previous 100% status. This 54.01% is NOT a corrected source-match percentage."
+    },
+    "tool_integration": {
+      "abi_screen": "python tools/gdl/abicheck.py prints 32 'true defect rows', but treat these as review candidates: omitted arguments, legacy ABI practices and f32/f64 spelling require target-call/callee confirmation. combat.c declares DrawTextKeepScale without the scale argument that btext.c defines, yet fnasm --diff --raw write_stage_info shows the call neighborhood already matching. Do not add an argument solely from the classifier label; determine the intended live f1 value and source-level interface.",
+      "broken_audit": "python tools/gdl/composed_census/ce_eq_datum_audit.py --image --out build/r65_datum_image.json exits 1: AttributeError: module 'cr_datum_screen' has no attribute 'objdata', at screen_against line 74. No completed image audit output was produced. The wrapper also references cr.relocs, cr.poolbytes and cr.datum_key, while cr now wraps the fndiff shared core. Audit sibling consumers of that migration before fixing just the first missing name.",
+      "ci_screen": "rg --files .github/workflows returns .github/workflows/build.yml. Reading that file shows configure, ninja, checksum and artifact uploads, without an analysis-tool unit-test step or --non-matching build step. This is a statement about this checked-in workflow, not the private container or external services.",
+      "exception_parser": "datadiff --sections prints 'no object carries' extab, but build/binutils/powerpc-eabi-objdump.exe -h build/GUNE5D/obj/game/world/newcam.o reports extab 0x98 and extabindex 0xE4. datadiff.py:section_sizes still accepts only dot-prefixed section names. The prior R60 graph refutation did not propagate into this tool's parser or explanation. Existing report fallback does show exception metrics, but is not a substitute for direct section and relocation inspection.",
+      "test_command": "python -m unittest discover tools/gdl/tests -b",
+      "test_result": "All green despite the independently reproduced broken ce_eq_datum_audit CLI. Pure/unit tests do not establish live tool-workflow interoperability.",
+      "working_alternative": "python tools/gdl/composed_census/cr_datum_screen.py --image --raw --out build/r65_current_datum.txt exits 0: VALUE-DELTA=41, VALUE-EQUAL=1367. The 41 are candidates: key identity, repeated-reference counts and transpositions limit the multiset classifier. AudioStreamPlay has a concrete string candidate (target Audio Play Timeout versus source Audio Stream bad file: %s); do not label the entire set defects."
+    }
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R65_live-revision-audit-reporting-and-tool-integration-gaps.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T19:21:28Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "Read-only revision audit at 2d475d3bc: a checksum-green mixed source/extracted-object build is not a completed source reconstruction. The strongest present evidence points to inconsistent measurement boundaries, unassigned data ownership, and premature source/flag impossibility inferences, not a demonstrated project-wide wrong compiler. No game source, compiler, split, postprocessor, reporting configuration or CI change was made in this investigation. The observations below are scoped to their commands; candidate screens are not proofs of source defects."
+}

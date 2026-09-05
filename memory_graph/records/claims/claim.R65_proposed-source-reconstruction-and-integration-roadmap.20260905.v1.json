@@ -1,0 +1,66 @@
+{
+  "attributes": {
+    "basis": "claim.R65_live-revision-audit-reporting-and-tool-integration-gaps.20260905.v1",
+    "contract_revision": "Recommend consolidating the operational contract into a short invariant/command path and moving historical examples to structured evidence, while retaining the lessons. Separate experiment acceptance from main-branch integration. Search results and old compiler caps should display supersession and evidence scope consistently across tool/brief/laws surfaces. This roadmap is not itself an override of AGENTS.md.",
+    "diagnosis": "The most recurring process weakness in the inspected reversals is promoting conditional observations into certainty: a score becomes a correctness claim, a fixed-source flag sweep becomes a universal compiler cap, a single-axis regression vetoes a coupled source reconstruction, or one classifier label becomes a prescribed cure. This is an evidence-weighted assessment, not a measured percentage attribution of all remaining blockers. Wrong TU boundaries are real but not demonstrated image-wide; missing flags remain possible but no global magic setting has been found.",
+    "phase_1_trust_and_accounting": {
+      "deliverables": [
+        "One provenance manifest from actual Ninja/link inputs: compiler binary hash, full ordered arguments, source/header hashes, per-source pragma scopes, raw object, every transformed object, final linked object and extracted fallback. Separate text, relocations, initialized data, BSS and exception metadata.",
+        "Correct progress tiers: raw stock compiler, derived compiler, machine-proven postprocessor, manual exception, unresolved and extracted fallback. Store linked/not-linked and compatibility-scaffolding provenance independently; overlapping classifications are not additive percentages.",
+        "Require baseline-object fidelity in every cv_probe mode; canonicalize effective flags, report overrides, failures and duplicate outputs. A control sensitive to the option validates that an unchanged function is informative. Do not strip source pragmas in production just to make a sweep vary.",
+        "Repair ce_eq_datum_audit through the shared fndiff API, propagate the dotless extab refutation into datadiff, and test sibling callers of changed APIs. Consolidate parsers/classifiers instead of adding another divergent implementation.",
+        "Run the strict-relocation report in shadow mode first; adjudicate the 376 newly demoted functions by resolved datum, width, addend, symbol identity and instruction operand. Calibrate known good linked SDK and deliberately bad fixtures before gating. A datum multiset alone misses operand transpositions.",
+        "Add the tool and graph suites plus representative end-to-end CLI tests to CI; use private target-bearing fixtures only in the existing private build environment. Include expected refusals, absent objects, stale outputs, pragma overrides, rule chains and missing shared APIs."
+      ],
+      "exit_gate": "Every required analysis stage has a versioned schema and explicit PASS/FAIL/UNRESOLVED result; intentional baseline drift and wrong datum controls are caught, known-good controls pass, and raw/patched/fallback accounting reconciles to the actual link. The normal build remains checksum-green."
+    },
+    "phase_2_ownership_and_build_context": {
+      "deliverables": [
+        "For each of the 42 configured unfinished TUs, create a closure checklist covering function roster/order, source-defined inlining, prototypes/types, literal pools, data/BSS ownership, weak/helper symbols, exception records and per-TU effective flags.",
+        "Assign the 84 auto data/BSS units to typed program data, BSS/common storage, embedded assets, padding or unresolved ownership. Do not automatically emit giant C byte arrays or claim that all 2.1 MB need hand-written declarations. Asset input/extraction policy needs explicit agreement if it changes current rules.",
+        "Prioritize boundary hypotheses supported by independent GC evidence: call visibility, literal-base use, small-data interleaving, exception records and symbol order, with Xbox module names as corroboration only. Validate actual linker pooling, exported aliases, weak emission and ordering before inferring one source TU from a shared base.",
+        "Re-evaluate the existing sounds_evt/sounds merge hypothesis in isolation; it is not yet permission to concatenate files. Preserve all established exact functions and rule bindings. Source order is not automatically text address order: the prior gauntworld move needed an InLevel definition hoist and caller-specific inlining repair.",
+        "Perform data/exception preflight before spending a matching pass on the last function. The newcam and mb_blit live examples still have data claim debt."
+      ],
+      "exit_gate": "A TU has a bounded, evidence-backed source/build context and a complete non-text checklist before promotion. No gap/overlap or PDB-name heuristic alone is reported as recovered original ownership."
+    },
+    "phase_3_non_greedy_source_experiments": {
+      "deliverables": [
+        "Recover ABI, signedness/width, struct fields, virtual/inline calls, FP operation association and constant values before matching temporary/register placement. Use full target CFG and callers, not Ghidra's guessed C signature or a scalar similarity score.",
+        "Preserve the best verified trunk while explicitly allowing isolated experimental branches to pass through temporary score regressions. Existing probe --bank/--no-bank/--arbitrate facilities already help; change the policy/decision protocol rather than inventing another permutation tool. Merge only a reviewed semantic and whole-TU result.",
+        "Keep a small frontier of distinct hypotheses, such as plausible source structure, matching frame/CFG and best raw bytes, rather than deleting every state that loses fuzzy score. Bound each branch by a named next test; this is not unlimited random search or permission to regress main.",
+        "Test interacting changes together when they affect the same value web; record held-fixed variables. After type, boundary or surrounding-code changes, invalidate old caps by source/header/compiler fingerprints and rerun the relevant finite probes.",
+        "Treat count parity, register identity and fuzzy score as diagnostics, not standalone semantic invariants. Review compatibility wrappers, pads, volatile casts and stale pragmas after real structural corrections; do not remove user-approved scaffolding indiscriminately."
+      ],
+      "exit_gate": "Compare pilots by newly linked source bytes/TUs, raw rule retirements, resolved semantic/data defects and reproducible refutations, not number of probes or fuzzy points alone.",
+      "pilot": "Before another broad fleet, use one TU with a complete-data path for integration, one concrete source/ABI or wrong-datum case, and one small WebFrank raw-promotion case with new source evidence. newcam is a screened integration candidate (one unmatched function) but not a promised easy flip; its data, prior caps and fn_8006DC64 diagnosis must be read first."
+    },
+    "phase_4_postprocessor_decision": {
+      "deliverables": [
+        "Keep existing audited WebFrank support available while prioritizing source-first retirement. A sound current-source transformation is not evidence that original source cannot compile directly. Quarantine and explicitly label pool_garbage_collect's manual exception for deeper review.",
+        "Use adjacent already-matching functions as controls for compiler/flag/TU hypotheses. Require a coherent multi-function benefit before selecting another compiler or flag profile; finite failures remain scoped to tested source/context.",
+        "Treat the existing 1.2.5s registry result as a narrow option to replace P6Frank, not evidence it replaces WebFrank. Broader adoption would need a full per-TU corpus replay, negative controls and edited-source tests.",
+        "Commission new compiler patches only after a reproducible minimal counterexample and demand census show the same mechanism across functions. Keep documented uncertainty when source reachability is unresolved."
+      ],
+      "exit_gate": "Every remaining rule has a current source trail, explicit proof boundary and raw residual; manual exceptions and derived compilers are separate from machine-proven/stock raw matches. No universal compiler necessity claim is inferred from archive coverage alone."
+    },
+    "phase_5_completion_and_modifiability": {
+      "deliverables": [
+        "Use isolated matching and --non-matching build directories/worktrees in CI so configurations cannot contaminate one another. Test representative source edits with target-bound patchers disabled, while preserving explicitly target-independent metadata operations.",
+        "Require a complete source-built link for executable code and reconstructed program data/BSS with zero unnoticed original-object fallbacks. List any separately agreed asset inputs; a normal mod build that still links auto extracted data objects is not proof of a full source reconstruction.",
+        "Compare final relocations, symbols, section layout, exception metadata and cleaned main.dol bytes; keep the two retail exception-padding bytes an explicit packaging distinction, not hidden source-match credit.",
+        "Test boot, level transition, combat, rendering, audio, save/load and edited-source behavior on the actual supported emulator/hardware workflow before making modifiability claims. Matching on GameCube does not by itself establish portability to other targets."
+      ],
+      "exit_gate": "A clean rebuild accounts for every executable byte and program datum by source or a declared reviewed exception, reproduces the verified target, and representative edited builds compile/link and behave as intended without retail-hash-bound patching."
+    }
+  },
+  "epistemic_state": "proposed",
+  "id": "claim.R65_proposed-source-reconstruction-and-integration-roadmap.20260905.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-05T19:21:29Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "Recommended revision plan, NOT an approved policy change or a claim that stock-compiler-only completion is proved possible. Preserve the checksum-green best branch while replacing score-led local search with controlled source-reconstruction experiments and complete-TU integration. Repair trust/accounting first; then work one integration pilot, one source/ABI reconstruction cohort and one bounded raw-promotion cohort. Do not resume a general compiler-decompilation or global compiler-swap campaign without a shared residual census and a discriminating test."
+}
