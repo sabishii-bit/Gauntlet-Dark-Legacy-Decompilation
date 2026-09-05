@@ -4,9 +4,11 @@
     "owned_units": [
       "tools/gdl/composed_census/cv_probe.py",
       "tools/gdl/tests/test_r64_postprocess_audit.py",
-      "tools/gdl/tests/test_r66_cv_probe.py"
+      "tools/gdl/tests/test_r66_cv_probe.py",
+      "tools/gdl/composed_census/r66_exception_mod_probe.py",
+      "tools/gdl/tests/test_r66_exception_mod_probe.py"
     ],
-    "scope": "Compiler sweep fidelity and structured results. Planned tests/test_r66_cv_probe.py. No compiler binaries, game source, or build flag changes.",
+    "scope": "Compiler sweep fidelity, structured results, and bounded r66_exception_mod_probe diagnostic with tests. Production tools/fix_exception_objects.py, compiler binaries, game source and build flags remain read-only.",
     "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
   },
   "claimed_at": "2026-09-05",
