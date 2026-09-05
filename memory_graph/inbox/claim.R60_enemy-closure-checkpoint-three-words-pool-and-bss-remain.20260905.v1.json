@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "next_action": "Resume from the accepted source and these measured mechanisms; screen literal probe forms before retrying. A bounded negative is not proof of source impossibility. Do not extend WebFrank to hide the address/data mismatch, and do not report the broad necessity audit as done.",
+    "records": [
+      "attempt.R60_do-enemy-move-staged-address-reaches-three-words-and-99-9823.20260905.v1",
+      "claim.R60_enemy-pool-after-consumer-definitions-preserve-a-prefix-but-not-the-whole-pool.20260905.v1",
+      "attempt.R60_move-logic31-explicit-inline-removes-extra-exception-record-with-body-identity.20260905.v1",
+      "claim.law.R60_dotless-extab-sections-exist-in-objects-and-a-dot-only-parser-hid-them.20260905.v1",
+      "attempt.R60_enemy-desc-type-bossgen-is-readonly-not-missing-sdata-claim.20260905.v1"
+    ],
+    "remaining": "Entry target+0x28 'add r30,r31,r0';+0x2c 'addi r30,r30,3608';+0x30 'lwz r3,524(r30)'. Ours+0x28 'add r3,r31,r0';+0x2c 'addi r30,r3,3608';+0x30 'lwz r3,4132(r3)'. Existing field/permutation guards do not prove this displacement rewrite. The pool remains under-owned and source-sensitive, and4bytes of BSS claim slack need correct ownership/alignment resolution before final linkage. A linked SHA verification on the current NonMatching TU still substitutes retail code and is not evidence of its source linkage.",
+    "verification": "Final checkpoint at a629c5193: probe.py game/enemy/enemy do_enemy_move --fuzzy prints99.9823%,real6,905/905; r60_enemy_source_probe.py metadata reports72/72,missing=[],extra={},changed={}. datadiff --sections reports.data0x210100%,.sdata2 targetunclaimed0/ours0x128,.bss target0x6790/ours0x678c,extab576100%,extabindex864100%. Its generic 'no object carries extab' and 'unclaimed means not fixed in C' commentary is not adopted: the accepted R60 metadata and BOSSGEN records refute those generic explanations here. Full main and worker ninja printed main.dol: OK; both full unittest commands all green; graph validate valid:true with pre-existing unrelated record debt. Matched splitSTRICT57.28%(2596fn)+EQUIVALENT14.31%(180fn),linked214/339.",
+    "worktree": "W:/Repositories/GDL-Codex-R60-Enemy,branchcodex/r60-enemy: tracked tree clean, only ownedLANE_LOCK untracked; git rev-list --left-right --count main...codex/r60-enemy was0/0 at a629c5193. Plan after accepting this checkpoint: release the claim, verify merged tip/clean status/no reparse points, remove the lane lock and clean merged worktree/branch. Other worktrees are outside this cleanup."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R60_enemy-closure-checkpoint-three-words-pool-and-bss-remain.20260905.v1",
+  "kind": "claim",
+  "predicate": "campaign_checkpoint",
+  "recorded_at": "2026-09-05T04:02:38Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-09-05",
+  "value": "The requested enemy.c flip is incomplete. Current source at8745817ad has83 of84 target functions exact after existing WebFrank rules; do_enemy_move remainsT905/O905,real6,fresh99.9823%,three raw differing words. The proven entry issue is pre-offset-base forwarding into the stun_timer load, not a register-only recolor. The broader project WebFrank necessity audit requested AFTER the flip has not started. All source improvements and local diagnostics are committed and pushed; no speculative pool edit or new compiler/postprocessor capability has been retained."
+}
