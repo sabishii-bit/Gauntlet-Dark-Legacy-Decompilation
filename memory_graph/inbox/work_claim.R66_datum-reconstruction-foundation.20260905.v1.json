@@ -22,6 +22,7 @@
   "owner": "codex-r66-datum",
   "recorded_at": "2026-09-05T19:44:31Z",
   "schema_version": 1,
-  "state": "active",
+  "state": "released",
+  "released_at": "2026-09-05",
   "valid_from": "2026-09-05"
 }

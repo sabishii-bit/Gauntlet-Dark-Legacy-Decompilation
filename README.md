@@ -115,7 +115,7 @@ ninja
 
 This mode selects editable source and bypasses Frank, WebFrank and P6Frank.
 It is not yet wholly rewrite-free: the exception-runtime layout fixup still
-runs in this mode and requires an editable-build safety audit (details below).
+runs in this mode and has a confirmed edited-string overwrite (details below).
 
 One target-independent ELF visibility fixup runs in both build modes for
 `game/anim/atree.c`: GC 1.2.5 needs four cross-TU state objects to retain
@@ -195,9 +195,16 @@ body. **This is not yet a wholly rewrite-free editable build:** the existing
 `tools/fix_exception_objects.py` is also scheduled in non-matching mode. It
 removes a weak runtime function, rewrites string/data layout and relocations,
 and mutates the two exception-runtime objects in place. Provenance reports
-that separately, not as raw compiler output or mere metadata cleanup; its
-editable-build safety needs a dedicated audit. Target-independent atree symbol
-export/rename processing also remains enabled.
+that separately, not as raw compiler output or mere metadata cleanup. A
+controlled full-TU test confirmed that changing `exception::what()` to return
+the same-length `"MODIFIED!"` is silently overwritten back to `"exception"`.
+The reproducible diagnostic is
+`tools/gdl/composed_census/r66_exception_mod_probe.py`; its PASS means the
+experiment completed, while `mod_effect` says whether the edit survived.
+This defect is not fixed by the reporting work. Isolating retained raw runtime
+objects and removing the retail-layout rewrite from editable builds is the
+next safety task, including mode-switch and actual edited-link tests.
+Target-independent atree symbol export/rename processing also remains enabled.
 
 The user-approved weak square-root helper in
 `enemy.c` remains explicitly documented compatibility scaffolding, not a

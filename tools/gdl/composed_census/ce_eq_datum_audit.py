@@ -18,6 +18,7 @@ Both sides of every selected function and every discovery failure are kept.
 in the private Linux build environment. No private input is copied to output.
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -30,6 +31,26 @@ sys.path.insert(0, str(ROOT / "tools" / "gdl"))
 import fndiff  # noqa: E402
 
 SCHEMA_VERSION = 1
+
+
+def active_raw_edges():
+    """Bind compile edges to the generated snapshot and refuse in-place raw loss.
+
+    The two exception-runtime compile outputs are overwritten in place by a
+    separate stage. Their current contents cannot stand in for raw output.
+    """
+    from cv_probe import read_edges
+    snapshot = json.loads((ROOT / "build/GUNE5D/build_edges.json").read_text(encoding="utf-8"))
+    if (snapshot.get("schema_version") != 1 or snapshot.get("ninja_sha256") !=
+            hashlib.sha256((ROOT / "build.ninja").read_bytes()).hexdigest()):
+        raise ValueError("missing/stale build provenance snapshot; run configure.py and ninja")
+    overwritten = {path for edge in snapshot["edges"]
+                   if edge["rule"] == "fix_exception_objects" for path in edge["inputs"]}
+    edges = read_edges()
+    for edge in edges.values():
+        if edge["body_o"].replace("\\", "/") in overwritten:
+            edge["raw_unavailable"] = "exception-runtime rewrite overwrites the compiler object in place"
+    return edges
 
 
 def parsed(path):
@@ -74,6 +95,8 @@ def object_paths(unit, requires_raw=False, edges=None):
     if edges is not None:
         if unit not in edges:
             raise FileNotFoundError(f"no active compile edge for {unit}")
+        if edges[unit].get("raw_unavailable"):
+            raise ValueError("raw compiler bytes unavailable: " + edges[unit]["raw_unavailable"])
         raw = (ROOT / edges[unit]["body_o"].replace("\\", "/")).resolve()
         if not raw.is_relative_to(ROOT):
             raise ValueError("raw object edge is outside this checkout")
@@ -231,11 +254,10 @@ def main(argv=None):
     fndiff.OBJDUMP = args.objdump or ROOT / "build/binutils" / (
         "powerpc-eabi-objdump.exe" if os.name == "nt" else "powerpc-eabi-objdump")
     try:
-        from cv_probe import read_edges
         config = json.loads((ROOT / "config/GUNE5D/webfrank.json").read_text(encoding="utf-8"))
         pins, rule_count = pinned_functions(config)
         roster, discovery, selected = select_functions(pins, args.image, args.unit, args.function)
-        result = audit(pins, rule_count, roster, discovery, selected, read_edges())
+        result = audit(pins, rule_count, roster, discovery, selected, active_raw_edges())
     except (OSError, ValueError, RuntimeError, SystemExit) as exc:
         result = {"schema_version": SCHEMA_VERSION, "status": "FAIL", "error": str(exc)}
     output = Path(args.out)

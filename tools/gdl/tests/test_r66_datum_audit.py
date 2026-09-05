@@ -79,6 +79,20 @@ class SharedDatumTests(unittest.TestCase):
         self.assertEqual(result["tally"]["functions_selected"], 1)
         self.assertEqual(result["tally"]["functions_screened_both"], 0)
 
+    def test_inplace_rewrite_cannot_masquerade_as_raw_compiler_output(self):
+        edges = {"u": {"body_o": "build/GUNE5D/src/u.o",
+                       "raw_unavailable": "declared in-place runtime rewrite"}}
+        with patch.object(ce, "screen_side", side_effect=AssertionError("must not read rewritten body")):
+            result = ce.audit([], 0, [("u", "f")], [], {}, edges=edges)
+        self.assertEqual(result["status"], "UNRESOLVED")
+        self.assertIn("raw compiler bytes unavailable", result["discovery_failures"][0]["error"])
+
+    def test_raw_snapshot_must_match_current_ninja(self):
+        with patch.object(Path, "read_text", return_value='{"schema_version":1,"ninja_sha256":"stale"}'), \
+                patch.object(Path, "read_bytes", return_value=b"current graph"):
+            with self.assertRaisesRegex(ValueError, "stale"):
+                ce.active_raw_edges()
+
     def test_missing_and_stale_objects_refuse_before_parse(self):
         with patch.object(Path, "is_file", return_value=False), patch.object(ce.fndiff, "parse") as parse:
             with self.assertRaises(FileNotFoundError):
@@ -194,7 +208,7 @@ class ExceptionAndSectionTests(unittest.TestCase):
                          eh.compare_exception_records.__code__.co_filename)
 
     def test_extab_payload_relocation_refuses_even_when_placeholder_bytes_equal(self):
-        import test_r60_enemy_probes
+        from tools.gdl.tests import test_r60_enemy_probes
         data, sections = test_r60_enemy_probes.ExceptionMetadata().fixture()
         sections.append(eh.wf.Section(7, ".relaextab", 4, 128, 12, 5, 2, 12))
         with patch.object(eh.wf, "_sections", return_value=sections):
@@ -202,7 +216,7 @@ class ExceptionAndSectionTests(unittest.TestCase):
                 eh.exception_records(data)
 
     def test_absent_eh_is_empty_but_a_missing_partner_refuses(self):
-        import test_r60_enemy_probes
+        from tools.gdl.tests import test_r60_enemy_probes
         data, sections = test_r60_enemy_probes.ExceptionMetadata().fixture()
         with patch.object(eh.wf, "_sections", return_value=sections[:2]):
             self.assertEqual(eh.exception_records(data), {})
