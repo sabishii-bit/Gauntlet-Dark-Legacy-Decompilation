@@ -1,0 +1,62 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r67_audio_effective_string_audit.py",
+    "tools/gdl/tests/test_r67_audio_context.py"
+  ],
+  "attributes": {
+    "boundary": "No claim that all VALUE-DELTA rows are false positives, no source-string edit retained, no whole-function correspondence or TU ownership proof. The remaining 93/94 address-home residual is separate.",
+    "command": "python tools/gdl/composed_census/r67_audio_effective_string_audit.py --out build/r67_audio_effective_string_audit.json",
+    "measured_at": "67b0fca5e470ef0e034c179de1852ab4ce613a20",
+    "proof_scope": "Single relocated invariant pool address established before control flow, supported PPC forms only, four known argument setups, no branch entry into setup interiors. Normal EABI calls preserve the saved address register. Both target retail bytes and compiled local section bytes are read; the compiled base object's size is26 while consumer displacements legitimately address following literals in the same section. External compiled references, unknown instructions, clobbered address homes, missing strings and changed call coverage refuse. Tests include a genuinely unequal string, changed base, updating-store base clobber, wrong HA binding and interior-branch counterexamples.",
+    "raw_sha256": "d663a1475139ab60b693393e1abc237f3b5954f4d0f1cc9bbc97fca4b587138e",
+    "related_records": [
+      "claim.R65_live-revision-audit-reporting-and-tool-integration-gaps.20260905.v1",
+      "claim.law.section-anchor-reloc-hides-symbol-liveness.20260831.v1"
+    ],
+    "result": "PASS, all four ordered effective strings equal. Shared fndiff datum_screen_from_lines simultaneously reports VALUE-DELTA, relocations21/21, with two target-base timeout entries versus two local-base bad-file entries. That base multiset result remains a review candidate rather than a proved source defect.",
+    "sites": [
+      {
+        "raw_call_offset": "0x8c",
+        "raw_displacement": 0,
+        "string": "Audio Stream bad file: %s",
+        "target_address": "0x801113A4",
+        "target_call_offset": "0x88",
+        "target_displacement": 220
+      },
+      {
+        "raw_call_offset": "0xb8",
+        "raw_displacement": 28,
+        "string": "Audio Stream no buffer memory: %s",
+        "target_address": "0x801113C0",
+        "target_call_offset": "0xb4",
+        "target_displacement": 248
+      },
+      {
+        "raw_call_offset": "0xd4",
+        "raw_displacement": 0,
+        "string": "Audio Stream bad file: %s",
+        "target_address": "0x801113A4",
+        "target_call_offset": "0xd0",
+        "target_displacement": 220
+      },
+      {
+        "raw_call_offset": "0x154",
+        "raw_displacement": 64,
+        "string": "Audio Stream Err: %s",
+        "target_address": "0x801113E4",
+        "target_call_offset": "0x150",
+        "target_displacement": 284
+      }
+    ],
+    "target_sha256": "ad32454a179be0506489e207deffc75d3ac3db2714161a5b5baaf44ce2dc0881"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R67_audio-stream-error-string-candidate-refuted-by-consumer-addresses.20260905.v1",
+  "kind": "claim",
+  "predicate": "reconstruction_audit",
+  "recorded_at": "2026-09-05T21:01:01Z",
+  "schema_version": 1,
+  "subject": "function:AudioStreamPlay",
+  "valid_from": "2026-09-05",
+  "value": "AudioStreamPlay's four ErrorPrintf format strings already equal retail. The R65 base-datum candidate was not a wrong source string: target uses sAudioTimeoutMsg as a shared address base and adds 220, 248, 220 and 284 bytes at the consuming instructions. The raw compiler uses its local first stream literal plus 0, 28, 0 and 64. Resolving each consumer yields the same bad-file, no-buffer-memory, bad-file and stream-error strings. Replacing source messages with Audio Play Timeout would introduce a bug. This is a narrow candidate-screen calibration, not whole-function equality or a generic PPC equivalence proof."
+}

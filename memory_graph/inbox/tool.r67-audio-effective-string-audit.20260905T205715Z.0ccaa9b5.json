@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Run after a fresh ninja. Reads active raw Ninja object. PASS covers only four ordered ErrorPrintf strings, not whole-function equivalence, original TU ownership, or link equality.",
+    "Refuses changed base, unsupported instruction or argument setup, interior branch entry, and nonlocal compiled pool references. Consumer displacement may reach a neighboring literal beyond the individual base symbol size."
+  ],
+  "entrypoint": "tools/gdl/composed_census/r67_audio_effective_string_audit.py",
+  "id": "tool.r67-audio-effective-string-audit.20260905T205715Z.0ccaa9b5",
+  "kind": "tool",
+  "name": "r67-audio-effective-string-audit",
+  "purpose": "Adjudicate the four AudioStreamPlay error strings using relocation base plus consumer displacement.",
+  "recorded_at": "2026-09-05T20:57:15Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r67_audio_effective_string_audit.py",
+  "status": "active",
+  "tool_key": "tool:r67-audio-effective-string-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "python tools/gdl/composed_census/r67_audio_effective_string_audit.py --out build/r67_audio_effective_string_audit.json"
+  ],
+  "valid_from": "2026-09-05T20:57:15+00:00"
+}
