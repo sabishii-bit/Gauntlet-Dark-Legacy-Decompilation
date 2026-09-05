@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Read-only except requested JSON. Classification applies only to the verified retail hash and asset range; no source recovery or gameplay claim. Does not patch binaries or suppress pointers outside the configured exact sites."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/GUNE5D/asset_audit.json",
+  "id": "tool.r67-asset-relocation-audit.20260905T211028Z.ae128574",
+  "kind": "tool",
+  "name": "r67-asset-relocation-audit",
+  "purpose": "Verify extraction relocations and whole linked payload bytes for the hash-identified embedded static assets",
+  "recorded_at": "2026-09-05T21:10:28Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r67_asset_relocation_audit.py",
+  "status": "active",
+  "tool_key": "tool:r67-asset-relocation-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run on a completed matching or editable build; resolves actual linked base from two consumer symbols. Exit0 PASS requires zero inferred relocations and exact full payload bytes."
+  ],
+  "valid_from": "2026-09-05T21:10:28+00:00"
+}

@@ -4,9 +4,10 @@
     "owned_units": [
       "configure.py",
       "tools/project.py",
-      "tools/fix_exception_objects.py"
+      "tools/fix_exception_objects.py",
+      "src/game/mb/mb_blit.c"
     ],
-    "scope": "Implement separate raw and matching-fixed exception-runtime object edges; bypass target-layout rewriting in editable builds; test mode transitions and source edit preservation. Own named files plus r67_runtime-prefixed added tests and promoted diagnostics, not existing provenance/CE/preflight tools."
+    "scope": "Implement separate raw and matching-fixed exception-runtime object edges; bypass target-layout rewriting in editable builds; test mode transitions and source edit preservation. Diagnose all-configured-source linkage; restore public mbInitBlitEntry/mbBlitProject/mbBlitSetupVerts visibility after full-TU raw body/relocation-preservation control. Own named files plus r67_runtime-prefixed added tests and promoted diagnostics, not existing provenance/CE/preflight tools."
   },
   "claimed_at": "2026-09-05",
   "function": "function:what__Q23std9exceptionCFv",

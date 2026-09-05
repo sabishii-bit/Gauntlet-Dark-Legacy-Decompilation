@@ -1,0 +1,52 @@
+{
+  "attributes": {
+    "after": {
+      "editable_linked_base": "0x80129714",
+      "editable_target_bound_edges": 0,
+      "inferred_relocations": 0,
+      "matching_and_editable_payload_bytes_changed": 0,
+      "matching_linked_base": "0x80129734"
+    },
+    "baseline": {
+      "changed_bytes": 43,
+      "changed_words": 29,
+      "compiler_mode": "editable, unchanged game source",
+      "elf_sha256": "08ca45cab02bfdec355592af0d47054f393d2f2b30abd0b18ed1e016ba08586f",
+      "linked_base": "0x80129714",
+      "payload_sha256": "848c714654a3f736a8c38b5efad47338e662daa5fb6c22fad58db1eeac54a9a8"
+    },
+    "commands": [
+      "python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/r67_asset_matching_before.json",
+      "build/tools/dtk.exe dol split config/GUNE5D/config.yml build/GUNE5D --no-update",
+      "python configure.py; ninja -j2",
+      "python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/r67_asset_matching_after.json",
+      "python configure.py --non-matching; ninja -j2",
+      "python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/r67_asset_editable_after.json",
+      "python configure.py; ninja -j2"
+    ],
+    "implementation_anchors": [
+      "config/GUNE5D/config.yml",
+      "tools/gdl/composed_census/r67_asset_relocation_audit.py",
+      "tools/gdl/tests/test_r67_asset_relocation_audit.py"
+    ],
+    "mechanism": "DTK inferred native pointers from serialized packed data words. Link-time symbol movement rewrote those bytes. Examples include a little-endian asset sub-blob word represented as @etb_80008000 and a packed run represented as @eti_80008C5C+7. These also create false exception-table dependencies in an all-configured-source link. Exact-site extraction suppression retains original data without target-bound code postprocessing.",
+    "neighbourhood_screen": "Whole verified 1.1MB range, every current extracted relocation, both named consumer anchors, all remaining bytes, complete matching and moved editable payload. Earlier isolated R62 suppressions correctly diagnosed the class but left 58 sites; the historical 33-site census is stale. No classification is extended to other data ranges.",
+    "payload_sha256": "3ac9bbaaf14dffa0ce2dfc78db275bb566b1635cf4b903c17e45fa8a880049f3",
+    "prior_range_evidence": "claim.embedded-static-payload-range-verified.20260831.v1",
+    "proof_boundary": "Full asset byte preservation at link time only, not console boot or original source recovery. Editable build retains 42 unfinished source-object fallbacks and 84 auto data/BSS objects; a green matching DOL is not a complete source-only build. Existing asset data remains extracted, with no fake data-progress credit.",
+    "range": [
+      "0x80129734",
+      "0x80238290"
+    ],
+    "two_sided_calibration": "Live negative: unchanged-source editable payload differed at 29 words; live positive after suppression: zero words in both ELF and DOL. Tests reject arbitrary same-size payloads, wrong/missing/duplicate anchors, short reads, interior differences, unsupported relocation forms and silently dropped relocation entries."
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R67_asset-false-relocations-corrupt-editable-builds-and-are-suppressed.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T21:10:22Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "58 remaining inferred R_PPC_ADDR32 relocations inside the verified serialized asset payload were live extraction defects. An unchanged-source editable link moved the payload base by -0x20 and corrupted 29 aligned words / 43 bytes. Exact-site block_relocations entries now eliminate all 58 relocations; the entire 1,108,828-byte payload is exact in both matching and shifted editable ELF/DOL. Normal ninja still prints main.dol: OK. No game source, compiled instructions, WebFrank rules or progress metrics were changed."
+}

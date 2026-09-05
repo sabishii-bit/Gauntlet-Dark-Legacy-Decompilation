@@ -221,6 +221,22 @@ build, use `--mode editable --expect-string MODIFIED!` instead. These are
 compile/link tests, not console boot or gameplay tests. Target-independent
 atree symbol export/rename processing remains enabled in both modes.
 
+The embedded static-asset payload has a separate extraction hazard: words in
+serialized asset data can resemble native addresses, causing DTK to infer
+relocations which corrupt the payload when an editable build moves symbols.
+The split configuration now suppresses the 58 remaining inferred relocations
+in the verified `0x80129734..0x80238290` range. Before this correction, even an
+unchanged-source editable build changed 43 payload bytes; after it, the entire
+1,108,828-byte range stays exact in both matching and shifted editable builds.
+This corrects extraction metadata, not compiled instructions. Verify with:
+
+```sh
+python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/GUNE5D/asset_audit.json
+```
+
+The audit is deliberately limited to that hash-identified payload. It does
+not suppress real pointers elsewhere or claim the game has been boot-tested.
+
 The user-approved weak square-root helper in
 `enemy.c` remains explicitly documented compatibility scaffolding, not a
 claim of recovered header provenance.
