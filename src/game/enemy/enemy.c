@@ -7084,6 +7084,19 @@ s32 check_vacancy(s32 index, f32* pos)
     return -1;
 }
 
+/* Addressing view over the existing enemy BSS symbols, not new storage.
+ * Offsets are relative to lbl_80250E00; the arrays below start at +0x348,
+ * +0x3FC, +0x4B0, +0x564 and +0xE18 respectively. Keeping the actual pool
+ * owner explicit avoids a second compiler-created base for the spawn path. */
+typedef struct EnemySpawnPoolView {
+    u8 _000[0x348];
+    s32 lbl_80251148[45];
+    s32 lbl_802511FC[45];
+    s32 lbl_802512B0[45];
+    u32 gWadAtreeHeaders[0x8B4 / 4];
+    Enemy gEnemies[25];
+} EnemySpawnPoolView;
+
 /* generate_enemy @0x8004F4B4 (global).  Spawn an enemy of `type` at `pos`:
  * validate world/boss state and per-type limits, resolve random types
  * (-2/-3), take a slot, then for generator spawns search the 8 (or 2)
@@ -7093,6 +7106,8 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
                    struct item* gen, s32 imp, f32 ang)
 {
     u8* tbl = lbl_8011AF48;
+    EnemySpawnPoolView* pool = (EnemySpawnPoolView*)lbl_80250E00;
+    Enemy* e;
     s32 slot;
     s32 otype;
     s32 mask = 0;
@@ -7101,7 +7116,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     s32 start;
     s32 i;
     s32 r;
-    Enemy* e;
+    EnemySpawnPoolView* row;
     f32 startv[3];
     f32 out[3];
     f32 v[3];
@@ -7135,10 +7150,10 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         return -6;
     }
     if (type != 30 && type != 31) {
-        if (lbl_802512B0[type] < 0) {
+        if (pool->lbl_802512B0[type] < 0) {
             return -5;
         }
-        if (lbl_802511FC[type] == 4 && level < 4) {
+        if (pool->lbl_802511FC[type] == 4 && level < 4) {
             return -5;
         }
     }
@@ -7147,8 +7162,9 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         return -2;
     }
     init_enemy(slot, pos, type, level, spew);
-    e = &gEnemies[slot];
-    e->generator = gen;
+    row = (EnemySpawnPoolView*)((u8*)pool + slot * sizeof(Enemy));
+    row->gEnemies[0].generator = gen;
+    e = row->gEnemies;
     if (gen == 0 || type == 30) {
         e->genang_offset = lbl_80346820;
     } else {
@@ -7240,7 +7256,7 @@ placed:
             InitAnim(lbl_80346820, &e->atree.animinfo, animation, 0, 1);
         }
     }
-    if (e->hht > 2.0 && level <= 3 && lbl_80251148[type] != 0) {
+    if (e->hht > 2.0 && level <= 3 && pool->lbl_80251148[type] != 0) {
         StartGenFX(pos, level);
     }
     return slot;

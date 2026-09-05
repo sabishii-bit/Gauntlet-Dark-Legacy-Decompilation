@@ -63,6 +63,39 @@ class NormalizationResultWeb(unittest.TestCase):
             source_probe.normalization_arm_result(self.fixture(), "missing block")
 
 
+class SpawnPoolForms(unittest.TestCase):
+    BODY = """s32 generate_enemy(void)
+{
+    u8* tbl = lbl_8011AF48;
+    s32 slot;
+    s32 otype;
+    Enemy* e;
+    if (gGameMode == 0) return -1;
+    use(lbl_802512B0[type], lbl_802511FC[type]);
+    e = &gEnemies[slot];
+    e->generator = gen;
+    use(lbl_80251148[type]);
+}
+"""
+
+    def test_complete_owner_and_preoffset_store_are_kept_together(self):
+        forms = dict(source_probe.generate_pool_variants(self.BODY))
+        text = forms["whole_pool_row_e_before_slot"]
+        for symbol in ("lbl_80251148", "lbl_802511FC", "lbl_802512B0"):
+            self.assertIn("pool->" + symbol + "[type]", text)
+            self.assertIn("s32 " + symbol + "[45];", text)
+        self.assertIn("slot * sizeof(Enemy)", text)
+        self.assertIn("row->gEnemies[0].generator = gen;\n    e = row->gEnemies;", text)
+        self.assertLess(text.index("    Enemy* e;"), text.index("    s32 slot;"))
+        self.assertNotIn("volatile", text)
+
+    def test_missing_owner_member_and_already_retained_shape_refuse(self):
+        with self.assertRaisesRegex(ValueError, "missing spawn pool symbol"):
+            list(source_probe.generate_pool_variants(self.BODY.replace("lbl_802511FC[type]", "0")))
+        with self.assertRaisesRegex(ValueError, "historical"):
+            list(source_probe.generate_pool_variants(self.BODY.replace("lbl_802511FC[type]", "pool->lbl_802511FC[type]")))
+
+
 class EnemyTypeControls(unittest.TestCase):
     def test_controls_preserve_live_arguments_and_restore_pragmas(self):
         body = "s32 GetEnemyType(s32 w, s32 l) { ErrorPrintf(lbl_801124EC, findWorldName(w), w, l); }\n"

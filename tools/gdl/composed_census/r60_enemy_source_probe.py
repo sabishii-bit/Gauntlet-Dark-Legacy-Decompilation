@@ -452,6 +452,56 @@ def generate_helper_variants(body):
     yield "direction_switch_return", helper + body[:begin] + "        ndirs = enemy_spawn_directions(otype, &mask);\n" + body[end:]
 
 
+def generate_pool_variants(body):
+    """Full BSS owner plus pre-offset store, on the pre-closure source.
+
+    After retention, reproduce with ea159c52f source and its freshly built
+    raw object via --source/--baseline-object. No live source is rewritten.
+    The view names existing symbols, not newly inferred game fields.
+    """
+    view = """typedef struct EnemySpawnPoolView {
+    u8 _000[0x348];
+    s32 lbl_80251148[45];
+    s32 lbl_802511FC[45];
+    s32 lbl_802512B0[45];
+    u32 gWadAtreeHeaders[0x8B4 / 4];
+    Enemy gEnemies[25];
+} EnemySpawnPoolView;
+
+"""
+    if "pool->" in body:
+        raise ValueError("pool probe requires the historical pre-closure body")
+    based = body
+    for symbol in ("lbl_80251148", "lbl_802511FC", "lbl_802512B0", "gEnemies"):
+        if symbol + "[" not in based:
+            raise ValueError("missing spawn pool symbol: " + symbol)
+        based = based.replace(symbol + "[", "pool->" + symbol + "[")
+    declaration = "    EnemySpawnPoolView* pool = (EnemySpawnPoolView*)lbl_80250E00;"
+    table = "    u8* tbl = lbl_8011AF48;"
+    for where in ("before_table", "after_table", "after_enemy", "statement"):
+        if where == "before_table":
+            candidate = replace_once(based, table, declaration + "\n" + table)
+        elif where == "after_table":
+            candidate = replace_once(based, table, table + "\n" + declaration)
+        elif where == "after_enemy":
+            candidate = replace_once(based, "    Enemy* e;", "    Enemy* e;\n" + declaration)
+        else:
+            candidate = replace_once(based, "    Enemy* e;", "    Enemy* e;\n    EnemySpawnPoolView* pool;")
+            candidate = replace_once(candidate, "    if (gGameMode", "    pool = (EnemySpawnPoolView*)lbl_80250E00;\n    if (gGameMode")
+        yield "whole_pool_" + where, view + candidate
+        if where != "after_table":
+            continue
+        store = "    e = &pool->gEnemies[slot];\n    e->generator = gen;"
+        yield "whole_pool_store_first", view + replace_once(candidate, store,
+            "    pool->gEnemies[slot].generator = gen;\n    e = &pool->gEnemies[slot];")
+        row = replace_once(candidate, "    Enemy* e;", "    EnemySpawnPoolView* row;\n    Enemy* e;")
+        row = replace_once(row, store, "    row = (EnemySpawnPoolView*)((u8*)pool + slot * sizeof(Enemy));\n    row->gEnemies[0].generator = gen;\n    e = row->gEnemies;")
+        yield "whole_pool_row_then_store", view + row
+        for location, anchor in (("before_slot", "    s32 slot;"), ("after_slot", "    s32 otype;"), ("before_table", table)):
+            ranked = replace_once(row, "    Enemy* e;\n", "")
+            yield "whole_pool_row_e_" + location, view + replace_once(ranked, anchor, "    Enemy* e;\n" + anchor)
+
+
 def movement_helper_variants(body):
     """Give the node/route reaction one cohesive inline scope, not a barrier."""
     guard = "                if (*(u32*)((u8*)e->coll_ip + 100) != 0) {"
@@ -1221,14 +1271,14 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "move_entry", "generate", "generate_entry", "generate_helpers", "movement", "movement_helpers", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "move_entry", "generate", "generate_entry", "generate_helpers", "generate_pool", "movement", "movement_helpers", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "move_entry": "move_logic10", "generate": "generate_enemy", "generate_entry": "generate_enemy", "generate_helpers": "generate_enemy", "movement": "do_enemy_move", "movement_helpers": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "move_entry": "move_logic10", "generate": "generate_enemy", "generate_entry": "generate_enemy", "generate_helpers": "generate_enemy", "generate_pool": "generate_enemy", "movement": "do_enemy_move", "movement_helpers": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -1276,7 +1326,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "move_entry": move_entry_variants, "generate": generate_variants, "generate_entry": generate_entry_variants, "generate_helpers": generate_helper_variants, "movement": movement_variants, "movement_helpers": movement_helper_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants, "init_vars": init_vars_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "move_entry": move_entry_variants, "generate": generate_variants, "generate_entry": generate_entry_variants, "generate_helpers": generate_helper_variants, "generate_pool": generate_pool_variants, "movement": movement_variants, "movement_helpers": movement_helper_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants, "init_vars": init_vars_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

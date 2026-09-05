@@ -1,0 +1,44 @@
+{
+  "attempted_axis": "Replace the compiler-created partial BSS base with one complete explicit pool view, then recover the pre-offset generator store and its pointer declaration rank.",
+  "attributes": {
+    "anchors": [
+      "src/game/enemy/enemy.c",
+      "config/GUNE5D/webfrank.json",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "tools/gdl/tests/test_r60_enemy_probes.py",
+      "ea159c52f"
+    ],
+    "axis_log": "Previous counted-source closure: e assignment before generator store plus unsigned animation local with signed sentinel test; local rank reduced raw words22. Partial explicit pool, direct table, delayed table initialization, random resolution and per-type inline helpers were negative at their measured alignments. The predecessor's alias observation remains true but its proposed new proof capability is no longer needed for this function.",
+    "law_screen": "Screened the complete current286-law list and the function context, then read pointer declaration-rank, two-use pre-offset addressing, relocation-atom binding and BSS pooling observations. Prior explicit pool probes changed only the enemy pointer, leaving the three other BSS consumers implicit: this is a genuinely new all-consumer axis, not a rerun. Existing WebFrank per-bctr-cfg v3 constraints apply unchanged. No source-unreachability claim is made.",
+    "neighbour_screen": "The old structured capability census named exactly one customer for proved-pooled-bss-relocation-binding: this function. No capability was added. Other same-TU functions already use explicit pool views, so this result narrows the earlier partial-owner negative without authorizing wholesale conversion of pinned siblings. do_enemy_move and move_logic10 still have separately measured source-level residuals; their guards were not bypassed. Existing23 enemy rules including this one all replay in the successful build.",
+    "probed_form": "Whole pool view before table242/23words; after table, after enemy declaration and statement-initialized242/4words, but generator store was post-offset. Direct table244. Store through pool->gEnemies[slot] before e assignment243. Explicit pre-offset row242/41words; moving the existing e declaration before slot242/4words, after slot242/24, before table242/4. Meaningful attach-generator inline helper: return pointer242/16, output pointer242/4 but wrong pre/post-offset store. Retained row plus e-before-slot leaves only independent compare/store scheduling and three register fields after that swap.",
+    "reproduction": "Promoted generate_pool axis in r60_enemy_source_probe.py; use the pre-closure source at ea159c52f and its freshly compiled actual-edge object through --source/--baseline-object. The promotion was executed from the repository root against a paired historical source/object and reproduced every retained matrix row. The script refuses a live already-converted body. Tests cover complete-owner replacement, pre-offset store ordering, declaration position, missing-member refusal and already-retained refusal.",
+    "semantic_evidence": "EnemySpawnPoolView is an addressing view, not new storage: existing arrays at owner offsets0x348,0x3FC,0x4B0,0x564 and0xE18 retain their symbol identities and sizes. The row pointer is pool+slot*sizeof(Enemy), and row->gEnemies[0].generator addresses precisely gEnemies[slot].generator, before e takes the record address. All three per-type BSS lookups use the same owner. No new side effects, volatile, assembler, compatibility wrapper or literal-data rewrite. Target store is stw at+0x1b0 with displacement4264; the source emits it at+0x1b4 with the same displacement. The intervening cmplwi changes CR only, so their swap is machine-proven independent.",
+    "verification": "Against ea159c52f: fresh fuzzy99.5041%->100.0000%,real46->0,242/242 throughout, frame136 and all13 slot offsets/access counts identical. Raw words22->4; unchanged existing permutation plus strict recolor yields BYTE-EQUAL with retail DOL datum screen. fndiff --clean is MATCH-MODULO-RELOC-NAMING with zero non-reloc rows, --ops identical242/242; remaining anonymous names are verified through the full-retail rule. defake_gate --rebuild: only generate_enemy improved,81 exact siblings retained. Full ninja prints main.dol: OK. STRICT57.28% unchanged, EQUIVALENT13.82%->13.91%; enemy82/84 target functions exact after postprocessing, still NonMatching and not TU-flipped. Tools suite all green. Full graph suite and final diff gates are recorded with the integrating commit."
+  },
+  "function": "function:generate_enemy",
+  "held_fixed": "GC/1.2.5 actual Ninja edge; all other source functions and original pool definitions; signed animation sentinel test, calls, CFG, scalar types and vector arrays. No compiler or WebFrank implementation change.",
+  "id": "attempt.R60_generate-enemy-full-pool-owner-closes-with-existing-guards.20260905.v1",
+  "kind": "attempt",
+  "outcome": "matched",
+  "recorded_at": "2026-09-05T02:09:39Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-05",
+    "signature": "opcode streams identical (242/242)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.R60_generate-enemy-proven-bss-alias-and-entry-source-controls.20260904.v1",
+  "valid_from": "2026-09-05",
+  "verifiers_run": [
+    "instruction_permutation",
+    "verify_relocation_binding",
+    "verify_consistent_recolor",
+    "verify_datum_binding"
+  ],
+  "windows_tried": [
+    "0x1b0:0x1b8:1,0"
+  ]
+}
