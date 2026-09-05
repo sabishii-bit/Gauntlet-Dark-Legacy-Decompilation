@@ -1,0 +1,36 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r67_sound_boundary_probe.py",
+    "tools/gdl/tests/test_r67_sound_boundary_probe.py"
+  ],
+  "attributes": {
+    "evidence_claim": "claim.R67_sound-data-context-beats-merge-necessity-and-recovers-the-movie-table.20260905.v1",
+    "measurements": {
+      "typed_island_bytes": 340,
+      "typed_island_pointer_count": 32,
+      "typed_island_retained_bank_strings": 32,
+      "unused_between_live_statics": 0,
+      "unused_pool_off": 0,
+      "unused_three_statics": 2
+    },
+    "reproduce": "python tools/gdl/composed_census/r67_sound_boundary_probe.py --out build/r67_sound_boundary.json; inspect link_controls.links.unused_between_live_statics / unused_three_statics / unused_pool_off / typed_island",
+    "scope": "GC/1.2.5 actual cflags_demo with synthetic-only Cpp_exceptions off; configured GC/1.3.2 linker, global flags, default layout and entry. Production source/config untouched.",
+    "tags": [
+      "pool-layout",
+      "sda-global",
+      "build-hygiene",
+      "defake",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the maintained fixture with a raw-faithful compiler environment. If default three-live-static-array code has no pooled .data relocation, if its two unused filenames are dropped, or if -pool off still retains them under the stated synthetic linker conditions, this specific measured control no longer holds. A different TU/compiler/LCF result narrows scope rather than proving universal retention or absence.",
+  "id": "claim.law.R67_mwcc-data-pooling-can-retain-unreferenced-static-tables.20260905.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-05T21:07:26Z",
+  "schema_version": 1,
+  "subject": "tu:game/sound/sounds_evt",
+  "valid_from": "2026-09-05",
+  "value": "MWCC GC/1.2.5 data pooling can retain a source-defined table that has NO direct code consumer. This is a measured conditional, not a blanket retention guarantee. In r67_sound_boundary_probe.py, actual cflags_demo plus Cpp_exceptions off for synthetic linking compile two live static arrays separated by an unused128-byte filename-pointer table using separate letters/flags relocations; configured GC/1.3.2 with global -fp hardware -nodefaults drops that table and its two strings. Add a third live static array and a legitimate indexed read of it: the compiler now emits ...data.0-relative addressing, and final linking retains the intervening table and both strings. The SAME source with explicit -pool off drops them again. No force_active directive, game LCF, assembly, postprocessor or fabricated memory access participates. The synthetic entry uses n=0, within every array bound. The three-read trigger is specific to this fixture; no universal numeric threshold is claimed.\n\nTarget-backed corroboration: a second fixture containing the real pantab/elev_desc/letter/MovieBanks/MovieMusic arrays compiles to the exact340-byte data island at measured retail bases (32 pointer bindings and both literal sections verified). Its synthetic getter reads the first three arrays, never MovieBanks/MovieMusic; the default final link retains all32 bank strings through ordinary pooled .data. This provides a legitimate compiler mechanism for retained unused platform-specific tables, but does not prove that synthetic getter or exact ownership existed in GDL.\n\nConsequences for reconstruction: lack of a direct MovieBanks xref is insufficient to reject its source provenance. Conversely, inserting a real-but-unowned table purely to shift literal offsets is not an integrated solution. Recover independent named data objects and their natural pool/visibility context, then prove final layout/reachability. The PDB's separate module-local arrays and the GC's long-range shared data-base accesses are compatible; they do not by themselves establish a giant source struct or an exact TU boundary."
+}
