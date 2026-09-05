@@ -1,6 +1,7 @@
 {
   "attempted_axis": "Arbitrate the staged self-pointer entry after the collision-reload and radius repairs; check optimizer and owner-identity controls on this new alignment.",
   "attributes": {
+    "pruned_axis_details": "Reviewed two superseded ejections before scoped pruning. EN declaration control changed BOTH normalization blocks from {f64 a; f64 hi=lbl_80346840; f32 step=lbl_80344720;} to {f64 hi=lbl_80346840; f32 step=lbl_80344720; f64 a;}: neutral on its then176-real baseline. That narrow declaration-axis negative remains; the alleged normalization/slot impossibility was later refuted by assignment-in-condition and joint row-removal+matrixGap. R60 guard/row record's node-prefix, integer/pointer, local-node, inline-accessor/route and forward-goto negatives are already folded into probed_form above. Removing row alone shrank frame8, adding matrixGap alone grew frame8; joint use put mat104 while keeping frame208 and all other slots, so neither standalone park is a prohibition on composition. Original record files remain recoverable from8745817ad.",
     "anchors": [
       "01ffb11db",
       "src/game/enemy/enemy.c",
