@@ -113,9 +113,9 @@ python configure.py --non-matching
 ninja
 ```
 
-This mode links raw compiler output. It deliberately bypasses Frank, WebFrank,
-P6Frank, and every other retail-target/hash-dependent object rewrite so edited
-source remains usable as a normal mod build.
+This mode selects editable source and bypasses Frank, WebFrank and P6Frank.
+It is not yet wholly rewrite-free: the exception-runtime layout fixup still
+runs in this mode and requires an editable-build safety audit (details below).
 
 One target-independent ELF visibility fixup runs in both build modes for
 `game/anim/atree.c`: GC 1.2.5 needs four cross-TU state objects to retain
@@ -188,10 +188,18 @@ snapshots under hardware exceptions or debugging. Regression tests are in
 `tools/gdl/tests/test_address_fold.py`; the source-exhaustion and census
 records are searchable with `gdlmem.py context do_enemy_move`.
 
-This does not make modders' edits depend on matching those hashes.
-`python configure.py --non-matching` bypasses all target-bound postprocessors
-and compiles the editable source directly. The matching build intentionally
-refuses a changed pinned body. The user-approved weak square-root helper in
+`python configure.py --non-matching` bypasses WebFrank, P6Frank and the Frank
+object pipelines, so those rules do not require modders' edits to preserve
+their input hashes. The matching build intentionally refuses a changed pinned
+body. **This is not yet a wholly rewrite-free editable build:** the existing
+`tools/fix_exception_objects.py` is also scheduled in non-matching mode. It
+removes a weak runtime function, rewrites string/data layout and relocations,
+and mutates the two exception-runtime objects in place. Provenance reports
+that separately, not as raw compiler output or mere metadata cleanup; its
+editable-build safety needs a dedicated audit. Target-independent atree symbol
+export/rename processing also remains enabled.
+
+The user-approved weak square-root helper in
 `enemy.c` remains explicitly documented compatibility scaffolding, not a
 claim of recovered header provenance.
 
