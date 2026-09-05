@@ -62,17 +62,33 @@ class VisibilityProbeTests(unittest.TestCase):
 
     def test_removes_exactly_six_tokens_and_preserves_bodies_and_line_endings(self):
         source = self.source()
-        result = visibility.variant_source(source)
+        active, forms = visibility.source_forms(source)
+        self.assertEqual(active, "static")
+        self.assertEqual(forms["static"], source)
+        result = forms["global"]
         self.assertEqual(result, source.replace(b"static ", b""))
         self.assertEqual(result.count(b"BODY"), 3)
         self.assertEqual(result.count(b"\r\n"), 5)
         self.assertEqual(len(source) - len(result), 6 * len(b"static "))
 
     def test_missing_or_additional_declaration_refuses(self):
-        for source in (self.source().replace(b"static ", b"", 1),
+        for source in (self.source().replace(b"mbInitBlitEntry(void);", b"different(void);"),
                        self.source() + b"\nstatic void mbInitBlitEntry(void);\n"):
             with self.assertRaisesRegex(ValueError, "exactly one"):
-                visibility.variant_source(source)
+                visibility.source_forms(source)
+
+    def test_global_active_form_reconstructs_identical_static_control(self):
+        source = self.source().replace(b"static ", b"")
+        active, forms = visibility.source_forms(source)
+        self.assertEqual(active, "global")
+        self.assertEqual(forms["global"], source)
+        self.assertEqual(forms["static"], self.source())
+
+    def test_mixed_state_or_two_declarations_refuse(self):
+        with self.assertRaisesRegex(ValueError, "mixed"):
+            visibility.source_forms(self.source().replace(b"static ", b"", 1))
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            visibility.source_forms(self.source().replace(b"{ BODY; }", b";"))
 
 
 class AllSourceDiagnosticTests(unittest.TestCase):

@@ -171,9 +171,9 @@ extern void SetVertexFormat(s32 fmt);
 extern void PSMTXIdentity(f32 mtx[3][4]);
 
 /* internal helpers (defined below / same TU) */
-static u32 mbInitBlitEntry(MBBLIT* b, int arg, int z);
-static void mbBlitProject(MBBLIT* b, int a, int c);
-static void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1);
+u32 mbInitBlitEntry(MBBLIT* b, int arg, int z);
+void mbBlitProject(MBBLIT* b, int a, int c);
+void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1);
 s32 mbBlitCalcLight(s32 x, s32 y);
 void pbBlitSetDrawRegs();
 void pbBlitSetTexture(u32 tex);
@@ -1424,7 +1424,7 @@ void mbBlitStaticInit(void) {
  * Coordinate / vertex helpers (descriptive names) - stubbed
  * ===================================================================== */
 
-static u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
+u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
     s32 old;
     s32 projectWidth;
     s32 projectHeight;
@@ -1486,7 +1486,7 @@ static u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
     return old;
 }
 
-static void mbBlitProject(MBBLIT* b, int width, int height) {
+void mbBlitProject(MBBLIT* b, int width, int height) {
     MBWindow* win = gWinGlobals;
     u32 autoFlags = 0;
 
@@ -1531,7 +1531,7 @@ static void mbBlitProject(MBBLIT* b, int width, int height) {
     b->flags |= autoFlags;
 }
 
-static void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1) {
+void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1) {
     MBTextureDef* texture = MBRomTexPtr(b->tex);
     s16 swap;
     f32 width;
