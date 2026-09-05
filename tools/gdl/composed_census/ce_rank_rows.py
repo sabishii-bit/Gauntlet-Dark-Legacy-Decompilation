@@ -1,23 +1,12 @@
-"""Rank the image-wide datum rows: real wrong-DATUM rows vs keying artifacts.
+"""Partition schema-1 CE datum candidates without calling them source bugs.
 
-The screen's datum_key falls back to an ADDRESS key (`A:`) for a symbol with
-no bytes (BSS/SBSS) and to a NAME key (`N:`) for one it cannot resolve through
-retail's symbols.txt at all.  Our source's own global names are not in
-symbols.txt, so a BSS global that retail's splitter left as `lbl_ADDR` and our
-source named is keyed `A:` on one side and `N:` on the other and can NEVER
-pair.  Those rows are guaranteed false positives.  A `P:` key is a pointer
-table keyed by SIZE, so two tables differing in length read as different data.
-Only a `B:` key on BOTH sides is a comparison of actual datum BYTES, and only
-those rows can carry a wrong constant.
+    python tools/gdl/composed_census/ce_rank_rows.py --in build/r66_ce_image.json
 
-    python tools/gdl/composed_census/ce_eq_datum_audit.py --image \
-        --out build/GUNE5D/ce_image_datum.json
-    python tools/gdl/composed_census/ce_rank_rows.py \
-        [--in build/GUNE5D/ce_image_datum.json]
-
-claim.law.CE_a-bss-datum-has-no-bytes-so-the-datum-screen-keys-it-by-address-
-on-one-side-and-by-name-on-the-other.20260903.v1 is the law this partitions on;
-it measured the artifact class at 17 of 49 rows image-wide at 9eb99ec5c.
+Byte keys (B:) prioritize literal review; A:/N:/P: keys prioritize identity,
+ownership and relocation review. Neither partition proves a defect or a
+false positive. Equal multisets do not rule out transposed operands. This
+consumer preserves the input audit's PASS/FAIL/UNRESOLVED status and exit
+code; unsupported or malformed input is a FAIL, never an empty clean roster.
 """
 import argparse
 import json
@@ -25,49 +14,79 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-_parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-_parser.add_argument("--in", dest="source", default=str(
-    ROOT / "build" / "GUNE5D" / "ce_image_datum.json"))
-_arguments = _parser.parse_args()
-data = json.load(open(_arguments.source, encoding="utf-8"))
 
 
-def kinds(entries):
-    out = set()
-    for entry in entries:
-        datum = entry["datum"]
-        if datum.startswith("A:"):
-            out.add("A")
-        elif datum.startswith("N:"):
-            out.add("N")
-        elif datum.startswith("P:"):
-            out.add("P")
-        else:
-            out.add("B")
-    return out
+def ranked_rows(data):
+    if not isinstance(data, dict) or data.get("schema_version") != 1:
+        raise ValueError("expected ce_eq_datum_audit schema_version=1")
+    if data.get("status") not in ("PASS", "FAIL", "UNRESOLVED"):
+        raise ValueError("missing or unknown audit status")
+    if not isinstance(data.get("rows"), list) or not isinstance(data.get("tally"), dict):
+        raise ValueError("audit has no rows/tally; it did not complete")
+    byte_rows, identity_rows, unreadable = [], [], []
+    for row in data["rows"]:
+        if not isinstance(row, dict) or not all(isinstance(row.get(k), str) for k in ("unit", "function")):
+            raise ValueError("invalid function row")
+        raw = row.get("raw")
+        if not isinstance(raw, dict) or raw.get("status") not in ("PASS", "FAIL", "UNRESOLVED"):
+            raise ValueError("invalid raw-side result")
+        if "verdict" not in raw:
+            if raw["status"] == "PASS" or not raw.get("error"):
+                raise ValueError("unreadable side requires non-PASS status and error")
+            unreadable.append(row)
+            continue
+        if raw["verdict"] not in ("VALUE-EQUAL", "VALUE-DELTA"):
+            raise ValueError("unknown multiset verdict")
+        kinds = set()
+        for side in ("target_only", "ours_only"):
+            entries = raw.get(side)
+            if not isinstance(entries, dict):
+                raise ValueError("datum delta must be a key/count object")
+            for key, count in entries.items():
+                if not isinstance(key, str) or key[:2] not in ("A:", "N:", "P:", "B:"):
+                    raise ValueError("unknown datum key kind")
+                if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
+                    raise ValueError("datum counts must be positive integers")
+                kinds.add(key[0])
+        if raw["verdict"] == "VALUE-EQUAL":
+            if kinds:
+                raise ValueError("VALUE-EQUAL row carries a delta")
+            continue
+        if not kinds:
+            raise ValueError("VALUE-DELTA row has no delta")
+        (byte_rows if "B" in kinds else identity_rows).append((row, sorted(kinds)))
+    if data["status"] == "PASS" and (byte_rows or identity_rows or unreadable):
+        raise ValueError("PASS audit contains unresolved rows")
+    return byte_rows, identity_rows, unreadable
 
 
-real, artifact = [], []
-for row in data["rows"]:
-    seen = kinds(row["target_only"]) | kinds(row["ours_only"])
-    (real if "B" in seen else artifact).append((row, sorted(seen)))
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--in", dest="source", default=str(ROOT / "build/GUNE5D/ce_image_datum.json"))
+    args = parser.parse_args(argv)
+    try:
+        data = json.loads(Path(args.source).read_text(encoding="utf-8"))
+        byte_rows, identity_rows, unreadable = ranked_rows(data)
+    except (OSError, ValueError, TypeError) as exc:
+        print(f"DATUM RANK FAIL: {exc}")
+        return 1
+    print(f"DATUM RANK {data['status']} (input audit scope: {data.get('selection', {})})")
+    print(f"  byte-bearing review candidates: {len(byte_rows)}")
+    print(f"  identity/representation review candidates: {len(identity_rows)}")
+    print(f"  unreadable raw functions: {len(unreadable)}")
+    print(f"  identity key classes: {Counter(tuple(k) for _, k in identity_rows).most_common()}")
+    for title, rows in (("BYTE-BEARING CANDIDATES (not proven source defects)", byte_rows),
+                        ("IDENTITY/REPRESENTATION CANDIDATES (not proved false positives)", identity_rows)):
+        print(title)
+        for row, seen in rows:
+            print(f"  {row['unit']}::{row['function']} key classes {seen}")
+            for side in ("target_only", "ours_only"):
+                for key, count in row["raw"][side].items():
+                    print(f"    {side} x{count} {key[:160]}")
+    for row in unreadable:
+        print(f"UNREADABLE {row['unit']}::{row['function']}: {row['raw']['error']}")
+    return {"PASS": 0, "FAIL": 1, "UNRESOLVED": 2}[data["status"]]
 
-print(f"IMAGE-WIDE RAW-OBJECT DATUM SCREEN: {len(data['rows'])} VALUE-DELTA "
-      f"rows of {data['tally']['screened']} NonMatching functions")
-print(f"  rows carrying a real BYTE datum difference: {len(real)}")
-print(f"  rows that are key-class artifacts only:     {len(artifact)}")
-print(f"    artifact key classes: "
-      f"{Counter(tuple(k) for _r, k in artifact).most_common()}")
-print()
-print("REAL WRONG-DATUM ROWS (the hand-off table):")
-for row, seen in sorted(real, key=lambda rk: rk[0]["unit"]):
-    print(f"\n  {row['unit']}::{row['function']}   key classes {seen}")
-    for entry in row["target_only"]:
-        if entry["datum"].startswith("B:") or not entry["datum"][1:2] == ":":
-            print(f"      TARGET-ONLY x{entry['n']}  {entry['datum'][:120]}")
-    for entry in row["ours_only"]:
-        if entry["datum"].startswith("B:") or not entry["datum"][1:2] == ":":
-            print(f"      OURS-ONLY   x{entry['n']}  {entry['datum'][:120]}")
-print("\nKEY-CLASS ARTIFACT ROWS (no source edit implied):")
-for row, seen in sorted(artifact, key=lambda rk: rk[0]["unit"]):
-    print(f"  {row['unit']}::{row['function']}   {seen}")
+
+if __name__ == "__main__":
+    raise SystemExit(main())

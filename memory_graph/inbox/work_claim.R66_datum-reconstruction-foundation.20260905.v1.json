@@ -5,7 +5,9 @@
       "tools/gdl/composed_census/ce_eq_datum_audit.py",
       "tools/gdl/datadiff.py",
       "tools/gdl/tests/test_datadiff_unclaimed_section.py",
-      "tools/gdl/tests/test_t26_datadiff_unresolved_unit.py"
+      "tools/gdl/tests/test_t26_datadiff_unresolved_unit.py",
+      "tools/gdl/tests/test_r66_datum_audit.py",
+      "tools/gdl/composed_census/ce_rank_rows.py"
     ],
     "scope": "Shared datum API and dotless exception metadata audit repairs; planned tools/gdl/tests/test_r66_datum_audit.py. No split or source changes.",
     "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
