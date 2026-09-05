@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "integrator": "codex-root-solo",
+    "owned_units": [
+      "src/game/enemy/enemy.c",
+      "tools/gdl/webfrank.py",
+      "tools/gdl/ppc_address_fold.py",
+      "tools/gdl/tests/test_address_fold.py"
+    ],
+    "scope": "Solo enemy.c closure: enemy-only configure.py and webfrank.json rows; tools/gdl/webfrank.py and new ppc_address_fold.py proof/tests; R63 records/tool registration and relevant existing reporting classification only if needed. No unrelated source, header or pin edits. Integrator reviews R62 capability proposal under the user's additional-rule permission and current directive to match: allow only a three-word add/addi/lwz forwarding equivalence proof with identical load address and every final GPR, not arbitrary stream rewrites. Preserve all current guards, target/hash/relocation binding, and mod-build bypass."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:do_enemy_move",
+  "id": "work_claim.R63-enemy-address-fold.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex-r63-enemy",
+  "recorded_at": "2026-09-05T17:50:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
