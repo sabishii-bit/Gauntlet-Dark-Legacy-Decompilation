@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "branch": "codex/reconstruction-foundation",
+    "owned_units": [
+      "configure.py",
+      "tools/project.py"
+    ],
+    "scope": "Truthful reporting and actual-build provenance; planned tools/gdl/build_provenance.py and tools/gdl/tests/test_build_provenance.py. Preserve compiler selection and game source.",
+    "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "project:gdl",
+  "id": "work_claim.R66_provenance-reconstruction-foundation.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex-r66-provenance",
+  "recorded_at": "2026-09-05T19:44:32Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}

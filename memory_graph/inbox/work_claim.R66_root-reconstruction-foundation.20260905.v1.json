@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "branch": "codex/reconstruction-foundation",
+    "owned_units": [
+      "AGENTS.md",
+      "README.md",
+      ".github/workflows/build.yml"
+    ],
+    "scope": "Integration, CI and isolated-experiment protocol; planned tools/gdl/reconstruction_preflight.py and tools/gdl/tests/test_reconstruction_preflight.py. No game source changes.",
+    "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "project:gdl",
+  "id": "work_claim.R66_root-reconstruction-foundation.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex/reconstruction-foundation",
+  "recorded_at": "2026-09-05T19:44:28Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}

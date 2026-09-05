@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "branch": "codex/reconstruction-foundation",
+    "owned_units": [
+      "tools/gdl/composed_census/cv_probe.py",
+      "tools/gdl/tests/test_r64_postprocess_audit.py"
+    ],
+    "scope": "Compiler sweep fidelity and structured results. Planned tests/test_r66_cv_probe.py. No compiler binaries, game source, or build flag changes.",
+    "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "project:gdl",
+  "id": "work_claim.R66_compiler-reconstruction-foundation.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex-r66-compiler",
+  "recorded_at": "2026-09-05T19:44:30Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}

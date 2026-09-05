@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "branch": "codex/reconstruction-foundation",
+    "owned_units": [
+      "tools/gdl/composed_census/ce_eq_datum_audit.py",
+      "tools/gdl/datadiff.py",
+      "tools/gdl/tests/test_datadiff_unclaimed_section.py",
+      "tools/gdl/tests/test_t26_datadiff_unresolved_unit.py"
+    ],
+    "scope": "Shared datum API and dotless exception metadata audit repairs; planned tools/gdl/tests/test_r66_datum_audit.py. No split or source changes.",
+    "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "project:gdl",
+  "id": "work_claim.R66_datum-reconstruction-foundation.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex-r66-datum",
+  "recorded_at": "2026-09-05T19:44:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
