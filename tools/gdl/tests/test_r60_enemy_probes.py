@@ -63,6 +63,48 @@ class NormalizationResultWeb(unittest.TestCase):
             source_probe.normalization_arm_result(self.fixture(), "missing block")
 
 
+class MovementReloadForms(unittest.TestCase):
+    BODY = """void do_enemy_move(s32 index)
+{
+    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + ENEMY_POOL_OFF);
+    s32 alg = e->algorithm;
+    f32 rad = e->rad;
+    f32 hht = e->hht;
+    s32 blocked = 0;
+    /* stun freeze + knockback integration */
+                half[0] = oldpos[0] + e->trans[0];
+                rad2 = (f32)(rad * 1.5);
+                if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
+                    first();
+                }
+                if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
+                    route((f32*)((u8*)e->coll_ip + 52));
+                }
+}
+"""
+
+    def test_only_later_route_uses_new_owner(self):
+        text = dict(source_probe.movement_reload_variants(self.BODY))["collision_owner_route"]
+        self.assertEqual(text.count("const Enemy* contactOwner = e;"), 1)
+        self.assertEqual(text.count("*(u32*)((u8*)e->coll_ip + 100)"), 2)
+        self.assertIn("route((f32*)((u8*)contactOwner->coll_ip + 52));", text)
+        self.assertLess(text.index("first();"), text.index("const Enemy* contactOwner"))
+        self.assertNotIn("volatile", text)
+
+    def test_radius_copy_scale_preserves_double_multiply_and_named_owner(self):
+        text = dict(source_probe.movement_reload_variants(self.BODY))["owner_route_radius_copy_scale"]
+        self.assertIn("rad2 = rad;\n                rad2 *= 1.5;\n                half[0] =", text)
+        self.assertNotIn("1.5f", text)
+        self.assertIn("route((f32*)((u8*)contactOwner->coll_ip + 52));", text)
+
+    def test_missing_or_already_converted_guard_is_refused(self):
+        with self.assertRaises(ValueError):
+            list(source_probe.movement_reload_variants(self.BODY.replace("                if (*(u32*)((u8*)e->coll_ip + 100) != 0) {", "if (1) {", 1)))
+        text = dict(source_probe.movement_reload_variants(self.BODY))["collision_owner_route"]
+        with self.assertRaisesRegex(ValueError, "historical"):
+            list(source_probe.movement_reload_variants(text))
+
+
 class MovePageForms(unittest.TestCase):
     BODY = """void move_logic10(s32 index)
 {

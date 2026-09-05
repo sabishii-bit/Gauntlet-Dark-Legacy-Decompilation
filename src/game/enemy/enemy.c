@@ -996,8 +996,9 @@ void do_enemy_move(s32 index)
                 e->trans[0] = newc[0] - e->objgrp.coll_pos[0];
                 e->trans[1] = newc[1] - e->objgrp.coll_pos[1];
                 e->trans[2] = newc[2] - e->objgrp.coll_pos[2];
+                rad2 = rad;
+                rad2 *= 1.5;
                 half[0] = oldpos[0] + e->trans[0];
-                rad2 = (f32)(rad * 1.5);
                 half[1] = oldpos[1] + e->trans[1];
                 half[2] = oldpos[2] + e->trans[2];
                 lbl_80344730 = EnemyWallCollide(rad2, oldpos, half, lbl_802510F4);
@@ -1167,10 +1168,11 @@ void do_enemy_move(s32 index)
                     }
                 }
             } else if (alg == 7 || alg == 8 || alg == 10 || alg == 20) {
+                const Enemy* contactOwner = e;
                 if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
                     if (e->route == 0 || ABS_REVERSED(e->route) > 2) {
                         e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
-                                               (f32*)((u8*)e->coll_ip + 52));
+                                               (f32*)((u8*)contactOwner->coll_ip + 52));
                         e->collided = 0;
                     }
                     if (alg == 7) {

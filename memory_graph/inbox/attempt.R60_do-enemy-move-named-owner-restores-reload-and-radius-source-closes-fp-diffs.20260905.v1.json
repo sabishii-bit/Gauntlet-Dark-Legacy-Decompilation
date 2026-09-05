@@ -1,0 +1,42 @@
+{
+  "attempted_axis": "Restore the collision-pointer reload through a named owner, then reconstruct radius evaluation before the half-step vector; isolate the remaining entry address reassociation.",
+  "attributes": {
+    "anchors": [
+      "01ffb11db",
+      "src/game/enemy/enemy.c",
+      "config/GUNE5D/webfrank.json",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "tools/gdl/tests/test_r60_enemy_probes.py"
+    ],
+    "axis_log": "Historical repairs remain: two normalization fmr removed; assign-before-store restores collision copy; row removal jointly with matrixGap places mat104/frame208; ten ABS_REVERSED operands corrected. Older standalone padding, row, node/route helper and declaration-order negatives remain controls only. The predecessor's missing-reload residual has now been closed through named source identity; do not re-report it as a compiler cap.",
+    "law_screen": "Read the full current corpus and function context, then residual-directed reload and pre-offset law screens. claim.law.raw-offset-form-supplies-value-identity-not-addressing-shape.20260831.v1 and claim.law.typed-member-access-escapes-to-call-cse.20260830.v1 motivate the named owner positive control; no volatile assumption. claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1 applies to radius placement. claim.law.two-use-preoffset-pointer-keeps-add-then-addi.20260831.v1 and claim.law.member-form-does-not-restore-preoffset-association.20260831.v1 correctly describe the remaining observed association, but their universal source-impossibility wording is not proved by this finite matrix. Slotdiff and raw-word arbitration applied; five words are not a five-word recolor.",
+    "probed_form": [
+      "Retained: in the second collision-node branch, const Enemy* contactOwner = e; leave the node test on e->coll_ip, but pass (f32*)((u8*)contactOwner->coll_ip + 52) to the later route call. The same ordinary Enemy* owner works; const is not the mechanism. Restores target +0x9c4 'lwz r4,652(r30)' without a volatile read. Promoted movement_reload controls: route owner905/11 raw words; node owner904; route owner plus direct entry905/13; route owner plus staged entry905/9.",
+      "Retained joint radius form: rad2 = rad; rad2 *= 1.5; precedes half[0] = oldpos[0] + e->trans[0]. With the reload fixed, moving the old single multiplication before half[0] gives905/6 words; copy/compound-scale gives905/5. Promoted joint generator reproduces both. Moving after half[1]/half[2], reversing literal operands, or adding explicit widening does not close the FP operand ordering. Named f64 scale local regresses layout; f32 scale changes precision. No ghost extern is introduced.",
+      "Reload controls: raw offsetof member at either consumer also gives905/11 but is not retained. Direct gEnemies[index] gives906; complete pool indexed owner gives905/355. Typed flat/nested item views and node getters fold to904. OBJGRP node+position view gives905/24 through an extra addi and displacement48, NOT the missing reload. Address-of-member local gives904 for node,906 for call. std abs/labs gives885, ternary inline902, shift/xor inline904 with frame288. All discarded.",
+      "Entry controls on reload-corrected body: direct array gives905/13 before radius repair, but four initial loads use pre-offset displacements. Staged Enemy* base+index, then byte advance gives905/9, with +0x30 'lwz r3,4132(r3)' instead of target 'lwz r3,524(r30)'. Scalar stun capture and assignment-in-condition preserve that defect; const getter906, timer-pointer907. Complete pool alias forms905/14..18, some frame216. First-array element and byte-array member forms fold. Public int parameter changed at declaration and definition gives905/9. Genuine inline stun guard and joint action guard preserve each corresponding original/staged/direct defect. Captured inline getter gives905/66 and frame216.",
+      "Late entry controls on radius-corrected905/5 baseline: sizeof/index signedness/unsigned916 forms all byte-identical; named offset locals905/18 before radius repair. Pointer advance inside algorithm initializer gives905/3 but the SAME wrong4132 load; inside rad initializer905/5, hht905/13. Single first-load dereference/address/void-transit forms and reuse of existing other owner fold; const cast adds a second stun load906. Meaningful enemy_for_slot inline accessor (direct, byte, staged; entry alone or entry and collision lookup) gives907 in all six forms. No entry variant retained.",
+      "Optimizer controls: actual -help opt=opt inspected. Scoped optimization_level3, size, loop/dead/deadstore controls were byte-identical905/11 before radius repair; level2 gives909. Prior propagation/CSE/strength/lifetimes and inline-reaction caps remain narrowly applicable. This is not proof of an exhaustive compiler search."
+    ],
+    "remaining": "Whole-function raw differing words=5. At+0x1c target 'mulli r0,r26,916' vs ours 'mulli r3,r26,916'; +0x20 target 'lis r3,0' vs ours 'lis r4,0'; +0x24 target 'addi r31,r3,0' vs ours 'addi r31,r4,0'; +0x28 target 'add r30,r31,r0' vs ours 'addi r30,r3,3608'; +0x2c target 'addi r30,r30,3608' vs ours 'add r30,r31,r30'. This is (base+index*916)+3608 versus base+(index*916+3608). The add/addi dependence changes, so the mnemonic-only SCHEDULE-REORDER label does not prove a legal independent permutation. No rule attempted or guard extended for these words. Whole TU remains NonMatching with83/84 exact postprocessed target functions and non-text debt.",
+    "reproduction": "r60_enemy_source_probe.py movement_reload against01ffb11db source; use --source with a historical file still named enemy.c and paired --baseline-object after retention. Filename metadata makes baseline.c fail whole-object identity; tested enemy.c basename passes. Generator executed from repo root and reproduced904,905/11,905/6,905/5,905/13,905/9. Pure tests cover only-later-consumer change, double literal, and refusal of converted/missing source shapes.",
+    "semantic_evidence": "contactOwner names the same Enemy object; there is no intervening call/store requiring a volatile claim. The target reload is an observable optimizer identity difference recovered through a normal local. rad is f32; copying to the existing f32 rad2 and multiplying by double literal1.5 preserves the original double multiplication and single final narrowing. Neither edit changes game behavior, calls, branches, or storage layout.",
+    "verification": "Fresh probe: real145->22->10, fuzzy99.5856%->99.7072%->99.7569%,T905/O905. wf_word_diff --decode: DIFFERING WORDS=5, MNEMONIC DIVERGENCE=2, REGFIELD-ONLY3, OPCODE2. Its name-only relocation mismatch0 is not a full datum proof. slotdiff: target208 ours208, saves targetr26 oursr26, target19 slots ours19, SLOT MAP IDENTICAL. defake_gate check --rebuild --update-improved: GATE OK, only do_enemy_move improved, all83 exact siblings retained, matched data net0. extabindex diagnostic796->797/864 but all-or-nothing0->0. Restored instruction shifts move_logic00 relocation addends: t16_rederive_body --apply returns WINDOW-MOVED and BYTE-EQUAL full-retail, refreshing only its two relocation hashes. configure.py rerun. Full ninja prints main.dol: OK; both full unittest commands all green. No claim that this NonMatching TU is linked."
+  },
+  "function": "function:do_enemy_move",
+  "held_fixed": "Actual GC/1.2.5 Ninja edge, all sibling bodies, exact local layout, retained normalization and ABS_REVERSED repairs. The radius axis holds the newly recovered collision reload fixed. No compiler or verifier capability changes.",
+  "id": "attempt.R60_do-enemy-move-named-owner-restores-reload-and-radius-source-closes-fp-diffs.20260905.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T03:08:48Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "addressing-mode",
+    "measured_at": "2026-09-05",
+    "signature": "opcode multiset: IDENTICAL (905/905)"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.R60_do-enemy-move-route-reload-inline-and-local-controls.20260904.v1",
+  "valid_from": "2026-09-05"
+}
