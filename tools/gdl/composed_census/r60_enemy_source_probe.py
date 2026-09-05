@@ -92,6 +92,21 @@ def pointer_variants(body):
     yield "inline_nearest_input_order", order_helper + order_caller
 
 
+def normalization_arm_result(part, block):
+    """Route f32 arithmetic results to the f64 join without retyping inputs."""
+    pre, post = part.split(block, 1)
+    pre = replace_once(pre, "        f32 cand;", "        f32 cand;\n        f64 normalAngle;")
+    for op in ("+", "-"):
+        if pre.count("cand = cand " + op + " q[1095];") != 3:
+            raise ValueError("expected three float-result arms per operation")
+        pre = pre.replace("cand = cand " + op + " q[1095];", "normalAngle = cand " + op + " q[1095];")
+    fallback = "            } else {\n                cand = lbl_80344720;\n            }\n"
+    pre = replace_once(pre, fallback, fallback.replace("cand =", "normalAngle ="))
+    normal = block.replace("                f64 av;\n", "").replace("(av = cand)", "normalAngle")
+    normal = re.sub(r"\bav\b", "normalAngle", normal)
+    return pre + normal + post
+
+
 def normalization_variants(body):
     block = """            {
                 f64 av;
@@ -154,6 +169,148 @@ def normalization_variants(body):
     yield "propagation_on", "#pragma opt_propagation on\n" + body + "\n#pragma opt_propagation off\n"
     yield "explicit_angle_widening", body.replace(block, block.replace("(av = cand)", "(av = (f64)cand)"))
     yield "explicit_angle_rounding", body.replace(block, block.replace("cand = av;", "cand = (f32)av;"))
+    # New width axis: the PRE-normalization arithmetic is explicitly rounded
+    # at its old f32 assignment boundaries, not merely at one operand. The
+    # earlier double-candidate probe kept a separate double av and permitted
+    # context-driven widening of the arithmetic result.
+    prefix, remainder = body.split("    case 1: {", 1)
+    case1, default = remainder.split("    default: {", 1)
+    def rounded_carrier(part, split):
+        pre, post = part.split(block, 1)
+        name = "workingAngle" if split else "cand"
+        pre = re.sub(r"\bcand\b", name, pre)
+        pre = replace_once(pre, "f32 " + name + ";", "f64 " + name + ";" + ("\n        f32 cand;" if split else ""))
+        for op in ("+", "-"):
+            pre = pre.replace(name + " = " + name + " " + op + " q[1095];", name + " = (f32)((f32)" + name + " " + op + " q[1095]);")
+        normalized = """            if (%s > 3.141592654) {
+                %s -= 6.283185308;
+            } else if (%s <= -3.141592654) {
+                %s = 6.283185308 + %s;
+            }
+            cand = (f32)%s;""" % (name, name, name, name, name, name)
+        if not split:
+            # Post-join single-precision consumers remain single precision.
+            post = post.replace("cand - e->angbak", "(f32)cand - e->angbak")
+            post = post.replace("sin(cand)", "sin((f32)cand)").replace("cos(cand)", "cos((f32)cand)")
+        return pre + normalized + post
+    for split in (False, True):
+        label = "split" if split else "inplace"
+        pieces = [rounded_carrier(case1, split), rounded_carrier(default, split)]
+        yield "rounded_" + label + "_both", prefix + "    case 1: {" + pieces[0] + "    default: {" + pieces[1]
+        yield "rounded_" + label + "_case1", prefix + "    case 1: {" + pieces[0] + "    default: {" + default
+        yield "rounded_" + label + "_default", prefix + "    case 1: {" + case1 + "    default: {" + pieces[1]
+        # The aligned six-frsp regression comes from explicitly narrowing
+        # the INPUT a second time even though every reaching definition is
+        # an f32 load or a result already rounded to f32. Keep the result
+        # narrowing but test omitting that redundant input conversion.
+        name = "workingAngle" if split else "cand"
+        output_only = [part.replace("(f32)((f32)" + name + " + q[1095])", "(f32)(" + name + " + q[1095])").replace("(f32)((f32)" + name + " - q[1095])", "(f32)(" + name + " - q[1095])") for part in pieces]
+        yield "rounded_output_" + label + "_both", prefix + "    case 1: {" + output_only[0] + "    default: {" + output_only[1]
+        yield "rounded_output_" + label + "_case1", prefix + "    case 1: {" + output_only[0] + "    default: {" + default
+        yield "rounded_output_" + label + "_default", prefix + "    case 1: {" + case1 + "    default: {" + output_only[1]
+    # Return precision and formal ownership were held fixed in the earlier
+    # helper probe; test both explicitly without widening the caller's cand.
+    for input_type in ("f32", "f64"):
+        for formal in (False, True):
+            if formal and input_type == "f32":
+                continue  # Would round arithmetic per arm, a semantic change.
+            working = "angle" if formal else "a"
+            helper = "static inline f64 enemy_normalize_wide(" + input_type + " angle)\n{\n"
+            if not formal:
+                helper += "    f64 a = angle;\n"
+            helper += "    if (" + working + " > 3.141592654) " + working + " -= 6.283185308;\n"
+            helper += "    else if (" + working + " <= -3.141592654) " + working + " = 6.283185308 + " + working + ";\n"
+            helper += "    return " + working + ";\n}\n\n"
+            label = input_type + ("_formal" if formal else "_local")
+            yield "wide_return_" + label, helper + body.replace(block, "            cand = enemy_normalize_wide(cand);")
+    # Feed each arm's float arithmetic RESULT directly into the double
+    # normalization web. Unlike retyping cand, both arithmetic operands
+    # remain float. Unlike copying at the join, there is no separate
+    # float-result home between the fadds/fsubs and the normalizer.
+    arms = [normalization_arm_result(case1, block), normalization_arm_result(default, block)]
+    arm_joint = prefix + "    case 1: {" + arms[0] + "    default: {" + arms[1]
+    yield "float_arm_result_to_double_both", arm_joint
+    entry = "    e = (Enemy*)(e0 + ENEMY_POOL_OFF);\n    e0 += ENEMY_POOL_OFF;"
+    yield "float_arm_and_advance_before_alias", replace_once(arm_joint, entry, "    e0 += ENEMY_POOL_OFF;\n    e = (Enemy*)e0;")
+    yield "float_arm_and_assignment_advance", replace_once(arm_joint, entry, "    e = (Enemy*)(e0 += ENEMY_POOL_OFF);")
+    entry_forms = {
+        "chain_enemy_then_bytes": "    e0 = (u8*)(e = (Enemy*)(e0 + ENEMY_POOL_OFF));",
+        "typed_array_and_byte_advance": "    e = &gEnemies[index];\n    e0 += ENEMY_POOL_OFF;",
+        "named_page_and_byte_advance": "    e = &((EnemyMovePage05*)base)->enemies[index];\n    e0 += ENEMY_POOL_OFF;",
+        "advance_typed_view_then_bytes": "    e = (Enemy*)e0;\n    e = (Enemy*)((u8*)e + ENEMY_POOL_OFF);\n    e0 = (u8*)e;",
+        "byte_advance_from_enemy": "    e = (Enemy*)(e0 + ENEMY_POOL_OFF);\n    e0 = (u8*)e;",
+    }
+    for label, replacement in entry_forms.items():
+        yield "float_arm_entry_" + label, replace_once(arm_joint, entry, replacement)
+    yield "float_arm_entry_register_enemy", replace_once(arm_joint, "    Enemy* e;", "    register Enemy* e;")
+    late_alias = replace_once(arm_joint, entry, "    e0 += ENEMY_POOL_OFF;")
+    for label, anchor in (("after_base", "    t = base;"), ("after_type_index", "    t += type * 4;"), ("after_speed", "    speed = *(f32*)(t + offsetof(EnemyMovePage05, speed));")):
+        yield "float_arm_entry_alias_" + label, replace_once(late_alias, anchor, anchor + "\n    e = (Enemy*)e0;")
+    # Do not retype the public parameter in isolation: the TU's two earlier
+    # declarations use s32 (long), and an int definition conflicts with them.
+    setup = "    type = *(s32*)(e0 + OFF_E(type));\n" + entry
+    for output_bytes in (False, True):
+        helper = "static inline s32 enemy_type_and_record(u8* base, s32 index, "
+        helper += "u8** record" if output_bytes else "Enemy** record"
+        helper += ")\n{\n    Enemy* enemy = &((EnemyMovePage05*)base)->enemies[index];\n    *record = "
+        helper += "(u8*)enemy" if output_bytes else "enemy"
+        helper += ";\n    return enemy->type;\n}\n\n"
+        caller = replace_once(arm_joint, "    u8* e0 = base + index * 916;", "    u8* e0;")
+        call = "    type = enemy_type_and_record(base, index, " + ("&e0" if output_bytes else "&e") + ");\n"
+        call += "    e = (Enemy*)e0;" if output_bytes else "    e0 = (u8*)e;"
+        yield "float_arm_entry_type_record_" + ("bytes" if output_bytes else "typed"), helper + replace_once(caller, setup, call)
+        ordered_helper = "static inline s32 enemy_type_and_record(u8* base, s32 index, " + ("u8** record" if output_bytes else "Enemy** record") + ")\n{\n"
+        ordered_helper += "    u8* row = base + index * sizeof(Enemy);\n    s32 type = *(s32*)(row + OFF_E(type));\n"
+        ordered_helper += "    *record = " + ("row + ENEMY_POOL_OFF" if output_bytes else "(Enemy*)(row + ENEMY_POOL_OFF)") + ";\n    return type;\n}\n\n"
+        yield "float_arm_entry_type_before_record_" + ("bytes" if output_bytes else "typed"), ordered_helper + replace_once(caller, setup, call)
+    yield "float_arm_result_to_double_case1", prefix + "    case 1: {" + arms[0] + "    default: {" + default
+    yield "float_arm_result_to_double_default", prefix + "    case 1: {" + case1 + "    default: {" + arms[1]
+    shared = replace_once(body, "    f32 speed;", "    f32 speed;\n    f64 normalizedAngle;")
+    shared = shared.replace(block, block.replace("                f64 av;\n", "").replace("av", "normalizedAngle"))
+    yield "shared_function_normalizer", shared
+    if body.count("        f32 cand;\n") != 3:
+        raise ValueError("expected one candidate declaration per case")
+    for all_cases in (False, True):
+        if all_cases:
+            hoisted = body.replace("        f32 cand;\n", "")
+        else:
+            first, tail = body.split("    case 1: {", 1)
+            hoisted = first + "    case 1: {" + tail.replace("        f32 cand;\n", "")
+        label = "all" if all_cases else "last_two"
+        for position in ("before", "after"):
+            decls = "    f32 cand;\n    f32 speed;" if position == "before" else "    f32 speed;\n    f32 cand;"
+            yield "shared_candidate_" + label + "_" + position, replace_once(hoisted, "    f32 speed;", decls)
+
+
+def move_entry_variants(body):
+    if body.count("f64 normalAngle;") != 2:
+        raise ValueError("entry probes require both recovered normalization result webs")
+    entry = "    e = (Enemy*)(e0 + ENEMY_POOL_OFF);\n    e0 += ENEMY_POOL_OFF;"
+    advanced = replace_once(body, entry, "    e0 += ENEMY_POOL_OFF;\n    e = (Enemy*)e0;")
+    for label, source in (("repeated_address", body), ("advance_alias", advanced)):
+        for control in ("opt_lifetimes", "opt_common_subs", "opt_strength_reduction", "scheduling"):
+            yield label + "_" + control + "_off", "#pragma " + control + " off\n" + source + "\n#pragma " + control + " reset\n"
+    # Two copies of the same collision-response gate are evidence for a
+    # genuine inline boundary. Reconstruct that complete operation, rather
+    # than an empty pointer wrapper solely intended to inhibit coalescing.
+    start = body.index("        if (*(s32*)(e0 + offsetof(Enemy, coll_pnum)) >= 0) {")
+    end = body.index("        if (skip != 0)", start)
+    gate = body[start:end]
+    if body.count(gate) != 2:
+        raise ValueError("expected the two identical collision-response gates")
+    for pointer_argument in (False, True):
+        helper = "static inline s32 enemy_respond_to_player(s32 index" + (", u8* e0" if pointer_argument else "") + ")\n{\n"
+        if not pointer_argument:
+            helper += "    u8* e0 = (u8*)&gEnemies[index];\n"
+        helper += gate.replace("skip = -1;", "return -1;").replace("skip = 0;", "return 0;") + "}\n\n"
+        for entry_label, source in (("repeated", body), ("advanced", advanced)):
+            call = "        skip = enemy_respond_to_player(index" + (", (u8*)e" if pointer_argument else "") + ");\n"
+            caller = source.replace(gate, call)
+            yield "collision_gate_" + ("pointer" if pointer_argument else "index") + "_" + entry_label, helper + caller
+            output_helper = helper.replace("static inline s32 enemy_respond_to_player(s32 index", "static inline void enemy_respond_to_player(s32 index, s32* skip")
+            output_helper = output_helper.replace("return -1;", "*skip = -1;").replace("return 0;", "*skip = 0;")
+            output_call = "        enemy_respond_to_player(index, &skip" + (", (u8*)e" if pointer_argument else "") + ");\n"
+            yield "collision_gate_output_" + ("pointer" if pointer_argument else "index") + "_" + entry_label, output_helper + source.replace(gate, output_call)
 
 
 def generate_variants(body):
@@ -224,6 +381,90 @@ def generate_variants(body):
         explicit = replace_once(ranks, table_decl, table_decl + "\n" + pool_decl if where == "after" else pool_decl + "\n" + table_decl)
         explicit = explicit.replace("e = &gEnemies[slot];", "e = (Enemy*)(pool + slot * 916 + ENEMY_POOL_OFF);")
         yield "joint_explicit_pool_" + where, explicit
+
+
+def generate_entry_variants(body):
+    # Restored-count alignment: earlier control probes preceded the signed
+    # animation test and store-order correction, so remeasure their effects.
+    for control in ("opt_propagation", "opt_common_subs", "scheduling"):
+        yield control + "_off", "#pragma " + control + " off\n" + body + "\n#pragma " + control + " reset\n"
+    for symbol in ("lbl_802512B0", "lbl_802511FC", "lbl_80251148"):
+        helper = "static inline s32 enemy_read_" + symbol + "(s32 type)\n{\n    return " + symbol + "[type];\n}\n\n"
+        yield "inline_" + symbol, helper + replace_once(body, symbol + "[type]", "enemy_read_" + symbol + "(type)")
+    # A block-scoped const index has a real use at an already indexed table,
+    # unlike another spelling of the entry's base-pointer initializer.
+    for symbol in ("lbl_802512B0", "lbl_802511FC"):
+        value = "allowed" if symbol.endswith("2B0") else "minimum"
+        guard = "        if (" + symbol + "[type]"
+        scoped = replace_once(body, guard, "        s32 " + value + " = " + symbol + "[type];\n        if (" + value)
+        # MWCC C permits declarations at block heads only; the second load
+        # therefore needs an explicit nested scope covering its real guard.
+        if value == "minimum":
+            scoped = scoped.replace("        s32 minimum", "        {\n        s32 minimum")
+            scoped = replace_once(scoped, "    slot = find_enemy_slot", "        }\n    slot = find_enemy_slot")
+        yield "named_" + value + "_load", scoped
+    helper = "static inline s32 enemy_random_choice(const s32* choices, s32 index)\n{\n    return choices[index & 3];\n}\n\n"
+    random_calls = body
+    for offset in (4284, 4300, 4316, 4332):
+        random_calls = replace_once(random_calls, "*(s32*)(tbl + ((i & 3) << 2) + " + str(offset) + ")", "enemy_random_choice((s32*)(tbl + " + str(offset) + "), i)")
+    yield "inline_random_choices", helper + random_calls
+    local_tables = body
+    for offset in (4284, 4300, 4316, 4332):
+        local_tables = replace_once(local_tables, "*(s32*)(tbl + ((i & 3) << 2) + " + str(offset) + ")", "((s32*)tbl)[(i & 3) + " + str(offset // 4) + "]")
+    yield "typed_random_index", local_tables
+    # Give the only typed enemy pointer the actual array owner, independent
+    # of the table's old byte-pointer cast/rank axis.
+    array = replace_once(body, "    Enemy* e;", "    Enemy* enemies = gEnemies;\n    Enemy* e;")
+    yield "enemy_array_owner", replace_once(array, "e = &gEnemies[slot];", "e = &enemies[slot];")
+    yield "enemy_pointer_first_same_value", replace_once(body, "    Enemy* e;\n", "").replace("    u8* tbl = lbl_8011AF48;", "    Enemy* e;\n    u8* tbl = lbl_8011AF48;")
+
+
+def generate_helper_variants(body):
+    """Meaningful inline boundaries, keeping random calls and stores ordered."""
+    begin = body.index("    if (type == -2) {")
+    end = body.index("    if (type != 30 && type != 31)", begin)
+    resolution = body[begin:end]
+    negative = "    } else if (type < 0) {\n        return -6;\n    }\n"
+    resolution = replace_once(resolution, negative, "    }\n")
+    for passed_table in (False, True):
+        helper = "static inline s32 enemy_resolve_random_type(s32 type, s32* level, s32* spew"
+        helper += ", u8* tbl" if passed_table else ""
+        helper += ")\n{\n    s32 i;\n"
+        if not passed_table:
+            helper += "    u8* tbl = lbl_8011AF48;\n"
+        helper += re.sub(r"\b(level|spew)\b", r"(*\1)", resolution)
+        helper += "    return type;\n}\n\n"
+        call = "    type = enemy_resolve_random_type(type, &level, &spew" + (", tbl" if passed_table else "") + ");\n"
+        call += "    if (type < 0) return -6;\n"
+        caller = body[:begin] + call + body[end:]
+        caller = replace_once(caller, "    s32 i;\n", "")
+        if not passed_table:
+            caller = replace_once(caller, "    u8* tbl = lbl_8011AF48;\n", "")
+        yield "random_type_" + ("table_argument" if passed_table else "table_owner"), helper + caller
+    # The source switch computes a real pair of spawn-direction results;
+    # pointer outputs express those results without an artificial wrapper.
+    begin = body.index("        switch (otype) {")
+    end = body.index("        if (spew == 12)", begin)
+    switch = body[begin:end]
+    helper = "static inline s32 enemy_spawn_directions(s32 otype, s32* mask)\n{\n    s32 ndirs;\n"
+    helper += re.sub(r"\bmask\b", "(*mask)", switch)
+    helper += "    return ndirs;\n}\n\n"
+    yield "direction_switch_return", helper + body[:begin] + "        ndirs = enemy_spawn_directions(otype, &mask);\n" + body[end:]
+
+
+def movement_helper_variants(body):
+    """Give the node/route reaction one cohesive inline scope, not a barrier."""
+    guard = "                if (*(u32*)((u8*)e->coll_ip + 100) != 0) {"
+    begin = body.rindex(guard)
+    fallback = "                } else {\n                    if (e->dead_end <= 0) {\n                        e->dead_end = 20;\n                    }\n                }"
+    end = body.index(fallback, begin) + len(fallback)
+    reaction = body[begin:end]
+    parameters = ("Enemy* e", "s32 index", "s32 alg")
+    arguments = ("e", "index", "alg")
+    for order in itertools.permutations(range(3)):
+        helper = "static inline void enemy_player_collision_reaction(" + ", ".join(parameters[i] for i in order) + ")\n{\n" + reaction + "\n}\n\n"
+        call = "                enemy_player_collision_reaction(" + ", ".join(arguments[i] for i in order) + ");"
+        yield "reaction_args_" + "".join(map(str, order)), helper + body[:begin] + call + body[end:]
 
 
 def movement_variants(body):
@@ -365,6 +606,25 @@ def movement_variants(body):
         separate = replace_once(separate, old, decl)
     stmts = "    e = &gEnemies[index];\n" + "\n".join("    " + x[2] for x in initializers) + "\n\n"
     yield "entry_assigned_direct", replace_once(separate, "    /* stun freeze + knockback integration */", stmts + "    /* stun freeze + knockback integration */")
+    route_guard = "                    if (e->route == 0 || ABS_REVERSED(e->route) > 2) {"
+    for named_sign in (False, True):
+        helper = "static inline s32 enemy_route_magnitude(s32 route)\n{\n"
+        if named_sign:
+            helper += "    s32 sign = route >> 31;\n    return (sign ^ route) - sign;\n"
+        else:
+            helper += "    return ABS_REVERSED(route);\n"
+        helper += "}\n\n"
+        yield "route_abs_inline_" + ("sign" if named_sign else "expression"), helper + replace_once(live, route_guard, route_guard.replace("ABS_REVERSED(e->route)", "enemy_route_magnitude(e->route)"))
+    helper = "static inline s32 enemy_route_needs_refresh(s32 route)\n{\n    return route == 0 || ABS_REVERSED(route) > 2;\n}\n\n"
+    yield "route_condition_helper", helper + replace_once(live, route_guard, "                    if (enemy_route_needs_refresh(e->route)) {")
+    # These values name the actual arithmetic; they are not side-effecting
+    # barriers. Keep the short-circuit decision before computing magnitude.
+    named = replace_once(live, route_guard, "                    s32 route = e->route;\n                    s32 magnitude;\n                    if (route == 0 || (magnitude = ABS_REVERSED(route)) > 2) {")
+    yield "route_magnitude_condition_local", named
+    local_group = "    s32 collide;\n    f32 moveDistance;\n    s32 result;\n    s32 n;\n    Enemy* other;"
+    declarations = local_group.splitlines()
+    for order in ((1, 0, 2, 3, 4), (4, 0, 1, 2, 3), (0, 1, 4, 2, 3), (3, 2, 1, 0, 4), (4, 3, 2, 1, 0)):
+        yield "movement_decl_" + "".join(map(str, order)), replace_once(live, local_group, "\n".join(declarations[i] for i in order))
 
 
 def resource_variants(body):
@@ -961,14 +1221,14 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "generate", "movement", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "move_entry", "generate", "generate_entry", "generate_helpers", "movement", "movement_helpers", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "generate": "generate_enemy", "movement": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "move_entry": "move_logic10", "generate": "generate_enemy", "generate_entry": "generate_enemy", "generate_helpers": "generate_enemy", "movement": "do_enemy_move", "movement_helpers": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -1016,7 +1276,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "generate": generate_variants, "movement": movement_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants, "init_vars": init_vars_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "move_entry": move_entry_variants, "generate": generate_variants, "generate_entry": generate_entry_variants, "generate_helpers": generate_helper_variants, "movement": movement_variants, "movement_helpers": movement_helper_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants, "init_vars": init_vars_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

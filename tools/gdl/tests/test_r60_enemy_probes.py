@@ -26,6 +26,43 @@ class BaselineFidelity(unittest.TestCase):
                     source_probe.compile_baseline({"mw": "test", "cflags": ""}, Path("source.c"), obj, obj, Path(directory))
 
 
+class NormalizationResultWeb(unittest.TestCase):
+    BLOCK = """            {
+                f64 av;
+                if ((av = cand) > 3.141592654) {
+                    av -= 6.283185308;
+                } else if (av <= -3.141592654) {
+                    av = 6.283185308 + av;
+                }
+                cand = av;
+            }"""
+
+    def fixture(self):
+        arms = "                cand = cand + q[1095];\n                cand = cand - q[1095];\n" * 3
+        fallback = "            } else {\n                cand = lbl_80344720;\n            }\n"
+        return "        f32 cand;\n" + arms + fallback + self.BLOCK + "\n        use(cand);\n"
+
+    def test_float_operands_and_single_normalization_narrowing_are_preserved(self):
+        text = source_probe.normalization_arm_result(self.fixture(), self.BLOCK)
+        self.assertIn("f32 cand;", text)
+        self.assertIn("f64 normalAngle;", text)
+        self.assertEqual(text.count("normalAngle = cand + q[1095];"), 3)
+        self.assertEqual(text.count("normalAngle = cand - q[1095];"), 3)
+        self.assertEqual(text.count("cand = normalAngle;"), 1)
+        self.assertIn("normalAngle = lbl_80344720;", text)
+        self.assertIn("normalAngle = 6.283185308 + normalAngle;", text)
+        self.assertNotIn("f64 cand", text)
+        self.assertNotIn("(f32)cand", text)
+        self.assertTrue(text.endswith("\n        use(cand);\n"))
+
+    def test_incomplete_branch_set_and_unknown_join_refuse(self):
+        incomplete = self.fixture().replace("cand = cand + q[1095];", "other();", 1)
+        with self.assertRaisesRegex(ValueError, "three float-result arms"):
+            source_probe.normalization_arm_result(incomplete, self.BLOCK)
+        with self.assertRaises(ValueError):
+            source_probe.normalization_arm_result(self.fixture(), "missing block")
+
+
 class EnemyTypeControls(unittest.TestCase):
     def test_controls_preserve_live_arguments_and_restore_pragmas(self):
         body = "s32 GetEnemyType(s32 w, s32 l) { ErrorPrintf(lbl_801124EC, findWorldName(w), w, l); }\n"
