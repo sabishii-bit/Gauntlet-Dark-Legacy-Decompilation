@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Requires fresh raw-object fidelity. Diagnostic forms are generated in ignored build paths; production source and raw object must stay unchanged.",
+    "PASS completes a bounded experiment; it is not a whole-TU match certificate or evidence that all BSS families use the same ordering."
+  ],
+  "id": "tool.r68-aux-bss-probe.20260905T222423Z.40230831",
+  "kind": "tool",
+  "name": "r68-aux-bss-probe",
+  "purpose": "Reproduce full-TU source-order and foreign-extern coupling for auxscreen small BSS",
+  "recorded_at": "2026-09-05T22:24:23Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r68_aux_bss_probe.py",
+  "status": "active",
+  "tool_key": "tool:r68-aux-bss-probe",
+  "tool_kind": "script",
+  "usage": [
+    "python tools/gdl/composed_census/r68_aux_bss_probe.py --out build/r68_aux_bss_repro.json"
+  ],
+  "valid_from": "2026-09-05T22:24:23+00:00"
+}
