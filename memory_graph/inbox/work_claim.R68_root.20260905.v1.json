@@ -5,10 +5,11 @@
       "src/game/pb/pb_diag.c",
       "src/game/ui/btext.c",
       "configure.py",
+      "config/GUNE5D/splits.txt",
       "config/GUNE5D/config.yml",
       "config/GUNE5D/symbols.txt"
     ],
-    "scope": "Root integrator repairs pb_diag/btext source symbol bindings and observes all-configured-source link after each class. Own these source TUs and central configuration except splits.txt, plus new uniquely named R68 integration tools/tests and own proposals. No modifications to other workers' source files."
+    "scope": "Root integrator repairs pb_diag/btext source symbol bindings and observes all-configured-source link after each class. Own these source TUs and central configuration, plus uniquely named R68 integration tools/tests and own proposals. Aux released splits.txt after its reviewed BSS result was merged; root now owns split edits for the measured btext BSS and sound data runs. No modifications to other workers' source files."
   },
   "claimed_at": "2026-09-05",
   "function": "function:FindStringMessageListSub_8001FC4C",
