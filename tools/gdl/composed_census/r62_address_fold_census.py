@@ -12,7 +12,7 @@ import json
 import struct
 from pathlib import Path
 
-from wf_census import units, our_path, functions, OBJ
+from wf_census import our_path, functions, OBJ
 from cn_analyze import wf
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -115,11 +115,28 @@ def boundary_check(words, start, relocations, jumptables):
         raise ValueError("address-taken window interior")
 
 
+def configured_units(config):
+    """Use the current manifest, never stale split objects left on disk."""
+    prefix = "build/GUNE5D/obj/"
+    result = []
+    for row in config["units"]:
+        target = row["target_path"].replace("\\", "/")
+        if not target.startswith(prefix) or not target.endswith(".o"):
+            raise ValueError("unexpected configured target path: " + target)
+        unit = target[len(prefix):-2]
+        if ".." in unit.split("/") or unit in result:
+            raise ValueError("duplicate or invalid configured unit: " + unit)
+        result.append(unit)
+    return result
+
+
 def scan():
     counts = Counter()
     hits, errors, stream_shapes = [], [], []
     pinned = {(u, p["function"]) for u, ps in json.loads((ROOT / "config/GUNE5D/webfrank.json").read_text())["units"].items() for p in ps}
-    for unit in units():
+    active_units = configured_units(json.loads((ROOT / "objdiff.json").read_text()))
+    counts["configured_units"] = len(active_units)
+    for unit in active_units:
         path, raw = our_path(unit)
         if not path:
             counts["units_without_compiled_object"] += 1

@@ -42,6 +42,16 @@ class AddressFold(unittest.TestCase):
     ours = [0x7c7f0214, 0x3bc30e18, 0x80631024]
     target = [0x7fdf0214, 0x3bde0e18, 0x807e020c]
 
+    def test_manifest_is_authority_not_directory_contents(self):
+        row = {"target_path": "build/GUNE5D/obj/game/enemy/enemy.o"}
+        self.assertEqual(fold.configured_units({"units": [row]}), ["game/enemy/enemy"])
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            fold.configured_units({"units": [row, row]})
+        with self.assertRaisesRegex(ValueError, "unexpected"):
+            fold.configured_units({"units": [{"target_path": "stale/enemy.o"}]})
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            fold.configured_units({"units": [{"target_path": "build/GUNE5D/obj/../enemy.o"}]})
+
     def test_both_directions_and_equal_control(self):
         self.assertEqual(fold.prove_window(self.ours, self.target), "ours_folded")
         self.assertEqual(fold.prove_window(self.target, self.ours), "target_folded")
