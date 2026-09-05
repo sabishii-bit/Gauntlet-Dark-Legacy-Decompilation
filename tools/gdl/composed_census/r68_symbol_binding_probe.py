@@ -22,6 +22,12 @@ from tools.gdl.composed_census.r67_runtime_visibility_probe import inventory
 from tools.gdl.atree_exports import read_symbols
 
 CASES = {
+    "player-message": {
+        "unit": "game/game/player",
+        "names": {"FindStringMessageListSub": "FindStringMessageListSub_8001FC4C"},
+        "occurrences": 5,
+        "provider": "build/GUNE5D/src/game/ui/btext.o",
+    },
     "pb-diag": {
         "unit": "game/pb/pb_diag",
         "names": {"lbl_8023D000": "atree_scroll", "lbl_8023D180": "whichatree"},

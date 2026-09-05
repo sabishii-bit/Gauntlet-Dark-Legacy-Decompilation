@@ -474,7 +474,7 @@ extern void TowerCheckMessages(s32 a);
 extern s32 sumnerSpeechActive(void);
 extern f32 msgUpdate(void);
 extern s32 msgPost(s32 code, s32 player, u32 arg);
-extern s32 FindStringMessageListSub(s32 list, char* name);
+extern s32 FindStringMessageListSub_8001FC4C(s32 list, char* name);
 extern void ControllerMessageBox(s32 a, s32 msg, s32 b, s32 c);
 extern void CrystalCamActivate(void);
 extern void fn_8009D610(s32 mode, f32* pos);
@@ -1695,24 +1695,24 @@ s32 do_players(void) {
                 if (gDemoMode != 0) {
                     if (sMusicTrackHi == 0xD) {
                         if (lbl_80344C4C == 1 && !(opt_force_player & 1)) {
-                            ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoWelcome"), 0, -1);
+                            ControllerMessageBox(-1, FindStringMessageListSub_8001FC4C(0, "DemoWelcome"), 0, -1);
                             opt_force_player |= 1;
                         }
                     } else if (sMusicTrackHi != 0xC && (opt_force_player & 2)) {
-                        ControllerMessageBox(-1, FindStringMessageListSub(0, "DemoLevel"), 0, -1);
+                        ControllerMessageBox(-1, FindStringMessageListSub_8001FC4C(0, "DemoLevel"), 0, -1);
                         opt_force_player &= ~2;
                     }
                 } else {
                     if (sMusicTrackHi == 0xD) {
                         if (gSumnerReady != 0) {
-                            ControllerMessageBox(-1, FindStringMessageListSub(0, "WelcomeMessage"), -1, -1);
+                            ControllerMessageBox(-1, FindStringMessageListSub_8001FC4C(0, "WelcomeMessage"), -1, -1);
                             lbl_80344C90 = 6;
                             lbl_80344C54 = 1;
                             lbl_80344C5C = sMusicFadeBase;
                             CrystalCamActivate();
                         }
                         if (lbl_803448AC == 6 && lbl_803448A8 == 1) {
-                            ControllerMessageBox(-1, FindStringMessageListSub(0, "GarmMessage"), -1, -1);
+                            ControllerMessageBox(-1, FindStringMessageListSub_8001FC4C(0, "GarmMessage"), -1, -1);
                         }
                     }
                     opt_force_player = 0xFFFFFFFF;
