@@ -228,6 +228,7 @@ game/sound/sounds_evt.c:
 	extab       start:0x80006F18 end:0x800072B0
 	extabindex  start:0x8000AEF4 end:0x8000B458
 	.text       start:0x8009C2CC end:0x800A00A0
+	.data       start:0x801232C8 end:0x80124454
 
 game/sound/sounds.c:
 	extab       start:0x800072B0 end:0x800073A0

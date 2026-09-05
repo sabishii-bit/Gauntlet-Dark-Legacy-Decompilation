@@ -1,0 +1,35 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r68_sound_data_audit.py",
+    "tools/gdl/tests/test_r68_sound_data.py",
+    "tools/gdl/composed_census/r67_runtime_allsource_probe.py"
+  ],
+  "attributes": {
+    "held_fixed": "All source code after worker merge, compiler flags, WebFrank/P6 rules, other split ranges and real linker input order. Selected-source trial changes only sounds_evt's extracted-to-source input.",
+    "law_screen": "Worker's current whole-corpus and core-screen law screen rechecked at integration; target relocation/datum content, fresh raw compiler fidelity, section ownership and source-link reachability remain separate evidence. Existing EatSFX pin replays without modification.",
+    "link_control_sha256": "92212445863d07472bd60319412d0641f234db9e605e437b5b177c1d35001a9f",
+    "measured_base": "e873070c2 merged into reconstruction-foundation after594db64d4, plus one sound .data split line",
+    "remaining": "Do not infer .rodata/.sdata2 ownership from successful source linkage. sounds.c still references the retained shared literal pool. datadiff --sections reports unclaimed .rodata and .sdata2 and one changed BossStreams EH record; its .data 100.0% raw-byte line is not relocation-resolved equality. The explicit relocation audit, which still reports30 jump-pointer differences, is authoritative for that question.",
+    "reproduce": [
+      "python configure.py",
+      "ninja -j2",
+      "python tools/gdl/composed_census/r68_sound_data_audit.py --reference build/r68_sound_before.o --out build/r68_sound_root_claimed.json",
+      "python configure.py --non-matching",
+      "ninja -j2",
+      "ninja -j2 all_source",
+      "python tools/gdl/composed_census/r67_runtime_allsource_probe.py --unit game/sound/sounds_evt --out build/r67_runtime_r68_sound_final.json",
+      "python configure.py",
+      "ninja -j2"
+    ],
+    "source_link_sha256": "a66ca10287b8554f86e967547f833583a479af9164817e1d78aa421f610fe7c8"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R68_sound-data-ownership-and-full-image-source-link.20260905.v1",
+  "kind": "claim",
+  "predicate": "verified_data_ownership_and_source_link",
+  "recorded_at": "2026-09-05T22:52:47Z",
+  "schema_version": 1,
+  "subject": "tu:game/sound/sounds_evt.c",
+  "valid_from": "2026-09-05",
+  "value": "Integrated e873070c2's independent typed tables and assigned the complete .data run [0x801232C8,0x80124454) to sounds_evt, with no compiler/source-body/postprocessor changes by the integrator. Root rederivation verifies all118 pre-recovery raw bodies and all717 positional text relocation bindings unchanged, with133 symbol spellings changed by natural pooling. The first4232 initialized bytes and all32 pointed-to bank string contents are exact against retail. The remaining260 bytes are compiler-generated jump tables:35 pointers match target and30 standing AudioSetupBossStreams destinations are +4 because that source function still has one extra instruction. The normal mixed matching link prints main.dol: OK. Independently substituting sounds_evt's raw compiled source into the real full editable image succeeds, exit0 and no duplicate/undefined diagnostics. Its unchanged scratch control first reproduces the production ELF exactly. This is a production-derived source-link result, stronger than the worker's qualified retention fixture, but not a TU flip, all-source build, boot test or equivalence proof."
+}
