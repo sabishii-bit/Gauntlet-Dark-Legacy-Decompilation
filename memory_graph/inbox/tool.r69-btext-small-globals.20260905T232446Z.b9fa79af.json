@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "MEASURED means the audit ran; read each obligation status. --require-exact rejects layout mismatches. No whole-TU equivalence or executed source-link claim.",
+    "Before/after permits only shadow_color and gLineSpacing endpoint offsets to exchange; full raw/postprocessed bodies, sections, relocations, symbols and EH are retained. Fresh compilation must equal the active raw Ninja object."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r69_btext_small_globals.py",
+  "id": "tool.r69-btext-small-globals.20260905T232446Z.b9fa79af",
+  "kind": "tool",
+  "name": "r69-btext-small-globals",
+  "purpose": "Fresh raw compiler fidelity, complete six-global allocation/data checks, and current ordered-link ownership inventory for btext",
+  "recorded_at": "2026-09-05T23:24:46Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r69_btext_small_globals.py",
+  "status": "active",
+  "tool_key": "tool:r69-btext-small-globals",
+  "tool_kind": "analysis",
+  "usage": [
+    "Capture --out build/r69_btext_before.json before source changes; after rebuilding use --before with --require-exact and a new r69_btext output."
+  ],
+  "valid_from": "2026-09-05T23:24:46+00:00"
+}

@@ -105,10 +105,10 @@ s32 scroll_level_msg = -1;      /* 0x80343BB8 */
 f32 DrawStringScale = 1.0f;     /* 0x80343BBC */
 f32 OldStringScale = 1.0f;      /* 0x80343BC0 */
 
-/* .sbss */
-s32 shadow_color;               /* 0x803443D8 */
-s32 gDrawTextY;                 /* 0x803443DC */
+/* MWCC emits these small-BSS globals in reverse declaration order. */
 s32 gLineSpacing;               /* 0x803443E0 */
+s32 gDrawTextY;                 /* 0x803443DC */
+s32 shadow_color;               /* 0x803443D8 */
 
 /* Glow/font config + embedded font tables live in other pools; extern here. */
 extern s32 lbl_803443E4;        /* 0x803443E4 - shared: also written as a
