@@ -69,6 +69,7 @@ game/ui/auxscreen.c:
 	extabindex  start:0x80008D04 end:0x80008D70
 	.text       start:0x80019090 end:0x8001A960
 	.sdata      start:0x80343B50 end:0x80343B70
+	.sbss       start:0x80344318 end:0x80344378
 
 game/boss/boss.c:
 	extab       start:0x800058C0 end:0x80005908

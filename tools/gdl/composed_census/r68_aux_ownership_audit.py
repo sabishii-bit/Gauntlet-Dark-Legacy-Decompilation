@@ -25,6 +25,12 @@ from tools.gdl.exception_metadata import exception_records, compare_exception_re
 UNIT = "game/ui/auxscreen"
 INITIALIZED = ("map_fade_a", "map_fade_b", "map_load_len", "map_load_step",
                "wiz_exit_min", "WizDelayGoldLeft", "WizDelayNoGold")
+BSS_ORDER = ("map_route_blit", "map_bg_blit", "map_load_timer", "map_load_progress",
+             "map_load_delay", "map_load_state", "map_fade_frame", "map_fade_alpha",
+             "caption_line", "caption_page", "caption_timer", "movieactive", "movie_state",
+             "kill_gamemovie", "all_rune_stones", "good_wiz_timer", "good_wiz_alpha",
+             "good_wiz_speech_idx", "good_wiz_speech_frame", "good_wiz_speech_pause",
+             "good_wiz_yaw", "good_wiz_plyr_attn", "good_wiz_state")
 
 
 def digest(data):
@@ -103,6 +109,28 @@ def changed_functions(before, after):
             for key in ("offset", "size", "body", "relocations", "binding")}
 
 
+def bss_obligation(source, target, target_symbols):
+    """BSS has allocation extents, not initialized bytes or a datum hash."""
+    for obj, size in ((source, 92), (target, 96)):
+        section = obj["sections"].get(".sbss")
+        if not section or (section["type"], section["size"], section["alignment"],
+                           section["bytes"], section["relocations"]) != (8, size, 8, None, []):
+            raise ValueError("unexpected small-BSS allocation/relocations/alignment")
+        names = {n for n, s in obj["symbols"].items() if s["section"] == ".sbss"}
+        if names != set(BSS_ORDER):
+            raise ValueError("local BSS definition coverage differs")
+    for i, name in enumerate(BSS_ORDER):
+        s, t = source["symbols"][name], target["symbols"][name]
+        expected_target_size = 8 if name == "good_wiz_state" else 4
+        if ((s["offset"], s["size"], s["binding"]) != (4*i, 4, 1)
+                or (t["offset"], t["size"], t["binding"]) != (4*i, expected_target_size, 1)
+                or target_symbols[name][:3] != (".sbss", 0x80344318+4*i, expected_target_size)):
+            raise ValueError("BSS named allocation extent differs: " + name)
+    return dict(status="PASS", source_extent=92, target_claim_extent=96,
+                alignment=8, terminal_alignment_extent=4, relocations=0,
+                defined_names=len(BSS_ORDER), no_initialized_bytes=True)
+
+
 def current_owners(inputs, names):
     owners = {name: [] for name in names}
     for path in inputs:
@@ -150,7 +178,7 @@ def main(argv=None):
         expected = {}
         for name in INITIALIZED:
             section, address, size = table[name][:3]
-            if section != ".sdata" or size not in (4, 8):
+            if section != ".sdata" or size != (8 if name == "WizDelayNoGold" else 4):
                 raise ValueError("unexpected target symbol metadata")
             expected[name] = address - base
         target_bytes = datadiff.dol_read(base, end - base)
@@ -158,6 +186,17 @@ def main(argv=None):
             raise ValueError("retail initialized-state range unavailable")
         result["initialized_obligation"] = initialized_obligation(result["raw"], target_bytes, expected)
         result["claimed_sections"] = datadiff.parse_splits()[UNIT + ".c"]
+        if ".sdata" in result["claimed_sections"]:
+            target_section = result["target"]["sections"].get(".sdata")
+            if (result["claimed_sections"][".sdata"] != (base, end) or not target_section
+                    or (target_section["type"], target_section["size"], target_section["alignment"],
+                        target_section["bytes"], target_section["relocations"])
+                    != (1, 32, 8, target_bytes.hex(), [])):
+                raise ValueError("claimed initialized target section differs from verified retail run")
+        if ".sbss" in result["claimed_sections"]:
+            if result["claimed_sections"][".sbss"] != (0x80344318, 0x80344378):
+                raise ValueError("unexpected BSS claim extent")
+            result["bss_obligation"] = bss_obligation(result["raw"], result["target"], table)
         snapshot = json.loads((ROOT / "build/GUNE5D/build_edges.json").read_text())
         if snapshot.get("schema_version") != 1 or snapshot.get("ninja_sha256") != digest((ROOT / "build.ninja").read_bytes()):
             raise ValueError("active build snapshot is stale or unsupported")
@@ -177,6 +216,11 @@ def main(argv=None):
             n for n, owners in result["aux_source_substituted_owners"].items() if len(owners) > 1)
         if any(len(result["current_link_owners"][n]) != 1 for n in INITIALIZED):
             raise ValueError("initialized state lacks exactly one current link owner")
+        if "bss_obligation" in result:
+            for name in INITIALIZED + BSS_ORDER + ("good_wiz_enabled", "good_wiz_exit_timer"):
+                if (len(result["current_link_owners"][name]) != 1
+                        or len(result["aux_source_substituted_owners"][name]) != 1):
+                    raise ValueError("claimed/foreign state has missing or duplicate ownership: " + name)
         if args.before:
             before = json.loads(args.before.read_text())
             result["raw_function_changes"] = changed_functions(before["raw"]["functions"], result["raw"]["functions"])
