@@ -1,0 +1,29 @@
+{
+  "attributes": {
+    "anchors": [
+      "src/game/enemy/enemy.c",
+      "tools/gdl/composed_census/cv_probe.py",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "tools/gdl/composed_census/pj_pool_literalize.py",
+      "tools/gdl/composed_census/pj_body_ab.py",
+      "orig/GUNE5D/sys/main.dol"
+    ],
+    "batch_reproduction": "Against de5d657d1, use pj_pool_literalize.DECL to collect declared f32/f64 symbols in[0x80346810,0x80346A90). Obtain source spans for the real-edge disassembly's function names via probe.function_span. Remove block comments only when detecting consumers. For each symbol, locate the earliest function span referencing it, change all its forward declarations to extern const, then insert its const definition immediately after that function. When several share a boundary, sort by address. Decode literal_for from the retail DOL. In all candidates apply the same helper-RHS control above. Compile with cv_probe.read_edges/compile_with, gated by r60_enemy_source_probe.compile_baseline; compare disassemble_words/compare_words across the whole common-function set and report removed names separately. This specifies the generator independently of the disposable build/r60_pool_sequence.py scratch path.",
+    "batch_results": "75 scalar symbols had source consumers in this bounded range. Individually:60 preserve all compared function words;15 change at least one body. The all75 joint variant removes no functions, changes13 bodies, emits920bytes versus current296, and agrees with retail only through byte47. Changed raw words per function: damage_enemy35;do_enemy_collide34;find_enemy_slot5;fn_8004646C7;fn_8004DF58 2;fn_800510A4 5;fn_80051568 19;fn_800516F8 59;init_enemy_vars6;move_logic06 6;move_logic14 2;move_logic15 10;move_logic22 23. These are baseline-vs-candidate instruction words, NOT fuzzy gains or target match claims. All candidates remain scratch-only.",
+    "held_fixed": "Actual Ninja GC/1.2.5 edge and flags, all target-function source bodies, existing pins, declarations/BSS first-use sequence except that helper's RHS, all nonselected constants. No configure/splits/rule edits. Whole raw baseline object was recompiled and byte-identical before testing.",
+    "law_screen": "Screened attempt.PJ_enemy-sdata2-pool-conversion-is-not-codegen-neutral-twelve-functions-move-and-six-leave-the-exact-set.20260904.v1 and the before/after controls in r60_enemy_pool_probe.py. claim.law.inline-and-deadstrip-rules.20260829.v1 motivates inspecting unreferenced helper literal emission; no link-reachability conclusion is made from body intersection. This experiment varies definition visibility/order, not value bits or a forced section pad. Claimed data equality still requires section, relocation and link gates.",
+    "prefix_result": "Both definitions without the helper change emit312bytes, prefix00000000000000003ff000000000000040240000000000003f50624dd2f1a9fc. With the helper change,312bytes, prefix3ff0000000000000402400000000000000000000000000003f50624dd2f1a9fc; that32byte prefix matches retail. Either single definition emits304bytes and preserves raw function bodies. Prefix equality is not full-section equality, and raw body equality is not relocation/datum equality.",
+    "probed_form": "Replace every selected extern f64 lbl_ADDR declaration with extern const f64 lbl_ADDR; retain all consumers. Immediately after closest_enemy's closing brace insert const f64 lbl_80346810=1.0; const f64 lbl_80346818=10.0;. Values are decoded from retail, not comments. Joint control changes only enemy_bss_order's lbl_802510F4[0]=0.0f; to lbl_802510F4[0]=lbl_80346820;. The existing helper is compatibility debt; this change is experimental and has not been adopted as an original-source reconstruction.",
+    "remaining": "There is still no demonstrated complete enemy pool ownership solution preserving all exact code. First-use insertion can preserve early consumers but exposes constant values to later consumers and does not coalesce every explicit object with anonymous literals. Broader WebFrank necessity audit has not begun; these are local TU closure diagnostics, not evidence that arbitrary output patching is necessary. Current production source remains the verified, three-word do_enemy_move state introduced by8745817ad.",
+    "source_commit": "de5d657d1"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R60_enemy-pool-after-consumer-definitions-preserve-a-prefix-but-not-the-whole-pool.20260905.v1",
+  "kind": "claim",
+  "predicate": "pool_ownership_experiment",
+  "recorded_at": "2026-09-05T03:58:37Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-09-05",
+  "value": "On de5d657d1 enemy.c, placing named const scalar definitions immediately after their first source consumer is distinct from the already-tested all-before/all-after-TU axes. For lbl_80346810 and lbl_80346818, extern const declarations followed by definitions1.0 and10.0 immediately after closest_enemy preserve every raw target-function body. Changing the legacy enemy_bss_order helper's float-zero assignment from0.0f to the already-declared lbl_80346820 moves its anonymous zero emission out of the pool prefix; with both definitions, the first32 bytes exactly equal retail80346810..80346830. This is a diagnostic positive, not a retained source solution or whole-pool proof. The all-scalar extension changes13 function bodies and emits920 bytes; its first mismatch is at offset48. No production source, claims, or rules were changed by these pool experiments."
+}
