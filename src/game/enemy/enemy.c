@@ -777,7 +777,7 @@ void move_logic24(s32 index);
 void move_logic28(s32 index);
 void move_logic29(s32 index);
 void move_logic30(s32 index);
-static void update_vel(Enemy* e, f32 k);
+static inline void update_vel(Enemy* e, f32 k);
 void move_logic31(s32 index);
 s32 fn_8004C8CC(f32* pos, s32 index);
 s32 find_neighbor_milestone(s32 ms, s32 nth);
@@ -5382,7 +5382,7 @@ void move_logic30(s32 index)
 /* Integrate the heading into a horizontal velocity, refreshing the cached
  * sin/cos when the heading changed; scaled by k and the per-type speed table
  * at lbl_80250E40 (= lbl_80250E00 + 64).  Inlined into move_logic31. */
-static void update_vel(Enemy* e, f32 k)
+static inline void update_vel(Enemy* e, f32 k)
 {
     f32 ang = e->ang;
     f32 spd;

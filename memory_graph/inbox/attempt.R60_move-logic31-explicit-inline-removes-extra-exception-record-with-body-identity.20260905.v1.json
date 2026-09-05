@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Make the already-inlined local velocity helper explicitly inline to suppress its unreferenced out-of-line copy and extra exception record.",
+  "attributes": {
+    "anchors": [
+      "eaf2cbebb",
+      "src/game/enemy/enemy.c",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "tools/gdl/tests/test_r60_enemy_probes.py"
+    ],
+    "law_screen": "Current move_logic31 and update_vel contexts have no prior attempts. Read attempt.EO_enemy-c-textorder-rewrite-lands-and-both-its-regressions-were-one-cause-a-relocated-pragma-region.20260904.v1: preserve helper-before-consumer order and pragma boundaries. The pin list has no move_logic31/update_vel rule. claim.law.T20_exception-tables-live-only-in-the-link-so-no-object-carries-them.20260903.v1 is directly refuted by actual object dumps, superseded by the accompanying R60 law. Source-only surplus and target metadata are assessed separately, not by raw section-size equality alone.",
+    "next_step": "Use metadata mode and datadiff together; do not rework the now-identical72 exception records based on the older positional percentage. The remaining pool is source/data ownership work, not an exception-frame repair.",
+    "probed_form": "Change both occurrences of static void update_vel(Enemy* e, f32 k) to static inline void update_vel(Enemy* e, f32 k). No function body is edited. Whole-real-edge scratch baseline fidelity passed; raw comparison removed=[update_vel],extra=[],changed=[] across all surviving emitted functions. The helper was already inlined into its two move_logic31 consumers; explicit inline suppresses only the unused out-of-line emission.",
+    "semantic_evidence": "At eaf2cbebb objdump -t labels update_vel local .text size0xb4. The complete objdump -r output names it ONLY in its own extabindex entry at0x198; objdump -r -j .text has no update_vel reference. The84 retail target-function roster contains no update_vel. Source helper still exists, with the same body and both callers; no game behavior is removed. All surviving raw instruction words are identical and all shipped WebFrank rules replay unchanged.",
+    "verification": "Fresh move_logic31 real0,100.0000%,159/159 unchanged. Promoted r60_enemy_source_probe.py metadata executed on actual objects before and after: target72/ours73 with only extra update_vel length180,metadata0888000000000000 -> target72/ours72,missing=[],extra={},changed={}. Fresh report extab576 and extabindex864 both100.0000%. defake_gate reports NET+1440 matched Data, no target-function regression, but exits1 solely with REGRESSION update_vel function vanished from object. Integrator adjudication: this row concerns the non-target, unreferenced local out-of-line copy proven above, not removal of a recovered target function; do NOT describe this command as GATE OK. No generic gate or verifier is weakened. Full ninja prints main.dol: OK and both full unittest commands all green. Enemy remains83/84 exact after postprocessing; do_enemy_move five entry words, the incomplete float pool and BSS claim slack remain. STRICT57.28% and EQUIVALENT14.31% unchanged; matched Data183204->184644 bytes."
+  },
+  "function": "function:move_logic31",
+  "held_fixed": "All function bodies, data declarations, compiler flags, WebFrank pins and split claims. Both prototype and definition receive inline; the helper's placement before its callers is fixed.",
+  "id": "attempt.R60_move-logic31-explicit-inline-removes-extra-exception-record-with-body-identity.20260905.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T03:29:12Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-05",
+    "signature": "opcode streams identical (159/159)"
+  },
+  "residual_class": "NON_TEXT",
+  "schema_version": 1,
+  "valid_from": "2026-09-05"
+}

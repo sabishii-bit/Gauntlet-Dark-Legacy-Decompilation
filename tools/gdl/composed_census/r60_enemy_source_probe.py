@@ -10,9 +10,10 @@ import difflib
 import json
 import itertools
 import re
+import struct
 from pathlib import Path
 
-from cn_analyze import load, target_object
+from cn_analyze import load, target_object, wf
 from cv_probe import REPO, compile_with, read_edges
 from probe import function_span
 from fndiff import parse
@@ -1327,15 +1328,87 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
     return baseline
 
 
+def exception_records(data):
+    """Resolve extabindex entries to function names and actual extab bytes.
+
+    These sections have NO leading dot. A dot-only section-name regex is
+    not evidence that objects lack exception metadata. Extra emitted helper
+    records remain visible; this function makes no dead-strip/link claim.
+    """
+    if data[:6] != b"\x7fELF\x01\x02":
+        raise ValueError("expected big-endian ELF32")
+    sections = wf._sections(data)
+    index = next(s for s in sections if s.name == "extabindex")
+    extab = next(s for s in sections if s.name == "extab")
+    if index.size % 12:
+        raise ValueError("partial extabindex record")
+    reloc = {}
+    for rs in sections:
+        if rs.section_type != wf.SHT_RELA or rs.info != index.index:
+            continue
+        table = sections[rs.link]
+        strings = sections[table.link]
+        for at in range(rs.offset, rs.offset + rs.size, rs.entry_size or 12):
+            offset, info, addend = struct.unpack_from(">IIi", data, at)
+            if info & 255 != 1 or offset in reloc:
+                raise ValueError("expected unique ADDR32 index relocation")
+            sp = table.offset + (info >> 8) * (table.entry_size or 16)
+            if not table.offset <= sp < table.offset + table.size:
+                raise ValueError("index relocation symbol out of range")
+            name_at, value = struct.unpack_from(">II", data, sp)
+            section = wf._u16(data, sp + 14)
+            name = wf._cstring(data, strings.offset + name_at) if name_at else ""
+            reloc[offset] = (name, value + addend, section, addend)
+    expected_offsets = {o + k for o in range(0, index.size, 12) for k in (0, 8)}
+    if set(reloc) != expected_offsets:
+        raise ValueError("incomplete or unexpected index relocations")
+    starts = sorted({reloc[o + 8][1] for o in range(0, index.size, 12)})
+    ends = dict(zip(starts, starts[1:] + [extab.size]))
+    result = {}
+    for offset in range(0, index.size, 12):
+        name, _, fn_section, addend = reloc[offset]
+        _, start, section, _ = reloc[offset + 8]
+        if not name or name in result or addend or sections[fn_section].name != ".text":
+            raise ValueError("expected unique named function entry")
+        if section != extab.index or not 0 <= start < ends[start] <= extab.size:
+            raise ValueError("exception metadata outside extab")
+        result[name] = {
+            "length": wf._u32(data, index.offset + offset + 4),
+            "metadata": data[extab.offset + start:extab.offset + ends[start]].hex(),
+        }
+    return result
+
+
+def compare_exception_records(target, ours):
+    return {
+        "target_records": len(target), "ours_records": len(ours),
+        "missing": sorted(set(target) - set(ours)),
+        "extra": {k: ours[k] for k in sorted(set(ours) - set(target))},
+        "changed": {k: {"target": target[k], "ours": ours[k]}
+                    for k in target if k in ours and target[k] != ours[k]},
+        "scope": "Function-indexed metadata only. Extra records require a separate link-reachability check; not a whole-TU flip verdict.",
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "move_entry", "move_page", "generate", "generate_entry", "generate_helpers", "generate_pool", "movement", "movement_helpers", "movement_reload", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
+    ap.add_argument("axis", choices=["metadata", "pointer", "normalization", "move_entry", "move_page", "generate", "generate_entry", "generate_helpers", "generate_pool", "movement", "movement_helpers", "movement_reload", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; preserve the original basename (enemy.c) for whole-object filename metadata fidelity")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
+    if args.axis == "metadata":
+        if any((args.show, args.compare_baseline, args.source_patch, args.source, args.baseline_object)):
+            ap.error("metadata reads the current objects and takes no variant options")
+        target = exception_records(Path(target_object(UNIT)).read_bytes())
+        ours = exception_records((REPO / "build/GUNE5D/src/game/enemy/enemy.o").read_bytes())
+        result = compare_exception_records(target, ours)
+        print(json.dumps(result, indent=2))
+        if result["missing"] or result["changed"]:
+            raise SystemExit(1)
+        return
     function = {"pointer": "fn_80046680", "normalization": "move_logic10", "move_entry": "move_logic10", "move_page": "move_logic10", "generate": "generate_enemy", "generate_entry": "generate_enemy", "generate_helpers": "generate_enemy", "generate_pool": "generate_enemy", "movement": "do_enemy_move", "movement_helpers": "do_enemy_move", "movement_reload": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):

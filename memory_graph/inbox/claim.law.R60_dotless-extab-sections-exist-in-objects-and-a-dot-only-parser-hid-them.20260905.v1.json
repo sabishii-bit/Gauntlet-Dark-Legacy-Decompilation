@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r60_enemy_source_probe.py",
+    "tools/gdl/tests/test_r60_enemy_probes.py",
+    "tools/gdl/datadiff.py:479",
+    "eaf2cbebb"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "build-hygiene",
+      "workflow",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run build/binutils/powerpc-eabi-objdump.exe -h and -s -j extab on the enemy compiled and split objects. Absence from those actual dumps would refute current presence; disagreement between their index/metadata relocations and tools/gdl/composed_census/r60_enemy_source_probe.py metadata would refute the new decoder. A correctly named helper excluded from the dot-only parser is not a negative observation.",
+  "id": "claim.law.R60_dotless-extab-sections-exist-in-objects-and-a-dot-only-parser-hid-them.20260905.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-05T03:29:11Z",
+  "refutes": "claim.law.T20_exception-tables-live-only-in-the-link-so-no-object-carries-them.20260903.v1",
+  "schema_version": 1,
+  "subject": "tool:datadiff",
+  "supersedes": "claim.law.T20_exception-tables-live-only-in-the-link-so-no-object-carries-them.20260903.v1",
+  "valid_from": "2026-09-05",
+  "value": "The prior law's explicit objdump falsifier fires on enemy.c: at eaf2cbebb, build/binutils/powerpc-eabi-objdump.exe -h build/GUNE5D/obj/game/enemy/enemy.o prints extab0x240 and extabindex0x360; the same command on build/GUNE5D/src/game/enemy/enemy.o prints extab0x248 and extabindex0x36c. These are actual ELF object sections WITHOUT a leading dot, not link-only artifacts. The old census called datadiff.section_sizes; its regex requires the section name to begin with a dot, so its empty result excluded the evidence before counting it. No conclusion about historical binary absence follows from that filtered census. Direct ELF decoding and the section dumps independently expose the bytes and index relocations. The new r60_enemy_source_probe.py metadata mode resolves each index entry's function relocation, covered length and extab datum; its pure tests include dotless section names, missing/changed/extra distinctions, wrong relocations and partial records. On this measured enemy alignment all72 target entries already had identical length/metadata, while our73rd belonged to local update_vel. Positional report mismatches therefore did not identify an incorrect target-function exception record. Explicit inline removes that unused out-of-line emission and both sections become100%. This does not make object metadata sufficient to prove a whole-TU link: relocation placement and extra-symbol reachability remain distinct obligations. datadiff's old explanatory wording and dot-only section parser are NOT changed by this record; use the direct reader for this lane and treat the old link-only claim as superseded."
+}

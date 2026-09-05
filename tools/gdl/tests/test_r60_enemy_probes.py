@@ -1,5 +1,6 @@
 """Pure-core regressions for the scratch-only enemy experiments."""
 import sys
+import struct
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,6 +25,54 @@ class BaselineFidelity(unittest.TestCase):
             with patch.object(source_probe, "compile_with", side_effect=overwritten):
                 with self.assertRaisesRegex(ValueError, "fidelity failed"):
                     source_probe.compile_baseline({"mw": "test", "cflags": ""}, Path("source.c"), obj, obj, Path(directory))
+
+
+class ExceptionMetadata(unittest.TestCase):
+    def fixture(self, relocation_type=1, partial=False):
+        # Mock section discovery only; actual symbol and relocation decoding
+        # uses a binary fixture with dotless extab/extabindex names.
+        section = source_probe.wf.Section
+        sections = [
+            section(0, "", 0, 0, 0, 0, 0, 0),
+            section(1, ".text", 1, 16, 8, 0, 0, 0),
+            section(2, "extab", 1, 32, 8, 0, 0, 0),
+            section(3, "extabindex", 1, 48, 11 if partial else 12, 0, 0, 0),
+            section(4, ".strtab", 3, 64, 9, 0, 0, 0),
+            section(5, ".symtab", 2, 80, 48, 4, 0, 16),
+            section(6, ".relaextabindex", 4, 128, 24, 5, 3, 12),
+        ]
+        data = bytearray(160)
+        data[:6] = b"\x7fELF\x01\x02"
+        data[32:40] = bytes.fromhex("3088000000000000")
+        struct.pack_into(">I", data, 52, 8)
+        data[64:73] = b"\0fn\0meta\0"
+        struct.pack_into(">IIIBBH", data, 96, 1, 0, 8, 2, 0, 1)
+        struct.pack_into(">IIIBBH", data, 112, 4, 0, 8, 1, 0, 2)
+        struct.pack_into(">IIi", data, 128, 0, 256 | relocation_type, 0)
+        struct.pack_into(">IIi", data, 140, 8, 512 | 1, 0)
+        return bytes(data), sections
+
+    def test_dotless_metadata_is_read_from_object_bytes(self):
+        data, sections = self.fixture()
+        with patch.object(source_probe.wf, "_sections", return_value=sections):
+            self.assertEqual(source_probe.exception_records(data), {"fn": {"length": 8, "metadata": "3088000000000000"}})
+
+    def test_wrong_relocation_and_partial_record_refuse(self):
+        for kwargs in ({"relocation_type": 10}, {"partial": True}):
+            data, sections = self.fixture(**kwargs)
+            with patch.object(source_probe.wf, "_sections", return_value=sections):
+                with self.assertRaises(ValueError):
+                    source_probe.exception_records(data)
+
+    def test_comparison_separates_extra_from_changed_and_missing(self):
+        record = {"length": 8, "metadata": "00"}
+        result = source_probe.compare_exception_records({"fn": record}, {"helper": record, "fn": record})
+        self.assertEqual(result["changed"], {})
+        self.assertEqual(result["missing"], [])
+        self.assertEqual(set(result["extra"]), {"helper"})
+        result = source_probe.compare_exception_records({"fn": record, "lost": record}, {"fn": dict(record, length=12)})
+        self.assertEqual(result["missing"], ["lost"])
+        self.assertEqual(set(result["changed"]), {"fn"})
 
 
 class NormalizationResultWeb(unittest.TestCase):
