@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Writes only build/r68_sound*.json and lane-prefixed companion files; never edits production sources, objects, config, or pins. Requires completed ninja and byte-identical reproduction of actual raw Ninja edge before auditing.",
+    "PASS certifies the 4232-byte typed-data prefix at measured retail bases plus all 32 pointed-to literal contents, bounded and NUL-terminated, against the DOL at each actual target pointer. Full 4492-byte data equality is separate; existing BossStreams jump-pointer offsets remain different while its body has an extra instruction.",
+    "Optional reference must be the pre-recovery raw object with 260-byte data; all 118 raw bodies and every positional text relocation are checked, constants by prefix bytes and data bases explicitly modeled. Not semantic proof for arbitrary objects.",
+    "Optional retention is a non-executable fixture: full actual source, Turbo real entry, unrelated external C stubs, C++ exceptions disabled only after confirming all raw bodies unchanged, production section layout without FORCEACTIVE. It tests table/string retention, not full game linkage."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r68_sound_data_audit.py [--retention] [--reference PRE_RECOVERY_RAW_OBJECT]",
+  "id": "tool.r68-sound-data-audit.20260905T223852Z.247619bd",
+  "kind": "tool",
+  "name": "r68-sound-data-audit",
+  "purpose": "Certify all 4232 initialized sound-table bytes, 32 pointed-to literal contents, and 97 data relocation sites separately from raw function scores; optional actual-Turbo-entry retention control.",
+  "recorded_at": "2026-09-05T22:38:52Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r68_sound_data_audit.py",
+  "status": "active",
+  "tool_key": "tool:r68-sound-data-audit",
+  "tool_kind": "analysis",
+  "usage": [],
+  "valid_from": "2026-09-05T22:38:52+00:00"
+}
