@@ -1,216 +1,235 @@
-"""CE lane (run 43): datum-screen the EQUIVALENT tier (every webfrank-pinned
-function) against the retail pool, on BOTH objects.
+"""Compare raw and postprocessed relocation-datum multisets through fndiff.
 
-WHY THE TIER NEEDS ITS OWN SCREEN.  A rule-served function reads `real 0` in
-every .text arbiter by construction, so a WRONG CONSTANT in it is invisible to
-fndiff, to probe, to defake_gate and to the progress split alike.  That is the
-camera_mode_target class: a function sat pinned at real 0 carrying two wrong
-constants.  The only thing that can see it is a comparison of the DATA behind
-the relocations, which is what cr_datum_screen does.
+Default scope: unique WebFrank-pinned functions (rule chains count once).
+--image selects functions of non-complete, non-auto report units. A bounded
+control is --unit game/enemy/enemy --function do_enemy_move. Requires a fresh
+successful build; this read-only tool does not build or certify freshness.
 
-WHY BOTH OBJECTS.  The two shipped screens disagree about which object to read
-and each is right about a different failure:
+VALUE-DELTA is a review candidate, NEVER proof of a source-value defect.
+Naming, reference multiplicity and pointer-table representation can produce
+deltas; transposed operands can preserve a multiset. VALUE-EQUAL therefore
+means this screen found no delta, not byte/semantic/relocation equivalence.
 
-  * cr_datum_screen reads build/GUNE5D/src/<unit>.o -- the POSTPROCESSED
-    object.  For a pinned function its register fields come from the RULE, so
-    a difference there can be a rule artifact rather than a source defect.
-    That is exactly the defect cq_raw_pool_screen was written to remove.
-  * cq_raw_pool_screen reads .postprocess/body/<unit>.o -- the RAW compiler
-    output -- but carries none of cr's calibrated false-positive suppressions
-    (pointer tables, address keying, the T11 prefix law) and has no image mode.
-
-So this audit runs cr's calibrated comparison over cq's raw object as well as
-over the postprocessed one, and reports the disagreement as a measurement.
-Rows that are VALUE-DELTA on the RAW object are source defects; rows that are
-VALUE-DELTA only on the postprocessed object are rule artifacts.
-
-    python tools/gdl/composed_census/ce_eq_datum_audit.py [--out PATH]
-    python tools/gdl/composed_census/ce_eq_datum_audit.py --image \
-        --out build/GUNE5D/ce_image_datum.json
-
-Read-only.  Requires a completed `ninja`.
-
-READING A ROW: a VALUE-DELTA is a datum finding only when a `B:` key appears
-on at least one side.  Rows whose differing keys are all `A:` (an address, for
-a datum with no bytes), `N:` (an unresolvable name) or `P:` (a pointer table
-keyed by size) are naming or representation differences and imply no source
-edit -- see claim.law.CE_a-bss-datum-has-no-bytes-so-the-datum-screen-keys-it-
-by-address-on-one-side-and-by-name-on-the-other.20260903.v1, which measured
-that class at 17 of 49 rows image-wide.
+JSON schema_version=1: PASS (exit 0) means complete, delta-free screening;
+UNRESOLVED (exit 2) means candidates, absent functions/objects or stale-object
+markers; FAIL (exit 1) means invalid input or a failed analysis operation.
+Both sides of every selected function and every discovery failure are kept.
+--objdump PATH overrides the executable for the shared fndiff core, useful
+in the private Linux build environment. No private input is copied to output.
 """
 import argparse
 import json
 import os
+import re
 import sys
 from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "tools" / "gdl"))
-sys.path.insert(0, str(ROOT / "tools" / "gdl" / "composed_census"))
+import fndiff  # noqa: E402
 
-import cr_datum_screen as cr                                   # noqa: E402
-from fndiff import parse                                       # noqa: E402
-
-_parsed = {}
+SCHEMA_VERSION = 1
 
 
 def parsed(path):
-    key = str(path)
-    if key not in _parsed:
-        try:
-            _parsed[key] = parse(path)
-        except Exception:
-            _parsed[key] = {}
-    return _parsed[key]
+    """Use the shared, file-identity-cached parser; never cache failed reads."""
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"missing object: {path}")
+    warning = fndiff.stale_object_warning(path)
+    if warning:
+        raise ValueError(warning)
+    return fndiff.parse(path)
+
+
+def function_key(functions, name):
+    """Mirror fndiff's unique dtk suffix normalization without fuzzy pairing."""
+    if name in functions:
+        return name
+    if not name.startswith("fn_"):
+        normalized = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+        if normalized != name and normalized in functions:
+            return normalized
+    raise KeyError(f"function absent from parsed object: {name}")
 
 
 def screen_against(unit, fn, bobj):
-    """cr_datum_screen.screen(), but against a caller-chosen OUR object."""
+    """Screen caller-chosen OUR object through the shared datum core."""
     tobj = ROOT / "build" / "GUNE5D" / "obj" / f"{unit}.o"
     tfns, bfns = parsed(tobj), parsed(bobj)
-    if fn not in tfns or fn not in bfns:
-        return None
-    tl, bl = cr.objdata(tobj), cr.objdata(bobj)
-    tc, bc = cr.relocs(tfns[fn]), cr.relocs(bfns[fn])
-    cr.poolbytes(list(tc) + list(bc))
-    tk, bk = Counter(), Counter()
-    label = {}
-    for symbol, count in tc.items():
-        key, size = cr.datum_key(symbol, tl)
-        tk[key] += count
-        label.setdefault(key, []).append(f"T:{symbol}({size})")
-    for symbol, count in bc.items():
-        key, size = cr.datum_key(symbol, bl)
-        bk[key] += count
-        label.setdefault(key, []).append(f"O:{symbol}({size})")
-    only_t, only_b = tk - bk, bk - tk
-    for key in list(only_b):
-        if not key.startswith("B:"):
-            continue
-        mine = bytes.fromhex(key[2:])
-        for tkey in list(only_t):
-            if tkey.startswith("B:") and (
-                    bytes.fromhex(tkey[2:]).startswith(mine)
-                    or mine.startswith(bytes.fromhex(tkey[2:]))):
-                n = min(only_t[tkey], only_b[key])
-                only_t[tkey] -= n
-                only_b[key] -= n
-                if only_t[tkey] <= 0:
-                    del only_t[tkey]
-                if only_b[key] <= 0:
-                    del only_b[key]
-                break
-    return only_t, only_b, label
+    return fndiff.datum_screen_from_lines(
+        tfns[function_key(tfns, fn)], bfns[function_key(bfns, fn)],
+        tobj, bobj)
+
+
+def object_paths(unit, requires_raw=False):
+    final = ROOT / "build" / "GUNE5D" / "src" / f"{unit}.o"
+    body = final.parent / ".postprocess" / "body" / final.name
+    # A pinned TU requires the raw body even if it went missing. Falling
+    # back to final would turn a failed raw audit into apparent success.
+    raw = body if requires_raw or body.is_file() else final
+    return final, raw, raw == body
 
 
 def raw_object(unit):
-    final = ROOT / "build" / "GUNE5D" / "src" / f"{unit}.o"
-    body = final.parent / ".postprocess" / "body" / f"{Path(unit).name}.o"
-    return (body if body.exists() else final), body.exists()
+    """Legacy path helper; production audit supplies explicit pin knowledge."""
+    _final, raw, has_raw = object_paths(unit)
+    return raw, has_raw
 
 
-def describe(blob_key):
-    if not blob_key.startswith("B:"):
-        return blob_key
-    import struct
-    blob = bytes.fromhex(blob_key[2:])
-    out = blob[:16].hex()
-    if len(blob) >= 8:
-        out += f"  f64={struct.unpack('>d', blob[:8])[0]!r}"
-    if len(blob) >= 4:
-        out += f"  f32={struct.unpack('>f', blob[:4])[0]!r}"
-    head = blob.split(b"\x00")[0]
-    if head and all(32 <= b < 127 for b in head):
-        out += f"  str={head[:60].decode('ascii')!r}"
-    return out
+def pinned_functions(config):
+    if not isinstance(config, dict):
+        raise ValueError("webfrank config must be an object")
+    units = config.get("units", config)
+    if not isinstance(units, dict):
+        raise ValueError("webfrank units must be an object")
+    pins = []
+    rule_count = 0
+    for unit, rules in units.items():
+        if not isinstance(rules, list):
+            raise ValueError(f"rules for {unit} must be a list")
+        for rule in rules:
+            if not isinstance(rule, dict) or not isinstance(rule.get("function"), str):
+                raise ValueError(f"invalid rule in {unit}")
+            pins.append((fndiff.unit_key(unit), rule["function"]))
+            rule_count += 1
+    return sorted(set(pins)), rule_count
 
 
-def main():
+def select_functions(pins, image=False, unit=None, function=None):
+    """Return (unique roster, discovery failures, selection details)."""
+    if unit:
+        units = [fndiff.unit_key(unit)]
+        scope = "explicit-function" if function else "explicit-unit"
+    elif image:
+        report = json.loads((ROOT / "build/GUNE5D/report.json").read_text(encoding="utf-8"))
+        if not isinstance(report, dict) or not isinstance(report.get("units"), list):
+            raise ValueError("report.json has no units list")
+        units = []
+        for row in report["units"]:
+            if not isinstance(row, dict) or not isinstance(row.get("name"), str):
+                raise ValueError("malformed unit in report.json")
+            metadata = row.get("metadata", {})
+            if not isinstance(metadata, dict):
+                raise ValueError("malformed unit metadata in report.json")
+            if not metadata.get("complete") and not metadata.get("auto_generated"):
+                units.append(fndiff.unit_key(row["name"].removeprefix("main/")))
+        scope = "non-complete-non-auto-report-units"
+    else:
+        return pins, [], {"scope": "unique-webfrank-functions",
+                          "units_selected": len({u for u, _ in pins})}
+    roster, failures = [], []
+    for name in sorted(set(units)):
+        if function:
+            roster.append((name, function))
+            continue
+        target = ROOT / "build/GUNE5D/obj" / f"{name}.o"
+        try:
+            functions = parsed(target)
+            if not functions:
+                raise ValueError("target object contains no parsed functions")
+            roster.extend((name, fn) for fn in functions)
+        except (FileNotFoundError, KeyError, ValueError) as exc:
+            failures.append({"unit": name, "status": "UNRESOLVED", "error": str(exc)})
+        except (OSError, RuntimeError, SystemExit) as exc:
+            failures.append({"unit": name, "status": "FAIL", "error": str(exc)})
+    return sorted(set(roster)), failures, {"scope": scope,
+                                          "units_selected": len(set(units))}
+
+
+def screen_side(unit, fn, obj):
+    side = {"object": str(Path(obj).relative_to(ROOT))}
+    try:
+        result = screen_against(unit, fn, obj)
+        side.update(result)
+        side["status"] = "PASS" if result["verdict"] == "VALUE-EQUAL" else "UNRESOLVED"
+        side["interpretation"] = ("no datum-multiset delta found" if side["status"] == "PASS"
+                                  else "review candidate, not a proven source defect")
+    except (FileNotFoundError, KeyError, ValueError) as exc:
+        side.update(status="UNRESOLVED", error=str(exc))
+    except (OSError, RuntimeError, SystemExit) as exc:
+        side.update(status="FAIL", error=str(exc))
+    return side
+
+
+def audit(pins, rule_count, roster, discovery, selection):
+    pinned_units = {unit for unit, _fn in pins}
+    pin_set = set(pins)
+    tally = Counter({key: 0 for key in (
+        "functions_selected", "functions_screened_both", "raw_equal", "raw_candidates",
+        "post_equal", "post_candidates", "raw_unreadable", "post_unreadable",
+        "disagreements", "discovery_failures")})
+    rows = []
+    for unit, fn in roster:
+        final, raw, has_raw = object_paths(unit, unit in pinned_units)
+        raw_result = screen_side(unit, fn, raw)
+        post_result = screen_side(unit, fn, final)
+        tally["functions_selected"] += 1
+        both = True
+        for prefix, result in (("raw", raw_result), ("post", post_result)):
+            if "verdict" not in result:
+                tally[f"{prefix}_unreadable"] += 1
+                both = False
+            else:
+                tally[f"{prefix}_equal" if result["verdict"] == "VALUE-EQUAL"
+                      else f"{prefix}_candidates"] += 1
+        if both:
+            tally["functions_screened_both"] += 1
+            if any(raw_result[key] != post_result[key]
+                   for key in ("target_only", "ours_only")):
+                tally["disagreements"] += 1
+        statuses = {raw_result["status"], post_result["status"]}
+        rows.append({"unit": unit, "function": fn, "pinned": (unit, fn) in pin_set,
+                     "has_raw_body": has_raw, "raw": raw_result, "post": post_result,
+                     "status": "FAIL" if "FAIL" in statuses else
+                     "UNRESOLVED" if "UNRESOLVED" in statuses else "PASS"})
+    tally["discovery_failures"] = len(discovery)
+    statuses = {row["status"] for row in rows + discovery}
+    status = ("FAIL" if "FAIL" in statuses else "UNRESOLVED"
+              if "UNRESOLVED" in statuses or not roster else "PASS")
+    return {"schema_version": SCHEMA_VERSION, "status": status,
+            "scope_limit": "datum multisets only; equal does not prove operand binding or semantics",
+            "selection": {**selection, "rule_entries": rule_count,
+                          "unique_pinned_functions": len(pins),
+                          "selected_pinned_functions": sum((u, f) in pin_set for u, f in roster)},
+            "tally": dict(tally), "discovery_failures": discovery, "rows": rows}
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--out", default=str(
-        ROOT / "build" / "GUNE5D" / "ce_eq_datum_audit.json"))
-    parser.add_argument("--image", action="store_true",
-                        help="every function of every NonMatching unit, not "
-                             "just the webfrank-pinned ones")
-    arguments = parser.parse_args()
-
-    config = json.load(open(ROOT / "config" / "GUNE5D" / "webfrank.json",
-                            encoding="utf-8"))
-    pins = [(unit, rule["function"])
-            for unit, rules in config.get("units", config).items()
-            for rule in rules]
-    if arguments.image:
-        pinned = set(pins)
-        pins = []
-        report = json.loads(
-            (ROOT / "build" / "GUNE5D" / "report.json").read_text())
-        for entry in report.get("units", []):
-            unit = entry.get("name", "").removeprefix("main/")
-            if entry.get("metadata", {}).get("complete"):
-                continue
-            tobj = ROOT / "build" / "GUNE5D" / "obj" / f"{unit}.o"
-            bobj, _has_raw = raw_object(unit)
-            if not (tobj.exists() and Path(bobj).exists()):
-                continue
-            for fn in parsed(tobj):
-                pins.append((unit, fn))
-        print(f"image mode: {len(pins)} functions across NonMatching units "
-              f"({len(pinned)} of them webfrank-pinned)")
-
-    rows, tally = [], Counter()
-    for unit, fn in pins:
-        bobj, has_raw = raw_object(unit)
-        post = screen_against(unit, fn,
-                              ROOT / "build" / "GUNE5D" / "src" / f"{unit}.o")
-        raw = screen_against(unit, fn, bobj)
-        if raw is None:
-            tally["unreadable"] += 1
-            continue
-        raw_t, raw_b, label = raw
-        raw_delta = bool(raw_t or raw_b)
-        post_delta = bool(post and (post[0] or post[1]))
-        tally["screened"] += 1
-        tally["raw VALUE-DELTA" if raw_delta else "raw VALUE-EQUAL"] += 1
-        if post_delta != raw_delta:
-            tally["screens DISAGREE"] += 1
-        if not raw_delta:
-            continue
-        rows.append({
-            "unit": unit, "function": fn, "has_raw_body": has_raw,
-            "post_delta": post_delta,
-            "target_only": [{"datum": describe(k), "n": n,
-                             "symbols": label.get(k)}
-                            for k, n in sorted(raw_t.items())],
-            "ours_only": [{"datum": describe(k), "n": n,
-                           "symbols": label.get(k)}
-                          for k, n in sorted(raw_b.items())],
-        })
-
-    print("EQUIVALENT-TIER DATUM AUDIT (webfrank-pinned functions)")
-    print(f"  pins in config: {len(pins)}")
-    for key in sorted(tally):
-        print(f"  {key:22} {tally[key]}")
-    print()
-    print(f"VALUE-DELTA ON THE RAW COMPILER OUTPUT "
-          f"(= genuine source-value defect, invisible to every .text "
-          f"arbiter): {len(rows)}")
-    for row in rows:
-        print(f"\n  {row['unit']}::{row['function']}  "
-              f"raw_body={row['has_raw_body']}  "
-              f"postprocessed_screen_agrees={row['post_delta']}")
-        for entry in row["target_only"]:
-            print(f"      TARGET-ONLY x{entry['n']}  {entry['datum']}")
-            print(f"          {entry['symbols']}")
-        for entry in row["ours_only"]:
-            print(f"      OURS-ONLY   x{entry['n']}  {entry['datum']}")
-            print(f"          {entry['symbols']}")
-
-    os.makedirs(os.path.dirname(arguments.out), exist_ok=True)
-    with open(arguments.out, "w", encoding="utf-8") as handle:
-        json.dump({"tally": dict(tally), "rows": rows}, handle, indent=2)
-    print(f"\nwrote {arguments.out}")
-    return 0
+    parser.add_argument("--out", default=str(ROOT / "build/GUNE5D/ce_eq_datum_audit.json"))
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--image", action="store_true")
+    selection.add_argument("--unit")
+    parser.add_argument("--function")
+    parser.add_argument("--objdump", type=Path)
+    args = parser.parse_args(argv)
+    if args.function and not args.unit:
+        parser.error("--function requires --unit")
+    fndiff.OBJDUMP = args.objdump or ROOT / "build/binutils" / (
+        "powerpc-eabi-objdump.exe" if os.name == "nt" else "powerpc-eabi-objdump")
+    try:
+        config = json.loads((ROOT / "config/GUNE5D/webfrank.json").read_text(encoding="utf-8"))
+        pins, rule_count = pinned_functions(config)
+        roster, discovery, selected = select_functions(pins, args.image, args.unit, args.function)
+        result = audit(pins, rule_count, roster, discovery, selected)
+    except (OSError, ValueError, RuntimeError, SystemExit) as exc:
+        result = {"schema_version": SCHEMA_VERSION, "status": "FAIL", "error": str(exc)}
+    output = Path(args.out)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(f"DATUM AUDIT {result['status']}: {result.get('selection', {})}")
+    print(json.dumps(result.get("tally", {}), sort_keys=True))
+    for row in result.get("rows", []):
+        if row["status"] != "PASS":
+            print(f"  {row['status']} {row['unit']}::{row['function']} "
+                  f"raw={row['raw'].get('verdict', row['raw']['status'])} "
+                  f"post={row['post'].get('verdict', row['post']['status'])}")
+    if "error" in result:
+        print(result["error"])
+    print(f"wrote {output}")
+    return {"PASS": 0, "FAIL": 1, "UNRESOLVED": 2}[result["status"]]
 
 
 if __name__ == "__main__":
