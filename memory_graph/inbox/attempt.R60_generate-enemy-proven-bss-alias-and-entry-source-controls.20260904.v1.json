@@ -1,0 +1,41 @@
+{
+  "attempted_axis": "Retest entry source forms after count closure, then check the rejected pooled BSS identity in the actual ELF symbol table.",
+  "attributes": {
+    "alias_evidence": "Read actual ELF tables using webfrank._sections/_find_symbol on the raw postprocess body and target enemy.o: OUR ...bss.0 section5 .bss value0 size0; OUR lbl_80250E00 section5 .bss value0 size64; TARGET lbl_80250E00 section5 .bss value0 size64. This is a defined same-object address alias, not name guessing. A future implementation would still need to bind exact relocation kind/addend/atom and preserve all negative guard cases; none was implemented here. Structured capability census returns one exact current demand, this function.",
+    "anchors": [
+      "src/game/enemy/enemy.c",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "tools/gdl/webfrank.py",
+      "config/GUNE5D/splits.txt",
+      "33a6c7e22"
+    ],
+    "axis_log": "Earlier retained e=&gEnemies[slot] before generator store and explicit signed test of u32 animation restore count. Slot/otype/mask and d/start declaration ranks reduce residual22. Earlier base local, direct table, delayed initializer and explicit pool variants remain negative on their measured alignment; no universal compiler-impossibility claim.",
+    "law_screen": "Full current corpus plus declaration identity, base pooling and relocation-atom binding screens. claim.law.PL_bss-pooling-gate-is-per-function-not-tu-wide.20260901.v1 and claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 read fully. Same-address aliases are evidence for a possible proof improvement, not permission to ignore the binding guard. The active WebFrank tool contract was read; no validator changed.",
+    "probed_form": "generate_entry atdf19d9fee: propagation off241; CSEoff244; scheduling off242/76words. Each of three inline per-type accessors242/34 with vector slots+4 despite same frame136. Named allowed/minimum loads and typed random indices byte-identical242/22. Random lookup inline helper242/115 frame152; explicit enemy-array owner242/134; pointer declaration first byte-identical. generate_helpers: complete random-type resolution helper with owned/passed table241, direction-switch result helper243. No candidate retained.",
+    "verification": "At33a6c7e22 live fresh99.5041%,real46,T242/O242. Raw DIFFERING WORDS=22; four relocation-symbol differences are the two HA and two LO instructions in reversed order, not four bad globals. Existing two-window fragment still refuses at+0x4..0x10: our ...bss.0 versus target lbl_80250E00. The subsequent recolor was not reached and is not claimed proven."
+  },
+  "function": "function:generate_enemy",
+  "held_fixed": "GC/1.2.5 real edge, retained unsigned-animation/signed-test and store-order fixes, no production edits to generate_enemy or WebFrank. Every source candidate is scratch-only, against whole-object-fidelity baseline.",
+  "id": "attempt.R60_generate-enemy-proven-bss-alias-and-entry-source-controls.20260904.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-05T01:21:01Z",
+  "residual": {
+    "capability_needed": "proved-pooled-bss-relocation-binding",
+    "family": "schedule-window",
+    "measured_at": "2026-09-04",
+    "signature": "opcode streams identical (242/242)"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.R60_generate-enemy-signed-animation-test-and-store-order-close-count.20260904.v1",
+  "valid_from": "2026-09-05",
+  "verifiers_run": [
+    "instruction_permutation",
+    "verify_relocation_binding"
+  ],
+  "windows_tried": [
+    "0x4:0x10:2,1,0",
+    "0x3c:0x44:1,0"
+  ]
+}

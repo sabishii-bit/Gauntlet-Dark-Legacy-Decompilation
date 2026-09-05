@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Isolate the missing collision-pointer reload through meaningful route arithmetic and reaction inline boundaries.",
+  "attributes": {
+    "anchors": [
+      "src/game/enemy/enemy.c",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "33a6c7e22"
+    ],
+    "axis_log": "Prior retained repairs remove two normalization fmr, restore collision pointer copy by assign-before-store, jointly place matrix at104/frame208 by row removal plus8-byte gap, and correct ten xor operand orders. Named item/node views, local first pointer, node/route accessors and forward-goto guard did not restore reload; whole CSEoff915 and propagationoff903 were rejected. Original narrow caps remain, broad source-impossibility is not established.",
+    "law_screen": "Full current corpus and prior per-function records read. Normalization assignment-position law already applied; inline-boundary, register lifetime, pointer-view, CSE/reload and exact layout screens apply. No unproved volatile load or alias barrier is added. Count asymmetry prevents a WebFrank closure.",
+    "probed_form": "New movement variants: inline ABS_REVERSED expression or named sign904; inline route==0||abs>2 predicate908; named route and assignment-in-condition magnitude904 byte-identical; five uninitialized-local declaration orders904 byte-identical. movement_helpers extracts the complete node/route/turn reaction into a real inline function with all six orders of enemy/index/algorithm parameters: all904, no missing-load recovery. Earlier controls in the movement batch are historical reproductions, not novel axes.",
+    "remaining": "Target+0x994 'lwz r3,652(r30)' feeds node load+0x998; ABS sign arithmetic then overwrites that register and target+0x9c4 'lwz r4,652(r30)' reloads coll_ip for the route call. Ours initially keeps coll_ip in the other argument register and does not reload. No intervening memory write or call justifies a volatile annotation. Entry also reassociates index+3608 before base addition instead of target base+index then advance. This is a named CSE/home/rematerialization choice, not proof that every portable source form fails.",
+    "verification": "At33a6c7e22 fresh99.5856%,real145,T905/O904, unchanged. wf_word_diff reports COUNT-ASYMMETRIC and DIFFERING WORDS=n/a. Fresh slotdiff: frame target208 ours208, saves targetr26 oursr26, target19 slots ours19, SLOT MAP IDENTICAL. No candidate retained. Whole-object baseline fidelity passed each matrix. Full ninja main.dol OK and both full suites green for the retained project state; no claim that the NonMatching function is linked."
+  },
+  "function": "function:do_enemy_move",
+  "held_fixed": "Retained assignment-in-condition normalizations, collision-address/store order, ten ABS_REVERSED operations, matrixGap and exact stack slots; GC/1.2.5 actual edge. New candidates operate on the live body, not the old pre-repair controls the same script also reproduces.",
+  "id": "attempt.R60_do-enemy-move-route-reload-inline-and-local-controls.20260904.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-05T01:21:02Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "cse-share",
+    "measured_at": "2026-09-04",
+    "signature": "target-only: +1 lwz ours-only: (none)"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.R60_do-enemy-move-guard-assignment-and-row-removal-close-three-old-blockers.20260904.v1",
+  "valid_from": "2026-09-05"
+}

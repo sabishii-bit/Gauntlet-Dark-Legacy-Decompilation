@@ -1,0 +1,44 @@
+{
+  "attempted_axis": "Recover the float-result to double-normalization boundary; then separate the still-structural entry pointer rematerialization from the register fields.",
+  "attributes": {
+    "axis_log": "Prior three-arm normalization adds branches; no-double-temp form replaces the two fmr with two frsp and regresses fuzzy; declaration-rank hoist neutral. Those narrow caps still stand, but their extension to all portable source forms does not.",
+    "commit": "33a6c7e22",
+    "law_screen": "Full current law corpus screened this pass, followed by the function's prior records and residual-signature searches. The old callee-saved-home-copy coalescing impossibility inference is REFUTED for the two surplus copies: a different source result-web boundary removes them without changing compiler. The precision and count-parity laws apply: retyping all inputs double is not this lever. slotdiff arbitrates layout. Form-aware word decoding, not identical mnemonics or regnorm's alignment artifact label, arbitrates the remaining pointer entry. No postprocessor eligibility or universal source impossibility is asserted.",
+    "probed_form": [
+      "Earlier inline f32/f64 normalizers, reference output, explicit casts, shared pre/post angles and declaration hoists remained1087. New f64-return helpers also1087; whole-function double normalizer local1087; shared cand declarations1087. These are controls, not untried axes.",
+      "Double pre-carrier with explicit f32 input AND result narrowing: inplace both1103, each single-case1095; split both1097, each1092. Aligned single-case diff adds six frsp inputs while removing one fmr. Omitting input casts keeps counts but substitutes fadd/fsub plus frsp for each fadds/fsubs. Neither is the retained result-web lever.",
+      "RETAINED: float_arm_result_to_double_both1085/141 differing words; each individual case1086. The three measurements isolate the two copies; this is the source counterexample to the old impossibility inference.",
+      "On the joint base: advance e0 before e alias, assignment-in-advance, chained enemy/byte assignment, byte alias from enemy and typed-view advance all1084, removing a target-required entry instruction. Explicit gEnemies plus byte advance1087; named-page lookup plus byte advance1086. register Enemy* neutral1085/141. Move alias after real base/type-index/speed computations: all1084.",
+      "Meaningful inline type-and-record helper with typed or byte output:1085/375 but wrong entry displacement (load0 instead3608) and schedule. Reading type before assigning output instead1084. No helper retained.",
+      "move_entry controls after retention: opt_lifetimes off1085/125, CSEoff1085/183, strength-off byte-identical1085/141, scheduling-off1085/292. Every control combined with advance-then-alias remains1084. Strict proof of the two promising parity controls refuses the same entry immediate.",
+      "Recover the two identical collision-response blocks as an inline operation, with index-only or pointer formal, scalar return or output flag, and repeated-address or advanced-alias entry: index forms1089; pointer forms1087. None retained. Public int parameter probe conflicts with earlier s32 declarations; that compile failure is not evidence of a compiler cap."
+    ],
+    "remaining": "Target +0x44 'addi r30,r30,3608', +0x48 lfs, +0x4c 'addi r29,r30,0', +0x50 table-base addi, +0x54 'li r28,0'. Ours computes 'addi r29,r30,3608' at+0x44, table-base addi at+0x4c, li at+0x50, and 'addi r30,r30,3608' at+0x54. That is repeated adjusted-address computation versus advance-and-copy, not solely renaming or movement of li. Strict full-retail wr_try_rule refuses non-register bits at+0x54. The old record's claim that all structural rows are branch displacement is false at this entry. Regnorm aligns the unmatched addi away and prints zero genuine structural; wf_word_diff correctly finds the RA-zero/immediate pair. Do not author a recolor-only rule from the former headline.",
+    "reproduction": "tools/gdl/composed_census/r60_enemy_source_probe.py normalization against df19d9fee source and its freshly compiled raw object via --source/--baseline-object reproduces the historical matrix. On33a6c7e22, move_entry uses the retained live source directly. Both modes first assert real-edge whole-object baseline fidelity. wf_word_diff plus fndiff --ops and slotdiff reproduce the remaining live classification.",
+    "semantic_evidence": "Both final case arms keep f32 cand and f32 q inputs, but assign each cand +/- q[1095] result DIRECTLY to f64 normalAngle. Thus fadds/fsubs still performs exactly the original single rounding; normalization remains f64, with one frsp at its join before post-normalization f32 cand consumers. The fallback assigns the original f32 global directly to normalAngle. All six arithmetic arms per case reach the join with a defined value. No volatile, wrapper, assembly, extra side effects, frame pad, compiler change or WebFrank rule was introduced. Source and pure-core regression test are in the cited commit.",
+    "verification": "Fresh probe: real476 ->286, fuzzy98.8940% ->99.0783%, T1085/O1087 ->T1085/O1085. Both one-case probes remove exactly one instruction; the joint removes two. Raw DIFFERING WORDS = 141: REGFIELD-ONLY139, RA-ZERO1, IMMEDIATE1, no branch/opcode/relocated differing words. Frame392, saved-GPR start27 and the complete 22-slot occupancy map including access counts are identical. defake_gate check --update-improved passes: only move_logic10 improved, 81 exact siblings retained, matched data delta0. Full ninja prints main.dol: OK. Both full unittest commands are green; git diff --check HEAD and git diff --cached --check exit0. Enemy remains NonMatching and 81/84 target functions exact."
+  },
+  "denial": {
+    "expiry_check": "Rebuild and inspect raw entry words, wf_word_diff and slotdiff after any relevant source/compiler/ownership change; do not use the opcode-multiset headline as a structural proof.",
+    "falsifier": "A natural source form that emits the target advance-and-copy entry while retaining exact count, layout, float operations and datum binding.",
+    "premise_measurement": "1085/1085,141 differing words including one RA-zero and one immediate word; strict recolor refuses. Alternative alias shapes lose the required entry copy or change addressing.",
+    "scope": "Only the enumerated entry aliases, scoped optimization controls and inline-boundary forms at the recovered-normalizer alignment."
+  },
+  "function": "function:move_logic10",
+  "held_fixed": "GC/1.2.5 actual Ninja edge, all source outside move_logic10, arithmetic operands and precision, load/store/call chronology, existing stack arrays and padding. Entry probes use the joint two-normalizer improvement as the fixed base; no entry variant was retained.",
+  "id": "attempt.R60_move-logic10-float-arm-results-close-both-surplus-copies.20260904.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T01:21:00Z",
+  "refutes": "attempt.EN-move-logic10-normalization-coalesce-closure.20260901.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "cse-share",
+    "measured_at": "2026-09-04",
+    "signature": "opcode multiset: IDENTICAL (1085/1085)"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.R60_move-logic10-inline-normalization-and-split-angle-probes.20260904.v1",
+  "valid_from": "2026-09-05"
+}
