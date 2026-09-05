@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex/reconstruction-foundation",
+    "owned_units": [
+      "game/game/controls.c"
+    ],
+    "scope": "Follow-on controls.c BSS/small-BSS ownership and four duplicate named globals; no new compiler/flags/pins. Existing btext task delivered and frozen. Root applies split claims."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:InitControls",
+  "id": "work_claim.R69-controls-data-closure.20260905.v1",
+  "kind": "work_claim",
+  "owner": "R69_btext",
+  "recorded_at": "2026-09-05T23:32:00Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}

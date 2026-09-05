@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex/reconstruction-foundation",
+    "owned_units": [
+      "game/game/combat.c"
+    ],
+    "scope": "Follow-on combat.c BSS ownership and missing lbl_8011A1A8 datum recovery; no camera edits. Existing tower task delivered and frozen. Root applies split claims."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:PlayerStartMissile",
+  "id": "work_claim.R69-combat-data-closure.20260905.v1",
+  "kind": "work_claim",
+  "owner": "R69_tower",
+  "recorded_at": "2026-09-05T23:31:19Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
