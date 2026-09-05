@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex/reconstruction-foundation",
+    "owned_units": [
+      "src/game/ui/auxscreen.c"
+    ],
+    "scope": "Root follow-through after merged aux lane and full-image editable trial: reconcile init_mapscreen's undefined init_next_level name with the actual target call destination and existing gauntworld export. Only declaration/call identity and unique root binding-audit case; hold all bodies, types, layouts, flags and pins fixed."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:init_mapscreen",
+  "id": "work_claim.R68_aux-import.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex/reconstruction-foundation",
+  "recorded_at": "2026-09-05T22:46:54Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
