@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "owned_units": [
+      "game/world/gauntworld.c"
+    ],
+    "scope": "Exclusive source matching in src/game/world/gauntworld.c, starting with init_next_level_8005638C (target init_next_level). No shared headers, compiler changes, or postprocessor core changes. Root investigates postprocessor necessity independently. Worker proposes records and commits only its own source and inbox files; integrator handles any scoped configuration edits."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:init_next_level",
+  "id": "work_claim.codex-r64-gauntworld.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex-r64-gauntworld",
+  "recorded_at": "2026-09-05T18:25:50Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
