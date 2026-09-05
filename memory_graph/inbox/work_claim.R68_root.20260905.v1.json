@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "integrator": "codex/reconstruction-foundation",
+    "owned_units": [
+      "src/game/pb/pb_diag.c",
+      "src/game/ui/btext.c",
+      "configure.py",
+      "config/GUNE5D/config.yml",
+      "config/GUNE5D/symbols.txt"
+    ],
+    "scope": "Root integrator repairs pb_diag/btext source symbol bindings and observes all-configured-source link after each class. Own these source TUs and central configuration except splits.txt, plus new uniquely named R68 integration tools/tests and own proposals. No modifications to other workers' source files."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:FindStringMessageListSub_8001FC4C",
+  "id": "work_claim.R68_root.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex/reconstruction-foundation",
+  "recorded_at": "2026-09-05T22:04:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
