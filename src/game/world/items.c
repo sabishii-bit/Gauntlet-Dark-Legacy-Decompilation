@@ -224,7 +224,7 @@ extern void  MBRemoveNode(s32 handle, s32 flag);
 extern s32   MBTreeClearFlags(void* node, s32 a, s32 b);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern void  UpdateObjWorldMat(OBJGRP* group);
-static void AddItemWobj(Item* it);
+void AddItemWobj(Item* it);
 extern s32   RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid,
                               s32 z_grid, s32 value);
 extern s32   PlayerSelecting(s32 idx);
@@ -253,7 +253,7 @@ extern s32   MBWorldSphereVisible3(f32* position, f32 radius);
 extern void  GetPlayerPos(s32 player, f32* position);
 extern f32   fqdist(f32 x, f32 y);
 
-static u32 AtreeMatchAnyHeader(char* name, s32 alsoWads);
+u32 AtreeMatchAnyHeader(char* name, s32 alsoWads);
 
 extern s32     sLastPlayerStart;
 extern double  sInvalidPlayerStartY;
@@ -615,7 +615,7 @@ void DoLighting(s32 flag)
 
 /* 0x800674F4 - match name against the weapon/powerup/item atrees, then all
  * wad headers when alsoWads is set. */
-static u32 AtreeMatchAnyHeader(char* name, s32 alsoWads)
+u32 AtreeMatchAnyHeader(char* name, s32 alsoWads)
 {
     u32 r = 0;
 
@@ -1183,7 +1183,7 @@ static inline s32 ItemFindMBObjectL1(char* name)
 
 /* 0x80063DB0 - retexture a damageable item by health tier (name + tier
  * digit, falling back to name+"L1"/"ROOT"), blanking it at tier 0. */
-static void AddItemWobj(Item* it)
+void AddItemWobj(Item* it)
 {
     char buf[32];
     s32 hp = it->health;
@@ -1279,7 +1279,7 @@ s32 ItemVisible(Item* it)
  * Once a side is unusable the phase advances; after both sides, subsequent
  * enemies retain their spawn point.
  */
-static void place_logic12(s8* data, s32 enemy_index)
+void place_logic12(s8* data, s32 enemy_index)
 {
     f32 matrix[16];
     u8 unused_middle[12];
@@ -1372,7 +1372,7 @@ static void place_logic12(s8* data, s32 enemy_index)
  * PDB's generator payload: enemy type/level/spew at +0/+6/+7, generated count
  * at +2, and the generator angle at +0x10.
  */
-static void generate_single(Item* item, s32 algorithm, s32 important)
+void generate_single(Item* item, s32 algorithm, s32 important)
 {
     u8* data = item->data;
     f32 position[3];
