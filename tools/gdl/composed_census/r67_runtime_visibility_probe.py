@@ -1,8 +1,10 @@
 """Scratch full-TU static/global A/B for three existing mb_blit helpers.
 
 Uses actual Ninja compiler flags and requires a byte-identical fresh raw
-baseline. Changes no production source or object. The only variant is removal
-of static from each helper's declaration and definition in a scratch copy.
+baseline. Accepts either the all-static or all-global active source and compiles
+both controlled forms; mixed or ambiguous declaration states are refused.
+Changes no production source or object. The only variant is adding/removing
+static on each helper's declaration and definition in a scratch copy.
 No flags, bodies, order, data or pragmas change; this is not a TU flip claim.
 """
 import argparse
@@ -21,13 +23,25 @@ from tools.gdl.composed_census import cv_probe as cv
 HELPERS = ("mbInitBlitEntry", "mbBlitProject", "mbBlitSetupVerts")
 
 
-def variant_source(source):
+def source_forms(source):
+    states = []
     for name in HELPERS:
-        pattern = rb"(?m)^static (?=(?:u32|void) " + name.encode() + rb"\()"
-        source, count = re.subn(pattern, b"", source)
+        pattern = rb"(?m)^(static )?(?:u32|void) " + name.encode() + rb"\([^\r\n]*\)\s*([;{])"
+        matches = list(re.finditer(pattern, source))
+        if len(matches) != 2 or sorted(m[2] for m in matches) != [b";", b"{"]:
+            raise ValueError(f"{name}: expected exactly one declaration and definition")
+        states.extend(bool(m[1]) for m in matches)
+    if len(set(states)) != 1:
+        raise ValueError("mixed static/global helper state is not a controlled baseline")
+    active = "static" if states[0] else "global"
+    other = source
+    for name in HELPERS:
+        prefix = rb"(?m)^" + (rb"static " if active == "static" else b"")
+        pattern = prefix + rb"(?=(?:u32|void) " + name.encode() + rb"\()"
+        other, count = re.subn(pattern, b"" if active == "static" else b"static ", other)
         if count != 2:
-            raise ValueError(f"{name}: expected exactly one static declaration and definition")
-    return source
+            raise ValueError("helper state changed while constructing the paired source")
+    return active, {active: source, "global" if active == "static" else "static": other}
 
 
 def inventory(path):
@@ -67,24 +81,25 @@ def main(argv=None):
         source_path = ROOT / edge["src"]
         source = source_path.read_bytes()
         raw = (ROOT / edge["body_o"]).read_bytes()
-        variant = variant_source(source)
+        active, forms = source_forms(source)
         folder = Path(tempfile.mkdtemp(prefix="r67_runtime_visibility_", dir=ROOT / "build"))
-        scratch = folder / source_path.name
-        scratch.write_bytes(variant)
         result.update(artifacts=str(folder.relative_to(ROOT)), raw_object=edge["body_o"],
+                      active_form=active, fidelity_checked_form=active,
                       source_sha256=hashlib.sha256(source).hexdigest(),
-                      variant_source_sha256=hashlib.sha256(variant).hexdigest())
-        for label in ("baseline", "global"):
+                      source_form_sha256={label: hashlib.sha256(data).hexdigest() for label, data in forms.items()})
+        for label in (active, "global" if active == "static" else "static"):
             trial = dict(edge, _command_trace=[])
-            if label == "global":
+            if label != active:
+                scratch = folder / source_path.name
+                scratch.write_bytes(forms[label])
                 trial["src"] = str(scratch.relative_to(ROOT))
             obj, error = cv.compile_with(trial, trial["mw"], trial["cflags"], folder / (label + ".o"), folder)
             result["compiles"][label] = dict(trace=trial["_command_trace"], error=error)
             if not obj or error:
                 raise ValueError(error or "no compiler output")
-            if label == "baseline" and obj.read_bytes() != raw:
+            if label == active and obj.read_bytes() != raw:
                 raise ValueError("fresh baseline differs from active raw compiler object")
-        a, sa = inventory(folder / "baseline.o")
+        a, sa = inventory(folder / "static.o")
         b, sb = inventory(folder / "global.o")
         target, _ = inventory(ROOT / "build/GUNE5D/obj/game/mb/mb_blit.o")
         result.update(baseline_fidelity=True, baseline_sha256=hashlib.sha256(raw).hexdigest(),
@@ -94,7 +109,7 @@ def main(argv=None):
                       changed_function_positions=sorted(n for n in a.keys() & b.keys() if a[n]["offset"] != b[n]["offset"]),
                       changed_allocated_sections=sorted(n for n in sa.keys() | sb.keys() if sa.get(n) != sb.get(n)),
                       helpers={n: {label: {k: v for k, v in table[n].items() if k not in ("body", "relocations")}
-                                   for label, table in (("baseline", a), ("global", b), ("target", target))} for n in HELPERS})
+                                   for label, table in (("static", a), ("global", b), ("target", target))} for n in HELPERS})
         if source_path.read_bytes() != source or (ROOT / edge["body_o"]).read_bytes() != raw:
             raise ValueError("production source/raw object changed during measurement")
         result.update(protected_unchanged=True, status="PASS")
