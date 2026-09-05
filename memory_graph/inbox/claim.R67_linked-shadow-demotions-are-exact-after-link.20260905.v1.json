@@ -1,0 +1,35 @@
+{
+  "attributes": {
+    "commands": [
+      "python tools/gdl/reconstruction_preflight.py --smoke-tools --out build/r67_preflight_before_runtime.json",
+      "python tools/gdl/composed_census/r67_linked_shadow_audit.py --preflight build/r67_preflight_before_runtime.json --out build/r67_linked_shadow.json"
+    ],
+    "examples": [
+      "G3DReadControlPadStates has one target relocation versus three current-object relocations: the target materializes 0x8029645C directly while the current object relocates that address; all 192 linked bytes equal. This is object relocation representation, not wrong runtime address.",
+      "what__Q23std13bad_exceptionCFv and FileExists read MATCH (pool-name noise only) in fndiff --clean; their full linked bytes are now independently compared."
+    ],
+    "implementation_anchors": [
+      "tools/gdl/composed_census/r67_linked_shadow_audit.py",
+      "tools/gdl/tests/test_r67_linked_shadow_audit.py"
+    ],
+    "measurement": {
+      "bytes": 18004,
+      "linked_functions": 17,
+      "status": "PASS",
+      "unlinked_demotions": 359
+    },
+    "neighbourhood_screen": "Screened the whole 17-function linked-demotion cohort, not one illustrative function. Sibling dimensions are raw object, selected linker input, linked ELF and DOL. Existing fndiff --clean and shared datum screen remain diagnostic; new code uses shared webfrank ELF/DOL/relocation readers and does not implement a second linker. Search 'relocation report' and 'exception fixup' staged supporting evidence searches under build.",
+    "proof_boundary": "Checks current Ninja selected source input, target symbol address/size, full byte equality in original DOL, built DOL and linked ELF, with hashed unchanged comparison inputs. Weak definition winner provenance and source semantics remain unresolved.",
+    "runtime_provenance_support": "build_provenance recognizes the separate singular fix_exception_object edge and follows it to the retained compiler body, while retaining legacy plural in-place refusal. Editable mode containing any known target-bound stage now fails provenance isolation; stage absence does not certify source-only linkage or runtime safety. Fixture verified; live separated-runtime integration follows worker delivery.",
+    "two_sided_calibration": "Tests reject fallback credit, failed preflight, duplicate/empty/inconsistent cohorts, every direction of linked byte mismatch and missing/truncated/zero-width data; live positives 17/17 exact, live unlinked 359 explicitly withheld."
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R67_linked-shadow-demotions-are-exact-after-link.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T20:42:51Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "All 17 source-linked functions demoted from 100 by the shadow data_value relocation score match their complete retail function bytes at their target address in BOTH the current linked ELF and built DOL: 18004 bytes compared. These demotions are not linked executable byte defects. The other 359 demoted functions are not source-linked and remain unadjudicated; the matching fallback DOL does not clear them. This is not a raw-compiler or original-source certificate."
+}

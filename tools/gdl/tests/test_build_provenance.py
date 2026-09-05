@@ -134,6 +134,59 @@ class ProvenanceTests(unittest.TestCase):
             self.assertEqual(result["execution_status"], "FAIL")
             self.assertTrue(result["failures"])
 
+    def test_separate_runtime_output_retains_raw_and_classifies_rewrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.fixture(root)
+            path = root / 'build/GUNE5D/build_edges.json'
+            snapshot = json.loads(path.read_text())
+            raw = 'build/GUNE5D/src/raw.o'
+            (root / raw).write_bytes(b'raw')
+            snapshot['edges'][0]['outputs'] = [raw]
+            snapshot['edges'].append({'rule': 'fix_exception_object', 'inputs': [raw],
+                'outputs': ['build/GUNE5D/src/a.o'], 'implicit': ['tools/fix_exception_objects.py'],
+                'variables': {'exception_kind': 'nmw'}})
+            path.write_text(json.dumps(snapshot), encoding='utf-8')
+
+            def query(argv, **kwargs):
+                from subprocess import CompletedProcess
+                if 'compdb' in argv:
+                    text = json.dumps([{'output': e['outputs'][0], 'command': 'expanded ' + e['rule']}
+                                       for e in snapshot['edges']])
+                else:
+                    text = f'{raw}: #deps 1, deps mtime 12 (VALID)\n    a.c\n'
+                return CompletedProcess(argv, 0, text, '')
+
+            with patch.object(bp.subprocess, 'run', query):
+                result = bp.collect_manifest(root)
+            self.assertEqual(result['status'], 'PASS', result['failures'])
+            unit = result['units'][0]
+            self.assertEqual([s['rule'] for s in unit['pipeline']], ['mwcc', 'fix_exception_object'])
+            self.assertTrue(unit['pipeline'][0]['raw_compiler_output_retained'])
+            self.assertEqual(unit['pipeline'][0]['dependency_status'], 'PASS')
+            self.assertEqual(unit['raw_text_class'], 'exception_runtime_rewrite_declared')
+            self.assertFalse(result['known_limitations'])
+            snapshot['non_matching'] = True
+            path.write_text(json.dumps(snapshot), encoding='utf-8')
+            with patch.object(bp.subprocess, 'run', query):
+                bad = bp.collect_manifest(root)
+            self.assertEqual(bad['status'], 'FAIL')
+            self.assertEqual(bad['editable_postprocess_isolation']['status'], 'FAIL')
+
+    def test_editable_no_target_transform_is_only_an_edge_certificate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runner = self.fixture(root)
+            path = root / 'build/GUNE5D/build_edges.json'
+            snapshot = json.loads(path.read_text())
+            snapshot['non_matching'] = True
+            path.write_text(json.dumps(snapshot), encoding='utf-8')
+            with patch.object(bp.subprocess, 'run', runner):
+                result = bp.collect_manifest(root)
+            self.assertEqual(result['status'], 'PASS')
+            self.assertEqual(result['editable_postprocess_isolation']['status'], 'PASS')
+            self.assertEqual(result['reconstruction_status'], 'UNRESOLVED')
+
     def test_report_inventory_and_numeric_corruption_fail(self):
         for corruption in ("duplicate_unit", "extra_unit", "missing_unit", "duplicate_function",
                            "nan_score", "string_nan", "negative_score", "excess_score", "negative_size", "fractional_size", "wrong_total"):

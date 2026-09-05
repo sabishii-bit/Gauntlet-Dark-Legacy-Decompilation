@@ -26,7 +26,7 @@ SCHEMA_VERSION = 1
 COMPILE_RULES = {"mwcc", "mwcc_sjis", "mwcc_extab", "mwcc_sjis_extab",
                  "mwcc_pch", "mwcc_pch_sjis"}
 TRANSFORM_RULES = {"webfrank", "webfrank_globalize_atree", "p6frank", "frank",
-                   "globalize_atree"}
+                   "globalize_atree", "fix_exception_object"}
 
 
 def key(path):
@@ -259,6 +259,16 @@ def collect_manifest(root, build_dir="build", version="GUNE5D"):
             raise ValueError("duplicate output in Ninja compdb")
         dependencies = parse_ninja_deps(ninja("-t", "deps"))
         edges = snapshot["edges"]
+        target_bound = [edge for edge in edges if edge["rule"] in {
+            "webfrank", "webfrank_globalize_atree", "p6frank", "frank",
+            "fix_exception_object", "fix_exception_objects", "retail_dol"}]
+        result["editable_postprocess_isolation"] = {
+            "mode": "editable" if snapshot["non_matching"] else "matching",
+            "target_bound_edge_count": len(target_bound),
+            "status": ("FAIL" if target_bound else "PASS") if snapshot["non_matching"] else "NOT_APPLICABLE",
+            "scope": "Target-bound edge presence only; source-only completeness and runtime behavior need separate tests"}
+        if snapshot["non_matching"] and target_bound:
+            failures.append("editable build contains target-bound transformations")
         inplace = {path: edge for edge in edges if edge["rule"] == "fix_exception_objects"
                    for path in edge["inputs"]}
         by_output = {key(output): edge for edge in edges for output in edge["outputs"]}
@@ -356,6 +366,9 @@ def collect_manifest(root, build_dir="build", version="GUNE5D"):
                         stage["in_place_transform"] = inplace[output]
                 if edge["rule"] in {"globalize_atree", "webfrank_globalize_atree"}:
                     row["metadata_operations"].append("atree symbol visibility/rename (target-independent metadata operation)")
+                if edge["rule"] == "fix_exception_object":
+                    row["raw_text_class"] = "exception_runtime_rewrite_declared"
+                    row["metadata_operations"].append("Matching-only, hash-guarded exception runtime layout rewrite; separate raw compiler object retained")
                 if edge["rule"] == "as":
                     row["raw_text_class"] = "assembly_source"
                 if edge["rule"] == "frank":
