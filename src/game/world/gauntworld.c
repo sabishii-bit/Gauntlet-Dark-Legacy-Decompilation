@@ -6092,7 +6092,7 @@ extern s32 generate_enemy(f32* pos, s32 kind, s32 a, f32* dir, s32 b, s32 c,
 extern void fn_80060114(Item* item, f32* pos, f32* dir);
 extern void fn_80062A00(void);
 extern s32   RandInt(s32 range);
-extern void  place_logic12_800631AC(u8* data);
+extern void  place_logic12_800631AC(s8* data, s32 enemy_index);
 extern s32   did_generate(void* owner, s32 checkEnemies);
 extern void  add_target(void* id);
 extern void  del_target(void* id);
@@ -6637,7 +6637,7 @@ void fn_800606FC(void)
                     *(f32*)(e + 0x244) = *(f32*)(e + 0x24C);
                     *(f32*)(e + 0x248) = sItemZero;
                     if ((s8)gen[7] == 0xC) {
-                        place_logic12_800631AC(gen);
+                        place_logic12_800631AC((s8*)gen, slot);
                         break;
                     }
                     if ((s8)gen[7] == 0xD) {
