@@ -87,6 +87,7 @@ game/ui/btext.c:
 	extab       start:0x80005970 end:0x80005A68
 	extabindex  start:0x80008E78 end:0x80008FEC
 	.text       start:0x8001EAE0 end:0x8002109C
+	.bss        start:0x8023EAE0 end:0x8023F7E8
 
 game/world/btricol.c:
 	extab       start:0x80005A68 end:0x80005A80
