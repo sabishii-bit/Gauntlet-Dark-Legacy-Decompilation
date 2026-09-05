@@ -82,6 +82,23 @@ class GeneratedTableOwnershipTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.check(source)
 
+    def test_exact_tables_are_labelled_exact_by_pointer_count(self):
+        result = self.check(target=struct.pack(">II", 0x2008, 0x200C))
+        self.assertEqual(result["equal_pointers"], 2)
+        self.assertEqual(result["differing_pointers"], [])
+
+    def test_explicit_extracted_local_spelling_does_not_modify_source(self):
+        source = self.fixture()
+        source["functions"]["do_sel_menu_8008E4F4"] = source["functions"].pop("dispatch")
+        for relocation in source["relocations"][".data"]:
+            relocation[2] = "do_sel_menu_8008E4F4"
+        before = copy.deepcopy(source)
+        result = obligation(source, 0x1000, 0x1008, (("table", "do_sel_menu_8008E4F4", 0, 2),),
+                            struct.pack(">II", 0x2008, 0x200C),
+                            {"table": (".data", 0x1000, 8), "do_sel_menu": (".text", 0x2000, 32)})
+        self.assertEqual(result["equal_pointers"], 2)
+        self.assertEqual(source, before)
+
 
 if __name__ == "__main__":
     unittest.main()

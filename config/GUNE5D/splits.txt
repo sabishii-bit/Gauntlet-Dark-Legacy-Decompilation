@@ -88,6 +88,8 @@ game/ui/btext.c:
 	extabindex  start:0x80008E78 end:0x80008FEC
 	.text       start:0x8001EAE0 end:0x8002109C
 	.bss        start:0x8023EAE0 end:0x8023F7E8
+	.sdata      start:0x80343BB8 end:0x80343BC4
+	.sbss       start:0x803443D8 end:0x803443E4
 
 game/world/btricol.c:
 	extab       start:0x80005A68 end:0x80005A80
@@ -210,11 +212,13 @@ game/ui/select.c:
 	extab       start:0x80006C80 end:0x80006D00
 	extabindex  start:0x8000AB10 end:0x8000ABD0
 	.text       start:0x8008C52C end:0x800911C8
+	.data       start:0x80121F88 end:0x80122088
 
 game/sfx/sfx.c:
 	extab       start:0x80006D00 end:0x80006EB0
 	extabindex  start:0x8000ABD0 end:0x8000AE58
 	.text       start:0x800911C8 end:0x800988A4
+	.data       start:0x80122EA4 end:0x80122ED0
 
 game/shop/shop.c:
 	extab       start:0x80006EB0 end:0x80006F18
@@ -240,6 +244,7 @@ game/world/tower.c:
 	extab       start:0x800073A0 end:0x80007410
 	extabindex  start:0x8000B5C0 end:0x8000B668
 	.text       start:0x800A18E8 end:0x800A4870
+	.data       start:0x80124C70 end:0x80124E58
 
 game/ui/message.c:
 	extab       start:0x80007410 end:0x80007430

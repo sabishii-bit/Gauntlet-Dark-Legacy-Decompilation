@@ -1,4 +1,4 @@
-"""Audit compiler-generated switch tables before assigning their TU ownership.
+"""Audit switch-table ownership for shop, particle, sfx and player selection.
 
 This is an ownership certificate, NOT a byte-match or CFG-equivalence proof.
 The complete raw Ninja compilation is reproduced. Every emitted data word must
@@ -25,7 +25,18 @@ CASES = {
     "game/mb/mb_particle": (0x80129544, 0x80129588, (
         ("jumptable_80129544", "MBDrawPsys", 0, 9),
         ("jumptable_80129568", "setupNewPMode_800CDCE4", 36, 8))),
+    "game/sfx/sfx": (0x80122EA4, 0x80122ED0, (
+        ("jumptable_80122EA4", "SfxSkipItem_80096FF4", 0, 11),)),
+    "game/ui/select": (0x80121F88, 0x80122088, (
+        ("lbl_80121F88", "do_player_select", 0, 10),
+        ("lbl_80121FB0", "do_player_select", 40, 15),
+        ("jumptable_80121FEC", "do_sel_menu_8008E4F4", 100, 15),
+        ("jumptable_80122028", "setup_sel_menu", 160, 16),
+        ("jumptable_80122068", "serve_blits", 224, 8))),
 }
+
+# Explicit extracted-local spelling, not a linker alias or suffix heuristic.
+TARGET_NAMES = {"do_sel_menu_8008E4F4": "do_sel_menu"}
 
 
 def obligation(snapshot, base, end, tables, target_bytes, target_symbols):
@@ -49,7 +60,7 @@ def obligation(snapshot, base, end, tables, target_bytes, target_symbols):
         if offset != previous_end or tuple(target_symbols[label][:3]) != (".data", base+offset, count*4):
             raise ValueError("target table identity/extent or complete coverage differs")
         previous_end = offset + count*4
-        target_fn = target_symbols[function]
+        target_fn = target_symbols[TARGET_NAMES.get(function, function)]
         source_fn = snapshot["functions"].get(function)
         if target_fn[0] != ".text" or not source_fn:
             raise ValueError("missing owning function")
