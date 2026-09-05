@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Resolve the unclaimed writable string against retail's relocation and retain the source literal in the read-only pool.",
+  "attributes": {
+    "additional_entry_controls": "While data gates ran, diagnostic one-pointer wrappers on do_enemy_move produced905/12,905/14,905/10 raw words for byte/direct/advanced forms; none retained and world.c's explicit wrapper exception was not extended. Bare declaration plus complete statement initialization produced905/5 byte-identical for byte/typed-page entries and905/7 for direct array. These controls leave the banked five-word address reassociation unchanged; no new codegen rule was authored.",
+    "anchors": [
+      "f7a1a660c",
+      "src/game/enemy/enemy.c",
+      "config/GUNE5D/symbols.txt",
+      "tools/gdl/datadiff.py"
+    ],
+    "law_screen": "Screened function context (no prior attempts), Xbox ENEMY.OBJ candidate, current pin list (not pinned), and string/readonly laws. claim.law.SP_str-pool-packs-tight-in-every-archive-compiler-while-plain-str-reuse-4-aligns-each-literal-and-still-pools-the-addressing.20260904.v1 supports ordinary first-use literals under existing flags; claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 requires checking the actual relocation datum. The broad datadiff claim-debt explanation is refuted for this specific row, not for its earlier population.",
+    "probed_form": "Before: static char sBossGenName[] = \"BOSSGEN\"; then stricmp(name, sBossGenName). Scratch const-named control changes the declaration to static const char and preserves all instruction words, emitting .sdata2=0x127. Retained form deletes the one-use array and calls stricmp(name, \"BOSSGEN\"). It preserves all instruction words and emits .sdata2=0x128 with natural first-use alignment. The previously emitted .sdata=8 disappears in both forms; the literal is the simpler reconstruction and avoids early named-object placement.",
+    "semantic_evidence": "Complete target EnemyDescType disassembly has +0x4 'li r4,0' with EMB_SDA21 relocation lbl_80346AA4. symbols.txt locates that8-byte string in .sdata2, not .sdata. The target and retained anonymous literal have identical bytes424f535347454e00. The only consumer is stricmp with const char* arguments; no write or escaping mutable owner is introduced. The generic datadiff advice to add a writable section claim would preserve a wrong section assignment.",
+    "verification": "Real-edge scratch whole-object baseline fidelity passed. Both const-named and literal controls preserved the entire90-function raw roster: missing=[],extra=[],changed=[]. Fresh probe EnemyDescType real0 and100.0000%,40/40; fndiff --clean MATCH with one verified POOL-KIND-EQUAL datum. defake_gate --rebuild --update-improved GATE OK, all83 exact siblings retained; RELOC-DATUM-EQUAL confirms target string bytes. Existing rules apply without modification. Full ninja prints main.dol: OK, both full unittest commands all green. This is a data-ownership correction, not a new exact function or whole-TU flip. Full .sdata2 content/order, BSS boundary slack, exception metadata and do_enemy_move's five entry words still remain."
+  },
+  "function": "function:EnemyDescType",
+  "held_fixed": "All other source, compiler flags, WebFrank rules and claims; compare the complete emitted function roster as well as data sections.",
+  "id": "attempt.R60_enemy-desc-type-bossgen-is-readonly-not-missing-sdata-claim.20260905.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-05T03:15:51Z",
+  "refutes": "claim.law.CX_a-datadiff-sections-flip-blocker-in-the-near-flip-band-is-splits-txt-claim-debt-not-a-data-defect.20260904.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "pool-order",
+    "measured_at": "2026-09-05",
+    "signature": "opcode streams identical (40/40)"
+  },
+  "residual_class": "NON_TEXT",
+  "schema_version": 1,
+  "valid_from": "2026-09-05"
+}

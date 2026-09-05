@@ -7691,7 +7691,6 @@ extern f64 lbl_80346A88;
 extern void StartEnemyGrid(f32* pos, f32 radius);
 extern s32 NextGridEnemy(void);
 extern void fn_800520C8(void);
-static char sBossGenName[] = "BOSSGEN";
 extern s32 fn_80051480(f32* pos);
 extern char* fn_80051E1C(s32 world, s32 lvl, s32 flag);
 #define DIST3(dst, av, bv, kZ, kH, kT)     {         f32 dy_ = (av)[1] - (bv)[1];         f32 dx_ = (av)[0] - (bv)[0];         f32 dz_ = (av)[2] - (bv)[2];         (dst) = dx_ * dx_ + dy_ * dy_;         (dst) = dz_ * dz_ + (dst);         if ((dst) > (kZ)) {             volatile f32 tmp_;             f64 y_ = __frsqrte((dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst));             tmp_ = (f32)((dst) * ((kH) * y_ * ((kT) - y_ * y_ * (dst))));             (dst) = tmp_;         }     }
@@ -8958,7 +8957,7 @@ s32 EnemyDescType(const char* name)
 {
     u32 i;
 
-    if (stricmp(name, sBossGenName) == 0) {
+    if (stricmp(name, "BOSSGEN") == 0) {
         s32 t = lbl_802577CC[0];
         if (t != gBossType) {
             return t;
