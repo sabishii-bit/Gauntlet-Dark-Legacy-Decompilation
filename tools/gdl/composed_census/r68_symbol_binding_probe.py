@@ -22,6 +22,12 @@ from tools.gdl.composed_census.r67_runtime_visibility_probe import inventory
 from tools.gdl.atree_exports import read_symbols
 
 CASES = {
+    "camera-helpers": {
+        "unit": "game/world/camera",
+        "names": {"get_attn_pos": "get_attn_pos_8002C9A8", "adjust_radius": "adjust_radius_8002B2D4"},
+        "occurrences": {"get_attn_pos": 9, "adjust_radius": 4},
+        "provider": "build/GUNE5D/src/game/game/combat.o",
+    },
     "player-message": {
         "unit": "game/game/player",
         "names": {"FindStringMessageListSub": "FindStringMessageListSub_8001FC4C"},
@@ -47,9 +53,10 @@ def forms(source, names, occurrences):
     """Refuse mixed/absent inputs; identifier boundaries prevent suffix edits."""
     states = []
     for old, new in names.items():
+        expected = occurrences[old] if isinstance(occurrences, dict) else occurrences
         counts = [len(re.findall(rb"\b" + name.encode() + rb"\b", source))
                   for name in (old, new)]
-        if counts not in ([occurrences, 0], [0, occurrences]):
+        if counts not in ([expected, 0], [0, expected]):
             raise ValueError(f"ambiguous identifier occurrences for {old}: {counts}")
         states.append("old" if counts[0] else "corrected")
     if len(set(states)) != 1:

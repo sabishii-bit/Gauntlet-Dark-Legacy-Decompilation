@@ -17,6 +17,13 @@ class SymbolBindingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 forms(source, {"x": "x_80123456"}, 2)
 
+    def test_per_identifier_counts_and_mixed_states(self):
+        names = {"x": "x_new", "y": "y_new"}
+        _, pair = forms(b"x x y", names, {"x": 2, "y": 1})
+        self.assertEqual(pair["corrected"], b"x_new x_new y_new")
+        with self.assertRaises(ValueError):
+            forms(b"x x y_new", names, {"x": 2, "y": 1})
+
     def test_only_explicit_relocation_change_allowed(self):
         old = ({}, {".text": "00"}, {".bss": (8, 3, 8, 4)}, [(".text", 0, 6, "x", 0)])
         corrected = (*old[:3], [(".text", 0, 6, "y", 0)])

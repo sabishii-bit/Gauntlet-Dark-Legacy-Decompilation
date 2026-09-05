@@ -414,7 +414,7 @@ f32 PointLineColl(f32* point, f32* from, f32* to, f32* closest);
 f32 AddAngle(f32 angle, f32 amount);
 f32 SubAngle(f32 angle, f32 amount);
 f32 get_pitch(f32* from, f32* to);
-void get_attn_pos(s32 camIdx, f32* out);
+void get_attn_pos_8002C9A8(s32 camIdx, f32* out);
 int init_game_cam(s32 camIdx);
 int MoveCam_walk(s32 camIdx);
 void cam_orient_to(s32 camIdx);
@@ -426,7 +426,7 @@ void MBRemoveBlit(void* blit);
 void AverageCameraTargetPosition_8002A890(f32* out);
 void calc_cam_pyr(s32 camIdx, s32 resetDelta);
 void get_cam_wpos(s32 camIdx);
-s32 adjust_radius(s32 camIdx);
+s32 adjust_radius_8002B2D4(s32 camIdx);
 void CopyCam(u8* source, u8* destination);
 void UpdatePlayerWorldMat(void* player, s32 anchor);
 void init_stage_info(void);
@@ -909,7 +909,7 @@ void camera_run_mode(s32 camIdx)
             }
         }
 
-        get_attn_pos(camIdx, destination);
+        get_attn_pos_8002C9A8(camIdx, destination);
         cam->delta[0] = destination[0] - cam->attn[0];
         cam->delta[1] = destination[1] - cam->attn[1];
         cam->delta[2] = destination[2] - cam->attn[2];
@@ -1032,7 +1032,7 @@ void camera_run_mode(s32 camIdx)
                 }
             }
         } else {
-            get_attn_pos(camIdx, cam->attn);
+            get_attn_pos_8002C9A8(camIdx, cam->attn);
         }
 
         if (((gGameMode != MA_FLYBY && gGameMode != MG_WORLD_SELECT &&
@@ -1118,7 +1118,7 @@ found_player_object:
                     ((CameraObjectView*)cam->attnobj)->attn_pos[2];
             }
         } else if (attentionMode == ATN_TARGET) {
-            get_attn_pos(camIdx, cam->attn);
+            get_attn_pos_8002C9A8(camIdx, cam->attn);
         }
         cam->pyr[0] = get_pitch(cam->wpos, cam->attn);
         cam->pyr[1] = get_yaw(cam->wpos, cam->attn);
@@ -1440,7 +1440,7 @@ void camera_mode_follow(s32 camIdx)
                 oldAttentionZ = cam->attn[2];
 
                 calc_cam_pyr(camIdx, 1);
-                get_attn_pos(camIdx, cam->attn);
+                get_attn_pos_8002C9A8(camIdx, cam->attn);
                 zeroValue = lbl_80345EC8;
                 cam->delta[0] = zeroValue;
                 cam->delta[1] = zeroValue;
@@ -1448,7 +1448,7 @@ void camera_mode_follow(s32 camIdx)
                 if (lbl_803447B8 == 0) {
                     get_cam_wpos(camIdx);
                 }
-                if (adjust_radius(camIdx) == 0) {
+                if (adjust_radius_8002B2D4(camIdx) == 0) {
                     return;
                 }
                 if (lbl_803443F4 != 0) {
@@ -1561,7 +1561,7 @@ void camera_mode_follow(s32 camIdx)
         default:
             calc_cam_pyr(camIdx, 1);
             if (gCameraTargetCount > 0) {
-                get_attn_pos(camIdx, cam->attn);
+                get_attn_pos_8002C9A8(camIdx, cam->attn);
             } else {
                 cam->attn[0] = gDefaultPlayerPosition[0];
                 cam->attn[1] = gDefaultPlayerPosition[1];
@@ -1602,7 +1602,7 @@ void camera_mode_follow(s32 camIdx)
     }
 
     offscreen = 0;
-    get_attn_pos(camIdx, focus);
+    get_attn_pos_8002C9A8(camIdx, focus);
     positionCount = gCameraTargetPositionCount;
     if (positionCount == 6) {
         for (i = 0; i < 6; i++) {
@@ -1622,7 +1622,7 @@ void camera_mode_follow(s32 camIdx)
     cam->delta[0] = focus[0] - cam->attn[0];
     cam->delta[1] = focus[1] - cam->attn[1];
     cam->delta[2] = focus[2] - cam->attn[2];
-    if (adjust_radius(camIdx) == 0) {
+    if (adjust_radius_8002B2D4(camIdx) == 0) {
         return;
     }
 
@@ -2662,7 +2662,7 @@ void camera_mode_level(s32 reset)
         cam0->attn_dest_no_offset[1] = cam0->attn[1];
         cam0->attn_dest_no_offset[2] = cam0->attn[2];
     } else {
-        get_attn_pos(0, cam0->attn);
+        get_attn_pos_8002C9A8(0, cam0->attn);
     }
     lbl_80344534 = lbl_80118B60[lbl_80344538];
     if (gNumTransmitters != 0) {
@@ -3545,9 +3545,9 @@ s32 debug_camera_pos(s32 lastPlayer)
     offscreen = 0;
     sourceCamera = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF);
     CopyCam((u8*)sourceCamera, (u8*)cam);
-    get_attn_pos(cameraIndex, scratch.desiredAttention);
+    get_attn_pos_8002C9A8(cameraIndex, scratch.desiredAttention);
     lbl_803443F4 = 0;
-    adjust_radius(cameraIndex);
+    adjust_radius_8002B2D4(cameraIndex);
 
     cam->delta[0] = scratch.desiredAttention[0] - cam->attn[0];
     cam->delta[1] = scratch.desiredAttention[1] - cam->attn[1];
