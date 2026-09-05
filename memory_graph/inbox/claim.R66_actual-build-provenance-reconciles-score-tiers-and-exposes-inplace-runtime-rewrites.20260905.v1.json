@@ -1,0 +1,73 @@
+{
+  "attributes": {
+    "basis": "claim.R65_live-revision-audit-reporting-and-tool-integration-gaps.20260905.v1",
+    "command": "python configure.py; python tools/gdl/build_provenance.py --out build/r66_provenance_live.json; python configure.py progress",
+    "controls": "Positive live corpus: 341/341 ordered selected inputs and report units, complete per-unit function-size reconciliation. Negative synthetic controls: missing snapshot, changed Ninja graph, absent artifact, missing expanded link/postcompile command, duplicate/extra/missing report unit, duplicate function, NaN/string-NaN/out-of-range score, negative/fractional size and wrong per-unit total refuse or report UNRESOLVED as appropriate. Manual chains deduplicate functions; P6 is included only when its actual edge exists; atree visibility stays separate from code patching; in-place runtime rewrites cannot receive raw-text credit. Tests compare recorded Writer output against the unchanged serializer.",
+    "implementation": [
+      "tools/gdl/build_provenance.py",
+      "tools/gdl/tests/test_build_provenance.py",
+      "tools/project.py:generate_build_ninja",
+      "tools/project.py:add_unit",
+      "configure.py:progress"
+    ],
+    "inplace_limit": "Ninja -t deps reports STALE for Runtime.PPCEABI.H/NMWException.o and ExceptionPPC.o after the declared in-place fix_exception_objects rewrite. Both pipeline records retain dependency_status UNRESOLVED, raw_compiler_output_retained false and the input/stamp edge. Snapshot PASS does not certify these dependencies or unseen pre-fix objects. DTK extab clean inside compile commands likewise has no retained pre-clean object. Source pragma lines are lexical observations, not recovered effective per-function scope. Compatibility scaffolding is explicitly unresolved rather than inferred from source spelling.",
+    "live_result": "PASS execution=PASS; units=341, failures=0, unresolved=0 for snapshot/query accounting. Ordered selected and Ninja link input lists agree 341/341. Source-linked 215; extracted fallback 126 = 42 configured unfinished units plus 84 auto units. Per-unit closure inputs include report function rosters, flags/commands, data and exception review dimensions. Reconstruction status remains UNRESOLVED for semantic, ownership and exactness obligations.",
+    "neighborhood_screen": "After fixing the omitted P6 and manual-rule classes, inspected every other actual postcompile/postlink edge, including atree symbol visibility, DTK extab clean, fix_exception_objects and retail_dol. Read tools/fix_exception_objects.py:fix_exppc/fix_nmw and configure.py custom_build_steps. Contrary to a metadata-only shorthand, fix_exception_objects removes a weak .text destructor, rewrites .rodata, retargets string relocations and reorders .sdata. configure schedules it unconditionally, including non-matching mode. No behavior was changed, and this observation does not prove the script comment's historical linker explanation.",
+    "remaining_work": "Replay object compilation against saved source/dependency hashes when freshness is required; authenticate compiler hashes against reviewed release identities; preserve pre-fix exception-runtime objects and audit edited-source behavior; resolve source pragmas through preprocessing rather than lexical guesses; conduct semantic/data/ownership pilots. No complete source-built DOL or universal WebFrank necessity claim is made.",
+    "score_accounting": {
+      "assembly_source": {
+        "bytes": 7988,
+        "functions": 1,
+        "percent": 0.75
+      },
+      "exception_runtime_rewrite_declared": {
+        "bytes": 7008,
+        "functions": 26,
+        "percent": 0.65
+      },
+      "manual_exception": {
+        "bytes": 276,
+        "functions": 1,
+        "percent": 0.03
+      },
+      "p6frank_guarded_declared": {
+        "bytes": 132,
+        "functions": 1,
+        "percent": 0.01
+      },
+      "raw_text_derived_configured": {
+        "bytes": 156420,
+        "functions": 710,
+        "percent": 14.59
+      },
+      "raw_text_stock_configured": {
+        "bytes": 442340,
+        "functions": 1858,
+        "percent": 41.27
+      },
+      "scope": "Existing lenient objdiff 100% function scores only; these categories are not raw-byte or relocation certification. Linkage is an independent dimension. Configured compiler labels are not authenticated release identities; binary SHA256 is observed separately.",
+      "total_code_bytes": 1071824,
+      "webfrank_guarded_declared": {
+        "bytes": 156728,
+        "functions": 180,
+        "percent": 14.62
+      }
+    },
+    "source_scope": "git diff --name-only -- src include config produced no output. No game source, headers, target split/config, compiler selection or postprocessor rule changed.",
+    "verification_commands": [
+      "python -m unittest discover tools/gdl/tests -b",
+      "python -m memory_graph.test_graph -b",
+      "ninja -j2",
+      "build/tools/dtk.exe shasum -c config/GUNE5D/build.sha1"
+    ]
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R66_actual-build-provenance-reconciles-score-tiers-and-exposes-inplace-runtime-rewrites.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T20:06:16Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "The reconstruction-foundation branch now records actual generated Ninja edges and add_unit link selection, binds the snapshot to build.ninja and generator inputs by SHA256, asks Ninja for expanded commands and discovered dependencies, and reports disjoint lenient-score provenance rather than claiming STRICT compiler-byte identity. The live 341-unit inventory reconciles ordered link inputs and the complete report roster and per-unit code totals. These are accounting checks, not source-equivalence proofs. Current input hashes do not prove that existing objects were compiled from those hashes."
+}

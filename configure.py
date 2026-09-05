@@ -982,44 +982,19 @@ if args.mode == "configure":
 elif args.mode == "progress":
     # Print progress information
     calculate_progress(config)
-    # Split out WebFrank-assisted functions from the headline matched%.
+    # The lenient objdiff report cannot certify raw bytes or relocations.
+    # Classify score credit by the actual generated pipeline instead.
     try:
-        import json as _json
-        _rules = _json.loads(
-            (Path("config") / config.version / "webfrank.json").read_text(
-                encoding="utf-8"))
-        _pinned = {}
-        for _unit, _entries in _rules.get("units", {}).items():
-            _pinned.setdefault(_unit, set()).update(
-                _e["function"] for _e in _entries)
-        _report_path = Path("build") / config.version / "report.json"
-        _report = _json.loads(_report_path.read_text(encoding="utf-8"))
-        _total = _asst_bytes = _asst_count = _matched_bytes = 0
-        _matched_count = 0
-        for _u in _report.get("units", []):
-            _key = next(
-                (k for k in _pinned if _u.get("name", "").endswith(k)),
-                None)
-            for _fn in _u.get("functions", []):
-                _size = int(_fn.get("size", 0))
-                _total += _size
-                _exact = float(_fn.get("fuzzy_match_percent", 0)) >= 100.0
-                if _exact:
-                    _matched_bytes += _size
-                    _matched_count += 1
-                if _key and _fn["name"] in _pinned[_key] and _exact:
-                    _asst_bytes += _size
-                    _asst_count += 1
-        _strict = _matched_bytes - _asst_bytes
-        print(
-            f"  Postprocessor split: STRICT matched"
-            f" {100.0 * _strict / _total:.2f}%"
-            f" ({_matched_count - _asst_count} fns, compiler output"
-            f" byte-identical) + EQUIVALENT"
-            f" {100.0 * _asst_bytes / _total:.2f}%"
-            f" ({_asst_count} fns, WebFrank-assisted: individually declared"
-            f" compiler-variance proofs; see config/{config.version}/webfrank.json)")
-    except Exception as _err:
-        print(f"  (postprocessor split unavailable: {_err})")
+        from tools.gdl.build_provenance import collect_manifest, print_report_accounting
+        _manifest = collect_manifest(Path.cwd(), str(config.build_dir), config.version)
+        _manifest_path = config.out_path() / "build_provenance.json"
+        _manifest_path.write_text(json.dumps(_manifest, indent=2) + "\n", encoding="utf-8")
+        if _manifest["execution_status"] == "FAIL":
+            print(f"  Provenance FAIL: {_manifest['failures']} (see {_manifest_path})")
+        else:
+            print_report_accounting(_manifest["report_accounting"])
+            print(f"  Provenance {_manifest['status']}: {_manifest_path}")
+    except (OSError, ValueError) as _err:
+        print(f"  Provenance UNRESOLVED: {_err}")
 else:
     sys.exit("Unknown mode: " + args.mode)

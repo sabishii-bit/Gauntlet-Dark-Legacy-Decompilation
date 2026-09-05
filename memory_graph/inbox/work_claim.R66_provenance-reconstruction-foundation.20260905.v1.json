@@ -3,7 +3,9 @@
     "branch": "codex/reconstruction-foundation",
     "owned_units": [
       "configure.py",
-      "tools/project.py"
+      "tools/project.py",
+      "tools/gdl/build_provenance.py",
+      "tools/gdl/tests/test_build_provenance.py"
     ],
     "scope": "Truthful reporting and actual-build provenance; planned tools/gdl/build_provenance.py and tools/gdl/tests/test_build_provenance.py. Preserve compiler selection and game source.",
     "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
