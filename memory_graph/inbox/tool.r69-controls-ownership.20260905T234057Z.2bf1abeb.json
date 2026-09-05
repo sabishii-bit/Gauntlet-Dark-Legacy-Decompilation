@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "MEASURED is not TU exactness or an executed source link. Full17-name small-BSS obligation and current ordered ownership are explicit; the large-BSS multi-home issue remains open.",
+    "Actual Ninja fresh raw control is mandatory. Keep all raw/postprocessed bodies, named relocations, initialized bytes, other allocations and EH fixed; no compiler/flags/pins are changed by this workflow."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r69_controls_ownership_audit.py",
+  "id": "tool.r69-controls-ownership.20260905T234057Z.2bf1abeb",
+  "kind": "tool",
+  "name": "r69-controls-ownership",
+  "purpose": "Controls complete small-BSS ownership and faithful whole-TU preservation audit, with declaration/linkage diagnostic controls",
+  "recorded_at": "2026-09-05T23:40:57Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r69_controls_ownership_audit.py",
+  "status": "active",
+  "tool_key": "tool:r69-controls-ownership",
+  "tool_kind": "analysis",
+  "usage": [
+    "Capture --out build/r69_controls_before.json; after rebuilding compare --before and --require-exact. Reproduce the finite matrix with r69_controls_layout_probe.py --out build/r69_controls_layout.json."
+  ],
+  "valid_from": "2026-09-05T23:40:57+00:00"
+}
