@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Requires configured built mb_blit raw and target objects. Changes exactly six static tokens in a scratch copy; production source and raw objects are retained. Refuses missing/extra declarations or baseline drift.",
+    "PASS means experiment completed, not target-byte matching. Reads actual Ninja flags/compiler, compares every emitted function body, relocation and allocated section, and records helper bindings against target. No source edit or WebFrank exception is installed."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r67_runtime_visibility_probe.py",
+  "id": "tool.r67-runtime-visibility-probe.20260905T210612Z.bec41957",
+  "kind": "tool",
+  "name": "r67-runtime-visibility-probe",
+  "purpose": "Reproducible full-TU static/global linkage experiment for three existing mb_blit helpers, with raw baseline fidelity and all-function/section comparison.",
+  "recorded_at": "2026-09-05T21:06:12Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r67_runtime_visibility_probe.py",
+  "status": "active",
+  "tool_key": "tool:r67-runtime-visibility-probe",
+  "tool_kind": "python",
+  "usage": [
+    "python tools/gdl/composed_census/r67_runtime_visibility_probe.py --out build/r67_runtime_visibility.json"
+  ],
+  "valid_from": "2026-09-05T21:06:12+00:00"
+}
