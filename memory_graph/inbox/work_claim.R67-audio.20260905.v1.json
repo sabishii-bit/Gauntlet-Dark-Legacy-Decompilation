@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-r67-root",
+    "owned_units": [
+      "game/audio/audio.c"
+    ],
+    "scope": "Reconstruct and adjudicate AudioStreamPlay relocation/datum candidate with target evidence, then attempt raw exact source closure. Own audio.c and r67_audio-prefixed additions only; no shared headers/config/pin mutations without coordination."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:AudioStreamPlay",
+  "id": "work_claim.R67-audio.20260905.v1",
+  "kind": "work_claim",
+  "owner": "r67_audio",
+  "recorded_at": "2026-09-05T20:33:51Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}

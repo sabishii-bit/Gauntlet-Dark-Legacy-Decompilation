@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "codex-r67-root",
+    "owned_units": [
+      "game/sound/sounds.c",
+      "game/sound/sounds_evt.c"
+    ],
+    "scope": "Investigate and test the sounds/sounds_evt single-TU hypothesis in isolated scratch full-TU compilations; linker pooling/aliases, source-order and inlining controls. Own these sources and r67_sound-prefixed additions. Do not edit shared configure.py, splits, headers or webfrank.json; propose integration patches to root only if proven."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:AudioAmbientUpdate",
+  "id": "work_claim.R67-sound_boundary.20260905.v1",
+  "kind": "work_claim",
+  "owner": "r67_sound_boundary",
+  "recorded_at": "2026-09-05T20:33:50Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
