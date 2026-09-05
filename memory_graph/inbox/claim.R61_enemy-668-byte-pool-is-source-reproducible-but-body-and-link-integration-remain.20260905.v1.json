@@ -1,0 +1,34 @@
+{
+  "attributes": {
+    "anchors": [
+      "bff8b9ceb",
+      "src/game/enemy/enemy.c",
+      "src/game/game/controls.c",
+      "orig/GUNE5D/sys/main.dol",
+      "tools/gdl/composed_census/r61_enemy_probe.py",
+      "tools/gdl/tests/test_r61_enemy_probe.py"
+    ],
+    "boundary": "The initial audit range through80346AD8 was too broad. COMPASS at80346AB0, the2.0f/0.75f and UI text/scale constants after it are used by gamemain.c, not enemy.c. Enemy's last datum is BOSSGEN at80346AA4..80346AAC; four following bytes are alignment before the next TU. Source refs and the retail symbol/datum dump support this668-byte candidate extent; it is not yet claimed in splits.txt.",
+    "held_fixed": "Actual GC/1.2.5 Ninja compile edge and whole raw-object baseline fidelity. No compiler binary, flag or postprocessor changes. All experiments are generated under build/r61_enemy_probes/pool; source/rules in the repository are never overwritten.",
+    "law_screen": "claim.law.PW_sdata2-pool-order-is-creation-order-of-codegenned-functions.20260901.v1 APPLIED to the leading zero, sqrt body and health-threshold temporaries. claim.law.PJ_replacing-an-extern-scalar-read-with-a-literal-is-not-codegen-neutral-it-removes-a-reload-barrier.20260904.v1 CONFIRMED by16 changed target bodies. claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1 APPLIED: only readonly own-pool declarations in the chosen address range are converted. claim.law.webfrank-pin-freezes-its-inlined-helpers-too.20260831.v1 APPLIED: all changes stay in generated scratch TUs, production pins are not bypassed.",
+    "measured_output": "FIDELITY: whole raw object BYTE-IDENTICAL. literal_sqrt_damage_lower_first: sdata2_bytes668,prefix_equal668,full_pool_bytes_equal=true; do_enemy_move905/905,62raw differing words against retail (production3). Added function fn_80034C88; removed functions none. Changed target functions16: closest_enemy105/105,damage_enemy571/571,do_enemy_collide490/490,do_enemy_move905/905,find_enemy_slot77/77,fn_80045C30237/237,fn_8004646C133/133,fn_8004DC2C203/203,fn_8004DF58316/316,fn_800510A448/48,fn_80051568100/100,fn_800516F8352/352,init_enemy_vars208/208,move_logic06235/235,move_logic14279/279,move_logic22227/227. The existing unreferenced BSS helper changes13->12 instructions. Counts alone do not prove equivalence or recolor eligibility.",
+    "probed_form": [
+      "Literalize every own readonly f32/f64/string declaration in80346810..80346AAC with a plain literal round-tripping the retail bits; remove the existing volatile-address scalar-read scaffold when it would otherwise take the address of a literal. Initial whole literalization emits660bytes. The unreferenced existing enemy_bss_order helper creates an unwanted leading0.0f; its diagnostic equivalent integer-zero store to the same float storage preserves first-use ordering while producing a168-byte exact prefix. This helper is pre-existing compatibility debt, not evidence of original source.",
+      "fn_8004DC2C compares enemy->damage to '(f64)10.0f'; after literalization MWCC promotes the constant and reuses the earlier10.0double. Spelling 'enemy->damage > 10.0f' retains the target single-precision constant load and increases the pool to668bytes. Both compared source values are floats, so dropping these widenings does not change the comparison's mathematical result; other body scheduling still changes.",
+      "Immediately before enemy_nearest_live_player, emit the actual29-instruction fn_80034C88 sqrt body already reconstructed in controls.c, with its0.0f/0.5/3.0 literals. Scoped dont_inline prevents accidental caller expansion. Both ordinary and weak definitions preserve the target functions' existing call structure and move3.0double to its retail position, extending the exact prefix to537bytes. Ordinary linkage is a diagnostic only; the weak version is a hypothesis about duplicate/coalesced helper emission, NOT established original linkage.",
+      "The only remaining pool differences are0.333 and0.667 in reversed order. In damage_enemy's existing threshold block, compute named f32 lower=(f32)(0.333*threshold) and upper=(f32)(0.667*threshold), passing upper/lower to the existing scale_fight_damage helper. Either declaration order produces the exact668-byte pool. Swapping helper argument order alone, inverting its branch, or adding constant local factors inside the helper leaves the pair reversed."
+    ],
+    "remaining": "Restore all16 target bodies before adopting literalization; many differences are stack layout or load/operand scheduling, not missing instructions. The do_enemy_move entry retains the original three-word address-fold residual independently of its now-larger frame. Confirm the weak sqrt copy resolves calls to the existing controls implementation and does not add linked code/exception metadata. The BSS named-symbol comparison also exposes a pre-existing partition mismatch: target lbl_80250E40 size0x308 versus source EnemyRuntimePool size0x2B4 plus separate hit-normal/scratch declarations; addresses agree and this is not a newly introduced candidate defect. Full object/relocations/BSS and actual compiled-TU DOL link remain required.",
+    "reproduce": "python tools/gdl/composed_census/r61_enemy_probe.py pool --only literal_sqrt_damage_lower_first; python tools/gdl/composed_census/r61_enemy_probe.py pool --show literal_sqrt_damage_lower_first --pool-report",
+    "status": "Reproducible experiment and next integration path only; not a production source edit, no matching gain claimed."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R61_enemy-668-byte-pool-is-source-reproducible-but-body-and-link-integration-remain.20260905.v1",
+  "kind": "claim",
+  "predicate": "pool_reconstruction_experiment",
+  "recorded_at": "2026-09-05T04:45:36Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-09-05",
+  "value": "A scratch compilation emits all668 bytes of enemy.c's retail pool at80346810..80346AAC exactly, without copying retail data into the output object or postprocessing it. This verifies the candidate pool contents/order only. It is NOT a TU flip:16 target function bodies change and the newly emitted weak square-root helper requires linkage/metadata validation. Production source and all83 existing exact target functions remain unchanged."
+}

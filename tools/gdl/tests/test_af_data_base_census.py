@@ -12,7 +12,10 @@ Run-53 item 5. Three findings, each reproduced at c7b741799 before any edit.
 
 2. The `.bss` PASTE line ended at the object's own size, and dtk refused it:
    `Split game/enemy/enemy.c .bss (0x80250E00..0x8025758C) ends within symbol
-   'gEnemies' (0x80251C18..0x80257590)`. The correct end was in the refusal.
+   'gEnemies' (0x80251C18..0x80257590)`. R61 subsequently corrected the
+   oversized symbol itself: Enemy[25] is 0x5974 bytes, ending at 5758C.
+   The old refusal was real, but rounding to its erroneous extent was not
+   proof of the original array size. Symbol and split boundaries are joint.
 
 3. DESIGN REVERSAL on the item's own second half. It asked for the
    size-sequence procedure a lane ran by hand for enemy.c's `.data`, and
@@ -46,17 +49,21 @@ import fndiff  # noqa: E402
 
 class StraddledSymbolTests(unittest.TestCase):
     def test_an_end_inside_a_symbol_is_reported_with_its_boundary(self):
-        """The exact case dtk refused, read from the live symbol table."""
-        hit = af.straddled_symbol(".bss", 0x8025758C)
-        self.assertIsNotNone(hit, "gEnemies must cover 0x8025758C")
+        """An address four bytes inside the corrected array still straddles."""
+        hit = af.straddled_symbol(".bss", 0x80257588)
+        self.assertIsNotNone(hit, "gEnemies must cover 0x80257588")
         name, start, end = hit
         self.assertEqual(name, "gEnemies")
         self.assertEqual(start, 0x80251C18)
-        self.assertEqual(end, 0x80257590)
+        self.assertEqual(end, 0x8025758C)
 
     def test_an_end_exactly_on_a_boundary_is_not_straddled(self):
         """A split ending where a symbol ends is legal; rounding it further
         would invent slack dtk never asked for."""
+        self.assertIsNone(af.straddled_symbol(".bss", 0x8025758C))
+
+    def test_alignment_gap_after_array_is_not_part_of_the_array(self):
+        self.assertIsNone(af.straddled_symbol(".bss", 0x8025758E))
         self.assertIsNone(af.straddled_symbol(".bss", 0x80257590))
 
     def test_the_section_must_match(self):
@@ -70,7 +77,7 @@ class NamedTargetSymbolTests(unittest.TestCase):
         entry = fndiff.symbol_table()["gEnemies"]
         self.assertEqual(entry[0], ".bss")
         self.assertEqual(entry[1], 0x80251C18)
-        self.assertEqual(entry[2], 0x5978)
+        self.assertEqual(entry[2], 25 * 916)
 
     def test_enemy_data_and_bss_resolve_to_the_landed_claims(self):
         """End to end against config/GUNE5D/splits.txt's own committed lines.
@@ -81,9 +88,9 @@ class NamedTargetSymbolTests(unittest.TestCase):
         self.assertEqual(sections[".data"]["splits_line"].split(),
                          [".data", "start:0x8011C0EC", "end:0x8011C2FC"])
         self.assertEqual(sections[".bss"]["splits_line"].split(),
-                         [".bss", "start:0x80250E00", "end:0x80257590"])
-        self.assertEqual(sections[".bss"]["end_rounded_up_to"], "gEnemies")
-        self.assertEqual(sections[".bss"]["object_end"], "0x8025758C")
+                         [".bss", "start:0x80250E00", "end:0x8025758C"])
+        self.assertNotIn("end_rounded_up_to", sections[".bss"])
+        self.assertNotIn("object_end", sections[".bss"])
 
 
 class SizeSequenceTests(unittest.TestCase):

@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "No production source or postprocessor rules are edited. Raw word equality is not relocation or complete-object equality. Source-shape guards fail when the historical starting text changes; do not weaken them.",
+    "Pool candidates deliberately change frozen bodies in scratch copies only. full_pool_bytes_equal verifies the 668-byte 80346810..80346AAC span, not TU linkage. The emitted weak sqrt copy remains a linkage hypothesis; literalization also changes 16 target bodies. Never install a pool candidate without restoring all protected matches and passing a real full-link gate."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r61_enemy_probe.py AXIS",
+  "id": "tool.r61-enemy-probe.20260905T044122Z.55933214",
+  "kind": "tool",
+  "name": "r61-enemy-probe",
+  "purpose": "Reproducible scratch-only enemy address/peephole and constant-pool experiments, with mandatory full raw-object baseline fidelity and sibling accounting.",
+  "recorded_at": "2026-09-05T04:41:22Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r61_enemy_probe.py",
+  "status": "active",
+  "tool_key": "tool:r61-enemy-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "AXIS is timer, optimizer_joint, lookup, first_use, carrier, allocation, address_tree, or pool. --only filters names; --show NAME prints an aligned diagnostic, optionally --entry or --pool-report. Results are generated under build/r61_enemy_probes."
+  ],
+  "valid_from": "2026-09-05T04:41:22+00:00"
+}
