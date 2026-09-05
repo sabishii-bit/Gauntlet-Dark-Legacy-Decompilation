@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Read-only except requested generated JSON. Declared guarded rules are not proof replays; report-score tiers do not certify raw bytes or relocation equality. Current hashes do not prove artifacts were built from those inputs. In-place exception fixups leave pre-fix objects unavailable and dependency freshness unresolved."
+  ],
+  "entrypoint": "python tools/gdl/build_provenance.py --out build/GUNE5D/build_provenance.json",
+  "id": "tool.build-provenance.20260905T200011Z.500e6b02",
+  "kind": "tool",
+  "name": "build-provenance",
+  "purpose": "Account for actual Ninja compile transforms and ordered source-versus-extracted link inputs without claiming source correctness",
+  "recorded_at": "2026-09-05T20:00:11Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/build_provenance.py",
+  "status": "active",
+  "tool_key": "tool:build-provenance",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run after configure and a completed build. Schema version 1. Exit 0 PASS means snapshot and query accounting only; exit 1 FAIL; exit 2 UNRESOLVED missing artifacts or dependencies."
+  ],
+  "valid_from": "2026-09-05T20:00:11+00:00"
+}
