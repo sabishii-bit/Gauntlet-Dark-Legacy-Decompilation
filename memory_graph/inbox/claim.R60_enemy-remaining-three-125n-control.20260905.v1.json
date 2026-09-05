@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "availability": "These were the two 1.2.5-family directories in this worker's build/compilers/GC. The specifically checked main path W:/Repositories/Gauntlet-Dark-Legacy-Decompilation/build/compilers/GC/1.2.5s/mwcceppc.exe also did not exist. This is not a claim that 1.2.5s is absent elsewhere on the machine. No search outside the task directories and no compiler rebuild was performed.",
+    "measured_at": "750226b9c",
+    "method": "Read game/enemy/enemy edge through tools/gdl/composed_census/cv_probe.py read_edges; use r60_enemy_source_probe.compile_baseline against the raw postprocess body for whole-object identity; then cv_probe.compile_with with edge source/flags fixed and compiler GC/1.2.5 or GC/1.2.5n. Inspect each function using cn_analyze.load and fndiff.parse. Scratch objects are build/r60_enemy_probes/compiler125/{baseline,1.2.5,1.2.5n}.o. Baseline fidelity passed before comparisons.",
+    "related_records": [
+      "attempt.R60_move-logic10-float-arm-results-close-both-surplus-copies.20260904.v1",
+      "attempt.R60_generate-enemy-proven-bss-alias-and-entry-source-controls.20260904.v1",
+      "attempt.R60_do-enemy-move-route-reload-inline-and-local-controls.20260904.v1"
+    ],
+    "source_commit": "33a6c7e22"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R60_enemy-remaining-three-125n-control.20260905.v1",
+  "kind": "claim",
+  "predicate": "compiler_comparison",
+  "recorded_at": "2026-09-05T01:26:47Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy.c",
+  "valid_from": "2026-09-05",
+  "value": "At750226b9c, after the move_logic10 normalization source repair, a fresh GC/1.2.5 versus GC/1.2.5n comparison on the actual enemy Ninja flags does not close any of the three remaining functions. generate_enemy is byte-identical between compilers (242/242,22 differing words versus target). do_enemy_move remains905/904; move_logic10 remains1085/1085 and141 versus143 differing words. In both latter functions, the COMPLETE inter-compiler normalized diff is an epilogue swap of addi r1,r1,frame with mtlr r0. Their source-level pointer/reload blockers are unchanged. This bounds the tested compilers at this alignment, not all compiler options or all portable source forms. No compiler or configuration was changed."
+}
