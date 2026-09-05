@@ -1038,15 +1038,15 @@ void fn_8005636C(s32* s)
 #pragma opt_common_subs off
 s32 init_next_level_8005638C(s32 arg0)
 {
+    s32 off;
+    s32 flag;
+    u8* w;
+    s32 id;
+    s32 t;
     u8* tbl = (u8*)lbl_80257680;
     u8* q;
     s32 i;
     s32 result;
-    s32 flag;
-    s32 off;
-    u8* w;
-    s32 id;
-    s32 t;
 
     lbl_80344874 = pbLoad;
     if (arg0 < 0) {
@@ -1066,8 +1066,8 @@ s32 init_next_level_8005638C(s32 arg0)
         }
     }
     sprintf((char*)(tbl + 172), "levels/level%s", gCurLevel->name);
-    lbl_80344854 = mlmMemUsed;
     lbl_80343C30 = 0;
+    lbl_80344854 = mlmMemUsed;
     result = LoadWorldDone(tbl + 172);
     GetEnemyTypes();
 
