@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/enemy/enemy.c"
+    ],
+    "scope": "Solo enemy.c exact-pool/body integration and final source address closure; own src/game/enemy/enemy.c, enemy-only entries in configure.py and config/GUNE5D/{symbols.txt,splits.txt,webfrank.json}, R62 scoped tools/tests and graph records. No new postprocessor classes or compiler patch. Protect all existing exact target functions."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:do_enemy_move",
+  "id": "work_claim.codex-r62-enemy.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex-r62-enemy",
+  "recorded_at": "2026-09-05T05:16:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-05"
+}
