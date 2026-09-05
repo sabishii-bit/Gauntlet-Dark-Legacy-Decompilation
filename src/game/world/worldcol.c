@@ -141,7 +141,7 @@ extern f32 lbl_8023F7F8[3];           /* query origin */
 s32 TriLineCol(WorldTri* tri, f32* hit);
 f32 BTriLineCol(f32 radius, WorldTri* tri, f32* hit);
 void GetWorldMat(void* node, f32* mtx, s32 mode);
-static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
+f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
                            s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
                            s32 noFilter);
 void MulBodyVecMat4(f32* src, f32* dst, f32* mtx);
@@ -163,7 +163,7 @@ void WorldDynCollide(s32 flags, s32 mode, f32 minx, f32 maxx, f32 minz,
 extern f64 lbl_80345758;
 void CreateMat3Norm(f32 scale, f32* mtx, f32* normal);
 static s32 NextGrid(f32 a, f32 b, f32 c, f32 d, s32* gx, s32* gz);
-static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx);
+void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx);
 
 u32 WorldCollide(f32 radius, void* from, void* to, f32* result,
                  s32 flags, s32 mode);
@@ -765,7 +765,7 @@ commit:
 /* 0x8000DFEC -- sweep the query line against one world object: quick
  * sphere/line rejection, transform the query into object space, then run the
  * triangle list and record the best hit in the active result channel. */
-static void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
+void WorldObjCollide(f32 rad, WObj* obj, s32 count, s16* list, f32* mtx)
 {
     WorldCollisionResult* res = &lbl_8023CA40;
     u32 flags = obj->flags;
@@ -883,7 +883,7 @@ sphere_hit:
 }
 /* 0x8000E3B8 -- test the query line/sweep against a list of triangles,
  * keeping the closest hit.  Returns the best (scaled) hit distance. */
-static f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
+f32 CTriListCollide(f32 radius, s32 base, s32 count, WorldTri** outTri,
                            s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
                            s32 noFilter)
 {

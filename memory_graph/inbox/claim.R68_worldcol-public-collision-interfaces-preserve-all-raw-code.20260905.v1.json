@@ -1,0 +1,44 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r68_interfaces_raw_control.py",
+    "tools/gdl/tests/test_r68_interfaces_raw_control.py"
+  ],
+  "attributes": {
+    "commands": [
+      "python tools/gdl/composed_census/r68_interfaces_raw_control.py game/world/worldcol --out build/r68_interfaces_worldcol_before.json",
+      "python tools/gdl/defake_gate.py check game/world/worldcol --rebuild",
+      "python tools/gdl/composed_census/r68_interfaces_raw_control.py game/world/worldcol --before build/r68_interfaces_worldcol_before.json --exports WorldObjCollide CTriListCollide --out build/r68_interfaces_worldcol_after.json"
+    ],
+    "control": {
+      "after_raw_sha256": "4d8ea815e2c33aaca8e3d547738bdb82110f5d281bbef83993fceb7df76923d5",
+      "before_raw_sha256": "cd11771b7694fcab995258ae489c59a2b970276659f35e5f0c93128ef6b9f719",
+      "compiler": "GC/1.2.5",
+      "difference": "Only two LOCAL-to-GLOBAL function bindings; all 15 function bodies, four allocated sections and 362 relocation tuples identical",
+      "flags": "Actual active Ninja cflags_demo via cv_probe; compiler and flags held identical",
+      "raw_object": "build/GUNE5D/src/game/world/.postprocess/body/worldcol.o",
+      "whole_object_fidelity": "Both before and after fresh control compilations exactly reproduce their active raw objects; no rewritten object used as raw baseline"
+    },
+    "law_screen": [
+      "claim.law.inline-and-deadstrip-rules.20260829.v1: applicable risk of changed inlining/emission; same definition order and whole-TU body/roster control confirm no effect",
+      "claim.law.dont-inline-pragma-is-function-granular-and-unoverridable.20260831.v1: screened; no pragma or function body change",
+      "claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-that-must-be-gated-tu-wide.20260902.v1: data-object mechanism not applied; conservatively audited whole TU including data and exception relocations",
+      "Current full law roster and worldcol briefs/contexts screened; existing CTri entry-home/copy-form/schedule caps do not cover function visibility"
+    ],
+    "limits": "No change to dynobjgrid caller prototype or source argument behavior. PPC GPR/FPR parameter channels require separate target-backed ABI review; external linkage alone is not proof that every caller's source arguments are reconstructed.",
+    "measured_at": "d91f9c860 plus four static-token removals in src/game/world/worldcol.c",
+    "pinned_bodies": "CTriListCollide, SlideAlongWall and PointLineColl unchanged. Existing WebFrank pipeline passes its current guards; no config/pin/hash edits.",
+    "retail_witnesses": [
+      "WorldObjCollide target 0x8000DFEC, size 0x3cc, GLOBAL; dynobjgrid target .text+0x1dc R_PPC_REL24 targets it",
+      "CTriListCollide target 0x8000E3B8, size 0x2bc, GLOBAL; gauntworld target .text+0xa23c R_PPC_REL24 targets it"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R68_worldcol-public-collision-interfaces-preserve-all-raw-code.20260905.v1",
+  "kind": "claim",
+  "predicate": "source_interface_repair",
+  "recorded_at": "2026-09-05T22:16:13Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/worldcol",
+  "valid_from": "2026-09-05",
+  "value": "WorldObjCollide and CTriListCollide now have external linkage in their forward declarations and definitions. Four static-token removals reproduce the retail interface while preserving all 15 raw function bodies, positions, four allocated sections (including exception data), 362 relocation tuples and all remaining symbol metadata. This fixes unavailable source definitions for actual cross-TU calls without a new postprocessor rule. The TU remains NonMatching and this is not a whole-game source-link or ABI-correctness certificate."
+}
