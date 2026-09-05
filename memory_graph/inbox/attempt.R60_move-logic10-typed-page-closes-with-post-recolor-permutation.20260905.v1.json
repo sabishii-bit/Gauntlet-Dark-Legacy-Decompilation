@@ -1,0 +1,50 @@
+{
+  "attempted_axis": "Recover array-member lowering for the existing pool owner, then prove the residual with the existing recolor-before-permutation composition.",
+  "attributes": {
+    "anchors": [
+      "src/game/enemy/enemy.c",
+      "config/GUNE5D/webfrank.json",
+      "tools/gdl/composed_census/r60_enemy_source_probe.py",
+      "tools/gdl/tests/test_r60_enemy_probes.py",
+      "8e8e03286"
+    ],
+    "axis_log": "The predecessor's float-input precision and normalization caps remain: full double inputs change operations, redundant input narrowing adds frsp, one copy disappears per direct float-result-to-double join. Raw advance-then-alias and all its old spelling/pragma controls lose a target-required instruction. Typed helper return/output and repeated contact helper alone do not recover the target. These are bounded controls, not a universal cap.",
+    "law_screen": "Screened complete286-law corpus, current context, pointer-width and declaration-rank laws, pre-offset addressing, exact frame/slot arbitration, relocation-atom binding and the existing post-recolor permutation implementation. The predecessor correctly diagnosed repeated adjusted-address computation; it did not establish source impossibility. The new member-lowering axis changes that mechanism before any rule is applied.",
+    "probed_form": [
+      "At8e8e03286, decl/identity controls: e-before-e0 and int index local change coloring; register e0, statement init and signed-byte pointer are byte-identical in the original repeated-address entry. Advanced entry variants remain1084. Retyping BOTH public declarations and definition to int is now a valid byte-identical control; it supersedes the earlier isolated declaration compile failure. Typed Enemy pointer entry1087, advanced1086.",
+      "Joint real inline flee+contact helpers recover advance-and-copy at1085/142 raw words, but change type load3608 to0 and nearby scheduling. Flee alone index-owned1087, passed-pointer byte-identical1085; passed-pointer flee plus index-owned contact1089; pre-offset helper-owner controls1088/1086. No inline candidate retained.",
+      "Typed page forms, independently reproduced by promoted move_page axis with whole raw-object fidelity: array_then_copy1084; array_twice1085/141 raw words; array_and_byte_advance1086. Retained array_twice changes exactly three source expressions, using the already-defined EnemyMovePage05 and its enemies member.",
+      "On array_twice, table declaration/initialization at four statement points and five declaration points, existing e/e0 declaration rank, register keyword, and three speed-computation placements all remain1085/141. Address-of-first-element forms remain1085/141. Deriving bytes from the enemy alias gives1085/373 and wrong type-load displacement; deriving enemy after advancing bytes or assignment-in-alias gives1084. Signed-byte page variant was a compilation failure, not evidence of a compiler cap."
+    ],
+    "remaining": "Before source repair, target+0x44 'addi r30,r30,3608' and+0x4c 'addi r29,r30,0' faced two source address additions. After repair, both operations exist and counts are1085/1085. Only the entry table lis and pointer addi at+0x34/+0x44 need movement, plus renaming elsewhere. Their raw r3 reuse makes permutation-first unsafe; the EXISTING post_recolor_permutation proves renaming against the target with the permutation undone, then audits atom independence in that proven coloring. No new composition or guard capability was added.",
+    "reproduction": "r60_enemy_source_probe.py move_page uses pre-closure8e8e03286 source, or paired historical --source/--baseline-object after retention; it refuses already-converted input. Run wr_try_rule.py game/enemy/enemy move_logic10 --from-config for the complete actual raw-body rule and full retail datum proof. The promoted generator was executed from the repository root before retention and reproduced1084/1085/1086 controls. Pure tests cover member ownership, unchanged consumers and shape refusals.",
+    "semantic_evidence": "The existing EnemyMovePage05 owns speed[] and enemies[] with the latter at0xE18. For row=base+index*sizeof(Enemy), row->enemies[0].type is exactly the prior load atrow+3608, and row->enemies is precisely the prior adjusted record address. No new type, storage, placeholder wrapper, volatile, arithmetic, call or memory side effect. Source remains portable C addressing over the same pool.",
+    "verification": "Fresh probe real286->0, fuzzy99.0783%->100.0000%,1085/1085. Raw differing words remain141, but their mechanism is now proven recolor plus schedule. slotdiff frame392,savesr27,22/22slot offsets/access counts identical. wr_try_rule --from-config BYTE-EQUAL at full retail datum strength. fndiff --clean MATCH with0real rows;37pool-kind-equal relocations independently screened by the full-retail rule. defake_gate --rebuild GATE OK: only move_logic10 improved,82 exact siblings retained, matched data unchanged. Full ninja prints main.dol: OK; both full unittest commands all green. STRICT57.28% unchanged; EQUIVALENT13.91%->14.31%. enemy83/84 target functions exact AFTER postprocessing, still NonMatching. do_enemy_move and non-text ownership remain open; this is not a whole-TU flip."
+  },
+  "function": "function:move_logic10",
+  "held_fixed": "GC/1.2.5 actual Ninja edge; retained float-arm result-to-double joins; all other functions, declarations, stack reservations, pool definitions and side effects. No compiler or verifier implementation changes.",
+  "id": "attempt.R60_move-logic10-typed-page-closes-with-post-recolor-permutation.20260905.v1",
+  "kind": "attempt",
+  "outcome": "matched",
+  "recorded_at": "2026-09-05T02:32:29Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-05",
+    "signature": "opcode streams identical (1085/1085)"
+  },
+  "residual_class": "REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.R60_move-logic10-float-arm-results-close-both-surplus-copies.20260904.v1",
+  "valid_from": "2026-09-05",
+  "verifiers_run": [
+    "verify_consistent_recolor",
+    "post_recolor_permutation",
+    "check_permutation_dependences",
+    "verify_relocation_binding",
+    "verify_datum_binding"
+  ],
+  "windows_tried": [
+    "0x34:0x48:4,1,2,3,0"
+  ]
+}

@@ -1255,6 +1255,24 @@ def init_vars_variants(body):
     yield "scoped_clear_loop", (body[:clear_begin] + scoped_clear + body[clear_end:]).replace("    s32 i4;\n", "", 1)
 
 
+def move_page_variants(body):
+    """Recover the existing pool member before testing alias composition.
+
+    The page already owns speed[] and enemies[] in the source. This adds no
+    storage or placeholder wrapper; it tests array-member lowering against
+    the historical raw-byte offset expression. Use --source after retention.
+    """
+    old = "    type = *(s32*)(e0 + OFF_E(type));"
+    page = replace_once(body, old, "    type = ((EnemyMovePage05*)e0)->enemies[0].type;")
+    entry = "    e = (Enemy*)(e0 + ENEMY_POOL_OFF);\n    e0 += ENEMY_POOL_OFF;"
+    for label, setup in (
+        ("array_then_copy", "    e0 = (u8*)((EnemyMovePage05*)e0)->enemies;\n    e = (Enemy*)e0;"),
+        ("array_twice", "    e = ((EnemyMovePage05*)e0)->enemies;\n    e0 = (u8*)((EnemyMovePage05*)e0)->enemies;"),
+        ("array_and_byte_advance", "    e = ((EnemyMovePage05*)e0)->enemies;\n    e0 += ENEMY_POOL_OFF;"),
+    ):
+        yield label, replace_once(page, entry, setup)
+
+
 def compile_baseline(edge, source_path, baseline_path, expected_path, out):
     # Read BEFORE compiling: a historical --baseline-object can be the same
     # pathname as baseline_path. Reading afterward would compare the new
@@ -1271,14 +1289,14 @@ def compile_baseline(edge, source_path, baseline_path, expected_path, out):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("axis", choices=["pointer", "normalization", "move_entry", "generate", "generate_entry", "generate_helpers", "generate_pool", "movement", "movement_helpers", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
+    ap.add_argument("axis", choices=["pointer", "normalization", "move_entry", "move_page", "generate", "generate_entry", "generate_helpers", "generate_pool", "movement", "movement_helpers", "resources", "milestones", "formatter", "gettype", "gettype_controls", "target_player", "target_player_colors", "init_vars"])
     ap.add_argument("--show", help="Print normalized target/candidate diff for one existing output")
     ap.add_argument("--compare-baseline", action="store_true", help="With --show, compare the stored raw baseline rather than the retail target")
     ap.add_argument("--source-patch", help="Print an apply_patch-formatted source diff; never writes src/")
     ap.add_argument("--source", type=Path, help="Historical full-TU source, paired with --baseline-object; needed after retaining a candidate")
     ap.add_argument("--baseline-object", type=Path, help="Fresh real-edge object built from --source, for whole-object fidelity")
     args = ap.parse_args()
-    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "move_entry": "move_logic10", "generate": "generate_enemy", "generate_entry": "generate_enemy", "generate_helpers": "generate_enemy", "generate_pool": "generate_enemy", "movement": "do_enemy_move", "movement_helpers": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
+    function = {"pointer": "fn_80046680", "normalization": "move_logic10", "move_entry": "move_logic10", "move_page": "move_logic10", "generate": "generate_enemy", "generate_entry": "generate_enemy", "generate_helpers": "generate_enemy", "generate_pool": "generate_enemy", "movement": "do_enemy_move", "movement_helpers": "do_enemy_move", "resources": "fn_80051164", "milestones": "fn_80051C78", "formatter": "fn_80051E1C", "gettype": "GetEnemyType", "gettype_controls": "GetEnemyType", "target_player": "fn_800516F8", "target_player_colors": "fn_800516F8", "init_vars": "init_enemy_vars"}[args.axis]
     edge = read_edges()[UNIT]
     if bool(args.source) != bool(args.baseline_object):
         ap.error("--source and --baseline-object must be provided together")
@@ -1326,7 +1344,7 @@ def main():
     target = load(str(target_object(UNIT)), function)[3]
     base = load(str(baseline), function)[3]
     rows = []
-    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "move_entry": move_entry_variants, "generate": generate_variants, "generate_entry": generate_entry_variants, "generate_helpers": generate_helper_variants, "generate_pool": generate_pool_variants, "movement": movement_variants, "movement_helpers": movement_helper_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants, "init_vars": init_vars_variants}[args.axis]
+    variants = {"pointer": pointer_variants, "normalization": normalization_variants, "move_entry": move_entry_variants, "move_page": move_page_variants, "generate": generate_variants, "generate_entry": generate_entry_variants, "generate_helpers": generate_helper_variants, "generate_pool": generate_pool_variants, "movement": movement_variants, "movement_helpers": movement_helper_variants, "resources": resource_variants, "milestones": milestone_variants, "formatter": formatter_variants, "gettype": enemy_type_variants, "gettype_controls": enemy_type_control_variants, "target_player": target_player_variants, "target_player_colors": target_player_color_variants, "init_vars": init_vars_variants}[args.axis]
     for name, candidate in [("baseline", body), *variants(body)]:
         obj = baseline if name == "baseline" else compile_source(source[:start] + candidate + source[end:], name)
         actual = load(str(obj), function)[3]

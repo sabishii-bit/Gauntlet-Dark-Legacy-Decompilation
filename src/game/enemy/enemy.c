@@ -3260,9 +3260,9 @@ void move_logic10(s32 index)
     u8* t;
     u8* other;
 
-    type = *(s32*)(e0 + OFF_E(type));
-    e = (Enemy*)(e0 + ENEMY_POOL_OFF);
-    e0 += ENEMY_POOL_OFF;
+    type = ((EnemyMovePage05*)e0)->enemies[0].type;
+    e = ((EnemyMovePage05*)e0)->enemies;
+    e0 = (u8*)((EnemyMovePage05*)e0)->enemies;
     t = base;
     t += type * 4;
     speed = *(f32*)(t + offsetof(EnemyMovePage05, speed));

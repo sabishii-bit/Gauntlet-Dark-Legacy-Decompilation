@@ -63,6 +63,35 @@ class NormalizationResultWeb(unittest.TestCase):
             source_probe.normalization_arm_result(self.fixture(), "missing block")
 
 
+class MovePageForms(unittest.TestCase):
+    BODY = """void move_logic10(s32 index)
+{
+    type = *(s32*)(e0 + OFF_E(type));
+    e = (Enemy*)(e0 + ENEMY_POOL_OFF);
+    e0 += ENEMY_POOL_OFF;
+    speed = read_speed(type);
+    consume(e, e0);
+}
+"""
+
+    def test_member_lowering_preserves_consumer_chronology(self):
+        forms = dict(source_probe.move_page_variants(self.BODY))
+        self.assertEqual(set(forms), {"array_then_copy", "array_twice", "array_and_byte_advance"})
+        text = forms["array_twice"]
+        self.assertIn("type = ((EnemyMovePage05*)e0)->enemies[0].type;", text)
+        self.assertIn("e = ((EnemyMovePage05*)e0)->enemies;\n    e0 = (u8*)((EnemyMovePage05*)e0)->enemies;", text)
+        self.assertTrue(text.endswith("    speed = read_speed(type);\n    consume(e, e0);\n}\n"))
+        self.assertNotIn("typedef", text)
+        self.assertNotIn("volatile", text)
+
+    def test_already_converted_and_missing_alias_refuse(self):
+        converted = dict(source_probe.move_page_variants(self.BODY))["array_twice"]
+        with self.assertRaises(ValueError):
+            list(source_probe.move_page_variants(converted))
+        with self.assertRaises(ValueError):
+            list(source_probe.move_page_variants(self.BODY.replace("    e0 += ENEMY_POOL_OFF;\n", "")))
+
+
 class SpawnPoolForms(unittest.TestCase):
     BODY = """s32 generate_enemy(void)
 {

@@ -1506,6 +1506,16 @@
     ],
     "game/enemy/enemy": [
       {
+        "function": "move_logic10",
+        "before_sha256": "c9a84e0800e30cfd3ca7492bf99c6220a5dbf6ca2f3ba62af07f9734724466d6",
+        "after_sha256": "87515e393b37eafc0f4a9b3593084f618654c4c462d3b1eec968607f8118df39",
+        "post_recolor_permutation": [
+          {"start": "0x34", "end": "0x48", "order": [4, 1, 2, 3, 0]}
+        ],
+        "copy_register_fields": true,
+        "mechanism": "R60 source-first closure, counts1085/1085: the existing EnemyMovePage05 array-member view replaces duplicate adjusted-address expressions with the target advance-and-copy entry while retaining the +3608 type load. No new wrapper, padding, storage, arithmetic or side effect. The remaining 141 raw differing words are a strict recolor against the target with its entry permutation undone, then the existing dependence-audited post-recolor stage exchanges the table lis and pointer addi at+0x34/+0x44. Recolor-before-permute matters: their raw r3 reuse makes the reverse order unsafe. The relocated table lis moves with its relocation, whose binding is checked against the target; full-retail datum verification passes. SOURCE-EXHAUSTION: attempt.R60_move-logic10-float-arm-results-close-both-surplus-copies.20260904.v1 and the R60 typed-page, declaration, initializer, alias, inline-boundary and scheduling controls. No guard extension, unproven audit or claim of universal source impossibility."
+      },
+      {
         "function": "generate_enemy",
         "before_sha256": "f58570725ba05509c49c7240f219ae06feb58a2b73272d302dae9a5f00cae928",
         "after_sha256": "6e923136a1a6511b656fe013f49f138a516dc09ba9a478ba8f3ea2f93c8a600e",
