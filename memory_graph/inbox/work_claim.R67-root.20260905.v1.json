@@ -4,9 +4,10 @@
     "owned_units": [
       "tools/gdl/build_provenance.py",
       "tools/gdl/composed_census/ce_eq_datum_audit.py",
-      "tools/gdl/reconstruction_preflight.py"
+      "tools/gdl/reconstruction_preflight.py",
+      "config/GUNE5D/config.yml"
     ],
-    "scope": "Integrator; verify linked relocation demotions against final ELF/DOL; integrate runtime pipeline support into named tool consumers and tests. No compiler reverse engineering; separate feature branch, no main mutation."
+    "scope": "Integrator; verify linked relocation demotions against final ELF/DOL; integrate runtime pipeline support into named tool consumers and tests; audit and suppress false inferred relocations within the verified embedded static asset range. No compiler reverse engineering; separate feature branch, no main mutation."
   },
   "claimed_at": "2026-09-05",
   "function": "project:gdl",
