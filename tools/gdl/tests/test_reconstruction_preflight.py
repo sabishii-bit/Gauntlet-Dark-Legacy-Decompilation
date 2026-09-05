@@ -61,6 +61,29 @@ class ShadowReportTests(unittest.TestCase):
                 preflight.compare_reports(report(), report(value))
 
 
+class ExceptionControlTests(unittest.TestCase):
+    def control(self):
+        return {"schema_version": 1, "status": "UNRESOLVED", "units_selected": 1,
+                "rows": [{"unit": "game/world/newcam.c", "exception_metadata": {
+                    "schema_version": 1, "status": "PASS", "target_records": 19,
+                    "ours_records": 19, "missing": [], "changed": {}, "extra": {}}}]}
+
+    def test_equal_exceptions_do_not_certify_the_whole_tu(self):
+        row = self.control()
+        self.assertIn("metadata only", preflight.validate_exception_control(row))
+        self.assertEqual(row["status"], "UNRESOLVED")
+
+    def test_missing_mismatched_or_empty_exception_population_refuses(self):
+        for field, value in (("status", "UNRESOLVED"), ("target_records", 0),
+                             ("ours_records", 18), ("missing", ["function"]),
+                             ("changed", {"function": "differs"}), ("extra", {"new": {}})):
+            with self.subTest(field=field):
+                row = self.control()
+                row["rows"][0]["exception_metadata"][field] = value
+                with self.assertRaises(ValueError):
+                    preflight.validate_exception_control(row)
+
+
 class CommandArtifactTests(unittest.TestCase):
     def test_previous_artifact_is_never_accepted(self):
         with tempfile.TemporaryDirectory() as temp:

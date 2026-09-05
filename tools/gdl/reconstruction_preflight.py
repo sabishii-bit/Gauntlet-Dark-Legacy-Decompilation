@@ -110,7 +110,7 @@ def input_fingerprints(root):
 
 
 def run_stage(name, command, root, folder, artifact=None, require_status=False,
-              timeout=300):
+              timeout=300, allowed_returncodes=(0,), artifact_validator=None):
     """Execute once; no old artifact can satisfy a failed or silent process."""
     row = {"name": name, "command": [str(arg) for arg in command], "status": "FAIL"}
     started = time.monotonic()
@@ -124,7 +124,7 @@ def run_stage(name, command, root, folder, artifact=None, require_status=False,
         log.write_text(done.stdout + "\n--- stderr ---\n" + done.stderr,
                        encoding="utf-8")
         row.update(returncode=done.returncode, log=str(log))
-        if done.returncode:
+        if done.returncode not in allowed_returncodes:
             row["error"] = "command did not complete its required check"
             return row
         if artifact is not None:
@@ -135,6 +135,9 @@ def run_stage(name, command, root, folder, artifact=None, require_status=False,
                 row.update(status="UNRESOLVED", artifact=str(artifact),
                            error="required tool schema/status is not schema 1 PASS")
                 return row
+            if artifact_validator is not None:
+                row["validated_scope"] = artifact_validator(payload)
+                row["tool_reported_status"] = payload.get("status")
             row.update(artifact=str(artifact), artifact_sha256=sha256(artifact))
         row["status"] = "PASS"
     except (OSError, ValueError, subprocess.SubprocessError) as error:
@@ -142,6 +145,24 @@ def run_stage(name, command, root, folder, artifact=None, require_status=False,
     finally:
         row["seconds"] = round(time.monotonic() - started, 3)
     return row
+
+
+def validate_exception_control(payload):
+    """A positive EH control, not a TU-flip certificate for newcam."""
+    if payload.get("schema_version") != 1 or payload.get("status") not in {"PASS", "UNRESOLVED"}:
+        raise ValueError("exception control: invalid schema or failed audit")
+    rows = payload.get("rows", [])
+    if payload.get("units_selected") != 1 or len(rows) != 1 or rows[0].get("unit") != "game/world/newcam.c":
+        raise ValueError("exception control: unexpected unit population")
+    metadata = rows[0].get("exception_metadata") or {}
+    if (metadata.get("schema_version") != 1 or metadata.get("status") != "PASS"
+            or not isinstance(metadata.get("target_records"), int)
+            or metadata["target_records"] <= 0
+            or metadata.get("ours_records") != metadata["target_records"]
+            or metadata.get("missing") != [] or metadata.get("changed") != {}
+            or metadata.get("extra") != {}):
+        raise ValueError("exception control: nonempty function-based equality not established")
+    return "newcam exception metadata only; data ownership and whole-TU status remain separate"
 
 
 def main(argv=None):
@@ -185,6 +206,12 @@ def main(argv=None):
                 result["stages"].append(run_stage(
                     name, [sys.executable, script, *options, "--out", str(path)],
                     ROOT, folder, path, require_status=True))
+            path = folder / "exception_control.json"
+            result["stages"].append(run_stage(
+                "exception_control", [sys.executable, "tools/gdl/datadiff.py",
+                    "game/world/newcam", "--sections", "--out", str(path)],
+                ROOT, folder, path, allowed_returncodes=(0, 2),
+                artifact_validator=validate_exception_control))
         after = input_fingerprints(ROOT)
         changed = sorted(path for path in before.keys() | after.keys()
                          if before.get(path) != after.get(path))
