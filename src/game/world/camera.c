@@ -430,7 +430,7 @@ s32 adjust_radius_8002B2D4(s32 camIdx);
 void CopyCam(u8* source, u8* destination);
 void UpdatePlayerWorldMat(void* player, s32 anchor);
 void init_stage_info(void);
-void DiffRate();
+void DiffRate_8002951C(s32 camIdx);
 void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 void fn_8005A588(struct OBJGRP* group, f32* offset);
 s32 MBScreenHeight(void);
@@ -3285,7 +3285,7 @@ void camera_mode_dest(s32 camIdx)
     step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
     pitchReached = 0;
     cam->pyr[0] = -cam->pyr[0];
-    DiffRate();
+    DiffRate_8002951C(camIdx);
     cam->pyr[0] = -cam->pyr[0];
 
     if (lbl_80344510 != lbl_8034450C) {
