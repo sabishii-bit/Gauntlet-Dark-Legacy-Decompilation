@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Manual scratch-only experiment; refuses existing output directories and unreviewed source shapes.",
+    "Requires built raw, processed and target objects; verifies actual compiler baseline fidelity and frozen inputs.",
+    "PASS certifies finite replay completion, not source exhaustion, target relocation equivalence or DOL correctness."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r76_pool_source_controls.py",
+  "id": "tool.r76-pool-source-controls.20260906T065722Z.536e0ae9",
+  "kind": "tool",
+  "name": "r76-pool-source-controls",
+  "purpose": "Replay twenty recorded MEMPOOL source controls with complete raw fidelity and separate body and metadata comparisons.",
+  "recorded_at": "2026-09-06T06:57:22Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r76_pool_source_controls.py",
+  "status": "active",
+  "tool_key": "tool:r76-pool-source-controls",
+  "tool_kind": "script",
+  "usage": [
+    "Run from repository root with freshly built owning objects; default output is a new scratch directory."
+  ],
+  "valid_from": "2026-09-06T06:57:22+00:00"
+}

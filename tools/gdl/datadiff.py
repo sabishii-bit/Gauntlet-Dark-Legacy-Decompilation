@@ -337,26 +337,25 @@ def deadstrip_check(unit, obj, quiet_ok=True):
 
 
 def ours_object(base):
-    """Our built object, preferring the raw compiler output.
+    """Select the active compiler output, never an abandoned transform file.
 
-    The linked object under src/ is POST-webfrank, and a failed webfrank
-    run (e.g. a source edit invalidated a rule hash) leaves it STALE —
-    this tool then reports the pre-edit state twice, which cost a lane
-    the run's most expensive trap. Webfrank rewrites .text only, so for
-    the data-class comparisons here the raw body is both equivalent and
-    always fresh. A staleness note is printed when the linked object
-    lags the body.
+    The hash-bound generated graph owns this choice. Object existence or
+    mtime cannot establish that a postprocessor is still active. This is a
+    compiler-stage data measurement, not a final-link equivalence proof;
+    dependency freshness remains the builder's responsibility.
     """
+    from raw_object import RawObjectError, resolve_object
+    try:
+        selected = resolve_object(base, root=REPO, version=VERSION)
+    except RawObjectError as exc:
+        raise MeasurementUnavailable(str(exc)) from exc
     linked = REPO / "build" / VERSION / "src" / f"{base}.o"
-    body = linked.parent / ".postprocess" / "body" / linked.name
-    if body.is_file():
-        if (linked.is_file()
-                and linked.stat().st_mtime < body.stat().st_mtime):
-            print(f"[note] {linked.name}: post-webfrank object is STALE"
-                  " (older than the raw body — a failed webfrank run"
-                  " leaves it behind); comparing the raw compiler output")
-        return body
-    return linked
+    if (selected.path != linked and linked.is_file()
+            and linked.stat().st_mtime < selected.path.stat().st_mtime):
+        print(f"[note] {linked.name}: transformed object is STALE"
+              " (older than its active compiler output); comparing the"
+              " compiler-stage object")
+    return selected.path
 
 
 def claimed_starts(units):
@@ -882,12 +881,13 @@ def main(argv=None):
                 continue
             print(f"[{t}] resolved to splits unit {key}")
         if only_deadstrip:
-            obj = ours_object(key.rsplit(".", 1)[0])
-            if not obj.exists():
-                print(f"[{key}] UNRESOLVED: object not built ({obj})")
+            try:
+                obj = ours_object(key.rsplit(".", 1)[0])
+                deadstrip_check(key, obj, quiet_ok=False)
+            except (OSError, ValueError, MeasurementUnavailable) as exc:
+                print(f"[{key}] UNRESOLVED: {exc}")
                 unresolved.append(key)
-                continue
-            deadstrip_check(key, obj, quiet_ok=False)
+                measurements.append({"unit": key, "status": "UNRESOLVED", "error": str(exc)})
             continue
         if only_sections:
             try:

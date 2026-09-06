@@ -1,0 +1,255 @@
+{
+  "attributes": {
+    "artifacts": "Read-only extraction command python build/r76_pdb_pool_tree.py exited0; build/r76_pdb_pool_tree.json preserves full MEMPOOL procedure roster/scopes, six data symbols and complete selected layouts, plus separately requested MB_TREE evidence. This compact record embeds its own necessary raw facts rather than relying on that scratch artifact's durability.",
+    "bounded_source_hypothesis": "For integrator consideration only: byte-pointer block address/callback typing is independently corroborated and gives a concrete alternative to the current reconstructed integer-address form. Fixed gcSort array storage is corroborated; an entries local is not. This record neither predicts an allocator outcome nor authorizes a GameCube retyping or new source probe.",
+    "gcSort": {
+      "bytes": "16000710b531000088fa08000900066763536f7274000000",
+      "interpretation": "S_LDATA32_ST outside all MEMPOOL procedure scopes: module-local storage. LF_ARRAY0x31b5 has element0x31b4 (32-bit near _memblk pointer), index type0x11, total byte size0x2000. Thus _memblk*[2048]. Array index debug type0x11 does not establish a loop variable's source type.",
+      "kind": "0x1007",
+      "offset": "0x8fa88",
+      "record_offset": "0x74",
+      "segment": 9,
+      "type": "0x31b5"
+    },
+    "layouts": {
+      "_list": {
+        "definition": "0x63de",
+        "fieldlist": "0x63dd",
+        "members": [
+          [
+            "head",
+            0,
+            "0x31b4",
+            "_memblk*"
+          ]
+        ],
+        "size": 4
+      },
+      "_memblk": {
+        "definition": "0x63da",
+        "fieldlist": "0x63d9",
+        "members": [
+          [
+            "addr",
+            0,
+            "0x420",
+            "unsigned char*"
+          ],
+          [
+            "size",
+            4,
+            "0x75",
+            "unsigned int32"
+          ],
+          [
+            "prev",
+            8,
+            "0x31b4",
+            "_memblk*"
+          ],
+          [
+            "next",
+            12,
+            "0x31b4",
+            "_memblk*"
+          ]
+        ],
+        "size": 16
+      },
+      "_pool": {
+        "definition": "0x3225",
+        "fieldlist": "0x3224",
+        "members": [
+          [
+            "free",
+            0,
+            "0x31bf",
+            "_list"
+          ],
+          [
+            "claim",
+            4,
+            "0x31bf",
+            "_list"
+          ],
+          [
+            "blockbit",
+            8,
+            "0x74",
+            "signed int32"
+          ]
+        ],
+        "size": 12
+      },
+      "resolution": "Resolve forward-reference records by exact struct tag to the complete definitions above. Forward size0 is not a zero-sized structure. All listed member offsets use immediate numeric leaves; full fieldlist bytes are retained below."
+    },
+    "limits": "No GameCube source/header/config changes, compilation, git/index mutation or graph staging by this evidence worker. An absent debug local is not an absent source local. No original entries/currentEnd declaration or hidden helper body was recovered. Exact-name Xbox linkage does not independently map gcSort to GC lbl_8031EB00. GameCube assembly, ABI/callers and whole-object verification remain authoritative for any proposed type change.",
+    "procedure": {
+      "bytes": "3a000b10000000002817000000000000960000000400000095000000d931000020dd0b0001000014706f6f6c5f676172626167655f636f6c6c656374",
+      "children": [
+        {
+          "bp_offset": 4,
+          "bytes": "1200061004000000c631000004706f6f6c000000",
+          "kind": "0x1006",
+          "name": "pool",
+          "record_offset": "0x1700",
+          "type": "0x31c6"
+        },
+        {
+          "bp_offset": 8,
+          "bytes": "1200061008000000d73100000763625f6d6f7665",
+          "kind": "0x1006",
+          "name": "cb_move",
+          "record_offset": "0x1714",
+          "type": "0x31d7"
+        },
+        {
+          "bytes": "02000600",
+          "kind": "0x6",
+          "record_offset": "0x1728"
+        }
+      ],
+      "code_offset": "0xbdd20",
+      "code_segment": 1,
+      "code_size": 150,
+      "debug_end": 149,
+      "debug_start": 4,
+      "end": "0x1728",
+      "flags": 0,
+      "kind": "0x100b",
+      "next": 0,
+      "parent": 0,
+      "record_offset": "0x16c4",
+      "scope_inventory": "Exactly the listed three child records through explicit pEnd; pEnd is a later exact S_END. Both named records belong directly to procedure0x16c4; no nested block or additional local records in this interval. Parameter identities are corroborated by the procedure argument list and matching types, not inferred from location sign alone.",
+      "type": "0x31d9",
+      "type_chain": "0x31d9 LF_PROCEDURE: return0x74, calltype0, attributes0, two args via0x31d8=[0x31c6,0x31d7]. 0x31c6 points to forward _pool0x31c5. Callback pointer0x31d7 points to procedure0x31d6: return0x74, calltype0, attributes0, two args via0x31d5=[0x31b4,0x420]; 0x31b4 points to forward _memblk0x31b3."
+    },
+    "provenance": {
+      "container_reader": "tools/gdl/composed_census/r68_sound_data_recovery.py: pdb_streams",
+      "container_reader_sha256": "f5c4681dbbf3a54b3e31cbad96794b6ba8b87cddba9bc4b980bec61c1657ad5a",
+      "dbi_module_offset": "0x374",
+      "format_authority": "https://github.com/microsoft/microsoft-pdb/blob/master/include/cvinfo.h",
+      "input": "research/xbox_symbols/shell3D.pdb",
+      "input_policy": "Optional private user-provided input; do not fetch or commit.",
+      "module": ".\\Release\\MEMPOOL.OBJ",
+      "pdb_sha256": "4d5d694a9b6275b9a521f77c9c26168c7b6586d052960f8aaad14e10452c7b64",
+      "pdb_size": 6685696,
+      "primitive_interpretation": "cvinfo.h T_32PUCHAR=0x0420 is a 32-bit pointer to unsigned 8-bit char; T_INT4=0x0074 is signed int32; T_UINT4=0x0075 is unsigned int32. Shipped parse_types intentionally reports 0x420 UNMODELLED; this record interprets its preserved index using the format authority, without modifying that parser.",
+      "reader": "tools/gdl/composed_census/r75_pdb_signatures.py: parse_types, symbol_records",
+      "reader_sha256": "d75ef8c475054aa6cea74e887360f729d54c1f600022282b04f5ce9567691d29",
+      "symbol_bytes": 6708,
+      "symbol_sha256": "791b39e60b785295543b2f39ad2ba4be310227f709133eb0c483b365392102e9",
+      "symbol_stream": 15,
+      "tpi": {
+        "first_type": "0x1000",
+        "header_bytes": 56,
+        "last_type_exclusive": "0x654c",
+        "stream": 2,
+        "version": 19961031
+      }
+    },
+    "raw_tpi_records": [
+      [
+        "0x31b3",
+        "0x7a8f0",
+        "1e000510000080000000000000000000000000000000075f6d656d626c6bf2f1"
+      ],
+      [
+        "0x31b4",
+        "0x7a910",
+        "0a000210b33100000a000000"
+      ],
+      [
+        "0x31b5",
+        "0x7a91c",
+        "0e000310b431000011000000002000f1"
+      ],
+      [
+        "0x31bf",
+        "0x7a9a8",
+        "1a000510000080000000000000000000000000000000055f6c697374"
+      ],
+      [
+        "0x31c5",
+        "0x7aa0c",
+        "1a000510000080000000000000000000000000000000055f706f6f6c"
+      ],
+      [
+        "0x31c6",
+        "0x7aa28",
+        "0a000210c53100000a000000"
+      ],
+      [
+        "0x31d5",
+        "0x7ab34",
+        "0e00011202000000b431000020040000"
+      ],
+      [
+        "0x31d6",
+        "0x7ab44",
+        "0e0008107400000000000200d5310000"
+      ],
+      [
+        "0x31d7",
+        "0x7ab54",
+        "0a000210d63100000a000000"
+      ],
+      [
+        "0x31d8",
+        "0x7ab60",
+        "0e00011202000000c6310000d7310000"
+      ],
+      [
+        "0x31d9",
+        "0x7ab70",
+        "0e0008107400000000000200d8310000"
+      ],
+      [
+        "0x3224",
+        "0x7b488",
+        "3600031205140300bf31000000000466726565f105140300bf310000040005636c61696d0514030074000000080008626c6f636b626974f1"
+      ],
+      [
+        "0x3225",
+        "0x7b4c0",
+        "1a000510030000002432000000000000000000000c00055f706f6f6c"
+      ],
+      [
+        "0x63d9",
+        "0x107174",
+        "42000312051403002004000000000461646472f1051403007500000004000473697a65f105140300b431000008000470726576f105140300b43100000c00046e657874f1"
+      ],
+      [
+        "0x63da",
+        "0x1071b8",
+        "1e00051004000000d963000000000000000000001000075f6d656d626c6bf2f1"
+      ],
+      [
+        "0x63dd",
+        "0x107220",
+        "1200031205140300b431000000000468656164f1"
+      ],
+      [
+        "0x63de",
+        "0x107234",
+        "1a00051001000000dd63000000000000000000000400055f6c697374"
+      ]
+    ],
+    "reproduction": [
+      "Read optional PDB bytes and verify input size/SHA256 above; call pdb_streams(data) from shipped r68_sound_data_recovery, without importing pdb20_dump.",
+      "Call types, describe, header = parse_types(streams[2]) from shipped r75_pdb_signatures. For every raw_tpi_records tuple assert types[int(index,16)]['offset']==offset and ['bytes']==raw. describe(0x31d9), describe(0x31b5), describe(0x3225), describe(0x63da), describe(0x63de) reproduce the typed chains; inspect the retained fieldlists for layouts.",
+      "Read DBI streams[3] module row+0x374: uint16 stream index at+34 is15 and uint32 symbol extent at+36 is6708; row names begin+64 and identify .\\Release\\MEMPOOL.OBJ. Slice streams[15][:6708] and verify symbol SHA256.",
+      "Call selected, roster = symbol_records(buf, describe, {'pool_garbage_collect'}). Assert exactly one selected procedure, exact procedure record and three child bytes/offsets above; the shipped reader checks all module scope endpoints. Independently compare buf[0x74:0x8c] to gcSort bytes and decode S_LDATA32_ST payload as <IIH plus counted name: type0x31b5,offset0x8fa88,segment9,namegcSort.",
+      "Re-read input and require byte equality. This is sufficient with shipped importable APIs; neither promotion of build/r76_pdb_pool_tree.py nor any source compilation is required."
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R76_mempool-pdb-byte-pointer-address-and-fixed-gcsort-array.20260906.v1",
+  "kind": "claim",
+  "predicate": "cross_platform_signature_evidence",
+  "recorded_at": "2026-09-06T06:57:20Z",
+  "schema_version": 1,
+  "subject": "function:pool_garbage_collect",
+  "valid_from": "2026-09-06",
+  "value": "Raw Xbox MEMPOOL.OBJ records identify int pool_garbage_collect(struct _pool *pool, int (*cb_move)(struct _memblk *, unsigned char *)). The _memblk addr member is an unsigned-byte pointer, not an integer, and module-local gcSort is an 8192-byte array of 32-bit _memblk pointers (2048 entries), not a pointer variable. Its complete procedure scope contains only the two parameter records and S_END. These are Xbox type/storage facts, not recovery of GameCube locals, call edges or exact original source."
+}
