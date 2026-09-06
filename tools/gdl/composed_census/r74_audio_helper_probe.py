@@ -25,7 +25,7 @@ UNIT = 'game/audio/audio'
 FUNCTIONS = ('AudioBankQueueName', 'AudioBankLoadName', 'AudioUnloadPart')
 SOURCE_SHA = '89f75ffd25c4fa06e808824563ebb632a1e7f30959ebbf66777068b009ca0e76'
 BASE_RAW_SHA = 'd663a1475139ab60b693393e1abc237f3b5954f4d0f1cc9bbc97fca4b587138e'
-HELPER = '''static inline s32 AudioFindBank(char* bankName)
+HELPER = '''static inline s32 AudioFindPart(char* bankName)
 {
     s32 index;
     s32 offset;
@@ -85,7 +85,7 @@ def lift(source, names, helper=HELPER, scan_only=False):
         else:
             b = body.index('        '+index+' = -1;\n    }', a)
             b += len('        '+index+' = -1;\n    }\n')
-        body = body[:a] + '    '+index+' = AudioFindBank(bankName);\n' + body[b:]
+        body = body[:a] + '    '+index+' = AudioFindPart(bankName);\n' + body[b:]
         source = source[:start] + body + source[end:]
     return source.replace(ANCHOR, helper+ANCHOR)
 
@@ -146,7 +146,7 @@ def source_forms(data):
         body = text[a:b]
         for local in locals_to_move:
             body = body.replace('    s32 '+local+';\n','',1)
-        split = body.index('    i = AudioFindBank(bankName);')
+        split = body.index('    i = AudioFindPart(bankName);')
         remainder = body[split:-1]
         decls = ''.join('        s32 '+local+';\n' for local in locals_to_move)
         body = body[:split]+'    {\n'+decls+''.join('    '+line+'\n' for line in remainder.rstrip().splitlines())+'    }\n}'
@@ -169,9 +169,9 @@ def source_forms(data):
         '    s32 i;\n    s32 scanOffset;\n    s32 bankOffset;\n    s32 partId;',
         '    int i;\n    int scanOffset;\n    int bankOffset;\n    int partId;')
     forms['helper_const_name'] = lift(source,FUNCTIONS,HELPER.replace('char* bankName','const char* bankName'))
-    param = HELPER.replace('AudioFindBank(char* bankName)', 'AudioFindBank(char* bankName, s32 index)')
+    param = HELPER.replace('AudioFindPart(char* bankName)', 'AudioFindPart(char* bankName, s32 index)')
     param = param.replace('    s32 index;\n','').replace('    index = 0;\n','')
-    forms['helper_initial_index_parameter'] = lift(source,FUNCTIONS,param).replace('AudioFindBank(bankName);','AudioFindBank(bankName, 0);')
+    forms['helper_initial_index_parameter'] = lift(source,FUNCTIONS,param).replace('AudioFindPart(bankName);','AudioFindPart(bankName, 0);')
     retained = lift(source,('AudioBankQueueName','AudioBankLoadName'))
     retained = edit_body(retained,'AudioBankQueueName','    s32 bankOffset;\n    s32 partIdx;',
                          '    s32 partIdx;\n    s32 bankOffset;')
@@ -196,7 +196,7 @@ def differences(before, after, target):
         functions[name] = dict(ours_count=len(raw)//4, target_count=len(retail)//4,
                                differing_words=len(words), words=words,
                                target_relocations_equal=relocation_rows(a['relocations'])==relocation_rows(b['relocations']),
-                               helper_calls=[r for r in a['relocations'] if r[2]=='AudioFindBank'])
+                               helper_calls=[r for r in a['relocations'] if r[2]=='AudioFindPart'])
     nontext = lambda inv: {k:v for k,v in inv['sections'].items() if k!='.text'}
     return dict(functions=functions,
                 changed_bodies=sorted(n for n in before['functions'].keys()|after['functions'].keys()

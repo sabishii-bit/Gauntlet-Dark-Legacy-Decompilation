@@ -801,9 +801,10 @@ void AudioLoadRom(void)
 /* bank part registration / async load                              */
 /* ---------------------------------------------------------------- */
 
-/* Resolve a mode-bank name. The Xbox AUDIO.OBJ roster names AudioFindBank;
- * this shared helper is a candidate reconstruction of the GameCube lookup. */
-static inline s32 AudioFindBank(char* bankName)
+/* Resolve a mode's part name. Xbox AudioFindPart(char*) corroborates this
+ * lookup; AudioFindBank instead takes a part pointer and a nested bank name.
+ * The original GameCube helper body/linkage remain a reconstruction. */
+static inline s32 AudioFindPart(char* bankName)
 {
     s32 index;
     s32 offset;
@@ -840,7 +841,7 @@ s32 AudioBankLoadName(char* bankName, char* partName, s32 mode)
     if (sAudioSuspend != 0) {
         return 1;
     }
-    bankIdx = AudioFindBank(bankName);
+    bankIdx = AudioFindPart(bankName);
     bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
     for (partIdx = 0, i = 0; partIdx < *(s32*)(bankEntry + 24); partIdx++, i += 4) {
         u8* romBank = *(u8**)(sAudioBankTable + 16)
@@ -900,7 +901,7 @@ s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
     if (sAudioSuspend != 0) {
         return 1;
     }
-    foundBank = AudioFindBank(bankName);
+    foundBank = AudioFindPart(bankName);
     bankEntry = (u8*)gAudioBankTbl + foundBank * 292 + 20;
     for (partIdx = 0, bankOffset = 0; partIdx < *(s32*)(bankEntry + 24);
          partIdx++, bankOffset += 4) {

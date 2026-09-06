@@ -6,6 +6,10 @@ from tools.gdl.composed_census import r74_audio_helper_probe as probe
 
 
 class AudioHelperProbeTests(unittest.TestCase):
+    def test_lookup_name_tracks_the_pdb_part_signature(self):
+        self.assertIn('static inline s32 AudioFindPart(char* bankName)', probe.HELPER)
+        self.assertNotIn('AudioFindBank', probe.HELPER)
+
     def test_source_snapshot_refuses_drift(self):
         with self.assertRaisesRegex(ValueError, 'snapshot changed'):
             probe.source_forms(b'void AudioBankQueueName(void) {}')
