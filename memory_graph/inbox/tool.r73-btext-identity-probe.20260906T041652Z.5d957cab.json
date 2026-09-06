@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Requires the reviewed source hash and a byte-identical fresh complete raw baseline before any variant. Scratch output only; no production source, object, compiler flag, or WebFrank mutation.",
+    "Reports actual compile failures separately, all function bodies and relocation bindings, nontext data/BSS/EH and symbols. Negative controls cover only the finite named forms, never prove source impossibility or retire a pin."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r73_btext_identity_probe.py",
+  "id": "tool.r73-btext-identity-probe.20260906T041652Z.5d957cab",
+  "kind": "tool",
+  "name": "r73-btext-identity-probe",
+  "purpose": "Replay finite full-TU FontInit source identity, integer-type, and natural-index/per-function-pragma controls using the actual Ninja compiler edge.",
+  "recorded_at": "2026-09-06T04:16:52Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r73_btext_identity_probe.py",
+  "status": "active",
+  "tool_key": "tool:r73-btext-identity-probe",
+  "tool_kind": "external",
+  "usage": [
+    "python tools/gdl/composed_census/r73_btext_identity_probe.py"
+  ],
+  "valid_from": "2026-09-06T04:16:52+00:00"
+}
