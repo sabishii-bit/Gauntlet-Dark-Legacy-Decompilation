@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "branch": "codex/r73-atree-retirement",
+    "integrator": "codex-root",
+    "owned_units": [
+      "src/game/anim/atree.c"
+    ],
+    "scope": "Scratch-first source-native retirement of existing atree postprocessing dependencies. Own src/game/anim/atree.c and lane-prefixed r73_atree tools/tests only. Existing pins, configure.py, splits, symbols and shared verifier tools remain integrator-owned and untouched absent reviewed proof. No new rules or compiler reverse engineering."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "tu:game/anim/atree",
+  "id": "work_claim.R73_atree-source-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r73-atree",
+  "recorded_at": "2026-09-06T03:57:47Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
