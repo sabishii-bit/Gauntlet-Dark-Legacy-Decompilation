@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "configure.py",
+      "tools/gdl/tests/test_r74_atree_bootstrap.py"
+    ],
+    "scope": "Fix only atree objcopy tool dependency in configure.py and add tools/gdl/tests/test_r74_atree_bootstrap.py. Fresh provisioning fails because objcopy executable is not a declared Ninja download output. Match existing GNU assembler dependency convention: download target directory for managed tools, executable for user-supplied path. No source bytes or transformer behavior changes."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "tu:game/anim/atree",
+  "id": "work_claim.R74_atree-bootstrap.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r74-runtime",
+  "recorded_at": "2026-09-06T04:57:21Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
