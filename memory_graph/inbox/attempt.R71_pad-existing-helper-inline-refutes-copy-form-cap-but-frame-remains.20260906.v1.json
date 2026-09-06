@@ -1,0 +1,60 @@
+{
+  "attempted_axis": "User-requested postprocessor retirement through named variable identity and existing manager-loop/class inlining context, with actual full-TU compiler fidelity controls",
+  "attributes": {
+    "artifacts": "build/r71_pad_identity_ygwilxhw/report.json and its source/object archive. Contains complete raw/processed/target inventories, all commands, source/headers/compiler hashes, pragmas, every variant's disassembly, slotdiff slot maps and bounded positive assertions. Candidate sourceSHA25655fd0bcb5e35ec43c772555590b31d75a16857c273c9fbc4b64b1c6d91e4fa38; candidate objectSHA256916c014344afb64caa934578d10a6174564cc20e79d6607f89fc213e8eb5a35b. CompilerSHA256ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c, derivedGC/1.2.5n, not stock.",
+    "axis_log": [
+      "symbolic manager pointer introduced at entry / first use:47 instructions,41 processed word differences; later function offsets move; no result retained",
+      "named status-buffer call result / iteration-local bit and error: complete raw object identical to baseline",
+      "existing mbBlitPadTest explicit-inline helper and target-layout typed adaptation:48 instructions,5 frame word differences; all rule-controlled shape choices reached",
+      "inlined current-source mask order/assignment chronology:48 instructions,13 differences; original helper declaration order reduces to8; original helper initializer chronology reaches5",
+      "same typed helper flattened into caller:48 instructions,23 differences, the opposite-sensitive control distinguishing inline IR identity from source chronology",
+      "ordinary static helper under configured auto-inline without inline keyword: retained helper plus10-instruction caller; rejected as target reconstruction",
+      "C++ member implicit-this / PDB inherited prefix / base reset method / base read-and-add methods / joint three methods:48 instructions, same5 frame words",
+      "named pointer/reference in the class caller:47 instructions,40 processed word differences; no result retained"
+    ],
+    "baseline": "Actual-command cv_probe fidelity BYTE-IDENTICAL over the complete raw object. Target/current48/48; wf_word_diff reports11 differing raw words, including target-baked manager address payloads. Archived processed versus raw differs at10 word positions because the moved low relocation and its target payload overlap the schedule difference. datadiff --sections: .data0x60 and .sdata2 0x28 exact; both decoded EH records exact. Six siblings unchanged.",
+    "binding_and_nontext": "Typed-inline candidate has positional HA6/LO26 gPadManager+0 and REL24 at36 to G3DGetPadStatusBuffer. The named manager resolves to0x8029645c, reproducing the two target-baked halfwords. All six sibling bodies, sizes, offsets and relocations equal the previous processed object. Allocated nontext bytes/alignment/extents/types match; the sole raw nontext relocation spelling change is extabindex @112\u2192@125, with exact equality of the existing decoder's resolved EH records. This is instruction-binding and section evidence, not a fresh all-source runtime ownership certificate.",
+    "commands": [
+      "python tools/gdl/composed_census/cv_probe.py game/g3d/gcontrolpads --axes check --out build/r71_pad_fidelity.json",
+      "python tools/gdl/composed_census/wf_word_diff.py game/g3d/gcontrolpads G3DReadControlPadStates",
+      "python tools/gdl/datadiff.py --sections game/g3d/gcontrolpads",
+      "python tools/gdl/composed_census/r71_pad_identity_probe.py",
+      "python -m unittest discover tools/gdl/tests -b",
+      "python -m memory_graph.test_graph -b",
+      "ninja -j2",
+      "python memory_graph/gdlmem.py build",
+      "python memory_graph/gdlmem.py validate"
+    ],
+    "law_screen": "Complete law corpus screened. Applied claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 and claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1; the inline positive refutes only universality in claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1. Scoped helper chronology tested against claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1; frame result narrows claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1 without claiming a global refutation. Source freeze obeyed per claim.law.webfrank-pinned-function-source-freeze.20260831.v1. Detailed applicable/inapplicable dispositions follow in law_screen_detail.",
+    "law_screen_detail": [
+      "Complete laws --full 1 corpus screened at spawn; relevant full bodies fetched before probes.",
+      "claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1: applies; authentic helper inline context changes copy selection despite fixed flags.",
+      "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1: its finite initializer/flag negatives remain evidence, but the universal source-unreachable clause is refuted for this function's exact three copy instructions by the inline positive.",
+      "claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1: applies; named manager changes48 to47 and must not be treated as harmless spelling.",
+      "claim.law.PC_a-named-pointer-local-selects-the-displacement-load-and-its-declaration-site-decides-the-hoist.20260902.v1: compatible diagnostic, but named manager cannot retain the target pointer-cell load shape.",
+      "claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1: finite helper chronology controls move the mask roles/entry ordering; the flattened opposite control shows chronology alone is insufficient.",
+      "claim.law.inline-and-deadstrip-rules.20260829.v1: helper precedes caller; explicit-inline and auto-only controls distinguish actual expansion without forced inline pragmas.",
+      "claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1: reviewed as a hypothesis, not a universal quantitative frame rule; observed local elimination reduces frame instead, and evidenced nested methods remain neutral.",
+      "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 and claim.law.webfrank-pin-freezes-its-inlined-helpers-too.20260831.v1: obeyed; production inputs/objects remain hash-identical throughout scratch experiments."
+    ],
+    "measured_at": "f9ca8076290c32daf8f07066d98a6cb709fa8cd4",
+    "positive": "Inlining the EXISTING mbBlitPadTest loop, including an independently typed-field adaptation, emits all rule-controlled copy forms, scheduling and allocation together: +0x14 `li r29,0`, +0x18 `addi r31,r3,0` with manager LO relocation, +0x1c `mr r30,r29`, +0x28 `addi r8,r31,8`, +0x38 `addi r7,r29,0`, +0x3c `addi r3,r29,0`, +0x44 `lwz r4,0(r8)`, +0x4c `srw r6,r5,r7`, +0x7c `or r29,r29,r6`, +0x84 `or r30,r30,r6`. These are emitted by the unchanged compiler, not patched object words. Target/current48/48; a strict full-function comparison with the archived processed object permits ONLY the five measured frame words and requires identical positional relocations and unchanged siblings.",
+    "prior_attempts": "Read CT form-site audit20260901.v3, its actual w2 switch/zero-family20260831.v2 predecessor, and original portable-closure20260829.v1 in full. Their literal-address, explicit status-field-cache, chained-zero, bit-declaration and flag axes were not blindly repeated. CT explicitly leaves variable identity unspent despite source-impossible prose. This record refutes universality, not those old finite measurements.",
+    "probed_form": "The generator derives a static inline void mbBlitPadTest(GPADMANAGER* manager) from the EXISTING src/game/mb/mb_blit.c function, preserving `u32 disconnected = 0; u32 present = 0; s32 i; u8 unused[8];` and its iteration-local `u32 bit`/`s8 err`. It translates target-proven integer manager slots to count/status/map fields, then calls `mbBlitPadTest(&gPadManager);` from the exported wrapper. Exact complete source for every variant is generated by tools/gdl/composed_census/r71_pad_identity_probe.py and archived with its compiler argv; no informal snippet is needed to reconstruct the experiment.",
+    "remaining": "Frame24 instead of target32. Exactly five words differ from the former processed function: +0xc stwu -24/-32, +0x10 stmw offset12/20, +0xac lmw offset12/20, +0xb0 LR reload28/36, +0xb4 stack restore24/32. Save set is unchanged (r29-r31). The pre-existing unused[8] is inside the helper and is eliminated on inlining; no new padding was added or moved to force a match. Explicit-this, inherited-prefix and nested evidenced base-method contexts did not recover the frame. These finite negatives do not prove no natural source exists.",
+    "scope": "Only the R71-prefixed reproducible diagnostic/test and this proposal are retained. src/game/g3d/gcontrolpads.c and its existing WebFrank rule are unchanged. This is a positive finite compiler-capability counterexample, NOT a complete raw match or retirement.",
+    "sdk_comment_limit": "The inspected public Melee DEMOPad.c at immutable revisionb9a72ccc597f3769cd1904e9f81725b06a2c9b88 has one ResetReq mask, not this exact two-mask loop. Therefore the current source comment's precise SDK ancestry is not established by that revision. No universal absence of another SDK revision is claimed. https://raw.githubusercontent.com/doldecomp/melee/b9a72ccc597f3769cd1904e9f81725b06a2c9b88/extern/dolphin/src/dolphin/demo/DEMOPad.c",
+    "source_provenance": "Local helper: src/game/mb/mb_blit.c::mbBlitPadTest at GC0x800B5258, full46-instruction target read; last source commit02e5b85126999785030f92ac5143f3e893e76e1f. Same manager count/status/map semantics and four-channel error switch. Existing neighboring construction initializes four1-byte objects at manager+4. research/xbox_symbols/misc.h exposes gcontrolpadmanager_c count0/controller objects4 and gcontrolpadmanager::ReadControlPadStates; Xbox exported wrapper is10 bytes, while the platform method is778 bytes. This supports a shared class/header hypothesis, not proof of original GC source or the copied helper's historical name. New diagnostic base-method bodies are inferred from target operations; ignored AddController return value is not claimed recovered.",
+    "verification": "Fresh actual and same-basename scratch compiler controls equal the complete raw ELF. All17 finite variants plus control compiled successfully; positive strict partial-shape/address witness PASS with full_match=false. Both python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph -b are all green. Fresh ninja-j2 checksum prints build/GUNE5D/main.dol: OK. Graph build inbox_rejected=[] and validate valid=true. Production source, headers, flags, compiler and postprocessor configuration unchanged."
+  },
+  "function": "function:G3DReadControlPadStates",
+  "held_fixed": "GC/1.2.5n compiler binary, actual Ninja ordered flags/runner, original opt_propagation off/reset scope, public C exports, current headers, all six sibling source bodies, gPadManager address/layout and target object. Class-only diagnostics add scoped C++ parsing with integrator approval; C experiments do not. No production source/config edits, new dead padding, compiler patch or postprocessor rule.",
+  "id": "attempt.R71_pad-existing-helper-inline-refutes-copy-form-cap-but-frame-remains.20260906.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-06T02:02:29Z",
+  "refutes": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-06"
+}
