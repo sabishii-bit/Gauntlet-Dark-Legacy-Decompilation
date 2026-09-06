@@ -2114,13 +2114,8 @@ void ReadControls(void)
 /* 0x800347A0  one-time controls init */
 void InitControls(void)
 {
-    int i;
-
     init_controls();
-    for (i = 0; i < 4; i++) {
-        lbl_802407C8[i] = lbl_802407D8[i] = lbl_802407B8[i] = lbl_802407E8[i] =
-            lbl_802407F8[i] = 0;
-    }
+    clear_pad_levels();
     init_all_dir_info();
     ctrls_initialized = 1;
 }
