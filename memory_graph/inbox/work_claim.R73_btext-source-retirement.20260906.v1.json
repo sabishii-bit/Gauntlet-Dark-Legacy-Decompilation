@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "branch": "codex/r73-btext-retirement",
+    "integrator": "codex-root",
+    "owned_units": [
+      "src/game/ui/btext.c"
+    ],
+    "scope": "Scratch-first FontInit source-native WebFrank retirement via independently scoped loop carriers. Own btext.c and lane-prefixed r73_btext tools/tests only; root owns config and no new postprocessor rules authorized."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:FontInit",
+  "id": "work_claim.R73_btext-source-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r73-btext",
+  "recorded_at": "2026-09-06T04:03:15Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}

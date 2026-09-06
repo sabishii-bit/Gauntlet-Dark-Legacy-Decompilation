@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "branch": "codex/r73-runtime-retirement",
+    "integrator": "codex-root",
+    "owned_units": [
+      "src/Runtime.PPCEABI.H/NMWException.cpp",
+      "src/Runtime.PPCEABI.H/ExceptionPPC.cpp",
+      "include/NMWException.h"
+    ],
+    "scope": "Scratch-first runtime source-order reconstruction to remove existing exception object rewrites; initial NMWException initialized-handler declaration placement. No compiler patching, new target-derived data, or guard relaxation."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "tu:Runtime.PPCEABI.H/NMWException",
+  "id": "work_claim.R73_runtime-source-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-root",
+  "recorded_at": "2026-09-06T04:03:17Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
