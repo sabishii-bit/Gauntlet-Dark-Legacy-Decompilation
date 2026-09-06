@@ -191,6 +191,31 @@ class PruneAndCapTests(unittest.TestCase):
         self._seed(5, superseded_pairs=(("attempt.r5", []),))
         self.assertEqual(prune_attempts(self.root, limit=5)["ejected"], [])
 
+    def test_function_filter_preserves_unselected_attempts(self):
+        self._seed(7)
+        foreign = {}
+        for i in range(7):
+            path = self.attempts / f"attempt.foreign{i}.json"
+            _write(path, _attempt(f"attempt.foreign{i}", "function:other_fn"))
+            foreign[path] = path.read_bytes()
+        report = prune_attempts(self.root, functions=["test_fn"])
+        self.assertEqual(report["selected_functions"], ["function:test_fn"])
+        self.assertEqual(len(report["ejected"]), 2)
+        self.assertTrue((self.attempts / "attempt.r1.json").exists())
+        applied = prune_attempts(self.root, functions=["function:test_fn"], apply=True)
+        self.assertEqual(report["ejected"], applied["ejected"])
+        self.assertFalse((self.attempts / "attempt.r1.json").exists())
+        self.assertTrue(all(path.read_bytes() == blob for path, blob in foreign.items()))
+        self.assertEqual(prune_attempts(self.root)["functions_over_limit"], 1)
+
+    def test_invalid_function_filter_fails_before_deleting(self):
+        self._seed(7)
+        before = {p: p.read_bytes() for p in self.attempts.glob("*.json")}
+        for selection in ([], ["test_fn", "missing_fn"]):
+            with self.assertRaises(MemoryGraphError):
+                prune_attempts(self.root, functions=selection, apply=True)
+            self.assertEqual(before, {p: p.read_bytes() for p in self.attempts.glob("*.json")})
+
     def test_byte_cap_grew_but_still_closes(self):
         record = _attempt("attempt.big", "function:test_fn",
                           axis="y" * 5000)  # over the old 4096 cap

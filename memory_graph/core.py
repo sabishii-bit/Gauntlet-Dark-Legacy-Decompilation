@@ -6797,6 +6797,7 @@ def prune_attempts(
     *,
     limit: int = ATTEMPT_LIMIT_PER_FUNCTION,
     apply: bool = False,
+    functions: list[str] | None = None,
 ) -> dict[str, Any]:
     """Enforce the per-function attempt cap by ejecting the oldest records.
 
@@ -6807,10 +6808,21 @@ def prune_attempts(
     still-live do-not-retry cap into the surviving record before ``apply``.
     Ejected files are deleted from the working tree only — git history keeps
     them recoverable. Rebuild the graph after an applied prune.
+    Optional exact function names/keys restrict deletions; every requested
+    anchor is validated before applying any change.
     """
     if limit < 1:
         raise MemoryGraphError(f"attempt limit must be >= 1, got {limit}")
     grouped = _accepted_attempts_by_function(root)
+    selected = None
+    if functions is not None:
+        selected = {name if name.startswith("function:") else "function:" + name
+                    for name in functions}
+        if not selected:
+            raise MemoryGraphError("prune function selection must not be empty")
+        unknown = selected - grouped.keys()
+        if unknown:
+            raise MemoryGraphError("no accepted attempts for: " + ", ".join(sorted(unknown)))
     superseded_ids: set[str] = set()
     for rows in grouped.values():
         for row in rows:
@@ -6824,6 +6836,8 @@ def prune_attempts(
     ejected: list[dict[str, Any]] = []
     kept: dict[str, list[str]] = {}
     for function, rows in sorted(grouped.items()):
+        if selected is not None and function not in selected:
+            continue
         if len(rows) <= limit:
             continue
         # Newest first; superseded records sort behind live ones.
@@ -6851,6 +6865,7 @@ def prune_attempts(
                 row["path"].unlink()
     result: dict[str, Any] = {
         "limit": limit,
+        "selected_functions": sorted(selected) if selected is not None else None,
         "functions_over_limit": len(kept),
         "kept": kept,
         "ejected": ejected,
