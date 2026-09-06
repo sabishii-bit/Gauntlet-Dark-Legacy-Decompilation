@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/world/newcam.c"
+    ],
+    "scope": "Exclusive game/world/newcam.c TU source and lane-owned scratch probes/attempt records. Resume natural-source matching of fn_8006DC64 after the R72 main pipeline passes; screen the recorded compound-assignment and statement-order controls. Existing five pinned siblings are frozen. No header, configure, split, or WebFrank-rule edits without integrator review. No push by worker."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:fn_8006DC64",
+  "id": "work_claim.R72-newcam.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r72-newcam",
+  "recorded_at": "2026-09-06T02:56:48Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
