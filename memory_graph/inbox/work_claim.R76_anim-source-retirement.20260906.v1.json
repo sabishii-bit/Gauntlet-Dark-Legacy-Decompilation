@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/anim/anim.c"
+    ],
+    "scope": "Source-native retirement research for InitAnim's existing WebFrank rule. Re-derive the106/106 four-word f0/f3 exchange, execute pending scoped allocator-control diagnosis and investigate independently supported source/type/inline boundaries. No retest of exhausted expression permutations, no reassociated floating arithmetic, new rules or guard changes. Private full-TU fidelity and sibling/data/EH preservation."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:InitAnim",
+  "id": "work_claim.R76_anim-source-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r76-anim",
+  "recorded_at": "2026-09-06T06:29:25Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}

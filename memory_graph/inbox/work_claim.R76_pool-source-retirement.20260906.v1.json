@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/audio/mempool.c"
+    ],
+    "scope": "Source-native retirement of pool_garbage_collect's current unproven WebFrank rule. Re-derive69/69,14-word copy-role swap; evaluate pending entries-storage forms before new type/helper/lifetime hypotheses. No arbitrary register-forcing scaffold, guard changes, new rule or postprocessor capability. Preserve baseline and whole-TU text/data/EH/relocations."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:pool_garbage_collect",
+  "id": "work_claim.R76_pool-source-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-root",
+  "recorded_at": "2026-09-06T06:29:26Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}

@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/mb/mb_tree.c"
+    ],
+    "scope": "Source-native retirement research for the existing MBNewNode WebFrank rule. Re-derive the 68/68,23-word saved-register rotation and test only new semantically supported source/type/helper boundaries. No new rules, ABI argument reorder, fabricated temporaries or guard changes. Private full-TU compiler fidelity before experiments; preserve all siblings/data/EH. Root reviews before production pin retirement."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:MBNewNode",
+  "id": "work_claim.R76_tree-source-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r76-tree",
+  "recorded_at": "2026-09-06T06:29:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
