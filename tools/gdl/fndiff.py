@@ -1563,7 +1563,7 @@ def datum_screen_from_lines(target_lines, ours_lines, target_object,
 
 
 def ours_object_path(unit, raw=False):
-    """(path, raw_used). `raw` prefers the pre-postprocess compiler object.
+    """(path, raw_used). `raw` resolves the active compiler-stage object.
 
     On a webfrank-pinned TU the src/ object's relocations are what the RULE
     left behind, so a defect row read off it can be a rule artifact rather
@@ -1572,9 +1572,9 @@ def ours_object_path(unit, raw=False):
     """
     base = Path(f"build/{VERSION}/src/{unit}.o")
     if raw:
-        body = base.parent / ".postprocess" / "body" / base.name
-        if body.is_file():
-            return body, True
+        from raw_object import resolve_object
+        selected = resolve_object(unit, root=Path.cwd(), version=VERSION)
+        return Path(selected.relative), True
     return base, False
 
 
@@ -2372,14 +2372,15 @@ def main():
         # src/ object is post-rewrite (every pinned function reads
         # real 0 by construction); a whole remediation lane did an
         # edit-reconfigure-restore dance for want of this flag.
-        body = base_o.parent / ".postprocess" / "body" / base_o.name
-        if body.is_file():
-            base_o = body
-            print(f"[--raw: scoring {body} (pre-webfrank compiler"
-                  " output)]")
-        else:
-            print("[--raw: no .postprocess/body object — this TU has no"
-                  " postprocessor stage; plain object is already raw]")
+        from raw_object import resolve_object
+        try:
+            selected = resolve_object(unit, root=Path.cwd(), version=VERSION,
+                                      require_exists=no_build)
+        except ValueError as error:
+            print(f"RAW OBJECT UNRESOLVED: {error}; run configure.py and ninja")
+            return 1
+        base_o = Path(selected.relative)
+        print(f"[--raw: scoring {base_o} ({selected.description})]")
 
     # rebuild the base object if the source is newer (stale-object trap)
     if not no_build:

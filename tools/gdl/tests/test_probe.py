@@ -342,75 +342,37 @@ class TransientPinBankLifecycleTests(unittest.TestCase):
 
 
 class RawObjectTargetTests(unittest.TestCase):
-    """run-39 item 10. `--raw` exists to score the compiler's own output for
-    a WebFrank-pinned TU, but probe built the POSTPROCESSED object anyway —
-    so the one case --raw is for (a pin your own upstream edit made stale)
-    was exactly the case where it died. Reproduced at 7688fc7df: `probe
-    --raw game/game/player do_players` printed BUILD FAILED from the
-    WEBFRANK stage on the do_exit pin. SY hand-built the body object and ran
-    fnasm instead.
+    """R71: an unbuilt ACTIVE target is buildable; unknown topology is not."""
 
-    After the fix the same command scores real 840 -> 870 (T1174/O1176) with
-    the pin still stale and nothing re-derived.
-    """
+    def target(self, chain=(), editable=False):
+        from unittest.mock import patch
+        from tools.gdl.tests.test_raw_object import graph_fixture
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            _, body, _ = graph_fixture(root, unit="game/game/player", chain=chain,
+                                       editable=editable, outputs=False)
+            with patch.object(Path, "cwd", return_value=root):
+                selected = probe.raw_object_target("game/game/player")
+            self.assertEqual(selected, body)
+            self.assertFalse(Path(selected).is_absolute())
+            return selected
 
-    def target(self, staged):
-        original = probe.sys.modules.get("fnasm")
-        probe.sys.modules["fnasm"] = SimpleNamespace(
-            raw_obj_path=lambda _unit: staged)
-        try:
-            return probe.raw_object_target("game/game/player")
-        finally:
-            if original is None:
-                del probe.sys.modules["fnasm"]
-            else:
-                probe.sys.modules["fnasm"] = original
+    def test_unbuilt_active_webfrank_compiler_target(self):
+        self.assertIn("/body/", self.target(("webfrank",)))
 
-    def test_an_unstaged_unit_falls_back_to_the_body_path(self):
-        self.assertEqual(
-            "build/GUNE5D/src/game/game/.postprocess/body/player.o",
-            self.target(None))
+    def test_frank_chain_builds_vanilla_not_transformed_output(self):
+        self.assertIn("/body/", self.target(("frank", "webfrank")))
 
-    def test_the_target_is_repo_root_relative_not_absolute(self):
-        """ninja rejects an absolute target outright — measured as
-        `ninja: error: unknown target 'W:\\...'` on the first version."""
-        staged = (Path.cwd() / "build" / "GUNE5D" / "src" / "game" / "game"
-                  / ".postprocess" / "frank" / "player.o")
-        self.assertEqual(
-            "build/GUNE5D/src/game/game/.postprocess/frank/player.o",
-            self.target(staged))
+    def test_retired_pin_and_editable_mode_build_plain_target(self):
+        self.assertNotIn(".postprocess", self.target())
+        self.assertNotIn(".postprocess", self.target(editable=True))
 
-    def test_the_frank_stage_is_preferred_when_staged(self):
-        """frank runs BEFORE the object postprocessor, so its output is what
-        webfrank consumes — the reader's own precedence."""
-        self.assertIn("frank", self.target(
-            Path.cwd() / "build" / "GUNE5D" / "src" / "game" / "game"
-            / ".postprocess" / "frank" / "player.o"))
-
-    def test_a_reader_that_raises_still_yields_a_buildable_target(self):
-        """The fallback must survive a checkout where fnasm cannot import or
-        its reader throws: a probe that cannot name a target is worse than
-        one that names the conventional path."""
-        def boom(_unit):
-            raise RuntimeError("no toolchain")
-
-        original = probe.sys.modules.get("fnasm")
-        probe.sys.modules["fnasm"] = SimpleNamespace(raw_obj_path=boom)
-        try:
-            self.assertEqual(
-                "build/GUNE5D/src/game/game/.postprocess/body/player.o",
-                probe.raw_object_target("game/game/player"))
-        finally:
-            if original is None:
-                del probe.sys.modules["fnasm"]
-            else:
-                probe.sys.modules["fnasm"] = original
-
-    def test_it_never_returns_the_postprocessed_object(self):
-        for staged in (None, Path.cwd() / "build" / "GUNE5D" / "src"
-                       / "game" / "game" / ".postprocess" / "body"
-                       / "player.o"):
-            self.assertIn(".postprocess", self.target(staged))
+    def test_unknown_graph_refuses_instead_of_guessing(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.object(Path, "cwd", return_value=Path(folder)):
+                with self.assertRaisesRegex(ValueError, "missing or malformed build graph"):
+                    probe.raw_object_target("game/game/player")
 
 
 class RebuildAfterRestoreTests(unittest.TestCase):

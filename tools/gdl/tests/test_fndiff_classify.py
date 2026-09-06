@@ -1,5 +1,7 @@
 import sys
 import unittest
+import tempfile
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -10,6 +12,23 @@ from fndiff import (classify_function, cluster_flags,
                     real_reconciliation,
                     relocated_instructions, reloc_naming_only, shiftable_gap,
                     unit_key)
+
+
+class RawGraphPathTests(unittest.TestCase):
+    def test_built_raw_selection_and_missing_graph_are_not_fallbacks(self):
+        import fndiff
+        from tools.gdl.tests.test_raw_object import graph_fixture
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with patch.object(Path, 'cwd', return_value=root):
+                with self.assertRaises(ValueError):
+                    fndiff.ours_object_path('game/example/example', raw=True)
+                _, body, _ = graph_fixture(root, chain=('webfrank',))
+                self.assertEqual(fndiff.ours_object_path('game/example/example', raw=True),
+                                 (Path(body), True))
+                _, _, plain = graph_fixture(root)
+                self.assertEqual(fndiff.ours_object_path('game/example/example', raw=True),
+                                 (Path(plain), True))
 
 
 class UnitKeyTests(unittest.TestCase):
