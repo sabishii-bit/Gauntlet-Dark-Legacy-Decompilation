@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Manual evidence only, never a build hook or object rewrite. Stock GC1.2.5 and unchanged actual Ninja flags required. Full DOL checksum gate remains separate. Own TU rule/split checks permit independent other-TU retirements."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r77_anim_play_retirement_audit.py --baseline-dir PATH",
+  "id": "tool.r77-anim-play-retirement-audit.20260906T185423Z.dae32d57",
+  "kind": "tool",
+  "name": "r77-anim-play-retirement-audit",
+  "purpose": "Finite source-native GetAnimAngXYZVal retirement audit: exact complete raw before/after fidelity, reviewed literal/local/conditional source, all final-address bindings, sibling bytes and EH, plus exact88-byte pool ownership.",
+  "recorded_at": "2026-09-06T18:54:23Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r77_anim_play_retirement_audit.py",
+  "status": "active",
+  "tool_key": "tool:r77-anim-play-retirement-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "Capture frozen baseline with --capture before retirement; after fresh Ninja, replay against archived baseline. Output defaults under build."
+  ],
+  "valid_from": "2026-09-06T18:54:23+00:00"
+}

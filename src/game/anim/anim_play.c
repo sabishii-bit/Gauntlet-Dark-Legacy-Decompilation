@@ -13,8 +13,6 @@
 #include "types.h"
 
 extern f32 light_color[4];
-extern const f32 lbl_803457F0;
-extern f64 lbl_803457F8, lbl_80345800, lbl_80345808;
 
 /*
  * Per-node anim channel state (0x9C bytes): three channel groups (PYR, XYZ,
@@ -52,7 +50,7 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
 
 void ZeroAnimData(void* data)
 {
-    f32 zero = lbl_803457F0;
+    f32 zero = 0.0f;
     f32* value = (f32*)data;
 
     value[12] = zero;
@@ -81,7 +79,7 @@ void InitAnimData(u32* data, u32 arg)
     *(s16*)(data + 2) = 0xFFFF;
     *(s16*)((u8*)data + 10) = 0;
     data[3] = 0xFFFFFFFF;
-    zero = lbl_803457F0;
+    zero = 0.0f;
     v[12] = zero;
     v[13] = zero;
     v[14] = zero;
@@ -142,11 +140,11 @@ void InterpPYR(f32 frac, f32* a, f32* b, f32* out)
 
         if (av != bv) {
             bv = bv - av;
-            if (bv > lbl_803457F8) {
-                bv = bv - lbl_80345800;
+            if (bv > 3.141592654) {
+                bv = bv - 6.283185308;
             }
-            if (bv <= lbl_80345808) {
-                bv = bv + lbl_80345800;
+            if (bv <= -3.141592654) {
+                bv += 6.283185308;
             }
             out[i] = frac * bv + av;
         } else {
@@ -169,8 +167,6 @@ extern u32 lbl_80118100[10];
 extern f32* lbl_803441B8;
 extern f32* lbl_803441B4;
 extern f32* lbl_803441B0;
-extern const f32 lbl_80345810;
-extern f64 lbl_80345818, lbl_80345820, lbl_80345828, lbl_80345830;
 extern f32 lbl_8023CBA0[256];
 
 int fn_80010850(u32* bits, s32 n, s32* out);
@@ -203,14 +199,13 @@ static inline f32 SwapFloat(f32 v)
 static inline s32 GetPYR(f32* dst, f32* src, s32 flags, s32 n, u32* mask)
 {
     s32 i;
-    f32 dflt = lbl_803457F0;
 
     for (i = 0; i < 3; i++) {
         if ((s16)flags & mask[i]) {
             dst[i] = SwapFloat(src[n]);
             n++;
         } else {
-            dst[i] = dflt;
+            dst[i] = 0.0f;
         }
     }
     return n;
@@ -233,14 +228,13 @@ static inline s32 GetPYRComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
 static inline s32 GetXYZ(f32* dst, f32* src, s32 flags, s32 n, u32* mask)
 {
     s32 i;
-    f32 dflt = lbl_803457F0;
 
     for (i = 0; i < 3; i++) {
         if ((s16)flags & mask[i + 3]) {
             dst[i] = SwapFloat(src[n]);
             n++;
         } else {
-            dst[i] = dflt;
+            dst[i] = 0.0f;
         }
     }
     return n;
@@ -263,14 +257,13 @@ static inline s32 GetXYZComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
 static inline s32 GetScale(f32* dst, f32* src, s32 flags, s32 n, u32* mask)
 {
     s32 i;
-    f32 dflt = lbl_80345810;
 
     for (i = 0; i < 3; i++) {
         if ((s16)flags & mask[i + 6]) {
             dst[i] = SwapFloat(src[n]);
             n++;
         } else {
-            dst[i] = dflt;
+            dst[i] = 1.0f;
         }
     }
     return n;
@@ -368,7 +361,7 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
         data->curkey = 0;
         return 1;
     }
-    if (lbl_80345818 == frame) {
+    if (0.0 == frame) {
         if (curkey != 0 || prevkey != 0) {
         keydata += (numframes + 31) >> 5;
         n = GetPYR(cpyr, (f32*)keydata, flags, 0, mask);
@@ -429,8 +422,6 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
         keydata += keysize;
     }
     {
-        f32 one = lbl_80345810;
-        f32 zero = lbl_803457F0;
 
         while (prevkey < frame) {
         if (prevkey > curkey) {
@@ -455,9 +446,9 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
                 n = GetXYZComp(pxyz, rec + n, flags, n, mask);
                 GetScaleComp(pscale, rec + n, flags, n, mask);
             } else {
-                n = GetPYRDflt(ppyr, (f32*)keydata + keynum * keysize, flags, 0, mask, zero);
-                n = GetXYZDflt(pxyz, (f32*)keydata + keynum * keysize, flags, n, mask, zero);
-                GetScaleDflt(pscale, (f32*)keydata + keynum * keysize, flags, n, mask, one);
+                n = GetPYRDflt(ppyr, (f32*)keydata + keynum * keysize, flags, 0, mask, 0.0f);
+                n = GetXYZDflt(pxyz, (f32*)keydata + keynum * keysize, flags, n, mask, 0.0f);
+                GetScaleDflt(pscale, (f32*)keydata + keynum * keysize, flags, n, mask, 1.0f);
             }
         } else {
             frame = prevkey;
@@ -465,8 +456,6 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
         }
     }
     {
-        f32 one = lbl_80345810;
-        f32 zero = lbl_803457F0;
 
         while (curkey > frame) {
         if (curkey < prevkey) {
@@ -490,16 +479,16 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
                 n = GetXYZComp(cxyz, rec + n, flags, n, mask);
                 GetScaleComp(cscale, rec + n, flags, n, mask);
             } else {
-                n = GetPYRDflt(cpyr, (f32*)keydata + keynum * keysize, flags, 0, mask, zero);
-                n = GetXYZDflt(cxyz, (f32*)keydata + keynum * keysize, flags, n, mask, zero);
-                GetScaleDflt(cscale, (f32*)keydata + keynum * keysize, flags, n, mask, one);
+                n = GetPYRDflt(cpyr, (f32*)keydata + keynum * keysize, flags, 0, mask, 0.0f);
+                n = GetXYZDflt(cxyz, (f32*)keydata + keynum * keysize, flags, n, mask, 0.0f);
+                GetScaleDflt(cscale, (f32*)keydata + keynum * keysize, flags, n, mask, 1.0f);
             }
         } else {
             frame = curkey;
         }
         }
     }
-    if (curkey < prevkey && prevkey - frame > lbl_80345820) {
+    if (curkey < prevkey && prevkey - frame > 0.125) {
         diff = prevkey - curkey;
         if (diff < 256) {
             t = (frame - curkey) * lbl_8023CBA0[diff];
@@ -509,7 +498,7 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
         for (i = 0; i < 3; i++) {
             f32 d = ppyr[i] - cpyr[i];
 
-            if (d > lbl_80345828 && d < lbl_80345830) {
+            if (d > -1.570796327 && d < 1.570796327) {
                 pose[i] = d * t + cpyr[i];
             } else {
                 pose[i] = cpyr[i];
@@ -533,21 +522,14 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
         oscale[2] = pscale[2];
     }
     {
-        f64 cycle;
-        f64 lower;
-        f64 upper;
-
-        lower = lbl_80345808;
-        cycle = lbl_80345800;
-        upper = lbl_803457F8;
 
         for (i = 0; i < 3; i++) {
         f64 v = pose[i];
 
-        if (v > upper) {
-            v -= cycle;
-        } else if (v <= lower) {
-            v = cycle + v;
+        if (v > 3.141592654) {
+            v -= 6.283185308;
+        } else {
+            v = v <= -3.141592654 ? 6.283185308 + v : v;
         }
         pose[i] = v;
         }
@@ -662,15 +644,13 @@ u32 fn_80010904(u32* bits, s32 start, s32 total)
 #undef STUB
 
 extern f32 lbl_8023CBA0[256];
-extern f64 lbl_80345838;
-extern f64 lbl_80345840;
 
 void InitAnimInvDeltaTable(void)
 {
     s32 i;
 
-    lbl_8023CBA0[0] = lbl_803457F0;
+    lbl_8023CBA0[0] = 0.0f;
     for (i = 1; i < 256; i++) {
-        lbl_8023CBA0[i] = lbl_80345840 / (f32)i;
+        lbl_8023CBA0[i] = 1.0 / (f32)i;
     }
 }
