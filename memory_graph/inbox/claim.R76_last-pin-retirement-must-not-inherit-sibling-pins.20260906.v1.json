@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "anchors": [
+      "memory_graph/core.py::_known_pin_screen_unit",
+      "memory_graph/core.py::_pin_provenance",
+      "tools/gdl/tests/test_t21_pin_screen_completeness.py",
+      "tools/gdl/tests/test_t19_savedregs_pin.py"
+    ],
+    "calibration": "Focused3modules allgreen. Live build/r76_anim_pin_calibration.py after fix: game/anim/anim ->0[]; game/anim/anim_play ->1[game/anim/anim_play]; fragment anim ->8 rules across game/anim/action,game/anim/anim_play,game/anim/atree,game/g3d/auxanim. Synthetic tests cover source-backed retired exact, src/extension spelling, still-live exact, shortfragment and pathfragment, plus split-only retired unit and fragment. Both positive matching and negative retired queries calibrated.",
+    "neighborhood_screen": "Root separately repairs datadiff's existence-based stale raw-object selection discovered by the same last-rule retirement. In pin selection, savedregs.webfrank_pins itself already followed live config and needed no runtime change; only its hardcoded test pin was obsolete. _tu_matches_pin_unit's fragment semantics were deliberately preserved; _pin_provenance now gates fallback on authoritative unit identity, not slash heuristics.",
+    "reproduction": "After R76 rule retirement, python -m unittest discover tools/gdl/tests -b failed test_t19_savedregs_pin.PinLoading.test_the_live_config_yields_the_pin_set (InitAnim missing, expected retirement) and test_t21_pin_screen_completeness.ExactSpellingWins.test_anim_does_not_inherit_anim_plays_pin (actual anim_play, expected anim). The latter was a genuine selector defect, not a reason to change expected set to anim_play.",
+    "scope": "Root-authorized narrow retirement blocker fix in memory_graph/core.py and tests/test_t21_pin_screen_completeness.py; savedregs live-config test now compares all parsed current rules rather than hardcoding InitAnim as permanently pinned. Historical synthetic InitAnim warning fixtures remain unchanged."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R76_last-pin-retirement-must-not-inherit-sibling-pins.20260906.v1",
+  "kind": "claim",
+  "predicate": "tooling_observation",
+  "recorded_at": "2026-09-06T06:50:17Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-06",
+  "value": "Retiring InitAnim's last rule exposed a pin-screen selector bug: memory_graph.core._pin_provenance resolved exactness only from existing pin rows. Once game/anim/anim vanished from webfrank.json, the same exact TU query fell back to substring matching and returned game/anim/anim_play's pin. Explicit units now resolve independently through actual source files or claimed text units in splits.txt; known exact units with zero rules return zero. Intentional fragment queries still enumerate matching units."
+}

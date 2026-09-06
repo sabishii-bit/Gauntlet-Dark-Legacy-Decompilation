@@ -10238,6 +10238,23 @@ def _normalized_tu(tu: str) -> str:
     return text
 
 
+def _known_pin_screen_unit(root: Path, normalized: str) -> bool:
+    """Resolve exact TU spellings independently of their current pin count.
+
+    Source files and claimed text units remain authoritative after a last
+    pin is retired. A path fragment remains a fragment unless it resolves
+    through one of those rosters; slash presence alone proves nothing.
+    """
+    source_root = (root / "src").resolve()
+    for ext in (".c", ".cpp"):
+        source = (source_root / (normalized + ext)).resolve()
+        if source.is_relative_to(source_root) and source.is_file():
+            return True
+    splits = root / "config" / "GUNE5D" / "splits.txt"
+    return splits.is_file() and any(
+        _normalized_tu(unit) == normalized for _, _, unit in _parse_splits(splits))
+
+
 def _pin_provenance(root: Path, tu: str,
                     roster_names=None) -> list[dict[str, Any]]:
     """webfrank.json pins for this TU, each with its SOURCE-EXHAUSTION class.
@@ -10261,10 +10278,12 @@ def _pin_provenance(root: Path, tu: str,
     # An EXACT unit spelling wins over the fragment reading. `game/anim/anim`
     # is both a real unit and a substring of `game/anim/anim_play`, and the
     # fragment reading put anim_play's frozen function in anim's screen.
-    exact = [pin for pin in every
-             if pin["unit"] == _normalized_tu(tu)]
-    pins = exact or [pin for pin in every
-                     if _tu_matches_pin_unit(tu, pin["unit"])]
+    normalized = _normalized_tu(tu)
+    exact = [pin for pin in every if pin["unit"] == normalized]
+    # An existing TU with ZERO pins is still an exact query. Previously its
+    # last retirement turned it into a substring query and inherited peers.
+    pins = exact if exact or _known_pin_screen_unit(root, normalized) else [
+        pin for pin in every if _tu_matches_pin_unit(tu, pin["unit"])]
     if not pins:
         return []
     wanted = {pin["function"] for pin in pins}
