@@ -1,8 +1,9 @@
 """Inventory the reconstructed options storage envelope and actual object users.
 
 Read-only. Target names/relocations are DTK reconstructions, not historical
-symbol linkage or proof of an original C aggregate. Missing configured raw
-objects are explicit; a successful inventory is not source ownership closure.
+symbol linkage or proof of an original C aggregate. Target population comes
+only from a current build_edges manifest, never an on-disk object glob. Missing
+configured raw objects are explicit; an inventory is not ownership closure.
 """
 import argparse
 import hashlib
@@ -24,6 +25,39 @@ PARTS = {
     'optionsAudioAndPrefs': (BASE + 0x50, 0x30),
     'optionsAudioAndPrefs30': (BASE + 0x80, 0x20),
 }
+
+
+def active_targets(snapshot, ninja_bytes, root):
+    """Resolve exactly the active extracted-object set, refusing ambiguity."""
+    if (not isinstance(snapshot, dict) or type(snapshot.get('schema_version')) is not int
+            or snapshot['schema_version'] != 1 or snapshot.get('version') != 'GUNE5D'
+            or snapshot.get('ninja_sha256') != hashlib.sha256(ninja_bytes).hexdigest()):
+        raise ValueError('active build manifest is unsupported or stale against build.ninja')
+    units = snapshot.get('units')
+    if not isinstance(units, list) or not units:
+        raise ValueError('active target population is empty or malformed')
+    target_dir = (root / 'build/GUNE5D/obj').resolve()
+    targets, names, paths = {}, set(), set()
+    for unit in units:
+        if not isinstance(unit, dict):
+            raise ValueError('malformed active target row')
+        name, value = unit.get('name'), unit.get('extracted_object')
+        if (not isinstance(name, str) or not name.strip() or name != name.strip()
+                or not isinstance(value, str) or not value.strip() or value != value.strip()):
+            raise ValueError('active target name/path is missing or malformed')
+        key = re.sub(r'\.(?:cpp|c|s)$', '', name.replace('\\', '/').removeprefix('src/'))
+        path = (root / value.replace('\\', '/')).resolve()
+        if not path.is_relative_to(target_dir) or path.suffix.lower() != '.o':
+            raise ValueError('active target path escapes the expected object directory: ' + value)
+        name_key, path_key = key.casefold(), path.as_posix().casefold()
+        if not key or name_key in names or path_key in paths:
+            raise ValueError('duplicate/ambiguous active target name or path')
+        if not path.is_file():
+            raise ValueError('missing active target object: ' + value)
+        names.add(name_key)
+        paths.add(path_key)
+        targets[key] = path
+    return targets
 
 
 def validate_layout(parts):
@@ -132,6 +166,10 @@ def main():
     parser.add_argument('--out', required=True)
     parser.add_argument('--before', help='optional faithful snapshot; require complete raw restoration')
     args = parser.parse_args()
+    manifest_path, ninja_path = ROOT / 'build/GUNE5D/build_edges.json', ROOT / 'build.ninja'
+    manifest_bytes, ninja_bytes = manifest_path.read_bytes(), ninja_path.read_bytes()
+    manifest = json.loads(manifest_bytes)
+    target_paths = active_targets(manifest, ninja_bytes, ROOT)
     layout = read_layout((ROOT / 'config/GUNE5D/symbols.txt').read_text())
     snapshot = capture('game/ui/options')
     raw = audit_raw(snapshot)
@@ -140,19 +178,24 @@ def main():
         restoration = compare(json.loads(Path(args.before).read_text()), snapshot, [])
         if restoration['status'] != 'PASS':
             raise ValueError('raw options object is not fully restored: ' + str(restoration))
-    target_dir = ROOT / 'build/GUNE5D/obj'
-    target = scan({p.relative_to(target_dir).with_suffix('').as_posix(): p
-                   for p in target_dir.rglob('*.o')})
+    target = scan(target_paths)
+    if target['missing']:
+        raise ValueError('active target object disappeared during census')
     retained = validate_retained(target['rows'])
     source = scan({unit: ROOT / edge['body_o'] for unit, edge in cv_probe.read_edges().items()})
     result = dict(schema_version=1, status='INVENTORIED', envelope=validate_layout(layout),
                   reconstructed_parts=layout, retained_target=retained, raw_options=raw, restoration=restoration,
                   target=target, configured_raw_source=source,
+                  target_population=dict(source='build/GUNE5D/build_edges.json units[].extracted_object',
+                                         manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+                                         ninja_sha256=manifest['ninja_sha256']),
                   limitations=['Target names and relocations are reconstructed, not historical linkage proof.',
                                'C aggregate identity is a source hypothesis; equal extents do not prove ownership.',
                                'Consumer census covers these exact symbol names, not unnamed section references or pointer flow.',
                                'Other source objects are inventoried as built, not independently recompiled.',
                                'No config/source mutation and no ownership or exact-source closure is certified.'])
+    if manifest_path.read_bytes() != manifest_bytes or ninja_path.read_bytes() != ninja_bytes:
+        raise ValueError('active build manifest/Ninja changed during census')
     Path(args.out).write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({key: result[key] for key in ('status', 'envelope', 'restoration')}))
     print(json.dumps({'target': target['consumers'], 'source': source['consumers'],
