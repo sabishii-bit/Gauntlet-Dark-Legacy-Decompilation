@@ -2,9 +2,10 @@
   "attributes": {
     "integrator": "codex-root",
     "owned_units": [
-      "game/world/newcam.c"
+      "game/world/newcam.c",
+      "config/GUNE5D/webfrank.json"
     ],
-    "scope": "Exclusive game/world/newcam.c TU source and lane-owned scratch probes/attempt records. Resume natural-source matching of fn_8006DC64 after the R72 main pipeline passes; screen the recorded compound-assignment and statement-order controls. Existing five pinned siblings are frozen. No header, configure, split, or WebFrank-rule edits without integrator review. No push by worker."
+    "scope": "Exclusive game/world/newcam.c TU source and lane-owned scratch probes/attempt records. Existing five pinned function bodies remain frozen. Integrator-reviewed R72 source-order repair may rebind ONLY the two before/after relocation hashes on fn_8006DF34's existing 0x230..0x238 permutation: private f64 1.0 datum changes anonymous name @90 to @129, with raw body, relocation type/addend/payload and all function-relative normalized relocation tuples unchanged. No instruction/body hashes, permutation order, proof recipe or other rules may change. No header, configure or split edits. Worker commits only; no push."
   },
   "claimed_at": "2026-09-06",
   "function": "function:fn_8006DC64",
