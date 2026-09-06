@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "branch": "codex/r70-sndvoice",
+    "integrator": "codex-reconstruction-foundation",
+    "owned_units": [
+      "game/g3d/sndvoice.c"
+    ],
+    "scope": "Source-native retirement investigation for src/game/g3d/sndvoice.c only; scratch full-TU controls, no production postprocessor edits or compiler binary work. Root owns webfrank.json and configure.py. Reviewed result proposals stay on feature branch."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:sndVoiceUpdateAll",
+  "id": "work_claim.R70_sndvoice-raw-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r70-sndvoice",
+  "recorded_at": "2026-09-06T00:40:17Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
