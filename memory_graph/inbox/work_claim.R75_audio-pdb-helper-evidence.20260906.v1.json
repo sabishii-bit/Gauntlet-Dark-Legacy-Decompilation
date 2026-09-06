@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/audio/audio.c"
+    ],
+    "scope": "Read-only AUDIO.OBJ PDB helper signature/local evidence for AudioFindBank and AudioUnloadPart; no source/configuration/header edits and no compiler variants. May author lane-prefixed scratch under build and propose findings; no push or accept."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:AudioUnloadPart",
+  "id": "work_claim.R75_audio-pdb-helper-evidence.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r75-audio-evidence",
+  "recorded_at": "2026-09-06T05:48:36Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
