@@ -126,7 +126,7 @@ static u32 gPadErrMask;                   /* 0x803452D0 */
 static s32 gLastResetBtnState;            /* 0x803452D4 */
 static u32 gFrameDeltaTicks;              /* 0x803452D8 */
 static s32 gResetState;                   /* 0x803452DC */
-static u32 gSysFlags;                     /* 0x803452E0 */
+static unsigned int gSysFlags;                     /* 0x803452E0 */
 static u32 gLastFrameTicks;               /* 0x803452E4 */
 static s32 gPadTimerA[2];                 /* 0x803452E8 */
 static s32 gPadTimerB[2];                 /* 0x803452F0 */
