@@ -1,0 +1,128 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r69_options_shared_state_audit.py",
+    "tools/gdl/tests/test_r69_options_shared_state.py"
+  ],
+  "attributes": {
+    "census": {
+      "configured_raw_objects": 256,
+      "foreign_preference_consumers": {
+        "game/game/combat": [
+          "StartMissile"
+        ],
+        "game/game/gamemain": [
+          "fn_80052134"
+        ],
+        "game/game/pmotion": [
+          "PlayerMotion",
+          "PlayerGetTarget"
+        ],
+        "game/sfx/psfx": [
+          "PlyrSfxDoDamageSub"
+        ],
+        "game/sys/memcard": [
+          "saveSave",
+          "check_prefs_loaded",
+          "MemCardCreateGaunt",
+          "InitPreferences",
+          "loadGauntletSave"
+        ],
+        "game/world/gauntworld": [
+          "ResolveWorldDataPointers"
+        ]
+      },
+      "missing_raw_objects": 0,
+      "raw_exact_name_relocation_counts": {
+        "optglobals": 6,
+        "optionsAudioAndPrefs": 0,
+        "optionsAudioAndPrefs30": 26,
+        "optionsStack": 8
+      },
+      "target_exact_name_relocation_counts": {
+        "optglobals": 12,
+        "optionsAudioAndPrefs": 0,
+        "optionsAudioAndPrefs30": 26,
+        "optionsStack": 8
+      },
+      "target_objects": 349
+    },
+    "held_fixed": "All four optionsStack uses changed together in each probe. OPTGLOBALS/AUDIOSLIDER types and definitions, existing unused8 pads, all other function bodies, exact Ninja compiler/flags, pins and central config unchanged. Both functions started byte-exact; full baseline restored between probes.",
+    "law_screen": {
+      "claim.law.GC_a-named-pointer-local-pays-an-addr16-lo-home-copy-for-an-array-decay-and-writes-its-home-directly-for-an-address-of-struct.20260904.v1": "Screened: frame/base-form sensitivity is relevant, but this exact array-versus-struct extern experiment was not performed.",
+      "claim.law.member-form-kills-addr-pre.20260829.v1": "Relevant candidate: direct member and named/scoped pointer forms were measured, not assumed byte-neutral.",
+      "claim.law.single-base-relocation-refutes-symbol-separation.20260831.v1": "Applied: current symbol-map boundaries are not proof of separate original C objects, and init_prefs accesses the full range from one base.",
+      "claim.law.walked-base-symbol-identity.20260830.v1": "Applied: compared the actual target base/offset instruction form rather than equating same effective addresses.",
+      "current_corpus": "Current laws and options brief read. No edits to capped do_controlsmenu/DoOptions, three frozen hint pins, declarations/layout/pads of other functions, compiler flags, or postprocessors. No evidence licenses calling this compiler-unreachable."
+    },
+    "layout": [
+      {
+        "name": "optglobals",
+        "size": "0x40",
+        "source_member_hypothesis": "tbuf",
+        "target_address": "0x80274E00"
+      },
+      {
+        "name": "optionsStack",
+        "size": "0x10",
+        "source_member_hypothesis": "stack",
+        "target_address": "0x80274E40"
+      },
+      {
+        "name": "optionsAudioAndPrefs",
+        "size": "0x30",
+        "source_member_hypothesis": "music/sfx",
+        "target_address": "0x80274E50"
+      },
+      {
+        "name": "optionsAudioAndPrefs30",
+        "size": "0x20",
+        "source_member_hypothesis": "eight preference words",
+        "target_address": "0x80274E80"
+      }
+    ],
+    "limitations": "Exact-name object census does not resolve unnamed section relocations or pointer flow. Target names/relocations are DTK-inferred, not historical linkage proof. Other source objects are inventoried as built, not independently recompiled. Three failed forms do not prove no source form can match. No source/config change, alias, patch or ownership closure shipped.",
+    "measured_commit": "a683b19a8",
+    "next_action": "Coordinate the six foreign preference consumers with a target-backed shared allocation/source type model, then compare complete raw bodies and datum references before proposing any BSS claim. The current aggregate type and four target object boundaries are reconstructed hypotheses. Do not leave interior symbols pointing at retained separate storage or manufacture aliases merely to link.",
+    "raw_sha256_before_and_restored": "e38427e419fad5cd64afcdfa8ab29e3a527a88d8d93cbcb7376523518a61e3e1",
+    "reproduction": [
+      "ninja -j2",
+      "python tools/gdl/defake_gate.py baseline game/ui/options",
+      "For each explicit source control, python tools/gdl/defake_gate.py check game/ui/options --rebuild; inspect fndiff --ops and fresh full raw capture with r68_interfaces_raw_control.capture('game/ui/options'); revert before next control.",
+      "python tools/gdl/composed_census/r69_options_shared_state_audit.py --out build/r69_options_shared_state.json",
+      "Optional --before build/r69_options_before.json proves full raw restoration: 27 functions, 7 allocated sections, 838 relocations and complete object SHA unchanged."
+    ],
+    "source_controls": [
+      {
+        "form": "Remove extern OPTMENU* optionsStack[4]; replace its two clear stores in finish_optmenu and read/store in start_optmenu with optglobals.stack[index].",
+        "raw_sha256": "da9affb46c441e263ba73ba9b94f9a926d9b927e9814fbb9fb0da8f0b35fa339",
+        "result": "finish_optmenu real 0->4, target/output counts 80/80; start_optmenu real 0->18, counts 59/59. Direct member shifts +0x40 from the relocation base into memory displacement, plus start register/schedule drift. defake_gate rejects two exact demotions. Reverted."
+      },
+      {
+        "form": "Keep original unused extern; add OPTMENU** stack = optglobals.stack; after existing local declarations in each function; replace all four uses with stack[index].",
+        "raw_sha256": "2649771e9ac08c1a6ec6b82d344b18205111aa59754578dff4ff96a8610b940d",
+        "result": "finish_optmenu real 0->69, counts 80/77; start_optmenu real 0->51, counts 59/56. Hoisted saved pointer selects indexed loads/stores, changes saved-register/frame shape and exception bytes. Reverted."
+      },
+      {
+        "form": "Limit each OPTMENU** stack = optglobals.stack; to point of use: each finish-state block before its clear loop, start pop block, and a new block around the final push store. Replace four uses with stack[index].",
+        "raw_sha256": "f252828fca486f16643a284878927edf900bff28fa8dfe62a2c1db28eb50a227",
+        "result": "finish_optmenu real 0->34, counts 80/80; start_optmenu real 0->28, counts 59/59. Scoped pointer still changes add/stw to addi/stwx or memory displacement and start frame floor. Reverted."
+      }
+    ],
+    "source_path": "src/game/ui/options.c",
+    "source_sha256": "302eb726fe73a2e38f136d165fa3f31c0fe66db53ffa4154b0a2df1f3adbca94",
+    "target_instruction_evidence": {
+      "finish_optmenu": "Target +0x44/+0x50 materializes optionsStack, +0x54 add r4,r0,r3; +0x58 stw r5,0(r4). Second loop +0xF8/+0x100 materializes optionsStack; +0x108 add r4,r0,r3; +0x10C stw r5,0(r4).",
+      "init_prefs": "Target +0x0 lis r3,optglobals; +0x4 addi r5,r3,optglobals; stores through r5 at displacements 128,132,136,140,144,148,152,156. This fits current aggregate but does not establish historical C declaration provenance.",
+      "start_optmenu": "Target +0x68/+0x70 materializes optionsStack; +0x74 add r3,r0,r4; +0x78 lwz r30,0(r3). Store +0xA4/+0xA8 base, +0xB0 add r3,r0,r3; +0xB4 stw r30,0(r3)."
+    }
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R69_options-shared-state-four-fragments-six-foreign-consumers-and-member-source-boundary.20260906.v1",
+  "kind": "claim",
+  "predicate": "source_ownership_boundary",
+  "recorded_at": "2026-09-06T00:07:02Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/options",
+  "valid_from": "2026-09-06",
+  "value": "At a683b19a8, current OPTGLOBALS emits one 0xA0-byte BSS allocation overlapping four reconstructed target fragments at 0x80274E00..0x80274EA0. The stack interior name has eight relocations in options alone, while the preferences interior name has 26 relocations across six foreign TUs in both target and raw-source censuses. Three natural member-pointer source controls all regress already-exact finish_optmenu/start_optmenu and were reverted. Leave the aggregate unclaimed pending a coordinated shared-state reconstruction; this finite negative is not compiler/source unreachability evidence."
+}
