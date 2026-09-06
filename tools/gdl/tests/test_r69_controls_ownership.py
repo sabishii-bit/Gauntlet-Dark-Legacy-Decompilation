@@ -1,26 +1,77 @@
 import copy
+import json
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from tools.gdl.composed_census import r69_controls_ownership_audit as audit
 from tools.gdl.composed_census import r69_controls_layout_probe as probe
 
 
 class ControlsAllocationTests(unittest.TestCase):
-    def fixture(self, extracted=False):
-        symbols = [dict(name=n, value=a-audit.BASE, size=8 if extracted and n == "lbl_80344620" else size,
+    def fixture(self, extracted=False, corrected=False):
+        tail_size = 4 if corrected else 8
+        symbols = [dict(name=n, value=a-audit.BASE, size=tail_size if extracted and n == "lbl_80344620" else size,
                         section=".sbss", type=1, binding=1, other=0) for n, a, size in audit.OBJECTS]
-        table = {n: (".sbss", a, 8 if n == "lbl_80344620" else size) for n, a, size in audit.OBJECTS}
-        snap = dict(sections={".sbss": dict(type=8, flags=3, size=80 if extracted else 76,
+        table = {n: (".sbss", a, tail_size if n == "lbl_80344620" else size) for n, a, size in audit.OBJECTS}
+        snap = dict(sections={".sbss": dict(type=8, flags=3, size=72+tail_size if extracted else 76,
                     alignment=8, bytes=None)}, relocations={}, symbols=symbols)
         return snap, table
 
     def test_complete_source_and_target_extents(self):
         for extracted in (False, True):
-            snap, table = self.fixture(extracted)
-            row = audit.allocation(snap, table, extracted)
-            self.assertEqual(row["status"], "EXACT")
-            self.assertEqual(row["terminal_alignment_extent"], 4)
-            self.assertIsNone(row["initialized_bytes"])
+            for corrected in (False, True):
+                with self.subTest(extracted=extracted, corrected=corrected):
+                    snap, table = self.fixture(extracted, corrected)
+                    row = audit.allocation(snap, table, extracted)
+                    self.assertEqual(row["status"], "EXACT" if corrected else "NAMED_LAYOUT_EXACT_WITH_TERMINAL_EXTENT")
+                    self.assertEqual(row["terminal_alignment_extent"], 0 if corrected else 4)
+                    self.assertEqual(row["target_extent"], 76 if corrected else 80)
+                    self.assertEqual(row["full_section_exact"], corrected)
+                    self.assertIsNone(row["initialized_bytes"])
+
+    def test_claim_and_symbol_metadata_must_describe_same_state(self):
+        for corrected in (False, True):
+            _, table = self.fixture(corrected=corrected)
+            end = audit.SCALAR_END if corrected else audit.LEGACY_END
+            wrong_end = audit.LEGACY_END if corrected else audit.SCALAR_END
+            self.assertEqual(audit.check_claim((audit.BASE, end), table), end-audit.BASE)
+            with self.assertRaises(ValueError):
+                audit.check_claim((audit.BASE, wrong_end), table)
+            with self.assertRaises(ValueError):
+                audit.check_claim((audit.BASE+4, end), table)
+
+    def test_corrected_extraction_cannot_smuggle_old_slack(self):
+        snap, table = self.fixture(extracted=True, corrected=True)
+        snap["sections"][".sbss"]["size"] = 80
+        with self.assertRaises(ValueError):
+            audit.allocation(snap, table, extracted=True)
+        snap, table = self.fixture(extracted=True, corrected=True)
+        snap["symbols"][-1]["size"] = 8
+        with self.assertRaises(ValueError):
+            audit.allocation(snap, table, extracted=True)
+
+    def test_unsupported_target_tail_or_identity_refused(self):
+        for target in ((".sbss", 0x80344620, 12), (".sbss", 0x80344620, 0),
+                       (".bss", 0x80344620, 4), (".sbss", 0x80344624, 4)):
+            snap, table = self.fixture()
+            table["lbl_80344620"] = target
+            with self.assertRaises(ValueError):
+                audit.allocation(snap, table)
+
+    def test_cli_strict_gate_requires_no_slack(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "build").mkdir()
+            out = root / "build/r69_controls_gate.json"
+            for corrected in (False, True):
+                snap, table = self.fixture(corrected=corrected)
+                result = dict(status="MEASURED", small_bss_allocation=audit.allocation(snap, table))
+                with patch.object(audit, "ROOT", root), patch.object(audit, "measure", return_value=result):
+                    self.assertEqual(audit.main(["--require-exact", "--out", str(out)]), 0 if corrected else 2)
+                    written = json.loads(out.read_text())
+                    self.assertEqual(written["status"], "MEASURED" if corrected else "UNRESOLVED")
 
     def test_wrong_section_properties_rejected(self):
         for key, value in (("type", 1), ("flags", 0), ("size", 80),
