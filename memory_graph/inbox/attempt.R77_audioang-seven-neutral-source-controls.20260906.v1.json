@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Finite literal storage, division assignment, declaration order, scope and width controls on the raw FPR residual; no production source or pin changes retained.",
+  "attributes": {
+    "law_screen": "Current law catalog screened; APPLIED claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1: pooldump proves lbl_80345930=00000000/0.0f and lbl_80345960=41a00000/20.0f, read-only sdata2 rvalues. APPLIED claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1: test literals despite equal opcode streams; all neutral in this function. SCREENED claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1: no double literal replacement attempted. APPLIED pinned-function-source-freeze: complete private full-TU recompiles, exact whole raw baseline fidelity, no production changes.",
+    "mechanism": "Aligned raw view: target +0x7c `fdivs f1,f1,f0`, ours +0x7c `fdivs f3,f1,f0`; later target +0x88 `lfs f6,12(r1)` versus ours `lfs f1,12(r1)`. The observed nine words change only FPR fields. The finite controls leave this return-value/live-dot-product allocation intact; they do not prove global source unreachability, correct original TU partition, or necessity of WebFrank.",
+    "probed_form": "Seven controls, each independently based on production: (1) rel[1]=0.0f; (2) dist=NormalVector(rel)/20.0f; (3) both literal replacements; (4) dist=NormalVector(rel); dist/=lbl_80345960; (5) swap f32 dist; f32 dot; declaration order; (6) remove outer dist and introduce { f32 dist=NormalVector(rel); dist/=lbl_80345960; ... } enclosing calculations through result selection, keeping return result outside; (7) f64 dist replacing f32 dist while division operands stay float. Original source is recoverable at e4808027f:src/game/audio/audio.c. Replay with actual edge through tools/gdl/composed_census/cv_probe.py compile_with on complete source copies; no guessed flags.",
+    "scope": "Production source and rule untouched. Legacy park had no reproducible forms; this record adds seven exact forms without claiming the undocumented old sweep was exhaustive. Local evidence archived under build/r77_archives/audio. No fuzzy or whole-TU match gain claimed.",
+    "verification": "All seven controls: T70/O70, frame40,9 raw differing words, no changed function body anywhere in audio TU. Literal controls can change pool and symbol inventories: unchanged text does NOT mean whole-object equality. Scratch baseline object exactly equals production raw object; production source/raw/processed/target/config/Ninja/types fingerprints stayed frozen."
+  },
+  "function": "function:AudioAng",
+  "held_fixed": "Entire surrounding audio TU, compiler binary and ordered Ninja flags, original FP expression association, gCameras access expressions, all other source statements. Controls applied independently, except explicit two-literal joint control.",
+  "id": "attempt.R77_audioang-seven-neutral-source-controls.20260906.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-06T18:48:28Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-06",
+    "signature": "opcode multiset: IDENTICAL (70/70)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.audioang.20260829.v1",
+  "valid_from": "2026-09-06"
+}

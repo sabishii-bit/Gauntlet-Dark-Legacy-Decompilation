@@ -15,8 +15,8 @@
  * in a scrambled (near-reverse) order; the remaining setter/alloc/remove helpers
  * are left fn_ pending per-field verification. cflags_demo, C++ exceptions on.
  *
- * Status: NonMatching translation.  The node attribute/flag propagation
- * helpers below are reconstructed against the retail call graph.
+ * Matching TU. MBNewNode uses documented, user-approved source compatibility
+ * factoring below; its original header/inline provenance remains unproven.
  */
 
 typedef struct MBTreeNode {
@@ -840,6 +840,62 @@ void MBRemoveNodeChild(MBTreeNode* node)
     }
 }
 
+/*
+ * Source compatibility factoring, approved 2026-09-06. MWCC's inline-helper
+ * boundaries reproduce MBNewNode's saved-register allocation without object
+ * rewriting. These shared bodies also define the public entry points, so
+ * allocation/insertion edits have one source of truth. The append argument
+ * preserves the two existing call boundaries (last-sibling versus local walk).
+ * This is not a claim that these macros appeared in the original source.
+ */
+#define MB_NODE_CREATE_BODY \
+{ \
+    MBTreeNode* node; \
+ \
+    if (lbl_80344EE0 != 0) { \
+        node = lbl_80344EE0; \
+        lbl_80344EE0 = node->next; \
+    } else { \
+        node = AllocMem(0x80); \
+        node->id = lbl_80344EC8; \
+        lbl_80344EC8++; \
+        if (lbl_80344EC8 >= 0x3000) \
+            FatalError(lbl_801160D4, 0x804000); \
+    } \
+    return node; \
+}
+
+#define MB_NODE_INSERT_BODY(append_statement) \
+{ \
+    node->parent = parent; \
+    if (parent == 0) { \
+        MBTreeNode* head; \
+ \
+        if ((head = lbl_80344ECC) == 0) { \
+            lbl_80344ECC = node; \
+            return; \
+        } \
+        append_statement; \
+        return; \
+    } \
+ \
+    { \
+        MBTreeNode* head = parent->child; \
+ \
+        if (head == 0) { \
+            parent->child = node; \
+            return; \
+        } \
+        append_statement; \
+    } \
+}
+
+static inline MBTreeNode* MBCreateNodeInline(void)
+MB_NODE_CREATE_BODY
+
+static inline void MBNodeInsertInline(MBTreeNode* node, MBTreeNode* parent)
+MB_NODE_INSERT_BODY(MBNodeLastSibling(head)->next = node)
+
 /* 0x800BB29C */
 MBTreeNode* MBNewNode(MBTreeNode* parent, const f32* matrix, s32 type)
 {
@@ -851,30 +907,12 @@ MBTreeNode* MBNewNode(MBTreeNode* parent, const f32* matrix, s32 type)
     if (type == 0)
         type = 1;
 
-    if ((node = lbl_80344EE0) != 0) {
-        lbl_80344EE0 = node->next;
-    } else {
-        node = AllocMem(0x80);
-        node->id = lbl_80344EC8;
-        lbl_80344EC8++;
-        if (lbl_80344EC8 >= 0x3000)
-            FatalError(lbl_801160D4, 0x804000);
-    }
+    node = MBCreateNodeInline();
 
     if (node != 0) {
         MBNodeInit(node, type);
         CopyMat4(matrix, (f32*)node);
-        node->parent = parent;
-        if (parent == 0) {
-            if (lbl_80344ECC == 0)
-                lbl_80344ECC = node;
-            else
-                MBNodeLastSibling(lbl_80344ECC)->next = node;
-        } else if (parent->child == 0) {
-            parent->child = node;
-        } else {
-            MBNodeLastSibling(parent->child)->next = node;
-        }
+        MBNodeInsertInline(node, parent);
     }
     return node;
 }
@@ -903,21 +941,7 @@ void MBNodeInit(MBTreeNode* node, s32 type)
 
 /* 0x800BB448 */
 MBTreeNode* MBCreateNode(void)
-{
-    MBTreeNode* node;
-
-    if (lbl_80344EE0 != 0) {
-        node = lbl_80344EE0;
-        lbl_80344EE0 = node->next;
-    } else {
-        node = AllocMem(0x80);
-        node->id = lbl_80344EC8;
-        lbl_80344EC8++;
-        if (lbl_80344EC8 >= 0x3000)
-            FatalError(lbl_801160D4, 0x804000);
-    }
-    return node;
-}
+MB_NODE_CREATE_BODY
 
 /* 0x800BB4CC */
 static void MBNodeAppend(MBTreeNode* node, MBTreeNode* head)
@@ -933,29 +957,10 @@ static void MBNodeAppend(MBTreeNode* node, MBTreeNode* head)
 }
 
 void MBNodeInsert(MBTreeNode* node, MBTreeNode* parent)
-{
-    node->parent = parent;
-    if (parent == 0) {
-        MBTreeNode* head;
+MB_NODE_INSERT_BODY(MBNodeAppend(node, head))
 
-        if ((head = lbl_80344ECC) == 0) {
-            lbl_80344ECC = node;
-            return;
-        }
-        MBNodeAppend(node, head);
-        return;
-    }
-
-    {
-        MBTreeNode* head = parent->child;
-
-        if (head == 0) {
-            parent->child = node;
-            return;
-        }
-        MBNodeAppend(node, head);
-    }
-}
+#undef MB_NODE_CREATE_BODY
+#undef MB_NODE_INSERT_BODY
 
 /* 0x800BB55C */
 MBTreeNode* MBNodeLastSibling(MBTreeNode* node)
