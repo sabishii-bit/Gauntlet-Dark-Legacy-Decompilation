@@ -1,0 +1,39 @@
+{
+  "attempted_axis": "Seven private source controls test the R77 half-literal opportunity and WS common-consumer hypothesis; none retires the existing rule. Production remains byte-identical to 4ff645280.",
+  "attributes": {
+    "analysis": "Half literalization changes only pool/relocation representation: all six function bodies equal baseline, emitted pool becomes3fe00000000000004330000080000000 (16bytes), but neither schedule choice moves. Centered-expression folding with retained declarations is whole-ELF identical within each constant spelling: this concrete common-consumer form normalizes away. Deleting the now-unused f64 declarations changes frame136->120 and save/temporary offsets, not the schedule cure. Consumer operand exchange retains136/104 but adds load/store order changes near+0xc4..+0xd8 and altered FPR coloring, preserving both unwanted multiply positions. No experiment was linked or integrated; final pool-binding proof was unnecessary because none was raw-exact.",
+    "axis_log": [
+      "NC: projected[0] store as CSE barrier plus live yDepthScale recovers f31 save pair; pad16->8 and numerator interleave restored104/104. x/y symmetry, compound forms, store order, conversion statement/declaration order and pad type had finite negatives; see original NC record.",
+      "MB: yNumerator initial definition before xNumerator closes17 conversion-temp immediate words; conversion grouping, centered pair/update order, yDepthScale placements and subtrahend operand order negatives remain preserved in cited MB record.",
+      "WS: existing split pre/post-recolor rule proves exact104/104; its successful and refused window compositions remain the historical rule proof. This record supersedes the source-follow-up head only, not that proof."
+    ],
+    "law_screen": "Complete current laws query screened288 rows plus brief/context and full NC/MB/WS records. Applied claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1: retail read-only half exact bits3fe0000000000000, two scalar rvalue reads, roundtrip verified. claim.law.tu-wide-literalization-requires-joint-source-and-pool-binding-review.20260906.v2 supersedes the older blanket ban; only private coupled candidates tested. claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1 motivates test, but this target's code is neutral. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 predicts the measured16-byte loss on declaration deletion. NC store-barrier and MB consumer-definition-order laws held fixed; no repeated standalone old negative axes. C1 permutation/recolor law used only to rederive existing diagnosis; no postprocessor was added or modified.",
+    "mechanism": "Fresh aligned raw view reproduces A: target +0xe0 'fsub f1,f1,f9' before +0xe4 'fmuls f0,f2,f0', ours +0xe0 'fmuls f0,f2,f0' then +0xe4 'fsub f1,f1,f8'. B: ours +0x144 'lfs f31,244(r10)', +0x148 'fnmsubs f11,f10,f2,f11', +0x14c 'fmuls f2,f6,f3'; target +0x144 'fmuls f3,f7,f3', +0x148 'lfs f13,244(r10)', +0x14c 'fnmsubs f2,f11,f4,f2'. These are scheduling plus allocation choices, not a missing instruction or immediate. A legal reorder in current coloring and B's reuse of f2 distinguish them; no compiler-internal routine was identified or universal source impossibility proved.",
+    "neighborhood_screen": "Same-TU MBCameraUpdate tested separately after context/target review: its own three read-only literal labels also leave all six code bodies unchanged. See attempt.R78_mbcameraupdate-literal-and-first-loop-controls.20260906.v1. These two negatives bound extrapolation from R76/R77 literal wins; do not establish a population-wide result.",
+    "probed_form": "(1) Remove extern const f64 lbl_80348B28 and replace its two centeredX/Y reads with 0.5. (2-3) With extern, then literal: remove centeredX/centeredY assignment statements and substitute their unchanged parenthesized RHS into xNumerator/yNumerator consumers; KEEP both f64 declarations. (4-5) The same two folded forms with f64 centeredX; and f64 centeredY; declarations removed. (6-7) With extern, then literal: exchange (f64)viewport->xoff + centeredX to centeredX + (f64)viewport->xoff and the y counterpart, keeping all other expressions/statements/declarations unchanged.",
+    "provenance": "Anchor4ff645280. Source SHA2568c3f9654578411af7813fe31e0eb444b6bccbe61ba288ca600f15fa9a2f7c132; compiler SHA2560443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914. cv_probe.read_edges/compile_with reproduce complete raw ELF twice (actual original source and private same-basename copy) before variants; inventories via r71_controls_retirement_audit.canonical, aligned reads via fnasm. Local archive driver build/r78_camera_probe.py and final directory build/r78_camera_probe_yvqj041z contain source, objects, command traces, inventories and aligned diffs. The literal variant raw ELF SHA2563ea9e0f75793457da2e61ae5ce5900bef60d674ed1cf0ea4eaaeeaf20fbabfc5.",
+    "verification": "Fresh wf_word_diff104/104,32words; fndiff --raw --count real62. Production pinned output remains exact by existing rule, not native exact. Owning TU already Matching; no source/config edit, no rule removed or added. Full provision ninja completed green; later test and graph gates recorded in integrator closeout. No fuzzy delta claimed for private negative controls."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/mb/mb_camera MBWorldToScreen3D; compare current raw code and src/game/mb/mb_camera.c against commit 4ff645280 before replaying the verbatim source forms below. A changed baseline reopens these finite negatives.",
+    "falsifier": "Any listed form at the cited complete-TU source/compiler alignment emits raw target bytes or closes either recorded schedule window without regressing other words, frame, final bindings or siblings. A genuinely different source hypothesis is outside this denial.",
+    "premise_measurement": "Faithful full raw ELF baseline SHA256 f9942081baa823c38a918eeda9a4ea02d592dd9593c0ec05f0b6ac44d7f57599. Seven controls: literal 32 words/frame136; folding centered expressions with declarations retained 32/136 in both constant spellings; folding plus deleting two f64 declarations 55/120 in both spellings; exchanging consumer add operands 38/136 in both spellings. All have 104/104 instructions and unchanged five sibling bodies.",
+    "scope": "Only the seven source forms enumerated in probed_form at the measured baseline. No whole-function, whole-compiler or all-source-unreachable claim. Existing WebFrank proof remains valid and is not replaced by this finite negative experiment."
+  },
+  "function": "function:MBWorldToScreen3D",
+  "held_fixed": "Actual Ninja mwcc_sjis edge, stock GC/1.2.5, all flags and headers, full TU source/function order, five sibling bodies, local types, existing unused[8], stores and calls. Fold variants preserve arithmetic association and casts. Each consumer-axis variant is independently crossed with extern versus 0.5 literal spelling; declaration deletion is isolated from expression folding.",
+  "id": "attempt.R78_mbworldtoscreen3d-literal-and-consumer-controls.20260906.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-06T19:29:18Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-06",
+    "signature": "opcode multiset: IDENTICAL (104/104); DIFFERING WORDS = 32, MNEMONIC DIVERGENCE = 5, RELOC-SYMBOL MISMATCH = 0; REGFIELD-ONLY 27, RA-ZERO 0, IMMEDIATE 0, BRANCH 0, OPCODE 5, RELOCATED 0"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.WS_mbworldtoscreen3d-the-recolor-caused-rotation-needs-the-post-recolor-stage-and-mb_camera-flips.20260904.v1",
+  "valid_from": "2026-09-06"
+}
