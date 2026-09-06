@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Restore target definition order with identical function bodies; retain exact text geometry and full FP/EH pools, not a TU flip",
+  "attributes": {
+    "artifacts": [
+      "build/r72_newcam_7elhyuyg/report.json",
+      "build/r72_newcam_7elhyuyg/baseline.c",
+      "build/r72_newcam_7elhyuyg/baseline_raw.o",
+      "build/r72_newcam_7elhyuyg/baseline_processed.o",
+      "build/r72_newcam_7elhyuyg/clean_target_order/newcam.c",
+      "build/r72_newcam_7elhyuyg/webfrank_rebound.json",
+      "build/r72_newcam_7elhyuyg/rebound_processed.o",
+      "build/r72_newcam_z8j9oxkm/report.json",
+      "build/r72_newcam_retained.json"
+    ],
+    "baseline": "23 functions,22 report-exact; all23 function sizes exact but all23 offsets wrong. .text size0x2E34. .sdata2 size0xC8, first mismatch at+0x8 against candidate80347448. Direct per-function EH records19/19 already equal, but extab/extabindex layout misordered. Original raw SHA25629e2c0bca746c300c506e58ca453ecf3c0f60844fb8602caf6e95f5b08c16320.",
+    "commands": [
+      "python tools/gdl/composed_census/r72_newcam_probe.py --forms declaration_hoist_control,target_definition_order",
+      "python tools/gdl/composed_census/r72_newcam_probe.py --forms clean_hoist_control,clean_target_order",
+      "python tools/gdl/composed_census/r72_newcam_probe.py --verify-retained build/r72_newcam_7elhyuyg --out build/r72_newcam_retained.json"
+    ],
+    "law_screen": "Current 287-law corpus and local brief/context/xbox screened. claim.law.MF_every-function-at-real-0-does-not-mean-the-text-order-is-right-and-no-project-score-sees-it.20260903.v1 APPLIED: all23 size-equal functions were misplaced. claim.law.PW_sdata2-pool-order-is-creation-order-of-codegenned-functions.20260901.v1 APPLIED: source order alone restores the200B pool. claim.law.adding-a-local-renumbers-the-anonymous-pool-and-drifts-siblings.20260831.v1 and claim.law.webfrank-reloc-pin-breaks-on-local-symbol-renumber.20260831.v1 APPLIED as identity hazards; names, not numeric indices, bind current permutation hashes. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 APPLIED via full datum reads. claim.law.R59_single-pointer-local-aggregate-closes-two-world-address-home-copies.20260904.v1 SCREENED, not used: no wrappers/scaffolding added.",
+    "pin_scope": "User-integrator approved only existing fn_8006DF34 window[0x230,0x238), order[1,0], before/after relocation hashes. Before hash32837b28...->11933c77..., afterc72ab86d...->198d58ab.... All body/window instruction hashes, verifier options and recipes unchanged. Full scratch replay then production replay pass every existing newcam rule.",
+    "probed_form": "At ed301960d, tools/gdl/composed_census/r72_newcam_probe.py reproduces the original entire raw object from both actual source path and scratch path before variants. Same-order declaration/helper-hoist control keeps all23 raw bodies/offsets and semantic relocations but retains the wrong pool; target-order control retains all23 bodies, fixes all23 offsets and the entire .sdata2. Clean production presentation keeps function comments with definitions and original macro/pragma associations. An early generator omitted NC_DOT's scope: same-order control exposed CalcDist drift; generator corrected before any retained conclusion.",
+    "relocations": "Ordered function-relative relocation offsets/types/addends preserved. Named symbols retain names; only LOCAL compiler-private .sdata2/.rodata entries without relocations may normalize by full bytes+size+section. GLOBAL or writable data, unsupported addends and changed rows refuse. DF34+0x232 type109 addend0 changes @90(index21,old .sdata2+0x60) to @129(index16,new+0x28), both8bytes3ff0000000000000. New target placement80347470 is retail double1.0. Current _relocation_sha256 hashes names, so @90->@129, not index motion alone, necessitates metadata rebind.",
+    "remaining": "fn_8006DC64 remains T180/O180, real100, fresh report87.88333%,58raw differing words/33mnemonic divergences. Five pre-existing pins remain. .rodata38 and.sdata2200 are still unclaimed in splits; ownership/link-reachability review is still required before claiming. No TU flip asserted.",
+    "retained": "All23 raw AND all23 postprocessed function bodies preserved. All23 function offsets/sizes exact; no extra/missing functions. Complete .sdata2[80347448,80347510)200bytes exact and .rodata[80113808,8011382E)38bytes exact. extab152 and extabindex228 full payloads exact; all extabindex relocation offsets/types/function targets and extab section-relative targets exact; no BSS/SBSS emitted. Global report matched-data increases188084->188464 (+380 EH bytes); code/link percentage unchanged. These objects remain NonMatching, so green default DOL is not a source-linked/runtime proof.",
+    "verification": "python tools/gdl/composed_census/r72_newcam_probe.py --verify-retained build/r72_newcam_7elhyuyg --out build/r72_newcam_retained.json PASS, including fresh actual-compiler full-object fidelity and all12 checks. python tools/gdl/textorder.py game/world/newcam ORDER-OK23shared/0extra. python tools/gdl/datadiff.py game/world/newcam --sections: direct EH19/19 PASS, extab/extabindex100%,2unclaimed sections. python configure.py; ninja -j2 prints build/GUNE5D/main.dol: OK. python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph -b all green."
+  },
+  "function": "tu:game/world/newcam.c",
+  "held_fixed": "Every function's source statements, types, existing helper definitions, macro expansion and five scoped pragma settings; GC/1.2.5 binary and actual ordered Ninja flags. No new rule or split claim. Only two existing DF34 relocation-name hash fields changed after full datum proof.",
+  "id": "attempt.R72_newcam-definition-order-restores-text-pool-and-eh-layout.20260906.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-06T03:20:07Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-06"
+}

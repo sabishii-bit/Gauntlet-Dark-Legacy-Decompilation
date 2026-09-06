@@ -294,123 +294,10 @@ extern s32 gControllerButtons;
 extern s32 sFlags;
 extern char lbl_801137D0[];
 
-/*
- * fn_80070144 -- step the camera yaw (0xEC) and pitch (0x104) toward the given
- * targets over lbl_80343CEC frames.  On a marker change it seeds the per-frame
- * yaw/pitch rates (shortest-arc wrapped) and resets the frame accumulator
- * (0x1AC); each subsequent call advances yaw/pitch by rate*step (wrapping to
- * [-PI,PI]) until the accumulator reaches the frame count.  Returns 1 while
- * still interpolating, 0 when done.  [caller: fn_8006DF34]
- */
-s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
-    f32 step;
-    f64 d;
-
-    if (lbl_80343CE0 != 0) {
-        if (gClockFrameStep <= 0.0) {
-            step = 1.0f;
-        } else {
-            step = 30.0 * gClockFrameStep;
-        }
-    } else {
-        step = 1.0f;
-    }
-
-    if (lbl_80343CF8 != cam->field_1A8) {
-        cam->field_1A8 = lbl_80343CF8;
-
-        if ((d = (f32)(targetYaw - cam->yaw)) > 3.141592654) {
-            d = d - 6.283185308;
-        } else if (d <= -3.141592654) {
-            d = 6.283185308 + d;
-        }
-        cam->yaw_rate = d / (f64)lbl_80343CEC;
-
-        d = (f32)(targetPitch - cam->pitch);
-        if (d > 3.141592654) {
-            d = d - 6.283185308;
-        } else if (d <= -3.141592654) {
-            d = 6.283185308 + d;
-        }
-        cam->pitch_rate = d / (f64)lbl_80343CEC;
-
-        cam->field_1AC = 0.0f;
-    }
-
-    if (cam->field_1AC < (f32)lbl_80343CEC) {
-        d = cam->yaw_rate * step + cam->yaw;
-        if (d > 3.141592654) {
-            d = d - 6.283185308;
-        } else if (d <= -3.141592654) {
-            d = 6.283185308 + d;
-        }
-        cam->yaw = d;
-
-        d = cam->pitch_rate * step + cam->pitch;
-        if (d > 3.141592654) {
-            d = d - 6.283185308;
-        } else if (d <= -3.141592654) {
-            d = 6.283185308 + d;
-        }
-        cam->pitch = d;
-    } else {
-        return 0;
-    }
-    cam->field_1AC = cam->field_1AC + step;
-    return 1;
-}
 extern const f32 lbl_80127D20[3];  /* up ref: general */
 /* lbl_80127D40 (up ref: looking up) declared above for CurTransmitterBlink */
 extern const f32 lbl_80127D50[3];  /* up ref: looking down */
 extern const f32 gIdentityMatrix[];   /* default identity-ish basis */
-
-/*
- * CamLookInDir -- build an orthonormal look basis into mat[0..2]=right,
- * mat[4..6]=up, mat[8..10]=forward from the forward direction in dir.  Degenerate
- * (near-zero) forward copies a default basis; a near-vertical forward selects an
- * up reference by sign, otherwise a general up reference; then two cross products
- * (with a re-normalize) orthonormalize the basis.  [5 internal callers]
- */
-void CamLookInDir(f32* dir, u32 mat) {
-    f32* m;
-    f32* up;
-    f32* fwd;
-    f32 len;
-
-    m = (f32*)mat;
-    up = m + 4;
-    fwd = m + 8;
-    m[8] = dir[0];
-    m[9] = dir[1];
-    m[10] = dir[2];
-    len = SlowNormalVector(fwd);
-    if (len < 0.001) {
-        CopyMat3((f32*)gIdentityMatrix, m);
-    } else {
-        if (fwd[0] * fwd[0] + fwd[2] * fwd[2] < 0.0001) {
-            if (fwd[1] > 0.0f) {
-                up[0] = lbl_80127D40[0];
-                up[1] = lbl_80127D40[1];
-                up[2] = lbl_80127D40[2];
-            } else {
-                up[0] = lbl_80127D50[0];
-                up[1] = lbl_80127D50[1];
-                up[2] = lbl_80127D50[2];
-            }
-        } else {
-            up[0] = lbl_80127D20[0];
-            up[1] = lbl_80127D20[1];
-            up[2] = lbl_80127D20[2];
-        }
-        m[0] = up[1] * fwd[2] - up[2] * fwd[1];
-        m[1] = up[2] * fwd[0] - up[0] * fwd[2];
-        m[2] = up[0] * fwd[1] - up[1] * fwd[0];
-        SlowNormalVector(m);
-        up[0] = fwd[1] * m[2] - fwd[2] * m[1];
-        up[1] = fwd[2] * m[0] - fwd[0] * m[2];
-        up[2] = fwd[0] * m[1] - fwd[1] * m[0];
-    }
-}
 
 void CamReset(NcCamera* cam);   /* defined below; forward decl for early callers */
 void fn_8006F418(NcCamera* camera, f32* target);
@@ -427,52 +314,6 @@ extern s32       gGameMode;   /* game mode; see enum e_mode (MG_PLAY = scripted)
 extern s32       gScriptedCameraState;   /* scripted-path sub-state */
 extern f32*      CurTransmitter;  /* active transmitter marker record (f32 view) */
 extern s32       lbl_803447B8;    /* scripted-path done flag (cleared on finish) */
-
-/*
- * UpdateCam -- top-level per-frame camera dispatcher.  Runs only when the
- * camera is enabled; lazily kick-starts the standard camera, drives the
- * scripted-path state machine (write_stage_info) when active, and otherwise ticks
- * the live standard camera (fn_8006DF34) or, on the freeze->unfreeze edge,
- * re-pushes the MB projection.  Always returns 1.  [caller: game/sys/main]
- */
-s32 UpdateCam(void) {
-    s32 done;
-
-    if (gGameBusy != 0 || gFrameTicks == 0) {
-        return 1;
-    }
-    if (lbl_80344A6C == 0) {
-        fn_8006F16C(0);
-    }
-    if (gGameMode != MG_PLAY) {
-        done = 1;
-    } else {
-        if (gScriptedCameraState > 2) {
-            gScriptedCameraState = 2;
-        }
-        write_stage_info(gScriptedCameraState);
-        if (gScriptedCameraState == 1) {
-            fn_8006E654();
-        }
-        done = gScriptedCameraState > 0;
-    }
-    if (done != 0) {
-        return 1;
-    }
-    if (lbl_80344A90 != 0) {
-        lbl_80344A90 = 0;
-        MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
-        MBWindowZoom(lbl_80344A6C->zoom);
-        if (lbl_80344A6C->aspect > 0.0) {
-            MBWindowProjection(
-                0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
-                1.0 / lbl_80344A6C->aspect);
-        }
-        return 1;
-    }
-    fn_8006DF34(lbl_80344A6C);
-    return 1;
-}
 
 /*
  * Marker/waypoint record (0x28 stride) scanned by the nearest-selectors below.
@@ -534,124 +375,6 @@ extern s32 lbl_80343CF8;         /* current selection (3D selector) */
 /* fast 2D (XZ) distance approximation (ps2/ml_fmath.c). */
 extern f32 fqdist(f32 x, f32 y);
 
-/*
- * fn_8006FBAC -- pick the enabled marker nearest (in the XZ plane) to pos,
- * with hysteresis: the previously-selected marker is kept unless the new best
- * is at least ~1.5x closer (bestDist <= 0.667 * selectedDist).  Returns the
- * chosen record (NULL if none).  [caller: bosscam]
- */
-void* fn_8006FBAC(f32* pos) {
-    u8 unused[16];
-    f32 bestDist = 0.0f;
-    s32 i;
-    s32 best = -1;
-
-    if (sNumTriggerCameras <= 0) {
-        return NULL;
-    }
-    for (i = 0; i < sNumTriggerCameras; i++) {
-        NcMarker* m = &sTriggerCameras[i];
-        if (m->flag == 0 && i != lbl_80343CF4) {
-            f32 d = fqdist(pos[0] - m->x, pos[2] - m->z);
-            if (best < 0 || d < bestDist) {
-                bestDist = d;
-                best = i;
-            }
-        }
-    }
-    if (lbl_80343CF4 < 0) {
-        lbl_80343CF4 = best;
-    } else {
-        NcMarker* m = &sTriggerCameras[lbl_80343CF4];
-        f32 selDist = fqdist(pos[0] - m->x, pos[2] - m->z);
-        if (bestDist <= 0.667 * selDist) {
-            lbl_80343CF4 = best;
-        }
-    }
-    return &sTriggerCameras[lbl_80343CF4];
-}
-
-/*
- * fn_8006FCDC -- 3D counterpart of fn_8006FBAC: pick the enabled marker nearest
- * (full 3D squared distance) to pos, with the same hysteresis (kept unless the
- * new best is ~1.5x closer: bestDist <= 4/9 * selectedDist).  When it switches,
- * it fades the previously-selected marker's node (MBTreeSetAlpha).  [internal]
- */
-void* fn_8006FCDC(f32* pos) {
-    u8 unused[8];
-    s32 best = -1;
-    s32 sel;
-    s32 i;
-    f32 bestDist = 0.0f;
-    f32 dx;
-    f32 dy;
-    f32 dz;
-    f32 d;
-    f32 selDist;
-
-    if (sNumTriggerCameras <= 0) {
-        return NULL;
-    }
-    sel = lbl_80343CF8;
-    for (i = 0; i < sNumTriggerCameras; i++) {
-        NcMarker* m = &sTriggerCameras[i];
-        if (m->flag == 0 && i != sel) {
-            dx = pos[0] - m->x;
-            dy = pos[1] - m->y;
-            dz = pos[2] - m->z;
-            d = dx * dx + dy * dy + dz * dz;
-            if (best < 0 || d < bestDist) {
-                bestDist = d;
-                best = i;
-            }
-        }
-    }
-    if (sel < 0) {
-        lbl_80343CF8 = best;
-    } else {
-        NcMarker* m = &sTriggerCameras[sel];
-        dx = pos[0] - m->x;
-        dy = pos[1] - m->y;
-        dz = pos[2] - m->z;
-        selDist = dx * dx + dy * dy + dz * dz;
-        if (bestDist <= 0.4444444444444444 * selDist) {
-            MBTreeSetAlpha(m->node, 100, 0);
-            lbl_80343CF8 = best;
-        }
-    }
-    return &sTriggerCameras[lbl_80343CF8];
-}
-
-/*
- * fn_8006FE30 -- initialise/refresh the debug camera projection.  Lazily wires
- * DebugCam to the static DebugCamera instance (once), copies the MB window's
- * view basis and eye position into the camera, mirrors them into the camera's
- * history/target rows, and rebuilds the look basis.  [caller: game/sys/main]
- */
-void fn_8006FE30(void) {
-    if (lbl_80344A7C == 0) {
-        lbl_80344A68 = &lbl_80274AA0;
-        CamReset(lbl_80344A68);
-        lbl_80344A7C = 1;
-    }
-    /* the leading 0x00-0x30 basis-matrix region (written whole by CopyMat3) has
-     * no recovered per-row field identity; indices 8/9/0xa (its forward row)
-     * stay raw index expressions. */
-    CopyMat3(lbl_80344EE8->cam.mat, (f32*)lbl_80344A68);
-    lbl_80344A68->position.x = lbl_80344EE8->cam.pos[0];
-    lbl_80344A68->position.y = lbl_80344EE8->cam.pos[1];
-    lbl_80344A68->position.z = lbl_80344EE8->cam.pos[2];
-    lbl_80344A68->direction.x = ((f32*)lbl_80344A68)[8];
-    lbl_80344A68->direction.y = ((f32*)lbl_80344A68)[9];
-    lbl_80344A68->direction.z = ((f32*)lbl_80344A68)[0xa];
-    lbl_80344A68->attention.x = lbl_80344A68->position.x;
-    lbl_80344A68->attention.y = lbl_80344A68->position.y;
-    lbl_80344A68->attention.z = lbl_80344A68->position.z;
-    lbl_80344A68->distance = 0.0f;
-    GetYawPitch((f32*)&lbl_80344A68->direction, &lbl_80344A68->yaw,
-                &lbl_80344A68->pitch);
-}
-
 /* Per-frame debug-camera update. */
 static inline u32 NcMaskMismatch(u32 value, u32 expected) {
     return value ^ expected;
@@ -661,104 +384,62 @@ static inline u32 NcApplyMask(u32 value, u32 mask) {
     return value & mask;
 }
 
-#pragma opt_propagation off
-s32 fn_8006FF1C(void) {
-    NcCamera* cam;
-    f32 pitch;
-    u32 controller;
-    u32 zero;
-    u32 one;
-    u32 flags;
+static inline void NcCamMinMaxAvgPos(Vec3* vmin, Vec3* vmax, Vec3* point)
+{
+    s32 k;
 
-    if (lbl_80344A7C == 0) {
-        lbl_80344A68 = &lbl_80274AA0;
-        CamReset(lbl_80344A68);
-        lbl_80344A7C = 1;
+    for (k = 0; k < 3; k++) {
+        (&vmin->x)[k] = ((&vmin->x)[k] < (&point->x)[k]) ?
+            (&vmin->x)[k] : (&point->x)[k];
+        (&vmax->x)[k] = ((&vmax->x)[k] > (&point->x)[k]) ?
+            (&vmax->x)[k] : (&point->x)[k];
     }
-    MBTreeSetAlpha(sTriggerCameras[lbl_80343CF8].node, lbl_80344A74, 0);
-    lbl_80344A74 += 8;
-    DebugCamControlInputs();
-
-    cam = lbl_80344A68;
-    pitch = cam->pitch;
-    YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
-    PitchVec3((f32*)&cam->direction, (f32*)&cam->direction, -pitch);
-    DoShake(&cam->position, &cam->attention);
-
-    cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
-    cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
-    cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
-    CamLookInDir((f32*)&cam->direction, (u32)cam);
-
-    CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
-    gCameras[0].wpos[0] = cam->position.x;
-    gCameras[0].wpos[1] = cam->position.y;
-    gCameras[0].wpos[2] = cam->position.z;
-    gCameras[0].attn[0] = cam->attention.x;
-    gCameras[0].attn[1] = cam->attention.y;
-    gCameras[0].attn[2] = cam->attention.z;
-    MBCameraUpdate((f32*)&cam->position, (f32*)cam);
-    MBWindowZoom(cam->zoom);
-    if (cam->aspect > 0.0) {
-        MBWindowProjection(
-            0.31830988614222805 * (180.0 * cam->zoom),
-            1.0 / cam->aspect);
-    }
-
-    controller = gControllerButtons;
-    zero = 0;
-    one = 1;
-    flags = sFlags;
-    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
-         NcMaskMismatch(controller & zero, zero)) != 0) {
-        dbgTextPrintfCell(
-            0xFFFF00, 1, 0x20, lbl_801137D0,
-            0.31830988614222805 * (180.0 * cam->yaw),
-            0.31830988614222805 * (180.0 * cam->pitch),
-            cam->distance, cam->field_100, cam->attention.x, cam->attention.y, cam->attention.z);
-    }
-    return 1;
 }
-#pragma opt_propagation reset
 
-/*
- * CurTransmitterBlink -- toggle the debug-overlay level arrow.  Non-zero idx shows it
- * (creating the arrow node once, then clearing its draw flags each call); zero
- * idx removes it.  [caller: game/world/items.c]
- */
-void CurTransmitterBlink(s32 idx) {
-    f32 pos[17];
-    NcBlk16 look = lbl_801137C0;
-
-    if (idx != 0) {
-        if (lbl_80344A78 == 0) {
-            lbl_80344A78 = (void*)add_arrow(2, 1, 0, lbl_80127D40, (f32*)&look, pos);
-            MBTreeSetAlpha(lbl_80344A78, 0, 0);
-        }
-        MBTreeClearFlags(lbl_80344A78, 2, 0);
-    } else {
-        if (lbl_80344A78 != 0) {
-            MBRemoveNode(lbl_80344A78, 1);
-            lbl_80344A78 = 0;
-        }
+static inline f32 ClampPitchLow(f32 pitch, f32 bound)
+{
+    if (pitch < bound) {
+        return pitch;
     }
+    return bound;
 }
 
 /*
- * StdCamReturn -- push the live standard camera into the MB window/projection
- * layer: update the MB camera from the camera basis, zoom the window by the
- * camera FOV field, and (when the projection distance is positive) set the MB
- * projection to the FOV in degrees and the inverse distance.  [caller: bosscam]
+ * CalcFrustrumNormals -- given the camera look basis (fwd/right/up packed as a
+ * Vec3 at *look) and a field-of-view angle, build the four view-frustum edge
+ * directions (fwd +/- right*tanH +/- up*tanV) and store their pairwise cross
+ * products (the inward plane normals) into out[0..3].
+ *
+ * Structural reconstruction (NonMatching): the shipped code fuses the scaling
+ * and cross products with fmsubs and reads the two half-FOV tangents from the
+ * NewCam projection block (lbl_80344EE8 +0x1C/+0x20).
  */
-void StdCamReturn(void) {
-    MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
-    MBWindowZoom(lbl_80344A6C->zoom);
-    if (lbl_80344A6C->aspect > 0.0) {
-        MBWindowProjection(
-            0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
-            1.0 / lbl_80344A6C->aspect);
-    }
-}
+extern f64 lbl_803474A0;
+
+/* TU-local declarations; definitions follow retail code order. */
+s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam);
+void CamLookInDir(f32* dir, u32 mat);
+s32 UpdateCam(void);
+void* fn_8006FBAC(f32* pos);
+void* fn_8006FCDC(f32* pos);
+void fn_8006FE30(void);
+s32 fn_8006FF1C(void);
+void CurTransmitterBlink(s32 idx);
+void StdCamReturn(void);
+s32 fn_8006DC2C(NcPlayer* player, f32* pt, s32 mode);
+s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode);
+void CamReset(NcCamera* cam);
+void StdCamFreeze(void);
+void DebugCamInit(void);
+void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode);
+s32 CamGetPlayerAvgPos(Vec3* out, s32 flags);
+void fn_8006F16C(s32 initialise);
+void fn_8006F418(NcCamera* cbase, f32* target);
+void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fov);
+f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current);
+s32 fn_8006DF34(NcCamera* cam);
+void fn_8006E654(void);
+void DebugCamControlInputs(void);
 
 /*
  * fn_8006DC2C -- public frustum point-clip query.  Loads the live standard
@@ -898,626 +579,7 @@ s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode) {
     return result;
 }
 
-/*
- * CamReset -- reset a camera object to its default working state.  Zeroes the
- * transform / position / velocity / target and history arrays, restores the
- * default yaw and mode fields, and clears the module freeze / current-mode
- * globals.  Highest-fan-in helper in the module (called by 9 objects on every
- * camera-mode change and at init).
- *
- * Structural reconstruction (NonMatching): the shipped code stores each field
- * explicitly rather than via memset; the constant defaults (field yaw <-
- * lbl_80347508, field_1AC/10C <- lbl_8034750C) are preserved symbolically here.
- */
-#pragma dont_inline on
-void CamReset(NcCamera* cam) {
-    /* p keeps the field_0C8..field_0D8 pad region raw: no field within it is
-     * ever read anywhere in this TU, so its identity is genuinely unrecovered. */
-    u8* p = (u8*)cam;
-    s32 i;
-
-    cam->yaw = 3.1415927f;
-    cam->yaw_rate = 0.0f;
-    cam->pitch = 0.0f;
-    cam->pitch_rate = 0.0f;
-    cam->distance = 0.0f;
-    cam->dist_rate = 0.0f;
-    cam->direction.x = 0.0f;
-    cam->direction.y = 0.0f;
-    cam->direction.z = 0.0f;
-    cam->attention.x = 0.0f;
-    cam->attention.y = 0.0f;
-    cam->attention.z = 0.0f;
-    cam->velocity.x = 0.0f;
-    cam->velocity.y = 0.0f;
-    cam->velocity.z = 0.0f;
-    *(f32*)(p + 0xC8) = 0.0f;
-    *(f32*)(p + 0xCC) = 0.0f;
-    *(f32*)(p + 0xD0) = 0.0f;
-    cam->planes[0].normal.x = 0.0f;
-    cam->planes[0].normal.y = 0.0f;
-    cam->planes[0].normal.z = 0.0f;
-    cam->planes[1].normal.x = 0.0f;
-    cam->planes[1].normal.y = 0.0f;
-    cam->planes[1].normal.z = 0.0f;
-    cam->planes[2].normal.x = 0.0f;
-    cam->planes[2].normal.y = 0.0f;
-    cam->planes[2].normal.z = 0.0f;
-    cam->planes[3].normal.x = 0.0f;
-    cam->planes[3].normal.y = 0.0f;
-    cam->planes[3].normal.z = 0.0f;
-
-    for (i = 0; i < 9; i++) {
-        cam->ring_pos[i].x = 0.0f;
-        cam->ring_pos[i].y = 0.0f;
-        cam->ring_pos[i].z = 0.0f;
-        cam->ring_dist[i] = 0.0f;
-    }
-
-    cam->field_1A4 = 0;
-    *(f32*)(p + 0xD4) = 0.0f;
-    *(f32*)(p + 0xD8) = 0.0f;
-    cam->field_100 = 0.0f;
-    cam->zoom = 1.0471976f;
-    cam->aspect = 0.0f;
-    lbl_80344A90 = 0;
-    lbl_80344A70 = lbl_80343CD4;
-    cam->field_1A8 = -1;
-    cam->field_1AC = 0.0f;
-    lbl_80344A78 = 0;
-}
-#pragma dont_inline off
-
-/*
- * StdCamFreeze -- freeze the standard camera (stop it from tracking players)
- * until the next CamReset.  Trivial flag setter.
- */
-void StdCamFreeze(void) {
-    lbl_80344A90 = 1;
-}
-
-/*
- * DebugCamInit -- point DebugCam at the static DebugCamera instance, reset it,
- * and mark the debug camera active.  Invoked from the pb diagnostic screen.
- */
-void DebugCamInit(void) {
-    lbl_80344A68 = &lbl_80274AA0;
-    CamReset(lbl_80344A68);
-    lbl_80344A7C = 1;
-}
-
-/*
- * GetPlayerAvgPos -- world-space aggregate of the active players' follow points.
- *
- *   mode 0 : *avg = mean of the valid players' positions
- *   mode>0 : *avg = midpoint of the axis-aligned bounding box of those positions
- *   mode 2 : additionally clamp *avg to the level camera's world bounds
- *
- * A player counts only if state==1; its source point is altpos (0xDC) when the
- * 0x964 bit26 flag is set, else campos (0x54).  When no player is valid the
- * default position (gDefaultPlayerPosition) is used.  bmax/bmin, when non-NULL, receive
- * the bounding box (meaningful only for mode>0).  [callers: bosscam, tower]
- */
 #pragma opt_propagation off
-void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
-    s32 i;
-    f32 count;
-    s32 k;
-    f32 boxMin[3];
-    f32 boxMax[3];
-
-    count = 0.0f;
-    avg[0] = count;
-    avg[1] = count;
-    avg[2] = count;
-    boxMax[0] = -1e20f;
-    boxMax[1] = -1e20f;
-    boxMax[2] = -1e20f;
-    boxMin[0] = 1e20f;
-    boxMin[1] = 1e20f;
-    boxMin[2] = 1e20f;
-
-    for (i = 0; i < 4; i++) {
-        NcPlayer* pl = &gPlayers[i];
-        if (pl->state == 1) {
-            f32* src = (pl->ncflags & 0x20) ? pl->altpos : pl->campos;
-            if (mode == 0) {
-                avg[0] = src[0] + avg[0];
-                avg[1] = src[1] + avg[1];
-                avg[2] = src[2] + avg[2];
-            } else {
-                for (k = 0; k < 3; k++) {
-                    f32 v = src[k];
-                    boxMin[k] = (boxMin[k] < v) ? boxMin[k] : v;
-                    boxMax[k] = (boxMax[k] > v) ? boxMax[k] : v;
-                }
-            }
-            count += 1.0;
-        }
-    }
-
-    if (count == 0.0) {
-        avg[0] = gDefaultPlayerPosition[0];
-        avg[1] = gDefaultPlayerPosition[1];
-        avg[2] = gDefaultPlayerPosition[2];
-    } else {
-        f32 scale = 1.0 / count;
-        if (mode == 0) {
-            avg[0] *= scale;
-            avg[1] *= scale;
-            avg[2] *= scale;
-        } else {
-            for (k = 0; k < 3; k++) {
-                avg[k] = 0.5 * (boxMin[k] + boxMax[k]);
-            }
-        }
-    }
-
-    if (outMin != 0) {
-        outMin[0] = boxMin[0];
-        outMin[1] = boxMin[1];
-        outMin[2] = boxMin[2];
-    }
-    if (outMax != 0) {
-        outMax[0] = boxMax[0];
-        outMax[1] = boxMax[1];
-        outMax[2] = boxMax[2];
-    }
-
-    if (mode == 2 && gCurLevel != 0 && ((NcLevelData*)gCurLevel)->camera != 0) {
-        CameraData* camera;
-        for (k = 0; k < 3; k++) {
-            f32 v;
-
-            camera = ((NcLevelData*)gCurLevel)->camera;
-            v = avg[k];
-            v = (v < camera->min[k]) ? camera->min[k] :
-                ((v > camera->max[k]) ? camera->max[k] : v);
-            avg[k] = v;
-        }
-    }
-}
-#pragma opt_propagation reset
-
-static inline void NcCamMinMaxAvgPos(Vec3* vmin, Vec3* vmax, Vec3* point)
-{
-    s32 k;
-
-    for (k = 0; k < 3; k++) {
-        (&vmin->x)[k] = ((&vmin->x)[k] < (&point->x)[k]) ?
-            (&vmin->x)[k] : (&point->x)[k];
-        (&vmax->x)[k] = ((&vmax->x)[k] > (&point->x)[k]) ?
-            (&vmax->x)[k] : (&point->x)[k];
-    }
-}
-
-/*
- * CamGetPlayerAvgPos -- camera-space player-center used as the camera look-at
- * target.  Builds the bounding box of the valid players' points (pos 0x44 when
- * flags bit1 set, campos 0x54 when bit2 set), optionally transformed through the
- * current matrix stack (bit0), takes the box midpoint, clamps it to the level
- * camera bounds, and returns non-zero if at least one player was valid.
- *
- * A player is valid when state is 1 or 4 and the 0x964 bit26 flag is clear.
- * [callers: the mode-updaters, gamemain, boss]
- */
-s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
-    typedef struct NcVecSlot {
-        Vec3 v;
-        f32 unused;
-    } NcVecSlot;
-    Vec3 average;
-    NcVecSlot vmin, vmax, worldPoint, followPoint;
-    NcPlayer* pl;
-    s32 i, k, count, valid;
-
-    vmax.v.x = -1.0e20f;
-    vmin.v.x = 1.0e20f;
-    vmax.v.y = -1.0e20f;
-    vmin.v.y = 1.0e20f;
-    vmax.v.z = -1.0e20f;
-    vmin.v.z = 1.0e20f;
-    count = 0;
-
-    for (i = 0; i < 4; i++) {
-        pl = &gPlayers[i];
-        valid = ((pl->ncflags & 0x20) == 0 &&
-                 (pl->state == 1 || pl->state == 4));
-        if (valid != 0) {
-            count++;
-            if (flags & 0x2) {             /* include world position (0x44) */
-                if (flags & 0x1) {
-                    MBWorldToScreen(&worldPoint.v, (Vec3*)pl->pos);
-                } else {
-                    worldPoint.v.x = pl->pos[0];
-                    worldPoint.v.y = pl->pos[1];
-                    worldPoint.v.z = pl->pos[2];
-                }
-                NcCamMinMaxAvgPos(&vmin.v, &vmax.v, &worldPoint.v);
-            }
-            if (flags & 0x4) {             /* include follow position (0x54) */
-                if (flags & 0x1) {
-                    MBWorldToScreen(&followPoint.v, (Vec3*)pl->campos);
-                } else {
-                    followPoint.v.x = pl->campos[0];
-                    followPoint.v.y = pl->campos[1];
-                    followPoint.v.z = pl->campos[2];
-                }
-                NcCamMinMaxAvgPos(&vmin.v, &vmax.v, &followPoint.v);
-            }
-        }
-    }
-
-    /* midpoint of the box */
-    for (k = 0; k < 3; k++) {
-        (&average.x)[k] = 0.5 * ((&vmin.v.x)[k] + (&vmax.v.x)[k]);
-    }
-
-    if (flags & 0x1) {
-        MBWorldToScreen3D(out, &average);
-    } else {
-        out->x = average.x;
-        out->y = average.y;
-        out->z = average.z;
-    }
-
-    {                                      /* clamp to level camera bounds
-                                              * (min[3]/max[3] indexed raw:
-                                              * array-style ->min[k]/->max[k]
-                                              * defeats the target's lfs-
-                                              * immediate addressing here --
-                                              * verified STRUCTURAL regression,
-                                              * see claim.law.multifield-alias-
-                                              * defeats-indexed-addressing) */
-        f32* bounds;
-        for (k = 0; k < 3; k++) {
-            bounds = (f32*)((NcLevelData*)gCurLevel)->camera + k;
-            (&out->x)[k] = ((&out->x)[k] < bounds[3]) ? bounds[3] :
-                           ((&out->x)[k] > bounds[6]) ? bounds[6] :
-                           (&out->x)[k];
-        }
-    }
-
-    return count > 0;
-}
-
-static inline f32 ClampPitchLow(f32 pitch, f32 bound)
-{
-    if (pitch < bound) {
-        return pitch;
-    }
-    return bound;
-}
-
-/* Initialise and converge the standard camera.  A non-zero argument performs
- * the full player/trigger-camera setup; zero selects the lightweight reset
- * path used by UpdateCam's lazy initialisation. */
-void fn_8006F16C(s32 initialise)
-{
-    u8 unused[8];
-    Vec3 average;
-    NcMarker* marker;
-    f32* camera;
-    f32* yawp;
-    f32 yawv;
-    f32* dir;
-    s32 result;
-    f32 pitch;
-    f64 yaw;
-    s32 successes;
-    s32 iterations;
-    f32* cbase;
-
-    lbl_80344A6C = &lbl_80274C50;
-    if (initialise != 0) {
-        CamReset(lbl_80344A6C);
-        CamGetPlayerAvgPos(&average, 2);
-        marker = (NcMarker*)fn_8006FCDC((f32*)&average);
-        camera = &lbl_80344A6C->pitch;
-        yawp = &lbl_80344A6C->yaw;
-
-        if (marker != 0) {
-            yaw = (f64)marker->yaw - 3.141592654;
-            if (yaw > 3.141592654) {
-                yaw -= 6.283185308;
-            } else if (yaw <= -3.141592654) {
-                yaw = 6.283185308 + yaw;
-            }
-            *yawp = (f32)yaw;
-        } else {
-            *yawp = 0.0f;
-        }
-
-        if (marker != 0) {
-            *camera = -marker->pitch;
-        } else {
-            *camera = 0.0f;
-        }
-
-        if (lbl_80344768 > 1) {
-            *camera = ClampPitchLow(
-                *camera, -((NcLevelData*)gCurLevel)->camera->minpitch);
-        }
-
-        yawv = lbl_80344A6C->yaw;
-        dir = (f32*)&lbl_80344A6C->direction;
-        pitch = lbl_80344A6C->pitch;
-        YawVec3(lbl_80127D40, (Vec3*)dir, -yawv);
-        PitchVec3(dir, dir, -pitch);
-
-        lbl_80344A6C->attention.x = average.x;
-        lbl_80344A6C->attention.y = average.y;
-        lbl_80344A6C->attention.z = average.z;
-        lbl_80344A6C->distance = ((NcLevelData*)gCurLevel)->camera->minrad;
-        lbl_80344A6C->dist_current = ((NcLevelData*)gCurLevel)->camera->maxrad;
-        lbl_80344A6C->position.x =
-            lbl_80344A6C->direction.x * -lbl_80344A6C->distance + lbl_80344A6C->attention.x;
-        lbl_80344A6C->position.y =
-            lbl_80344A6C->direction.y * -lbl_80344A6C->distance + lbl_80344A6C->attention.y;
-        lbl_80344A6C->position.z =
-            lbl_80344A6C->direction.z * -lbl_80344A6C->distance + lbl_80344A6C->attention.z;
-
-        CamLookInDir((f32*)&lbl_80344A6C->direction, (u32)lbl_80344A6C);
-        MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
-        MBWindowZoom(lbl_80344A6C->zoom);
-        if ((f64)lbl_80344A6C->aspect > 0.0) {
-            MBWindowProjection(
-                0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
-                1.0 / lbl_80344A6C->aspect);
-        }
-
-        pbUpdateMatricies();
-        iterations = 0;
-        cbase = (f32*)lbl_80344A6C;
-        successes = iterations;
-        while (successes < lbl_80343CD0 && iterations < 100) {
-            result = fn_8006DF34((NcCamera*)cbase);
-            pbUpdateMatricies();
-            if (result != 0) {
-                successes = 0;
-            } else {
-                successes++;
-            }
-            iterations++;
-        }
-    } else {
-        CamReset(lbl_80344A6C);
-        fn_8006F418(lbl_80344A6C, CurTransmitter);
-    }
-}
-
-void fn_8006F418(NcCamera* cbase, f32* target)
-{
-    u8 unused_high[24];
-    Vec3 average;
-    u8 unused_low[4];
-    volatile f32 root;
-    f32 yaw;
-    f32 pitch;
-    f64 angle;
-    f32 dx;
-    f32 dy;
-    f32 dz;
-    register f32 distance;
-
-    if (target != 0) {
-        angle = (f64)target[6] - 3.141592654;
-        if (angle > 3.141592654) {
-            angle -= 6.283185308;
-        } else if (angle <= -3.141592654) {
-            angle = 6.283185308 + angle;
-        }
-        yaw = (f32)angle;
-    } else {
-        yaw = 0.0f;
-    }
-
-    if (target != 0) {
-        pitch = -target[5];
-    } else {
-        pitch = 0.0f;
-    }
-
-    if (lbl_80344768 > 1) {
-        f32 limit = -((NcLevelData*)gCurLevel)->camera->minpitch;
-        if (pitch < limit) {
-            limit = pitch;
-        }
-        pitch = limit;
-    }
-
-    YawVec3(lbl_80127D40, &cbase->direction, -yaw);
-    PitchVec3((f32*)&cbase->direction, (f32*)&cbase->direction, -pitch);
-    cbase->yaw = yaw;
-    cbase->pitch = pitch;
-
-    if (target != 0) {
-        cbase->position.x = target[1];
-        cbase->position.y = target[2];
-        cbase->position.z = target[3];
-    }
-
-    cbase->dist_current = ((NcLevelData*)gCurLevel)->camera->maxrad;
-    CamLookInDir((f32*)&cbase->direction, (u32)cbase);
-    MBCameraUpdate((f32*)&cbase->position, (f32*)cbase);
-    MBWindowZoom(cbase->zoom);
-    if (cbase->aspect > 0.0) {
-        MBWindowProjection(
-            0.31830988614222805 * (180.0 * cbase->zoom),
-            1.0 / cbase->aspect);
-    }
-
-    CamGetPlayerAvgPos(&average, 4);
-    dz = cbase->position.z - average.z;
-    dx = cbase->position.x - average.x;
-    dy = cbase->position.y - average.y;
-    if ((distance = (dx * dx + dy * dy) + dz * dz) > 0.0f) {
-        f64 guess = __frsqrte((f64)distance);
-        guess = 0.5 * guess * (3.0 - guess * guess * distance);
-        guess = 0.5 * guess * (3.0 - guess * guess * distance);
-        guess = 0.5 * guess * (3.0 - guess * guess * distance);
-        root = (f32)(distance *
-                     (0.5 * guess * (3.0 - guess * guess * distance)));
-        distance = root;
-    }
-    cbase->distance = distance;
-    cbase->attention.x = cbase->direction.x * cbase->distance + cbase->position.x;
-    cbase->attention.y = cbase->direction.y * cbase->distance + cbase->position.y;
-    cbase->attention.z = cbase->direction.z * cbase->distance + cbase->position.z;
-}
-
-/*
- * CalcFrustrumNormals -- given the camera look basis (fwd/right/up packed as a
- * Vec3 at *look) and a field-of-view angle, build the four view-frustum edge
- * directions (fwd +/- right*tanH +/- up*tanV) and store their pairwise cross
- * products (the inward plane normals) into out[0..3].
- *
- * Structural reconstruction (NonMatching): the shipped code fuses the scaling
- * and cross products with fmsubs and reads the two half-FOV tangents from the
- * NewCam projection block (lbl_80344EE8 +0x1C/+0x20).
- */
-extern f64 lbl_803474A0;
-
-void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fov) {
-    f32 up[3];
-    u8 pad60[60];
-    f32 tx;
-    f32 ty;
-    f32 cx;
-    f32 cy;
-    f32 cz;
-    f32 r1x, r1y, r1z;
-    f32 r2x, r2y, r2z;
-    f32 r3x, r3y, r3z;
-    f32 r4x, r4y, r4z;
-    f32 px, py, pz;
-    f32 mx, my, mz;
-    f32* o = (f32*)out;
-
-    YawVec3((Vec3*)lbl_80127D30, (Vec3*)up, -fov);
-    cx = look->y * up[2] - look->z * up[1];
-    cy = look->z * up[0] - look->x * up[2];
-    cz = look->x * up[1] - look->y * up[0];
-    tx = (f32)tan(lbl_80344EE8->ang * lbl_803474A0);
-    ty = (f32)tan(lbl_80344EE8->hang * lbl_803474A0);
-    up[0] = up[0] * tx;
-    cx = cx * ty;
-    cy = cy * ty;
-    cz = cz * ty;
-    up[1] = up[1] * tx;
-    up[2] = up[2] * tx;
-    py = look->y + up[1];
-    my = look->y - up[1];
-    mz = look->z - up[2];
-    pz = look->z + up[2];
-    mx = look->x - up[0];
-    px = look->x + up[0];
-    r1y = py + cy;
-    r2z = mz + cz;
-    r1z = pz + cz;
-    r2x = mx + cx;
-    r3y = py - cy;
-    r3x = px - cx;
-    r2y = my + cy;
-    r4z = mz - cz;
-    r1x = px + cx;
-    r3z = pz - cz;
-    r4y = my - cy;
-    r4x = mx - cx;
-    o[0] = r2y * r1z - r2z * r1y;
-    o[1] = r2z * r1x - r2x * r1z;
-    o[2] = r2x * r1y - r2y * r1x;
-    o[4] = r1y * r3z - r1z * r3y;
-    o[5] = r1z * r3x - r1x * r3z;
-    o[6] = r1x * r3y - r1y * r3x;
-    o[8] = r4y * r2z - r4z * r2y;
-    o[9] = r4z * r2x - r4x * r2z;
-    o[10] = r4x * r2y - r4y * r2x;
-    o[12] = r3y * r4z - r3z * r4y;
-    o[13] = r3z * r4x - r3x * r4z;
-    o[14] = r3x * r4y - r3y * r4x;
-}
-
-
-#define NC_DOT(a, b) \
-    ((a)->x * (b)->x + (a)->y * (b)->y + (a)->z * (b)->z)
-
-f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
-{
-    CameraData* camera;
-    NcLevelData* level_data;
-    f32 distance;
-    f32 required;
-    s32 plane_index;
-    s32 player_index;
-    NcPlayer* player;
-    Vec3* camera_position;
-    Vec3* player_position;
-    s32 active;
-    f32 inverse;
-    f32 plane_distance;
-    f32 other_distance;
-
-    CalcFrustrumNormals(look, point, (Vec3*)planes, fov);
-
-    level_data = (NcLevelData*)gCurLevel;
-    if (level_data->camera->minrad == level_data->camera->maxrad) {
-        return level_data->camera->minrad;
-    }
-    camera = level_data->camera;
-
-    if (lbl_80344768 == 1) {
-        if (lbl_80344A8C != 0) {
-            return current + lbl_80343CDC;
-        }
-        return camera->minrad;
-    }
-
-    required = 0.0f;
-    for (plane_index = 0; plane_index < 4; plane_index++) {
-        inverse = 1.0f / NC_DOT(look, &planes[plane_index].normal);
-        plane_distance = NC_DOT(point, &planes[plane_index].normal);
-
-        for (player_index = 0; player_index < 4; player_index++) {
-            player = &gPlayers[player_index];
-
-            active = ((player->ncflags & 0x20) == 0 &&
-                      (player->state == 1 || player->state == 4));
-            if (active == 0) {
-                continue;
-            }
-
-            camera_position = (Vec3*)player->campos;
-            player_position = (Vec3*)player->pos;
-            other_distance = NC_DOT(camera_position, &planes[plane_index].normal);
-            distance = required > inverse * (plane_distance - other_distance)
-                ? required : inverse * (plane_distance - other_distance);
-
-            other_distance = NC_DOT(player_position, &planes[plane_index].normal);
-            distance = distance > inverse * (plane_distance - other_distance)
-                ? distance : inverse * (plane_distance - other_distance);
-            required = distance;
-        }
-    }
-
-    if (level_data == 0 || camera == 0) {
-        FatalError("level_data or level_data->camera NULL", 0x800000);
-    }
-
-    camera = ((NcLevelData*)gCurLevel)->camera;
-    if (required <= camera->minrad - lbl_80343CD8 && camera->minrad < current) {
-        return camera->minrad;
-    }
-    if (required <= current - lbl_80343CD8) {
-        return required + lbl_80343CD8;
-    }
-    if (required <= current - lbl_80343CDC) {
-        return current;
-    }
-    return required + lbl_80343CDC;
-}
-
-#undef NC_DOT
 
 /*
  * fn_8006DF34 -- standard-camera per-frame update (UpdateCam's normal path).
@@ -1529,7 +591,6 @@ f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
  * layer and gCameras[0].  Returns 1 while anything is still moving.
  * [callers: UpdateCam, fn_8006F16C, fn_8006E654]
  */
-#pragma opt_propagation off
 s32 fn_8006DF34(NcCamera* cam) {
     u8 unused0[8];
     Vec3 avg;
@@ -1719,7 +780,56 @@ s32 fn_8006DF34(NcCamera* cam) {
 
     return (distMoved != 0 || interp != 0) || moved != 0;
 }
+
 #pragma opt_propagation reset
+
+/*
+ * UpdateCam -- top-level per-frame camera dispatcher.  Runs only when the
+ * camera is enabled; lazily kick-starts the standard camera, drives the
+ * scripted-path state machine (write_stage_info) when active, and otherwise ticks
+ * the live standard camera (fn_8006DF34) or, on the freeze->unfreeze edge,
+ * re-pushes the MB projection.  Always returns 1.  [caller: game/sys/main]
+ */
+s32 UpdateCam(void) {
+    s32 done;
+
+    if (gGameBusy != 0 || gFrameTicks == 0) {
+        return 1;
+    }
+    if (lbl_80344A6C == 0) {
+        fn_8006F16C(0);
+    }
+    if (gGameMode != MG_PLAY) {
+        done = 1;
+    } else {
+        if (gScriptedCameraState > 2) {
+            gScriptedCameraState = 2;
+        }
+        write_stage_info(gScriptedCameraState);
+        if (gScriptedCameraState == 1) {
+            fn_8006E654();
+        }
+        done = gScriptedCameraState > 0;
+    }
+    if (done != 0) {
+        return 1;
+    }
+    if (lbl_80344A90 != 0) {
+        lbl_80344A90 = 0;
+        MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
+        MBWindowZoom(lbl_80344A6C->zoom);
+        if (lbl_80344A6C->aspect > 0.0) {
+            MBWindowProjection(
+                0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
+                1.0 / lbl_80344A6C->aspect);
+        }
+        return 1;
+    }
+    fn_8006DF34(lbl_80344A6C);
+    return 1;
+}
+
+#pragma opt_propagation off
 
 /*
  * fn_8006E654 -- scripted-camera-path update (UpdateCam's gGameMode 0x4010
@@ -1731,7 +841,6 @@ s32 fn_8006DF34(NcCamera* cam) {
  * re-converges (9 ticks), clears the scripted state, and stops the path.
  * [caller: UpdateCam]
  */
-#pragma opt_propagation off
 void fn_8006E654(void) {
     NcCamera tmp;
     u8 unused[52];
@@ -1884,7 +993,851 @@ void fn_8006E654(void) {
     }
     lbl_80344A70--;
 }
+
 #pragma opt_propagation reset
+
+/*
+ * CurTransmitterBlink -- toggle the debug-overlay level arrow.  Non-zero idx shows it
+ * (creating the arrow node once, then clearing its draw flags each call); zero
+ * idx removes it.  [caller: game/world/items.c]
+ */
+void CurTransmitterBlink(s32 idx) {
+    f32 pos[17];
+    NcBlk16 look = lbl_801137C0;
+
+    if (idx != 0) {
+        if (lbl_80344A78 == 0) {
+            lbl_80344A78 = (void*)add_arrow(2, 1, 0, lbl_80127D40, (f32*)&look, pos);
+            MBTreeSetAlpha(lbl_80344A78, 0, 0);
+        }
+        MBTreeClearFlags(lbl_80344A78, 2, 0);
+    } else {
+        if (lbl_80344A78 != 0) {
+            MBRemoveNode(lbl_80344A78, 1);
+            lbl_80344A78 = 0;
+        }
+    }
+}
+
+/*
+ * StdCamReturn -- push the live standard camera into the MB window/projection
+ * layer: update the MB camera from the camera basis, zoom the window by the
+ * camera FOV field, and (when the projection distance is positive) set the MB
+ * projection to the FOV in degrees and the inverse distance.  [caller: bosscam]
+ */
+void StdCamReturn(void) {
+    MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
+    MBWindowZoom(lbl_80344A6C->zoom);
+    if (lbl_80344A6C->aspect > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
+            1.0 / lbl_80344A6C->aspect);
+    }
+}
+
+/*
+ * StdCamFreeze -- freeze the standard camera (stop it from tracking players)
+ * until the next CamReset.  Trivial flag setter.
+ */
+void StdCamFreeze(void) {
+    lbl_80344A90 = 1;
+}
+
+#define NC_DOT(a, b) \
+    ((a)->x * (b)->x + (a)->y * (b)->y + (a)->z * (b)->z)
+
+f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
+{
+    CameraData* camera;
+    NcLevelData* level_data;
+    f32 distance;
+    f32 required;
+    s32 plane_index;
+    s32 player_index;
+    NcPlayer* player;
+    Vec3* camera_position;
+    Vec3* player_position;
+    s32 active;
+    f32 inverse;
+    f32 plane_distance;
+    f32 other_distance;
+
+    CalcFrustrumNormals(look, point, (Vec3*)planes, fov);
+
+    level_data = (NcLevelData*)gCurLevel;
+    if (level_data->camera->minrad == level_data->camera->maxrad) {
+        return level_data->camera->minrad;
+    }
+    camera = level_data->camera;
+
+    if (lbl_80344768 == 1) {
+        if (lbl_80344A8C != 0) {
+            return current + lbl_80343CDC;
+        }
+        return camera->minrad;
+    }
+
+    required = 0.0f;
+    for (plane_index = 0; plane_index < 4; plane_index++) {
+        inverse = 1.0f / NC_DOT(look, &planes[plane_index].normal);
+        plane_distance = NC_DOT(point, &planes[plane_index].normal);
+
+        for (player_index = 0; player_index < 4; player_index++) {
+            player = &gPlayers[player_index];
+
+            active = ((player->ncflags & 0x20) == 0 &&
+                      (player->state == 1 || player->state == 4));
+            if (active == 0) {
+                continue;
+            }
+
+            camera_position = (Vec3*)player->campos;
+            player_position = (Vec3*)player->pos;
+            other_distance = NC_DOT(camera_position, &planes[plane_index].normal);
+            distance = required > inverse * (plane_distance - other_distance)
+                ? required : inverse * (plane_distance - other_distance);
+
+            other_distance = NC_DOT(player_position, &planes[plane_index].normal);
+            distance = distance > inverse * (plane_distance - other_distance)
+                ? distance : inverse * (plane_distance - other_distance);
+            required = distance;
+        }
+    }
+
+    if (level_data == 0 || camera == 0) {
+        FatalError("level_data or level_data->camera NULL", 0x800000);
+    }
+
+    camera = ((NcLevelData*)gCurLevel)->camera;
+    if (required <= camera->minrad - lbl_80343CD8 && camera->minrad < current) {
+        return camera->minrad;
+    }
+    if (required <= current - lbl_80343CD8) {
+        return required + lbl_80343CD8;
+    }
+    if (required <= current - lbl_80343CDC) {
+        return current;
+    }
+    return required + lbl_80343CDC;
+}
+
+#undef NC_DOT
+
+void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fov) {
+    f32 up[3];
+    u8 pad60[60];
+    f32 tx;
+    f32 ty;
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 r1x, r1y, r1z;
+    f32 r2x, r2y, r2z;
+    f32 r3x, r3y, r3z;
+    f32 r4x, r4y, r4z;
+    f32 px, py, pz;
+    f32 mx, my, mz;
+    f32* o = (f32*)out;
+
+    YawVec3((Vec3*)lbl_80127D30, (Vec3*)up, -fov);
+    cx = look->y * up[2] - look->z * up[1];
+    cy = look->z * up[0] - look->x * up[2];
+    cz = look->x * up[1] - look->y * up[0];
+    tx = (f32)tan(lbl_80344EE8->ang * lbl_803474A0);
+    ty = (f32)tan(lbl_80344EE8->hang * lbl_803474A0);
+    up[0] = up[0] * tx;
+    cx = cx * ty;
+    cy = cy * ty;
+    cz = cz * ty;
+    up[1] = up[1] * tx;
+    up[2] = up[2] * tx;
+    py = look->y + up[1];
+    my = look->y - up[1];
+    mz = look->z - up[2];
+    pz = look->z + up[2];
+    mx = look->x - up[0];
+    px = look->x + up[0];
+    r1y = py + cy;
+    r2z = mz + cz;
+    r1z = pz + cz;
+    r2x = mx + cx;
+    r3y = py - cy;
+    r3x = px - cx;
+    r2y = my + cy;
+    r4z = mz - cz;
+    r1x = px + cx;
+    r3z = pz - cz;
+    r4y = my - cy;
+    r4x = mx - cx;
+    o[0] = r2y * r1z - r2z * r1y;
+    o[1] = r2z * r1x - r2x * r1z;
+    o[2] = r2x * r1y - r2y * r1x;
+    o[4] = r1y * r3z - r1z * r3y;
+    o[5] = r1z * r3x - r1x * r3z;
+    o[6] = r1x * r3y - r1y * r3x;
+    o[8] = r4y * r2z - r4z * r2y;
+    o[9] = r4z * r2x - r4x * r2z;
+    o[10] = r4x * r2y - r4y * r2x;
+    o[12] = r3y * r4z - r3z * r4y;
+    o[13] = r3z * r4x - r3x * r4z;
+    o[14] = r3x * r4y - r3y * r4x;
+}
+
+/* Initialise and converge the standard camera.  A non-zero argument performs
+ * the full player/trigger-camera setup; zero selects the lightweight reset
+ * path used by UpdateCam's lazy initialisation. */
+void fn_8006F16C(s32 initialise)
+{
+    u8 unused[8];
+    Vec3 average;
+    NcMarker* marker;
+    f32* camera;
+    f32* yawp;
+    f32 yawv;
+    f32* dir;
+    s32 result;
+    f32 pitch;
+    f64 yaw;
+    s32 successes;
+    s32 iterations;
+    f32* cbase;
+
+    lbl_80344A6C = &lbl_80274C50;
+    if (initialise != 0) {
+        CamReset(lbl_80344A6C);
+        CamGetPlayerAvgPos(&average, 2);
+        marker = (NcMarker*)fn_8006FCDC((f32*)&average);
+        camera = &lbl_80344A6C->pitch;
+        yawp = &lbl_80344A6C->yaw;
+
+        if (marker != 0) {
+            yaw = (f64)marker->yaw - 3.141592654;
+            if (yaw > 3.141592654) {
+                yaw -= 6.283185308;
+            } else if (yaw <= -3.141592654) {
+                yaw = 6.283185308 + yaw;
+            }
+            *yawp = (f32)yaw;
+        } else {
+            *yawp = 0.0f;
+        }
+
+        if (marker != 0) {
+            *camera = -marker->pitch;
+        } else {
+            *camera = 0.0f;
+        }
+
+        if (lbl_80344768 > 1) {
+            *camera = ClampPitchLow(
+                *camera, -((NcLevelData*)gCurLevel)->camera->minpitch);
+        }
+
+        yawv = lbl_80344A6C->yaw;
+        dir = (f32*)&lbl_80344A6C->direction;
+        pitch = lbl_80344A6C->pitch;
+        YawVec3(lbl_80127D40, (Vec3*)dir, -yawv);
+        PitchVec3(dir, dir, -pitch);
+
+        lbl_80344A6C->attention.x = average.x;
+        lbl_80344A6C->attention.y = average.y;
+        lbl_80344A6C->attention.z = average.z;
+        lbl_80344A6C->distance = ((NcLevelData*)gCurLevel)->camera->minrad;
+        lbl_80344A6C->dist_current = ((NcLevelData*)gCurLevel)->camera->maxrad;
+        lbl_80344A6C->position.x =
+            lbl_80344A6C->direction.x * -lbl_80344A6C->distance + lbl_80344A6C->attention.x;
+        lbl_80344A6C->position.y =
+            lbl_80344A6C->direction.y * -lbl_80344A6C->distance + lbl_80344A6C->attention.y;
+        lbl_80344A6C->position.z =
+            lbl_80344A6C->direction.z * -lbl_80344A6C->distance + lbl_80344A6C->attention.z;
+
+        CamLookInDir((f32*)&lbl_80344A6C->direction, (u32)lbl_80344A6C);
+        MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
+        MBWindowZoom(lbl_80344A6C->zoom);
+        if ((f64)lbl_80344A6C->aspect > 0.0) {
+            MBWindowProjection(
+                0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
+                1.0 / lbl_80344A6C->aspect);
+        }
+
+        pbUpdateMatricies();
+        iterations = 0;
+        cbase = (f32*)lbl_80344A6C;
+        successes = iterations;
+        while (successes < lbl_80343CD0 && iterations < 100) {
+            result = fn_8006DF34((NcCamera*)cbase);
+            pbUpdateMatricies();
+            if (result != 0) {
+                successes = 0;
+            } else {
+                successes++;
+            }
+            iterations++;
+        }
+    } else {
+        CamReset(lbl_80344A6C);
+        fn_8006F418(lbl_80344A6C, CurTransmitter);
+    }
+}
+
+void fn_8006F418(NcCamera* cbase, f32* target)
+{
+    u8 unused_high[24];
+    Vec3 average;
+    u8 unused_low[4];
+    volatile f32 root;
+    f32 yaw;
+    f32 pitch;
+    f64 angle;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    register f32 distance;
+
+    if (target != 0) {
+        angle = (f64)target[6] - 3.141592654;
+        if (angle > 3.141592654) {
+            angle -= 6.283185308;
+        } else if (angle <= -3.141592654) {
+            angle = 6.283185308 + angle;
+        }
+        yaw = (f32)angle;
+    } else {
+        yaw = 0.0f;
+    }
+
+    if (target != 0) {
+        pitch = -target[5];
+    } else {
+        pitch = 0.0f;
+    }
+
+    if (lbl_80344768 > 1) {
+        f32 limit = -((NcLevelData*)gCurLevel)->camera->minpitch;
+        if (pitch < limit) {
+            limit = pitch;
+        }
+        pitch = limit;
+    }
+
+    YawVec3(lbl_80127D40, &cbase->direction, -yaw);
+    PitchVec3((f32*)&cbase->direction, (f32*)&cbase->direction, -pitch);
+    cbase->yaw = yaw;
+    cbase->pitch = pitch;
+
+    if (target != 0) {
+        cbase->position.x = target[1];
+        cbase->position.y = target[2];
+        cbase->position.z = target[3];
+    }
+
+    cbase->dist_current = ((NcLevelData*)gCurLevel)->camera->maxrad;
+    CamLookInDir((f32*)&cbase->direction, (u32)cbase);
+    MBCameraUpdate((f32*)&cbase->position, (f32*)cbase);
+    MBWindowZoom(cbase->zoom);
+    if (cbase->aspect > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * cbase->zoom),
+            1.0 / cbase->aspect);
+    }
+
+    CamGetPlayerAvgPos(&average, 4);
+    dz = cbase->position.z - average.z;
+    dx = cbase->position.x - average.x;
+    dy = cbase->position.y - average.y;
+    if ((distance = (dx * dx + dy * dy) + dz * dz) > 0.0f) {
+        f64 guess = __frsqrte((f64)distance);
+        guess = 0.5 * guess * (3.0 - guess * guess * distance);
+        guess = 0.5 * guess * (3.0 - guess * guess * distance);
+        guess = 0.5 * guess * (3.0 - guess * guess * distance);
+        root = (f32)(distance *
+                     (0.5 * guess * (3.0 - guess * guess * distance)));
+        distance = root;
+    }
+    cbase->distance = distance;
+    cbase->attention.x = cbase->direction.x * cbase->distance + cbase->position.x;
+    cbase->attention.y = cbase->direction.y * cbase->distance + cbase->position.y;
+    cbase->attention.z = cbase->direction.z * cbase->distance + cbase->position.z;
+}
+
+#pragma opt_propagation off
+
+/*
+ * GetPlayerAvgPos -- world-space aggregate of the active players' follow points.
+ *
+ *   mode 0 : *avg = mean of the valid players' positions
+ *   mode>0 : *avg = midpoint of the axis-aligned bounding box of those positions
+ *   mode 2 : additionally clamp *avg to the level camera's world bounds
+ *
+ * A player counts only if state==1; its source point is altpos (0xDC) when the
+ * 0x964 bit26 flag is set, else campos (0x54).  When no player is valid the
+ * default position (gDefaultPlayerPosition) is used.  bmax/bmin, when non-NULL, receive
+ * the bounding box (meaningful only for mode>0).  [callers: bosscam, tower]
+ */
+void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
+    s32 i;
+    f32 count;
+    s32 k;
+    f32 boxMin[3];
+    f32 boxMax[3];
+
+    count = 0.0f;
+    avg[0] = count;
+    avg[1] = count;
+    avg[2] = count;
+    boxMax[0] = -1e20f;
+    boxMax[1] = -1e20f;
+    boxMax[2] = -1e20f;
+    boxMin[0] = 1e20f;
+    boxMin[1] = 1e20f;
+    boxMin[2] = 1e20f;
+
+    for (i = 0; i < 4; i++) {
+        NcPlayer* pl = &gPlayers[i];
+        if (pl->state == 1) {
+            f32* src = (pl->ncflags & 0x20) ? pl->altpos : pl->campos;
+            if (mode == 0) {
+                avg[0] = src[0] + avg[0];
+                avg[1] = src[1] + avg[1];
+                avg[2] = src[2] + avg[2];
+            } else {
+                for (k = 0; k < 3; k++) {
+                    f32 v = src[k];
+                    boxMin[k] = (boxMin[k] < v) ? boxMin[k] : v;
+                    boxMax[k] = (boxMax[k] > v) ? boxMax[k] : v;
+                }
+            }
+            count += 1.0;
+        }
+    }
+
+    if (count == 0.0) {
+        avg[0] = gDefaultPlayerPosition[0];
+        avg[1] = gDefaultPlayerPosition[1];
+        avg[2] = gDefaultPlayerPosition[2];
+    } else {
+        f32 scale = 1.0 / count;
+        if (mode == 0) {
+            avg[0] *= scale;
+            avg[1] *= scale;
+            avg[2] *= scale;
+        } else {
+            for (k = 0; k < 3; k++) {
+                avg[k] = 0.5 * (boxMin[k] + boxMax[k]);
+            }
+        }
+    }
+
+    if (outMin != 0) {
+        outMin[0] = boxMin[0];
+        outMin[1] = boxMin[1];
+        outMin[2] = boxMin[2];
+    }
+    if (outMax != 0) {
+        outMax[0] = boxMax[0];
+        outMax[1] = boxMax[1];
+        outMax[2] = boxMax[2];
+    }
+
+    if (mode == 2 && gCurLevel != 0 && ((NcLevelData*)gCurLevel)->camera != 0) {
+        CameraData* camera;
+        for (k = 0; k < 3; k++) {
+            f32 v;
+
+            camera = ((NcLevelData*)gCurLevel)->camera;
+            v = avg[k];
+            v = (v < camera->min[k]) ? camera->min[k] :
+                ((v > camera->max[k]) ? camera->max[k] : v);
+            avg[k] = v;
+        }
+    }
+}
+
+#pragma opt_propagation reset
+
+/*
+ * CamGetPlayerAvgPos -- camera-space player-center used as the camera look-at
+ * target.  Builds the bounding box of the valid players' points (pos 0x44 when
+ * flags bit1 set, campos 0x54 when bit2 set), optionally transformed through the
+ * current matrix stack (bit0), takes the box midpoint, clamps it to the level
+ * camera bounds, and returns non-zero if at least one player was valid.
+ *
+ * A player is valid when state is 1 or 4 and the 0x964 bit26 flag is clear.
+ * [callers: the mode-updaters, gamemain, boss]
+ */
+s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
+    typedef struct NcVecSlot {
+        Vec3 v;
+        f32 unused;
+    } NcVecSlot;
+    Vec3 average;
+    NcVecSlot vmin, vmax, worldPoint, followPoint;
+    NcPlayer* pl;
+    s32 i, k, count, valid;
+
+    vmax.v.x = -1.0e20f;
+    vmin.v.x = 1.0e20f;
+    vmax.v.y = -1.0e20f;
+    vmin.v.y = 1.0e20f;
+    vmax.v.z = -1.0e20f;
+    vmin.v.z = 1.0e20f;
+    count = 0;
+
+    for (i = 0; i < 4; i++) {
+        pl = &gPlayers[i];
+        valid = ((pl->ncflags & 0x20) == 0 &&
+                 (pl->state == 1 || pl->state == 4));
+        if (valid != 0) {
+            count++;
+            if (flags & 0x2) {             /* include world position (0x44) */
+                if (flags & 0x1) {
+                    MBWorldToScreen(&worldPoint.v, (Vec3*)pl->pos);
+                } else {
+                    worldPoint.v.x = pl->pos[0];
+                    worldPoint.v.y = pl->pos[1];
+                    worldPoint.v.z = pl->pos[2];
+                }
+                NcCamMinMaxAvgPos(&vmin.v, &vmax.v, &worldPoint.v);
+            }
+            if (flags & 0x4) {             /* include follow position (0x54) */
+                if (flags & 0x1) {
+                    MBWorldToScreen(&followPoint.v, (Vec3*)pl->campos);
+                } else {
+                    followPoint.v.x = pl->campos[0];
+                    followPoint.v.y = pl->campos[1];
+                    followPoint.v.z = pl->campos[2];
+                }
+                NcCamMinMaxAvgPos(&vmin.v, &vmax.v, &followPoint.v);
+            }
+        }
+    }
+
+    /* midpoint of the box */
+    for (k = 0; k < 3; k++) {
+        (&average.x)[k] = 0.5 * ((&vmin.v.x)[k] + (&vmax.v.x)[k]);
+    }
+
+    if (flags & 0x1) {
+        MBWorldToScreen3D(out, &average);
+    } else {
+        out->x = average.x;
+        out->y = average.y;
+        out->z = average.z;
+    }
+
+    {                                      /* clamp to level camera bounds
+                                              * (min[3]/max[3] indexed raw:
+                                              * array-style ->min[k]/->max[k]
+                                              * defeats the target's lfs-
+                                              * immediate addressing here --
+                                              * verified STRUCTURAL regression,
+                                              * see claim.law.multifield-alias-
+                                              * defeats-indexed-addressing) */
+        f32* bounds;
+        for (k = 0; k < 3; k++) {
+            bounds = (f32*)((NcLevelData*)gCurLevel)->camera + k;
+            (&out->x)[k] = ((&out->x)[k] < bounds[3]) ? bounds[3] :
+                           ((&out->x)[k] > bounds[6]) ? bounds[6] :
+                           (&out->x)[k];
+        }
+    }
+
+    return count > 0;
+}
+
+/*
+ * fn_8006FBAC -- pick the enabled marker nearest (in the XZ plane) to pos,
+ * with hysteresis: the previously-selected marker is kept unless the new best
+ * is at least ~1.5x closer (bestDist <= 0.667 * selectedDist).  Returns the
+ * chosen record (NULL if none).  [caller: bosscam]
+ */
+void* fn_8006FBAC(f32* pos) {
+    u8 unused[16];
+    f32 bestDist = 0.0f;
+    s32 i;
+    s32 best = -1;
+
+    if (sNumTriggerCameras <= 0) {
+        return NULL;
+    }
+    for (i = 0; i < sNumTriggerCameras; i++) {
+        NcMarker* m = &sTriggerCameras[i];
+        if (m->flag == 0 && i != lbl_80343CF4) {
+            f32 d = fqdist(pos[0] - m->x, pos[2] - m->z);
+            if (best < 0 || d < bestDist) {
+                bestDist = d;
+                best = i;
+            }
+        }
+    }
+    if (lbl_80343CF4 < 0) {
+        lbl_80343CF4 = best;
+    } else {
+        NcMarker* m = &sTriggerCameras[lbl_80343CF4];
+        f32 selDist = fqdist(pos[0] - m->x, pos[2] - m->z);
+        if (bestDist <= 0.667 * selDist) {
+            lbl_80343CF4 = best;
+        }
+    }
+    return &sTriggerCameras[lbl_80343CF4];
+}
+
+/*
+ * fn_8006FCDC -- 3D counterpart of fn_8006FBAC: pick the enabled marker nearest
+ * (full 3D squared distance) to pos, with the same hysteresis (kept unless the
+ * new best is ~1.5x closer: bestDist <= 4/9 * selectedDist).  When it switches,
+ * it fades the previously-selected marker's node (MBTreeSetAlpha).  [internal]
+ */
+void* fn_8006FCDC(f32* pos) {
+    u8 unused[8];
+    s32 best = -1;
+    s32 sel;
+    s32 i;
+    f32 bestDist = 0.0f;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 selDist;
+
+    if (sNumTriggerCameras <= 0) {
+        return NULL;
+    }
+    sel = lbl_80343CF8;
+    for (i = 0; i < sNumTriggerCameras; i++) {
+        NcMarker* m = &sTriggerCameras[i];
+        if (m->flag == 0 && i != sel) {
+            dx = pos[0] - m->x;
+            dy = pos[1] - m->y;
+            dz = pos[2] - m->z;
+            d = dx * dx + dy * dy + dz * dz;
+            if (best < 0 || d < bestDist) {
+                bestDist = d;
+                best = i;
+            }
+        }
+    }
+    if (sel < 0) {
+        lbl_80343CF8 = best;
+    } else {
+        NcMarker* m = &sTriggerCameras[sel];
+        dx = pos[0] - m->x;
+        dy = pos[1] - m->y;
+        dz = pos[2] - m->z;
+        selDist = dx * dx + dy * dy + dz * dz;
+        if (bestDist <= 0.4444444444444444 * selDist) {
+            MBTreeSetAlpha(m->node, 100, 0);
+            lbl_80343CF8 = best;
+        }
+    }
+    return &sTriggerCameras[lbl_80343CF8];
+}
+
+/*
+ * fn_8006FE30 -- initialise/refresh the debug camera projection.  Lazily wires
+ * DebugCam to the static DebugCamera instance (once), copies the MB window's
+ * view basis and eye position into the camera, mirrors them into the camera's
+ * history/target rows, and rebuilds the look basis.  [caller: game/sys/main]
+ */
+void fn_8006FE30(void) {
+    if (lbl_80344A7C == 0) {
+        lbl_80344A68 = &lbl_80274AA0;
+        CamReset(lbl_80344A68);
+        lbl_80344A7C = 1;
+    }
+    /* the leading 0x00-0x30 basis-matrix region (written whole by CopyMat3) has
+     * no recovered per-row field identity; indices 8/9/0xa (its forward row)
+     * stay raw index expressions. */
+    CopyMat3(lbl_80344EE8->cam.mat, (f32*)lbl_80344A68);
+    lbl_80344A68->position.x = lbl_80344EE8->cam.pos[0];
+    lbl_80344A68->position.y = lbl_80344EE8->cam.pos[1];
+    lbl_80344A68->position.z = lbl_80344EE8->cam.pos[2];
+    lbl_80344A68->direction.x = ((f32*)lbl_80344A68)[8];
+    lbl_80344A68->direction.y = ((f32*)lbl_80344A68)[9];
+    lbl_80344A68->direction.z = ((f32*)lbl_80344A68)[0xa];
+    lbl_80344A68->attention.x = lbl_80344A68->position.x;
+    lbl_80344A68->attention.y = lbl_80344A68->position.y;
+    lbl_80344A68->attention.z = lbl_80344A68->position.z;
+    lbl_80344A68->distance = 0.0f;
+    GetYawPitch((f32*)&lbl_80344A68->direction, &lbl_80344A68->yaw,
+                &lbl_80344A68->pitch);
+}
+
+#pragma opt_propagation off
+
+s32 fn_8006FF1C(void) {
+    NcCamera* cam;
+    f32 pitch;
+    u32 controller;
+    u32 zero;
+    u32 one;
+    u32 flags;
+
+    if (lbl_80344A7C == 0) {
+        lbl_80344A68 = &lbl_80274AA0;
+        CamReset(lbl_80344A68);
+        lbl_80344A7C = 1;
+    }
+    MBTreeSetAlpha(sTriggerCameras[lbl_80343CF8].node, lbl_80344A74, 0);
+    lbl_80344A74 += 8;
+    DebugCamControlInputs();
+
+    cam = lbl_80344A68;
+    pitch = cam->pitch;
+    YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
+    PitchVec3((f32*)&cam->direction, (f32*)&cam->direction, -pitch);
+    DoShake(&cam->position, &cam->attention);
+
+    cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
+    cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
+    cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
+    CamLookInDir((f32*)&cam->direction, (u32)cam);
+
+    CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
+    gCameras[0].wpos[0] = cam->position.x;
+    gCameras[0].wpos[1] = cam->position.y;
+    gCameras[0].wpos[2] = cam->position.z;
+    gCameras[0].attn[0] = cam->attention.x;
+    gCameras[0].attn[1] = cam->attention.y;
+    gCameras[0].attn[2] = cam->attention.z;
+    MBCameraUpdate((f32*)&cam->position, (f32*)cam);
+    MBWindowZoom(cam->zoom);
+    if (cam->aspect > 0.0) {
+        MBWindowProjection(
+            0.31830988614222805 * (180.0 * cam->zoom),
+            1.0 / cam->aspect);
+    }
+
+    controller = gControllerButtons;
+    zero = 0;
+    one = 1;
+    flags = sFlags;
+    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
+         NcMaskMismatch(controller & zero, zero)) != 0) {
+        dbgTextPrintfCell(
+            0xFFFF00, 1, 0x20, lbl_801137D0,
+            0.31830988614222805 * (180.0 * cam->yaw),
+            0.31830988614222805 * (180.0 * cam->pitch),
+            cam->distance, cam->field_100, cam->attention.x, cam->attention.y, cam->attention.z);
+    }
+    return 1;
+}
+
+#pragma opt_propagation reset
+
+/*
+ * fn_80070144 -- step the camera yaw (0xEC) and pitch (0x104) toward the given
+ * targets over lbl_80343CEC frames.  On a marker change it seeds the per-frame
+ * yaw/pitch rates (shortest-arc wrapped) and resets the frame accumulator
+ * (0x1AC); each subsequent call advances yaw/pitch by rate*step (wrapping to
+ * [-PI,PI]) until the accumulator reaches the frame count.  Returns 1 while
+ * still interpolating, 0 when done.  [caller: fn_8006DF34]
+ */
+s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
+    f32 step;
+    f64 d;
+
+    if (lbl_80343CE0 != 0) {
+        if (gClockFrameStep <= 0.0) {
+            step = 1.0f;
+        } else {
+            step = 30.0 * gClockFrameStep;
+        }
+    } else {
+        step = 1.0f;
+    }
+
+    if (lbl_80343CF8 != cam->field_1A8) {
+        cam->field_1A8 = lbl_80343CF8;
+
+        if ((d = (f32)(targetYaw - cam->yaw)) > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        cam->yaw_rate = d / (f64)lbl_80343CEC;
+
+        d = (f32)(targetPitch - cam->pitch);
+        if (d > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        cam->pitch_rate = d / (f64)lbl_80343CEC;
+
+        cam->field_1AC = 0.0f;
+    }
+
+    if (cam->field_1AC < (f32)lbl_80343CEC) {
+        d = cam->yaw_rate * step + cam->yaw;
+        if (d > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        cam->yaw = d;
+
+        d = cam->pitch_rate * step + cam->pitch;
+        if (d > 3.141592654) {
+            d = d - 6.283185308;
+        } else if (d <= -3.141592654) {
+            d = 6.283185308 + d;
+        }
+        cam->pitch = d;
+    } else {
+        return 0;
+    }
+    cam->field_1AC = cam->field_1AC + step;
+    return 1;
+}
+
+/*
+ * CamLookInDir -- build an orthonormal look basis into mat[0..2]=right,
+ * mat[4..6]=up, mat[8..10]=forward from the forward direction in dir.  Degenerate
+ * (near-zero) forward copies a default basis; a near-vertical forward selects an
+ * up reference by sign, otherwise a general up reference; then two cross products
+ * (with a re-normalize) orthonormalize the basis.  [5 internal callers]
+ */
+void CamLookInDir(f32* dir, u32 mat) {
+    f32* m;
+    f32* up;
+    f32* fwd;
+    f32 len;
+
+    m = (f32*)mat;
+    up = m + 4;
+    fwd = m + 8;
+    m[8] = dir[0];
+    m[9] = dir[1];
+    m[10] = dir[2];
+    len = SlowNormalVector(fwd);
+    if (len < 0.001) {
+        CopyMat3((f32*)gIdentityMatrix, m);
+    } else {
+        if (fwd[0] * fwd[0] + fwd[2] * fwd[2] < 0.0001) {
+            if (fwd[1] > 0.0f) {
+                up[0] = lbl_80127D40[0];
+                up[1] = lbl_80127D40[1];
+                up[2] = lbl_80127D40[2];
+            } else {
+                up[0] = lbl_80127D50[0];
+                up[1] = lbl_80127D50[1];
+                up[2] = lbl_80127D50[2];
+            }
+        } else {
+            up[0] = lbl_80127D20[0];
+            up[1] = lbl_80127D20[1];
+            up[2] = lbl_80127D20[2];
+        }
+        m[0] = up[1] * fwd[2] - up[2] * fwd[1];
+        m[1] = up[2] * fwd[0] - up[0] * fwd[2];
+        m[2] = up[0] * fwd[1] - up[1] * fwd[0];
+        SlowNormalVector(m);
+        up[0] = fwd[1] * m[2] - fwd[2] * m[1];
+        up[1] = fwd[2] * m[0] - fwd[0] * m[2];
+        up[2] = fwd[0] * m[1] - fwd[1] * m[0];
+    }
+}
 
 /*
  * DebugCamControlInputs -- per-button-bit debug camera driver.  Clamps the
@@ -1997,3 +1950,85 @@ void DebugCamControlInputs(void) {
     }
     lbl_80344A68->pitch = d;
 }
+
+/*
+ * DebugCamInit -- point DebugCam at the static DebugCamera instance, reset it,
+ * and mark the debug camera active.  Invoked from the pb diagnostic screen.
+ */
+void DebugCamInit(void) {
+    lbl_80344A68 = &lbl_80274AA0;
+    CamReset(lbl_80344A68);
+    lbl_80344A7C = 1;
+}
+
+#pragma dont_inline on
+
+/*
+ * CamReset -- reset a camera object to its default working state.  Zeroes the
+ * transform / position / velocity / target and history arrays, restores the
+ * default yaw and mode fields, and clears the module freeze / current-mode
+ * globals.  Highest-fan-in helper in the module (called by 9 objects on every
+ * camera-mode change and at init).
+ *
+ * Structural reconstruction (NonMatching): the shipped code stores each field
+ * explicitly rather than via memset; the constant defaults (field yaw <-
+ * lbl_80347508, field_1AC/10C <- lbl_8034750C) are preserved symbolically here.
+ */
+void CamReset(NcCamera* cam) {
+    /* p keeps the field_0C8..field_0D8 pad region raw: no field within it is
+     * ever read anywhere in this TU, so its identity is genuinely unrecovered. */
+    u8* p = (u8*)cam;
+    s32 i;
+
+    cam->yaw = 3.1415927f;
+    cam->yaw_rate = 0.0f;
+    cam->pitch = 0.0f;
+    cam->pitch_rate = 0.0f;
+    cam->distance = 0.0f;
+    cam->dist_rate = 0.0f;
+    cam->direction.x = 0.0f;
+    cam->direction.y = 0.0f;
+    cam->direction.z = 0.0f;
+    cam->attention.x = 0.0f;
+    cam->attention.y = 0.0f;
+    cam->attention.z = 0.0f;
+    cam->velocity.x = 0.0f;
+    cam->velocity.y = 0.0f;
+    cam->velocity.z = 0.0f;
+    *(f32*)(p + 0xC8) = 0.0f;
+    *(f32*)(p + 0xCC) = 0.0f;
+    *(f32*)(p + 0xD0) = 0.0f;
+    cam->planes[0].normal.x = 0.0f;
+    cam->planes[0].normal.y = 0.0f;
+    cam->planes[0].normal.z = 0.0f;
+    cam->planes[1].normal.x = 0.0f;
+    cam->planes[1].normal.y = 0.0f;
+    cam->planes[1].normal.z = 0.0f;
+    cam->planes[2].normal.x = 0.0f;
+    cam->planes[2].normal.y = 0.0f;
+    cam->planes[2].normal.z = 0.0f;
+    cam->planes[3].normal.x = 0.0f;
+    cam->planes[3].normal.y = 0.0f;
+    cam->planes[3].normal.z = 0.0f;
+
+    for (i = 0; i < 9; i++) {
+        cam->ring_pos[i].x = 0.0f;
+        cam->ring_pos[i].y = 0.0f;
+        cam->ring_pos[i].z = 0.0f;
+        cam->ring_dist[i] = 0.0f;
+    }
+
+    cam->field_1A4 = 0;
+    *(f32*)(p + 0xD4) = 0.0f;
+    *(f32*)(p + 0xD8) = 0.0f;
+    cam->field_100 = 0.0f;
+    cam->zoom = 1.0471976f;
+    cam->aspect = 0.0f;
+    lbl_80344A90 = 0;
+    lbl_80344A70 = lbl_80343CD4;
+    cam->field_1A8 = -1;
+    cam->field_1AC = 0.0f;
+    lbl_80344A78 = 0;
+}
+
+#pragma dont_inline off

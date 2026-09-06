@@ -2078,8 +2078,8 @@
           ],
           "before_sha256": "4c4b9122f68fe6a7ae2fb6b03c9e03e55ce747fbc8f3eabdfdace2f594228580",
           "after_sha256": "7b0492a1deac1824d405967f6f5044d81d60104492f89c8394320ddc83580c41",
-          "before_relocations_sha256": "32837b28be702ccceee7d27cec88a968cb697c4a8930a0dad7c05279ebc73e1e",
-          "after_relocations_sha256": "c72ab86d2def25a7f00c805df8d46090faacc6ffe35379d49a8e7f9ec3e0d19e"
+          "before_relocations_sha256": "11933c779b8655d0d3a88491c0fb8f547cca22b407d7b68b09b8898009989c02",
+          "after_relocations_sha256": "198d58abc8a875098b588c9c0ff43c1a60bb93aea60cbc46531b5f5c31985750"
         }
       ],
       "equivalent_copy_form": [
