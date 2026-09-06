@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/mb/mb_tree.c"
+    ],
+    "scope": "Integrate explicitly user-approved R76 MBNewNode source compatibility factoring in root isolated codex/r77-audio, remove existing pin only after exact raw sibling/data/EH/relocation verification, full DOL gate. No new postprocessing. Own mb_tree source and R77 tree audit/tests/records; root integrates single config rule deletion."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:MBNewNode",
+  "id": "work_claim.r77-tree-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r77-audio",
+  "recorded_at": "2026-09-06T18:41:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
