@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "Extract the duplicated first bank-name scan into a pre-call static inline helper with one final return",
+  "attributes": {
+    "artifacts": "Original baseline build/r74_audio_probe__3_i6nn6; full retained-tree replay build/r74_audio_probe_vi2kwlyl; current audit build/r74_audio_probe_6ltzmr96. Archive these explicit directories; promoted replay takes --baseline-dir and does not write production inputs or artifacts.",
+    "baseline": "Fresh original full-TU scratch control equals the raw Ninja object at e24750f809a772eb2924bbb4f04fc6423c0fbc6b. Target/raw 115/115; sole word +0x34 raw 3b200000 `li r25,0` versus target 3b3e0000 `addi r25,r30,0`; dominating definition +0x30 `li r30,0`.",
+    "law_screen": "Same complete-roster/core-screen and relevant-law screen as attempt.R74_audiobankqueuename-helper-return-identity-retires-live-zero-pin.20260906.v1. Specifically attempt.audio-bank-load-name-entry-loop.20260829.v1's arithmetic-initializer/signedness/fallthrough caps were not repeated; address-staging name local is preserved inside helper. Existing claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 do not cover this newly measured helper-boundary counterexample despite their blanket language. This record does not deny any other function's source reachability.",
+    "probed_form": "The literal helper is in attempt.R74_audiobankqueuename-helper-return-identity-retires-live-zero-pin.20260906.v1 and tools/gdl/composed_census/r74_audio_helper_probe.py::HELPER. Replace the complete first bank scan and its failure test with `bankIdx = AudioFindBank(bankName);`, retaining all five original caller declarations. This FIRST single-caller form reaches 115/115, zero differing words, all target positional relocations equal, no sibling body/function-record changes, nontext/symbol/EH inventories equal. Sharing the same helper with the retained Queue form preserves the result.",
+    "scope": "Shared two-function source reconstruction and only the corresponding two pin deletions; the first-read note on the new helper explicitly marks original GameCube helper provenance as a candidate reconstruction. Xbox name AudioFindBank is real; exact original GC linkage/prototype is inferred.",
+    "semantic_audit": "Complete target/raw body read. Suspend early return remains in caller. Helper exactly retains direct-global bound reload, strncmp length 16, stride 292, break-on-equal, and suspend=1/index=-1 failure behavior. No early return was introduced inside lookup; helper returns once after the failure merge. Both part-loop failure behavior and redundant already-loaded checks remain. Polling/free loop, source partName carrier, and four load arguments unchanged. Entire retained raw function and normalized positional relocation sequence equal target.",
+    "verification": "Production fndiff --clean EXACT real 0; --raw --ops OK; raw wf_word_diff 115 instructions, zero differing words, PINNED=no. slotdiff target/ours frame 56/56, saves r25/r25, SLOT MAP IDENTICAL. Full ninja -j2 printed main.dol: OK; AudioAng and AudioUnloadPart pins replayed. Retirement audit includes complete processed allocated-object equality and exact two-word-only raw delta, nontext/EH/symbol preservation and target relocation binding. Targeted harness tests all green; full gates belong to the final commit report."
+  },
+  "function": "function:AudioBankLoadName",
+  "held_fixed": "Compiler, actual TU flags/headers, all caller local declarations, both lookup expressions, caller suspend guard, polling/drain loop, loaded-part checks and AudioUnloadPart/AudioLoadPart sequence.",
+  "id": "attempt.R74_audiobankloadname-shared-helper-retires-zero-copy-pin.20260906.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-06T05:07:44Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-06"
+}

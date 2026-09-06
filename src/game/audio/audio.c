@@ -801,6 +801,30 @@ void AudioLoadRom(void)
 /* bank part registration / async load                              */
 /* ---------------------------------------------------------------- */
 
+/* Resolve a mode-bank name. The Xbox AUDIO.OBJ roster names AudioFindBank;
+ * this shared helper is a candidate reconstruction of the GameCube lookup. */
+static inline s32 AudioFindBank(char* bankName)
+{
+    s32 index;
+    s32 offset;
+
+    index = 0;
+    offset = index;
+    while (index < gAudioBankTbl[4]) {
+        char* name = (char*)((u8*)gAudioBankTbl + offset + 20);
+        if (strncmp(name, bankName, 16) == 0) {
+            break;
+        }
+        index++;
+        offset += 292;
+    }
+    if (index == gAudioBankTbl[4]) {
+        sAudioSuspend = 1;
+        index = -1;
+    }
+    return index;
+}
+
 /* AudioBankLoadName: (re)load bank "bankName"'s part "partName" at priority
  * mode.  Resolves both names to indices; if the requested part is already the
  * loaded one it returns 2, otherwise it drains any in-flight load, unloads the
@@ -816,21 +840,7 @@ s32 AudioBankLoadName(char* bankName, char* partName, s32 mode)
     if (sAudioSuspend != 0) {
         return 1;
     }
-    bankIdx = 0;
-    i = bankIdx;
-    while (bankIdx < gAudioBankTbl[4]) {
-        char* name = (char*)((u8*)gAudioBankTbl + i + 20);
-
-        if (strncmp(name, bankName, 16) == 0) {
-            break;
-        }
-        bankIdx++;
-        i += 292;
-    }
-    if (bankIdx == gAudioBankTbl[4]) {
-        sAudioSuspend = 1;
-        bankIdx = -1;
-    }
+    bankIdx = AudioFindBank(bankName);
     bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
     for (partIdx = 0, i = 0; partIdx < *(s32*)(bankEntry + 24); partIdx++, i += 4) {
         u8* romBank = *(u8**)(sAudioBankTable + 16)
@@ -881,9 +891,8 @@ poll_load:
  * within the current mode's bank table, then queue the load via AudioLoadPart. */
 s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
 {
-    s32 bankOffset;
     s32 partIdx;
-    s32 bankIndex;
+    s32 bankOffset;
     s32 foundBank;
     s32 partArg;
     u8* bankEntry;
@@ -891,23 +900,8 @@ s32 AudioBankQueueName(char* bankName, char* partName, s32 arg)
     if (sAudioSuspend != 0) {
         return 1;
     }
-    bankIndex = 0;
-    bankOffset = bankIndex;
-    while (bankIndex < gAudioBankTbl[4]) {
-        char* name = (char*)((u8*)gAudioBankTbl + bankOffset + 20);
-
-        if (strncmp(name, bankName, 16) == 0) {
-            break;
-        }
-        bankIndex++;
-        bankOffset += 292;
-    }
-    if (bankIndex == gAudioBankTbl[4]) {
-        sAudioSuspend = 1;
-        bankIndex = -1;
-    }
-    bankEntry = (u8*)gAudioBankTbl + bankIndex * 292 + 20;
-    foundBank = bankIndex;
+    foundBank = AudioFindBank(bankName);
+    bankEntry = (u8*)gAudioBankTbl + foundBank * 292 + 20;
     for (partIdx = 0, bankOffset = 0; partIdx < *(s32*)(bankEntry + 24);
          partIdx++, bankOffset += 4) {
         u8* romBank = *(u8**)(sAudioBankTable + 16)
