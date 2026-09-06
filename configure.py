@@ -904,18 +904,21 @@ binutils_dir = config.binutils_path or config.build_dir / "binutils"
 atree_objcopy = binutils_dir / (
     "powerpc-eabi-objcopy.exe" if is_windows() else "powerpc-eabi-objcopy"
 )
+# Managed binutils are downloaded by a rule whose OUTPUT is the directory,
+# not each executable. Match the assembler's tool dependency convention.
+atree_objcopy_implicit = atree_objcopy if config.binutils_path else binutils_dir
 atree_export_vars = {"atree_objcopy": atree_objcopy}
 if config.non_matching:
     config.object_postprocesses[atree_export_unit] = {
         "rule": "globalize_atree",
-        "implicit": ["tools/gdl/atree_exports.py", atree_objcopy],
+        "implicit": ["tools/gdl/atree_exports.py", atree_objcopy_implicit],
         "variables": atree_export_vars,
     }
 else:
     atree_postprocess = config.object_postprocesses[atree_export_unit]
     atree_postprocess["rule"] = "webfrank_globalize_atree"
     atree_postprocess["implicit"].append("tools/gdl/atree_exports.py")
-    atree_postprocess["implicit"].append(atree_objcopy)
+    atree_postprocess["implicit"].append(atree_objcopy_implicit)
     atree_postprocess["variables"].update(atree_export_vars)
 p6frank_config = Path(f"config/{config.version}/p6frank.json")
 p6frank_units = json.loads(p6frank_config.read_text(encoding="utf-8"))["units"]

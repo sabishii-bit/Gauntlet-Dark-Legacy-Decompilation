@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Joint source-header and actual inline/data-pooling option controls after R73 source-only emission experiments; no compiler binary or transformer modifications.",
+  "attributes": {
+    "bounded_conclusion": "Measured-dead for the enumerated32 forms at this alignment. RTTI home allocation relative to handler statics and weak member/header emission remain distinct obligations. String-order movement by deferred inline does not solve both. Header provenance, missing bad_alloc home and four-byte split-prefix ownership remain open; do not infer that a patched compiler is required.",
+    "law_screen": "Read the current laws roster and runtime brief/context. Applied claim.law.inline-and-deadstrip-rules.20260829.v1 as an emission hypothesis, not necessity; claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-that-must-be-gated-tu-wide.20260902.v1 and claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 demand complete function/data/relocation observations. Screened destructor throw-spec law without changing throw specifications. Fixed-source options do not prove source-unreachability.",
+    "measurements": [
+      "Promoted tools/gdl/composed_census/r74_runtime_emission_probe.py completes from repository root. Actual-source and explicit unchanged-header objects reproduce full raw objects exactly; explicit header sentinel refuses. Raw function rosters: NMWException12, ExceptionPPC15. Source/raw input hashes are preserved in generated JSON.",
+      "NMW unchanged header + deferred inline preserves all12 bodies but .rodata changes27->26 bytes: std::exception precedes exception. Handler symbols remain at.sdata0/4 and RTTI remains8. noauto changes duhandler; pooling changes complete object facts. These controls demonstrate actual option sensitivity, not a masked compiler switch.",
+      "ExceptionPPC deferred/no-pool controls change __unexpected; noauto alone changes none of the compared facts and is inconclusive about sensitivity in this TU. Header inline-what still emits the extra weak what and .rodata146 versus134 baseline. Declaration-only header still removes the duplicate base destructor but changes bad_exception's body. NMW homogeneous inline still removes both base members and RTTI. No tested combination supplies a drop-in replacement for the runtime fixer.",
+      "Header-scoped force_active/defer_codegen on/off pairs move none of the observed facts relative to their respective header form. They are inert at these positions; this is not a global pragma-invariance claim. No output-matching rule, hash change or production source change is retained. No new full-link candidate trial was warranted or claimed; R73's link experiments remain the prior evidence."
+    ],
+    "prior_evidence": "attempt.R73_runtime-handler-order-and-header-home-controls.20260906.v1 remains the source-only and full-link control record. This pass tests new source/option combinations, not a repetition of the late-handler source placement axis.",
+    "probed_form": "Four source forms (unchanged explicit header; inline exception::what with duplicate NMW definition removed; homogeneous inline destructor/what with duplicate NMW members removed; homogeneous declaration destructor) crossed with five option settings (unchanged, -inline deferred, -inline noauto, -inline deferred,noauto, -pool off). Separately, the first three header forms crossed with force_active on/off and defer_codegen on/off around namespace std, reset before the body. Thirty-two variant compiles per runtime TU plus actual-source and explicit-header-error controls.",
+    "reproduce": "python tools/gdl/composed_census/r74_runtime_emission_probe.py --out build/r74_runtime_emission.json",
+    "verification": "Focused RuntimeEmissionControlsTests pass and all64 real variant compiles complete with fidelity controls. Full integrated test suites and DOL gate are recorded at integration, not implied by COMPLETE."
+  },
+  "function": "tu:Runtime.PPCEABI.H/NMWException",
+  "held_fixed": "GC/1.2.5 compiler, actual ordered Ninja flags except the explicitly appended option, complete TU bodies except duplicate out-of-line members removed by the selected R73 header form, other headers, existing raw/final objects, linker inputs and postprocessor configuration. Header-only pragma controls restore their setting at the namespace boundary.",
+  "id": "attempt.R74_runtime-joint-header-emission-controls.20260906.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-06T05:00:55Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "inline-boundary",
+    "measured_at": "2026-09-06",
+    "signature": null
+  },
+  "residual_class": "NON_TEXT",
+  "schema_version": 1,
+  "valid_from": "2026-09-06"
+}
