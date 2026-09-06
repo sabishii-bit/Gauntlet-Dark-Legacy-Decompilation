@@ -159,7 +159,7 @@ extern u32 __cvt_fp2unsigned(f64 value);
 extern MBWindow* gWinGlobals;
 extern const f32 lbl_80348AD0;
 extern const f32 lbl_80348AA0;
-extern f32 lbl_80348AD4;            /* 0.5f screen-half constant */
+extern f32 lbl_80348AD4;            /* 1.0f viewport normalization constant */
 extern f32 lbl_80348AE0;            /* 1/16 fixed-point texture scale */
 extern s32 lbl_80345130;             /* submitted primitive counter */
 
@@ -855,11 +855,6 @@ void DrawBlit(MBBLIT* b) {
     s32 lightX;
     s32 lightY;
     s32 light;
-    s32 color;
-    s32 red;
-    s32 alpha;
-    s32 green;
-    s32 blue;
     f32 x0;
     f32 x1;
     f32 v0;
@@ -892,32 +887,32 @@ void DrawBlit(MBBLIT* b) {
     pbBlitSetDrawRegs(flags, 0, drawMode);
 
     x0i = b->x + window->scale->originX;
-    y0i = b->y + window->scale->originY;
     x1i = x0i + (u16)b->width;
+    y0i = b->y + window->scale->originY;
     y1i = y0i + (u16)b->height;
 
     SetMultiPassTextureParams(0);
     SetCullMode(0);
     SetPerspectiveMode(0);
-    SetViewportHeight(lbl_80348AD4);
+    SetViewportHeight(1.0f);
     PSMTXIdentity(matrix);
     GXLoadPosMtxImm(matrix, 0);
 
     fn_800C7914(&textureWidth, &textureHeight);
-    u0 = ((f32)((s32)b->u0 + 8) / (f32)textureWidth) * lbl_80348AE0;
-    u1 = ((f32)((s32)b->u1 - 8) / (f32)textureWidth) * lbl_80348AE0;
-    v0 = ((f32)((s32)b->v0 + 8) / (f32)textureHeight) * lbl_80348AE0;
-    v1 = ((f32)((s32)b->v1 - 8) / (f32)textureHeight) * lbl_80348AE0;
+    u0 = ((f32)((s32)b->u0 + 8) / (f32)textureWidth) / 16.0f;
+    u1 = ((f32)((s32)b->u1 - 8) / (f32)textureWidth) / 16.0f;
+    v0 = ((f32)((s32)b->v0 + 8) / (f32)textureHeight) / 16.0f;
+    v1 = ((f32)((s32)b->v1 - 8) / (f32)textureHeight) / 16.0f;
 
-    x0 = (f32)(b->x * 2) / (f32)window->scale->viewport0 - lbl_80348AD4;
+    x0 = (f32)(b->x * 2) / (f32)window->scale->viewport0 - 1.0f;
     x1 = (f32)((b->x + (u16)b->width) * 2) /
-             (f32)window->scale->viewport0 - lbl_80348AD4;
-    y0 = lbl_80348AD4 - (f32)(b->y * 2) /
+             (f32)window->scale->viewport0 - 1.0f;
+    y0 = 1.0f - (f32)(b->y * 2) /
              (f32)window->scale->viewport1;
-    y1 = lbl_80348AD4 - (f32)((b->y + (u16)b->height) * 2) /
+    y1 = 1.0f - (f32)((b->y + (u16)b->height) * 2) /
              (f32)window->scale->viewport1;
     z = (f32)(b->depth * 2) /
-            (f32)*(s32*)((u8*)window->obj10 + 52) - lbl_80348AD4;
+            (f32)*(s32*)((u8*)window->obj10 + 52) - 1.0f;
 
     if ((flags & 0x10) != 0) {
         light = 0;
@@ -931,44 +926,58 @@ void DrawBlit(MBBLIT* b) {
                 lightY = window->scale->viewport1 -
                          (y0i - window->scale->originY));
         }
-        color = b->color0;
-        alpha = (color >> 23) & 0x1FE;
-        red = ((color >> 16) & 0xFF) + light;
-        green = ((color >> 8) & 0xFF) + light;
-        blue = (color & 0xFF) + light;
-        if (alpha > 255) {
-            alpha = 255;
+        {
+            s32 color;
+            s32 red;
+            s32 alpha;
+            s32 green;
+            s32 blue;
+            color = b->color0;
+            alpha = (color >> 23) & 0x1FE;
+            red = ((color >> 16) & 0xFF) + light;
+            green = ((color >> 8) & 0xFF) + light;
+            blue = (color & 0xFF) + light;
+            if (alpha > 255) {
+                alpha = 255;
+            }
+            GXWGFifo.f32 = x0;
+            GXWGFifo.f32 = y0;
+            GXWGFifo.f32 = z;
+            GXWGFifo.u8 = red;
+            GXWGFifo.u8 = green;
+            GXWGFifo.u8 = blue;
+            GXWGFifo.u8 = alpha;
+            GXWGFifo.f32 = u0;
+            GXWGFifo.f32 = v0;
         }
-        GXWGFifo.f32 = x0;
-        GXWGFifo.f32 = y0;
-        GXWGFifo.f32 = z;
-        GXWGFifo.u8 = red;
-        GXWGFifo.u8 = green;
-        GXWGFifo.u8 = blue;
-        GXWGFifo.u8 = alpha;
-        GXWGFifo.f32 = u0;
-        GXWGFifo.f32 = v0;
 
         if (flags != 0) {
             light = mbBlitCalcLight(x1i - window->scale->originX, lightY);
         }
-        color = b->color1;
-        alpha = (color >> 23) & 0x1FE;
-        red = ((color >> 16) & 0xFF) + light;
-        green = ((color >> 8) & 0xFF) + light;
-        blue = (color & 0xFF) + light;
-        if (alpha > 255) {
-            alpha = 255;
+        {
+            s32 color;
+            s32 red;
+            s32 green;
+            s32 blue;
+            s32 alpha;
+            color = b->color1;
+            alpha = (color >> 23) & 0x1FE;
+            red = ((color >> 16) & 0xFF) + light;
+            green = ((color >> 8) & 0xFF) + light;
+            blue = (color & 0xFF) + light;
+            if (alpha > 255) {
+                alpha = 255;
+            }
+            GXWGFifo.f32 = x1;
+            GXWGFifo.f32 = y0;
+            GXWGFifo.f32 = z;
+            GXWGFifo.u8 = red;
+            GXWGFifo.u8 = green;
+            GXWGFifo.u8 = blue;
+            GXWGFifo.u8 = alpha;
+            GXWGFifo.f32 = u1;
+            GXWGFifo.f32 = v0;
         }
-        GXWGFifo.f32 = x1;
-        GXWGFifo.f32 = y0;
-        GXWGFifo.f32 = z;
-        GXWGFifo.u8 = red;
-        GXWGFifo.u8 = green;
-        GXWGFifo.u8 = blue;
-        GXWGFifo.u8 = alpha;
-        GXWGFifo.f32 = u1;
-        GXWGFifo.f32 = v0;
 
         if (flags != 0) {
             light = mbBlitCalcLight(
@@ -976,60 +985,81 @@ void DrawBlit(MBBLIT* b) {
                 lightY = window->scale->viewport1 -
                          (y1i - window->scale->originY));
         }
-        color = b->color2;
-        alpha = (color >> 23) & 0x1FE;
-        red = ((color >> 16) & 0xFF) + light;
-        green = ((color >> 8) & 0xFF) + light;
-        blue = (color & 0xFF) + light;
-        if (alpha > 255) {
-            alpha = 255;
+        {
+            s32 color;
+            s32 red;
+            s32 green;
+            s32 blue;
+            s32 alpha;
+            color = b->color2;
+            alpha = (color >> 23) & 0x1FE;
+            red = ((color >> 16) & 0xFF) + light;
+            green = ((color >> 8) & 0xFF) + light;
+            blue = (color & 0xFF) + light;
+            if (alpha > 255) {
+                alpha = 255;
+            }
+            GXWGFifo.f32 = x0;
+            GXWGFifo.f32 = y1;
+            GXWGFifo.f32 = z;
+            GXWGFifo.u8 = red;
+            GXWGFifo.u8 = green;
+            GXWGFifo.u8 = blue;
+            GXWGFifo.u8 = alpha;
+            GXWGFifo.f32 = u0;
+            GXWGFifo.f32 = v1;
         }
-        GXWGFifo.f32 = x0;
-        GXWGFifo.f32 = y1;
-        GXWGFifo.f32 = z;
-        GXWGFifo.u8 = red;
-        GXWGFifo.u8 = green;
-        GXWGFifo.u8 = blue;
-        GXWGFifo.u8 = alpha;
-        GXWGFifo.f32 = u0;
-        GXWGFifo.f32 = v1;
 
         if (flags != 0) {
             light = mbBlitCalcLight(x1i - window->scale->originX, lightY);
         }
-        color = b->color3;
-        alpha = (color >> 23) & 0x1FE;
-        red = ((color >> 16) & 0xFF) + light;
-        green = ((color >> 8) & 0xFF) + light;
-        blue = (color & 0xFF) + light;
-        if (alpha > 255) {
-            alpha = 255;
+        {
+            s32 color;
+            s32 red;
+            s32 green;
+            s32 blue;
+            s32 alpha;
+            color = b->color3;
+            alpha = (color >> 23) & 0x1FE;
+            red = ((color >> 16) & 0xFF) + light;
+            green = ((color >> 8) & 0xFF) + light;
+            blue = (color & 0xFF) + light;
+            if (alpha > 255) {
+                alpha = 255;
+            }
+            GXWGFifo.f32 = x1;
+            GXWGFifo.f32 = y1;
+            GXWGFifo.f32 = z;
+            GXWGFifo.u8 = red;
+            GXWGFifo.u8 = green;
+            GXWGFifo.u8 = blue;
+            GXWGFifo.u8 = alpha;
+            GXWGFifo.f32 = u1;
+            GXWGFifo.f32 = v1;
         }
-        GXWGFifo.f32 = x1;
-        GXWGFifo.f32 = y1;
-        GXWGFifo.f32 = z;
-        GXWGFifo.u8 = red;
-        GXWGFifo.u8 = green;
-        GXWGFifo.u8 = blue;
-        GXWGFifo.u8 = alpha;
-        GXWGFifo.f32 = u1;
-        GXWGFifo.f32 = v1;
     } else {
         SetVertexFormat(2);
-        color = b->color0;
-        alpha = (color >> 23) & 0x1FE;
-        red = (color >> 16) & 0xFF;
-        green = (color >> 8) & 0xFF;
-        blue = color & 0xFF;
-        if (alpha == 256) {
-            alpha--;
+        {
+            s32 color;
+            s32 red;
+            s32 green;
+            s32 blue;
+            s32 alpha;
+            color = b->color0;
+            alpha = (color >> 23) & 0x1FE;
+            red = (color >> 16) & 0xFF;
+            green = (color >> 8) & 0xFF;
+            blue = color & 0xFF;
+            if (alpha == 256) {
+                alpha--;
+            }
+            channelColor.r = red;
+            channelColor.g = green;
+            channelColor.b = blue;
+            channelColor.a = alpha;
+            materialColor = channelColor;
+            GXSetChanMatColor(GX_COLOR0A0, &materialColor);
         }
-        channelColor.r = red;
-        channelColor.g = green;
-        channelColor.b = blue;
-        channelColor.a = alpha;
-        materialColor = channelColor;
-        GXSetChanMatColor(GX_COLOR0A0, &materialColor);
 
         GXBegin(GX_TRIANGLESTRIP, GX_VTXFMT0, 4);
         GXWGFifo.f32 = x0;
