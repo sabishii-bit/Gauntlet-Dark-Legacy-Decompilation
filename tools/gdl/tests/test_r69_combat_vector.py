@@ -8,8 +8,13 @@ from tools.gdl.composed_census import r69_combat_vector_recovery as audit
 
 def retail_fixture():
     code = bytearray(0x758)
-    for offset, word in ((0x48, 0x3CA08012), (0x50, 0x38858DF8), (0xC4, 0x386413B0)):
-        struct.pack_into(">I", code, offset, word)
+    # Full independently captured retail [+0x48,+0xC8) witness. Outside this
+    # interval the fixture is synthetic; this test is NOT a whole-CFG proof.
+    code[0x48:0xC8] = bytes.fromhex(
+        "3ca080123be4000038858df857b1073e3b0000003aa000003b5a023841820010"
+        "3b6413203aa000014800004454050463418200103b6413503aa0000148000030"
+        "57a502d74182001857a5018d408200103b6412f03aa000014800001480be0008"
+        "1ca500307f642a143b7b0170c01e01145400056befe0073241820018386413b0")
     neighborhood = bytearray(0x48)
     struct.pack_into(">3f", neighborhood, 0x30, *audit.VALUES)
     return code, neighborhood
@@ -55,6 +60,24 @@ class CombatVectorTests(unittest.TestCase):
         result = audit.target_obligation(*retail_fixture())
         self.assertEqual(result["address"], "0x8011a1a8")
         self.assertEqual(result["bytes"], "00000000bf000000bfa00000")
+        witness = result["reviewed_target_witness"]
+        self.assertEqual(witness["kind"], "fixed-manually-reviewed-target-witness")
+        self.assertEqual(witness["function_offset_range"], ["0x48", "0xc8"])
+        self.assertEqual(witness["size"], 128)
+
+    def test_intervening_r4_overwrite_or_branch_change_cannot_pass(self):
+        code, neighborhood = retail_fixture()
+        for offset, word in ((0x58, 0x38800000),  # li r4,0 instead of li r24,0
+                             (0x6C, 0x38840004),  # addi r4,r4,4
+                             (0x64, 0x48000060),  # changed branch to +0xC4
+                             (0x4C, 0x3BE50000)):  # changed setup dependency
+            with self.subTest(offset=hex(offset), word=hex(word)):
+                changed = bytearray(code)
+                struct.pack_into(">I", changed, offset, word)
+                for selected in (0x48, 0x50, 0xC4):
+                    self.assertEqual(changed[selected:selected+4], code[selected:selected+4])
+                with self.assertRaisesRegex(ValueError, "fixed reviewed target witness"):
+                    audit.target_obligation(changed, neighborhood)
 
     def test_changed_datum_bit_rejected(self):
         code, neighborhood = retail_fixture()

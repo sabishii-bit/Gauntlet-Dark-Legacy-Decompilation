@@ -1,8 +1,9 @@
 """Recover and certify combat's real three-float launch-offset datum.
 
-Retail consumer instructions, all twelve datum bytes, and adjacent objects are
-checked independently. --probe compiles a scratch typed definition, never edits
-production source. This is not a whole-function or whole-.data certificate.
+A fixed manually reviewed retail consumer witness, all twelve datum bytes,
+and adjacent objects are checked independently. The witness hash is not a
+general CFG/dataflow proof. --probe compiles a scratch typed definition, never
+edits production source. This is not a whole-function or whole-.data certificate.
 """
 import argparse
 import json
@@ -18,6 +19,14 @@ from tools.gdl.composed_census import r67_sound_boundary_probe as compiler
 UNIT, FUNCTION = "game/game/combat", "PlayerStartMissile"
 NAME, ADDRESS = "lbl_8011A1A8", 0x8011A1A8
 VALUES = (0.0, -0.5, -1.25)
+# Retail PlayerStartMissile [0x80030128, 0x800301A8), offsets [+0x48,+0xC8).
+# Manual review: setup at +0x48/+0x50 reaches +0xC4 with r4 unchanged on the
+# intervening paths. Bind EVERY word, including the +0x4C dependency and
+# branches, rather than inferring that fact from three selected instructions.
+# Any different interval needs fresh review; this is a fixed target witness,
+# not a general verifier for alternate CFGs or code outside these bounds.
+TARGET_WITNESS_BEGIN, TARGET_WITNESS_END = 0x48, 0xC8
+TARGET_WITNESS_SHA256 = "753d4465555cee13c0df5ca919ae951b4b662dfe182d480255848efbfb428f59"
 TABLES = ((0, 60, 0x80118D5C, "screen_limitation"),
           (60, 44, 0x80118D98, "screen_limitation"),
           (104, 52, 0x80118DC4, "screen_limitation"),
@@ -35,6 +44,10 @@ def target_obligation(code, neighborhood):
     address = (base + signed(disp)) & 0xFFFFFFFF
     if base != 0x80118DF8 or address != ADDRESS:
         raise ValueError("retail computed datum address differs")
+    witness = code[TARGET_WITNESS_BEGIN:TARGET_WITNESS_END]
+    witness_sha256 = aux.digest(witness)
+    if witness_sha256 != TARGET_WITNESS_SHA256:
+        raise ValueError("fixed reviewed target witness changed; fresh path review required")
     datum = neighborhood[0x30:0x3C]
     if datum != struct.pack(">3f", *VALUES):
         raise ValueError("retail three-float bytes differ")
@@ -43,6 +56,11 @@ def target_obligation(code, neighborhood):
     following = struct.unpack_from(">3f", neighborhood, 0x3C)
     return dict(status="PASS", base=hex(base), address=hex(address), size=12,
                 values=list(VALUES), bytes=datum.hex(), sha256=aux.digest(datum),
+                reviewed_target_witness=dict(kind="fixed-manually-reviewed-target-witness",
+                    function_offset_range=[hex(TARGET_WITNESS_BEGIN), hex(TARGET_WITNESS_END)],
+                    address_range=["0x80030128", "0x800301A8"],
+                    size=len(witness), sha256=witness_sha256,
+                    scope="All intervening instructions and branches, including +0x4C, are bound to the reviewed retail interval; not a general CFG/dataflow proof or a guard on outside code"),
                 consumer_instructions={hex(k): hex(struct.unpack_from(">I", code, k)[0]) for k in (0x48, 0x50, 0xC4)},
                 neighborhood_range=["0x8011A178", "0x8011A1C0"],
                 preceding_colors=list(colors), preceding_intensities=list(intensities), following_vector=list(following),
@@ -211,7 +229,7 @@ def main():
     parser.add_argument("--probe", action="store_true")
     args = parser.parse_args()
     result = audit(args.out, args.before, args.probe)
-    print("PASS: retail computed address and all three float values proven", args.out)
+    print("PASS: fixed reviewed retail witness bound; all three float values exact", args.out)
     if "probe" in result:
         print("Scratch full-TU changes:", result["probe"]["changes"])
         print("EH unchanged:", result["probe"]["eh_unchanged"])
