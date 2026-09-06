@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "integrator": "codex/reconstruction-foundation",
+    "owned_units": [
+      "tools/gdl/fnasm.py",
+      "tools/gdl/fndiff.py",
+      "tools/gdl/probe.py",
+      "tools/gdl/composed_census/cn_analyze.py",
+      "tools/gdl/tests/test_fnasm.py",
+      "tools/gdl/tests/test_fndiff_classify.py",
+      "tools/gdl/tests/test_probe.py"
+    ],
+    "scope": "Repair raw-object analysis selection to follow the active build graph, not stale .postprocess file existence. Owned core analysis chokepoints and tests; no source or build transformations. New helper/test paths require reporting to integrator before adoption. Worker proposes and commits, never pushes."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:sndVoiceUpdateAll",
+  "id": "work_claim.R71_active-raw-object-resolution.20260906.v1",
+  "kind": "work_claim",
+  "owner": "r71-tools",
+  "recorded_at": "2026-09-06T01:32:37Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
