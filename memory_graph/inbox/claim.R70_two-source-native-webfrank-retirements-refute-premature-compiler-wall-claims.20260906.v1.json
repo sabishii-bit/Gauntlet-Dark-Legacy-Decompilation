@@ -1,0 +1,43 @@
+{
+  "attributes": {
+    "analysis_artifact_trap": "After sndvoice's final rule removal, wf_word_diff still reported42 raw differing words and PINNED=no because cn_analyze.our_object chooses .postprocess/body/sndvoice.o by existence, not the active Ninja edge. Fresh cv_probe active-edge compilation and the complete-object certificate disproved that stale result. Root preserved the obsolete SHA2565b9f7e0231564db879e4de8352587655eb81f0b4cad41a1d1c04067e9f942533 object in build/r70_baseline_objects/sndvoice_retired_stale_body.o, removing it only from the active derived-artifact location. The same wf_word_diff command then reports0. No target extraction was deleted. Existence-based readers are not fixed by this cleanup; future rule retirement needs active-edge selection or the same explicit archive step.",
+    "changed_scope_command": "git diff --name-only f31bc726d HEAD -- src config configure.py -> config/GUNE5D/webfrank.json; src/game/g3d/sndvoice.c; src/game/sys/sysservice.c. No configure.py, headers, split claims or compiler binary changes.",
+    "editable_and_build": "Root python configure.py --non-matching; ninja -j2 all_source: exit0. Active build_edges non_matching=true and0 rules matching frank|retail|fix_exception. build_provenance editable snapshot PASS,352units,0failures,0unresolved. Restore python configure.py; ninja -j2: main.dol: OK. Standalone build_provenance on restored default PASS. This is source compilation and postprocess isolation, not full configured-source linkage, a boot test, or universal mod runtime correctness; previously recorded all-source link defects remain outside this wave.",
+    "finite_negative_work": "Root getSinCos five natural polynomial full-TU scratch forms reached9 instead of14 raw differing words but none was exact; no source or pin update retained. dbgtext32 finite full-TU forms produced no rule retirement; all three pins and production source are unchanged. Its manually bound mode3 loop refutes a specific savedregs cross-loop zero pairing, not the entire tool or all possible source paths. Preserve diagnoses separately from failed cures; neither lane establishes compiler unreachability.",
+    "integration_and_cleanup": "Separate codex/reconstruction-foundation only, not main. Three worker tips are merged. All111 sndvoice,108 sysservice and276 dbgtext evidence files were copied into build/r70_worker_evidence/<lane>/ and individually SHA256-verified before removing the three finished GDL-r70-* worktrees and local branches. No reparse points; clean worktrees after removal of owned nonce-checked LANE_LOCKs. Proposals remain in the feature inbox for authorized main integration; this checkpoint closes R70, not the entire migration.",
+    "integration_observations": "Retiring sndvoice removed the last shipped recolors-class rule. Adjusted only test_rule_derive_emit's reverse coverage assumption with explicit reviewed retired set {recolors}; every shipped key still requires map coverage and historical recolors verifier support remains tested. No rule map or verifier behavior changed. One root Ninja progress subquery transiently reported permission denied opening the build log; standalone build_provenance after Ninja completion and the restored default run both PASS. Do not turn that failed snapshot into a clean assertion merely because Ninja itself exited0.",
+    "next_deciding_work": "For remaining pins, prioritize exact source type identity, real SDK/header lineage, prototypes and whole-TU data context over repeating fixed-source flag sweeps. Re-derive raw residuals using the actual current compiler edge. The old sysClearFlags prose that no third source construct existed was false; its finite three-spelling measurements were valid but did not test int/long identity. Existing source-unreachability claims require this narrower interpretation. Other181 rules and the P6/exception/manual transformations are not retired by these two successes.",
+    "portability_limits": "The sndvoice cursor follows the SDK's 18-halfword AXPBMIX ABI layout; a fresh same-compiler sizeof/offsetof control checks36-byte AXPBMIX,88-byte SndVoice and input mix[20] at48. This idiom is not an arbitrary-platform strict ISO-C aliasing/object-layout proof. No new wrappers, assembly, padding, pragma tricks or production hash checks were introduced. The retirement auditors are manually invoked diagnostics, not normal build dependencies that constrain source edits.",
+    "primary_evidence": [
+      "attempt.R70_sysclearflags-private-int-type-retires-webfrank.20260906.v1",
+      "attempt.R70_sndvoiceupdateall-sdk-cursor-retires-webfrank.20260906.v1",
+      "git:df16e0210d7b7d8eb114a2e565f61e3f9446d92f",
+      "git:c24d6cd684e355a33e0481663ebfb2f987c94da2"
+    ],
+    "root_reverification": "Root integrated sysservice first and independently ran r70_sysservice_type_control against the archived pre-retirement snapshot: PASS. The certificate intentionally rejects unrelated config changes, so its full-config transition was certified before sndvoice integration. After sndvoice merge and editable/default rebuilds, sysservice raw SHA256 remains e56fd01809f155385ffbe98c873fc68edf8f6a6ed886d042cd744e3fbb9beb5b and processed SHA256 remains42e33e3a0bb571df94188598bf40c08fc5faa7d4a1e1f01aa2cf1d1210daeab6. Root r70_sndvoice_retirement_audit independently PASS against the archived old linked object: complete raw/old-processed SHA2566038a707e5d9ca9f4822af686f17eb5045f92fdc2711bc30477e922b3f6a4d7c. Both legacy wf_word_diff calls now report0 raw differing words and0 relocation-symbol mismatches, PINNED=no.",
+    "rule_inventory": "Live config before wave:183 rules across59 units. After both retirements:181 rules across58 units. This is the complete configuration count, distinct from the objdiff report's100%-scored WebFrank population, which changes180functions/156728bytes to178functions/153424bytes. Exactly3304 bytes move out of that reporting category; one function enters stock and one derived. Aggregate matched770892/1071824 (71.92%), fuzzy98.25%, linked40.23% and215/352 linked files are unchanged; the benefit is raw provenance, not a new matching-score gain.",
+    "source_results": [
+      "sysClearFlags: private static u32 gSysFlags (u32 is unsigned long) becomes unsigned int; public u32 mask API unchanged. Target/raw4/4, zero raw word or relocation differences. Four-way int/long matrix finds exact bytes when the two operand type identities differ, baseline bytes when they agree. All16 siblings and10072 raw object bytes outside the16-byte function are unchanged. Compiler-internal conversion/web separation is an inference; the original declaration is not uniquely recovered.",
+      "sndVoiceUpdateAll: recover a halfword output cursor and direct mixer-member tests, supported by the Dolphin MIXUpdateSettings source lineage. Target/raw822/822 with zero raw differences, down from42 raw differing words. Fresh plain compiler object is identical to the previous processed object. All8 functions cover the entire6732-byte text,45 positional named relocations reconcile with explicitly checked SDA21 and section-base conventions, all allocated nontext/data/BSS and EH match. GC/1.2.5n remains a derived compiler, not stock. This removes the TU's last rule and its WebFrank build edge."
+    ]
+  },
+  "epistemic_state": "verified",
+  "evidence": [
+    "src/game/g3d/sndvoice.c",
+    "src/game/sys/sysservice.c",
+    "config/GUNE5D/webfrank.json",
+    "tools/gdl/composed_census/r70_sndvoice_retirement_audit.py",
+    "tools/gdl/composed_census/r70_sysservice_type_control.py",
+    "tools/gdl/composed_census/r70_dbgtext_lifetimes.py",
+    "tools/gdl/composed_census/cn_analyze.py",
+    "tools/gdl/build_provenance.py"
+  ],
+  "id": "claim.R70_two-source-native-webfrank-retirements-refute-premature-compiler-wall-claims.20260906.v1",
+  "kind": "claim",
+  "predicate": "reconstruction_campaign_checkpoint",
+  "recorded_at": "2026-09-06T01:19:51Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-06",
+  "value": "R70 retires two actual WebFrank rules through source reconstruction, without changing compiler binaries, flags or postprocessor behavior. sndvoice is now an entirely unpostprocessed source TU under existing derived GC/1.2.5n; sysClearFlags is raw exact under stock GC/1.2.5, while the other two sysservice rules remain. These are constructive counterexamples to necessity for those two rules, not proof that all project postprocessing is avoidable."
+}
