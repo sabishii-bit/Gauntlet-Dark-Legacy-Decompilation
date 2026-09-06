@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/audio/audio.c"
+    ],
+    "scope": "Source-native AudioAng WebFrank retirement research in isolated codex/r77-audio; production pinned source frozen until full-TU and binding proof. No new postprocessing, compatibility scaffolding or header edits. Own source TU and uniquely prefixed experiment/tests/records only; root integrates any proven rule removal."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:AudioAng",
+  "id": "work_claim.r77-audio-native.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r77-audio",
+  "recorded_at": "2026-09-06T18:35:27Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
