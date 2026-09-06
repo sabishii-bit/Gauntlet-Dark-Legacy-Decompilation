@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/audio/audio.c",
+      "config/GUNE5D/webfrank.json"
+    ],
+    "scope": "Own src/game/audio/audio.c and surgical retirement of its existing rules in config/GUNE5D/webfrank.json only; no new rules or guard weakening. Scratch-first helper extraction for AudioBankQueueName, AudioBankLoadName, AudioUnloadPart. All sibling/section/relocation/EH gates mandatory. New tools only r74_audio-prefixed composed_census/tests files. Prior independent initializer/IV caps remain in force; helper boundary is the new axis. No shared header/configure edits, no push."
+  },
+  "claimed_at": "2026-09-06",
+  "function": "function:AudioBankQueueName",
+  "id": "work_claim.R74_audio-helper-retirement.20260906.v1",
+  "kind": "work_claim",
+  "owner": "codex-r74-audio",
+  "recorded_at": "2026-09-06T04:50:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-06"
+}
