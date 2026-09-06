@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Restore atree's retail cross-TU ELF symbol visibility.
 
-GC 1.2.5 must see atree's BSS objects as internal-linkage definitions to
-reproduce their retail layout and code generation.  The retail object exports
-the same storage to pb_diag, however.  Promote those existing symbols after
-compilation without touching section contents or relocations.
+The current source retains internal linkage for three large BSS arrays to
+preserve their measured layout and code generation. Retail exports the same
+storage to pb_diag. Promote only those three symbols without touching section
+contents or relocations. This finite source constraint does not establish
+that no alternative reconstruction could remove their remaining promotions.
 
-The compiler also emits the shared 0.0f datum as an anonymous local pool
-object while atree's other functions refer to it as ``sAtreeZero``.  Discover
-that object by ELF form and bytes rather than relying on MWCC's unstable @NN
-name, then name and promote it.  A mod that supplies an ordinary defined
-``sAtreeZero`` instead bypasses the discovery path.
+sAtreeZero and natreelists now have ordinary source definitions and external
+linkage. Require those definitions; never discover, rename or promote an
+anonymous zero datum. Editable builds may change their values and layout.
 """
 
 from __future__ import annotations
@@ -22,7 +21,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-EXPORTS = ("atree_handles", "atree_scroll", "whichatree", "natreelists")
+EXPORTS = ("atree_handles", "atree_scroll", "whichatree")
+SOURCE_EXPORTS = ("sAtreeZero", "natreelists")
 
 
 @dataclass(frozen=True)
@@ -89,32 +89,15 @@ def read_symbols(path: Path) -> list[SymbolFact]:
     return facts
 
 
-def choose_zero_symbol(symbols: list[SymbolFact]) -> str | None:
-    defined = [
-        symbol for symbol in symbols
-        if symbol.name == "sAtreeZero" and symbol.section is not None
-    ]
-    if defined:
-        if len(defined) != 1:
-            raise ValueError("sAtreeZero has multiple defined symbols")
-        return None
-
-    candidates = [
-        symbol for symbol in symbols
-        if symbol.bind == "STB_LOCAL"
-        and symbol.kind == "STT_OBJECT"
-        and symbol.section == ".sdata2"
-        and symbol.size == 4
-        and symbol.data == b"\0\0\0\0"
-    ]
-    if len(candidates) != 1:
-        names = ", ".join(symbol.name for symbol in candidates) or "none"
-        raise ValueError(
-            "expected one anonymous local 4-byte zero in .sdata2; "
-            f"found {len(candidates)} ({names}). Define sAtreeZero explicitly "
-            "if edited source intentionally creates multiple zero datums."
-        )
-    return candidates[0].name
+def require_source_exports(symbols: list[SymbolFact]) -> None:
+    for name in SOURCE_EXPORTS:
+        definitions = [symbol for symbol in symbols
+                       if symbol.name == name and symbol.section is not None]
+        if len(definitions) != 1:
+            raise ValueError(f"expected one source-defined {name}; found {len(definitions)}")
+        symbol = definitions[0]
+        if symbol.bind != "STB_GLOBAL" or symbol.kind != "STT_OBJECT":
+            raise ValueError(f"{name}: expected source-defined global object")
 
 
 def require_exports(symbols: list[SymbolFact], bind: str) -> None:
@@ -161,14 +144,9 @@ def main() -> int:
 
     before = read_symbols(export_input)
     require_exports(before, "STB_LOCAL")
-    zero_name = choose_zero_symbol(before)
+    require_source_exports(before)
 
     command = [str(args.objcopy)]
-    if zero_name is not None:
-        command.extend((
-            f"--redefine-sym={zero_name}=sAtreeZero",
-            "--globalize-symbol=sAtreeZero",
-        ))
     command.extend(f"--globalize-symbol={name}" for name in EXPORTS)
     command.append(str(export_input))
     if export_input.resolve() != args.output.resolve():
@@ -177,20 +155,9 @@ def main() -> int:
 
     after = read_symbols(args.output)
     require_exports(after, "STB_GLOBAL")
-    zero_defs = [
-        symbol for symbol in after
-        if symbol.name == "sAtreeZero"
-        and symbol.section == ".sdata2"
-        and symbol.bind == "STB_GLOBAL"
-        and symbol.size == 4
-        and symbol.data == b"\0\0\0\0"
-    ]
-    if len(zero_defs) != 1:
-        raise ValueError(
-            f"expected one defined global sAtreeZero; found {len(zero_defs)}"
-        )
+    require_source_exports(after)
     print(
-        "ATREE_EXPORTS: promoted sAtreeZero, " + ", ".join(EXPORTS)
+        "ATREE_EXPORTS: source-defined sAtreeZero, natreelists; promoted " + ", ".join(EXPORTS)
     )
     return 0
 

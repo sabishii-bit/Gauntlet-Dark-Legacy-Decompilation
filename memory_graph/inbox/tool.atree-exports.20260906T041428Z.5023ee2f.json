@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Require exactly one defined LOCAL atree_handles, atree_scroll, and whichatree before promotion and GLOBAL versions afterward; no code/data/relocation/address rewrite is performed.",
+    "Require exactly one source-defined GLOBAL STT_OBJECT each for sAtreeZero and natreelists. Do not discover, rename or promote anonymous zero objects or impose retail values, sizes or section positions on editable builds.",
+    "Matching mode may first replay the unchanged WebFrank rules using the supplied config, target and image. Editable mode omits that instruction postprocessor; the remaining three symbol promotions still run.",
+    "The three remaining large-array promotions preserve a measured source layout. Finite failed source experiments do not prove those remaining promotions universally necessary."
+  ],
+  "entrypoint": "python tools/gdl/atree_exports.py INPUT OUTPUT --objcopy OBJCOPY",
+  "id": "tool.atree-exports.20260906T041428Z.5023ee2f",
+  "kind": "tool",
+  "name": "atree-exports",
+  "purpose": "Promote only three measured internal-linkage atree BSS array definitions to their existing external interface; sAtreeZero and natreelists are now ordinary source-defined global objects.",
+  "recorded_at": "2026-09-06T04:14:28Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/atree_exports.py",
+  "status": "active",
+  "supersedes": "tool.atree-exports.20260904T180623Z.60730437",
+  "tool_key": "tool:atree-exports",
+  "tool_kind": "build",
+  "usage": [],
+  "valid_from": "2026-09-06T04:14:28+00:00"
+}

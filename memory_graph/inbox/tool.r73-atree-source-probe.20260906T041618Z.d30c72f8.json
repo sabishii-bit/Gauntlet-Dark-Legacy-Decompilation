@@ -1,0 +1,25 @@
+{
+  "constraints": [
+    "Run after a successful matching-mode ninja. Scratch experiments require exact current actual-Ninja and relocated-source whole-object controls with unchanged GC/1.2.5 compiler/runner. No production source or configuration is written.",
+    "Finalized comparison is preservation against an archived known baseline, not independent target correctness or runtime proof. Require complete nonempty function roster, bodies/geometry, every allocated section, all named objects and EH records. Anonymous read-only pool and EH names normalize only to identical LOCAL section position, extent and full bytes with unchanged relocation site/type/addend.",
+    "Source-export audit is deliberately retail-specific: checks sAtreeZero and natreelists identities plus22-byte pool/24-byte claim and2zero slack. It is NOT a mod-build guard; build exporter validates definitions without constraining source values.",
+    "PASS is finite evidence, not source exhaustion or full WebFrank retirement. Existing_inline_helper control deliberately changes code shape and may regress count/frame; never promote it solely because the zero-copy opcode appears."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r73_atree_source_probe.py",
+  "id": "tool.r73-atree-source-probe.20260906T041618Z.d30c72f8",
+  "kind": "tool",
+  "name": "r73-atree-source-probe",
+  "purpose": "Reproduce finite source-export and helper-context controls for atree; compare finalized objects without mistaking anonymous-symbol renumbering for changed bindings.",
+  "recorded_at": "2026-09-06T04:16:18Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r73_atree_source_probe.py",
+  "status": "active",
+  "tool_key": "tool:r73-atree-source-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "python tools/gdl/composed_census/r73_atree_source_probe.py --forms legacy_anonymous_control,late_zero_literal_held,late_zero_named,public_natreelists,late_zero_public_natreelists",
+    "python tools/gdl/composed_census/r73_atree_source_probe.py --source-exports RAW TARGET --out build/r73_atree_source_exports.json",
+    "python tools/gdl/composed_census/r73_atree_source_probe.py --compare-finalized BEFORE AFTER --out build/r73_atree_finalized.json"
+  ],
+  "valid_from": "2026-09-06T04:16:18+00:00"
+}

@@ -237,7 +237,7 @@ static animdata* AnimDataList;
 static s32 AnimDataMax;
 static s32 AtreeNodePeak;
 static s32 AnimDataPeak;
-static s32 natreelists;
+s32 natreelists;
 
 static struct {
     s32 natreelists[8];
@@ -547,7 +547,7 @@ s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
 
     root = tree->root;
     info = &tree->animinfo;
-    result = AnimateTreeFrame(0.0f, info, sequence, frame, frame);
+    result = AnimateTreeFrame(sAtreeZero, info, sequence, frame, frame);
     if (recurse > 0) {
         if (info->seqheader != NULL) {
             void* obj = root->obj;
@@ -1685,6 +1685,7 @@ animdata* AnimDataNodeNew(void)
 
 /* Keep these definitions after their uses: MWCC then preserves the external
  * datum loads used by retail instead of folding them into anonymous pools. */
+const f32 sAtreeZero = 0.0f;
 const f64 sAtreeFrameRoundBias = 0.5;
 DECL_SECT(".sdata2") const char sAtreeDummyName[] = "DUMMY";
 
