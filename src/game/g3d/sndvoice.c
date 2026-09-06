@@ -375,8 +375,8 @@ void sndVoiceUpdateAll(void)
     int i;
     int mixDirty;
     int volDirty;
-    u16 cur;
     u16 ctrl;
+    u16* output;
     u8 unused[0x78];
 
     for (i = 0; i < 64; i++) {
@@ -472,58 +472,58 @@ void sndVoiceUpdateAll(void)
                 v->flags |= 0x80000000;
             }
             if (volDirty && p != NULL) {
-                cur = v->mix[0];
-                p->pb.ve.currentVolume = cur;
+                p->pb.ve.currentVolume = v->mix[0];
                 p->pb.ve.currentDelta = (v->mix[1] - v->mix[0]) / 0xA0;
                 p->sync |= 0x200;
             }
             if (mixDirty && p != NULL) {
-                p->pb.mix.vL = v->mix[2];
-                p->pb.mix.vDeltaL = (v->mix[3] - v->mix[2]) / 0xA0;
-                p->pb.mix.vR = v->mix[4];
-                p->pb.mix.vDeltaR = (v->mix[5] - v->mix[4]) / 0xA0;
-                p->pb.mix.vAuxAL = v->mix[8];
-                p->pb.mix.vDeltaAuxAL = (v->mix[9] - v->mix[8]) / 0xA0;
-                p->pb.mix.vAuxAR = v->mix[10];
-                p->pb.mix.vDeltaAuxAR = (v->mix[11] - v->mix[10]) / 0xA0;
-                p->pb.mix.vAuxBL = v->mix[14];
-                p->pb.mix.vDeltaAuxBL = (v->mix[15] - v->mix[14]) / 0xA0;
-                p->pb.mix.vAuxBR = v->mix[16];
-                p->pb.mix.vDeltaAuxBR = (v->mix[17] - v->mix[16]) / 0xA0;
-                p->pb.mix.vAuxBS = v->mix[18];
-                p->pb.mix.vDeltaAuxBS = (v->mix[19] - v->mix[18]) / 0xA0;
-                p->pb.mix.vS = v->mix[6];
-                p->pb.mix.vDeltaS = (v->mix[7] - v->mix[6]) / 0xA0;
+                output = (u16*)&p->pb.mix;
+                *output = v->mix[2]; output += 1;
+                *output = (v->mix[3] - v->mix[2]) / 0xA0; output += 1;
+                *output = v->mix[4]; output += 1;
+                *output = (v->mix[5] - v->mix[4]) / 0xA0; output += 1;
+                *output = v->mix[8]; output += 1;
+                *output = (v->mix[9] - v->mix[8]) / 0xA0; output += 1;
+                *output = v->mix[10]; output += 1;
+                *output = (v->mix[11] - v->mix[10]) / 0xA0; output += 1;
+                *output = v->mix[14]; output += 1;
+                *output = (v->mix[15] - v->mix[14]) / 0xA0; output += 1;
+                *output = v->mix[16]; output += 1;
+                *output = (v->mix[17] - v->mix[16]) / 0xA0; output += 1;
+                *output = v->mix[18]; output += 1;
+                *output = (v->mix[19] - v->mix[18]) / 0xA0; output += 1;
+                *output = v->mix[6]; output += 1;
+                *output = (v->mix[7] - v->mix[6]) / 0xA0; output += 1;
                 ctrl = 0;
-                p->pb.mix.vAuxAS = v->mix[12];
-                p->pb.mix.vDeltaAuxAS = (v->mix[13] - v->mix[12]) / 0xA0;
-                if ((cur = p->pb.mix.vAuxAL) != 0 ||
-                    (cur = p->pb.mix.vAuxAR) != 0 ||
-                    (cur = p->pb.mix.vAuxAS) != 0)
+                *output = v->mix[12]; output += 1;
+                *output = (v->mix[13] - v->mix[12]) / 0xA0; output += 1;
+                if (p->pb.mix.vAuxAL != 0 ||
+                    p->pb.mix.vAuxAR != 0 ||
+                    p->pb.mix.vAuxAS != 0)
                 {
                     ctrl |= 1;
                 }
-                if ((cur = p->pb.mix.vAuxBL) != 0 ||
-                    (cur = p->pb.mix.vAuxBR) != 0 ||
-                    (cur = p->pb.mix.vAuxBS) != 0)
+                if (p->pb.mix.vAuxBL != 0 ||
+                    p->pb.mix.vAuxBR != 0 ||
+                    p->pb.mix.vAuxBS != 0)
                 {
                     ctrl |= 2;
                 }
-                if ((cur = p->pb.mix.vS) != 0 ||
-                    (cur = p->pb.mix.vAuxAS) != 0 ||
-                    (cur = p->pb.mix.vAuxBS) != 0)
+                if (p->pb.mix.vS != 0 ||
+                    p->pb.mix.vAuxAS != 0 ||
+                    p->pb.mix.vAuxBS != 0)
                 {
                     ctrl |= 4;
                 }
-                if ((cur = p->pb.mix.vDeltaL) != 0 ||
-                    (cur = p->pb.mix.vDeltaR) != 0 ||
-                    (cur = p->pb.mix.vDeltaS) != 0 ||
-                    (cur = p->pb.mix.vDeltaAuxAL) != 0 ||
-                    (cur = p->pb.mix.vDeltaAuxAR) != 0 ||
-                    (cur = p->pb.mix.vDeltaAuxAS) != 0 ||
-                    (cur = p->pb.mix.vDeltaAuxBL) != 0 ||
-                    (cur = p->pb.mix.vDeltaAuxBR) != 0 ||
-                    (cur = p->pb.mix.vDeltaAuxBS) != 0)
+                if (p->pb.mix.vDeltaL != 0 ||
+                    p->pb.mix.vDeltaR != 0 ||
+                    p->pb.mix.vDeltaS != 0 ||
+                    p->pb.mix.vDeltaAuxAL != 0 ||
+                    p->pb.mix.vDeltaAuxAR != 0 ||
+                    p->pb.mix.vDeltaAuxAS != 0 ||
+                    p->pb.mix.vDeltaAuxBL != 0 ||
+                    p->pb.mix.vDeltaAuxBR != 0 ||
+                    p->pb.mix.vDeltaAuxBS != 0)
                 {
                     ctrl |= 8;
                 }
