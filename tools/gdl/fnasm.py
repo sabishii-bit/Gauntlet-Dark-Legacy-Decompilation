@@ -55,7 +55,7 @@ import fndiff  # noqa: E402  (stale-object marker: one owner, one spelling)
 
 VERSION = "GUNE5D"
 ROOT = Path(__file__).resolve().parents[2]
-OBJDUMP = ROOT / "build" / "binutils" / "powerpc-eabi-objdump.exe"
+OBJDUMP = fndiff.objdump_path(ROOT)
 
 
 def pinned_functions(unit, *, root=None):

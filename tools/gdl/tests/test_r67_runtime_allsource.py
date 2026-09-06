@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -133,7 +134,9 @@ class AllSourceDiagnosticTests(unittest.TestCase):
                                 non_matching=False)
                 (root / "build/GUNE5D/build_edges.json").write_text(json.dumps(snapshot))
                 output = root / "build/r67_runtime_refusal.json"
-                with patch.object(probe, "ROOT", root), patch.object(probe.os, "name", "nt"), \
+                # Replace only the probe's platform facade. Mutating os.name
+                # globally makes pathlib create WindowsPath objects on Linux.
+                with patch.object(probe, "ROOT", root), patch.object(probe, "os", SimpleNamespace(name="nt")), \
                      patch.object(probe, "run", side_effect=AssertionError("must not launch")), \
                      contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(probe.main(["--out", str(output)]), 2)

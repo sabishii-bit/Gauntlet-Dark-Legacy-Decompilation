@@ -31,6 +31,29 @@ class RawGraphPathTests(unittest.TestCase):
                                  (Path(plain), True))
 
 
+class NativeObjdumpPathTests(unittest.TestCase):
+    def test_platform_selects_name_not_cached_file_existence(self):
+        import fndiff
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            directory = root / "build/binutils"
+            directory.mkdir(parents=True)
+            for name in ("powerpc-eabi-objdump", "powerpc-eabi-objdump.exe"):
+                (directory / name).write_bytes(b"foreign or native fixture")
+            for platform, filename in (("win32", "powerpc-eabi-objdump.exe"),
+                                       ("linux", "powerpc-eabi-objdump"),
+                                       ("darwin", "powerpc-eabi-objdump")):
+                with self.subTest(platform=platform):
+                    self.assertEqual(fndiff.objdump_path(root, platform_name=platform),
+                                     directory / filename)
+
+    def test_fnasm_uses_same_native_path_with_absolute_root(self):
+        import fndiff
+        import fnasm
+        self.assertEqual(fnasm.OBJDUMP, fndiff.objdump_path(fnasm.ROOT))
+        self.assertTrue(fnasm.OBJDUMP.is_absolute())
+
+
 class UnitKeyTests(unittest.TestCase):
     """Run-43 item 8: one spelling rule for both tool families.
 

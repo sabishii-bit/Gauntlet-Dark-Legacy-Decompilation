@@ -149,7 +149,16 @@ import sys
 from pathlib import Path
 
 VERSION = "GUNE5D"
-OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
+
+
+def objdump_path(root=Path("."), *, platform_name=None):
+    """Native downloaded binutils path; never run a cached foreign executable."""
+    host = sys.platform if platform_name is None else platform_name
+    suffix = ".exe" if host == "win32" else ""
+    return Path(root) / "build" / "binutils" / ("powerpc-eabi-objdump" + suffix)
+
+
+OBJDUMP = objdump_path()
 SYMBOLS_TXT = Path(f"config/{VERSION}/symbols.txt")
 RETAIL_DOL = Path(f"orig/{VERSION}/sys/main.dol")
 
