@@ -1,0 +1,18 @@
+{
+  "constraints": [
+    "Requires retained actual-Ninja baseline artifacts and current stock compiler build; refuses source/rule/split drift beyond exact five-read literal recovery and eight-byte ownership transfer. Manual evidence only, not a build hook or universal equivalence certificate."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r76_anim_retirement_audit.py --baseline-dir PATH",
+  "id": "tool.r76-anim-retirement-audit.20260906T064551Z.1a9665ee",
+  "kind": "tool",
+  "name": "r76-anim-retirement-audit",
+  "purpose": "Manual source-native InitAnim retirement with precise literal pool ownership and final relocation-binding preservation",
+  "recorded_at": "2026-09-06T06:45:51Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r76_anim_retirement_audit.py",
+  "status": "active",
+  "tool_key": "tool:r76-anim-retirement-audit",
+  "tool_kind": "external",
+  "usage": [],
+  "valid_from": "2026-09-06T06:45:51+00:00"
+}

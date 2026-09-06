@@ -50,6 +50,8 @@ and the fragment reading keeps its substring test.
 """
 
 import sys
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -140,12 +142,44 @@ class ExactSpellingWins(unittest.TestCase):
     def test_anim_does_not_inherit_anim_plays_pin(self):
         units = {row["unit"]
                  for row in core._pin_provenance(REPO, "game/anim/anim")}
-        self.assertEqual(units, {"game/anim/anim"})
+        config = json.loads(CONFIG.read_text())
+        expected = {"game/anim/anim"} if config["units"].get("game/anim/anim") else set()
+        self.assertEqual(units, expected)
 
     def test_sounds_does_not_inherit_sounds_evts_pin(self):
         units = {row["unit"]
                  for row in core._pin_provenance(REPO, "game/sound/sounds")}
         self.assertEqual(units, {"game/sound/sounds"})
+
+
+class RetiredExactUnit(unittest.TestCase):
+    def test_source_roster_exact_retired_and_fragment_queries(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "src/game/anim/anim.c"
+            source.parent.mkdir(parents=True)
+            source.write_text("/* an existing unpinned TU */\n")
+            cfg = root / "config/GUNE5D/webfrank.json"
+            cfg.parent.mkdir(parents=True)
+            cfg.write_text(json.dumps({"units": {
+                "game/anim/anim_play": [{"function": "Play"}],
+                "game/anim/atree": [{"function": "Tree"}]}}))
+            self.assertEqual(core._pin_provenance(root, "game/anim/anim"), [])
+            self.assertEqual(core._pin_provenance(root, "src/game/anim/anim.c"), [])
+            self.assertEqual({r["function"] for r in core._pin_provenance(root, "game/anim/anim_play")}, {"Play"})
+            self.assertEqual({r["function"] for r in core._pin_provenance(root, "anim")}, {"Play", "Tree"})
+            self.assertEqual({r["function"] for r in core._pin_provenance(root, "game/anim")}, {"Play", "Tree"})
+
+    def test_split_only_retired_unit_remains_exact(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cfg = root / "config/GUNE5D"
+            cfg.mkdir(parents=True)
+            (cfg / "splits.txt").write_text("game/anim/anim.cpp:\n\t.text start:0x80001000 end:0x80001004\n")
+            (cfg / "webfrank.json").write_text(json.dumps({"units": {
+                "game/anim/anim_play": [{"function": "Play"}]}}))
+            self.assertEqual(core._pin_provenance(root, "game/anim/anim"), [])
+            self.assertEqual({r["function"] for r in core._pin_provenance(root, "anim")}, {"Play"})
 
 
 if __name__ == "__main__":
