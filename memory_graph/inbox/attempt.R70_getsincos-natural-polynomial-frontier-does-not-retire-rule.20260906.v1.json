@@ -1,0 +1,40 @@
+{
+  "attempted_axis": "Full-TU scratch source controls of polynomial accumulator identity, a shared inline polynomial helper, and degree-specific intermediate locals; existing rule and production source unchanged.",
+  "attributes": {
+    "axis_log": [
+      "Original coefficient-assignment order remains a prior negative, not retried.",
+      "Accumulator identity reaches code generation and reduces14 to9 words, but is not a source-native closure.",
+      "Initializer placement and terminal commutative operand order fold away in the symmetric source.",
+      "Inlining changes caller structure/EH, so leaf count parity is insufficient for integration."
+    ],
+    "baseline": "Fresh actual-command full object matches active raw SHA256 2aeb4394280b7d8d903268ed41f52ead788c75679f1de60b7ebcf60e945d9e5e before EVERY control. fndiff --raw --count: target/current27/27, real28; wf_word_diff:14 differing words, all REGFIELD-ONLY,0 mnemonic divergence,0 relocation-symbol mismatches. fndiff --raw --datum: VALUE-EQUAL,5/5 relocations. Leaf without frame. Body SHA256 2c0e88faa957dcb31830454bf06d86473da223179decf72bc28cf32197f85dcc.",
+    "frontier": "All five complete source copies, their raw baseline/trial objects and command traces remain under ignored build/r70_particle_*.c and build/r70_control_{natural_poly,polynomial_assign,inline_poly,order_temporaries,sibling_return_order}/result.json; build/r70_source_control.py is a disposable experiment runner, not a durable tool. Literal source forms above and actual Ninja command via cv_probe permit re-derivation without those artifacts. No raw partial gain is banked into production or reblessed by a replacement pin.",
+    "law_screen": "Current gdlmem laws corpus screened, plus context getSinCos, brief game/mb/mb_particle, laws --query polynomial (0 hits), laws --query float, and full records for claim.law.SA_mwcc-canonicalises-commutative-float-operand-order-before-register-assignment.20260903.v1, claim.law.chained-init-constant-share.20260829.v1, claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1, claim.law.initialised-accumulator-pair-order-selects-register-per-pair.20260831.v1. SA predicts the terminal operand reversal's neutral result; chained same-constant initializers and callee-saved accumulator-pair laws do not apply to this leaf's distinct floating constants. Honored attempt.PP_getsincos-anonymous-pool-index-does-not-track-assignment-order.20260903.v1 by not rerunning its two-assignment swap; pool indices are not datum evidence.",
+    "neighborhood_screen": "rg -n '0.0001984127|0.008333334|0.16666667' src finds only mb_particle.c and ml_ffsincos.c. Read ml_ffsincos.c completely through its four staged polynomial branches; brief game/ps2/ml_ffsincos reports0 WebFrank pins. It is a longer polynomial and separate module, not evidence that the particle leaf must share the identical source. Its final x+x*p spelling was the neutral fourth control.",
+    "probed_form": "(1) Two symmetric accumulators: float seventh=-0.0001984127f, fifth=0.008333334f, third=-0.16666667f; retain s=(float)(1.570796327-ang), conditional ang=(float)(3.141592654-ang), s2=s*s,a2=ang*ang; st=s2*seventh;at=a2*seventh;st=fifth+st;at=fifth+at;st=s2*st;at=a2*at;st=third+st;at=third+at;st=s2*st;at=a2*at;*sinOut=s*st+s;return ang*at+ang. This gives27/27,9 words, body c126f22069246f1cb9424e1bb516f63984b010a057e2c98272d2e340d9bf22e8. (1b) Move three constant initializations into assignments after a2; body identical to1. (2) A static inline r70SinPolynomial(float x) with x2=x*x;term=x2*-0.0001984127f;term=0.008333334f+term;term=x2*term;term=-0.16666667f+term;term=x2*term;return x*term+x; invoke for s and ang. Gives27/27,16 words, body8cdc358652bee068c83c7ab97255be476fbf4a9cfb369337c075a11b6c139e1c; also changes the two cone callers and EH through inlining. (3) On1b split accumulators into degree-specific st7/st5/st3 and at7/at5/at3, using st7/at7 for the first multiply, st5/at5 for the fifth-degree sum/multiply and st3/at3 for the third-degree sum/multiply. Gives27/27,14 words, body4fc65aa0c72894fbda796d513a6a7bc30bbe36212d4aa3e740bf341de460c5ad; only allocated .text changes. (4) On1b use *sinOut=s+s*st and return ang+ang*at, as the sibling ml_ffsincos.c writes its final polynomial expression; body identical to1.",
+    "remaining": "Production still needs its original14-word register rule. The best scratch source differs at+0x40,+0x44,+0x48,+0x4c,+0x50,+0x54,+0x58,+0x5c,+0x60: interleaved Horner-chain temporary allocation, not a changed polynomial value or opcode count. Constant introduction also changes .sdata2 and anonymous relocation names in symmetric forms. No claim that all natural source, inlining context or compiler options are exhausted; the measured finite forms alone do not retire the rule.",
+    "verification": "Every scratch control required fresh complete compiler-object fidelity, inspected target27instructions and raw differing words, compared complete function roster/bodies/relocations/offsets/sizes/bindings and allocated section bytes, and asserted production source/raw object unchanged. Production getSinCos and webfrank rule have no retained edits. Session-wide final gates are recorded by the integrator checkpoint. No new postprocessor behavior."
+  },
+  "evidence": [
+    "git:923025b94",
+    "src/game/mb/mb_particle.c",
+    "src/game/ps2/ml_ffsincos.c",
+    "tools/gdl/composed_census/cv_probe.py",
+    "tools/gdl/composed_census/wf_word_diff.py"
+  ],
+  "function": "function:getSinCos",
+  "held_fixed": "At 923025b94 preserve actual Ninja stock GC/1.2.5 command, headers, all other production functions, constant values/widths, angle-fold conditions and polynomial operation sequence. Each source is a complete mb_particle.c copy, not a stand-alone microfunction. No flags or postprocessor rules varied.",
+  "id": "attempt.R70_getsincos-natural-polynomial-frontier-does-not-retire-rule.20260906.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-06T00:59:58Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-06",
+    "signature": "opcode multiset: IDENTICAL (27/27)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-06"
+}
