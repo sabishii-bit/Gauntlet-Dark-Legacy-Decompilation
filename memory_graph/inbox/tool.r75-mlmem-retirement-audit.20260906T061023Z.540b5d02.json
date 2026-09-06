@@ -1,0 +1,19 @@
+{
+  "constraints": [
+    "Manual audit only; requires archived pre-retirement full objects, source and rule snapshot; never a build transformer",
+    "Baseline binding preservation is not an independent image-wide datum or editable-link proof"
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r75_mlmem_retirement_audit.py --baseline-dir build/r75_archives/mem/r75_mem_probe_x_mv2mm9",
+  "id": "tool.r75-mlmem-retirement-audit.20260906T061023Z.540b5d02",
+  "kind": "tool",
+  "name": "r75-mlmem-retirement-audit",
+  "purpose": "Prove the source-native AllocMem32 rule retirement while preserving all sibling, data, EH and relocation bindings",
+  "recorded_at": "2026-09-06T06:10:23Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r75_mlmem_retirement_audit.py",
+  "status": "active",
+  "tool_key": "tool:r75-mlmem-retirement-audit",
+  "tool_kind": "external",
+  "usage": [],
+  "valid_from": "2026-09-06T06:10:23+00:00"
+}

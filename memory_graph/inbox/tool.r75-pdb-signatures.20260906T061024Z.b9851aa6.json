@@ -1,0 +1,19 @@
+{
+  "constraints": [
+    "Requires optional private research/xbox_symbols/shell3D.pdb or explicit positional path; never fetches or commits the PDB",
+    "Xbox type evidence is corroboration only, not GameCube authority; unmodelled forms remain explicit and missing expected procedures fail closed"
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r75_pdb_signatures.py --out build/r75_pdb_signatures_live.json",
+  "id": "tool.r75-pdb-signatures.20260906T061024Z.b9851aa6",
+  "kind": "tool",
+  "name": "r75-pdb-signatures",
+  "purpose": "Read bounded Xbox AUDIO and ML_MEM procedure signatures, scoped locals and audio layouts with raw CodeView evidence",
+  "recorded_at": "2026-09-06T06:10:24Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r75_pdb_signatures.py",
+  "status": "active",
+  "tool_key": "tool:r75-pdb-signatures",
+  "tool_kind": "external",
+  "usage": [],
+  "valid_from": "2026-09-06T06:10:24+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "limits": "Xbox names/types/scopes only; no GameCube signature retyping or source ownership automatically inferred. GC arithmetic, callers and complete target/body/relocation/data evidence remain the integrator's authority. The bounded reader is promoted with synthetic tests; unsupported CodeView types remain explicitly unmodelled. It is not a general PDB type system. No graph/git mutation or commit by worker.",
+    "other_signatures": "GetMemBase:void*(void),LF_PROCEDURE0x38b7; BytesFree:int(void),type0x12df; AllocFile:void*(const char* dir,const char* name),type0x3996; MLMReadFile:int(const char* dir,const char* name,int maxsize,unsigned int* dest),type0x3981. const-char pointer0x127f points to LF_MODIFIER0x127e whose raw0a000110700000000100f2f1 has modifier1 on primitivechar0x70. Dest is primitive0x475(pointer32 to unsigned int32). All six procedures are S_GPROC32_ST0x100b; zero locals/block records beyond listed arguments were found in each explicit endpoint-checked interval.",
+    "provenance": "Optional research/xbox_symbols/shell3D.pdb SHA256 4d5d694a9b6275b9a521f77c9c26168c7b6586d052960f8aaad14e10452c7b64. ML_MEM.OBJ DBI+0x1cd8, stream74, symbol bytes4460, symbol SHA256 02ec9ae3999748f2b310b9a99f57d698fd9e72b4e2cd0461b0ca1f35a08f1f6a. Complete signatures, locals, raw records and type bytes in build/r75_pdb_signatures_live.json, reproduced with python tools/gdl/composed_census/r75_pdb_signatures.py --out build/r75_pdb_signatures_live.json. Uses read-only r68_sound_data_recovery.pdb_streams, never imports pdb20_dump.",
+    "signed_parameter": "Shared LF_PROCEDURE0x3988 TPI stream2+0x8e5c0 raw0e000810030400000000010048180000: return0x403(void*32),calltype0,attrs0,paramcount1,arglist0x1848. LF_ARGLIST stream2+0x208bc raw0a0001120100000074000000 is one0x74 signed int32, not0x75 unsigned int32. AllocMem S_GPROC32_ST stream74+0x9d4,pEnd0xa18,code1:0x9a620,size129; amount BPREL+4 at+0xa04 raw12000610040000007400000006616d6f756e7400. AllocMem32 S_GPROC32_ST+0x10ac,pEnd0x10f0,code1:0x9af30,size49; amt BPREL+4 at+0x10e0 raw0e000610040000007400000003616d74. Each has only its parameter record then S_END inside pEnd. No additional local/block records; this does not prove original padding locals were absent."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R75_mlmem-pdb-confirms-signed-allocation-parameters.20260906.v1",
+  "kind": "claim",
+  "predicate": "cross_platform_signature_evidence",
+  "recorded_at": "2026-09-06T06:09:59Z",
+  "schema_version": 1,
+  "subject": "function:AllocMem32",
+  "valid_from": "2026-09-06",
+  "value": "Raw Xbox PDB independently confirms both AllocMem and AllocMem32 return void* and take one signed int32 parameter. Both are global procedure records referencing the same LF_PROCEDURE type0x3988. This is Xbox type evidence for the integrator's GC signed-parameter hypothesis, not proof of its source call edge or target codegen. No source or compiler variant was changed/run in this read-only pass."
+}

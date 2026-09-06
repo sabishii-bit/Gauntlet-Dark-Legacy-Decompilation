@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Recover existing AllocMem call jointly with signed callee parameter and removal of obsolete local padding",
+  "attributes": {
+    "artifacts": "Root archive build/r75_archives/mem includes r75_mem_probe_ycwqekrh, r75_mem_probe_x_mv2mm9, r75_mem_probe_9ropud9e and r75_mem_probe_6muvu7m8; each holds exact sources, objects, compiler traces and full inventories. Replay retirement: python tools/gdl/composed_census/r75_mlmem_retirement_audit.py --baseline-dir build/r75_archives/mem/r75_mem_probe_x_mv2mm9. This is a manual audit, never a production build transformer.",
+    "baseline": "At bc538a723: target/raw56/56, frame40/40, eight raw differing words. Raw size total is r30 versus target r29; raw allocated result r29 versus target r30; pad r31 on both. Complete target/raw aligned view read, all56 instructions. Existing processed function real0 with pool-name normalization.",
+    "best": "Raw56/56, frame40/40, zero differing words; AllocMem itself and all25 raw siblings unchanged; all nontext/symbol/relocation/EH facts equal; full processed allocated object unchanged. Exactly one AllocMem32 rule removed,224 function bytes retired from WebFrank. AllocFile remains pinned.",
+    "law_screen": "Screened complete current law roster and ml_mem briefing. Applied claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1; screened claim.law.CT_a-saved-parameter-numbers-below-the-locals-until-you-give-it-a-declared-copy.20260903.v1 and claim.law.int-vs-signed-long-extern-reorders-schedule.20260831.v1, separating parameter origin from signedness. The legacy AllocMem32 park had no literal probed_form; existing-helper call plus independently corroborated signature and compensating pad is a new axis, not a repeat of a recorded declaration permutation. Pin freeze honored via private full-TU objects before guarded retirement. Pool-value, reloc binding and EH invariants checked separately from body scores.",
+    "laws_applied": [
+      "claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1"
+    ],
+    "mechanism": "The unsigned inlined parameter separates caller size from callee size: +0x24 add r3,r3,r31 then +0x40 addi r29,r3,0. Matching signed parameter types coalesces that handoff into target +0x24 add r29,r3,r31. Inlining supplies frame reservation that makes the old8-byte pad surplus. This is a measured output mechanism; the internal IR implementation is inferred, not reverse-engineered. Source-unreachability of this function is disproved by the retained stock-compiler counterexample.",
+    "probed_form": "Existing AllocMem(u32 size) changed to AllocMem(int size). In AllocMem32 remove u8 unused[8]; replace duplicated tail starting if(mlmMemReserved...) through allocator result with result = AllocMem(size); retain return (u8*)result + pad;. Three-variable joint necessity within this finite experiment: call with old unsigned callee gives56/57, extra +0x40 addi r29,r3,0 and frame48 with pad/frame40 without; signed call WITH pad gives56/56 and five frame-only words; signed call WITHOUT pad gives56/56 zero raw words. Direct return instead of named result with unsigned callee still57. A declared int total = size + pad in the flattened source, first or last local, gives57. Unsigned int callee remains57 too, distinguishing signedness from int-versus-long width identity.",
+    "sibling_screen": "rg -n '\\bAllocMem\\(' include src finds calls/declarations in world,items,gauntworld,dynobjgrid,adstream,player,atree,mempool,mb_font,mb_particle,mb_tree,mb_model and psfx. Existing declarations mix int,s32,u32,K&R; GC GPR-width/call ABI stays32-bit and the compiled public callee bytes remain identical. Cross-TU prototype harmonization is deferred to separately claimed/gated passes, not silently folded into this retirement. AllocFile contains another duplicated allocation block; its helper/schedule controls are recorded separately.",
+    "type_evidence": "Independent raw Xbox PDB AllocMem/AllocMem32 share LF_PROCEDURE0x3988 and LF_ARGLIST0x1848 sole type0x74 signed int32. See claim.R75_mlmem-pdb-confirms-signed-allocation-parameters.20260906.v1. PDB is corroboration, not GC authority; GC AllocMem body is unchanged by retyping and AllocMem32 becomes exact.",
+    "verification": "Fresh actual-Ninja old/current complete raw-object fidelity PASS; r75_mlmem_retirement_audit PASS; fndiff --clean MATCH with pool-name-only rows; --ops56/56 identical; full ninja main.dol: OK; focused adversarial audit tests pass. Full tool/graph suites recorded at integration. No new rule, guard change, manual machine words, or source offset trick retained."
+  },
+  "function": "function:AllocMem32",
+  "held_fixed": "Actual stock GC/1.2.5 Ninja flags, all headers/globals, allocation checks, alignment and failure behavior, all other function sources except the signedness of AllocMem's existing parameter; no compiler patch or guard changes.",
+  "id": "attempt.R75_allocmem32-signed-callee-inline-retires-register-rule.20260906.v1",
+  "kind": "attempt",
+  "outcome": "exact",
+  "recorded_at": "2026-09-06T06:10:05Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.allocmem32.20260829.v1",
+  "valid_from": "2026-09-06"
+}

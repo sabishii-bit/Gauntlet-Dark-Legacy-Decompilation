@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Existing helper boundaries, call-expression value placement, type evidence and joint deferred inlining",
+  "attributes": {
+    "axis_log": "Prior PP cap retained: swapping dest/avail defining statements regresses the scheduling window; not rerun. R75 signed AllocMem correction elsewhere leaves AllocFile's complete raw body unchanged.",
+    "deferred_control": "Three fresh joint controls with -inline deferred: unchanged source98/98,8 words; MLMReadFile recovery98/98,13 words; GetMemBase plus read-helper98/98,28 words. All change nontext/metadata and raw StartFileRead,serve_io,FileMap,xReadFileSection as well as AllocFile. Baseline/control demonstrates option sensitivity rather than assuming the pragma map allows it. No option is retained; these finite fixed/new-source combinations do not establish source-unreachability or original compiler identity.",
+    "diagnosis": "Full98-word aligned raw view reproduces target +0x68 subf r25,r7,r0; +0x6c addi r6,r29,0; +0x70 addi r5,r25,0. Raw swaps only the latter copies; frame56/56. The prior latency-hiding explanation is plausible, not proof that every source form fails.",
+    "law_screen": "Complete law roster and AllocFile context screened. Prior PP diagnosis re-derived first; its swapped-statement axis is vetoed. Existing-helper and inlined-frame laws applied as hypotheses; signedness/type-node laws guided controls, and PDB const-char/input-pointer signatures are corroboration only. Whole-TU fidelity, pool metadata, source order and sibling preservation remain required gates. The older broad CV compiler-unreachability assertion is not adopted.",
+    "next_discriminant": "An independently supported original helper body/type or inlining boundary that changes parameter-copy scheduling while preserving the full TU. Tested direct helper calls/types/argument-assignment/deferred combinations are capped; do not repeat their isolated forms. No evidence here justifies changing xReadFileSection argument order, adding padding/unused calls to influence scheduling, or weakening the existing permutation guard.",
+    "probed_form": "Replace initial reservation guard and dest arithmetic by dest = GetMemBase(); gives98/98,26 raw words; moving dest declaration first leaves26. Replace avail assignment by avail = BytesFree(); gives98/99,73 words; combine both helpers gives98/98,26. Replace xReadFileSection plus overflow diagnostic by existing MLMReadFile call with a normal forward declaration gives98/82,73 words (no deferred inline); combine GetMemBase gives98/91,83. read = xReadFileSection(wad,name,avail = mlmMemLimit - mlmMemUsed,dest); is complete-object identical. Moving dest assignment into argument4 gives98/98,9 words. Declaring dest as unsigned int*,int*,u8* with the corresponding cast changes no raw bytes; const char* AllocFile args plus matching xReadFileSection prototype/definition likewise complete-object identical. All literal sources/objects retained in archive.",
+    "verification": "All scratch baselines reproduced complete original raw object byte-for-byte using actual Ninja edge. No source change retained in AllocFile; its existing rule still replays under fresh full ninja main.dol: OK. Current raw98/98 remains2 words while processed real0. Artifacts in build/r75_archives/mem, four named r75_mem_probe directories cited in the paired AllocMem32 record."
+  },
+  "function": "function:AllocFile",
+  "held_fixed": "Complete actual-Ninja stock GC/1.2.5 TU and headers; main flags except explicitly labelled deferred controls. All original failure/overflow tests, call argument order, memory offsets and public function order held fixed. No unsuccessful source or option change retained.",
+  "id": "attempt.R75_allocfile-helper-boundary-and-deferred-controls-remain-two-word-schedule.20260906.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-06T06:10:07Z",
+  "residual": {
+    "family": "schedule-window",
+    "measured_at": "2026-09-06",
+    "signature": "98/98 insns, 2 differing words: +0x6c/+0x70 exchange addi argument copies"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.PP_allocfile-argument-copy-pair-is-latency-hiding-not-statement-order.20260903.v1",
+  "valid_from": "2026-09-06"
+}

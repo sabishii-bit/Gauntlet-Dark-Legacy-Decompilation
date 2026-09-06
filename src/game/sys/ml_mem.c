@@ -437,7 +437,7 @@ void* GetMemBase(void)
     return mlmMemBase + (mlmMemUsed / 4) * 4;
 }
 
-void* AllocMem(u32 size)
+void* AllocMem(int size)
 {
     void* result;
 
@@ -460,7 +460,6 @@ void* AllocMem(u32 size)
 
 void* AllocMem32(int size)
 {
-    u8 unused[8];
     u32 aligned;
     int pad;
     void* result;
@@ -471,20 +470,7 @@ void* AllocMem32(int size)
     if (mlmMemLimit - mlmMemUsed < size) {
         return NULL;
     }
-    if (mlmMemReserved != 0) {
-        gErrorCode = 0xa0a000;
-        FatalErrorf("AllocMem() called while mem reserved");
-    }
-    if (size & 0xf) {
-        size += 0x10 - (size & 0xf);
-    }
-    result = mlmMemBase + (mlmMemUsed / 4) * 4;
-    mlmMemUsed += size;
-    if (mlmMemUsed > mlmMemLimit) {
-        gErrorCode = 0xc0c000;
-        FatalErrorf("AllocMem failed: %d bytes, exceeds free by %d bytes",
-                    size, mlmMemUsed - mlmMemLimit);
-    }
+    result = AllocMem(size);
     return (u8*)result + pad;
 }
 
