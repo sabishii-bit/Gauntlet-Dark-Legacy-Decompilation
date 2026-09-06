@@ -1,0 +1,43 @@
+{
+  "attributes": {
+    "all_source": "build/r67_runtime_r69_final_allsource.json, complete uncapped linker output:1 duplicate optglobals,6 undefined diagnostics across4 names:lbl_80117648/lbl_80117654 movie RTTI names;lbl_801201D8/lbl_801201E8 player color arrays. Trial exit1. No dummy definitions, aliases or forceactive changes used.",
+    "combat_bss_ownership": "Root claimed complete eight-name .bss [80240560,802407B8),600bytes. Target original extents and current named owners reconcile; source still emits596B .bss plus4B .sbss in different allocation order. Raw function/section/EH comparison against post-vector baseline is unchanged; eight selected-source duplicate definitions are gone. This is ownership only, NOT source-layout equality, relative-address safety in arbitrary mixed source/extracted callers, or a runtime certificate. No combat .data claim: all63 generated pointers map to four discontiguous target tables with nonexact case offsets.",
+    "evidence": [
+      "src/game/world/camera.c",
+      "src/game/game/combat.c",
+      "src/game/game/controls.c",
+      "config/GUNE5D/splits.txt",
+      "tools/gdl/composed_census/r69_camera_argument_control.py",
+      "tools/gdl/composed_census/r69_combat_vector_recovery.py",
+      "tools/gdl/composed_census/r69_combat_bss_audit.py",
+      "tools/gdl/composed_census/r69_options_shared_state_audit.py",
+      "tools/gdl/composed_census/r69_controls_shared_state.py",
+      "tools/gdl/composed_census/r67_runtime_allsource_probe.py"
+    ],
+    "integration": "Separate codex/reconstruction-foundation branch only; main remains d76899a8894c2a7863607f90a026474b094d874f. Reviewed proposals remain in feature inbox pending authorized main promotion. Worker evidence copied into root build before worktree removal. This checkpoint closes the bounded R69 wave, not the larger project's healing campaign.",
+    "joint_link": "build/r67_runtime_r69_nine_tus.json: shop,mb_particle,sfx,select,btext,tower,camera,controls,combat selected source full-image trial exit0. Trial ELF478256f4cd5f335047f70805a1803312f41f7771c648b8aa1def3e1a8d1f4095; unchanged actual-input control ELF89757ebb80314b9cc246308db942815a1f28f7156c6f72ce947c42388b7834ef. Protected inputs/outputs unchanged. Auto data and other extracted code remain; this is not a boot test.",
+    "law_screen": "Current corpus, per-TU contexts, source pins and tool constraints screened throughout. Applied named-target-base and split-padding laws with direct evidence. No codegen source-unreachability assertion, no new compiler/flags/postprocessor rule. Source/layout/ABI hypotheses remain distinguishable from fixed-source negative controls.",
+    "metrics_scope": "Aggregate matched code remains770892/1071824 and source-linked coverage40.23%; report scores are not raw byte/relocation certification. Newly assigned imperfect data can change fuzzy/denominators without a compiler-body regression. Use build_provenance.json for stock/derived/postprocessed/extracted categories, not combined matched percentage as proof.",
+    "new_boundaries": "Controls retail users share CTL at80240E30, but source controls has private pooled state while foreign users refer to separately extracted public allocation. Options source160B aggregate conflicts with four reconstructed target fragments; the preference interior has26 named relocations in six foreign TUs. Three natural options member/pointer controls regressed already exact functions and were reverted. These tests do not prove compiler unreachability or original aggregate/linkage; a coordinated data/header/TU reconstruction is needed before ownership can be called closed.",
+    "next_deciding_work": "Repair complete type/ABI/data ownership context, then re-test existing pins against fresh raw compiler output in isolated controls. Retire a rule only after source-produced bytes and relocations are exact and TU/data/EH/default/editable checks pass. Current findings justify this direction but do not establish that all postprocessing is avoidable. First unresolved implementation groups: player color arrays, movie RTTI/class declarations, options shared preferences and controls shared CTL.",
+    "proof_review": "Camera argument certificate now requires both target/raw provider witnesses. Controls strict exactness refuses terminal slack. Combat datum proof binds the full128B manually reviewed retail setup/consumer interval, not merely3selected instructions; it is explicitly a fixed witness, not a general CFG proof. Options census now uses fresh active build manifest, not directory glob: root had2313 on-disk objects versus351 then-active entries,1962 stale extras. Final root census selects352 after combat ownership, preserves27functions/7sections/838relocations and excludes stale artifacts.",
+    "source_retained": "Camera missing DiffRate index argument naturally changes4words, reproduces target[+2A4,+2E0), preserves682/682 instruction count and208B frame, real156 to150 and fresh fuzzy97.5645 to97.8724 in worker. Whole22-function control isolates that change from21 siblings/data/EH. Combat launch vector is f32[3]{0,-0.5,-1.25}; every one of46 raw functions/relocations/EH unchanged, only exact12B appended after252B compiler .data. Btext small-state order and controls full17-object small-state linkage/order were retained with every raw function preserved. No TU was flipped in this wave.",
+    "verification": [
+      "python tools/gdl/composed_census/r69_camera_argument_control.py --before build/r69_camera_import_after.json --out build/r69_camera_argument_root.json: PASS",
+      "python tools/gdl/composed_census/r69_controls_ownership_audit.py --before build/r69_controls_before.json --require-exact --out build/r69_controls_claimed_hardened.json: MEASURED EXACT,76/76,no slack",
+      "python tools/gdl/composed_census/r69_combat_vector_recovery.py --before build/r69_combat_vector_before.json --out build/r69_combat_vector_final_root.json: PASS,raw changes empty",
+      "python tools/gdl/composed_census/r69_combat_bss_audit.py --before build/r69_combat_bss_with_vector.json --out build/r69_combat_bss_claimed.json: PASS,layout_equal=false,duplicates=[]",
+      "python tools/gdl/composed_census/r69_options_shared_state_audit.py --before build/r69_options_before.json --out build/r69_options_shared_state_root.json: INVENTORIED,full raw restoration PASS",
+      "Default configure.py and ninja -j2 after editable trials print main.dol: OK; provenance PASS"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R69_healing-wave-closes-link-identity-defects-but-does-not-retire-postprocessing.20260906.v1",
+  "kind": "claim",
+  "predicate": "reconstruction_campaign_checkpoint",
+  "recorded_at": "2026-09-06T00:18:39Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-06",
+  "value": "R69 advances source reconstruction and editable linkage, but removes zero WebFrank rules. Missing camera-index ABI information was an actual cause of wrong register use and instruction order: adding the target-supported argument makes the current stock compiler produce the exact local target block. Combat's missing real launch vector and source-data ownership were separate reconstruction defects, not compiler limitations. Nine selected source TUs now link together without editable-mode postprocessing; all-configured-source linkage still fails and shared-runtime-state correctness is not proved."
+}

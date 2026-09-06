@@ -273,7 +273,7 @@ extern Player gPlayers[4];
 extern char  lbl_80346D08[5];
 extern char  lbl_80346D10[7];
 extern s32   gDemoMode;
-extern char  sObjectsFile[];
+extern char  sObjectsFile_80112AB8[];
 extern void  AtreeDelete(void* atree);
 extern void  MBRemoveNode(void* node, s32 mode);
 extern void  MBTreeSetFlags(void* node, s32 flags, s32 value);
@@ -3303,7 +3303,7 @@ void fn_8005B5B8(void)
     u32 level_flags[14];
     char name[32];
     f32 matrix[16];
-    char* strings = sObjectsFile;
+    char* strings = sObjectsFile_80112AB8;
     s32 player;
     s32 level;
     Item* item;
@@ -3996,7 +3996,7 @@ extern void* AtreeInit(void* hdr, void* atree, s32 a, s32 flags);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern s32   AnimateATree(void* atree, s32 action, s32 mode);
 extern void  MBRemoveNode(void* node, s32 mode);
-extern void* AtreeMatchAnyHeader(char* name, s32 mode);
+extern void* AtreeMatchAnyHeader_800674F4(char* name, s32 mode);
 extern void  fn_8009190C(OBJGRP* grp, s32 evt);
 extern s32   gNextItemIdx;
 /* gWorldInfo: game/worldinfo.h (WorldInfo, 0x8028CA8C, size 0xA4) */
@@ -4006,7 +4006,7 @@ extern const char lbl_80346F20[8];   /* sdata2 string, size 0x8     */
 extern const char lbl_80346F28[8];   /* sdata2 string, size 0x8     */
 extern const char lbl_80346F34[5];   /* "%s_D", sdata2 size 0x5     */
 extern char  lbl_802583A8[];     /* scratch name buffer          */
-extern char  sObjectsFile[];     /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
+extern char  sObjectsFile_80112AB8[]; /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
 
 f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner);
 extern Enemy gEnemies[25]; /* game/enemy.h; stride 0x394 */
@@ -4015,7 +4015,7 @@ extern Enemy gEnemies[25]; /* game/enemy.h; stride 0x394 */
  * atree to a treasure/food model, retarget generators, pop doors/walls). */
 void fn_8005BA1C(Item* item, u8* player)
 {
-    char* objects = sObjectsFile;
+    char* objects = sObjectsFile_80112AB8;
     s32 evt = -1;                                 /* r25: fx event         */
     s32 msg = -1;                                 /* r24: message code     */
     iteminfo* info = item->info;
@@ -4259,7 +4259,7 @@ found_silver:
                 break;
             }
             sprintf(lbl_802583A8, lbl_80346F34, (char*)info + 0x28);
-            hdr = AtreeMatchAnyHeader(lbl_802583A8, 0);
+            hdr = AtreeMatchAnyHeader_800674F4(lbl_802583A8, 0);
             if (hdr != 0) {
                 if (*(u32*)&item->atree[0] != 0) {
                     AtreeDelete(item->atree);
@@ -4855,7 +4855,7 @@ extern void  AudioGeneratorDies(f32* pos, s32 gen);
 extern void  AudioGeneratorDamaged(f32* pos, s32 gen);
 extern void  StartGenHitFx(OBJGRP* grp, s32 gen, s32 off);
 extern s32   fn_80094440(f32* pos, u32 flags, s32 destroyed);
-extern void  AddItemWobj(Item* item);
+extern void  AddItemWobj_80063DB0(Item* item);
 extern s32   Round(f32 value);
 extern s32   stricmp(const char* a, const char* b);
 extern char* strcat(char* dst, const char* src);
@@ -4889,7 +4889,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
     s32 ret;                                  /* remaining health / code  */
     iteminfo* info = item->info;
     s32* sub = (s32*)((u8*)info + 4);
-    char* objects = sObjectsFile;
+    char* objects = sObjectsFile_80112AB8;
     char buf[0x24];
     f32 v[4];
     void* hdr;
@@ -5189,7 +5189,7 @@ found_gen:
                             (s8)item->data[6]);
                 }
             }
-            hdr = AtreeMatchAnyHeader(buf, 1);
+            hdr = AtreeMatchAnyHeader_800674F4(buf, 1);
             if (hdr != 0) {
                 if (*(u32*)&item->atree[0] != 0) {
                     AtreeDelete(item->atree);
@@ -5306,7 +5306,7 @@ found_gen:
             break;
         case 0x29:
             if (*(s16*)&item->data[2] >= 0) {
-                AddItemWobj(item);
+                AddItemWobj_80063DB0(item);
                 destroyed = 0;
             }
             break;
@@ -6092,7 +6092,7 @@ extern s32 generate_enemy(f32* pos, s32 kind, s32 a, f32* dir, s32 b, s32 c,
 extern void fn_80060114(Item* item, f32* pos, f32* dir);
 extern void fn_80062A00(void);
 extern s32   RandInt(s32 range);
-extern void  place_logic12_800631AC(u8* data);
+extern void  place_logic12_800631AC(s8* data, s32 enemy_index);
 extern s32   did_generate(void* owner, s32 checkEnemies);
 extern void  add_target(void* id);
 extern void  del_target(void* id);
@@ -6637,7 +6637,7 @@ void fn_800606FC(void)
                     *(f32*)(e + 0x244) = *(f32*)(e + 0x24C);
                     *(f32*)(e + 0x248) = sItemZero;
                     if ((s8)gen[7] == 0xC) {
-                        place_logic12_800631AC(gen);
+                        place_logic12_800631AC((s8*)gen, slot);
                         break;
                     }
                     if ((s8)gen[7] == 0xD) {

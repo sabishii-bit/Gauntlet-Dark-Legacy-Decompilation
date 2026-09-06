@@ -106,16 +106,18 @@ objdiff, and make sure the linked DOL still passes the configured hash check.
 Please keep commits focused and avoid mixing unrelated cleanup with decompilation
 work.
 
-To link non-matching code for testing (final hash will not match):
+To build editable versions of the source-linked units (final hash will not match):
 
 ```sh
 python configure.py --non-matching
 ninja
 ```
 
-This mode links raw compiler output. It deliberately bypasses Frank, WebFrank,
-P6Frank, and every other retail-target/hash-dependent object rewrite so edited
-source remains usable as a normal mod build.
+This mode bypasses Frank, WebFrank, P6Frank and the retail-layout exception
+runtime fixups. It does **not** promote `Object(NonMatching, ...)` units to the
+link: their extracted objects remain selected. An edit in one of those source
+files can compile successfully without appearing in the game. Consult the
+provenance manifest's `linked_object`/`linkage`, not just a successful build.
 
 One target-independent ELF visibility fixup runs in both build modes for
 `game/anim/atree.c`: GC 1.2.5 needs four cross-TU state objects to retain
@@ -133,33 +135,50 @@ python configure.py progress
 
 ### Postprocessing, and how progress is reported
 
-Most objects are compared exactly as the compiler emitted them. A minority
-are rewritten first by the project's fail-closed Frank / WebFrank / P6Frank
-harness, which is why `configure.py progress` ends with a line of this
-shape:
+The normal build mixes source-built objects with extracted target objects for
+unfinished units. A green DOL checksum verifies that mixed build, not a complete
+source reconstruction. Its linked-source coverage is separate from objdiff's
+matching score.
 
-```text
-Postprocessor split: STRICT matched NN.NN% (N fns, compiler output byte-identical)
-  + EQUIVALENT N.NN% (N fns, WebFrank-assisted: individually declared
-  compiler-variance proofs; see config/GUNE5D/webfrank.json)
+Inspect build provenance and fresh diagnostic reports after `ninja`:
+
+```sh
+python tools/gdl/build_provenance.py --out build/GUNE5D/build_provenance.json
+python tools/gdl/reconstruction_preflight.py --smoke-tools
 ```
 
-The two halves mean different things and are not interchangeable:
+Provenance distinguishes stock/derived compiler output, postprocessor rule
+classes (including manual exceptions), and the actual source/fallback link
+selection. These dimensions overlap and must not be added as percentages.
+GC 1.2.5n and experimental 1.2.5s are derived compilers, even when their object
+is linked without a subsequent instruction rewrite. Hashes identify artifacts;
+they do not prove source semantics or historical compiler provenance.
 
-- **STRICT** — the compiler's own output is byte-identical to the retail
-  target. Nothing was rewritten.
-- **EQUIVALENT** — the object matches after a postprocessor rule that is
-  machine-proven equivalent under the rule's declared register-allocation,
-  scheduling or narrow value-equality proof. The rule closes the residual;
-  it does not establish that every possible source form has been exhausted.
+The former STRICT/EQUIVALENT progress split overstated what it measured: it
+used lenient relocation scoring and subtracted only WebFrank functions, not
+P6. Current reporting labels that scope instead of calling the remainder
+compiler-output byte identity. A proven postprocessor rule establishes its
+declared transformation, not exhaustive failure of every possible source form.
 
-`AGENTS.md` requires that both halves always be published together:
-"Progress reporting always publishes the STRICT/EQUIVALENT split; never
-quote the combined matched% alone in a record or report." A single
-"matched %" figure taken from the first `All:` line is the combined
-number and must not be quoted on its own.
+The preflight produces fresh normal and stricter relocation reports without
+changing production scoring. Its PASS means the requested diagnostics executed
+and their populations/inputs agree, **not** that the source is complete or all
+relocations are correct. Demotions remain `UNRESOLVED` pending datum, addend,
+width and operand-position review; a datum multiset alone misses transpositions.
+Logs and hashes live beside its JSON in a unique generated `build/` directory.
 
-STRICT describes emitted bytes, not proof that the original source has been
+To adjudicate the source-linked subset against actual linked function bytes:
+
+```sh
+python tools/gdl/composed_census/r67_linked_shadow_audit.py --preflight build/GUNE5D/reconstruction_preflight.json
+```
+
+This checks complete function bytes in the ELF, built DOL and retail DOL at the
+target address and size. It does not clear the unlinked subset or certify raw
+compiler output. In the initial audit, all 17 linked demotions were exact after
+linking; the other 359 remained unresolved.
+
+Matching emitted bytes also does not prove that original source has been
 recovered. In `world.c`, `StartWorldLoad` and `LoadWorldDone` use the
 user-approved (2026-09-04) `WorldNameRef` compatibility wrapper: an ordinary
 one-pointer local struct that changes MWCC's register allocation. It is
@@ -182,12 +201,107 @@ snapshots under hardware exceptions or debugging. Regression tests are in
 `tools/gdl/tests/test_address_fold.py`; the source-exhaustion and census
 records are searchable with `gdlmem.py context do_enemy_move`.
 
-This does not make modders' edits depend on matching those hashes.
-`python configure.py --non-matching` bypasses all target-bound postprocessors
-and compiles the editable source directly. The matching build intentionally
-refuses a changed pinned body. The user-approved weak square-root helper in
+`python configure.py --non-matching` bypasses the target-bound object pipelines,
+so their rules do not require modders' edits to preserve input hashes. The
+matching build intentionally refuses changed pinned bodies. Its exception
+runtime compatibility stage removes a weak function and rewrites string/data
+layout, relocations and exception records; it is not merely metadata cleanup
+or a proven historical compiler requirement. Both raw runtime objects are now
+retained under `.postprocess/body/`, and separate `fix_exception_object` edges
+produce the hash-guarded matching objects without modifying their inputs.
+
+The prior in-place fixup could silently replace an edited `exception::what()`
+string with the retail literal. It is now disabled in editable builds. A real
+source edit to `"MODIFIED!"` survived into the resolved returned string in both
+the linked ELF and DOL; switching that edited source to matching mode refused,
+and restoring the source returned the matching DOL to its verified checksum.
+`tools/gdl/composed_census/r67_runtime_verify.py --mode matching` checks the
+retained raw/fixed boundary. With the deliberate source edit and an editable
+build, use `--mode editable --expect-string MODIFIED!` instead. These are
+compile/link tests, not console boot or gameplay tests. Target-independent
+atree symbol export/rename processing remains enabled in both modes.
+
+The embedded static-asset payload has a separate extraction hazard: words in
+serialized asset data can resemble native addresses, causing DTK to infer
+relocations which corrupt the payload when an editable build moves symbols.
+The split configuration now suppresses the 58 remaining inferred relocations
+in the verified `0x80129734..0x80238290` range. Before this correction, even an
+unchanged-source editable build changed 43 payload bytes; after it, the entire
+1,108,828-byte range stays exact in both matching and shifted editable builds.
+This corrects extraction metadata, not compiled instructions. Verify with:
+
+```sh
+python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/GUNE5D/asset_audit.json
+```
+
+The audit is deliberately limited to that hash-identified payload. It does
+not suppress real pointers elsewhere or claim the game has been boot-tested.
+
+The user-approved weak square-root helper in
 `enemy.c` remains explicitly documented compatibility scaffolding, not a
 claim of recovered header provenance.
+
+### Reconstruction priorities from the R67 investigation
+
+The measured next milestone is **linking every configured source TU**, followed
+by exact code, data, relocations and exception metadata. It is not another
+fuzzy-score threshold. The ordinary editable build still links extracted
+objects for unfinished TUs. To expose the actual source-link failures without
+changing production link inputs:
+
+```sh
+python configure.py --non-matching
+ninja -j2
+ninja -j2 all_source
+python tools/gdl/composed_census/r67_runtime_allsource_probe.py
+python configure.py
+ninja -j2
+```
+
+The probe first reproduces the normal ELF exactly, then substitutes all
+configured source objects in a scratch link. Its `PASS` means the experiment
+ran faithfully, not that the trial linked. Initially, replacing 42 unfinished
+objects exposed duplicate data definitions and unresolved public symbols,
+while retaining 84 explicitly counted automatic data/BSS inputs. The linker
+stopped at its diagnostic cap: counts are lower bounds, and removing early
+errors can reveal new names without indicating a regression.
+
+The recommended order is:
+
+1. Repair genuine cross-TU visibility/name disagreements and reconcile each
+   source datum with its extracted owner. Keep pointer-bearing RTTI, exception
+   data and serialized assets distinct. Do not force the link with missing
+   function stubs, duplicate-tolerant flags or invented symbol aliases.
+2. Reconstruct complete TU context: initialized tables, literal and BSS pools,
+   prototypes, data visibility, source order and pragma boundaries. Use target
+   bytes and callers as authority; Xbox types are corroboration. Test proposed
+   TU merges rather than treating a shared pool address as proof of one TU.
+3. Run compiler/flag controls against a byte-identical fresh raw baseline.
+   Measure whole-TU effects and pragma overrides, not just the nearest function
+   score. A finite failed matrix is not evidence that no source form exists.
+4. Revisit guarded postprocessor cases only after those obligations are
+   controlled. Keep raw compiler results, transformed matching results and
+   editable-build behavior separately visible. A proven transformation does
+   not prove the transformation is necessary.
+
+Two experiments explain that ordering. Stock GC 1.2.5 emits the exact
+372-byte `AudioStreamPlay` instruction body under a diagnostic local wrapper,
+restored literal prefix and compensated existing pad. This proves that body
+shape is reachable, **not** that the artificial source is acceptable or its
+TU is matched; none of that scaffolding was retained. Separately, merging
+`sounds_evt` and `sounds` preserves all 151 raw bodies without closing their
+residuals. Five independent sound arrays reconstruct 340 data bytes and 32
+pointer bindings at retail bases, and normal compiler data pooling can retain
+their unreferenced filename table. Missing data context is a demonstrated
+lead; the exact original GC grouping and production placement remain open.
+
+Reproduce those bounded experiments with
+`r67_audio_context_probe.py --flags`, `r67_audio_effective_string_audit.py`,
+and `r67_sound_boundary_probe.py` under `tools/gdl/composed_census/`.
+Detailed findings, negative controls, scope limits and next hypotheses are
+structured memory-graph records, not this overview.
+
+### Postprocessor policy boundaries
 
 Three constraints govern the harness itself, quoted from `AGENTS.md`:
 

@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "integrator": "codex-r67-root",
+    "owned_units": [
+      "configure.py",
+      "tools/project.py",
+      "tools/fix_exception_objects.py",
+      "src/game/mb/mb_blit.c"
+    ],
+    "scope": "Implement separate raw and matching-fixed exception-runtime object edges; bypass target-layout rewriting in editable builds; test mode transitions and source edit preservation. Diagnose all-configured-source linkage; restore public mbInitBlitEntry/mbBlitProject/mbBlitSetupVerts visibility after full-TU raw body/relocation-preservation control. Own named files plus r67_runtime-prefixed added tests and promoted diagnostics, not existing provenance/CE/preflight tools."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "function:what__Q23std9exceptionCFv",
+  "id": "work_claim.R67-runtime.20260905.v1",
+  "kind": "work_claim",
+  "owner": "r67_runtime",
+  "recorded_at": "2026-09-05T20:33:49Z",
+  "schema_version": 1,
+  "state": "done",
+  "released_at": "2026-09-05T21:23:52Z",
+  "valid_from": "2026-09-05"
+}

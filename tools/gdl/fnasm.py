@@ -36,9 +36,9 @@ p6frank.json.  A pinned function's postprocessed body is byte-identical to
 the target by construction, so `--ours`/`--diff` on one compares the target
 against a copy of itself and prints an all-`=` view that looks like a perfect
 match and says nothing about the compiler's actual output.  --raw reads the
-pre-postprocess object instead (.postprocess/frank/<unit>.o when a Frank
-profile stage runs, else .postprocess/body/<unit>.o) — that is the stream a
-source edit can move.  Whenever the postprocessed view is used on a pinned
+active compiler-stage object, before Frank and other postprocessing. The
+hash-bound generated graph decides its path, never an old file's existence.
+Whenever the postprocessed view is used on a pinned
 function, a PINNED banner is printed naming the rule and pointing at --raw.
 
 OBJDUMP is resolved to an absolute path so this works from any cwd/script.
@@ -55,7 +55,7 @@ import fndiff  # noqa: E402  (stale-object marker: one owner, one spelling)
 
 VERSION = "GUNE5D"
 ROOT = Path(__file__).resolve().parents[2]
-OBJDUMP = ROOT / "build" / "binutils" / "powerpc-eabi-objdump.exe"
+OBJDUMP = fndiff.objdump_path(ROOT)
 
 
 def pinned_functions(unit, *, root=None):
@@ -101,16 +101,10 @@ def pin_warning(unit, fn, kind, *, root=None):
 
 
 def raw_obj_path(unit, *, root=None):
-    """Pre-postprocess compiler object for `unit`, or None if not staged."""
-    root = Path(root) if root is not None else ROOT
-    src = root / "build" / VERSION / "src" / f"{unit}.o"
-    # frank runs before the object postprocessor when both are configured,
-    # so its output is the postprocessor's actual input.
-    for stage in ("frank", "body"):
-        cand = src.parent / ".postprocess" / stage / src.name
-        if cand.exists():
-            return cand
-    return None
+    """Current compiler object, including plain TUs; refuse unknown graphs."""
+    from raw_object import resolve_object
+    return resolve_object(unit, root=root if root is not None else ROOT,
+                          version=VERSION).path
 
 
 def main():
@@ -172,13 +166,10 @@ def parse_fn(unit, fn, *, ours, raw=False):
     kind = "src" if ours else "obj"
     obj = Path(f"build/{VERSION}/{kind}/{unit}.o")
     if ours and raw:
-        pre = raw_obj_path(unit)
-        if pre is None:
-            return [], [], (
-                f"--raw: {unit} has no .postprocess stage — it is not "
-                f"WebFrank/P6Frank postprocessed, so build/{VERSION}/src/"
-                f"{unit}.o IS the raw compiler output; drop --raw")
-        obj = pre
+        try:
+            obj = raw_obj_path(unit)
+        except ValueError as error:
+            return [], [], f"RAW OBJECT UNRESOLVED: {error}; run configure.py and ninja"
     if not obj.exists() and not ours:
         # dtk merges runs of tiny fns into auto_03_* objects and names auto
         # units after their first fn; try the common variants before giving up

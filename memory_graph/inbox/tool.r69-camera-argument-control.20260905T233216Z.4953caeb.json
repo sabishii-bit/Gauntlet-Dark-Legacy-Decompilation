@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Fresh actual-Ninja whole-object fidelity required. Explicit four-word repair, exact target argument block, direct-CFG entry-r3 preservation and exact two allowed relocation changes; other body/data/EH/symbol/layout differences fail.",
+    "Diagnostic only: not a general equivalence proof, compiler patch, runtime transform, historical prototype or full-source link proof. Unknown control-flow/operand forms refuse. Existing old snapshot required for before evidence."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r69_camera_argument_control.py",
+  "id": "tool.r69-camera-argument-control.20260905T233216Z.4953caeb",
+  "kind": "tool",
+  "name": "r69-camera-argument-control",
+  "purpose": "Bounded DiffRate entry-camera-index preservation and isolated target instruction recovery certificate",
+  "recorded_at": "2026-09-05T23:32:16Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r69_camera_argument_control.py",
+  "status": "active",
+  "tool_key": "tool:r69-camera-argument-control",
+  "tool_kind": "analysis",
+  "usage": [
+    "--before build/r69_camera_import_after.json --out build/r69_camera_argument_after.json after fresh camera raw build; before is the names-only checkpoint prior to DiffRate repair."
+  ],
+  "valid_from": "2026-09-05T23:32:16+00:00"
+}

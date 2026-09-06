@@ -1,0 +1,47 @@
+{
+  "attributes": {
+    "basis": "claim.R65_live-revision-audit-reporting-and-tool-integration-gaps.20260905.v1",
+    "calibration": "The new test_r66_cv_probe suite covers wrong baselines on all eight axes before variant launch, successful fidelity, unknown axes/jobs/functions, empty parses, failed requested variants, duplicate outputs, insensitive controls, zero-exit ignored-option diagnostics, missing executables/compilers, cleanup failure, stale-output refusal and both Ninja path forms. test_r64_postprocess_audit now asserts the repaired synthetic refusal rather than merely characterizing the old bug.",
+    "implementation": [
+      "Every axis checks whole-object fidelity; baseline is compiled once, then reused. Unknown axes/jobs/functions and empty object parses refuse explicitly. Failed or missing compiler/runner, missing output, and failed extab cleanup cannot become negative matching results. Old output is removed before an attempted replacement so stale bytes cannot mask failure.",
+      "JSON records the Ninja edge/template, ordered flags and executed argv/stdout/stderr/return codes, compiler/object/source/build-graph hashes, finite requested/completed matrix, duplicate object outputs, per-function normalized-assembly hashes, sensitive sibling controls and lexical pragma ranges. The lexical inventory expressly does not evaluate includes, conditionals, push/pop or effective compiler option precedence.",
+      "read_edges accepts forward- and backslash Ninja paths; compile commands retain the actual generated wibo/wine runner prefix. An unsupported or unresolved runner/template refuses. Cross-platform parsing/runner reconstruction is fixture-tested; a Linux live compiler run was not performed in this Windows lane.",
+      "The raw boundary is the Ninja compile edge and includes extab cleanup when that edge uses it; it is not automatically pristine compiler output. Existing compile_with callers retain the five-argument (path, error) API."
+    ],
+    "law_screen": "claim.law.R64_fixed-source-compiler-sweeps-do-not-establish-source-unreachability.20260905.v1 applies: finite fixed-source failures stay scoped, source pragmas may mask command-line controls, and no universal reachability conclusion is drawn.",
+    "measurements": [
+      {
+        "command": "python tools/gdl/composed_census/cv_probe.py game/sys/sysservice --axes check --out build/r66_cv_check.json",
+        "result": "exit 0, PASS; fidelity vs shipped body object: BYTE-IDENTICAL."
+      },
+      {
+        "command": "python tools/gdl/composed_census/cv_probe.py game/sys/sysservice --axes align --fn padUpdate --control-fn sysResetService --extra-flags='-opt level=1' --extra-flags='-opt nopeephole' --extra-flags='-schedule off' --out build/r66_cv_sensitive.json",
+        "result": "exit 0, PASS finite experiment. All three custom option trials leave padUpdate's normalized assembly unchanged while sysResetService changes. BASE and -func_align4 have identical complete object SHA-256 cff7121712605b519444b3c33ae5e761f129bbaadee9d1c1cbbbf1d1deb1237f. Alignment trials without a changing control report control status UNRESOLVED, not an exhausted option."
+      },
+      {
+        "command": "python tools/gdl/composed_census/cv_probe.py game/sys/sysservice --axes align --fn padUpdate --extra-flags='-r66-no-such-option' --out build/r66_cv_rejected.json",
+        "result": "exit 1, FAIL; one requested variant rejected by the real compiler with exit 1. It is not included among completed variants or interpreted as a tested negative."
+      },
+      {
+        "command": "python tools/gdl/composed_census/r64_postprocess_audit.py --out build/r66_r64_replay.json",
+        "result": "exit 0; baseline_fidelity True. Synthetic wrong-baseline control now exits 2 after exactly 1 compile call, previously 0 after 23 calls. Full-TU pragma calibration reproduces: padUpdate stays 107 instructions under original pragmas and becomes 115/112/107/115 with only the restore block removed under level1/nopeephole/noschedule/off. Synthetic optControl still varies 7 to 8 or 12 and returns to 7 with restore pragmas. Existing experimental 1.2.5s binary was not provisioned into this worktree; that optional check reports available false, not a negative result."
+      }
+    ],
+    "neighborhood_screen": "rg -n 'compile_with\\(|cv\\.main\\(|cv\\.variants\\(' tools memory_graph identifies r59_world_name_ref_probe, r60_enemy_boundary_probe, r60_enemy_pool_probe, r60_enemy_source_probe, r61_enemy_probe, r64_init_next_level_probe and r64_postprocess_audit as consumers. Their source baseline checks were inspected: each independently gates baseline fidelity (r61 through r60 compile_baseline); no additional continuing-after-mismatch site was found there. The API is preserved, and the real R64 end-to-end replay passes. This is a screened caller set, not a repository-wide proof of every experiment tool.",
+    "remaining_limits": "This is a finite matrix driver, not a complete compiler command-language interpreter or source-unreachability proof. Effective options in an unchanged function remain unresolved without a sensitive control and a targeted context experiment. Linux execution is deferred to the integrator's private CI environment. No newly matched function or percentage gain is claimed.",
+    "tool_paths": [
+      "tools/gdl/composed_census/cv_probe.py",
+      "tools/gdl/tests/test_r66_cv_probe.py",
+      "tools/gdl/tests/test_r64_postprocess_audit.py"
+    ]
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R66_compiler-sweeps-refuse-invalid-baselines-and-expose-masked-controls.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T19:56:53Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-cv-probe",
+  "valid_from": "2026-09-05",
+  "value": "Compiler-sweep validity repair, not a new matching result or a compiler-necessity proof. cv_probe now stops every supported axis before variants if a fresh full-TU compile differs from the actual raw Ninja object. Its optional schema_version=1 JSON distinguishes completed finite experiments (PASS/0), rejected trial commands (FAIL/1), and unavailable inputs/fidelity or incomplete measurements (UNRESOLVED/2). Matchtool's OK/OK~ scores remain diagnostic and do not certify datum/relocation identity. No game source, production compiler selection, split, or postprocessor rule was changed."
+}

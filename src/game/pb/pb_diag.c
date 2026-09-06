@@ -740,9 +740,9 @@ extern s32 gGameBusy;
 extern f32 gClockFrameStep;
 extern s32 lbl_80344CF8;        /* menu count (latched from natreelists) */
 extern s32 natreelists;
-extern DiagMenu* lbl_8023D180[]; /* per-menu DiagMenu ptr table */
+extern DiagMenu* whichatree[];  /* atree's per-menu pointer table, 0x8023D180 */
 extern s32 atree_handles[];      /* per-menu texmod arg table */
-extern u8 lbl_8023D000[];       /* per-menu atree params, stride 16 */
+extern u8 atree_scroll[];       /* atree's per-menu params, stride 16, 0x8023D000 */
 extern f64 lbl_803486E0;        /* s32->f32 conversion bias */
 extern f64 lbl_803486C0;        /* anim rate constant */
 extern f64 lbl_803486C8;        /* ambient scale */
@@ -928,7 +928,7 @@ s32 pbDiagDrawInfo(void)
     old = gDiagMenuIdx;
     v = pbDiagCtrlInt(0, 0, old, 1, 0, lbl_80344CF8);
     gDiagMenuIdx = v;
-    menu = lbl_8023D180[v];
+    menu = whichatree[v];
     if (v != old && menu != 0) {
         gDiagListSel = (&b[v])[68];
         if (atree_handles[v] >= 0 && menu->count != 0) {
@@ -997,7 +997,7 @@ s32 pbDiagDrawInfo(void)
                 b[114] = AtreeInit(entry, (u8*)b + 456, 0, 0);
             } else {
                 b[114] =
-                    AtreeInit(entry, (u8*)b + 456, lbl_8023D000 + gDiagMenuIdx * 16, 0);
+                    AtreeInit(entry, (u8*)b + 456, atree_scroll + gDiagMenuIdx * 16, 0);
             }
             if (gDiag_F00 != 0) {
                 gDiag_F00 = kept;

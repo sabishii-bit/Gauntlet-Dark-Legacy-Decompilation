@@ -1,4 +1,4 @@
-"""Run-50 item 3: the exception-table byte figure, and datadiff's silence.
+"""Exception-table visibility and explicit empty/missing measurement results.
 
 TWO OBSERVATIONS, both reproduced verbatim before anything was designed.
 
@@ -10,16 +10,11 @@ TWO OBSERVATIONS, both reproduced verbatim before anything was designed.
     NOTHING AT ALL and exited 0 -- output indistinguishable from a mistyped
     unit or a broken tool.
 
-WHAT THE MEASUREMENT CHANGED IN THE DESIGN.  The obvious fix for (1) was to
-compare the extab sections of the two OBJECTS: `datadiff.section_table` has
-probed for them since it was written.  Measured image-wide over all 257
-paired units, ZERO target objects and ZERO of ours carry an extab-family
-section under ANY spelling -- exception tables are a LINK-level artifact and
-live only in objdiff's report.  (The probe keys were also spelled `"extab"`
-/ `"extabindex"` without the leading dot, which is splits.txt's spelling,
-while `section_sizes` reads `objdump -h` and every key it can produce starts
-with a dot -- so they were dead twice over.  They are removed, not
-respelled.)
+R60 REFUTED the old absence claim in this test: its census depended on
+datadiff's dot-only parser, which discarded extab/extabindex before counting.
+The tested object header now explicitly includes those dotless names.
+Report snapshots remain supplemental and need not reflect record order in
+the direct function-indexed metadata comparison.
 
 TWO-SIDED CALIBRATION at run-50 HEAD (scratch t20_empty_sections_census.py):
   (2) POSITIVE 78 of 257 units print NOTHING AT ALL today; NEGATIVE 178
@@ -34,6 +29,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -105,20 +101,22 @@ class SectionsNeverPrintsNothing(unittest.TestCase):
         datadiff.REPO, datadiff.REPORT = self._repo, self._report
         os.chdir(self.cwd)
 
-    def test_the_extab_probe_keys_are_gone_from_the_object_loop(self):
-        # They could never match: section_sizes' keys all start with a dot,
-        # and no object carries an extab section under any spelling.
-        source = Path(datadiff.__file__).read_text(encoding="utf-8")
-        self.assertNotIn('("extab", "extabindex",', source)
+    def test_dotless_exception_sections_are_detected(self):
+        listing = ("  0 extab 00000098 00000000 00000000 00000040 2**2\n"
+                   "  1 extabindex 000000e4 00000000 00000000 000000e0 2**2\n"
+                   "  2 .text 00002e34 00000000 00000000 000001e0 2**2\n")
+        with patch.object(datadiff, "dump_object", return_value=listing):
+            sizes = datadiff.section_sizes("fixture.o")
+        self.assertEqual(sizes, {"extab": 0x98, "extabindex": 0xE4, ".text": 0x2E34})
 
     def test_a_unit_with_no_data_sections_still_prints_a_verdict(self):
         import io
         from contextlib import redirect_stdout
         datadiff.REPORT = self.dir / "missing_report.json"
         buf = io.StringIO()
-        with redirect_stdout(buf):
-            # A unit whose objects do not exist takes the SKIP path, which
-            # already printed; the zero-compared path is what was silent.
+        with redirect_stdout(buf), patch.object(Path, "exists", return_value=True), \
+                patch.object(datadiff, "section_sizes", return_value={}), \
+                patch.object(datadiff, "parse_splits", return_value={}):
             datadiff.section_table("game/pb/dbgtext.c")
         text = buf.getvalue()
         self.assertTrue(text.strip(), "section_table printed nothing")
@@ -129,12 +127,18 @@ class SectionsNeverPrintsNothing(unittest.TestCase):
         from contextlib import redirect_stdout
         datadiff.REPORT = self.dir / "missing_report.json"
         buf = io.StringIO()
-        with redirect_stdout(buf):
+        with redirect_stdout(buf), patch.object(Path, "exists", return_value=True), \
+                patch.object(datadiff, "section_sizes", return_value={}), \
+                patch.object(datadiff, "parse_splits", return_value={}):
             datadiff.section_table("game/pb/dbgtext.c")
         text = buf.getvalue()
-        if "SKIP --sections" not in text:
-            self.assertIn("NOTHING TO COMPARE", text)
-            self.assertIn("not silence", text)
+        self.assertIn("NOTHING TO COMPARE", text)
+        self.assertIn("not silence", text)
+
+    def test_missing_object_refuses_instead_of_printing_a_zero_comparison(self):
+        with patch.object(Path, "exists", return_value=False):
+            with self.assertRaisesRegex(datadiff.MeasurementUnavailable, "missing"):
+                datadiff.section_table("game/pb/dbgtext.c")
 
 
 if __name__ == "__main__":

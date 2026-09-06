@@ -68,6 +68,8 @@ game/ui/auxscreen.c:
 	extab       start:0x80005878 end:0x800058C0
 	extabindex  start:0x80008D04 end:0x80008D70
 	.text       start:0x80019090 end:0x8001A960
+	.sdata      start:0x80343B50 end:0x80343B70
+	.sbss       start:0x80344318 end:0x80344378
 
 game/boss/boss.c:
 	extab       start:0x800058C0 end:0x80005908
@@ -85,6 +87,9 @@ game/ui/btext.c:
 	extab       start:0x80005970 end:0x80005A68
 	extabindex  start:0x80008E78 end:0x80008FEC
 	.text       start:0x8001EAE0 end:0x8002109C
+	.bss        start:0x8023EAE0 end:0x8023F7E8
+	.sdata      start:0x80343BB8 end:0x80343BC4
+	.sbss       start:0x803443D8 end:0x803443E4
 
 game/world/btricol.c:
 	extab       start:0x80005A68 end:0x80005A80
@@ -101,11 +106,13 @@ game/game/combat.c:
 	extab       start:0x80005B00 end:0x80005C18
 	extabindex  start:0x800090D0 end:0x80009274
 	.text       start:0x8002951C end:0x8003104C
+	.bss        start:0x80240560 end:0x802407B8
 
 game/game/controls.c:
 	extab       start:0x80005C18 end:0x80005CE0
 	extabindex  start:0x80009274 end:0x800093A0
 	.text       start:0x8003104C end:0x80034CFC
+	.sbss       start:0x803445D8 end:0x80344624
 
 game/enemy/critter.c:
 	extab       start:0x80005CE0 end:0x80005F28
@@ -178,6 +185,7 @@ game/game/player.c:
 	extab       start:0x80006900 end:0x80006B30
 	extabindex  start:0x8000A5D0 end:0x8000A918
 	.text       start:0x800745D0 end:0x8008091C
+	.data       start:0x80120B4C end:0x80120BEC
 
 game/game/pmotion.c:
 	extab       start:0x80006B30 end:0x80006BE8
@@ -207,16 +215,19 @@ game/ui/select.c:
 	extab       start:0x80006C80 end:0x80006D00
 	extabindex  start:0x8000AB10 end:0x8000ABD0
 	.text       start:0x8008C52C end:0x800911C8
+	.data       start:0x80121F88 end:0x80122088
 
 game/sfx/sfx.c:
 	extab       start:0x80006D00 end:0x80006EB0
 	extabindex  start:0x8000ABD0 end:0x8000AE58
 	.text       start:0x800911C8 end:0x800988A4
+	.data       start:0x80122EA4 end:0x80122ED0
 
 game/shop/shop.c:
 	extab       start:0x80006EB0 end:0x80006F18
 	extabindex  start:0x8000AE58 end:0x8000AEF4
 	.text       start:0x800988A4 end:0x8009C228
+	.data       start:0x8012318C end:0x801232C8
 
 game/shop/shopquery.c:
 	.text       start:0x8009C228 end:0x8009C2CC
@@ -225,6 +236,7 @@ game/sound/sounds_evt.c:
 	extab       start:0x80006F18 end:0x800072B0
 	extabindex  start:0x8000AEF4 end:0x8000B458
 	.text       start:0x8009C2CC end:0x800A00A0
+	.data       start:0x801232C8 end:0x80124454
 
 game/sound/sounds.c:
 	extab       start:0x800072B0 end:0x800073A0
@@ -235,6 +247,7 @@ game/world/tower.c:
 	extab       start:0x800073A0 end:0x80007410
 	extabindex  start:0x8000B5C0 end:0x8000B668
 	.text       start:0x800A18E8 end:0x800A4870
+	.data       start:0x80124C70 end:0x80124E58
 
 game/ui/message.c:
 	extab       start:0x80007410 end:0x80007430
@@ -522,6 +535,7 @@ game/mb/mb_particle.c:
 	extab       start:0x80007E20 end:0x80007F28
 	extabindex  start:0x8000C580 end:0x8000C70C
 	.text       start:0x800CBC4C end:0x800D190C
+	.data       start:0x80129544 end:0x80129588
 
 game/ps2/mathfunc.c:
 	extab       start:0x80007F28 end:0x80007F78

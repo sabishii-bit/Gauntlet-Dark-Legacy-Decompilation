@@ -1,0 +1,86 @@
+{
+  "attributes": {
+    "base": "d76899a8894c2a7863607f90a026474b094d874f",
+    "cleanup": "All three owned GDL-R66-compiler/datum/provenance worktrees were verified clean except their own locks, their tips were verified ancestors of the feature branch, and no directory reparse points were present. Removed only those worktrees and their merged temporary branches. Committed work remains in feature-branch history; root retains the reproduced diagnostic outputs.",
+    "implementation_anchors": [
+      "tools/gdl/reconstruction_preflight.py",
+      "tools/gdl/build_provenance.py",
+      "tools/gdl/composed_census/cv_probe.py",
+      "tools/gdl/composed_census/ce_eq_datum_audit.py",
+      "tools/gdl/datadiff.py",
+      "tools/gdl/exception_metadata.py",
+      "tools/gdl/composed_census/r66_exception_mod_probe.py",
+      "tools/project.py",
+      "configure.py",
+      ".github/workflows/build.yml"
+    ],
+    "live_measurements": {
+      "ci": "Existing private build workflow now runs both suites, graph validation and live preflight. Local end-to-end execution verified; remote CI execution was not inspected.",
+      "matching_build": {
+        "command": "python configure.py; ninja -j2",
+        "result": "build/GUNE5D/main.dol: OK. Source progress unchanged. Report combined matching remains 770892/1071824 code bytes, while source-linked coverage remains 431176/1071824 bytes. New score-provenance categories explicitly include derived compilers, manual exceptions, P6 and the 26 exception-runtime-rewritten functions; none of these categories certifies raw byte/relocation identity."
+      },
+      "mod_probe": {
+        "command": "python tools/gdl/composed_census/r66_exception_mod_probe.py --modified-source build/r66_exception_mod_probe/modified/NMWException.cpp --out build/r66_exception_mod_probe.json",
+        "result": "PASS measurement; mod_effect=OVERWRITTEN_WITH_RETAIL_LITERAL. Raw baseline df1296a5... and modified 67aa79a6... become the identical complete fixed object cdf79b8a...; the modified what string resolves to exception. Production input hashes remained unchanged. This was a scratch full-TU compile/fixup test, not a complete editable game link or runtime boot."
+      },
+      "preflight": {
+        "command": "python tools/gdl/reconstruction_preflight.py --smoke-tools --out build/r66_full_preflight.json",
+        "result": "PASS for normal/shadow report execution, provenance, sysservice full-TU baseline identity, do_enemy_move datum control, newcam EH-only control and comparison input stability. Newcam whole-TU status remains UNRESOLVED; this PASS is not semantic or source-completion certification."
+      },
+      "provenance": {
+        "command": "python tools/gdl/build_provenance.py --out build/r66_integrated_provenance.json",
+        "result": "PASS snapshot/query accounting. All 341 ordered selected objects reconcile to Ninja: 215 source-linked, 126 extracted fallback. 42 unfinished configured units and 84 auto units are inventoried, with ownership and per-dimension reconstruction status unresolved. Two runtime objects have stale Ninja dependency mtimes after in-place rewriting; pristine raw outputs are not retained."
+      },
+      "runtime_raw_refusal": {
+        "command": "python tools/gdl/composed_census/ce_eq_datum_audit.py --unit Runtime.PPCEABI.H/NMWException --function what__Q23std9exceptionCFv --out build/r66_raw_runtime_refusal.json",
+        "result": "UNRESOLVED, exit 2, zero functions screened: raw compiler bytes unavailable after in-place exception-runtime rewriting."
+      },
+      "shadow": {
+        "changed_scores": 524,
+        "functions": 2990,
+        "interpretation": "Unadjudicated diagnostic population, not 376 proven source bugs or a corrected matching percentage.",
+        "lost_lenient_100": 376,
+        "source_linked_demotions": 17
+      },
+      "tests": [
+        "python -m unittest discover tools/gdl/tests -b: all green after integration",
+        "python -m memory_graph.test_graph -b: all green after integration"
+      ]
+    },
+    "next_actions": [
+      {
+        "gate": "Matching DOL stays exact; fresh editable link plus matching-to-editable and editable-to-matching transitions preserve intended source strings. Test weak helper, data/relocation and alignment behavior, not only one same-length literal. This change is not implemented in the foundation pass.",
+        "priority": 1,
+        "task": "Retain separate raw exception-runtime compiler objects and fence or replace the retail-layout rewrite for editable builds."
+      },
+      {
+        "gate": "Use resolved datum width/addend/operand binding and actual link reachability. Equal multisets and equal function-indexed EH records do not settle whole-TU data ownership.",
+        "priority": 2,
+        "task": "Adjudicate shadow relocation changes and auto-data ownership before altering matching gates or promoting TUs."
+      },
+      {
+        "gate": "Recover ABI/types/FP semantics and caller/inlining context before allocator nudges; test joint hypotheses and full-TU compiler controls. Finite failed sweeps do not establish that WebFrank is necessary for the entire project.",
+        "priority": 3,
+        "task": "Run bounded source/build-context pilots with separate best and experimental branches."
+      }
+    ],
+    "roadmap_reference": "claim.R65_proposed-source-reconstruction-and-integration-roadmap.20260905.v1",
+    "scope_and_review": {
+      "integration_branch": "codex/reconstruction-foundation",
+      "main_unchanged": true,
+      "memory_status": "Worker and integrator proposals remain in the feature-branch inbox. Reviewed here, not formally accepted on main; current user branch isolation overrides the normal main-only coordination workflow.",
+      "review_fixes": "Independent review reproduced missing expanded link commands, duplicate/extra report units and NaN score false passes; provenance now rejects them. Integrator additionally refuses CE raw audits where the recorded exception-runtime stage overwrote the compiler object, and binds this check to the current generated Ninja snapshot.",
+      "source_screen": "git diff --name-only d76899a88 -- src include config produced empty output at integration."
+    }
+  },
+  "epistemic_state": "observed",
+  "id": "claim.R66_reconstruction-foundation-integrated-and-next-safety-boundary.20260905.v1",
+  "kind": "claim",
+  "predicate": "investigation",
+  "recorded_at": "2026-09-05T20:22:04Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-05",
+  "value": "Implemented and integrated the first reconstruction-foundation pass on codex/reconstruction-foundation, without changing game source, compiler selection, split ownership or postprocessor rules. This completes the bounded tooling/integration pass, not the full R65 roadmap or source reconstruction. The strongest newly verified safety finding is an existing exception-runtime rewrite that discards a legitimate modified string and remains scheduled in editable builds."
+}

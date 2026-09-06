@@ -819,12 +819,8 @@ config.progress_categories = [
 ]
 config.progress_each_module = args.verbose
 
-# Post-compile fixup for the C++ exception runtime TUs: reproduces the
-# original CodeWarrior link-time weak-function dead-stripping that mwld's
-# CLI cannot perform (see tools/fix_exception_objects.py).
-exc_nmw_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/NMWException.o"
-exc_ppc_obj = f"build/{config.version}/src/Runtime.PPCEABI.H/ExceptionPPC.o"
-exc_stamp = f"build/{config.version}/src/Runtime.PPCEABI.H/exception_fixup.stamp"
+# Compatibility fixups have distinct raw inputs and final outputs. They are
+# enabled below only for matching builds; editable builds retain source data.
 config.custom_build_rules = [
     {
         "name": "frank",
@@ -852,8 +848,8 @@ config.custom_build_rules = [
         "description": "P6FRANK $out",
     },
     {
-        "name": "fix_exception_objects",
-        "command": f"$python tools/fix_exception_objects.py {exc_nmw_obj} {exc_ppc_obj} $out",
+        "name": "fix_exception_object",
+        "command": "$python tools/fix_exception_objects.py --kind $exception_kind --input $in --output $out",
         "description": "FIXUP $out",
     },
     {
@@ -943,16 +939,19 @@ if not config.non_matching:
                 "p6frank_target": f"build/{config.version}/obj/{unit}.o",
             },
         }
-config.custom_build_steps = {
-    "post-compile": [
-        {
-            "rule": "fix_exception_objects",
-            "inputs": [exc_nmw_obj, exc_ppc_obj],
+if not config.non_matching:
+    for unit, kind in (
+        ("Runtime.PPCEABI.H/NMWException", "nmw"),
+        ("Runtime.PPCEABI.H/ExceptionPPC", "exppc"),
+    ):
+        if unit in config.object_postprocesses:
+            raise ValueError(f"multiple object postprocessors configured for {unit}")
+        config.object_postprocesses[unit] = {
+            "rule": "fix_exception_object",
             "implicit": ["tools/fix_exception_objects.py"],
-            "outputs": [exc_stamp],
-        },
-    ],
-}
+            "variables": {"exception_kind": kind},
+        }
+config.custom_build_steps = {}
 
 # Post-build: splice the retail DOL's unreproducible extab padding bytes from
 # the user's own original DOL into a copy of the verified cleaned-target
@@ -982,44 +981,19 @@ if args.mode == "configure":
 elif args.mode == "progress":
     # Print progress information
     calculate_progress(config)
-    # Split out WebFrank-assisted functions from the headline matched%.
+    # The lenient objdiff report cannot certify raw bytes or relocations.
+    # Classify score credit by the actual generated pipeline instead.
     try:
-        import json as _json
-        _rules = _json.loads(
-            (Path("config") / config.version / "webfrank.json").read_text(
-                encoding="utf-8"))
-        _pinned = {}
-        for _unit, _entries in _rules.get("units", {}).items():
-            _pinned.setdefault(_unit, set()).update(
-                _e["function"] for _e in _entries)
-        _report_path = Path("build") / config.version / "report.json"
-        _report = _json.loads(_report_path.read_text(encoding="utf-8"))
-        _total = _asst_bytes = _asst_count = _matched_bytes = 0
-        _matched_count = 0
-        for _u in _report.get("units", []):
-            _key = next(
-                (k for k in _pinned if _u.get("name", "").endswith(k)),
-                None)
-            for _fn in _u.get("functions", []):
-                _size = int(_fn.get("size", 0))
-                _total += _size
-                _exact = float(_fn.get("fuzzy_match_percent", 0)) >= 100.0
-                if _exact:
-                    _matched_bytes += _size
-                    _matched_count += 1
-                if _key and _fn["name"] in _pinned[_key] and _exact:
-                    _asst_bytes += _size
-                    _asst_count += 1
-        _strict = _matched_bytes - _asst_bytes
-        print(
-            f"  Postprocessor split: STRICT matched"
-            f" {100.0 * _strict / _total:.2f}%"
-            f" ({_matched_count - _asst_count} fns, compiler output"
-            f" byte-identical) + EQUIVALENT"
-            f" {100.0 * _asst_bytes / _total:.2f}%"
-            f" ({_asst_count} fns, WebFrank-assisted: individually declared"
-            f" compiler-variance proofs; see config/{config.version}/webfrank.json)")
-    except Exception as _err:
-        print(f"  (postprocessor split unavailable: {_err})")
+        from tools.gdl.build_provenance import collect_manifest, print_report_accounting
+        _manifest = collect_manifest(Path.cwd(), str(config.build_dir), config.version)
+        _manifest_path = config.out_path() / "build_provenance.json"
+        _manifest_path.write_text(json.dumps(_manifest, indent=2) + "\n", encoding="utf-8")
+        if _manifest["execution_status"] == "FAIL":
+            print(f"  Provenance FAIL: {_manifest['failures']} (see {_manifest_path})")
+        else:
+            print_report_accounting(_manifest["report_accounting"])
+            print(f"  Provenance {_manifest['status']}: {_manifest_path}")
+    except (OSError, ValueError) as _err:
+        print(f"  Provenance UNRESOLVED: {_err}")
 else:
     sys.exit("Unknown mode: " + args.mode)

@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Run after a fresh ninja. Refuses raw baseline or scratch-path fidelity failure. Generated source/object/JSON stay under build and production hashes must stay unchanged.",
+    "Opaque record/member, local-wrapper/pad and explicit pool-offset variants are diagnostic controls, not recovered structure or permission to retain scaffolding. PASS means finite experiment execution; it does not prove source unreachability or full-TU equality."
+  ],
+  "entrypoint": "tools/gdl/composed_census/r67_audio_context_probe.py",
+  "id": "tool.r67-audio-context-probe.20260905T205716Z.d6b46495",
+  "kind": "tool",
+  "name": "r67-audio-context-probe",
+  "purpose": "Repeat a bounded full-TU source/context and optional flag matrix for the AudioStreamPlay address-home residual without editing production.",
+  "recorded_at": "2026-09-05T20:57:16Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r67_audio_context_probe.py",
+  "status": "active",
+  "tool_key": "tool:r67-audio-context-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "python tools/gdl/composed_census/r67_audio_context_probe.py --flags --out build/r67_audio_context_probe.json"
+  ],
+  "valid_from": "2026-09-05T20:57:16+00:00"
+}

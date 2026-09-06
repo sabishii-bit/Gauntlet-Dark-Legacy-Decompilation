@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Scratch-only, actual raw baseline must be whole-object byte-identical. Supports either reviewed production spelling. Reports instruction words separately from relocation bindings and whole-TU metadata; completed experiments do not prove general source impossibility."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r71_controls_identity.py",
+  "id": "tool.r71-controls-identity.20260906T015130Z.03a408f1",
+  "kind": "tool",
+  "name": "r71-controls-identity",
+  "purpose": "Reproduce finite full-TU source identity controls and existing-helper exact InitControls candidate using the actual configured compiler.",
+  "recorded_at": "2026-09-06T01:51:30Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r71_controls_identity.py",
+  "status": "active",
+  "tool_key": "tool:r71-controls-identity",
+  "tool_kind": "python",
+  "usage": [
+    "--forms baseline,existing_helper --out build/r71_controls_pair.json"
+  ],
+  "valid_from": "2026-09-06T01:51:30+00:00"
+}

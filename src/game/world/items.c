@@ -142,7 +142,7 @@ extern s32            sWindowCameraVariant0;
 extern s32            sWindowCameraVariant1;
 extern char           sWeaponsName[8];
 extern char           sPowerupsName[0x28];
-extern ItemStrings    sObjectsFile;
+extern ItemStrings    sObjectsFile_80112AB8;
 extern s32            gBossType;
 extern void*          gSceneRoot;
 extern void*          sItemsRootNode;
@@ -224,7 +224,7 @@ extern void  MBRemoveNode(s32 handle, s32 flag);
 extern s32   MBTreeClearFlags(void* node, s32 a, s32 b);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern void  UpdateObjWorldMat(OBJGRP* group);
-static void AddItemWobj(Item* it);
+void AddItemWobj(Item* it);
 extern s32   RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid,
                               s32 z_grid, s32 value);
 extern s32   PlayerSelecting(s32 idx);
@@ -253,7 +253,7 @@ extern s32   MBWorldSphereVisible3(f32* position, f32 radius);
 extern void  GetPlayerPos(s32 player, f32* position);
 extern f32   fqdist(f32 x, f32 y);
 
-static u32 AtreeMatchAnyHeader(char* name, s32 alsoWads);
+u32 AtreeMatchAnyHeader(char* name, s32 alsoWads);
 
 extern s32     sLastPlayerStart;
 extern double  sInvalidPlayerStartY;
@@ -615,7 +615,7 @@ void DoLighting(s32 flag)
 
 /* 0x800674F4 - match name against the weapon/powerup/item atrees, then all
  * wad headers when alsoWads is set. */
-static u32 AtreeMatchAnyHeader(char* name, s32 alsoWads)
+u32 AtreeMatchAnyHeader(char* name, s32 alsoWads)
 {
     u32 r = 0;
 
@@ -700,7 +700,7 @@ void MatchTransporters(void)
  * special triggers and nodes that are link targets. */
 void LinkItemTriggers(void)
 {
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     s32 i;
     Item* item;
     s32 j;
@@ -1183,7 +1183,7 @@ static inline s32 ItemFindMBObjectL1(char* name)
 
 /* 0x80063DB0 - retexture a damageable item by health tier (name + tier
  * digit, falling back to name+"L1"/"ROOT"), blanking it at tier 0. */
-static void AddItemWobj(Item* it)
+void AddItemWobj(Item* it)
 {
     char buf[32];
     s32 hp = it->health;
@@ -1279,7 +1279,7 @@ s32 ItemVisible(Item* it)
  * Once a side is unusable the phase advances; after both sides, subsequent
  * enemies retain their spawn point.
  */
-static void place_logic12(s8* data, s32 enemy_index)
+void place_logic12(s8* data, s32 enemy_index)
 {
     f32 matrix[16];
     u8 unused_middle[12];
@@ -1372,7 +1372,7 @@ static void place_logic12(s8* data, s32 enemy_index)
  * PDB's generator payload: enemy type/level/spew at +0/+6/+7, generated count
  * at +2, and the generator angle at +0x10.
  */
-static void generate_single(Item* item, s32 algorithm, s32 important)
+void generate_single(Item* item, s32 algorithm, s32 important)
 {
     u8* data = item->data;
     f32 position[3];
@@ -1438,7 +1438,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
     char name[36];
     char child_name[32];
     u8 stack_pad[20];
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     iteminfo** infos = &gWorldInfo.iteminfo;
     iteminfo* info_base = *infos;
     ItemRuntime* runtime = &sItemRuntime;
@@ -2187,7 +2187,7 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     ItemRuntime* runtime = &sItemRuntime;
     u8* target = target_ptr;
     WorldObj* wtarget = (WorldObj*)target_ptr;
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     f32 x = (f32)(0.1 * (f32)x_grid);
     f32 z = (f32)(0.1 * (f32)z_grid);
     s32 i;
@@ -2280,7 +2280,7 @@ void LoadPowerups(char* name) {
 void LoadItems(void)
 {
     ItemRuntime* runtime = &sItemRuntime;
-    ItemStrings* strings = &sObjectsFile;
+    ItemStrings* strings = &sObjectsFile_80112AB8;
 
     if (sItemFile0Handle < 0 && gBossType < 0) {
         sprintf(runtime->itemPath, strings->file0Format, WorldItemDesc());
@@ -2557,7 +2557,7 @@ void update_player_milestone(struct Player* player_ptr)
  */
 void AddLocatorInstList(void)
 {
-    char* strings = (char*)&sObjectsFile;
+    char* strings = (char*)&sObjectsFile_80112AB8;
     locator* locators = gWorldInfo.locators;
     s32 locator_count = gWorldInfo.nlocators;
     ItemRuntime* runtime = &sItemRuntime;

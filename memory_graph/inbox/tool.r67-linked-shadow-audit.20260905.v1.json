@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "tools/gdl/composed_census/r67_linked_shadow_audit.py",
+      "tools/gdl/tests/test_r67_linked_shadow_audit.py"
+    ]
+  },
+  "constraints": [
+    "Read-only; requires current successful schema-1 reconstruction preflight and reconciled Ninja provenance.",
+    "Every hashed comparison input must still agree before and after. PASS compares complete function bytes in ELF, built DOL and retail at target address/size.",
+    "Unlinked/fallback functions, original-source recovery and raw-compiler equivalence are never certified; weak-definition winner provenance remains unresolved."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r67_linked_shadow_audit.py --preflight PATH --out PATH",
+  "id": "tool.r67-linked-shadow-audit.20260905.v1",
+  "kind": "tool",
+  "name": "Linked shadow relocation adjudication",
+  "purpose": "Certify exact final function bytes for source-linked shadow-score demotions while withholding fallback/raw-source claims.",
+  "recorded_at": "2026-09-05T20:42:53Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "r67-linked-shadow-audit",
+  "tool_kind": "analysis",
+  "valid_from": "2026-09-05"
+}

@@ -409,28 +409,28 @@ s32 fn_800511D0(s32 milestone, f32 turnLimit);
 f32 get_yaw(f32* to, f32* from);
 void CreateYPRMatrix(f32* matrix, const f32* angles);
 void WorldVector(const f32* vector, f32* out, const f32* matrix);
-void StandardCamera(s32 camIdx);
+void StandardCamera_8002B828(s32 camIdx);
 f32 PointLineColl(f32* point, f32* from, f32* to, f32* closest);
 f32 AddAngle(f32 angle, f32 amount);
 f32 SubAngle(f32 angle, f32 amount);
 f32 get_pitch(f32* from, f32* to);
-void get_attn_pos(s32 camIdx, f32* out);
+void get_attn_pos_8002C9A8(s32 camIdx, f32* out);
 int init_game_cam(s32 camIdx);
-int MoveCam_walk(s32 camIdx);
-void cam_orient_to(s32 camIdx);
+int MoveCam_walk_8002A024(s32 camIdx);
+void cam_orient_to_80029E8C(s32 camIdx);
 int PlayerOnMovingObject(void);
-void ProcCamera(s32 camIdx, s32 mode);
+void ProcCamera_8002E548(s32 camIdx, s32 mode);
 void screen_limitation(void);
 void MBCameraUpdate(f32* position, f32* matrix);
 void MBRemoveBlit(void* blit);
 void AverageCameraTargetPosition_8002A890(f32* out);
-void calc_cam_pyr(s32 camIdx, s32 resetDelta);
-void get_cam_wpos(s32 camIdx);
-s32 adjust_radius(s32 camIdx);
+void calc_cam_pyr_8002A97C(s32 camIdx, s32 resetDelta);
+void get_cam_wpos_8002ABE0(s32 camIdx);
+s32 adjust_radius_8002B2D4(s32 camIdx);
 void CopyCam(u8* source, u8* destination);
 void UpdatePlayerWorldMat(void* player, s32 anchor);
 void init_stage_info(void);
-void DiffRate();
+void DiffRate_8002951C(s32 camIdx);
 void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 void fn_8005A588(struct OBJGRP* group, f32* offset);
 s32 MBScreenHeight(void);
@@ -616,7 +616,7 @@ void do_camera(void)
                 camera_run_mode(cameraIndex);
             }
             if (camera->c_mode != CAM_OFF) {
-                ProcCamera(cameraIndex, lbl_803444DC);
+                ProcCamera_8002E548(cameraIndex, lbl_803444DC);
             }
         }
     }
@@ -909,7 +909,7 @@ void camera_run_mode(s32 camIdx)
             }
         }
 
-        get_attn_pos(camIdx, destination);
+        get_attn_pos_8002C9A8(camIdx, destination);
         cam->delta[0] = destination[0] - cam->attn[0];
         cam->delta[1] = destination[1] - cam->attn[1];
         cam->delta[2] = destination[2] - cam->attn[2];
@@ -952,7 +952,7 @@ void camera_run_mode(s32 camIdx)
         if (gGameMode == MA_FLYBY) {
             camera_mode_dest(camIdx);
         } else if (gGameMode == MG_PLAY) {
-            cam_orient_to(camIdx);
+            cam_orient_to_80029E8C(camIdx);
         }
         if (lbl_803443F4 != 0) {
             cameraRadius = cam->radius;
@@ -973,7 +973,7 @@ void camera_run_mode(s32 camIdx)
         vectorAttention.x = cam->attn[0];
         vectorAttention.y = cam->attn[1];
         vectorAttention.z = cam->attn[2];
-        StandardCamera(camIdx);
+        StandardCamera_8002B828(camIdx);
         DoShake(&vectorPosition, &vectorAttention);
         vectorDirection.x = vectorAttention.x - vectorPosition.x;
         vectorDirection.y = vectorAttention.y - vectorPosition.y;
@@ -1023,7 +1023,7 @@ void camera_run_mode(s32 camIdx)
 
         if (lbl_803447B8 != 0) {
             if (lbl_803444F0 >= 0) {
-                if (MoveCam_walk(camIdx) == 0) {
+                if (MoveCam_walk_8002A024(camIdx) == 0) {
                     break;
                 }
             } else {
@@ -1032,7 +1032,7 @@ void camera_run_mode(s32 camIdx)
                 }
             }
         } else {
-            get_attn_pos(camIdx, cam->attn);
+            get_attn_pos_8002C9A8(camIdx, cam->attn);
         }
 
         if (((gGameMode != MA_FLYBY && gGameMode != MG_WORLD_SELECT &&
@@ -1071,7 +1071,7 @@ void camera_run_mode(s32 camIdx)
         gameAttention[0] = cam->attn[0];
         gameAttention[1] = cam->attn[1];
         gameAttention[2] = cam->attn[2];
-        StandardCamera(camIdx);
+        StandardCamera_8002B828(camIdx);
         DoShake((Vec3*)gamePosition, (Vec3*)gameAttention);
         gameDirection[0] = gameAttention[0] - gamePosition[0];
         gameDirection[1] = gameAttention[1] - gamePosition[1];
@@ -1118,7 +1118,7 @@ found_player_object:
                     ((CameraObjectView*)cam->attnobj)->attn_pos[2];
             }
         } else if (attentionMode == ATN_TARGET) {
-            get_attn_pos(camIdx, cam->attn);
+            get_attn_pos_8002C9A8(camIdx, cam->attn);
         }
         cam->pyr[0] = get_pitch(cam->wpos, cam->attn);
         cam->pyr[1] = get_yaw(cam->wpos, cam->attn);
@@ -1143,7 +1143,7 @@ found_player_object:
         objectAttention[0] = cam->attn[0];
         objectAttention[1] = cam->attn[1];
         objectAttention[2] = cam->attn[2];
-        StandardCamera(camIdx);
+        StandardCamera_8002B828(camIdx);
         DoShake((Vec3*)objectPosition, (Vec3*)objectAttention);
         objectDirection[0] = objectAttention[0] - objectPosition[0];
         objectDirection[1] = objectAttention[1] - objectPosition[1];
@@ -1218,7 +1218,7 @@ free_attention:
         freeAttention[0] = cam->attn[0];
         freeAttention[1] = cam->attn[1];
         freeAttention[2] = cam->attn[2];
-        StandardCamera(camIdx);
+        StandardCamera_8002B828(camIdx);
         DoShake((Vec3*)freePosition, (Vec3*)freeAttention);
         freeDirection[0] = freeAttention[0] - freePosition[0];
         freeDirection[1] = freeAttention[1] - freePosition[1];
@@ -1258,7 +1258,7 @@ free_attention:
         (attention_).x = (cam_)->attn[0];                                     \
         (attention_).y = (cam_)->attn[1];                                     \
         (attention_).z = (cam_)->attn[2];                                     \
-        StandardCamera(camIndex_);                                             \
+        StandardCamera_8002B828(camIndex_);                                    \
         DoShake((Vec3*)&(position_), (Vec3*)&(attention_));                    \
         (direction_).x = (attention_).x - (position_).x;                       \
         (direction_).y = (attention_).y - (position_).y;                       \
@@ -1413,8 +1413,8 @@ void camera_mode_follow(s32 camIdx)
             cam->attn[1] = cam->wpos[1];
             cam->attn[2] = cam->wpos[2];
             cam->radius = lbl_80345F80;
-            calc_cam_pyr(camIdx, 1);
-            get_cam_wpos(camIdx);
+            calc_cam_pyr_8002A97C(camIdx, 1);
+            get_cam_wpos_8002ABE0(camIdx);
             zeroValue = lbl_80345EC8;
             cam->vel[0] = zeroValue;
             cam->vel[1] = zeroValue;
@@ -1425,7 +1425,7 @@ void camera_mode_follow(s32 camIdx)
             FOLLOW_NORMALIZE_POSITION(cam, normalizeInitial, followRadius);
             FOLLOW_RENDER(camIdx, cam, initialPosition, initialAttention,
                           initialDirection);
-            ProcCamera(camIdx, 0);
+            ProcCamera_8002E548(camIdx, 0);
             lbl_803443FC = 0;
             cam->trans_mode = -1;
             break;
@@ -1439,16 +1439,16 @@ void camera_mode_follow(s32 camIdx)
                 oldAttentionY = cam->attn[1];
                 oldAttentionZ = cam->attn[2];
 
-                calc_cam_pyr(camIdx, 1);
-                get_attn_pos(camIdx, cam->attn);
+                calc_cam_pyr_8002A97C(camIdx, 1);
+                get_attn_pos_8002C9A8(camIdx, cam->attn);
                 zeroValue = lbl_80345EC8;
                 cam->delta[0] = zeroValue;
                 cam->delta[1] = zeroValue;
                 cam->delta[2] = zeroValue;
                 if (lbl_803447B8 == 0) {
-                    get_cam_wpos(camIdx);
+                    get_cam_wpos_8002ABE0(camIdx);
                 }
-                if (adjust_radius(camIdx) == 0) {
+                if (adjust_radius_8002B2D4(camIdx) == 0) {
                     return;
                 }
                 if (lbl_803443F4 != 0) {
@@ -1559,9 +1559,9 @@ void camera_mode_follow(s32 camIdx)
             break;
 
         default:
-            calc_cam_pyr(camIdx, 1);
+            calc_cam_pyr_8002A97C(camIdx, 1);
             if (gCameraTargetCount > 0) {
-                get_attn_pos(camIdx, cam->attn);
+                get_attn_pos_8002C9A8(camIdx, cam->attn);
             } else {
                 cam->attn[0] = gDefaultPlayerPosition[0];
                 cam->attn[1] = gDefaultPlayerPosition[1];
@@ -1577,8 +1577,8 @@ void camera_mode_follow(s32 camIdx)
             cam->delta[0] = zeroValue;
             cam->delta[1] = zeroValue;
             cam->delta[2] = zeroValue;
-            calc_cam_pyr(camIdx, 1);
-            get_cam_wpos(camIdx);
+            calc_cam_pyr_8002A97C(camIdx, 1);
+            get_cam_wpos_8002ABE0(camIdx);
             zeroValue = lbl_80345EC8;
             cam->vel[0] = zeroValue;
             cam->vel[1] = zeroValue;
@@ -1590,7 +1590,7 @@ void camera_mode_follow(s32 camIdx)
                                       followRadius);
             FOLLOW_RENDER(camIdx, cam, resetPosition, resetAttention,
                           resetDirection);
-            ProcCamera(camIdx, 0);
+            ProcCamera_8002E548(camIdx, 0);
             lbl_803443FC = 0;
             cam->trans_mode = -1;
             break;
@@ -1602,7 +1602,7 @@ void camera_mode_follow(s32 camIdx)
     }
 
     offscreen = 0;
-    get_attn_pos(camIdx, focus);
+    get_attn_pos_8002C9A8(camIdx, focus);
     positionCount = gCameraTargetPositionCount;
     if (positionCount == 6) {
         for (i = 0; i < 6; i++) {
@@ -1622,7 +1622,7 @@ void camera_mode_follow(s32 camIdx)
     cam->delta[0] = focus[0] - cam->attn[0];
     cam->delta[1] = focus[1] - cam->attn[1];
     cam->delta[2] = focus[2] - cam->attn[2];
-    if (adjust_radius(camIdx) == 0) {
+    if (adjust_radius_8002B2D4(camIdx) == 0) {
         return;
     }
 
@@ -1693,8 +1693,8 @@ void camera_mode_follow(s32 camIdx)
     cam->attn[1] += cam->delta[1];
     cam->attn[2] += cam->delta[2];
 
-    calc_cam_pyr(camIdx, 0);
-    get_cam_wpos(camIdx);
+    calc_cam_pyr_8002A97C(camIdx, 0);
+    get_cam_wpos_8002ABE0(camIdx);
     zeroValue = lbl_80345EC8;
     cam->vel[0] = zeroValue;
     cam->vel[1] = zeroValue;
@@ -1904,7 +1904,7 @@ found_target_player:
             movingAttention.x = cam->attn[0];
             movingAttention.y = cam->attn[1];
             movingAttention.z = cam->attn[2];
-            StandardCamera(camIdx);
+            StandardCamera_8002B828(camIdx);
             DoShake(&movingPosition, &movingAttention);
             movingDirection.x = movingAttention.x - movingPosition.x;
             movingDirection.y = movingAttention.y - movingPosition.y;
@@ -1982,7 +1982,7 @@ found_target_player:
         finalAttention.x = cam->attn[0];
         finalAttention.y = cam->attn[1];
         finalAttention.z = cam->attn[2];
-        StandardCamera(camIdx);
+        StandardCamera_8002B828(camIdx);
         DoShake(&finalPosition, &finalAttention);
         finalDirection.direction.x = finalAttention.x - finalPosition.x;
         finalDirection.direction.y = finalAttention.y - finalPosition.y;
@@ -2662,7 +2662,7 @@ void camera_mode_level(s32 reset)
         cam0->attn_dest_no_offset[1] = cam0->attn[1];
         cam0->attn_dest_no_offset[2] = cam0->attn[2];
     } else {
-        get_attn_pos(0, cam0->attn);
+        get_attn_pos_8002C9A8(0, cam0->attn);
     }
     lbl_80344534 = lbl_80118B60[lbl_80344538];
     if (gNumTransmitters != 0) {
@@ -2673,8 +2673,8 @@ void camera_mode_level(s32 reset)
         cam0->pyr[0] = *(volatile f32*)&lbl_80344408;
         cam0->pyr[1] = *(volatile f32*)&lbl_80344534;
     }
-    calc_cam_pyr(0, 1);
-    get_cam_wpos(0);
+    calc_cam_pyr_8002A97C(0, 1);
+    get_cam_wpos_8002ABE0(0);
     if (lbl_803443F4 != 0) {
         radius = cam0->radius;
         scratch.normalizeLevel[0] = cam0->wpos[0] - cam0->attn[0];
@@ -2697,7 +2697,7 @@ void camera_mode_level(s32 reset)
     scratch.levelAttention.x = cam0->attn[0];
     scratch.levelAttention.y = cam0->attn[1];
     scratch.levelAttention.z = cam0->attn[2];
-    StandardCamera(0);
+    StandardCamera_8002B828(0);
     DoShake(&scratch.levelPosition, &scratch.levelAttention);
     scratch.levelDirection.x =
         scratch.levelAttention.x - scratch.levelPosition.x;
@@ -2815,7 +2815,7 @@ level_player_found:
         scratch.transmitterAttention.x = cam2->attn[0];
         scratch.transmitterAttention.y = cam2->attn[1];
         scratch.transmitterAttention.z = cam2->attn[2];
-        StandardCamera(2);
+        StandardCamera_8002B828(2);
         DoShake(&scratch.transmitterPosition, &scratch.transmitterAttention);
         scratch.transmitterDirection.x =
             scratch.transmitterAttention.x - scratch.transmitterPosition.x;
@@ -2876,7 +2876,7 @@ level_player_found:
     scratch.overheadAttention.x = cam3->attn[0];
     scratch.overheadAttention.y = cam3->attn[1];
     scratch.overheadAttention.z = cam3->attn[2];
-    StandardCamera(3);
+    StandardCamera_8002B828(3);
     DoShake(&scratch.overheadPosition, &scratch.overheadAttention);
     scratch.overheadDirection.x =
         scratch.overheadAttention.x - scratch.overheadPosition.x;
@@ -2892,7 +2892,7 @@ level_player_found:
     do {
         Camera* cam = (Camera*)(state + cameraOffset);
         cam = (Camera*)((u8*)cam + 0xC8);
-        ProcCamera(cameraIndex, 0);
+        ProcCamera_8002E548(cameraIndex, 0);
         cam->limit_pos[0] = cam->mat[3][0];
         cam->limit_pos[1] = cam->mat[3][1];
         cam->limit_pos[2] = cam->mat[3][2];
@@ -3044,7 +3044,7 @@ void camera_mode_orbit(s32 camIdx)
         shakenAttn[0] = cam->attn[0];
         shakenAttn[1] = cam->attn[1];
         shakenAttn[2] = cam->attn[2];
-        StandardCamera(camIdx);
+        StandardCamera_8002B828(camIdx);
         DoShake((Vec3*)shakenPos, (Vec3*)shakenAttn);
         lookWork.value[0] = shakenAttn[0] - shakenPos[0];
         lookWork.value[1] = shakenAttn[1] - shakenPos[1];
@@ -3285,7 +3285,7 @@ void camera_mode_dest(s32 camIdx)
     step = (f32)(lbl_80346098 * (f64)(u32)gFrameTicks);
     pitchReached = 0;
     cam->pyr[0] = -cam->pyr[0];
-    DiffRate();
+    DiffRate_8002951C(camIdx);
     cam->pyr[0] = -cam->pyr[0];
 
     if (lbl_80344510 != lbl_8034450C) {
@@ -3545,9 +3545,9 @@ s32 debug_camera_pos(s32 lastPlayer)
     offscreen = 0;
     sourceCamera = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF);
     CopyCam((u8*)sourceCamera, (u8*)cam);
-    get_attn_pos(cameraIndex, scratch.desiredAttention);
+    get_attn_pos_8002C9A8(cameraIndex, scratch.desiredAttention);
     lbl_803443F4 = 0;
-    adjust_radius(cameraIndex);
+    adjust_radius_8002B2D4(cameraIndex);
 
     cam->delta[0] = scratch.desiredAttention[0] - cam->attn[0];
     cam->delta[1] = scratch.desiredAttention[1] - cam->attn[1];
@@ -3607,9 +3607,9 @@ s32 debug_camera_pos(s32 lastPlayer)
     cam->attn[2] += cam->delta[2];
 
     savedPitch = lbl_80344408;
-    calc_cam_pyr(cameraIndex, 0);
+    calc_cam_pyr_8002A97C(cameraIndex, 0);
     lbl_80344408 = savedPitch;
-    get_cam_wpos(cameraIndex);
+    get_cam_wpos_8002ABE0(cameraIndex);
     zeroValue = lbl_80345EC8;
     cam->vel[0] = zeroValue;
     cam->vel[1] = zeroValue;
@@ -3634,13 +3634,13 @@ s32 debug_camera_pos(s32 lastPlayer)
     scratch.attention[0] = cam->attn[0];
     scratch.attention[1] = cam->attn[1];
     scratch.attention[2] = cam->attn[2];
-    StandardCamera(cameraIndex);
+    StandardCamera_8002B828(cameraIndex);
     DoShake((Vec3*)scratch.position, (Vec3*)scratch.attention);
     scratch.direction[0] = scratch.attention[0] - scratch.position[0];
     scratch.direction[1] = scratch.attention[1] - scratch.position[1];
     scratch.direction[2] = scratch.attention[2] - scratch.position[2];
     LookInDirection(scratch.direction, (u32)&cam->mat[0][0]);
-    ProcCamera(cameraIndex, 0);
+    ProcCamera_8002E548(cameraIndex, 0);
 
     if (lbl_80344A28 == 0) {
         dbgTextPrintfCol(40, 9, debugText + 196,

@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "branch": "codex/reconstruction-foundation",
+    "owned_units": [
+      "tools/gdl/composed_census/cv_probe.py",
+      "tools/gdl/tests/test_r64_postprocess_audit.py",
+      "tools/gdl/tests/test_r66_cv_probe.py",
+      "tools/gdl/composed_census/r66_exception_mod_probe.py",
+      "tools/gdl/tests/test_r66_exception_mod_probe.py"
+    ],
+    "scope": "Compiler sweep fidelity, structured results, and bounded r66_exception_mod_probe diagnostic with tests. Production tools/fix_exception_objects.py, compiler binaries, game source and build flags remain read-only.",
+    "user_authority": "Explicit separate-branch request; proposals remain in the feature-branch inbox, not accepted on main."
+  },
+  "claimed_at": "2026-09-05",
+  "function": "project:gdl",
+  "id": "work_claim.R66_compiler-reconstruction-foundation.20260905.v1",
+  "kind": "work_claim",
+  "owner": "codex-r66-compiler",
+  "recorded_at": "2026-09-05T19:44:30Z",
+  "schema_version": 1,
+  "state": "released",
+  "released_at": "2026-09-05",
+  "valid_from": "2026-09-05"
+}

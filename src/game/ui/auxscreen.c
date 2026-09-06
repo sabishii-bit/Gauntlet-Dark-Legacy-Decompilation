@@ -83,32 +83,35 @@ s32 WizDelayGoldLeft = 600;
 s32 WizDelayNoGold = 120;
 
 /* .sbss state (zero-initialised) */
-void* map_route_blit;
-void* map_bg_blit;
-s32 map_load_timer;
-s32 map_load_progress;
-s32 map_load_delay;
-s32 map_load_state;
-s32 map_fade_frame;
-s32 map_fade_alpha;
-s32 caption_line;
-s32 caption_page;
-s32 caption_timer;
-s32 movieactive;
-s32 movie_state;
-s32 kill_gamemovie;
-s32 wiz_mode;
+/* MWCC emits these small uninitialized globals in reverse declaration order.
+ * The local retail block occupies 0x80344318..0x80344374, followed by alignment. */
+s32 good_wiz_state;
+s32 good_wiz_plyr_attn;
+f32 good_wiz_yaw;
+s32 good_wiz_speech_pause;
+s32 good_wiz_speech_frame;
+s32 good_wiz_speech_idx;
+s32 good_wiz_alpha;
 f32 good_wiz_timer;
 s32 all_rune_stones;
-s32 good_wiz_alpha;
-s32 good_wiz_speech_idx;
-s32 good_wiz_speech_frame;
-s32 good_wiz_speech_pause;
-f32 good_wiz_yaw;
-s32 good_wiz_plyr_attn;
-s32 good_wiz_state;
-s32 good_wiz_enabled;
-s32 good_wiz_exit_timer;
+s32 kill_gamemovie;
+s32 movie_state;
+s32 movieactive;
+s32 caption_timer;
+s32 caption_page;
+s32 caption_line;
+s32 map_fade_alpha;
+s32 map_fade_frame;
+s32 map_load_state;
+s32 map_load_delay;
+s32 map_load_progress;
+s32 map_load_timer;
+void* map_bg_blit;
+void* map_route_blit;
+
+/* These remain externally owned at 0x80344A9C and 0x8034480C, respectively. */
+extern s32 good_wiz_enabled;
+extern s32 good_wiz_exit_timer;
 
 /* ------------------------------------------------------------------ */
 /* External subroutines                                                */
@@ -164,7 +167,7 @@ extern void MapMusicStart(void);
 extern void next_world(void);
 extern void fn_80053D08(s32 a, s32 b, s32 c);
 extern void setup_player_display(s32 i);
-extern s32 init_next_level(s32 a);
+extern s32 init_next_level_8005638C(s32 a);
 extern void* LoadModel(char* name, s32 a, s32 b, s32 c);
 extern void* MBNewBlit(void* base, s32 a, s32 b);
 extern void* MBOX_FindTexture(char* name, s32 a);
@@ -1167,7 +1170,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     for (i = 0; i < 4; i++) {
         setup_player_display(i);
     }
-    rv = init_next_level(lvl);
+    rv = init_next_level_8005638C(lvl);
 
     if (movie == 0 && *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata)) != 0) {
         sprintf((char*)base, fmt + 24, (char*)gCurLevel + offsetof(level_data, name));

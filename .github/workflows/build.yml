@@ -37,6 +37,13 @@ jobs:
         cp -r /tools/mwcc_compiler tools/
         cp -r /orig/GUNE5D orig/
 
+    # The container's ninja-compatible builder lacks `-t deps`, which the
+    # provenance audit requires. Use pinned Ninja for builds and diagnostics.
+    - name: Install diagnostic-capable Ninja
+      run: |
+        uv tool install ninja==1.13.0
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
     # Cache build artifacts
     # (v2: cache key bumped after retiring the container's wine-wrapped dtk 1.8.0,
     # which wrote stale split state into cached build dirs)
@@ -51,7 +58,10 @@ jobs:
     # Configure the project. decomp-toolkit (dtk) is downloaded automatically
     # as a native Linux binary at the version pinned in configure.py (dtk_tag).
     - name: Configure
-      run: python configure.py -v GUNE5D
+      run: |
+        ninja --version
+        ninja -t list
+        python configure.py -v GUNE5D
 
     # Build the project using ninja
     - name: Build
@@ -71,6 +81,21 @@ jobs:
           echo "❌ Build does not match expected SHA1!"
           exit 1
         fi
+
+    # Unit tests alone did not catch a broken datum-audit caller. Keep both
+    # suites and a live private-fixture workflow check alongside the DOL gate.
+    - name: Analysis tool tests
+      run: python -m unittest discover tools/gdl/tests -b
+
+    - name: Memory graph tests and validation
+      run: |
+        python -m memory_graph.test_graph -b
+        python memory_graph/gdlmem.py validate
+
+    - name: Reconstruction diagnostics
+      env:
+        WINEPREFIX: /tmp/.wine
+      run: python tools/gdl/reconstruction_preflight.py --smoke-tools
 
     # Upload build artifacts
     - name: Upload build

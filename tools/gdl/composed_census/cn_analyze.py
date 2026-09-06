@@ -1,7 +1,9 @@
 """CN lane: aligned raw-object analysis for the census near-miss composition class.
 
-Loads OUR raw compiler output (.postprocess/body when the TU has a webfrank
-unit, else the plain object) and the extracted TARGET object, extracts one
+Loads OUR active pre-WebFrank/P6 input and the extracted TARGET object. This
+is compiler raw unless an upstream Frank stage exists, which is explicitly
+labelled transformed, not raw. The hash-bound build graph decides the path,
+not leftover files. Extracts one
 function from each, and reports the differing words with a decoded view plus
 the per-word relocation identity (type, symbol) on BOTH sides.
 
@@ -25,14 +27,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")
 # typed the core tools' `game/x/y.c` spelling got `...y.c.o` and a MISSING
 # OBJECT, which reads as "not in the census" rather than as a spelling.
 def our_object(unit):
-    unit = unit_key(unit)
-    d, base = unit.rsplit("/", 1)
-    body = os.path.join(ROOT, "build", "GUNE5D", "src", d, ".postprocess",
-                        "body", base + ".o")
-    if os.path.exists(body):
-        return body, "raw postprocess body"
-    plain = os.path.join(ROOT, "build", "GUNE5D", "src", unit + ".o")
-    return plain, "plain object (no webfrank unit)"
+    from raw_object import resolve_object
+    selected = resolve_object(unit_key(unit), root=ROOT, view="pre_postprocessor")
+    return str(selected.path), selected.description
 
 
 def target_object(unit):
@@ -99,7 +96,7 @@ def report(unit, fn):
     print(f"    jumptable    : ours {sorted(ojt)} target {sorted(tjt)}")
     lo = max(0, (min(diffs) - 12)) if diffs else 0
     hi = min(len(ours), (max(diffs) + 16)) if diffs else 0
-    print("    ---- aligned window (both from raw objects) ----")
+    print("    ---- aligned window (selected input versus extracted target) ----")
     for off in range(lo, hi, 4):
         ow, tw = wf._u32(ours, off), wf._u32(tgt, off)
         mark = "  " if ow == tw else "<>"
@@ -122,4 +119,8 @@ def report(unit, fn):
 
 
 if __name__ == "__main__":
-    report(sys.argv[1], sys.argv[2])
+    try:
+        report(sys.argv[1], sys.argv[2])
+    except ValueError as error:
+        print(f"OBJECT SELECTION UNRESOLVED: {error}; run configure.py and ninja")
+        raise SystemExit(1)

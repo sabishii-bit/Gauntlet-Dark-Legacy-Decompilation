@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
-"""Reproduce the original CodeWarrior link-time processing for the two C++
-exception-runtime TUs (NMWException.cpp / ExceptionPPC.cpp).
+"""Matching-only compatibility layout for two C++ exception-runtime TUs.
 
-The retail Gauntlet Dark Legacy build linked with CodeWarrior's function-level
-dead-stripping and weak-symbol deduplication. mwcc GC/1.x unconditionally
-emits weak out-of-line copies of inline virtuals (verified on every GC
-compiler from 1.1 to 2.0): `throw bad_exception()` in ExceptionPPC.cpp drags
-in a weak copy of the inline std::exception destructor that the original
-linker stripped (it is referenced by nothing but its own extabindex entry).
-The stripped copies' string literals could not be removed from the monolithic
-.rodata, which is why the retail binary contains orphaned "bad_alloc" /
-"exception" strings.
+This is a target-specific rewrite, NOT a source-preserving general linker
+operation. Its historical explanation (weak-function dead stripping and home
+emission differences) remains a reconstruction hypothesis. The production CLI
+accepts only the exact measured GC/1.2.5 compiler objects and verifies the full
+postimages. Changed source or compiler output is refused, never silently
+rewritten. Editable/non-matching builds do not schedule this tool.
 
-mwld's CLI cannot strip functions from a monolithic .text section, so this
-script post-processes the objects instead:
+The unchanged legacy layout operations are:
 
 ExceptionPPC.o:
   - remove the weak __dt__Q23std9exceptionFv (.text), its extab entry and
@@ -29,13 +24,35 @@ NMWException.o:
     uhandler} (the original emitted the RTTI record with the class's home
     emission, before the file-scope handler statics).
 
-Usage: fix_exception_objects.py <NMWException.o> <ExceptionPPC.o> <stamp>
-Idempotent: objects already in retail layout are left untouched.
+Usage: fix_exception_objects.py --kind nmw|exppc --input raw.o --output fixed.o
+Inputs are retained byte-for-byte; only a verified, separate output is replaced.
+The fix_nmw/fix_exppc helpers remain in-place research primitives; do not call
+them from a build edge. The guarded entry point is fix_object.
 """
+import argparse
+import hashlib
+import os
+from pathlib import Path
 import struct
-import sys
+import tempfile
 
 WEAK_NAME = b"__dt__Q23std9exceptionFv"
+
+# Measured from complete, unchanged Runtime TUs through the actual GC/1.2.5
+# Ninja compile edges. These are object fingerprints, not source hashes or a
+# claim of historical compiler identity. Whole-file guards deliberately refuse
+# unsupported metadata/compiler variants as well as changed executable data.
+# See claim.R67_runtime-rewrites-are-isolated-from-editable-builds.20260905.v1.
+OBJECT_HASHES = {
+    "nmw": (
+        "df1296a531804e2b9e1f305e66bc6901e6ced5c886f53da52b3a2fb8bb64ba4e",
+        "e0446ade83295b8364dcb915152aaf28175163555504df3cf3e63347b15ed2bb",
+    ),
+    "exppc": (
+        "f6f248059d3cde25f39e2b52181497ce93bcea6557b34823ff5968e143a8a44f",
+        "086d2a2a07d8d0619232f44bd975d728ef02189c412d2346d16614bd03b4b564",
+    ),
+}
 
 
 class Elf:
@@ -381,26 +398,68 @@ def fix_nmw(path):
     return changed
 
 
-def main():
-    nmw, exppc, stamp = sys.argv[1], sys.argv[2], sys.argv[3]
-    a = fix_nmw(nmw)
-    b = fix_exppc(exppc)
-    # unconditionally re-align section offsets (dtk/objdiff report requires
-    # sh_offset % sh_addralign == 0; also heals objects fixed before the
-    # realign pass existed)
-    for path in (nmw, exppc):
-        Elf(path).save()
-    # the retail link placed NMWException's .rodata at 0x801178EC (4 mod 8);
-    # our compile declares sh_addralign 8, which would make mwld pad the
-    # monolithic .rodata (+0x14 cascade). Drop it to 4 to pack like retail.
-    e = Elf(nmw)
-    ro = e.sec.get(".rodata")
-    if ro is not None and e.sh[ro][8] > 4:
-        e.sh[ro][8] = 4
-        e.save()
-    with open(stamp, "w") as fh:
-        fh.write(f"nmw={'fixed' if a else 'ok'} exppc={'fixed' if b else 'ok'}\n")
+def fix_object(kind, input_path, output_path):
+    """Publish a guarded postimage without modifying the compiler input."""
+    if kind not in OBJECT_HASHES:
+        raise ValueError(f"unsupported exception runtime kind: {kind}")
+    source, output = Path(input_path).resolve(), Path(output_path).resolve()
+    if source == output or (output.exists() and os.path.samefile(source, output)):
+        raise ValueError("raw input and fixed output must be distinct files")
+    before = source.read_bytes()
+    expected_before, expected_after = OBJECT_HASHES[kind]
+    actual_before = hashlib.sha256(before).hexdigest()
+    if actual_before != expected_before:
+        raise ValueError(
+            f"{kind}: raw object hash {actual_before} != supported {expected_before}; "
+            "changed source/compiler output is not eligible for a retail rewrite. "
+            "Use --non-matching for editable builds."
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fd, scratch_name = tempfile.mkstemp(prefix=output.name + ".fix-", dir=output.parent)
+    scratch = Path(scratch_name)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(before)
+        if kind == "nmw":
+            fix_nmw(str(scratch))
+        else:
+            fix_exppc(str(scratch))
+        elf = Elf(str(scratch))
+        # Existing matching layout requires NMWException .rodata alignment 4.
+        if kind == "nmw":
+            ro = elf.sec.get(".rodata")
+            if ro is not None and elf.sh[ro][8] > 4:
+                elf.sh[ro][8] = 4
+        elf.save()
+        actual_after = hashlib.sha256(scratch.read_bytes()).hexdigest()
+        if actual_after != expected_after:
+            raise ValueError(
+                f"{kind}: fixed object hash {actual_after} != expected {expected_after}"
+            )
+        if source.read_bytes() != before:
+            raise ValueError("raw compiler input changed during the rewrite")
+        os.replace(scratch, output)
+        return {"kind": kind, "raw_sha256": actual_before,
+                "fixed_sha256": actual_after, "raw_retained": True}
+    finally:
+        scratch.unlink(missing_ok=True)
+        Path(scratch_name + ".tmp").unlink(missing_ok=True)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--kind", required=True, choices=tuple(OBJECT_HASHES))
+    parser.add_argument("--input", required=True, type=Path)
+    parser.add_argument("--output", required=True, type=Path)
+    args = parser.parse_args(argv)
+    try:
+        result = fix_object(args.kind, args.input, args.output)
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"REFUSED: {error}\n")
+    print(f"FIXUP {result['kind']}: retained raw {result['raw_sha256']}; "
+          f"verified fixed {result['fixed_sha256']}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

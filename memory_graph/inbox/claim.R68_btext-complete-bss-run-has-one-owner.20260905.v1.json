@@ -1,0 +1,30 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/r68_btext_bss_audit.py",
+    "tools/gdl/tests/test_r68_btext_bss.py"
+  ],
+  "attributes": {
+    "held_fixed": "Entire source/header corpus, function bodies, all compiler flags and postprocessors; only the split ownership line changes.",
+    "law_screen": "Current law catalog and btext brief/context screened before source/data work. Apply actual-link ownership, fresh Ninja raw fidelity, pinned-source protection and BSS extent rather than byte-hash discipline. No allocator or source-order axis retried; current source layout already satisfies all five target extents.",
+    "measured_base": "2c9fd640c plus the explicit btext BSS split claim",
+    "next_obligation": "Do not promote btext to Matching from BSS evidence. Audit remaining initialized sections and source ABI/EH, and run a full-image selected-source link separately.",
+    "reports": [
+      "build/r68_btext_bss_before.json",
+      "build/r68_btext_bss_after.json"
+    ],
+    "reproduce": [
+      "python configure.py",
+      "ninja -j2",
+      "python tools/gdl/composed_census/r68_btext_bss_audit.py --out build/r68_btext_bss_after.json"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R68_btext-complete-bss-run-has-one-owner.20260905.v1",
+  "kind": "claim",
+  "predicate": "verified_data_ownership_repair",
+  "recorded_at": "2026-09-05T22:39:26Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/btext.c",
+  "valid_from": "2026-09-05",
+  "value": "Assigned the complete 3336-byte btext BSS run [0x8023EAE0,0x8023F7E8) to its implemented TU. The five typed objects font_info, gTextWorkBuf, gScrollMsgList, gStringMsgList and gTextFormatBuf cover the entire run at exact target addresses, sizes and relative offsets, with alignment8 and no BSS relocations. The previously extracted auto-object and compiled-source substitution no longer duplicate these five definitions. No source or compiler change: the complete freshly reproduced raw object SHA256 remains 58b7d23479eb0867ba1f1fa715e4d4f783189b8ed9a434f234372ab1dae3e99d, preserving all46 bodies and metadata. Normal matching ninja prints main.dol: OK. This is BSS allocation/ownership evidence, not initialized-byte comparison, original TU provenance, or a whole-TU flip; unclaimed initialized sections and existing code/EH differences remain."
+}

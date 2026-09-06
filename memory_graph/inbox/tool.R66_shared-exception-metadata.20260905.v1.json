@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Supports named-function ADDR32 explicit-addend index relocations. Unsupported or incomplete metadata raises ValueError; it is not an empty result.",
+    "Relocations inside extab payloads are unresolved rather than compared as raw placeholder bytes.",
+    "Record identity/payload equality is not whole-object or final-link equality; extra records require separate link-reachability review."
+  ],
+  "id": "tool.R66_shared-exception-metadata.20260905.v1",
+  "kind": "tool",
+  "name": "Shared MWCC exception metadata decoder",
+  "purpose": "Read supported ELF32-BE MWCC exception records by function identity without confusing record order with payload mismatch.",
+  "recorded_at": "2026-09-05T20:12:06Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/exception_metadata.py",
+  "status": "active",
+  "tool_key": "tool:exception-metadata",
+  "tool_kind": "library",
+  "usage": [
+    "In process: exception_records(elf_bytes) and compare_exception_records(target_records, our_records). No subprocess or build.",
+    "CLI consumer: python tools/gdl/datadiff.py <unit> --sections --out build/<lane>_sections.json."
+  ],
+  "valid_from": "2026-09-05"
+}

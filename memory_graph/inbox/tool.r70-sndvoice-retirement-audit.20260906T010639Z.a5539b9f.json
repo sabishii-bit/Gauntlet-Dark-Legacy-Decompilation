@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Requires the actual plain GC/1.2.5n Ninja edge and fresh entire-object fidelity; ignores leftover .postprocess/body files. Does not modify production or attach source hashes to mod builds.",
+    "Exact text and nontext comparison normalizes only SDA21 word+2/+0 and the ELF-proven ...data.0/sndDbTable base. Full DOL link checksum is a separate gate; caller-supplied witness equality does not authenticate prior history.",
+    "AXPBMIX sizeof/offsetof control verifies the SDK ABI struct-flattening idiom, not arbitrary-platform ISO-C portability or proof all postprocessor rules can be retired."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r70_sndvoice_retirement_audit.py",
+  "id": "tool.r70-sndvoice-retirement-audit.20260906T010639Z.a5539b9f",
+  "kind": "tool",
+  "name": "r70-sndvoice-retirement-audit",
+  "purpose": "Prove sndvoice active raw compiler fidelity, zero WebFrank edges/rules, exact whole-TU text and datum layout after source-based retirement",
+  "recorded_at": "2026-09-06T01:06:39Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r70_sndvoice_retirement_audit.py",
+  "status": "active",
+  "tool_key": "tool:r70-sndvoice-retirement-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run after configure and green ninja: --out build/r70_sndvoice_retirement.json; optional --before-object names an archived prior linked witness"
+  ],
+  "valid_from": "2026-09-06T01:06:39+00:00"
+}

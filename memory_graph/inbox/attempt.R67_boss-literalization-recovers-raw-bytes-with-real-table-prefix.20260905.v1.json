@@ -1,0 +1,43 @@
+{
+  "attempted_axis": "Execute the BE prefix hypothesis with the real initialized-data filename table, then compare separate and merged full-TU contexts against raw-faithful Ninja baselines.",
+  "attributes": {
+    "axis_log": [
+      "Historical BE 20260904 literal-sites-only probe regressed while missing the data-table prefix; retained as an axis-specific result, not re-quoted as fresh scores.",
+      "R67 20260905 joint data-table+literal probe reverses that source-form regression at raw-body fidelity; merge alone is raw-byte-neutral."
+    ],
+    "evidence_claim": "claim.R67_sound-data-context-beats-merge-necessity-and-recovers-the-movie-table.20260905.v1",
+    "law_screen": "Screened complete current law index and fresh TU briefs, then full pool/boundary records. claim.law.BE_a-string-blob-conversion-reproduces-the-target-only-when-the-tus-whole-rodata-prefix-is-emitted-from-source.20260904.v1: APPLIED as context hypothesis, supported locally, not as whole-project necessity. claim.law.SP_str-pool-packs-tight-in-every-archive-compiler-while-plain-str-reuse-4-aligns-each-literal-and-still-pools-the-addressing.20260904.v1: APPLIED, existing reuse/readonly preserved. claim.law.SM_moving-a-function-between-tus-changes-inlining-in-both-directions-and-the-dont-inline-bracket-belongs-on-the-caller.20260904.v1: SCREENED; all 151 raw bodies unchanged in this finite merge, so no new dont_inline bracket justified. claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1: APPLIED, instruction scores not treated as datum proof; own pointer bindings checked independently. core-screen source/pin constraints applied: no pinned production source or configuration changed.",
+    "laws_applied": [
+      "claim.law.BE_a-string-blob-conversion-reproduces-the-target-only-when-the-tus-whole-rodata-prefix-is-emitted-from-source.20260904.v1",
+      "claim.law.SP_str-pool-packs-tight-in-every-archive-compiler-while-plain-str-reuse-4-aligns-each-literal-and-still-pools-the-addressing.20260904.v1",
+      "claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1"
+    ],
+    "probed_form": "Maintained literal source generator: tools/gdl/composed_census/r67_sound_boundary_probe.py stream_table_prefix() reads the actual 32 target pointers at 0x8012331C; boss_literals() replaces all 19 `formats + N` uses with their target strings and removes `register char* formats = lbl_80114A48;`. The diagnostic-only table is `char* r67_stream_names[32] = { ...actual filename literals... };` placed before evt source. Separate, merged, table-only and declaration-only controls are all preserved by the script. No placeholder padding array, inline assembly or force_active is used.",
+    "residual": "The remaining extra mr is not resolved by these context changes. No finite unchanged-source experiment establishes compiler impossibility. The historical defining TU and integrated data ownership remain open.",
+    "scope": "Diagnostic generated C/objects/JSON under build/r67_sound* only. No production source, shared headers, splits, configure or webfrank change.",
+    "verification": "2026-09-05 at 67b0fca5e470ef0e034c179de1852ab4ce613a20: maintained full-TU probe PASS, both baseline objects byte-identical to Ninja raw; evt table+literal fixture118/118 raw bodies byte-identical and521/521 emitted .rodata bytes equal retail. Merged equivalent151/151 raw bodies identical and first524 bytes equal. Current fndiff --ops target826/ours827; one extra mr at O+0x40, unchanged. Both unmodified production pins are protected by file hashes. Datadiff still reports evt unclaimed data/EH debt; no flip or source match claimed."
+  },
+  "function": "function:AudioSetupBossStreams",
+  "held_fixed": "GC/1.2.5 actual Ninja cflags_demo and all existing production inputs, source function bodies except the scratch BossStreams string-site/local rewrite, and existing pins. Declaration-seam changes separately controlled byte-identical before testing a merge. The synthetic linker controls disable Cpp_exceptions to avoid needing startup runtime support; full-TU baselines and source probes preserve the actual option.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "In a controlled reconstruction of the actual independent arrays and their readers, compare pooled relocation bases and all table bindings before any matching sweep. If natural code does not pool at the target base or requires fabricated accesses/retention directives, that concrete reconstruction is not sufficient.",
+    "count_consequence": "Current table+literal reconstruction is count-neutral: target826/ours827 remains. A subsequent source-context change would need to remove the extra instruction to close this function; the current fixture is not that closure.",
+    "prescription": "Recover remaining real, separately typed sound data in retail order and their true source scopes; run full-TU separate/grouped controls with raw body and datum checks, then a production-LCF ownership/link probe. Do not insert the unused table into production solely to adjust offsets.",
+    "screened_against_target": "yes: retail pointer table and both literal pools were decoded; all340 typed-island bytes and32 pointers reproduced at measured retail bases. Target live sound-table reads cross this island. Not proved: the exact original GC TU grouping or the complete later data prefix.",
+    "statement": "The shared target data base spans independently typed sound arrays and the MovieBanks/MovieMusic island; natural data pooling can retain the island without a direct consumer. Complete data-object context, rather than a synthetic giant view, may reproduce the correct addressing while allowing ordinary source literals."
+  },
+  "id": "attempt.R67_boss-literalization-recovers-raw-bytes-with-real-table-prefix.20260905.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-05T21:07:28Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "prologue-form",
+    "measured_at": "2026-09-05",
+    "signature": "opcode multiset: DIFFERS  target-only: (none)  ours-only: -1 mr"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.BE_sounds-evt-boss-stream-blob-conversion-rebases-the-pool-and-regresses.20260904.v1",
+  "valid_from": "2026-09-05"
+}

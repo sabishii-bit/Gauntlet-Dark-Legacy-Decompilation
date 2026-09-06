@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Run after fresh owning raw objects are built. Reads actual Ninja compiler edge; refuses baseline byte drift, mixed identifier state, unintended code/data/EH/layout/relocation changes or absent target/provider witnesses.",
+    "PASS proves only the explicit old-versus-corrected identifier mapping. Target/provider witnesses alone do not prove arbitrary use-site semantics, raw matching, complete data ownership or an all-source link. Inspect target aligned use sites and run existing postprocessor/full-build gates separately."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r68_symbol_binding_probe.py",
+  "id": "tool.r68-symbol-binding-probe.20260905T221217Z.8c08fd0d",
+  "kind": "tool",
+  "name": "r68-symbol-binding-probe",
+  "purpose": "Baseline-faithful reversible full-TU symbol-identity repair experiment; checks raw bodies, all allocated section sizes/alignment/content, BSS and named relocation changes, plus actual target/provider witnesses.",
+  "recorded_at": "2026-09-05T22:12:17Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r68_symbol_binding_probe.py",
+  "status": "active",
+  "tool_key": "tool:r68-symbol-binding-probe",
+  "tool_kind": "external",
+  "usage": [
+    "python tools/gdl/composed_census/r68_symbol_binding_probe.py pb-diag --out build/r68_pbdiag.json",
+    "python tools/gdl/composed_census/r68_symbol_binding_probe.py scroll-mode --out build/r68_scrollmode.json"
+  ],
+  "valid_from": "2026-09-05T22:12:17+00:00"
+}

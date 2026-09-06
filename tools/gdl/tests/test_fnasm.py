@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import fnasm  # noqa: E402
+from tools.gdl.tests.test_raw_object import graph_fixture
 
 
 class PinScreenTest(unittest.TestCase):
@@ -96,24 +97,19 @@ class RawPathTest(unittest.TestCase):
         p.write_bytes(b"")
         return p
 
-    def test_raw_prefers_frank_stage_over_body(self):
-        base = f"build/{fnasm.VERSION}/src/game/sys/.postprocess"
-        self._touch(f"{base}/body/sysservice.o")
-        frank = self._touch(f"{base}/frank/sysservice.o")
+    def test_raw_selects_compiler_before_frank(self):
+        _, body, _ = graph_fixture(self.root, unit="game/sys/sysservice", chain=("frank", "webfrank"))
         got = fnasm.raw_obj_path("game/sys/sysservice", root=self.root)
-        self.assertEqual(got, frank)
+        self.assertEqual(got, self.root / body)
 
     def test_raw_falls_back_to_body(self):
-        body = self._touch(
-            f"build/{fnasm.VERSION}/src/game/sys/.postprocess/body/"
-            "sysservice.o")
+        _, body, _ = graph_fixture(self.root, unit="game/sys/sysservice", chain=("webfrank",))
         got = fnasm.raw_obj_path("game/sys/sysservice", root=self.root)
-        self.assertEqual(got, body)
+        self.assertEqual(got, self.root / body)
 
-    def test_raw_returns_none_when_unit_is_not_postprocessed(self):
-        self._touch(f"build/{fnasm.VERSION}/src/game/ui/select.o")
-        self.assertIsNone(fnasm.raw_obj_path("game/ui/select",
-                                             root=self.root))
+    def test_raw_plain_output_is_explicit_when_not_postprocessed(self):
+        _, _, plain = graph_fixture(self.root, unit="game/ui/select")
+        self.assertEqual(fnasm.raw_obj_path("game/ui/select", root=self.root), self.root / plain)
 
 
 if __name__ == "__main__":

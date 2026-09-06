@@ -1,0 +1,76 @@
+{
+  "attempted_axis": "Recover the public Dolphin MIX output-cursor idiom and local declaration context; retire the existing WebFrank rule under the unchanged GC/1.2.5n compile edge",
+  "attributes": {
+    "artifact_manifest": [
+      "build/r70_sndvoice_baseline.c, build/r70_sndvoice_pre_retirement_raw.o, build/r70_sndvoice_pre_retirement_postprocessed.o",
+      "build/r70_sndvoice_probe.py, build/r70_sndvoice_probe1.json, build/r70_sndvoice_lineage1.json, build/r70_sndvoice_lineage2.json",
+      "build/r70_sndvoice_source_9xi3_p6f/, build/r70_sndvoice_source_k9gej32d/, build/r70_sndvoice_source_58pgdled/",
+      "build/r70_sndvoice_retirement.json and the artifact_folder named inside it; build/r70_sndvoice_active_fidelity.json",
+      "build/r70_sndvoice_melee_mix.c, build/r70_sndvoice_melee_mix.h and build/r70_sndvoice_* graph screens"
+    ],
+    "axis_log": [
+      "Fresh actual-source compile and unchanged scratch-path control both reproduced the baseline before variants; full source and object evidence retained. Width, shared identity splitting, block cur, direct comparisons, delta carrier reuse and named s32 delta: same 42-word result, except signed int cur changed comparisons and gave 60 words. No variant retained from this local-only family.",
+      "New source-lineage axis: postfix cursor form emitted 823 vs target 822 instructions; separate cursor increments or indexed stores with output declared before ctrl retained count822 but yielded114 differing words. Same nontext and siblings. This establishes sensitivity, not a compiler limitation.",
+      "Joint cursor/declaration context: output after ctrl, or output declared inside mixDirty, each reached822/822 and0 differing words. Removing unused shared cur while keeping output after ctrl also reached0 and was retained. Removing cur with output before ctrl remained114. Every count-neutral variant preserved sibling bodies, function offsets/sizes/bindings/relocations and all nontext/EH. Declaration-order effects were alignment-sensitive: scalar-only cur-after-ctrl had been neutral on the old direct-store source."
+    ],
+    "baseline": {
+      "commit": "d9a9e78b43b66ae5ee7be5f68a4b430cc2a66caf",
+      "differing_words": 42,
+      "instruction_counts": "822/822",
+      "raw_object_sha256": "5b9f7e0231564db879e4de8352587655eb81f0b4cad41a1d1c04067e9f942533",
+      "residual": "REGFIELD-ONLY, zero mnemonic and relocation-name mismatches; frame 0x90 and saved r31 exact. The differing ramp temporaries are in +0x9f8..+0xb58; diagnosis was reproduced against all 822 target instructions before edits.",
+      "source_sha256": "e78c2e65308d98a7d46ea423bb97baa2475d15ca73729ef45febdf90a804fa6a"
+    },
+    "commands": [
+      "python tools/gdl/composed_census/cv_probe.py game/g3d/sndvoice --axes check --out build/r70_sndvoice_fidelity.json (before); --out build/r70_sndvoice_active_fidelity.json (after)",
+      "python build/r70_sndvoice_probe.py --axis local --out build/r70_sndvoice_probe1.json; --axis lineage --out build/r70_sndvoice_lineage1.json; --axis lineage --out build/r70_sndvoice_lineage2.json (historical scratch generator, archived alongside sources/objects, run before production edit)",
+      "python configure.py; ninja -j2",
+      "python tools/gdl/composed_census/r70_sndvoice_retirement_audit.py --before-object build/r70_sndvoice_pre_retirement_postprocessed.o --out build/r70_sndvoice_retirement.json",
+      "python tools/gdl/fndiff.py game/g3d/sndvoice sndVoiceUpdateAll --ops --clean",
+      "python tools/gdl/datadiff.py --sections game/g3d/sndvoice"
+    ],
+    "law_screen": "Read the full 287-law corpus at spawn plus matching-law/context/pin screens. claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 applied in the SDK-cursor context, not on old direct stores. claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 and claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 motivated identity probes; isolated variants neutral. claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1: block-scoped output exact after cursor rewrite, block cur neutral before it. claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1: unsigned widening neutral, signed comparisons regressed. claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1 and claim.law.inline-frame-candidates-need-a-target-minus-ours-delta-census.20260831.v1: no frame deficit, no inline/padding edits. claim.law.R64_fixed-source-compiler-sweeps-do-not-establish-source-unreachability.20260905.v1: confirmed by the exact source counterexample. Old cap has no literal reproducible matrix; no broad flag/compiler sweep repeated.",
+    "layout_and_semantics": "A separate same-compiler sizeof/offsetof object verifies sizeof(u16)=2, sizeof(AXPBMIX)=36, all18 field offsets0..34 step2, sizeof(SndVoice)=88, mix offset48 and size40. The18 output halfwords are distinct from mix[20], which also contains the separate VE pair. The cursor is the public SDK ABI struct-flattening idiom. Exact raw and linked output verify target behavior; arbitrary-platform strict ISO-C portability is not certified by this idiom. The layout probe is outside production and no source hash gate is added to mod builds.",
+    "mechanism": "The existing compiler can emit every target word. Source expression/declaration identity changes the virtual-register context of the same lowered ramp arithmetic. Isolated width or shared-local tweaks did not reach the target; the SDK cursor plus control/cursor declaration context did. This refutes necessity of this rule, not every remaining WebFrank rule, and does not identify an internal allocator algorithm or prove a missing compiler flag.",
+    "probed_form": "Literal decisive forms: `u16 ctrl; u16* output;` and `output = (u16*)&p->pb.mix; *output = v->mix[2]; output += 1; *output = (v->mix[3] - v->mix[2]) / 0xA0; output += 1;` continuing the existing vR/AuxAL/AuxAR/AuxBL/AuxBR/AuxBS/vS/AuxAS field order. Opposite controls were `*output++ = value;` and declaration `u16* output; u16 ctrl;`.",
+    "proof": {
+      "after_source_sha256": "33f784b114bad080d58be8214cfe03fba0c2d817258e0449483a3827f37a7fc2",
+      "compiler": "GC/1.2.5n (derived, not stock)",
+      "compiler_sha256": "ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c",
+      "complete_object_sha256": "6038a707e5d9ca9f4822af686f17eb5045f92fdc2711bc30477e922b3f6a4d7c",
+      "freshness": "Active cv.read_edges()[unit].body_o is build/GUNE5D/src/game/g3d/sndvoice.o with rule mwcc_sjis. A fresh entire compile reproduces it byte-identically. A stale .postprocess/body/sndvoice.o with the old42-word mismatch is deliberately left as a negative control, reported as ignored and different; no target obj/ object was deleted.",
+      "raw_function_sha256": "5b88e0fd5a096acbf6a638aa9231470596847ada850df7fa740905e4753ed3c2",
+      "relocations": "All45 text references checked positionally with type and addend retained. Normalize only the documented SDA21 compiler+2/target+0 encoding convention. ...data.0 is independently verified as a local zero-size .data+0 symbol, exactly the globally defined sndDbTable base; all allocated data bytes including the sibling tables must also equal the target before this alias is admitted.",
+      "whole_tu": "Eight target bodies and complete6732-byte text coverage exact, no gaps. Allocated .data3006 bytes, .bss5632 bytes and .sbss16 bytes exact in contents/type/flags/size/alignment; target EH identical (no records). Previous processed and new raw whole objects are identical including all symbol/relocation/header/nontext metadata."
+    },
+    "retained_form": "Remove shared u16 cur; declare u16 ctrl; then u16* output;. In the mixDirty block assign output = (u16*)&p->pb.mix; write *output = value; output += 1; for each of the 18 existing output halfwords in unchanged order. Retain ctrl=0 before the final AuxAS pair. Replace the cur assignments in direct u16 field comparisons with the fields and assign VE.currentVolume directly from v->mix[0]. No padding, asm, wrapper, header, flag or compiler edits.",
+    "scope": "src/game/g3d/sndvoice.c plus integrator-authorized removal of its sole unit rule from config/GUNE5D/webfrank.json; new lane audit/tests and the authorized retirement coverage adjustment in tools/gdl/tests/test_rule_derive_emit.py. Existing Matching configuration and compiler/flags unchanged. No claim of increased matching percentage: 3288 bytes transition from WebFrank-declared to raw-derived provenance.",
+    "source_lineage": {
+      "comparison": "MIXUpdateSettings uses u16 mixerCtrl followed by u16* p, casts the homogeneous AXPBMIX output block to u16*, and performs separate stores/increments followed by direct field tests. Same 64-channel model, 0x58 MIXChannel record and 20-halfword input layout. GDL has its own mixEnabled branch and flag chronology, so this is source-idiom lineage evidence, not proof of the original complete Midway source. No Xbox PDB counterpart was found; Xbox uses a different audio backend.",
+      "header": "https://raw.githubusercontent.com/doldecomp/melee/b9a72ccc597f3769cd1904e9f81725b06a2c9b88/extern/dolphin/include/dolphin/mix.h",
+      "header_sha256": "d182ea1699ccb3de318e29fea8c87d1415db5d96055903905c54f4456a4c2e6a",
+      "revision": "doldecomp/melee b9a72ccc597f3769cd1904e9f81725b06a2c9b88, obtained via official GitHub API",
+      "source": "https://raw.githubusercontent.com/doldecomp/melee/b9a72ccc597f3769cd1904e9f81725b06a2c9b88/extern/dolphin/src/dolphin/mix/mix.c",
+      "source_sha256": "c0f9ee0630969eb0277ad195dfbe44eeca9101d69c38d7c0bbe7ac3904bacff4"
+    },
+    "summary": "One actual postprocessor retirement, not a new fuzzy gain: 822/822 instructions, baseline DIFFERING WORDS = 42 and retained DIFFERING WORDS = 0, real 82 -> 0. All eight functions and all 6732 text bytes now match raw, with 45 positional relocations bound. Removed the sole game/g3d/sndvoice rule and generated WEBFRANK edge. The whole 11840-byte plain compiler object equals the archived previously linked postprocessed object exactly. The source-unreachability interpretation of the old broad, nonreproducible cap was false for this function.",
+    "verification": "Fresh configure plus forced source rebuild with ninja -j2 prints MWCC directly to src/game/g3d/sndvoice.o, LINK/DOL and build/GUNE5D/main.dol: OK, with no WEBFRANK edge. Retirement audit PASS; fndiff EXACT real 0; datadiff 0 blockers. python -m unittest discover tools/gdl/tests -b and python -m memory_graph.test_graph -b both all green. The first full tools run exposed the last-shipped-recolors map assertion; the integrator-authorized test-only repair explicitly allows retired {'recolors'}, keeps every-shipped-key coverage, asserts the historical class remains supported and names verify_consistent_recolor. Production rule-map and verifier behavior remain unchanged."
+  },
+  "function": "function:sndVoiceUpdateAll",
+  "held_fixed": "Full TU, all tables and siblings, existing u8 unused[0x78], headers, function order, branch/flag chronology, GC/1.2.5n executable and actual Ninja flags. Only scratch sndVoiceUpdateAll source forms changed; protected production/pin changed only after integrator approval of the raw-exact candidate.",
+  "id": "attempt.R70_sndvoiceupdateall-sdk-cursor-retires-webfrank.20260906.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-06T01:14:16Z",
+  "refutes": "attempt.parked.sndvoiceupdateall.20260829.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-06",
+    "signature": "opcode multiset: IDENTICAL"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.sndvoiceupdateall.20260829.v1",
+  "valid_from": "2026-09-06"
+}

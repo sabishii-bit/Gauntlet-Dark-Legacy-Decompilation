@@ -4233,7 +4233,8 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
     return 1;
 }
 
-extern u8 lbl_8011A1A8[];
+/* PlayerStartMissile's local-space launch offset at retail 0x8011A1A8. */
+f32 lbl_8011A1A8[3] = {0.0f, -0.5f, -1.25f};
 typedef struct MissileSpread {
     f32 value[5];
 } MissileSpread;
@@ -4318,7 +4319,7 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
     scale = playerView->stat_missile_dmg * scaleArg;
 
     if ((pflags & 0x400) != 0) {
-        MulVecMat3((f32*)lbl_8011A1A8, aim, playerView->mat);
+        MulVecMat3(lbl_8011A1A8, aim, playerView->mat);
     } else {
         if (mode == 1) {
             MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x5C), aim,

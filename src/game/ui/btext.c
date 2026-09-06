@@ -105,16 +105,16 @@ s32 scroll_level_msg = -1;      /* 0x80343BB8 */
 f32 DrawStringScale = 1.0f;     /* 0x80343BBC */
 f32 OldStringScale = 1.0f;      /* 0x80343BC0 */
 
-/* .sbss */
-s32 shadow_color;               /* 0x803443D8 */
-s32 gDrawTextY;                 /* 0x803443DC */
+/* MWCC emits these small-BSS globals in reverse declaration order. */
 s32 gLineSpacing;               /* 0x803443E0 */
+s32 gDrawTextY;                 /* 0x803443DC */
+s32 shadow_color;               /* 0x803443D8 */
 
 /* Glow/font config + embedded font tables live in other pools; extern here. */
 extern s32 lbl_803443E4;        /* 0x803443E4 - shared: also written as a
                                  * texture handle by gamemain.c and read as a
                                  * font override by options.c; NOT glow-only */
-extern s32 gScrollModes[2];     /* 0x80343BB0 */
+extern s32 gScrollModes_80343BB0[2]; /* extracted TU-local table, 0x80343BB0 */
 extern u32 glow_color;          /* 0x80343BC4 */
 extern s32 glow_radius;         /* 0x80343BCC */
 extern s32 glow_period;         /* 0x80343BD0 */
@@ -1320,7 +1320,7 @@ void FontInit(void)
     i = 0;
     modeIndex = i;
     for (; (s32)i < 2; i++, modeIndex++) {
-        StringInitSub(gScrollModes[modeIndex], &gScrollMsgList[i]);
+        StringInitSub(gScrollModes_80343BB0[modeIndex], &gScrollMsgList[i]);
     }
     for (i = 1; i < 0xd; i++) {
         LoadFonts(i, gFontDefs8x8[i], gFontDefs[i]);

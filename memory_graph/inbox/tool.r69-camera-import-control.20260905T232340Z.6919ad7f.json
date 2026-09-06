@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Requires fresh raw whole-object fidelity and actual global providers. Explicit six-name mapping only; all bodies/data/EH/layout and other symbol/relocation properties must remain identical.",
+    "Does not prove source ABI, historical TU ownership or whole-source linking. DiffRate is excluded because its missing argument needs separate investigation. Snapshot comparisons apply only to the names-only checkpoint, not to later body edits."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r69_camera_import_control.py",
+  "id": "tool.r69-camera-import-control.20260905T232340Z.6919ad7f",
+  "kind": "tool",
+  "name": "r69-camera-import-control",
+  "purpose": "Camera six-import target-witnessed raw TU identity diagnostic",
+  "recorded_at": "2026-09-05T23:23:40Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r69_camera_import_control.py",
+  "status": "active",
+  "tool_key": "tool:r69-camera-import-control",
+  "tool_kind": "analysis",
+  "usage": [
+    "Capture --out build/r69_camera_before.json; after names-only repair and rebuild pass --before that snapshot and --out build/r69_camera_after.json."
+  ],
+  "valid_from": "2026-09-05T23:23:40+00:00"
+}

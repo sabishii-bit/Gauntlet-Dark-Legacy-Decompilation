@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Diagnostic only. Requires fresh whole-object fidelity, one-to-one GLOBAL undefined symbols and target per-function import multiplicity/type/addend witnesses. All bodies/layout/data/EH/other relocation and symbol fields remain equal. Refuses definitions, symbol merges, extra code changes or missing target witnesses.",
+    "Does not establish original TU boundaries, caller ABI, datum extent or source ownership; each needs separate target evidence. No production object transformation or linker aliases are performed."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r68_interfaces_import_control.py",
+  "id": "tool.r68-interfaces-import-control.20260905T222644Z.cf632f97",
+  "kind": "tool",
+  "name": "r68-interfaces-import-control",
+  "purpose": "Fresh raw whole-TU audit of explicit target-witnessed undefined-symbol renames",
+  "recorded_at": "2026-09-05T22:26:44Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r68_interfaces_import_control.py",
+  "status": "active",
+  "tool_key": "tool:r68-interfaces-import-control",
+  "tool_kind": "analysis",
+  "usage": [
+    "UNIT --before build/r68_interfaces_before.json --rename OLD=NEW --out build/r68_interfaces_after.json; repeat --rename for explicit one-to-one mapping."
+  ],
+  "valid_from": "2026-09-05T22:26:44+00:00"
+}

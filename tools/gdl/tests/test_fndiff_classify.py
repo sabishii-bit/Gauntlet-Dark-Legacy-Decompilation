@@ -1,5 +1,7 @@
 import sys
 import unittest
+import tempfile
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -10,6 +12,46 @@ from fndiff import (classify_function, cluster_flags,
                     real_reconciliation,
                     relocated_instructions, reloc_naming_only, shiftable_gap,
                     unit_key)
+
+
+class RawGraphPathTests(unittest.TestCase):
+    def test_built_raw_selection_and_missing_graph_are_not_fallbacks(self):
+        import fndiff
+        from tools.gdl.tests.test_raw_object import graph_fixture
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            with patch.object(Path, 'cwd', return_value=root):
+                with self.assertRaises(ValueError):
+                    fndiff.ours_object_path('game/example/example', raw=True)
+                _, body, _ = graph_fixture(root, chain=('webfrank',))
+                self.assertEqual(fndiff.ours_object_path('game/example/example', raw=True),
+                                 (Path(body), True))
+                _, _, plain = graph_fixture(root)
+                self.assertEqual(fndiff.ours_object_path('game/example/example', raw=True),
+                                 (Path(plain), True))
+
+
+class NativeObjdumpPathTests(unittest.TestCase):
+    def test_platform_selects_name_not_cached_file_existence(self):
+        import fndiff
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            directory = root / "build/binutils"
+            directory.mkdir(parents=True)
+            for name in ("powerpc-eabi-objdump", "powerpc-eabi-objdump.exe"):
+                (directory / name).write_bytes(b"foreign or native fixture")
+            for platform, filename in (("win32", "powerpc-eabi-objdump.exe"),
+                                       ("linux", "powerpc-eabi-objdump"),
+                                       ("darwin", "powerpc-eabi-objdump")):
+                with self.subTest(platform=platform):
+                    self.assertEqual(fndiff.objdump_path(root, platform_name=platform),
+                                     directory / filename)
+
+    def test_fnasm_uses_same_native_path_with_absolute_root(self):
+        import fndiff
+        import fnasm
+        self.assertEqual(fnasm.OBJDUMP, fndiff.objdump_path(fnasm.ROOT))
+        self.assertTrue(fnasm.OBJDUMP.is_absolute())
 
 
 class UnitKeyTests(unittest.TestCase):

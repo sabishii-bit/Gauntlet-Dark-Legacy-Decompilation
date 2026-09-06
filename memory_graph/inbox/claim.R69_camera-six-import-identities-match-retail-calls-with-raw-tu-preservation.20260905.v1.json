@@ -1,0 +1,26 @@
+{
+  "attributes": {
+    "abi_inspection": "All six interfaces carry integer camera index in r3; calc_cam_pyr and ProcCamera also use r4 for resetDelta/mode. Existing signatures and argument expressions were not harmonized. The 37 source/target call windows retain identical nearest-six instruction words except camera_mode_level+0x8C8, whose existing pinned register/schedule residual preserves the same r3 cameraIndex and r4=0 producers. Longer StandardCamera argument setup occurs before the displayed float-store sequence, not in the nearest-six window. Target/source call-site inspection confirms it is the camera index, not a pointer. Target addresses are the exported suffixes. This evidence is narrower than universal ABI validation.",
+    "after_raw_sha256": "702bb60664b4361ad74740ffa00151120ef982c0629d4d5cb30b3980f9b0bdcb",
+    "before_raw_sha256": "d4b10f0abc5f24438ae1324290bfb77cab9d2f098e250b5ea18a1f242abf5b88",
+    "evidence": [
+      "src/game/world/camera.c",
+      "src/game/game/combat.c",
+      "tools/gdl/composed_census/r69_camera_import_control.py",
+      "tools/gdl/tests/test_r69_camera_import_control.py",
+      "config/GUNE5D/symbols.txt"
+    ],
+    "law_screen": "Current law roster screened. Applied pinned-source-freeze (all five raw bodies unchanged); knr-extern-arity-can-be-faithful-not-a-defect (DiffRate deferred to explicit argument proof); wrong-callee naming-drift warning (actual target relocation destinations checked, not score inference). Existing camera-mode-follow/target/level schedule/register caps are not retried: only names change.",
+    "reproducer": "On the pre-repair tree run r69_camera_import_control.py --out build/r69_camera_import_before.json; after rebuilding changed camera.o run --before build/r69_camera_import_before.json --out build/r69_camera_import_after.json. PASS, changes=[], functions=22, allocated_sections=5, relocations=1276.",
+    "sibling_screen": "The whole source camera import list was screened; remaining DiffRate at camera_mode_dest+0x2DC is a separate live ABI defect. The target calls DiffRate_8002951C, distinct from camera_orbit_update used at camera_mode_follow+0x288. No new alias, wrapper, compiler flag or postprocessor rule."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R69_camera-six-import-identities-match-retail-calls-with-raw-tu-preservation.20260905.v1",
+  "kind": "claim",
+  "predicate": "source_interface_repair",
+  "recorded_at": "2026-09-05T23:23:32Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/camera.c",
+  "valid_from": "2026-09-05",
+  "value": "Six unresolved camera imports now name their actual combat.c providers: MoveCam_walk_8002A024, ProcCamera_8002E548, StandardCamera_8002B828, calc_cam_pyr_8002A97C, cam_orient_to_80029E8C and get_cam_wpos_8002ABE0. The 37 affected REL24 call sites have equal per-caller retail destination multiplicity, type and addend; the providers are defined GLOBAL in the real raw combat object. Fresh actual-Ninja compilation reproduces each complete raw baseline. Before/after comparison preserves every one of camera's 22 raw function bodies, offsets, sizes and bindings; all five allocated sections including data/EH; all 1276 relocation entries except those 37 symbol identities; and every other symbol field. Five existing camera WebFrank rules replay unchanged. This repairs source-link interfaces in the current decomposition, not proof of historical TU boundaries or a whole-camera exact match. DiffRate is deliberately excluded pending separate target argument-value proof."
+}
