@@ -1,0 +1,19 @@
+{
+  "constraints": [
+    "Requires the current raw and extracted dbgtext objects. Reconstructs the actual Ninja compiler edge and refuses unless its fresh full object is byte-identical. Every source variant is scratch-only; production pins and flags remain unchanged. --forms all means only the finite named set. PASS means requested compiles completed, not exact matching. Reports raw words, target relocation bindings, siblings, non-text and EH separately. Anonymous EH names normalize to section/offset; EMB_SDA21 normalizes only its instruction-site +2 convention. The counter witness binds the complete reviewed [+0x7c,+0x1c4) target/raw intervals; it is neither a general CFG proof nor a replacement for savedregs. Refuses changed source anchors or witness bytes."
+  ],
+  "id": "tool.r70-dbgtext-lifetimes.20260906T010511Z.27a32a11",
+  "kind": "tool",
+  "name": "r70_dbgtext_lifetimes",
+  "purpose": "Reproduce the finite R70 full-TU dbgtext source-identity controls and the narrowly reviewed savedregs loop-pairing counterexample; not a raw-match or compiler-unreachability proof.",
+  "recorded_at": "2026-09-06T01:05:11Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r70_dbgtext_lifetimes.py",
+  "status": "active",
+  "tool_key": "tool:r70-dbgtext-lifetimes",
+  "tool_kind": "script",
+  "usage": [
+    "python tools/gdl/composed_census/r70_dbgtext_lifetimes.py --forms all --out build/r70_dbgtext_final_matrix.json"
+  ],
+  "valid_from": "2026-09-06T01:05:11+00:00"
+}
