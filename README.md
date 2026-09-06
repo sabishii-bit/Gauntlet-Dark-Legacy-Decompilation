@@ -120,12 +120,13 @@ files can compile successfully without appearing in the game. Consult the
 provenance manifest's `linked_object`/`linkage`, not just a successful build.
 
 One target-independent ELF visibility fixup runs in both build modes for
-`game/anim/atree.c`: GC 1.2.5 needs four cross-TU state objects to retain
-internal linkage while compiling in order to reproduce the retail BSS layout,
-so the build promotes those existing object symbols (and names the existing
-zero literal `sAtreeZero`) after compilation. It does not rewrite code, data,
-relocations, or addresses; it only restores the public symbol bindings used by
-`pb_diag.c`, and therefore remains compatible with edited/modded source.
+`game/anim/atree.c`: the current reconstruction compiles `atree_handles`,
+`atree_scroll`, and `whichatree` with internal linkage, then promotes their
+existing symbols for the cross-TU interface. `natreelists` and `sAtreeZero`
+are now defined publicly in source; no anonymous zero literal is renamed.
+The remaining fixup does not rewrite code, data, relocations, or addresses.
+Its source-export checks permit edited values and layouts; an editable-build
+test verified that changing `sAtreeZero` to `1.0f` reaches the linked binary.
 
 To print decompilation progress:
 

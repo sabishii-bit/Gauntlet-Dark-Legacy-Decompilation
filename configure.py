@@ -892,14 +892,13 @@ if not config.non_matching:
         for unit in webfrank_units
     }
 
-# Retail exposes four atree-owned arrays/scalars to pb_diag even though GC
-# 1.2.5 must compile them with internal linkage to reproduce retail's BSS
-# declaration order and instruction selection.  It likewise emits the zero
-# datum first as anonymous @190 while atree's other functions name that same
-# address sAtreeZero.  Promoting/renaming only those ELF symbols leaves every
-# section byte and relocation untouched.  Run the same target-independent
-# fixup in editable/non-matching builds so mods retain the cross-TU interface
-# while bypassing all retail-byte postprocessing.
+# The current atree reconstruction keeps three cross-TU arrays internal while
+# compiling: atree_handles, atree_scroll, and whichatree. Promote their ELF
+# symbols without changing section bytes or relocations. natreelists and
+# sAtreeZero are public source definitions; neither needs symbol rewriting.
+# Run the same target-independent visibility fixup in editable/non-matching
+# builds so mods retain the cross-TU interface. Source-export checks permit
+# changed values and layouts rather than requiring retail data.
 atree_export_unit = "game/anim/atree"
 binutils_dir = config.binutils_path or config.build_dir / "binutils"
 atree_objcopy = binutils_dir / (
