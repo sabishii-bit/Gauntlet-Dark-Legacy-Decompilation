@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "history_screen": "Root context and scout full records: attempt.NC_mbworldtoscreen3d-the-projected0-store-is-the-cse-barrier-and-moving-it-creates-the-f31-save-pair.20260904.v1; attempt.MB_mbworldtoscreen3d-the-conversion-temp-block-order-is-set-by-the-consumer-locals-definition-order.20260904.v1; attempt.WS_mbworldtoscreen3d-the-recolor-caused-rotation-needs-the-post-recolor-stage-and-mb_camera-flips.20260904.v1. Those surfaced axes vary local/consumer order with constant spelling held fixed. Do not repeat their standalone failed statement orders.",
+    "limitations": "Nonzero schedule residual makes a literal-only exact outcome uncertain. No source-unreachability or guarantee that closing this axis retires either rule is asserted. TU already Matching; target is dependency retirement, not a TU flip.",
+    "next_check": "Fresh faithful complete-TU compiler baseline, then one private source-literal control. If promising, measure complete pool ownership and all positional bindings before any rule removal. Freeze production pins until retirement proof; raw words alone are insufficient. No additional source scaffolding or postprocessor rule authorized by this opportunity.",
+    "source": "src/game/mb/mb_camera.c::MBWorldToScreen3D; config/GUNE5D/splits.txt::game/mb/mb_camera.c; config/GUNE5D/webfrank.json carries MBWorldToScreen3D and MBCameraUpdate pins.",
+    "verification": "python tools/gdl/composed_census/wf_word_diff.py game/mb/mb_camera MBWorldToScreen3D =>104insns,32rawwords,5mnemonicdivergences,0namedrelocationmismatch; python tools/gdl/pooldump.py --sym lbl_80348B28 =>3fe0000000000000 f64=0.5. Actual source contains exactly the two centered coordinate reads. Whole-TU purity, pool order and sibling preservation remain unmeasured for the proposed change."
+  },
+  "epistemic_state": "proposed",
+  "id": "claim.R77_mbworldtoscreen3d-half-literal-ownership-opportunity.20260906.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-06T18:56:22Z",
+  "schema_version": 1,
+  "subject": "function:MBWorldToScreen3D",
+  "valid_from": "2026-09-06",
+  "value": "Untried source-native retirement candidate, NOT a measured source improvement: substitute the two lbl_80348B28 reads in centeredX/centeredY with exactly 0.5 while preserving operation types/association, and jointly investigate reclaiming that preceding eight-byte constant into the current MB camera pool. Fresh raw census at68d50eee0 has104/104 instructions and32 differing words (27register fields,5opcodes); this is not pure recolor. Retail lbl_80348B28 is3fe0000000000000, f64=0.5. Current camera pool starts80348B30 and ends80348B38, immediately after this literal. Source/flags experiments have not been performed on this axis by R77. R76 InitAnim demonstrates the general mechanism, not success for this function."
+}
