@@ -147,6 +147,8 @@ propose-record ──▶ full validation ──▶ inbox/ ──(integrator revi
   cap from an ejection into the surviving newest record — then `--apply`,
   commits the deletions, and rebuilds. Superseded records eject before live
   ones regardless of age, and git history keeps everything recoverable.
+  Use repeatable `--function <name-or-function:key>` to restrict both dry-run
+  and apply to owned functions; unknown names fail before any deletion.
 - Defense in depth: if a malformed file lands in `inbox/` anyway, the build is
   **fail-soft** for inbox records only — the bad record is skipped inside a
   savepoint and reported as `inbox_rejected` in `build`/`stats`. Accepted
@@ -178,7 +180,7 @@ python memory_graph/gdlmem.py stats | validate | audit | proposals | stale
 python memory_graph/gdlmem.py build | ensure
 python memory_graph/gdlmem.py propose-record <file> | register-tool <name> ...
 python memory_graph/gdlmem.py accept <ids> --release <claim>  # integrator acceptance
-python memory_graph/gdlmem.py prune-attempts [--apply]   # integrator-only ejection
+python memory_graph/gdlmem.py prune-attempts [--function <name>] [--apply]
 ```
 
 `context` is the workhorse: for one symbol it joins the GameCube symbol row,

@@ -282,6 +282,9 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
                        help="override the per-function attempt cap")
     prune.add_argument("--apply", action="store_true",
                        help="delete the ejected files (default: report only)")
+    prune.add_argument("--function", action="append", default=None,
+                       help="restrict to an exact function name/key (repeatable); "
+                            "unknown names fail before any deletion")
 
     return parser, ops
 
@@ -534,7 +537,7 @@ def main(argv: list[str] | None = None) -> int:
             result = rename_symbol(args.old_name, args.new_name, root=root,
                                    apply=args.apply)
         elif args.command == "prune-attempts":
-            kwargs = {"apply": args.apply}
+            kwargs = {"apply": args.apply, "functions": args.function}
             if args.limit is not None:
                 kwargs["limit"] = args.limit
             result = prune_attempts(root, **kwargs)
