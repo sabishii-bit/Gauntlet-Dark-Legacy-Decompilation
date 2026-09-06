@@ -159,7 +159,7 @@ docstring omitted it — the flags below all work):
                      like a verdict line and exited 0, and was read as a score
                      of the banked state twice.
   --no-bank          score without banking (diagnostic probes)
-  --raw              score the pre-webfrank compiler output (pinned TUs).
+  --raw              score active compiler output before Frank/WebFrank/P6.
                      THE PINNED BACKLOG'S WHOLE LOOP IS THIS ONE FLAG
                      (run-48 item 1): the verdict now carries the RAW
                      DIFFERING-WORD count — the number AGENTS.md makes
@@ -1176,30 +1176,19 @@ def raw_object_target(unit):
     pin. SY worked around it by building the body object and running fnasm
     by hand.
 
-    Resolved through fnasm.raw_obj_path so the `frank` stage is preferred
-    over `body` exactly as the reader does — frank runs BEFORE the object
-    postprocessor when both are configured, so its output is what webfrank
-    consumes. Falls back to the body path when nothing is staged yet,
-    because a target that does not exist must still be BUILDABLE.
+    The hash-bound active graph selects the compiler stage BEFORE Frank or
+    other transforms. A missing active output can still be built; unknown
+    or stale graphs refuse rather than guessing a conventional body path.
 
     Returned REPO-ROOT-RELATIVE with forward slashes: fnasm hands back an
     absolute path (it is a reader), and ninja rejects those outright —
     `ninja: error: unknown target 'W:\\...'`, measured on the first run of
     this function.
     """
-    parts = unit.split("/")
-    fallback = (f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
-                f"/.postprocess/body/{parts[-1]}.o")
-    try:
-        sys.path.insert(0, str(TOOLS))
-        import fnasm as _fnasm
-        staged = _fnasm.raw_obj_path(unit)
-        if staged is not None:
-            return Path(staged).resolve().relative_to(
-                Path.cwd().resolve()).as_posix()
-    except Exception:
-        pass
-    return fallback
+    sys.path.insert(0, str(TOOLS))
+    from raw_object import resolve_object
+    return resolve_object(unit, root=Path.cwd(), version=VERSION,
+                          require_exists=False).relative
 
 
 def _wf_word_diff_module():
@@ -1282,13 +1271,9 @@ def raw_word_residual(unit, fn, fn_stripped=None, notes=None):
     if fn_stripped and fn_stripped != fn:
         names.append(fn_stripped)
     try:
-        # wf_word_diff resolves the raw object itself (cn_analyze.our_object,
-        # which knows only the `body` stage) while `--raw` builds whatever
-        # fnasm.raw_obj_path names (`frank` first, then `body`). No `frank`
-        # stage is configured in this tree, so the two agree today — but a
-        # number measured on a DIFFERENT object than the verdict is exactly
-        # the defect this item is fixing, so it is checked rather than
-        # assumed.
+        # Rule-authoring analysis reads the active pre-WebFrank input. If
+        # Frank runs upstream that is NOT the compiler-stage object that
+        # --raw just built. Withhold this secondary count on that pipeline.
         from cn_analyze import our_object as _our_object
         measured_at = Path(_our_object(unit)[0]).resolve()
         if measured_at != Path(raw_object_target(unit)).resolve():
@@ -5780,8 +5765,12 @@ def main():
     # exists for: a pin your own upstream edit made stale aborts the
     # WEBFRANK edge, so the escape hatch died on the thing it was escaping.
     raw = "--raw" in sys.argv
-    object_target = (raw_object_target(unit) if raw
-                     else f"build/{VERSION}/src/{unit}.o")
+    try:
+        object_target = (raw_object_target(unit) if raw
+                         else f"build/{VERSION}/src/{unit}.o")
+    except ValueError as error:
+        print(f"RAW OBJECT UNRESOLVED: {error}; run configure.py and ninja")
+        return 1
     if raw:
         print(f"[--raw: building {object_target} — the compiler's own"
               " output, WITHOUT driving the WEBFRANK edge, so a stale pin"
