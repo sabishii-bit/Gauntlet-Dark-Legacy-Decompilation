@@ -5,11 +5,11 @@ which verifier a given rule key actually runs and what it refuses to compose
 with — NM spent roughly eight calls doing that by hand. The map now travels
 with the tool that derives the windows.
 
-CALIBRATED against the live config/GUNE5D/webfrank.json: 145 shipped rules
-use 11 distinct rule keys, every one of them is in the map, and every map
-entry is used by a shipped rule (T11_scratch/t11_rule_class_census.py). That
-coverage is asserted below so a new class cannot be shipped in webfrank.json
-while --emit stays silent about it.
+Every live config/GUNE5D/webfrank.json rule key must be in the map, so a new
+class cannot ship while --emit stays silent about it. The converse has one
+reviewed retirement: R70's source reconstruction removed the final recolors
+rule (sndVoiceUpdateAll), but historical recolors support remains described
+and tested. Any other unused map class still requires explicit review.
 """
 
 import json
@@ -26,6 +26,7 @@ from tools.gdl.rule_derive import (  # noqa: E402
 
 BOOKKEEPING = {"function", "before_sha256", "after_sha256", "audit",
                "mechanism"}
+REVIEWED_RETIRED_CLASSES = {"recolors"}
 
 
 def words(*values):
@@ -50,14 +51,19 @@ class ClassMapCoverageTests(unittest.TestCase):
         self.assertEqual(unmapped, [],
                          "a rule class ships that --emit cannot describe")
 
-    def test_every_map_entry_is_a_class_that_actually_ships(self):
-        """A map row nobody uses is a claim about the postprocessor that
-        no live rule checks."""
-        unused = sorted(set(RULE_CLASSES) - self.keys_in_use())
+    def test_unused_map_entries_require_explicit_retirement_review(self):
+        """Retiring the final user does not remove historical verifier support."""
+        unused = sorted(set(RULE_CLASSES) - self.keys_in_use() - REVIEWED_RETIRED_CLASSES)
         self.assertEqual(unused, [])
+
+    def test_reviewed_retired_classes_are_still_supported(self):
+        self.assertTrue(REVIEWED_RETIRED_CLASSES <= set(RULE_CLASSES))
 
 
 class ClassNoteTests(unittest.TestCase):
+    def test_retired_recolors_class_still_names_its_verifier(self):
+        self.assertIn("verify_consistent_recolor", class_note("recolors"))
+
     def test_every_note_names_a_verifier_and_what_it_proves(self):
         for kind in RULE_CLASSES:
             note = class_note(kind)
