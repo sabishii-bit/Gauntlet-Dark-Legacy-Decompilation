@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Native Windows; run after fresh ninja. Actual-source and explicit-overlay controls must reproduce complete raw objects; a sentinel tests header selection. Source, flags, active postprocessors and link inputs are never edited.",
+    "Full-link trials replace only ExceptionPPC and reproduce an unchanged link control first. COMPLETE means measurements completed, not matching or source impossibility. Inspect each result and missing/extra weak homes; file-byte counts are not semantic scores."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r73_runtime_source_probe.py --out build/r73_runtime_source_result.json",
+  "id": "tool.r73-runtime-source-probe.20260906T042226Z.abc1539c",
+  "kind": "tool",
+  "name": "r73-runtime-source-probe",
+  "purpose": "Bounded actual-command source-header and handler-order experiments for retiring exception runtime rewrites",
+  "recorded_at": "2026-09-06T04:22:26Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r73_runtime_source_probe.py",
+  "status": "active",
+  "tool_key": "tool:r73-runtime-source-probe",
+  "tool_kind": "experiment",
+  "usage": [
+    "Produces scratch sources, objects, full traces, and linked ELF/DOL controls beneath build; no compiler patching or production transformation changes."
+  ],
+  "valid_from": "2026-09-06T04:22:26+00:00"
+}
