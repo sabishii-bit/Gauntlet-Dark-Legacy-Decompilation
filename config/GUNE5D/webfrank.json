@@ -2492,18 +2492,6 @@
         "copy_register_fields": true
       }
     ],
-    "game/mb/mb_tree": [
-      {
-        "function": "MBNewNode",
-        "before_sha256": "fb96fddac0d070aed42425a5e460612b751b5a0209b3552443f13aae61647650",
-        "after_sha256": "22903d61bf261b771473e8a89aa084cab33a34322e9520a34b2874613240ab97",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 68
-        },
-        "copy_register_fields": true
-      }
-    ],
     "game/sys/ml_mem": [
       {
         "function": "AllocFile",
