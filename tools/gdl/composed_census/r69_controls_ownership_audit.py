@@ -3,6 +3,9 @@
 Fresh actual-Ninja raw control, complete scalar/array allocation, current
 ordered-link names and TU-wide preservation are separate obligations. A
 substituted ownership inventory is not an executed source link or TU match.
+The legacy 80-byte target representation includes four terminal bytes and
+is never reported as a full-section exact match. The corrected 76-byte
+claim requires the final target scalar to have size four, with zero slack.
 """
 import argparse
 import hashlib
@@ -19,7 +22,8 @@ from tools.gdl import datadiff, fndiff
 from tools.gdl.exception_metadata import compare_exception_records
 
 UNIT = "game/game/controls"
-BASE, END = 0x803445D8, 0x80344628
+BASE = 0x803445D8
+SCALAR_END, LEGACY_END = 0x80344624, 0x80344628
 OBJECTS = tuple(("ctrls_initialized" if a == 0x803445F0 else f"lbl_{a:08X}", a,
                  8 if a in (0x80344608, 0x80344610) else 4)
                 for a in (0x803445D8, 0x803445DC, 0x803445E0, 0x803445E4, 0x803445E8,
@@ -28,9 +32,25 @@ OBJECTS = tuple(("ctrls_initialized" if a == 0x803445F0 else f"lbl_{a:08X}", a,
                           0x8034461C, 0x80344620))
 
 
+def target_extent(table):
+    final = tuple(table["lbl_80344620"][:3])
+    if final not in ((".sbss", 0x80344620, 4), (".sbss", 0x80344620, 8)):
+        raise ValueError("unsupported final small-state target identity/extent")
+    return 72 + final[2]
+
+
+def check_claim(claim, table):
+    extent = target_extent(table)
+    if tuple(claim) != (BASE, BASE+extent):
+        raise ValueError("claim and final-symbol extent describe different target states")
+    return extent
+
+
 def allocation(snapshot, table, extracted=False):
+    target_size_bytes = target_extent(table)
+    terminal_extent = target_size_bytes - 76
     section = snapshot["sections"].get(".sbss")
-    extent = 80 if extracted else 76
+    extent = target_size_bytes if extracted else 76
     if section != dict(type=8, flags=3, size=extent, alignment=8, bytes=None):
         raise ValueError("unexpected complete small-BSS allocation")
     if snapshot["relocations"].get(".sbss"):
@@ -40,7 +60,7 @@ def allocation(snapshot, table, extracted=False):
         raise ValueError("small-BSS roster has missing, duplicate or extra object")
     rows = []
     for name, address, scalar_size in OBJECTS:
-        target_size = 8 if name == "lbl_80344620" else scalar_size
+        target_size = scalar_size + terminal_extent if name == "lbl_80344620" else scalar_size
         if tuple(table[name][:3]) != (".sbss", address, target_size):
             raise ValueError("target allocation identity/extent differs: " + name)
         symbol = next(s for s in symbols if s["name"] == name)
@@ -48,7 +68,10 @@ def allocation(snapshot, table, extracted=False):
         if (symbol["value"], symbol["size"], symbol["binding"], symbol["other"]) != (address-BASE, size, 1, 0):
             raise ValueError("compiled allocation offset/size/linkage differs: " + name)
         rows.append(dict(name=name, offset=address-BASE, size=size, target=hex(address), target_size=target_size))
-    return dict(status="EXACT", source_extent=76, target_extent=80, terminal_alignment_extent=4,
+    return dict(status="EXACT" if terminal_extent == 0 else "NAMED_LAYOUT_EXACT_WITH_TERMINAL_EXTENT",
+                source_extent=76, target_extent=target_size_bytes, terminal_alignment_extent=terminal_extent,
+                full_section_exact=terminal_extent == 0,
+                target_representation="scalar4_no_claimed_slack" if terminal_extent == 0 else "scalar4_plus_terminal4",
                 alignment=8, NOBITS=True, initialized_bytes=None, objects=rows)
 
 
@@ -122,8 +145,7 @@ def measure():
     alternate = current_owners([f"build/GUNE5D/src/{UNIT}.o" if p == target_path else p for p in inputs], names)
     claims = datadiff.parse_splits()[UNIT+".c"]
     if ".sbss" in claims:
-        if claims[".sbss"] != (BASE, END):
-            raise ValueError("unexpected target small-state claim")
+        check_claim(claims[".sbss"], table)
         section = dict(target["sections"][".sbss"])
         relocs = section.pop("relocations")
         target_snap = dict(sections={".sbss": section}, relocations={".sbss": relocs}, symbols=[
@@ -140,7 +162,8 @@ def measure():
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--before", type=Path)
-    parser.add_argument("--require-exact", action="store_true")
+    parser.add_argument("--require-exact", action="store_true",
+                        help="require exact named layout AND zero target-section slack; legacy80B is rejected")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     out = args.out.resolve()
@@ -152,7 +175,7 @@ def main(argv=None):
         if args.before:
             result["preservation"] = preservation(json.loads(args.before.read_text()), result)
         if args.require_exact and result["small_bss_allocation"]["status"] != "EXACT":
-            raise ValueError("small-state allocation remains open")
+            raise ValueError("small-state allocation is not full-section exact (open layout or terminal extent)")
     except (OSError, ValueError, KeyError) as error:
         result.update(status="UNRESOLVED", error=str(error))
     out.write_text(json.dumps(result, indent=2)+"\n", encoding="utf-8")
