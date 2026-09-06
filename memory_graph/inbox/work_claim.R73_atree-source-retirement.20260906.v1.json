@@ -3,9 +3,11 @@
     "branch": "codex/r73-atree-retirement",
     "integrator": "codex-root",
     "owned_units": [
-      "src/game/anim/atree.c"
+      "src/game/anim/atree.c",
+      "tools/gdl/atree_exports.py",
+      "tools/gdl/tests/test_atree_exports.py"
     ],
-    "scope": "Scratch-first source-native retirement of existing atree postprocessing dependencies. Own src/game/anim/atree.c and lane-prefixed r73_atree tools/tests only. Existing pins, configure.py, splits, symbols and shared verifier tools remain integrator-owned and untouched absent reviewed proof. No new rules or compiler reverse engineering."
+    "scope": "Source-native retirement of atree zero alias discovery and natreelists promotion, supported by full finalized-object preservation experiment. Own atree.c, atree_exports.py, its tests, and lane-prefixed r73_atree tools/tests. Remove only the two proved-obsolete export operations; do not add new transformations or weaken remaining guards. Existing WebFrank pins, configure.py, splits and symbols remain integrator-owned."
   },
   "claimed_at": "2026-09-06",
   "function": "tu:game/anim/atree",
