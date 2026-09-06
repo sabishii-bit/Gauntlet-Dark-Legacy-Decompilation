@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "hosted_code_verification": "https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation/actions/runs/34006636433",
+    "index_incident": "After the main merge, the index was observed equal to the pre-merge d76899a88 tree while the worktree differed from HEAD only in two owned pending-record corrections. Cause is unestablished. Saved the old index under build/r72_premerge_stale_index.backup and restored staging only for the230 explicit merged paths after asserting both tree identities. No source content changed in this recovery.",
+    "limitations": "The first local suite after switching branches correctly refused a stale generator hash; reconfigure and rebuild resolved it. Hosted MAIN-commit status is checked separately after publication; the recorded hosted run here belongs to the identical merged code on the feature branch, not an invented main run.",
+    "local_verification": [
+      "python configure.py -v GUNE5D and ninja -j2: successful fresh main build and rule replay",
+      "build/tools/dtk.exe shasum -c config/GUNE5D/build.sha1: build/GUNE5D/main.dol: OK",
+      "python -m unittest discover tools/gdl/tests -b: all green after reconfiguration",
+      "python -m memory_graph.test_graph -b: all green"
+    ],
+    "main_merge": "290c4fb9b",
+    "merged_code": "21651dbe86d85502a294e9031fc4753184b7a570",
+    "review": "14 attempts,43 claims/laws,46 tool registrations. All source/entrypoint paths and70 literal evidence anchors resolve at the pinned feature. Corrected one pending tool registration's missing quotes around string-valued view arguments before acceptance. Eight completed/released lifecycle claims are excluded from acceptance and released instead.",
+    "reviewed_base": "d76899a8894c2a7863607f90a026474b094d874f",
+    "reviewed_feature": "b9a163353e7f08adfa26c518171247e10d83d932",
+    "scoped_history_cleanup": "Only AudioSetupBossStreams (7 to8 attempts on acceptance) and InitControls (5 to6) exceed the limit among affected function anchors. The core prune dry-run is checked against four explicitly reviewed superseded records; retain the R67 positive-context result, R68 sound reconstruction, v3 multi-site axis summary, NV natural-array repair and WF historical proof. Unrelated pre-existing overflow is not part of this cleanup; git preserves ejected historical records."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.R72_reconstruction-findings-reviewed-for-main-and-matching-resumption.20260906.v1",
+  "kind": "claim",
+  "predicate": "integration_checkpoint",
+  "recorded_at": "2026-09-06T02:44:02Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-06",
+  "value": "Authorized main integration of the reconstruction branch preserves three source-native WebFrank retirements (sndVoiceUpdateAll, sysClearFlags, InitControls), source-interface/data-ownership repairs, editable-build isolation and stricter diagnostic provenance. The reviewed range removes exactly three rules, 183 to180, with no additions. Hosted Linux run34006636433 for21651dbe8 passes every pipeline stage after the R72 portability fixes. Main merge290c4fb9b preserves that code; fresh configure, Ninja, configured DOL checksum and both local suites pass. Formal findings acceptance follows independent review of all103 R66-R71 result/tool records, plus the R72 pipeline repair. This is not a claim that all postprocessing is removable or that all-source gameplay is verified. Resume TU matching with source, relocation and complete object-layout checks, preserving the remaining explicitly bounded research findings."
+}

@@ -16,8 +16,8 @@
   "tool_key": "tool:raw-object",
   "tool_kind": "py",
   "usage": [
-    "resolve_object(unit, root=repo, view=compiler, require_exists=True)",
-    "resolve_object(unit, root=repo, view=pre_postprocessor, require_exists=False)"
+    "resolve_object(unit, root=repo, view=\"compiler\", require_exists=True)",
+    "resolve_object(unit, root=repo, view=\"pre_postprocessor\", require_exists=False)"
   ],
   "valid_from": "2026-09-06T01:56:27+00:00"
 }

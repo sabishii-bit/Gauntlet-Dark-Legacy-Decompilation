@@ -11,11 +11,13 @@
     "hosted_run": "https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation/actions/runs/34006139525",
     "local_reproduction": "python -m unittest tools.gdl.tests.test_fndiff_classify tools.gdl.tests.test_r67_runtime_allsource tools.gdl.tests.test_t17_textorder tools.gdl.tests.test_af_data_base_census tools.gdl.tests.test_t18_savedregs_unresolved tools.gdl.tests.test_t21_savedregs_verdict_and_gate_i -b: all green after repair",
     "measured_commit": "b9a163353e7f08adfa26c518171247e10d83d932",
+    "verified_commit": "21651dbe86d85502a294e9031fc4753184b7a570",
+    "verified_run": "https://github.com/sabishii-bit/Gauntlet-Dark-Legacy-Decompilation/actions/runs/34006636433",
     "neighborhood_screen": "rg -n 'powerpc-eabi-objdump|powerpc.*objdump|def .*objdump' tools/gdl tools/project.py configure.py shows direct Windows paths in additional standalone tools including flagsweep, fnsurvey, claimcheck and composed_census/fl_textorder. This bounded repair covers shared fndiff/fnasm readers used by the failing tests; it is not a repository-wide portability certificate. datadiff and ce_eq_datum_audit already select host-native names. textorder and af_data_base_census inherit fndiff's repaired selection.",
     "scope_limit": "No game source, compiler flags, split ownership, postprocessor rules or matching metrics changed. The bounded all-source probe remains Windows-only; this repairs a cross-platform test of its fail-closed checks, not the probe's supported host set.",
     "two_sided_controls": "New path tests exercise win32, linux and darwin with both executable filenames present. fnasm shares fndiff's native selection with an absolute root. The stale/matching-graph refusal test still proves no link is launched, but no longer changes the platform seen by pathlib."
   },
-  "epistemic_state": "observed",
+  "epistemic_state": "verified",
   "id": "claim.R72_hosted-pipeline-platform-failures-before-main-merge.20260906.v1",
   "kind": "claim",
   "predicate": "pipeline_portability_repair",
@@ -23,5 +25,5 @@
   "schema_version": 1,
   "subject": "project:gdl",
   "valid_from": "2026-09-06",
-  "value": "The hosted Linux run for b9a163353 built and checksum-verified the DOL, then failed the analysis suite with one failure and nine errors. The log shows hardcoded Windows objdump paths in the shared fndiff/fnasm consumers and a test that mutates the process-wide os.name, causing pathlib to instantiate WindowsPath on Linux. Its progress output also reports that the container's ninja command lacks the dependency-listing tool required by provenance. Local Windows gates alone had not exposed these failures. This change selects native binutils names without file-existence fallback, makes the test mock local to the probe, and pins diagnostic-capable Ninja in CI without weakening provenance or skipping tests. Hosted verification remains pending at record authoring."
+  "value": "The hosted Linux run for b9a163353 built and checksum-verified the DOL, then failed the analysis suite with one failure and nine errors. The log shows hardcoded Windows objdump paths in the shared fndiff/fnasm consumers and a test that mutates the process-wide os.name, causing pathlib to instantiate WindowsPath on Linux. Its progress output also reports that the container's ninja command lacks the dependency-listing tool required by provenance. Local Windows gates alone had not exposed these failures. This change selects native binutils names without file-existence fallback, makes the test mock local to the probe, and pins diagnostic-capable Ninja in CI without weakening provenance or skipping tests. Hosted run 34006636433 for 21651dbe8 subsequently passed the build, checksum, both full suites, graph validation and reconstruction diagnostics; confirmed before formal main-branch acceptance."
 }
