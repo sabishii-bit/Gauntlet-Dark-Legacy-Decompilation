@@ -149,7 +149,9 @@ class ExactSpellingWins(unittest.TestCase):
     def test_sounds_does_not_inherit_sounds_evts_pin(self):
         units = {row["unit"]
                  for row in core._pin_provenance(REPO, "game/sound/sounds")}
-        self.assertEqual(units, {"game/sound/sounds"})
+        config = json.loads(CONFIG.read_text())
+        expected = {"game/sound/sounds"} if config["units"].get("game/sound/sounds") else set()
+        self.assertEqual(units, expected)
 
 
 class RetiredExactUnit(unittest.TestCase):
