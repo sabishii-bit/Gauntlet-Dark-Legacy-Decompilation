@@ -111,6 +111,7 @@ game/game/controls.c:
 	extab       start:0x80005C18 end:0x80005CE0
 	extabindex  start:0x80009274 end:0x800093A0
 	.text       start:0x8003104C end:0x80034CFC
+	.sbss       start:0x803445D8 end:0x80344624
 
 game/enemy/critter.c:
 	extab       start:0x80005CE0 end:0x80005F28
@@ -183,6 +184,7 @@ game/game/player.c:
 	extab       start:0x80006900 end:0x80006B30
 	extabindex  start:0x8000A5D0 end:0x8000A918
 	.text       start:0x800745D0 end:0x8008091C
+	.data       start:0x80120B4C end:0x80120BEC
 
 game/game/pmotion.c:
 	extab       start:0x80006B30 end:0x80006BE8

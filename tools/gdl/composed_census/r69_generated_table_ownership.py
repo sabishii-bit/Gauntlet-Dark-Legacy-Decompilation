@@ -1,4 +1,4 @@
-"""Audit switch-table ownership for shop, particle, sfx and player selection.
+"""Audit switch-table ownership for shop, particle, sfx, selection and player.
 
 This is an ownership certificate, NOT a byte-match or CFG-equivalence proof.
 The complete raw Ninja compilation is reproduced. Every emitted data word must
@@ -33,6 +33,10 @@ CASES = {
         ("jumptable_80121FEC", "do_sel_menu_8008E4F4", 100, 15),
         ("jumptable_80122028", "setup_sel_menu", 160, 16),
         ("jumptable_80122068", "serve_blits", 224, 8))),
+    "game/game/player": (0x80120B4C, 0x80120BEC, (
+        ("jumptable_80120B4C", "WritePlayerInfo", 0, 11),
+        ("jumptable_80120B78", "do_players", 44, 12),
+        ("jumptable_80120BA8", "do_got_it_8007FC80", 92, 17))),
 }
 
 # Explicit extracted-local spelling, not a linker alias or suffix heuristic.

@@ -2,7 +2,7 @@ import copy
 import struct
 import unittest
 
-from tools.gdl.composed_census.r69_generated_table_ownership import obligation
+from tools.gdl.composed_census.r69_generated_table_ownership import CASES, obligation
 
 
 class GeneratedTableOwnershipTests(unittest.TestCase):
@@ -22,6 +22,12 @@ class GeneratedTableOwnershipTests(unittest.TestCase):
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["equal_pointers"], 1)
         self.assertEqual(len(result["differing_pointers"]), 1)
+
+    def test_player_roster_covers_all_three_generated_tables(self):
+        base, end, tables = CASES["game/game/player"]
+        self.assertEqual((base, end), (0x80120B4C, 0x80120BEC))
+        self.assertEqual(sum(t[3] for t in tables), 40)
+        self.assertEqual(tables[-1], ("jumptable_80120BA8", "do_got_it_8007FC80", 92, 17))
 
     def test_no_mutation(self):
         source = self.fixture()

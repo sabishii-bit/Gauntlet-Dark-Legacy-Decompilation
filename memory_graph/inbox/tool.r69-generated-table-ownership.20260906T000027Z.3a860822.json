@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Requires fresh full raw Ninja compiler fidelity and complete table coverage. PASS proves expected source/retail function and table identity, not equivalent basic blocks, original whole-TU boundaries, exact placement alignment, whole-TU matching or runtime safety.",
+    "Never patches source branch offsets. Reports all mismatches. Explicit do_sel_menu local-name lookup changes analysis only, not source/ELF/link bindings. Only five enumerated TUs supported."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r69_generated_table_ownership.py",
+  "id": "tool.r69-generated-table-ownership.20260906T000027Z.3a860822",
+  "kind": "tool",
+  "name": "r69-generated-table-ownership",
+  "purpose": "Certify complete generated switch-table ownership in shop, particle, sfx, select and player independently of branch-offset equality",
+  "recorded_at": "2026-09-06T00:00:27Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r69_generated_table_ownership.py",
+  "status": "active",
+  "supersedes": "tool.r69-generated-table-ownership.20260905T233711Z.55a5d98e",
+  "tool_key": "tool:r69-generated-table-ownership",
+  "tool_kind": "audit",
+  "usage": [
+    "<unit> --out build/r69_tables.json"
+  ],
+  "valid_from": "2026-09-06T00:00:27+00:00"
+}
