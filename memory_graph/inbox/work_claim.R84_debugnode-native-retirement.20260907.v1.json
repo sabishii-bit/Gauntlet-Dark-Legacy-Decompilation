@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "work_claim.R84_debugnode-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "function": "function:MBPsysSetDebugNode",
+  "owner": "r84_particle",
+  "state": "active",
+  "claimed_at": "2026-09-07",
+  "valid_from": "2026-09-07",
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": ["game/mb/mb_particle.c"],
+    "scope": "Worker r79_worldcol: investigate source-backed debug-node stack type/indexed access jointly with removing existing local opt_propagation off override. Earlier fixed-source compiler sweeps do not establish this source axis. Read full context/PDB/consumers first. Private complete same-basename TU actual Ninja fidelity, frozen production until native exact, full sibling/data/EH protections, no new rule/pragma."
+  }
+}
