@@ -2807,11 +2807,6 @@ Codec::~Codec() {
 #pragma cplusplus off
 
 /* 0x800DC034 init the DText debug-overlay 256-entry colour ramp (gDTextColorRamp/gDTextBuf) */
-typedef struct DTextRampEntry {
-    u8 _pad[768];
-    u8 value;
-} DTextRampEntry;
-
 #pragma cplusplus on
 Codec* DTextInitColorRamp(Codec* p) {
     int i;
@@ -2824,7 +2819,7 @@ Codec* DTextInitColorRamp(Codec* p) {
             gDTextBuf[i] = (u8)i;
         }
         for (i = 0; i < 32; i++) {
-            ((DTextRampEntry*)(ramp + i))->value = (u8)((i * 255 + 16) / 31);
+            ramp[768 + i] = (u8)((i * 255 + 16) / 31);
         }
     }
     gDTextInitCount++;
