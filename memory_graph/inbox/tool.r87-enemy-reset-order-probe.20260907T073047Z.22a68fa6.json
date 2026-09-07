@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Private whole-TU compile only. Writes generated evidence under build, never production source or configuration. Baseline must equal actual Ninja raw ELF byte-for-byte; exact body alone is not final binding certification.",
+    "Six first-loop store orders plus optional reversed final scalar resets preserve values and disjoint destination ranges. Other source, pragma and flags held fixed. Finite negative results are not source impossibility proof."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r87_enemy_reset_order_probe.py",
+  "id": "tool.r87-enemy-reset-order-probe.20260907T073047Z.22a68fa6",
+  "kind": "tool",
+  "name": "r87-enemy-reset-order-probe",
+  "purpose": "Replay finite independent reset-store-order controls for fn_80051164 with actual Ninja whole raw ELF baseline fidelity.",
+  "recorded_at": "2026-09-07T07:30:47Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r87_enemy_reset_order_probe.py",
+  "status": "active",
+  "tool_key": "tool:r87-enemy-reset-order-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "--tails --out build/r87_enemy_reset_replay"
+  ],
+  "valid_from": "2026-09-07T07:30:47+00:00"
+}
