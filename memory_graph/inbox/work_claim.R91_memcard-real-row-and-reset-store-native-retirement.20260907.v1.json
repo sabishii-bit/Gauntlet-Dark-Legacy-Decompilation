@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/sys/memcard.c"
+    ],
+    "scope": "Worker r79_newcam: private native retirement controls for init_all_dir_info and memCardErrorPrompt in this single TU. Fresh root/worker measurements: init41/41 raw12, memerr25/25 raw2. Existing GC-supported DirTable/DirEntry row identity is a new axis beyond prior declaration-only and offsetof controls; preserve all loop and call chronology. memerr remaining +0x3c/+0x40 independent zero store versus -1 materialization; ordinary direct-store/value-identity forms may be tested, not assumed to cure it. Current nested negative initializer already follows first source store. Full per-function context and law screen read; no compiler flag, pragma, fake helper, padding, wrapper, or new rule. TU-wide opt_propagation-off and existing opt_common_subs regions stay fixed. Freeze production pins until full actual-Ninja baseline and complete sibling/data/EH/positionally-bound native candidate proof. Xbox init_files neighbor is only an ownership clue, not authorization to invent a helper. Root has run no private source probes on either function; worker owns the entire TU and both matrices."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:init_all_dir_info",
+  "id": "work_claim.R91_memcard-real-row-and-reset-store-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r91_memcard",
+  "recorded_at": "2026-09-07T16:19:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
