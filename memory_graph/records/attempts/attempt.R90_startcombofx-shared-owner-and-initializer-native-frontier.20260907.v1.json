@@ -1,0 +1,41 @@
+{
+  "attempted_axis": "Shared-helper owner and semantic initializer controls did not reduce the native 150/150 raw 18 residual. Existing accurate EnemyFxPage is full-ELF neutral alone and jointly with every measured form. Preserve the R79 caller-only vetoes below; do not retry the R90 finite matrix unchanged. No universal source or compiler impossibility claim.",
+  "attributes": {
+    "axis_log": "R79's 17 valid controls remain negative with helper held fixed: literal radius neutral with pool movement; first type copy neutral; first pos copy and both copies 36; copies after ret 26; copies+radius 36; hoisted subret/color declarations neutral; second assignment-in-condition with correct ambient ret use 43; long typeIndex/colorIndex/both neutral; register typeIndex neutral; nested color block neutral; direct subret return 151 versus 150; pos after ret 26/after table 36. Exclude the acknowledged invalid first variant that used the wrong ambient index. R90 deliberately changes the previously fixed helper and does not repeat these caller forms.",
+    "census": "P's actual source consumers are Gem (3 sites), Combo (2), fn_80094164 (4), exactly 9 sites across 3 functions, not all 8 TU pins. Existing EnemyFxPage's 218 real header rows, 45+45 enemy IDs, +2976 pool and stride 240 are target-calibrated; only the pointer view changes, not global storage. Whole-matrix unrelated raw bodies hold, but geometry/EH do not uniformly hold, so no installation is claimed.",
+    "diagnosis": "First helper body before +0xd4 is exact; target +0xd4 'mulli r25,r29,240' versus raw 'mulli r24,r29,240'. Second inline at +0x184 target 'lwz r22,3560(r3)' versus raw 'lwz r27,3560(r3)'; header +0x1c4 target 'add r23,r31,r0' versus raw 'add r22,r31,r0'; stride +0x1ec target 'mulli r26,r25,240' versus raw 'mulli r24,r25,240'; node base +0x1f4 target 'add r24,r31,r26' versus raw 'add r23,r31,r24'. R79 refuted the direction of the old parameter-reuse prescription; source home creation/assignment, not that prescription, is the observed remaining question.",
+    "evidence": {
+      "anchor_commit": "a19494fcb",
+      "archive_files": 71,
+      "archive_manifest": "r90_sfx_manifest.json",
+      "archive_manifest_sha256": "84dea3799d308ca9cdcd5c62d179ff957bea5ed6817bcd3fb424d021ea9b5b23",
+      "archive_name": "gdl-r90-sfxhelper-evidence-20260907",
+      "detail_record": "attempt.R90_fn80094164-shared-owner-and-initializer-native-frontier.20260907.v1"
+    },
+    "law_screen": "Entire current 289-law corpus screened, TU brief, target/raw, context/Xbox, full R79/PR/SW read. Applied source freeze, existing-inline boundary, block-allocation-order-is-textual-not-nesting-depth, scalar-field-cache-defeats-call-boundary-reload and declaration-versus-assignment identity discipline. Pool/binding law v2 requires whole-object review even for helper-only work; this matrix explicitly records altered EH/geometry. No declaration-order law treated as a universal predictor; exact first-arm preservation is tested per candidate.",
+    "probed_form": "Shared 20-control corpus: baseline; existing EnemyFxPage singleton; old/accurate owner pairs for post-guard sentinel, valid-header declaration block, header-before-sentinel point, successful Effect* owner, block plus Effect*, public direct h->atree reads, nested direct-read/success, early null-header return, and direct reads plus Effect*. Combo residuals: baseline/owner 18; sentinel/block/header-before-sentinel 41; Effect* 47; block+Effect* 65; direct/nested reads 18; early null return 150/152 count-asymmetric; direct reads+Effect* 47. Count-asymmetric positional comparisons are not recolor distances. No candidate exact.",
+    "verification": "Original and same-basename scratch whole-ELF baselines pass; all 71 external archive digests verified. Production source/raw/processed/config unchanged; no rules removed or added. Full graph and GDL suites pass; final graph, DOL and staged diff gates reported in handoff. This record does not certify final data bindings of nonexact candidates."
+  },
+  "denial": {
+    "expiry_check": "Rebuild, read full target/raw, run wf_word_diff.py game/sfx/sfx StartComboFX and reproduce actual-Ninja full-ELF baseline before replay at a genuinely changed helper/source alignment.",
+    "falsifier": "A source-supported different helper/caller architecture achieving native 150/150 raw 0 with all three consumers, protected siblings, data/EH and final address bindings preserved.",
+    "premise_measurement": "Fresh 150/150, raw 18 REGFIELD, frame 64, 0 mnemonic and 0 relocation-symbol divergence. Accurate-owner singleton and all old/accurate owner pairs have identical full ELF; other helper forms are neutral or worse.",
+    "scope": "R90's archived 20 complete-TU controls and the exact R79 finite caller-only controls, not all shared helper/caller architectures."
+  },
+  "function": "function:StartComboFX",
+  "held_fixed": "Actual complete same-basename sfx.c under Ninja GC/1.2.5 and ordered cflags_demo; headers, global storage/literals, pragmas, caller selection/body, normal helper, source order, target/splits/rules fixed. Only existing page-explicit helper owner/body plus the page-pointer type in its 3 actual consumers changes privately. No new helpers, wrappers, flags, rules or production edits.",
+  "id": "attempt.R90_startcombofx-shared-owner-and-initializer-native-frontier.20260907.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-07T16:09:16Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-07",
+    "signature": null
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.R79_startcombofx-parameter-reuse-premise-refuted-finite-controls.20260907.v1",
+  "valid_from": "2026-09-07"
+}
