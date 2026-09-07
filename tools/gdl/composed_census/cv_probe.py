@@ -117,6 +117,51 @@ def compile_commands(edge, mw, cflags, out_o):
     return commands
 
 
+DIAGNOSTIC_LIMIT = 400
+
+
+def diagnostic(stdout, stderr, limit=DIAGNOSTIC_LIMIT):
+    """The reportable diagnostic for a failed command: STDOUT FIRST.
+
+    RUN-59 ITEM 8. MWCC writes its real message to STDOUT and only
+    `User break, cancelled...` to stderr, and this function used to render
+    `r.stderr + r.stdout` and take the first non-empty line. Measured with
+    build/t3_scratch/t3_item8_repro.py at c52699758, a one-line syntax
+    error under the live game/sys/sysservice edge (GC/1.2.5, mwcc_sjis):
+
+      returned      FAIL compile (exit 2): User break, cancelled...
+      stderr        (blank), `User break, cancelled...`
+      stdout        ### mwcceppc.exe Compiler:
+                    #    File: build/t3_scratch/t3_bad_syntax.c
+                    #       1: int t3_broken(void) { return ; ; ) }
+                    #   Error:                                  ^
+                    #   expression syntax error
+
+    So the caller was told a probe was CANCELLED when the compiler had in
+    fact rejected the source, and the file, line and message it needed
+    were already in hand.
+
+    The block is rendered rather than reduced to one line, because the
+    three facts a lane acts on live on three different lines. MWCC's `#`
+    gutter and its rule/caret decoration carry no information once the
+    lines are joined, so they are dropped. stderr is the FALLBACK, not the
+    preference: the `extab_clean` stage is dtk, which reports on stderr
+    with an empty stdout.
+    """
+    lines = []
+    for line in (stdout or "").splitlines():
+        text = line.lstrip("#").strip()
+        if not text or set(text) <= set("- "):
+            continue
+        lines.append(re.sub(r"\s{2,}", " ", text))
+    if not lines:
+        lines = [line.strip() for line in (stderr or "").splitlines()
+                 if line.strip()]
+    if not lines:
+        return "no diagnostic"
+    return " | ".join(lines)[:limit]
+
+
 def compile_with(edge, mw, cflags, out_o, workdir):
     """Legacy (path, error) API; optional edge['_command_trace'] records execution."""
     trace = edge.get("_command_trace", [])
@@ -140,8 +185,8 @@ def compile_with(edge, mw, cflags, out_o, workdir):
         rejected = re.search(r"(?:unknown|unrecognized|illegal|invalid|ignored)\s+(?:command.line\s+)?option|option[^\n]*(?:ignored|unknown|unrecognized|invalid)", messages, re.I)
         if r.returncode or rejected:
             row["status"] = "FAIL"
-            first = next((line for line in messages.splitlines() if line.strip()), "no diagnostic")
-            return None, f"FAIL {stage} (exit {r.returncode}): {first[:240]}"
+            return None, (f"FAIL {stage} (exit {r.returncode}): "
+                          + diagnostic(r.stdout, r.stderr))
         if not Path(out_o).is_file():
             row["status"] = "UNRESOLVED"
             return None, f"UNRESOLVED {stage}: command succeeded without object output"
