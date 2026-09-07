@@ -155,7 +155,12 @@ def classify_symbols(syms, root):
     return out
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to run the whole 21 s image census.
+    cliscreen.help_only(__doc__)
     root = os.getcwd()
     out_path = os.path.join("build", "GUNE5D", "at_extern_type_census.json")
     if "--out" in sys.argv:

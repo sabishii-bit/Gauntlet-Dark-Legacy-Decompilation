@@ -27,9 +27,14 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "tools", "gdl"))
-sys.path.insert(0, os.path.join(HERE, "..", "tools", "gdl", "composed_census"))
+# Run-59 item 9: `HERE/../tools/gdl` is tools/gdl/tools/gdl -- a promoted
+# script that never ran from its promoted location.
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
+sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
 sys.path.insert(0, HERE)
+import cliscreen  # noqa: E402
+cliscreen.help_only(__doc__)
 import webfrank as wf  # noqa: E402
 import cn_analyze as an  # noqa: E402
 import ch_census26 as c26  # noqa: E402

@@ -87,7 +87,14 @@ def owner(va, sym_addrs, sym_names, units):
     return sym, unit
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     show_all = "--all" in sys.argv
     orig = ORIG.read_bytes()
     new = BUILT.read_bytes()

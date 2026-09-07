@@ -11,6 +11,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.dirname(HERE))            # tools/gdl
+import cliscreen  # noqa: E402
 import ha_close as hc  # noqa: E402
 
 CANARIES = [
@@ -22,6 +24,9 @@ CANARIES = [
 
 
 def main():
+    # Run-59 item 9: `--help` used to REPLAY both canaries (and then refuse
+    # on a missing retail image). Help must not do work.
+    cliscreen.help_only(__doc__, usage="usage: ha_canary.py   (no arguments)")
     ok = True
     for unit, fn, pre, post in CANARIES:
         rule, resid, note = hc.build_rule(unit, fn, pre=pre, post=post)

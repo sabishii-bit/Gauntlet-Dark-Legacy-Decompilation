@@ -1698,16 +1698,6 @@
         "copy_register_fields": true
       },
       {
-        "function": "gendir_8004FBC8",
-        "before_sha256": "362dd4251c9447a204bc7a46fee39c0da8f6639a62417dcc4096691555bbc850",
-        "after_sha256": "c35e13c4378a766a27d9f8896cf0a40ea0d756a58ee110c6475ddb39d506a6f4",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 78
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "find_neighbor_milestone",
         "before_sha256": "e2244e8356736486c2056ff497f595ea846fe1cb1f2a3674dc2f500a76283e7a",
         "after_sha256": "7d3ed420030e35405962b4c4feb25daa3daf1c4860b0bca8ae60e4e60098ab66",

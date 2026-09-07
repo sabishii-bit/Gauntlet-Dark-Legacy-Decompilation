@@ -22,8 +22,16 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "tools", "gdl"))
-sys.path.insert(0, os.path.join(HERE, "..", "tools", "gdl", "composed_census"))
+# RUN-59 ITEM 9. `HERE/../tools/gdl` resolves to tools/gdl/tools/gdl: this
+# script was promoted from a lane directory one level below the repo root
+# and its paths were never re-rooted, so `import webfrank` raised
+# ModuleNotFoundError and the tool could not run AT ALL (AGENTS.md
+# discipline 17 -- a promoted script must actually run).
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
+sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
+import cliscreen  # noqa: E402
+cliscreen.help_only(__doc__)
 import webfrank as wf  # noqa: E402
 import cn_census as census  # noqa: E402
 

@@ -98,3 +98,9 @@ def prove_address_fold(ours: tuple[int, ...], target: tuple[int, ...]) -> str:
     if our_registers != target_registers:
         raise ValueError("address fold final register values differ")
     return "ours_" + our_form
+
+
+if __name__ == "__main__":
+    # A library, not a command. Run-59 item 9: exiting 0 with no output at
+    # all is indistinguishable from a tool that ran and found nothing.
+    print(__doc__.strip())

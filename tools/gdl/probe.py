@@ -5346,7 +5346,17 @@ def scope_conflict(argv):
     return None
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    # An EXPLICIT help request succeeds (exit 0); missing ARGUMENTS stay a
+    # usage error (exit 2). The line below used to conflate the two, and
+    # `args` drops every `--` token so its own `--help` test never fired.
+    cliscreen.help_only(__doc__)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) < 2 or args[0] in ("--help", "-h"):
         print(__doc__)

@@ -50,3 +50,9 @@ def moved_symbols(window_symbols, order):
     destination_by_source = {s: d for d, s in enumerate(order)}
     return {destination_by_source[offset // 4] * 4 + offset % 4: name
             for offset, name in window_symbols.items()}
+
+
+if __name__ == "__main__":
+    # A library, not a command. Run-59 item 9: exiting 0 with no output at
+    # all is indistinguishable from a tool that ran and found nothing.
+    print(__doc__.strip())

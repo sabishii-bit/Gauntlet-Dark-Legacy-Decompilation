@@ -16,6 +16,11 @@ reported separately (both are ABI-neutral at the call).
 import re, sys, os
 from pathlib import Path
 sys.path.insert(0, os.path.abspath("tools/gdl"))
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+cliscreen.help_only(__doc__)      # the whole check runs at module level
 import externcheck as ec
 
 FLOAT = {"f32", "f64"}

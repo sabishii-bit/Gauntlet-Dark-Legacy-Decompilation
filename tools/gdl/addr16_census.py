@@ -156,7 +156,15 @@ def analyse(texts, syms):
                 frame=frame, homes=homes, n=len(texts))
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    # `--help` must not run the census (4.6 s and a whole image pass).
+    cliscreen.help_only(__doc__)
     # target: resolve @l symbol names
     tgt = {}
     thist = collections.Counter()

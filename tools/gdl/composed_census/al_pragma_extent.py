@@ -186,6 +186,11 @@ def coverage_map(path):
 
 
 def main():
+    # Run-59 item 9: help must not sweep.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    import cliscreen
+    cliscreen.help_only(__doc__)
     out = os.path.join("build", "GUNE5D", "al_pragma_extent.json")
     if "--out" in sys.argv:
         out = sys.argv[sys.argv.index("--out") + 1]

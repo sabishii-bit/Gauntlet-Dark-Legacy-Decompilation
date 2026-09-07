@@ -180,7 +180,11 @@ def verdict(pre, post, kwargs, *, closure, refined):
         wf._value_equality_transfer = real
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    cliscreen.help_only(__doc__)      # run-59 item 9: help must not sweep
     config = json.load(open(os.path.join(ROOT, "config", "GUNE5D",
                                          "webfrank.json"), encoding="utf-8"))
     wf.verify_consistent_recolor = recorder

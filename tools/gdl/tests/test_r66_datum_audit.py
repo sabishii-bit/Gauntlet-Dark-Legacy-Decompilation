@@ -207,12 +207,35 @@ class ExceptionAndSectionTests(unittest.TestCase):
         self.assertEqual(r60_enemy_source_probe.compare_exception_records.__code__.co_filename,
                          eh.compare_exception_records.__code__.co_filename)
 
-    def test_extab_payload_relocation_refuses_even_when_placeholder_bytes_equal(self):
+    def test_extab_payload_relocation_is_decoded_by_symbol_identity(self):
+        """RUN-59 ITEM 3 supersedes the blanket refusal this asserted.
+
+        The old behaviour refused the WHOLE object when extab carried any
+        payload relocation, on the ground that placeholder bytes cannot
+        prove a relocated value. That is true and it is why the relocation
+        is now decoded instead: the record carries (offset within the
+        record, type, symbol, addend), which proves the pointer's identity.
+        Measured over all 668 built objects, every such entry in this tree
+        is R_PPC_ADDR32/addend 0 at a named .text destructor.
+        """
         from tools.gdl.tests import test_r60_enemy_probes
         data, sections = test_r60_enemy_probes.ExceptionMetadata().fixture()
         sections.append(eh.wf.Section(7, ".relaextab", 4, 128, 12, 5, 2, 12))
         with patch.object(eh.wf, "_sections", return_value=sections):
-            with self.assertRaisesRegex(ValueError, "payload relocations"):
+            records = eh.exception_records(data)
+        self.assertEqual(records["fn"]["relocations"],
+                         [[0, eh.R_PPC_ADDR32, "fn", 0]])
+
+    def test_a_payload_relocation_outside_extab_still_refuses_by_name(self):
+        """The negative side of the same decode."""
+        from tools.gdl.tests import test_r60_enemy_probes
+        data, sections = test_r60_enemy_probes.ExceptionMetadata().fixture()
+        # The entry at file offset 140 aims at extab+8, one word past this
+        # fixture's 8-byte extab.
+        sections.append(eh.wf.Section(7, ".relaextab", 4, 140, 12, 5, 2, 12))
+        with patch.object(eh.wf, "_sections", return_value=sections):
+            with self.assertRaisesRegex(eh.UnsupportedExceptionMetadata,
+                                        "outside the section"):
                 eh.exception_records(data)
 
     def test_absent_eh_is_empty_but_a_missing_partner_refuses(self):

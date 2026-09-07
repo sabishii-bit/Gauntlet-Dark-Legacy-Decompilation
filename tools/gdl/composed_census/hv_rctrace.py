@@ -20,9 +20,17 @@ while not os.path.isdir(os.path.join(ROOT, "config", "GUNE5D")):
     ROOT = parent
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
+import cliscreen                                        # noqa: E402
+USAGE = ("usage: hv_rctrace.py <unit> <function> <gpr> <at>"
+         " [lo:hi:o,o,o ...]"
+         "\n  e.g. hv_rctrace.py game/world/camera camera_mode_level 3 0x8c0")
+# Run-59 item 9: `--help` used to be an IndexError traceback on stderr.
+cliscreen.help_only(__doc__, usage=USAGE)
 import webfrank as wf                                   # noqa: E402
 from cn_analyze import our_object, target_object, load, decode  # noqa: E402
 
+if len(sys.argv) < 5:
+    raise SystemExit(USAGE)
 unit, fn = sys.argv[1], sys.argv[2]
 key = ("g", int(sys.argv[3]))
 at = int(sys.argv[4], 0)

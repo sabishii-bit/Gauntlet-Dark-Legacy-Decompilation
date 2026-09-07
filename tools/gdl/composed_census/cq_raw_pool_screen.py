@@ -108,7 +108,13 @@ def relocs(unit, fn, args):
     return rows
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: an EXPLICIT help request exits 0; missing ARGUMENTS
+    # stay the usage error below at exit 2.
+    cliscreen.help_only(__doc__)
     if len(sys.argv) < 3:
         print(__doc__)
         return 2

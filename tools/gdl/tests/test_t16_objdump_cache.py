@@ -119,6 +119,112 @@ class SectionCacheIdentity(unittest.TestCase):
         self.assertIn("st_mtime_ns", head)
 
 
+DUMP = """
+SYMBOL TABLE:
+00000000 l    d  .text\t00000000 .text
+
+Disassembly of section .text:
+
+00000000 <foo>:
+       0:\t7c 08 02 a6 \t%s
+       4:\t4e 80 00 20 \tblr
+"""
+
+
+class ParseMemo(unittest.TestCase):
+    """Run-59 item 6: the PARSED table is memoized too, on the same identity.
+
+    The objdump memo above already made a repeat `parse` skip both
+    subprocesses, and `parse` still re-ran the whole two-pass regex
+    reduction on the cached text. Measured with
+    build/t3_scratch/t3_parse_repro.py at 2651955ed on game/enemy/enemy:
+    composing the TU relocation screen per function made 168 `parse` calls
+    costing 8.744 s; after the memo the same 168 calls cost 0.039 s.
+
+    The miss side is again what matters: a stale parse table is a false
+    MATCH describing a pre-build object, so the rebuild case asserts the
+    NEW instruction text comes back, not merely that the parser re-ran.
+    """
+
+    def setUp(self):
+        fndiff._PARSE_CACHE.clear()
+        fndiff._OBJDUMP_CACHE.clear()
+        self.real_objdump = fndiff.objdump
+        self.real_parse_uncached = fndiff._parse_uncached
+        self.mnemonic = "mflr r0"
+        self.parses = []
+
+        def fake_objdump(objfile, *flags):
+            return DUMP % self.mnemonic
+
+        def counting_parse_uncached(objfile):
+            self.parses.append(str(objfile))
+            return self.real_parse_uncached(objfile)
+
+        fndiff.objdump = fake_objdump
+        fndiff._parse_uncached = counting_parse_uncached
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "a.o"
+        self.path.write_bytes(b"\x00" * 16)
+
+    def tearDown(self):
+        fndiff.objdump = self.real_objdump
+        fndiff._parse_uncached = self.real_parse_uncached
+        fndiff._PARSE_CACHE.clear()
+        fndiff._OBJDUMP_CACHE.clear()
+        self.tmp.cleanup()
+
+    def test_a_repeat_parse_is_served_from_the_memo(self):
+        first = fndiff.parse(self.path)
+        second = fndiff.parse(self.path)
+        self.assertEqual(first, second)
+        self.assertEqual(first["foo"], ["mflr r0", "blr"])
+        self.assertEqual(len(self.parses), 1)
+
+    def test_a_REBUILT_object_misses_and_reports_the_NEW_body(self):
+        """The stale-cache false MATCH this memo must never produce."""
+        self.assertEqual(fndiff.parse(self.path)["foo"], ["mflr r0", "blr"])
+        time.sleep(0.01)
+        self.mnemonic = "mfctr r0"
+        self.path.write_bytes(b"\x01" * 32)
+        self.assertEqual(fndiff.parse(self.path)["foo"], ["mfctr r0", "blr"])
+        self.assertEqual(len(self.parses), 2)
+
+    def test_a_size_change_alone_misses(self):
+        import os
+        fndiff.parse(self.path)
+        stat = self.path.stat()
+        self.mnemonic = "mfctr r0"
+        self.path.write_bytes(b"\x00" * 24)
+        os.utime(self.path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        self.assertEqual(fndiff.parse(self.path)["foo"], ["mfctr r0", "blr"])
+        self.assertEqual(len(self.parses), 2)
+
+    def test_a_different_path_is_a_different_entry(self):
+        other = Path(self.tmp.name) / "b.o"
+        other.write_bytes(b"\x00" * 16)
+        fndiff.parse(self.path)
+        fndiff.parse(other)
+        self.assertEqual(len(self.parses), 2)
+
+    def test_a_caller_that_edits_its_table_cannot_poison_the_next_reader(self):
+        table = fndiff.parse(self.path)
+        table["foo"].append("SPURIOUS")
+        del table["foo"]
+        table["injected"] = []
+        fresh = fndiff.parse(self.path)
+        self.assertEqual(fresh["foo"], ["mflr r0", "blr"])
+        self.assertNotIn("injected", fresh)
+
+    def test_the_parse_memo_is_bounded(self):
+        source = (REPO / "tools" / "gdl" / "fndiff.py").read_text(
+            encoding="utf-8")
+        head = source[source.index("_PARSE_CACHE[key] = table") - 400:
+                      source.index("_PARSE_CACHE[key] = table")]
+        self.assertIn("_PARSE_CACHE.clear()", head)
+        self.assertIn("st_mtime_ns", head)
+
+
 class LiveEquivalence(unittest.TestCase):
     def test_the_memo_returns_what_objdump_returns(self):
         obj = REPO / "build" / "GUNE5D" / "src" / "zlib" / "inflate.o"
@@ -130,6 +236,16 @@ class LiveEquivalence(unittest.TestCase):
             capture_output=True, text=True).stdout
         self.assertEqual(fndiff.objdump(obj, "-t"), direct)
         self.assertEqual(fndiff.objdump(obj, "-t"), direct)
+
+    def test_the_parse_memo_returns_what_the_parser_returns(self):
+        obj = REPO / "build" / "GUNE5D" / "src" / "zlib" / "inflate.o"
+        if not obj.exists() or not Path(fndiff.OBJDUMP).exists():
+            self.skipTest("zlib/inflate object or objdump missing")
+        fndiff._PARSE_CACHE.clear()
+        direct = fndiff._parse_uncached(obj)
+        self.assertTrue(direct)
+        self.assertEqual(fndiff.parse(obj), direct)
+        self.assertEqual(fndiff.parse(obj), direct)
 
 
 if __name__ == "__main__":

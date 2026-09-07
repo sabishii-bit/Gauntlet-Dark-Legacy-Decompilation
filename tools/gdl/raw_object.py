@@ -144,3 +144,9 @@ def resolve_object(unit, *, root=None, version="GUNE5D", view="compiler", requir
                                description, tuple(reversed(chain)))
     except (KeyError, TypeError) as error:
         raise RawObjectError("malformed source pipeline: " + str(error)) from error
+
+
+if __name__ == "__main__":
+    # A library, not a command. Run-59 item 9: exiting 0 with no output at
+    # all is indistinguishable from a tool that ran and found nothing.
+    print(__doc__.strip())

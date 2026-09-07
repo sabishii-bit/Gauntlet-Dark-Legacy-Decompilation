@@ -79,7 +79,11 @@ def load_function(data, sections, symbol):
     return bytes(data[start:start + symbol.size])
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    cliscreen.help_only(__doc__)      # run-59 item 9: help must not screen
     pinned = set()
     config = json.load(open(os.path.join(ROOT, "config", "GUNE5D",
                                          "webfrank.json"), encoding="utf-8"))

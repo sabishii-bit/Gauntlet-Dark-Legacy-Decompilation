@@ -11,6 +11,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
+import cliscreen  # noqa: E402
 import webfrank as wf  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
 from cn_analyze import our_object, target_object, load, decode  # noqa: E402
@@ -62,5 +63,12 @@ def main(unit, fn, lo, hi):
               + "; ".join(note))
 
 
+USAGE = ("usage: ch_why.py <unit> <function> <lo> <hi>"
+         "\n  e.g. ch_why.py game/enemy/enemy move_logic00 0x24 0x2c")
+
 if __name__ == "__main__":
+    # Run-59 item 9: `--help` used to be an IndexError traceback on stderr.
+    cliscreen.help_only(__doc__, usage=USAGE)
+    if len(sys.argv) < 5:
+        raise SystemExit(USAGE)
     main(sys.argv[1], sys.argv[2], int(sys.argv[3], 0), int(sys.argv[4], 0))

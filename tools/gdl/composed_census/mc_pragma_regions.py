@@ -259,6 +259,11 @@ def file_report(path, rel, bare_closes_all=False):
 
 
 def main():
+    # Run-59 item 9: help must not sweep the source tree.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    import cliscreen
+    cliscreen.help_only(__doc__)
     out = os.path.join("build", "GUNE5D", "mc_pragma_regions.json")
     src = "src"
     if "--out" in sys.argv:

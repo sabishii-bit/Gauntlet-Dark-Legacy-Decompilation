@@ -12,8 +12,12 @@ import sys
 import traceback
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "tools", "gdl"))
-sys.path.insert(0, os.path.join(HERE, "..", "tools", "gdl", "composed_census"))
+# Run-59 item 9: `HERE/../tools/gdl` is tools/gdl/tools/gdl. This one still
+# ran, but only because an early sibling import happened to put tools/gdl
+# on the path as a side effect.
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
+sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
 sys.path.insert(0, HERE)
 import cn_census as census  # noqa: E402
 import webfrank as wf  # noqa: E402
@@ -59,7 +63,14 @@ def survivors():
     return out
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to run the 9 s sweep AND REWRITE the
+    # tracked ch_sweep26.json -- a help request with a side effect on disk,
+    # the exact shape run-53 item 2 was raised for.
+    cliscreen.help_only(__doc__)
     shipped = set(json.load(open(os.path.join(HERE, "ch_shipped.json"))))
     rows = []
     for unit, fn, lo, hi in survivors():

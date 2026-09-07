@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-"""Class the image-wide VALUE-DELTA census into actionable defect families."""
+"""Class the image-wide VALUE-DELTA census into actionable defect families.
+
+    cr_class_image.py [census.txt]
+
+Defaults to build/GUNE5D/cr_image_datum.txt.
+"""
 import re
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "tools" / "gdl"))
+import cliscreen  # noqa: E402
+# Run-59 item 9: `--help` was taken as the census FILENAME and died with
+# `FileNotFoundError: '--help'` on stderr.
+cliscreen.help_only(__doc__)
 TXT = Path(sys.argv[1]) if len(sys.argv) > 1 else REPO / "build" / "GUNE5D" / "cr_image_datum.txt"
 
 # retail spells the circle constants as 10-significant-digit decimal

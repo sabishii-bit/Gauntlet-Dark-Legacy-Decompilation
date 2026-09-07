@@ -44,7 +44,14 @@ def decode(w):
     return f"{name:7} d={d:<2} a={a:<2} imm={imm}"
 
 
+import cliscreen                                             # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to open build/HV_regfield_proved.json
+    # first and die with a FileNotFoundError traceback on stderr.
+    cliscreen.help_only(__doc__,
+                        usage="usage: hv_instrument.py   (no arguments)")
     proved = json.load(open(os.path.join(ROOT, "build",
                                          "HV_regfield_proved.json")))
     buckets = {}

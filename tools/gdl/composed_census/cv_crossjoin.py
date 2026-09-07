@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Cross-join the webfrank rule taxonomy against the MEASURED residual shape of
 the same function's raw compiler output."""
-import collections, json, re
+import collections, json, re, sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]  # repo root (fixed after promotion)
+sys.path.insert(0, str(REPO / "tools" / "gdl"))
+
+import cliscreen  # noqa: E402
+cliscreen.help_only(__doc__)  # the census loads below run at import time
 
 
 def key(unit, fn):

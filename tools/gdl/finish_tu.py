@@ -72,7 +72,14 @@ def flip(unit_c: str) -> bool:
     return False
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     argv = sys.argv[1:]
     msg = None
     if "-m" in argv:

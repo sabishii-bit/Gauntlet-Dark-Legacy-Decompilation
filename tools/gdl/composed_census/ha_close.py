@@ -360,9 +360,14 @@ def _perm_entry(op, fn, ours, win):
                 prec, moved_symbols(win_syms, order))}
 
 
+# Run-59 item 9 (found while censusing `--help`): this walked up TWO levels
+# from tools/gdl/composed_census and looked for `tools/orig/GUNE5D/sys/
+# main.dol`, which never exists — so `retail_image()` REFUSED on every
+# worktree and this tool could not prove a rule at all. Three levels up is
+# the repository root.
 RETAIL_IMAGE = os.path.join(
-    os.path.dirname(os.path.dirname(HERE)), "orig", "GUNE5D", "sys",
-    "main.dol")
+    os.path.dirname(os.path.dirname(os.path.dirname(HERE))),
+    "orig", "GUNE5D", "sys", "main.dol")
 _IMAGE = None
 
 
@@ -418,6 +423,13 @@ def prove(op, tp, fn, rule, tgt):
 
 
 if __name__ == "__main__":
+    # Run-59 item 9: `--help` used to be an IndexError traceback on stderr.
+    import cliscreen
+    USAGE = ("usage: ha_close.py <unit> <function>"
+             "\n  e.g. ha_close.py game/world/camera camera_mode_level")
+    cliscreen.help_only(__doc__, usage=USAGE)
+    if len(sys.argv) < 3:
+        raise SystemExit(USAGE)
     unit, fn = sys.argv[1], sys.argv[2]
     rule, resid, note = build_rule(unit, fn, verbose=True)
     print(f"{unit}::{fn}: {'CLOSES' if rule else 'refuses'} -- {note}")

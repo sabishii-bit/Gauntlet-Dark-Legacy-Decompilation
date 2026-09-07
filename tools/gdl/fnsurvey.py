@@ -66,7 +66,14 @@ def fn_block(obj, name):
     return m.group(1) if m else None
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     args = sys.argv[1:]
     heads = 0
     calls_filter = None

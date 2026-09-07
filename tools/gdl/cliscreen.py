@@ -43,9 +43,26 @@ TWO-SIDED CALIBRATION, measured at c7b741799 (AGENTS.md's two-sided rule):
   refused.** With an empty negative side the screen ships as a REFUSAL rather
   than as an advisory warning.
 
-IMPORTABLE CORE: screen_argv, unknown_flags and screen — pure over a list of
-argument strings; no build, no filesystem, and importing this module has no
-side effects.
+RUN-59 ITEM 9 widens the help half of this to the whole tool corpus. Two
+tools were reported (`wf_rederive_pin.py --help`, `wf_dump.py --help`) for
+exiting NON-ZERO with the docstring on STDERR, so the capture pattern
+AGENTS.md documents —
+
+    $o = python <tool> --help; $code = $LASTEXITCODE
+
+— reports a FAILURE for a request that succeeded, and a caller who filters
+stdout gets nothing. Censused at 434460f28 with
+build/t3_scratch/t3_help_census.py over all 276 modules in `tools/gdl` and
+`tools/gdl/composed_census`: 215 already exit 0 on stdout (argparse, mostly)
+and 61 do not — 36 exit non-zero writing to stderr (a `SystemExit(__doc__)`
+or a bare `IndexError` traceback), 20 exit 1 or 2 with the text on stdout,
+and 5 exit 0 printing NOTHING. `help_only` is what the 61 gained; the
+unknown-flag REFUSAL above is deliberately NOT widened, because that half
+needs each tool's own flag vocabulary and a negative control per tool.
+
+IMPORTABLE CORE: screen_argv, unknown_flags, help_only and screen — pure
+over a list of argument strings; no build, no filesystem, and importing this
+module has no side effects.
 """
 from __future__ import annotations
 
@@ -121,3 +138,42 @@ def screen(known: object, usage: str | None = None,
            doc: str | None = None) -> None:
     """`screen_argv` over `sys.argv[1:]`."""
     screen_argv(sys.argv[1:], known, usage=usage, doc=doc)
+
+
+def help_only(doc: str | None = None, usage: str | None = None,
+              argv: list[str] | None = None) -> None:
+    """Answer `-h`/`--help` on STDOUT at exit 0, and do nothing else.
+
+    The half of `screen` that every tool can adopt without a per-tool
+    negative control: it never refuses anything, so no live invocation can
+    change behaviour, and a tool that already had a help path keeps it for
+    every other argument shape.
+
+    A SUCCESSFUL help request exits 0 with the text on stdout. Missing or
+    wrong ARGUMENTS are a different event and keep their own status — a
+    tool that prints its usage at exit 2 for no arguments is correct, and
+    this call fires only on an EXPLICIT help flag, so that distinction is
+    preserved rather than flattened.
+
+    Call it as the first statement of `main()`, or before any module-level
+    work in a tool that has no `main()`: `--help` must not do work, must
+    not build, and must not write (run-53 item 2 found one that wrote a
+    rules JSON on its way to printing help).
+    """
+    argv = sys.argv[1:] if argv is None else argv
+    if not any(arg in HELP_FLAGS for arg in argv):
+        return
+    if usage:
+        print(usage)
+        if doc:
+            print()
+    if doc:
+        print(doc.strip())
+    raise SystemExit(0)
+
+
+if __name__ == "__main__":
+    # A library, not a command: say so on stdout at exit 0. Exiting
+    # silently at 0 is indistinguishable from a tool that ran and found
+    # nothing (run-59 item 9).
+    print(__doc__.strip())

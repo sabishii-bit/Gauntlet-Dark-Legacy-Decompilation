@@ -22,7 +22,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 from cn_census import units, our_path, functions, OBJ  # noqa: E402
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    cliscreen.help_only(__doc__)      # run-59 item 9: help must not probe
     ours_par = collections.Counter()
     tgt_par = collections.Counter()
     for unit in units():

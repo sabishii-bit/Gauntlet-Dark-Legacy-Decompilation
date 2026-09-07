@@ -10,7 +10,12 @@ import webfrank as wf  # noqa: E402
 from wf_detail import load  # noqa: E402
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` exited 1 with the usage on STDERR.
+    cliscreen.help_only(__doc__)
     if len(sys.argv) < 4:
         raise SystemExit(
             "usage: wf_web.py <unit> <function> <gpr> [lo] [hi]   "

@@ -64,7 +64,14 @@ def save_set(lines):
     return "(no stmw)"
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 2:
         print(__doc__)

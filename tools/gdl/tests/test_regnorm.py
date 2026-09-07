@@ -409,6 +409,22 @@ class PinScreenLive(unittest.TestCase):
         self.assertIn("unknown flag", proc.stdout)
 
     def test_the_census_marks_pinned_rows(self):
+        """Every rule this unit carries is marked, and nothing else is.
+
+        RUN-59 ITEM 10. This asserted `len(marked) == 23` — the unit's rule
+        count on the day it was written — so the NEXT successful retirement
+        in game/enemy/enemy broke a test that has nothing to do with
+        retirement. It is the same defect WR fixed in run 53: a fixture
+        hardcoding a TU's rule set turns progress into a red suite, and the
+        cure is to DERIVE the expectation at test time.
+
+        The expectation now comes from config/GUNE5D/webfrank.json's own
+        enemy block, so a retirement moves both sides together, while a
+        real disagreement — a rule whose function the census does not mark,
+        or a marked row carrying no rule — still fails, and fails by NAME
+        rather than by a number.
+        """
+        import json
         import subprocess
         import sys as _sys
         proc = subprocess.run(
@@ -419,8 +435,22 @@ class PinScreenLive(unittest.TestCase):
         self.assertIn("PIN SCREEN:", proc.stdout)
         marked = [line for line in proc.stdout.splitlines()
                   if line.startswith("== ") and line.endswith(" PINNED")]
-        # 23 rules in this unit; every one is a function the census pairs.
-        self.assertEqual(len(marked), 23, marked)
+        marked_names = {line.split()[1].rstrip(":") for line in marked}
+
+        config = json.loads(
+            (self.root / "config/GUNE5D/webfrank.json").read_text(
+                encoding="utf-8"))
+        rules = config["units"].get("game/enemy/enemy", [])
+        # The census keys rows on `fndiff.parse`'s reduced name while a rule
+        # spells the ELF name, so reduce before comparing (run-59 item 4).
+        import fndiff
+        ruled = {fndiff.strip_dtk_suffix(rule["function"]) for rule in rules}
+
+        self.assertTrue(ruled, "no enemy rules to screen")
+        self.assertEqual(marked_names, ruled,
+                         f"marked {sorted(marked_names)}"
+                         f" vs ruled {sorted(ruled)}")
+        self.assertEqual(len(marked), len(ruled), marked)
 
 
 if __name__ == "__main__":
