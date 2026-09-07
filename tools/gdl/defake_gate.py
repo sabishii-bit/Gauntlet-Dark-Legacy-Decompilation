@@ -2156,18 +2156,10 @@ def main():
         print(__doc__)
         return 2
     mode, unit = args
-    # Cross-lane ownership screen (run-46 item 1) — the same one probe.py
-    # runs, on the machine-readable attributes.owned_units channel only.
-    try:
-        import claimscope
-        for one in unit.split(","):
-            rc = claimscope.warn_or_refuse(
-                one.strip(), "defake_gate",
-                enforce="--ignore-claim" not in sys.argv)
-            if rc:
-                return rc
-    except ImportError:
-        pass
+    # Ownership is coordinated explicitly; this gate verifies reconstruction only.
+    if "--ignore-claim" in sys.argv:
+        print("[defake_gate] --ignore-claim is deprecated: no automatic ownership "
+              "check runs; coordinate scope explicitly.", file=sys.stderr)
     # Paired-fix lanes touch coupled TUs (a signature change and its
     # callers); accept a comma-separated unit list so both sides are gated
     # in one call instead of relying on worker judgment to gate the second.

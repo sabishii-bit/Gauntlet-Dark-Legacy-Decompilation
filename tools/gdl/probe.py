@@ -4979,8 +4979,7 @@ _LEVER_QUESTION = (
     " codegen is a fact about this function, not a rule: declaration, type"
     " and order levers reach it in some functions and fold in others, and"
     " so do statement-shape levers — pick the class whose OUTPUT you can"
-    " name in the target's aligned view, and `gdlmem laws --query <your"
-    " residual signature>` first.")
+    " name in the target's aligned view. Inspect that residual before probing.")
 
 
 def replan_hint(streak, slot_class=False):
@@ -5366,19 +5365,10 @@ def main():
         print(f"REFUSED: {conflict}")
         return 2
     unit, fn = normalize_unit(args[0]), args[1]
-    # Cross-lane ownership screen (run-46 item 1). Refuses ONLY on the
-    # machine-readable channel — another active work_claim's
-    # attributes.owned_units listing this unit — never on scope prose, which
-    # measured 85% false positives over the image. `--ignore-claim` (or
-    # GDL_CLAIM_OVERRIDE=1) is the integrator's escape.
-    try:
-        import claimscope
-        rc = claimscope.warn_or_refuse(
-            unit, "probe", enforce="--ignore-claim" not in sys.argv)
-        if rc:
-            return rc
-    except ImportError:
-        pass
+    # Ownership is coordinated explicitly; this tool performs no registry check.
+    if "--ignore-claim" in sys.argv:
+        print("[probe] --ignore-claim is deprecated: no automatic ownership "
+              "check runs; coordinate scope explicitly.", file=sys.stderr)
     state_file = state_path(unit, fn)
     source = source_path(unit)
     if "--reset" in sys.argv:

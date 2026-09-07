@@ -9,7 +9,7 @@ byte gap so a campaign can also prioritize high-impact bodies.
 Usage (from repo root):
   python tools/gdl/lowmatch.py
   python tools/gdl/lowmatch.py --max 25 --min-size 200 --limit 30
-  python tools/gdl/lowmatch.py --sort impact --parked skip
+  python tools/gdl/lowmatch.py --sort impact
   python tools/gdl/lowmatch.py --refresh --residuals
 """
 
@@ -22,7 +22,7 @@ import subprocess
 import sys
 
 from fndiff import OBJDUMP, classify_function, normalized_reloc_lines, parse
-from nearmiss import REPORT, REPO, VERSION, load_parked
+from nearmiss import REPORT, REPO, VERSION
 
 
 def object_function_name_counts(objfile):
@@ -78,8 +78,6 @@ def main():
                     help="regenerate report.json before reading")
     ap.add_argument("--grep", metavar="STR",
                     help="only TUs whose name contains STR")
-    ap.add_argument("--parked", choices=["mark", "skip"], default="mark",
-                    help="parked-cap handling (default: mark)")
     ap.add_argument("--residuals", action="store_true",
                     help="measure normalized real diff lines (slower)")
     ap.add_argument("--include-unscored", action="store_true",
@@ -103,7 +101,6 @@ def main():
         print(f"no {REPORT} -- run with --refresh", file=sys.stderr)
         return 1
 
-    parked = load_parked()
     rows = []
     unscored = []
     for unit_info in json.loads(REPORT.read_text()).get("units", []):
@@ -137,14 +134,11 @@ def main():
                     # objdiff's JSON serializer omits an exact 0.0 value.
                     raw_pct = 0.0
                 else:
-                    if args.include_unscored and not (
-                            name in parked and args.parked == "skip"):
+                    if args.include_unscored:
                         unscored.append((size, name, unit))
                     continue
             pct = float(raw_pct)
             if not (args.min <= pct <= args.max) or pct >= 100.0:
-                continue
-            if name in parked and args.parked == "skip":
                 continue
 
             real = category = None
@@ -176,26 +170,24 @@ def main():
         rows = rows[:args.limit]
 
     for pct, size, gap, name, unit, real, category in rows:
-        parked_tag = "  [PARKED]" if name in parked else ""
         residual = ""
         if args.residuals:
             residual = (f"  d={real:4d} {category:<18}" if real is not None
                         else "  d=????")
         print(f"{pct:6.2f}%  {size:5d}B  gap~{gap:6.0f}B{residual}  "
-              f"{name:<40} {unit}{parked_tag}")
+              f"{name:<40} {unit}")
 
     if unscored:
         print("--- unscored/unpaired (diagnostic; not treated as 0%) ---")
         unscored.sort(key=lambda row: (-row[0], row[2], row[1]))
         shown_unscored = unscored[:args.limit] if args.limit else unscored
         for size, name, unit in shown_unscored:
-            parked_tag = "  [PARKED]" if name in parked else ""
-            print(f"UNSCORED  {size:5d}B  {name:<40} {unit}{parked_tag}")
+            print(f"UNSCORED  {size:5d}B  {name:<40} {unit}")
 
     gap_total = sum(row[2] for row in rows)
     print(f"--- {len(rows)} low-match fns ({args.min:g}%..{args.max:g}%, "
           f"size >= {args.min_size}B) | shown gap~{gap_total:.0f}B | "
-          f"{len(parked)} names in PARKED.txt ---")
+          "prior attempts and ownership not assessed ---")
     return 0
 
 

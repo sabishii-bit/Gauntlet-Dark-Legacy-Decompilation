@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""T16 run-46 item 1: machine-readable claim scopes.
-
-Two-sided throughout. The measured motivation is in the module docstring of
-tools/gdl/claimscope.py: the prose screen it replaces fires on 20 of 250 src
-units against run-46's six claims and 17 of those (85%) are units no scope
-names, while this screen -- fixtured on the same six claims with every list
-declared -- fires 4 to 6 times per lane with ZERO false positives and zero
-misses.
-"""
+"""Pure explicit scope resolution and retired-registry safety checks."""
 
 import json
 import os
@@ -27,7 +19,7 @@ MF = {"id": "wc.mf", "owner": "worker-MF", "declared": True,
 NM = {"id": "wc.nm", "owner": "worker-NM", "declared": True,
       "owned_units": ["game/camera/newcam"]}
 TOOLS = {"id": "wc.t16", "owner": "worker-T16", "declared": True,
-         "owned_units": ["tools/gdl", "memory_graph"]}
+         "owned_units": ["tools/gdl", "config"]}
 BLIND = {"id": "wc.bp", "owner": "worker-BP", "declared": False,
          "owned_units": []}
 
@@ -76,7 +68,7 @@ class ForeignEditsAreCaught(unittest.TestCase):
 CARVEOUT = {"id": "wc.wv", "owner": "worker-WV", "declared": True,
             "owned_units": ["tools/gdl/webfrank.py"]}
 TWIN = {"id": "wc.t17", "owner": "worker-T17", "declared": True,
-        "owned_units": ["tools/gdl", "memory_graph"]}
+        "owned_units": ["tools/gdl", "config"]}
 
 
 class CarveOutsResolveMostSpecificFirst(unittest.TestCase):
@@ -126,7 +118,7 @@ class OverlapReporting(unittest.TestCase):
 
     def test_an_exact_duplicate_is_the_conflict(self):
         out = claimscope.owned_unit_overlaps([TOOLS, TWIN])
-        self.assertEqual(sorted(out["duplicate"]), ["memory_graph",
+        self.assertEqual(sorted(out["duplicate"]), ["config",
                                                     "tools/gdl"])
         self.assertEqual(out["nested"], [])
 
@@ -179,14 +171,6 @@ class UndecidableIsNotAllClear(unittest.TestCase):
         self.assertEqual(v["status"], "undecidable")
         self.assertEqual(v["claims_without_owned_units"], 1)
 
-    def test_undecidable_warns_but_does_not_refuse(self):
-        import io
-        buf = io.StringIO()
-        with tempfile.TemporaryDirectory() as tmp:
-            rc = claimscope.warn_or_refuse("game/x/y.c", "test", repo=tmp,
-                                           stream=buf)
-        self.assertEqual(rc, 0)
-
 
 class LaneIdentity(unittest.TestCase):
     def test_lane_lock_first_line_wins(self):
@@ -206,69 +190,46 @@ class LaneIdentity(unittest.TestCase):
                 del os.environ["GDL_LANE"]
 
 
-class RefusalPath(unittest.TestCase):
-    def _tree(self, tmp, claim, lane):
-        root = Path(tmp)
-        (root / "memory_graph" / "records").mkdir(parents=True)
-        (root / "memory_graph" / "records" / "work_claim.a.json").write_text(
-            json.dumps(claim), encoding="utf-8")
-        (root / "LANE_LOCK").write_text(lane, encoding="utf-8")
-        return root
-
-    def test_foreign_unit_refuses_with_exit_three(self):
-        import io
-        claim = {"kind": "work_claim", "id": "wc.a", "owner": "worker-MF",
-                 "state": "active",
-                 "attributes": {"owned_units": ["game/ps2/ml_fmath.c"]}}
+class NoImplicitRegistry(unittest.TestCase):
+    def test_missing_registry_is_not_treated_as_unowned(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = self._tree(tmp, claim, "worker-NM")
-            buf = io.StringIO()
-            rc = claimscope.warn_or_refuse("game/ps2/ml_fmath.c", "probe",
-                                           repo=root, stream=buf)
-            self.assertEqual(rc, claimscope.FOREIGN_EXIT)
-            self.assertIn("CLAIM CONFLICT", buf.getvalue())
+            for operation in (
+                    lambda: claimscope.load_claims(tmp),
+                    lambda: claimscope.check_unit("game/x/y", repo=tmp),
+                    lambda: claimscope.owned_unit_overlaps(repo=tmp),
+                    lambda: claimscope.webfrank_block_owners(repo=tmp),
+                    lambda: claimscope.audit_owned_units(repo=tmp)):
+                with self.assertRaisesRegex(RuntimeError, "registry is retired"):
+                    operation()
 
-    def test_override_downgrades_the_refusal(self):
-        import io
-        claim = {"kind": "work_claim", "id": "wc.a", "owner": "worker-MF",
-                 "state": "active",
-                 "attributes": {"owned_units": ["game/ps2/ml_fmath.c"]}}
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._tree(tmp, claim, "worker-NM")
-            buf = io.StringIO()
-            rc = claimscope.warn_or_refuse("game/ps2/ml_fmath.c", "probe",
-                                           repo=root, enforce=False,
-                                           stream=buf)
-            self.assertEqual(rc, 0)
+    def test_explicit_empty_scope_is_still_a_pure_supported_input(self):
+        verdict = claimscope.check_unit("game/x/y", lane="worker", claims=[])
+        self.assertEqual(verdict["status"], "ok")
+        self.assertEqual(verdict["active_claims"], 0)
 
-    def test_released_claims_do_not_protect(self):
-        import io
-        claim = {"kind": "work_claim", "id": "wc.a", "owner": "worker-MF",
-                 "state": "released",
-                 "attributes": {"owned_units": ["game/ps2/ml_fmath.c"]}}
-        with tempfile.TemporaryDirectory() as tmp:
-            root = self._tree(tmp, claim, "worker-NM")
-            buf = io.StringIO()
-            rc = claimscope.warn_or_refuse("game/ps2/ml_fmath.c", "probe",
-                                           repo=root, stream=buf)
-            self.assertEqual(rc, 0)
-
-
-class WiredIntoTheEditLoop(unittest.TestCase):
-    def test_probe_and_defake_gate_both_call_the_screen(self):
+    def test_edit_tools_do_not_run_an_automatic_ownership_screen(self):
         for name in ("probe.py", "defake_gate.py"):
             text = (REPO / "tools" / "gdl" / name).read_text(encoding="utf-8")
-            self.assertIn("claimscope", text, name)
-            self.assertIn("--ignore-claim", text, name)
+            self.assertNotIn("import claimscope", text, name)
+            self.assertNotIn("claimscope.warn_or_refuse", text, name)
+            self.assertIn("Ownership is coordinated explicitly", text, name)
 
-    def test_the_cli_runs(self):
-        r = subprocess.run([sys.executable, "tools/gdl/claimscope.py",
-                            "--index"], cwd=str(REPO), capture_output=True,
-                           text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        payload = json.loads(r.stdout)
-        self.assertIn("owned_units_index", payload)
-        self.assertIn("claims_without_owned_units", payload)
+    def test_old_registry_cli_refuses_instead_of_printing_free(self):
+        result = subprocess.run(
+            [sys.executable, "tools/gdl/claimscope.py", "--index"],
+            cwd=str(REPO), capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("registry is retired", result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_local_identity_cli_remains_available(self):
+        result = subprocess.run(
+            [sys.executable, "tools/gdl/claimscope.py", "--self"],
+            cwd=str(REPO), capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertIn("lane", payload)
+        self.assertIn("source", payload)
 
 
 if __name__ == "__main__":

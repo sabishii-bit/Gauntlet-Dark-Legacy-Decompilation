@@ -1,4 +1,7 @@
-import sqlite3
+import io
+import json
+import tempfile
+from contextlib import redirect_stdout
 import subprocess
 import sys
 import unittest
@@ -9,7 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lowmatch import missing_fuzzy_is_exact_zero, object_function_name_counts
-from nearmiss import load_parked
+import lowmatch
 
 
 class LowMatchMissingFuzzyTests(unittest.TestCase):
@@ -51,35 +54,34 @@ class LowMatchMissingFuzzyTests(unittest.TestCase):
             args=[], returncode=1, stdout="", stderr="error")
         self.assertEqual(object_function_name_counts(Path("bad.o")), Counter())
 
-    @patch("memory_graph.core.ensure_database")
-    @patch("memory_graph.core.open_database")
-    def test_superseded_park_does_not_hide_retriaged_function(
-            self, open_database, ensure_database):
-        connection = sqlite3.connect(":memory:")
-        connection.row_factory = sqlite3.Row
-        connection.executescript("""
-            CREATE TABLE entity (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
-            CREATE TABLE attempt (
-                record_id TEXT PRIMARY KEY,
-                function_entity_id INTEGER NOT NULL,
-                outcome TEXT NOT NULL
-            );
-            CREATE TABLE record_ingest (
-                record_id TEXT PRIMARY KEY,
-                record_state TEXT NOT NULL,
-                raw_json TEXT NOT NULL
-            );
-            INSERT INTO entity VALUES (1, 'fn_800DBA80');
-            INSERT INTO attempt VALUES ('attempt.old', 1, 'parked');
-            INSERT INTO record_ingest VALUES (
-                'attempt.new', 'accepted',
-                '{"supersedes":"attempt.old"}'
-            );
-        """)
-        open_database.return_value = connection
 
-        self.assertNotIn("fn_800DBA80", load_parked())
-        ensure_database.assert_called_once()
+    def test_queue_runs_without_knowledge_package(self):
+        report = {"units": [
+            {"name": "main/game/test/foo", "functions": [
+                {"name": "near", "size": 100, "fuzzy_match_percent": 99},
+                {"name": "low", "size": 80, "fuzzy_match_percent": 20},
+                {"name": "exact", "size": 40, "fuzzy_match_percent": 100}]},
+            {"name": "main/game/test/linked", "metadata": {"complete": True},
+             "functions": [
+                 {"name": "linked_noise", "size": 40,
+                  "fuzzy_match_percent": 10}]}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "report.json"
+            path.write_text(json.dumps(report), encoding="utf-8")
+            output = io.StringIO()
+            with patch.object(lowmatch, "REPORT", path), \
+                 patch.object(sys, "argv", ["lowmatch", "--limit", "0"]), \
+                 patch.dict(sys.modules, {"memory_graph": None,
+                                          "memory_graph.core": None}), \
+                 redirect_stdout(output):
+                self.assertEqual(lowmatch.main(), 0)
+        text = output.getvalue()
+        self.assertLess(text.index("low "), text.index("near "))
+        self.assertNotIn("exact ", text)
+        self.assertNotIn("linked_noise", text)
+        self.assertNotIn("PARKED", text)
+        self.assertNotIn("rec=", text)
+        self.assertIn("prior attempts and ownership not assessed", text)
 
 
 if __name__ == "__main__":

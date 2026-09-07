@@ -10,29 +10,14 @@ Usage (from repo root):
   python tools/gdl/nearmiss.py --min 95       # tighter queue
   python tools/gdl/nearmiss.py --refresh      # regenerate report.json first
   python tools/gdl/nearmiss.py --grep sfx     # one TU family
-  python tools/gdl/nearmiss.py --parked skip  # hide graph-parked functions
 
-Parked caps come from the project memory graph: attempt records whose outcome
-is 'parked' or 'capped' (residuals already diagnosed as allocator-quirk
-walls). Default is to mark them [PARKED] rather than hide, so the queue stays
-honest.
-
-`--parked skip` HIDES rows, and it hides a lot of them: 142 of the 221 rows
-in the >= 90 band, including several above 99% (measured run 43). A row that
-vanishes for this reason used to leave no trace, which reads exactly like a
-tool dropping rows; the footer now prints the in-band total, the hidden
-count, and what "parked" was read from.
-
-Every row carries `rec=N`, the number of attempt records the memory graph
-holds for that function. AGENTS.md's close-lane screen ranks candidates by
-records-per-unmatched-function — rec=0 is genuinely unexplored, rec=5 is
-where five lanes already spent their probes — and the run-42 close lane had
-to reconstruct that column by hand.
+This queue reports measured code scores only. It makes no claims about prior
+attempts, parked work, or ownership; coordinate scope before editing.
 
 IMPORTABLE CORE: residual_columns, format_residual, format_row,
-summary_line, load_graph_facts, load_parked, pool_offset_rows,
-pool_offset_lines — pure over parsed line lists (load_graph_facts opens the
-graph database), no build and no printing at import (run-43 item 10; the
+summary_line, pool_offset_rows,
+pool_offset_lines — pure over parsed line lists,
+no build and no printing at import (run-43 item 10; the
 convention is documented in AGENTS.md).
 
 `pool=N` IS THE PART OF `real` THAT IS NOT CODEGEN (run-50 item 5), and the
@@ -91,92 +76,6 @@ from fndiff import (classify_function, count_real, immediate_deltas,
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
-
-
-def load_graph_facts():
-    """(parked names, {name: count}, {name: evidence tier}).
-
-    Attempt history is immutable, so a re-triage or successful revisit records
-    a new attempt that supersedes the old cap.  Only unsuperseded heads may
-    suppress queue entries.
-
-    The COUNT is the second half (run-43 item 3).  AGENTS.md's close-lane
-    screen says to rank candidates by records-per-unmatched-function, and the
-    run-42 close lane had to reconstruct that by hand, one `gdlmem context`
-    per candidate: a zero-record row is genuinely unexplored, while a
-    five-record row is where five lanes already spent their probes.
-
-    THE TIER IS THE THIRD (run-45 item 9), because the count alone ranked a
-    ZERO-PROBE park as the best-explored function in the image.  A record
-    proves work was done only if it says WHAT was probed, so each function
-    gets the strongest evidence any of its records carries:
-
-      ``D``  a typed denial (`denial`: probed_form / falsifier /
-             premise_measurement) -- the axis is machine-screenable;
-      ``P``  a literal `probed_form` but no typed denial;
-      ``-``  records exist and NONE of them says what was probed: prose.
-
-    Measured over the live corpus at 56067bfae -- 466 functions carry attempt
-    records, of which 52 reach D, 140 reach P, and 274 (59%) are prose only.
-    Nine functions hold FIVE prose-only records each (AudioSetupBossStreams,
-    GetAnimAngXYZVal, InitEffects, PlayerMotion, WPitchMat3,
-    __dt__15MoviePlayerBaseFv, msgPost, pbWinSetup, sysResetService): on the
-    count alone those are the most-explored rows in the queue, and not one of
-    them records a probed form.
-    """
-    sys.path.insert(0, str(REPO))
-    try:
-        from memory_graph.core import ensure_database, open_database
-
-        ensure_database(REPO)
-        connection = open_database(REPO)
-    except Exception as error:  # graph unavailable: honest empty cap set
-        print(f"nearmiss: memory graph unavailable ({error}); no parked caps"
-              " and no record counts", file=sys.stderr)
-        return set(), {}, {}
-    try:
-        parked = {row[0] for row in connection.execute(
-            "SELECT e.name FROM attempt a"
-            " JOIN entity e ON e.id = a.function_entity_id"
-            " WHERE a.outcome IN ('parked', 'capped')"
-            " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
-            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
-            " AND newer.record_state = 'accepted')"
-        ).fetchall()}
-        rows = connection.execute(
-            "SELECT e.name, COUNT(*),"
-            " SUM(CASE WHEN json_extract(r.raw_json,'$.denial') IS NOT NULL"
-            "          THEN 1 ELSE 0 END),"
-            " SUM(CASE WHEN json_extract(r.raw_json,"
-            "                            '$.attributes.probed_form')"
-            "            IS NOT NULL"
-            "        OR json_extract(r.raw_json,'$.probed_form') IS NOT NULL"
-            "          THEN 1 ELSE 0 END)"
-            " FROM attempt a"
-            " JOIN entity e ON e.id = a.function_entity_id"
-            " JOIN record_ingest r ON r.record_id = a.record_id"
-            " GROUP BY e.name"
-        ).fetchall()
-        counts = {name: total for name, total, _d, _p in rows}
-        tiers = {name: evidence_tier(denials, probed)
-                 for name, _total, denials, probed in rows}
-        return parked, counts, tiers
-    finally:
-        connection.close()
-
-
-def evidence_tier(denials, probed):
-    """The strongest evidence a function's attempt records carry."""
-    if denials:
-        return "D"
-    if probed:
-        return "P"
-    return "-"
-
-
-def load_parked():
-    """Just the parked names — `lowmatch.py` and its tests import this."""
-    return load_graph_facts()[0]
 
 
 def residual_columns(target, base):
@@ -304,32 +203,15 @@ def format_residual(real, clean, category, residuals, pool=0):
     return text + f" {category:<18}"
 
 
-def format_row(pct, size, residual, records, name, unit, tag, tier=""):
-    """One queue row. `rec=N` is the record COUNT and the letter after it is
-    the strongest EVIDENCE those records carry (see `load_graph_facts`): a
-    row reading `rec=5-` holds five records and not one probed form."""
-    stamp = f"{records}{tier if records else ''}"
-    return (f"{pct:6.2f}%  {size:5d}B{residual}  rec={stamp:<3}"
-            f"  {name:<40} {unit}{tag}")
+def format_row(pct, size, residual, name, unit):
+    """One measured queue row, without inferred work-history metadata."""
+    return f"{pct:6.2f}%  {size:5d}B{residual}  {name:<40} {unit}"
 
 
-def summary_line(shown, hidden, parked_total, minimum):
-    """The footer. A hidden row must be counted where it was hidden.
-
-    Before run 43 this printed only `shown` and then cited a `PARKED.txt`
-    the tool had not read since the parks moved into the memory graph, so
-    `--parked skip` dropping 142 of 221 rows looked exactly like a queue
-    tool losing rows.
-    """
+def summary_line(shown, minimum):
+    """All matching rows in the selected score/TU band are shown."""
     return (f"--- {shown} near-miss fns (>= {minimum}%, < 100%)"
-            f" | {shown + hidden} in band"
-            f" | {hidden} hidden by --parked skip"
-            f" | {parked_total} functions carry a live parked/capped attempt"
-            f" record in the memory graph"
-            f" | rec=N is that function's attempt-record count, and the"
-            f" letter after it is the strongest evidence they carry:"
-            f" D typed denial, P probed_form, - prose only (rec=5- is five"
-            f" records that never say what was probed) ---")
+            f" | {shown} in band | prior attempts and ownership not assessed ---")
 
 
 def main():
@@ -340,8 +222,6 @@ def main():
     ap.add_argument("--refresh", action="store_true",
                     help="regenerate report.json (ninja) before reading")
     ap.add_argument("--grep", metavar="STR", help="only TUs whose name contains STR")
-    ap.add_argument("--parked", choices=["mark", "skip"], default="mark",
-                    help="parked-cap handling (default: mark)")
     ap.add_argument("--residuals", action="store_true",
                     help="measure real object-diff lines and sort cheapest first")
     args = ap.parse_args()
@@ -357,7 +237,6 @@ def main():
         print(f"no {REPORT} -- run with --refresh", file=sys.stderr)
         return 1
 
-    parked, record_counts, record_tiers = load_graph_facts()
     rows = []
     for u in json.loads(REPORT.read_text()).get("units", []):
         unit = u.get("name", "").removeprefix("main/")
@@ -412,19 +291,12 @@ def main():
               " against different symbols — and the queue is ranked on"
               " real-pool, the codegen remainder. Those rows cannot be closed"
               " from inside the function.")
-    shown = hidden = 0
+    shown = 0
     for pct, size, name, unit, real, category, clean, pool in rows:
-        tag = ""
-        if name in parked:
-            if args.parked == "skip":
-                hidden += 1
-                continue
-            tag = "  [PARKED]"
         residual = format_residual(real, clean, category, args.residuals, pool)
-        print(format_row(pct, size, residual, record_counts.get(name, 0),
-                         name, unit, tag, record_tiers.get(name, "")))
+        print(format_row(pct, size, residual, name, unit))
         shown += 1
-    print(summary_line(shown, hidden, len(parked), args.min))
+    print(summary_line(shown, args.min))
     return 0
 
 

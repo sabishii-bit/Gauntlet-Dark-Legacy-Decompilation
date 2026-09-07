@@ -12,7 +12,12 @@ the arbiter every other tool quotes — AudioSetupBossStreams 1523 vs 1297,
 PlayerMotion 4168 vs 3982, BossCamLimitAttn 187 vs 75.
 """
 
+import io
+import json
 import sys
+import tempfile
+from contextlib import redirect_stdout
+from unittest.mock import patch
 import unittest
 from pathlib import Path
 
@@ -77,84 +82,47 @@ class ResidualFormatTests(unittest.TestCase):
             nearmiss.format_residual(None, None, None, False), "")
 
 
-class HiddenRowAccountingTests(unittest.TestCase):
-    """Run-43 item 3: the "dropped row" was `--parked skip`, silently.
-
-    Reproduced before the fix: `nearmiss --min 90` prints all 221 in-band
-    rows; `--parked skip` prints 79 and says nothing about the other 142,
-    which included MBCameraUpdate at 99.97% and do_enemy_move at 99.05%. An
-    independent enumeration straight out of report.json found 221 in band
-    and 221 printed by default — so no row is lost in the report-reading
-    path, and the queue tool was not dropping anything.
-    """
-
-    def test_the_footer_states_the_band_and_what_was_hidden(self):
-        text = nearmiss.summary_line(79, 142, 258, 90.0)
-        self.assertIn("79 near-miss fns", text)
+class QueueWithoutHistoryTests(unittest.TestCase):
+    def test_footer_explicitly_does_not_assess_history_or_ownership(self):
+        text = nearmiss.summary_line(221, 90.0)
+        self.assertIn("221 near-miss fns", text)
         self.assertIn("221 in band", text)
-        self.assertIn("142 hidden by --parked skip", text)
+        self.assertIn("prior attempts and ownership not assessed", text)
 
-    def test_the_footer_no_longer_cites_a_file_it_does_not_read(self):
-        text = nearmiss.summary_line(79, 142, 258, 90.0)
-        self.assertNotIn("PARKED.txt", text)
-        self.assertIn("memory graph", text)
+    def test_rows_contain_only_measured_metadata(self):
+        row = nearmiss.format_row(99.97, 636, "", "MBCameraUpdate",
+                                  "game/mb/mb_camera")
+        self.assertIn("99.97%", row)
+        self.assertIn("MBCameraUpdate", row)
+        self.assertNotIn("rec=", row)
+        self.assertNotIn("PARKED", row)
 
-    def test_nothing_hidden_still_reports_zero_rather_than_going_quiet(self):
-        text = nearmiss.summary_line(221, 0, 258, 90.0)
-        self.assertIn("221 in band", text)
-        self.assertIn("0 hidden", text)
-
-    def test_every_row_carries_its_record_count(self):
-        row = nearmiss.format_row(99.97, 636, "", 7, "MBCameraUpdate",
-                                  "game/mb/mb_camera", "  [PARKED]")
-        self.assertIn("rec=7", row)
-        self.assertTrue(row.endswith("[PARKED]"))
-
-    def test_a_function_with_no_records_reads_zero_not_blank(self):
-        self.assertIn("rec=0 ", nearmiss.format_row(
-            99.0, 100, "", 0, "fn_80001000", "game/test/foo", ""))
-
-
-class RecordQualityTests(unittest.TestCase):
-    """Run-45 item 9: the record COUNT ranked a zero-probe park as the
-    best-explored function in the image (`rec=3` on a function whose three
-    records never say what was probed). The letter after the count is the
-    strongest EVIDENCE those records carry.
-
-    Measured over the live corpus at 56067bfae: of 466 functions carrying
-    attempt records, 52 reach D (a typed denial), 140 reach P (a literal
-    probed_form) and 274 -- 59% -- are prose only, including nine functions
-    holding FIVE prose-only records each.
-    """
-
-    def test_a_typed_denial_outranks_a_probed_form(self):
-        self.assertEqual(nearmiss.evidence_tier(1, 3), "D")
-        self.assertEqual(nearmiss.evidence_tier(2, 0), "D")
-
-    def test_a_probed_form_alone_is_p(self):
-        self.assertEqual(nearmiss.evidence_tier(0, 1), "P")
-
-    def test_records_with_neither_are_prose(self):
-        self.assertEqual(nearmiss.evidence_tier(0, 0), "-")
-
-    def test_the_defect_row_is_visibly_different_from_a_probed_one(self):
-        prose = nearmiss.format_row(99.17, 2732, "", 3, "game_main",
-                                    "game/game/gamemain", "", "-")
-        probed = nearmiss.format_row(99.38, 1164, "", 3, "EnemyStartMissile",
-                                     "game/game/combat", "", "P")
-        self.assertIn("rec=3-", prose)
-        self.assertIn("rec=3P", probed)
-
-    def test_a_zero_record_row_carries_no_tier_letter(self):
-        row = nearmiss.format_row(99.0, 100, "", 0, "fn_80001000",
-                                  "game/test/foo", "", "-")
-        self.assertIn("rec=0 ", row)
-        self.assertNotIn("rec=0-", row)
-
-    def test_the_footer_explains_the_letter(self):
-        text = nearmiss.summary_line(11, 0, 260, 99.0)
-        self.assertIn("typed denial", text)
-        self.assertIn("prose only", text)
+    def test_queue_runs_without_knowledge_package(self):
+        report = {"units": [
+            {"name": "main/game/test/foo", "functions": [
+                {"name": "near", "size": 100, "fuzzy_match_percent": 99},
+                {"name": "low", "size": 80, "fuzzy_match_percent": 20},
+                {"name": "exact", "size": 40, "fuzzy_match_percent": 100}]},
+            {"name": "main/game/test/linked", "metadata": {"complete": True},
+             "functions": [
+                 {"name": "linked_noise", "size": 40,
+                  "fuzzy_match_percent": 99}]}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "report.json"
+            path.write_text(json.dumps(report), encoding="utf-8")
+            output = io.StringIO()
+            with patch.object(nearmiss, "REPORT", path), \
+                 patch.object(sys, "argv", ["nearmiss", "--min", "90"]), \
+                 patch.dict(sys.modules, {"memory_graph": None,
+                                          "memory_graph.core": None}), \
+                 redirect_stdout(output):
+                self.assertEqual(nearmiss.main(), 0)
+        text = output.getvalue()
+        self.assertIn("near ", text)
+        self.assertNotIn("low ", text)
+        self.assertNotIn("exact ", text)
+        self.assertNotIn("linked_noise", text)
+        self.assertIn("1 in band", text)
 
 
 if __name__ == "__main__":
