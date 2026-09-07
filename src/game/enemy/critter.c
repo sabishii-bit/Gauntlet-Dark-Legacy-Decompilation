@@ -1224,16 +1224,16 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
     material = allFlags & 0xF0000;
     switch (material) {
     case 0x10000:
-        damage = lbl_803464B8;
+        damage = 5.0f;
         break;
     case 0x20000:
-        damage = lbl_803464B8;
+        damage = 5.0f;
         flags = 0x10;
         break;
     case 0x30000:
     case 0x40000:
     case 0x50000:
-        damage = lbl_803464BC;
+        damage = 15.0f;
         flags = 0x20;
         break;
     case 0x60000:
@@ -1323,7 +1323,7 @@ s32 SafeRockNearestTarget(s32 player)
     void *node;
 
     bestIndex = -1;
-    best = lbl_803464C0;
+    best = 1e21f;
     if (player < 0) {
         s32 sum;
         for (i = 0; i < lbl_80344658; i++) {
@@ -1442,15 +1442,15 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
 
     {
         dd = yawv - *yaw;
-        if (dd > lbl_803464C8) {
-            nd = dd - lbl_803464D0;
-        } else if (dd <= lbl_803464D8) {
-            nd = lbl_803464D0 + dd;
+        if (dd > 3.141592654) {
+            nd = dd - 6.283185308;
+        } else if (dd <= -3.141592654) {
+            nd = 6.283185308 + dd;
         } else {
             nd = dd;
         }
         r = (f32)nd;
-        step = (f32)(lbl_803464E0 * gClockFrameStep);
+        step = (f32)(1.570796327 * gClockFrameStep);
         if (r > step) {
             r = step;
         }
@@ -1466,15 +1466,15 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
         f32 r;
         f32 step;
         f32 dd = pitchv - *pitch;
-        if (dd > lbl_803464C8) {
-            nd = dd - lbl_803464D0;
-        } else if (dd <= lbl_803464D8) {
-            nd = lbl_803464D0 + dd;
+        if (dd > 3.141592654) {
+            nd = dd - 6.283185308;
+        } else if (dd <= -3.141592654) {
+            nd = 6.283185308 + dd;
         } else {
             nd = dd;
         }
         r = (f32)nd;
-        step = (f32)(lbl_803464E0 * gClockFrameStep);
+        step = (f32)(1.570796327 * gClockFrameStep);
         if (r > step) {
             r = step;
         }
@@ -1489,10 +1489,10 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
     {
         f32 *pyrYaw = &pyr[1];
         nd = yawv - *pyrYaw;
-        if (nd > lbl_803464C8) {
-            nd = nd - lbl_803464D0;
-        } else if (nd <= lbl_803464D8) {
-            nd = lbl_803464D0 + nd;
+        if (nd > 3.141592654) {
+            nd = nd - 6.283185308;
+        } else if (nd <= -3.141592654) {
+            nd = 6.283185308 + nd;
         }
         r = (f32)nd;
         if (r > a) {
@@ -1507,10 +1507,10 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
     {
         f32 *pyrPitch = &pyr[0];
         nd = pitchv - *pyrPitch;
-        if (nd > lbl_803464C8) {
-            nd = nd - lbl_803464D0;
-        } else if (nd <= lbl_803464D8) {
-            nd = lbl_803464D0 + nd;
+        if (nd > 3.141592654) {
+            nd = nd - 6.283185308;
+        } else if (nd <= -3.141592654) {
+            nd = 6.283185308 + nd;
         }
         r = (f32)nd;
         if (r > c) {
