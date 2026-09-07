@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "work_claim.R84_audioang-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "function": "function:AudioAng",
+  "owner": "r84_audio",
+  "state": "active",
+  "claimed_at": "2026-09-07",
+  "valid_from": "2026-09-07",
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": ["game/audio/audio.c", "game/audio/sndfx.c"],
+    "scope": "Worker r77_literal_scout native retirement. Read-only diagnosis70/70 raw9, existing sndFxComputePan same algorithm and three real consumers includes raw-exact91/91 sndFxPlay3D. Test source-backed listener/vector accesses and existing helper consumption; keep FP precision/order and pool identity separately certified. Prior R77 fixed-access expression controls are finite vetoes. Shared helper extraction only if all original consumers retain output and semantically same, no synthetic duplicate wrapper or new patcher. Private full-TU actual Ninja baseline fidelity before experiments."
+  }
+}
