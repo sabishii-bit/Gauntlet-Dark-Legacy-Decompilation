@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/world/items.c"
+    ],
+    "scope": "Exclusive src/game/world/items.c native WebFrank retirement. Start with InitLighting: fresh 38/38 instructions,8 differing words; recorded creation-order/local/helper controls in attempt.PR_initlighting-the-f0-f1-swap-is-invariant-under-source-creation-order.20260903.v1 remain vetoes. Inspect constant-storage ownership and current tail use-count diagnosis in isolated complete-TU controls. Root owns integration of this TU's config/GUNE5D/webfrank.json and any proven pool ownership changes; no other TU, header, compiler or postprocessor implementation edits. No new rules. Require raw body/relocation exactness, complete sibling/data/EH preservation and main.dol: OK. Screen individual context before any further function in this TU."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:InitLighting",
+  "id": "work_claim.R80_items-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r80_items",
+  "recorded_at": "2026-09-07T04:42:08Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
