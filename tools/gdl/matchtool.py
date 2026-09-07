@@ -20,6 +20,17 @@ Usage (from repo root):
 Scoring: per function, count of differing normalized instruction lines vs the
 target ("OK" = byte-shape identical incl. reloc targets; "L+n" = length differs
 by n). Reloc *names* are normalized away, same as fndiff.
+
+DISTINGUISHABLE PRESETS (run-58 item 7). `probe` prints 16 rows, and some of
+them are the same row twice: a preset whose whole score row equals another's
+tested nothing this unit can see. The table now carries a one-line summary
+naming how many rows are distinct and which duplicate which, so a reader does
+not have to diff 84-column lines by eye. Measured on game/enemy/enemy: 10 of
+16 distinct; on `--fn closest_enemy`, 4 of 16; on the finished game/sys/gutil,
+1 of 16 -- there `best:` is an alphabetical accident, not a measurement.
+
+IMPORTABLE CORE: preset_equivalence, distinguishable_summary -- pure over the
+scored rows; they never compile, read an object or print.
 """
 
 import argparse
@@ -242,6 +253,56 @@ def run_jobs(jobs, target_fns, only_fn, workers):
     return results
 
 
+def preset_equivalence(ok_rows, fns):
+    """[(representative, [indistinguishable label, ...])] in rank order.
+
+    Two presets are INDISTINGUISHABLE FOR THIS UNIT when their whole printed
+    score row is identical. Such a pair carries no evidence about the flag
+    that separates them: `demo` and `demo_nox` differ only in
+    `-Cpp_exceptions`, and on a unit whose functions raise nothing they score
+    the same in every column. The row is still true; it simply did not test
+    anything, and a reader ranking 16 rows has no way to see that from the
+    table.
+
+    Equality is taken over the DISPLAYED columns (`fns`), because that is the
+    claim being made -- these two rows, as printed, are the same row. Under
+    `--fn` the comparison narrows with the table, which is correct: a preset
+    pair distinguished only by some other function is not distinguished by
+    the evidence on screen.
+    """
+    groups, index = [], {}
+    for label, result in ok_rows:
+        key = tuple((name, result.get(name)) for name in fns)
+        if key in index:
+            groups[index[key]][1].append(label)
+        else:
+            index[key] = len(groups)
+            groups.append((label, []))
+    return groups
+
+
+def distinguishable_summary(ok_rows, fns):
+    """The one-line preset-distinguishability verdict above the table.
+
+    Run-58 item 7. The observation that prompted it was that a probe of
+    game/enemy/enemy prints rows that cannot be told apart, and the reader
+    must diff 80-column rows by eye to find out which. The line names the
+    count first and then every duplicate against the row it duplicates.
+    """
+    if not ok_rows:
+        return ""
+    groups = preset_equivalence(ok_rows, fns)
+    duplicates = sum(len(tied) for _, tied in groups)
+    line = (f"DISTINGUISHABLE PRESETS: {len(groups)} of {len(ok_rows)} row(s)"
+            f" carry a distinct result over {len(fns)} function(s)")
+    if not duplicates:
+        return line + "; every row differs from every other."
+    tied = "; ".join(f"{','.join(labels)} == {rep}"
+                     for rep, labels in groups if labels)
+    return (line + f"; {duplicates} duplicate row(s) test nothing this unit"
+            f" can see: {tied}.")
+
+
 def print_table(results, target_fns, only_fn, brief=False):
     fns = [n for n in target_fns if not only_fn or n == only_fn]
     ok_rows = sorted(
@@ -268,6 +329,9 @@ def print_table(results, target_fns, only_fn, brief=False):
         return best_label
     short = {n: (n if len(n) <= 18 else n[:17] + "~") for n in fns}
     width = max((len(label) for label in results), default=8) + 2
+    summary = distinguishable_summary(ok_rows, fns)
+    if summary:
+        print(summary)
     print(f"{'':{width}}" + "".join(f"{short[n]:>20}" for n in fns))
     for label, r in ok_rows:
         cells = "".join(f"{str(r.get(n, '-')):>20}" for n in fns)
