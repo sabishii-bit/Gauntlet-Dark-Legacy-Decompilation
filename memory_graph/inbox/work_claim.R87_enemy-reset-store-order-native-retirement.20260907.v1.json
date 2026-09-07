@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/enemy/enemy.c"
+    ],
+    "scope": "Worker r77_literal_scout: native retirement of existing pin only, not new TU matching. Object(Matching) already. Fresh27/27 raw7 REGFIELD words,0 reloc differences. R60 finite17 controls explicitly held all store chronology fixed; independent first-loop three-store order and final two resets are genuinely new axes. Preserve existing opt_propagation bracket/address alias, disjoint store values/ranges and all84-function siblings/data/EH. Actual Ninja complete-TU baseline ELF before private variants. No new pragma, patcher, dummy wrapper or storage. Root integrates one-rule removal only after exact body and positional bindings/full TU gates."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:fn_80051164",
+  "id": "work_claim.R87_enemy-reset-store-order-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r87_enemyreset",
+  "recorded_at": "2026-09-07T07:24:06Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
