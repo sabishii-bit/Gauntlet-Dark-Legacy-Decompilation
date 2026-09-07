@@ -1,9 +1,10 @@
 {
   "attributes": {
     "integrator": "codex-root",
+    "planned_source_files": ["src/game/movie/movie_runtime.cpp"],
+    "ownership_note": "The new source is explicitly assigned here as planned_source_files; add its owned_units entry atomically with file creation. The claim resolver cannot resolve a not-yet-created source or a src-normalized directory on a clean checkout. No additional movie source edits are authorized beyond movieplayer.cpp and planned movie_runtime.cpp.",
     "owned_units": [
       "game/movie/movieplayer.cpp",
-      "game/movie/movie_runtime.cpp",
       "config/GUNE5D/splits.txt",
       "configure.py"
     ],
