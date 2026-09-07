@@ -14,11 +14,11 @@
  * reconstructions of the disassembly's data-flow, not yet byte-matched; the
  * heavy collision routines carry best-effort bodies.
  *
- * This TU owns .sdata2 0x80345D40-0x80345D70 (splits.txt), and MWCC emits that
- * whole 0x30-byte pool itself from the literals spelled below -- it is
- * byte-identical to the target's.  The lbl_80345D70..DB0 constants above that
- * range belong to a neighbouring object and are imported; the target's own
- * BTRICOL.OBJ imports them the same way. */
+ * This TU owns .sdata2 0x80345D40-0x80345DB8 (splits.txt): MWCC emits the
+ * 116-byte literal pool below, followed by four bytes of alignment padding.
+ * The full run and each load's address match retail. The former split stopped
+ * at 0x80345D70 and made the remaining nine literals look like foreign globals;
+ * an extracted object's undefined symbols alone do not prove TU ownership. */
 
 typedef struct Vec {
     f32 x, y, z;
@@ -46,15 +46,6 @@ typedef struct WorldTri {
 
 /* Read-only collision-query line, owned elsewhere (.bss 0x8023F7E8). */
 extern f32 lbl_8023F7E8[8]; /* [0..2] = p0, [4..6] = p1 (0x8023F7F8) */
-extern const f32 lbl_80345D70;
-extern const f64 lbl_80345D78;
-extern const f64 lbl_80345D80;
-extern const f64 lbl_80345D88;
-extern const f32 lbl_80345D90;
-extern const f64 lbl_80345D98;
-extern const f64 lbl_80345DA0;
-extern const f64 lbl_80345DA8;
-extern const f32 lbl_80345DB0;
 extern f64 __frsqrte(f64 value);
 
 /* PSVEC-style helpers in the g3d math library. */
@@ -233,14 +224,14 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     v1.z = lbl_8023F7E8[6] - cz;
     BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
     if ((f64)tpB.y < 0.0) {
-        return lbl_80345D70;
+        return (-1.0f);
     }
     v1.x = lbl_8023F7E8[0] - cx;
     v1.y = lbl_8023F7E8[1] - cy;
     v1.z = lbl_8023F7E8[2] - cz;
     BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
     if (tpB.y < tpA.y) {
-        return lbl_80345D70;
+        return (-1.0f);
     }
     r2 = radius * radius;
     if ((tpB.y > 0.0 && tpA.y > 0.0) ||
@@ -248,7 +239,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
          tpA.y < 0.0)) {
         if ((tpB.y > radius && tpA.y > radius) ||
             (tpB.y < -radius && tpA.y < -radius)) {
-            return lbl_80345D70;
+            return (-1.0f);
         }
         cross = 0;
     } else {
@@ -260,7 +251,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         cross = 1;
         dx = tpA.x - tpB.x;
         dz = tpA.z - tpB.z;
-        if ((f64)fqdist(dx, dz) > lbl_80345D78) {
+        if ((f64)fqdist(dx, dz) > (0.001)) {
             sum = (ayB = btri_fabsf(tpB.y)) + (ayA = btri_fabsf(tpA.y));
             if (0.0 == sum) {
                 cross = 0;
@@ -312,7 +303,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         }
         if (cross == 0) {
             if (dist > r2) {
-                return lbl_80345D70;
+                return (-1.0f);
             }
         } else {
             o2.x = px;
@@ -407,7 +398,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
                 o2.z = tmp2.z;
             }
             if (dist > r2) {
-                return lbl_80345D70;
+                return (-1.0f);
             }
         }
     }
@@ -426,13 +417,13 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
 /* ------------------------------------------------------------------ */
 static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
     f32 s = f->s;
-    if ((f64)s > lbl_80345D80) {
+    if ((f64)s > (0.999999)) {
         out->x = in->x;
         out->y = in->y;
         out->z = in->z;
         return;
     }
-    if ((f64)s < lbl_80345D88) {
+    if ((f64)s < (-0.999999)) {
         out->x = in->x;
         out->y = -in->y;
         out->z = -in->z;
@@ -476,7 +467,7 @@ static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
         out->y = result_y;
         out->z = t_scaled * negiz_s +
                  (s * negix_cs_scaled +
-                  c * (iy * (lbl_80345D90 - s * s)));
+                  c * (iy * ((1.0f) - s * s)));
     }
 }
 
@@ -487,13 +478,13 @@ static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
                             ColFrame* f) {
     f32 s = f->s;
-    if ((f64)s > lbl_80345D80) {
+    if ((f64)s > (0.999999)) {
         out->x = x;
         out->y = y;
         out->z = z;
         return;
     }
-    if ((f64)s < lbl_80345D88) {
+    if ((f64)s < (-0.999999)) {
         out->x = x;
         out->y = -y;
         out->z = -z;
@@ -511,7 +502,7 @@ static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
         t_scaled = t * c;
 
         out->x = s * (-z * cs_scaled) + (-x * t_scaled + y * cs);
-        out->y = y * s + c * (z * (lbl_80345D90 - s * s));
+        out->y = y * s + c * (z * ((1.0f) - s * s));
         out->z = t_scaled * (-z * s) + (x * cs_scaled + y * t);
     }
 }
@@ -549,20 +540,20 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
     if (length > 0.0f) {
         f64 guess;
         guess = __frsqrte((f64)length);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - guess * guess * length);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - guess * guess * length);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - guess * guess * length);
+        guess = (0.5) * guess *
+                ((3.0) - guess * guess * length);
+        guess = (0.5) * guess *
+                ((3.0) - guess * guess * length);
+        guess = (0.5) * guess *
+                ((3.0) - guess * guess * length);
         sqrtLocal.result =
             (f32)(length *
-                  (lbl_80345D98 * guess *
-                   (lbl_80345DA0 - guess * guess * length)));
+                  ((0.5) * guess *
+                   ((3.0) - guess * guess * length)));
         length = sqrtLocal.result;
     }
 
-    if ((f64)length < lbl_80345D78) {
+    if ((f64)length < (0.001)) {
         f32 y;
         register f32 absA1;
         register f32 absA0;
@@ -660,7 +651,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
     if (denom) {
         endB = NULL;
         endA = NULL;
-        inv = (f32)(lbl_80345DA8 / denom);
+        inv = (f32)((1.0) / denom);
         {
             f32 a1 = cz * (dx * dirA->y);
             f32 a2 = cx * (dy * dirA->z);
@@ -734,7 +725,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             dz = cp->z - endB->z;
             dB2 = dz * dz + (dx * dx + (dy * dy));
         } else {
-            dB2 = lbl_80345DB0;
+            dB2 = (1.0e21f);
         }
         if (endA != NULL) {
             dst = out;
@@ -762,7 +753,7 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             dz = dst->z - endA->z;
             dA2 = dz * dz + (dx * dx + (dy * dy));
         } else {
-            dA2 = lbl_80345DB0;
+            dA2 = (1.0e21f);
         }
         if (dB2 < dA2) {
             out->x = endB->x;
@@ -888,15 +879,15 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
     if (length > 0.0f) {
         guess = __frsqrte((f64)length);
 
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - guess * guess * length);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - guess * guess * length);
-        guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - guess * guess * length);
+        guess = (0.5) * guess *
+                ((3.0) - guess * guess * length);
+        guess = (0.5) * guess *
+                ((3.0) - guess * guess * length);
+        guess = (0.5) * guess *
+                ((3.0) - guess * guess * length);
         sqrtLocal.result = (f32)(length *
-                                 (lbl_80345D98 * guess *
-                                  (lbl_80345DA0 - guess * guess * length)));
+                                 ((0.5) * guess *
+                                  ((3.0) - guess * guess * length)));
         length = sqrtLocal.result;
     }
     if (0.0 == (f64)length) {
@@ -908,7 +899,7 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
         return dx * dx + dz * dz;
     }
 
-    inverse = (f32)(lbl_80345DA8 / (f64)length);
+    inverse = (f32)((1.0) / (f64)length);
     nx = dir->x * inverse;
     ny = dir->y * inverse;
     nz = dir->z * inverse;
