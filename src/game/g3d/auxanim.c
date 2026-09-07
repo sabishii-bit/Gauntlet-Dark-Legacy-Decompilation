@@ -284,6 +284,25 @@ exit:
 }
 
 
+/* AUXANIM's symbols identify DoTexScrollSub and its scale/scroll outputs.
+ * Finish CalcTexScroll before consuming scale; argument evaluation order
+ * must not decide whether MBTreeSetUVScaleAdd sees the initialized value. */
+static inline void DoTexScrollSub(int node, TEXMOD* tm, int iframe,
+                                  int idx, int V)
+{
+    f32 scale;
+    f32 scroll;
+    f32 ra = (f32)tm->rate;
+    f32 de = (f32)(iframe - tm->unk4e);
+    f32 fr = (f32)tm->frames;
+    scroll = CalcTexScroll(de, ra, fr, iframe, &scale);
+    if (V) {
+        MBTreeSetUVScaleAdd(1.0f, 0.0f, scale, scroll, node, idx);
+    } else {
+        MBTreeSetUVScaleAdd(scale, scroll, 1.0f, 0.0f, node, idx);
+    }
+}
+
 /* AUXANIM's Xbox symbols identify this five-argument fade helper and its
  * fframe/nframes locals. Keep the GC node-handle interface used by this TU.
  * Both fade directions inline here; nframes becomes the normalized alpha. */
@@ -310,32 +329,17 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 {
     s32 f;
     s32 d;
-    f32 ra;
-    f32 de;
-    f32 fr2;
 
     if (tm == NULL) {
         return;
     }
     switch (tm->src) {
-    case -2: {
-        f32 out;
-        ra = (f32)tm->rate;
-        de = (f32)(frame - tm->unk4e);
-        fr2 = (f32)tm->frames;
-        MBTreeSetUVScaleAdd(out, CalcTexScroll(de, ra, fr2, frame, &out), 1.0f,
-                            0.0f, ctx, 1);
+    case -2:
+        DoTexScrollSub(ctx, tm, frame, 1, 0);
         break;
-    }
-    case -3: {
-        f32 out2;
-        ra = (f32)tm->rate;
-        de = (f32)(frame - tm->unk4e);
-        fr2 = (f32)tm->frames;
-        MBTreeSetUVScaleAdd(1.0f, 0.0f, out2,
-                            CalcTexScroll(de, ra, fr2, frame, &out2), ctx, 1);
+    case -3:
+        DoTexScrollSub(ctx, tm, frame, 1, 1);
         break;
-    }
     case -4:
         DoTexFadeSub(ctx, tm, frame, 1, 1);
         break;
