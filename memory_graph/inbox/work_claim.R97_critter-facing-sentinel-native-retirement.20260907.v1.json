@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/enemy/critter.c"
+    ],
+    "scope": "Root read full75/75 raw/target and full PR, CS, literal-sweep records. Six-word f29/f30/f31 cycle, frame104. Actual local named zero reads lbl_80346550; retail pooldump bff0000000000000 proves MINUS ONE, not zero. PR held extern-f64 storage fixed across4 local existence/order/location forms, and its cited PR doubleword class law is missing from graph; do not promote that inference to necessity. Prior literal sweep explicitly excluded this pinned function by name. New axis real read-only sentinel -1.0 literal while retaining f64 local, then natural constant-local/expression membership and meaningful existing parameter-local identities if needed, singly/jointly; no arbitrary widths/FP semantic changes or unneeded helper. Existing anonymous @905 .sdata2+0x48 already holds same -1.0 before this function; preserve own pool ownership and every positional final binding, do not infer identical datum means identical address. No new compiler/flag/pragma, wrapper, padding or WebFrank rule. Old declaration-position/statement-motion controls alone remain vetoed. Root build/r97_critter_{context,history,brief,xbox}, r97_literal_sweep_history, r97_constant_history, r97_literal_law supply reviewed evidence. Whole actualNinja baseline and all sibling/data/EH/binding proof before any production pin drift; conditional native body without pool proof is not a retirement. Full corpus screen and root review of any retained source/pool change required."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:CritterLineNodeColSub",
+  "id": "work_claim.R97_critter-facing-sentinel-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r97_critter",
+  "recorded_at": "2026-09-07T17:05:02Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
