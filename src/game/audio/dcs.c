@@ -1186,36 +1186,45 @@ s32 dcsSampleUpload(void* state, u32 uploadArg) {
     return 0;
 }
 
-/* 0x800D374C  alloc ARAM + ARQ upload */
-s32 dcsSampleAllocUpload(void* sample, s32 arg) {
-    s32 channel;
+/* BANK.OBJ preserves sampleInUse(Sample*) in the Xbox PDB. Keeping the
+ * channel scan as a helper lets stock MWCC 1.2.5 inline the target's shared
+ * zero initialization and entry schedule. The GC loop is reconstructed from
+ * its own target, not copied from the platform-specific Xbox backend. */
+static inline s32 sampleInUse(DcsSampleData* sample) {
     s32 found = 0;
-    u32* p = (u32*)sample;
-    u32* puVar8 = p + 4;
+    s32 channel;
 
     for (channel = 0; channel < 12; channel++) {
         if (dcsVoiceInUse(channel) != 0 &&
-            ch_info[channel].sampleData == (DcsSampleData*)sample) {
+            ch_info[channel].sampleData == sample) {
             found = 1;
             break;
         }
     }
-    if (found) {
+    return found;
+}
+
+/* 0x800D374C  alloc ARAM + ARQ upload */
+s32 dcsSampleAllocUpload(void* sample, s32 arg) {
+    DcsSampleData* p = (DcsSampleData*)sample;
+    u32* stagingNode = &p->buffer;
+
+    if (sampleInUse((DcsSampleData*)sample)) {
         return 0xffffffff;
     }
-    if (BytesFree() < ((p[1] + 0x3f) & 0xffffffc0)) {
+    if (BytesFree() < ((p->swappedLength + 0x3f) & 0xffffffc0)) {
         return 0xfffffffe;
     }
-    *puVar8 = (u32)AllocHiMem((p[1] + 0x3f) & 0xffffffc0, p[1]);
-    puVar8[1] = (p[1] + 0x3f) & 0xffffffc0;
-    puVar8[2] = (u32)puVar8;
-    puVar8[3] = (u32)puVar8;
-    DCFlushRange((void*)*puVar8, p[1]);
+    *stagingNode = (u32)AllocHiMem((p->swappedLength + 0x3f) & 0xffffffc0, p->swappedLength);
+    stagingNode[1] = (p->swappedLength + 0x3f) & 0xffffffc0;
+    stagingNode[2] = (u32)stagingNode;
+    stagingNode[3] = (u32)stagingNode;
+    DCFlushRange((void*)*stagingNode, p->swappedLength);
     dcsSampleBusy = 1;
-    ARQPostRequest(&dcsSampleReq, 0, 1, 1, p[0], *puVar8, p[1], dcsSampleCallback);
+    ARQPostRequest(&dcsSampleReq, 0, 1, 1, p->aramAddress, *stagingNode, p->swappedLength, dcsSampleCallback);
     while (dcsSampleBusy != 0) {
     }
-    DCInvalidateRange((void*)*puVar8, p[1]);
+    DCInvalidateRange((void*)*stagingNode, p->swappedLength);
     return 0;
 }
 
