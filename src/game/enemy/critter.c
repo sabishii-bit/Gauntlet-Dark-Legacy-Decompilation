@@ -1048,10 +1048,11 @@ f32 *delta;
     f32 reach;
     f32 length;
     f32 difference;
-    u32 result;
-    s32 i;
     s32 offset;
+    s32 i;
+    u32 result;
     s32 grounded;
+    void *wallSurface;
     void *surface;
 
     minRise = (f32)(-16.0 * (f64)gClockFrameStep);
@@ -1059,10 +1060,9 @@ f32 *delta;
     from = NULL;
     wallRadius = ((CritterPackedType *)c->hdr)->wallRadius;
     radius = ((CritterPackedType *)c->hdr)->radius;
-    surface = NULL;
+    wallSurface = NULL;
     if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
-        offset = 0;
-        for (i = 0; i < ((CritterPackedType *)c->hdr)->colCount;
+        for (i = 0, offset = 0; i < ((CritterPackedType *)c->hdr)->colCount;
              i++, offset += sizeof(CritterHitNode)) {
             CritterHitNode *hitNode =
                 (CritterHitNode *)((u8 *)c->hitnodes + offset);
@@ -1079,10 +1079,10 @@ f32 *delta;
             probe[0] = from[0] + delta[0];
             probe[1] = from[1] + delta[1];
             probe[2] = from[2] + delta[2];
-            surface = EnemyWallCollide(
+            wallSurface = EnemyWallCollide(
                 *(f32 *)((u8 *)hitNode->descriptor + offsetof(CritterColDescriptor, radius)), from, probe,
                 contact);
-            if (surface != NULL) {
+            if (wallSurface != NULL) {
                 break;
             }
         }
@@ -1091,12 +1091,12 @@ f32 *delta;
         probe[1] = cpos[1] + delta[1];
         probe[2] = cpos[2] + delta[2];
         from = cpos;
-        surface = EnemyWallCollide(wallRadius, from, probe, contact);
+        wallSurface = EnemyWallCollide(wallRadius, from, probe, contact);
     }
 
-    if (surface != NULL) {
-        CritterWorldDamage(c, surface, cpos, contact);
-        if ((*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x38) != 0) {
+    if (wallSurface != NULL) {
+        CritterWorldDamage(c, wallSurface, cpos, contact);
+        if ((*(u32 *)((u8 *)wallSurface + offsetof(WorldObj, flags)) & 0x38) != 0) {
             result = 0;
         } else if (SlideAlongWall(wallRadius, from, delta, contact,
                                   lbl_8023CA98 + 4) < 0) {
