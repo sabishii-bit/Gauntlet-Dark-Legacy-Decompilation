@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Manual finite source experiment only: full actual-Ninja raw ELF baseline reproduction, fixed compiler fingerprint, complete CLOCK text/pool/EH and final-address relocation certificate. Production source/config/objects are never rewritten; scratch outputs only.",
+    "MEASURED_NOT_SHIPPING_CERTIFICATE is not a match/retirement. Inspect per-function fresh REPORT fuzzy and aligned residual, not whole-TU score. Relocation descriptor equality does not certify base-plus-immediate data addresses. Radius raw0 is insufficient without contiguous pool ownership; no automatic split, pin removal or postprocessor."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r82_clock_partition_audit.py",
+  "id": "tool.r82-clock-partition-audit.20260907T061746Z.1ba47ba0",
+  "kind": "tool",
+  "name": "r82-clock-partition-audit",
+  "purpose": "Reproduce finite CAMERA/CLOCK/COMBAT partition and radius controls, certify isolated CLOCK sections/final bindings, and surface the independent InitPlayerMissiles fuzzy regression.",
+  "recorded_at": "2026-09-07T06:17:46Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r82_clock_partition_audit.py",
+  "status": "active",
+  "tool_key": "tool:r82-clock-partition-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "First --snapshot --out build/r82_before.json on the original combined combat source; then --experiment --before build/r82_before.json --out build/r82_experiment.json."
+  ],
+  "valid_from": "2026-09-07T06:17:46+00:00"
+}

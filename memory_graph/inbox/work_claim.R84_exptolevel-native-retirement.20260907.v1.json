@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "work_claim.R84_exptolevel-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "function": "function:ExpToLevel",
+  "owner": "r84_player",
+  "state": "active",
+  "claimed_at": "2026-09-07",
+  "valid_from": "2026-09-07",
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": ["game/game/player.c"],
+    "scope": "Worker r79_newcam: native retirement via already-existing CalcLevelExp inline helper consumption, with graph-screened source identity/type axes. Prior declaration-order and initializer failures vetoed; helper is a hypothesis not a promised cure. Private complete same-basename TU actual Ninja baseline fidelity; preserve all other pins/siblings/data/EH and semantics, no new postprocessor."
+  }
+}

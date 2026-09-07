@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "Original COMBAT module recovery changes compiler-created rodata/BSS base homes; three natural initializer-order controls test the resulting sibling regression.",
+  "attributes": {
+    "axis_log": "R82 true module partition and three initializer-order controls measured negative; no production change retained. Earlier adjacent-data-base substitution cap remains a separate unrevisited axis.",
+    "law_screen": "Screened claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 and claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1 as finite initializer/schedule hypotheses; neither guaranteed a cure. attempt.initplayermissiles-shared-aggregate-regression.20260830.v1's adjacent-data-base substitution was not repeated. attempt.CB_combat-census-reranked-and-initplayermissiles-reloc-screen.20260902.v1 plus R69 BSS ownership establish existing PhoenixTree/source-BSS debt, not a newly introduced function. Full law corpus screened at lane start.",
+    "measurements": "Fresh isolated objdiff REPORT fuzzy: combined baseline87.339134; actualCOMBAT87.23044; wad-order87.113045; fx-order87.23044; joint-order87.113045. All controls remain230T/231O and change no other function. Aligned fndiff combined real241, partition247. The .diff files, candidate source/objects, complete inventories and report.json files are emitted under lane-prefixed build scratch. Direct objdiff diff match_percent85.19/85.08 was not used as the report arbiter.",
+    "mechanism": "Both original combined source and actual COMBAT partition emit231 instructions vs230 target with104-byte frames. Removing CAMERA's0x284 rodata prefix changes31 raw words: old +0x64 addi r30,r5,0 becomes addi r31,r4,0; old+0x74 addi r31,r4,0 becomes addi r30,r5,0; old+0x90 addi r4,r31,676 becomes addi r4,r30,32. Initial carrier definitions at+0x44/+0x48 also exchange. This is real codegen/base-address layout change, not anonymous-symbol-number noise. Relocation descriptor equality alone does not prove displaced string identity.",
+    "probed_form": "Baseline adjacent declarations: void* weaponWad = player_multiple_models[idx].weaponWad; void* powerupWad = player_multiple_models[idx].powerupWad; void** holdFx = WeapHoldFxTree[idx]; s32* throwFx = WeapThrowFx[idx]; Controls reverse the first pair, reverse the second pair, then reverse both. Exact source construction and fresh reports are in r82_clock_partition_audit.py.",
+    "reproduction": "python tools/gdl/composed_census/r82_clock_partition_audit.py --snapshot --out build/r82_before.json; python tools/gdl/composed_census/r82_clock_partition_audit.py --experiment --before build/r82_before.json --out build/r82_experiment.json. Inspect init_player_missiles_fresh_report_fuzzy, init_player_missiles_aligned and sibling_fuzzy_regressed.",
+    "scope": "No new rule. Partition blocked despite exact CLOCK748-byte linkage opportunity; production restored byte-for-byte at source/config level. The finite three controls do not establish source impossibility or compiler mismatch."
+  },
+  "function": "function:InitPlayerMissiles",
+  "held_fixed": "GC/1.2.5 actual Ninja edge, all BSS definitions/types/layout and function bodies held fixed for partition. Controls vary only weaponWad/powerupWad and holdFx/throwFx adjacent initializer order, independently and jointly; no source-defined arbitrary base alias, pragma, padding, or postprocessor.",
+  "id": "attempt.R82_initplayermissiles-original-combat-partition-base-homes-regress.20260907.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-07T06:17:43Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-07"
+}
