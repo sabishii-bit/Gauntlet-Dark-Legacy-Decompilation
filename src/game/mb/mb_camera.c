@@ -227,9 +227,9 @@ void MBCameraUpdate(f32* position, f32* matrix)
     f32 y;
     f32 x;
     f32 z;
-    int dstOffset;
-    int srcOffset;
     int col;
+    f32 (*inputRows)[4];
+    f32 (*outputRows)[4];
 
     z = lbl_80348B3C;
     for (row = 0; row < 3; row++) {
@@ -286,18 +286,15 @@ void MBCameraUpdate(f32* position, f32* matrix)
 
     row = 0;
     z = lbl_80348B3C;
-    dstOffset = 0;
+    inputRows = (f32 (*)[4])matrix;
+    outputRows = (f32 (*)[4])view3;
     do {
-        srcOffset = row * 4;
-
         for (col = 0; col < 3; col++) {
-            *(f32*)((u8*)view3 + dstOffset + col * 4) =
-                *(f32*)((u8*)matrix + srcOffset + col * 16);
+            outputRows[row][col] = inputRows[col][row];
         }
-        *(f32*)((u8*)view3 + dstOffset + 12) = z;
-        *(f32*)((u8*)view3 + srcOffset + 48) = position[row];
+        outputRows[row][3] = z;
+        outputRows[3][row] = position[row];
         row++;
-        dstOffset += 16;
     } while (row < 3);
     view3[15] = lbl_80348B20;
 
