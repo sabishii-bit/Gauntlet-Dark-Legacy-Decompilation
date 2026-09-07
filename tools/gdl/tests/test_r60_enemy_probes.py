@@ -53,9 +53,15 @@ class ExceptionMetadata(unittest.TestCase):
         return bytes(data), sections
 
     def test_dotless_metadata_is_read_from_object_bytes(self):
+        # `relocations` joined every record in run-59 item 3: an extab
+        # payload relocation is now DECODED (by symbol identity) instead of
+        # refusing the whole object, and a record with none carries [].
         data, sections = self.fixture()
         with patch.object(source_probe.wf, "_sections", return_value=sections):
-            self.assertEqual(source_probe.exception_records(data), {"fn": {"length": 8, "metadata": "3088000000000000"}})
+            self.assertEqual(
+                source_probe.exception_records(data),
+                {"fn": {"length": 8, "metadata": "3088000000000000",
+                        "relocations": []}})
 
     def test_wrong_relocation_and_partial_record_refuse(self):
         for kwargs in ({"relocation_type": 10}, {"partial": True}):
