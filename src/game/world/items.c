@@ -24,7 +24,7 @@
 #define AtreeMatchAnyHeader AtreeMatchAnyHeader_800674F4
 
 /* Gauntlet item / world-object system (Xbox ITEMS.OBJ), region
- * 0x800631AC-0x80067AE0 -- the whole gap between gauntworld.c and main.c.
+ * 0x800631AC-0x80067904 -- followed by the separate LIGHTS.OBJ module.
  *
  * This is the GameCube retail slice of ITEMS.OBJ.  The Xbox shell3D.pdb debug
  * build lists 103 functions in this module; the retail GC build keeps ~51.
@@ -568,51 +568,6 @@ void AddItemInstList(void)
     LinkItemTriggers();
 }
 
-/* 0x8006799C - per-frame ambient light fade toward the level target. */
-void DoLighting(s32 flag)
-{
-    u8 unused[16];
-    f32 a;
-    u8 unused2[8];
-    f64 step;
-    f64 lit;
-
-    pbResetWindowPool();
-    if (gCurLevel != NULL && (*(u32*)gCurLevel & 8)) {
-        AmbientSpecialCurValue = sNegativeOne;
-        AmbientSpecialValue = sNegativeOne;
-    } else {
-        if (sAmbientMinimum != AmbientSpecialValue && sMusicFadeBase > AmbientSpecialTime) {
-            AmbientSpecialValue = (f32)(AmbientSpecialValue * sAmbientDecay);
-            a = AmbientSpecialValue;
-            *(u32*)&a &= 0x7FFFFFFF;
-            if (a < sAmbientBrightenStep) {
-                AmbientSpecialValue = sLightingZero;
-            }
-        }
-    }
-    if (AmbientSpecialValue != AmbientSpecialCurValue) {
-        if (AmbientSpecialValue - AmbientSpecialCurValue < sAmbientDarkenStep) {
-            step = sAmbientDarkenStep;
-        } else if (AmbientSpecialValue - AmbientSpecialCurValue > sAmbientBrightenStep) {
-            step = sAmbientBrightenStep;
-        } else {
-            step = AmbientSpecialValue - AmbientSpecialCurValue;
-        }
-        AmbientSpecialCurValue = AmbientSpecialCurValue + (f32)step;
-    }
-    lit = sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue <
-                  sAmbientMinimum ?
-          sAmbientMinimum :
-          (sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue >
-                   sAmbientMaximum ?
-           sAmbientMaximum :
-           sLevelAmbient * sLevelAmbientScale + AmbientSpecialCurValue);
-    MBSetAmbient((f32)lit, NULL);
-    pbSetWindowUV1(sOne, AmbientSpecialCurValue);
-    pbSetWindowUV0(sOne, AmbientSpecialCurValue);
-}
-
 /* 0x800674F4 - match name against the weapon/powerup/item atrees, then all
  * wad headers when alsoWads is set. */
 u32 AtreeMatchAnyHeader(char* name, s32 alsoWads)
@@ -644,29 +599,6 @@ u32 AtreeMatchAnyHeader(char* name, s32 alsoWads)
         }
     }
     return r;
-}
-
-/* (re)build the level lights and ambient from the current level record. */
-void InitLighting(s32 flag)
-{
-    MBInitLights();
-    if (flag != 0) {
-        sLevelAmbient = *(f32*)(gCurLevel + offsetof(level_data, ambient));
-        MBAddLight((f32*)(gCurLevel + offsetof(level_data, lightdir)),
-                   (f32*)(gCurLevel + offsetof(level_data, lightcolor_fp)),
-                   *(f32*)(gCurLevel + offsetof(level_data, lightinten)));
-    } else {
-        sLevelAmbient = sOne;
-    }
-    sLevelAmbientScale = sOne;
-    MBSetAmbient(sLevelAmbient, NULL);
-    DoLighting(1);
-    sLightingScratchY = sLightingZero;
-    sLightingScratchZ = sNegativeHalf;
-    sLightingScratchX = sNegativeHalf;
-    AmbientSpecialTime = sLightingZero;
-    AmbientSpecialValue = sLightingZero;
-    AmbientSpecialCurValue = sLightingZero;
 }
 
 /* pair up transporter items by matching each one's dest id to another's id. */

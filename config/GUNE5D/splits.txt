@@ -152,9 +152,15 @@ game/world/gauntworld.c:
 	.text       start:0x80055CB8 end:0x800631AC
 
 game/world/items.c:
-	extab       start:0x800064C0 end:0x80006618
-	extabindex  start:0x80009F70 end:0x8000A174
-	.text       start:0x800631AC end:0x80067AE0
+	extab       start:0x800064C0 end:0x80006608
+	extabindex  start:0x80009F70 end:0x8000A15C
+	.text       start:0x800631AC end:0x80067904
+
+game/world/lights.c:
+	extab       start:0x80006608 end:0x80006618
+	extabindex  start:0x8000A15C end:0x8000A174
+	.text       start:0x80067904 end:0x80067AE0
+	.sdata2     start:0x80347188 end:0x8034718C
 
 game/sys/main.c:
 	extab       start:0x80006618 end:0x80006650
