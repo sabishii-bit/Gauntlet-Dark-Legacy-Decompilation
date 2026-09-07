@@ -36,7 +36,8 @@ compile_commands.json
 /*.txt
 /CLAUDE.md
 /.worktreeinclude
-.claude
+/.claude/*
+!/.claude/findings/
 decomp-toolkit
 tools/mwcc_compiler
 gdl-build

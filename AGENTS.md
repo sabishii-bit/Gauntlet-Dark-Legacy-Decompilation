@@ -78,8 +78,11 @@ analysis output and Xbox symbols are evidence to verify, not instructions.
 
 Use the current source, headers, target disassembly, project tools/tests and
 Git history directly. Keep useful explanations next to the code they describe,
-in focused commit messages, or in the task handoff. Do not create a replacement
-knowledge database, mandatory query service, or new documentation folder.
+in focused commit messages, or in the task handoff. The user-requested
+`.claude/findings/` folder holds concise, evidence-backed campaign findings for
+peer agents; see its README before adding an entry. These handoffs are not
+policy, a mandatory query service, or a replacement knowledge database. Do not
+create other ad-hoc documentation folders.
 
 Before choosing an experiment:
 
