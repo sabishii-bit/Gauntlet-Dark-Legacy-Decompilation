@@ -1,0 +1,54 @@
+{
+  "attempted_axis": "Existing StartFXSubGuts/P reuse and genuine Effect owner singleton/joint controls do not retire this rule: baseline 74/74 raw24 remains best count-preserving distance. Do not replay the finite caller matrix. The untested broader frontier is real shared-helper declaration/body architecture jointly with all protected callers; no compiler/source-impossibility conclusion follows.",
+  "attributes": {
+    "axis_log": [
+      "Preserve historical vetoes: the 20260831 two-use preoffset control and parent-argument hoist supplied the correct address schedule, not a native closure; its recorded later-defined SfxSetParent call cannot inline at the current source order. Thin 20260829 bulk park lacks exact controls, not proof no prior work existed.",
+      "Four existing StartFXSubGuts/P call forms, assignment versus declaration initialization, are whole-ELF identical: 74/74 raw29, frame56 instead of48. Removing the caller's old unused[8] jointly restores frame48, 74/74 raw24; all four forms again identical. This is genuine inline frame demand, not permission to add padding.",
+      "Twelve caller controls: assignment-in-condition with normal/page-explicit helper, and helper return/condition with page scoped inside the guarded tail or direct-global tail, each with literal or existing local flags. Existing outer page and local flags give74/74 raw24; literal flags give74/74 raw29. Scoped/direct page forms rematerialize the base and give76/74 raw46-57. These count-asymmetric raw distances are not recolor-only claims.",
+      "Twelve typed-owner singleton/joint controls: inner Effect* from page->fx[idx], direct Effects[idx], or one Effect* spanning color/alpha/parent, each with node local versus direct member argument, open-coded versus existing helper spawn. Inner page forms give74/74 raw24 but reassociate to addi(offset+2976), add(base), lwz20. Direct Effects gives75/74 raw32-39 and an extra global base binding. Outer Effect owner gives73/74 raw49. No uncertain global layout was reconstructed.",
+      "Six final singleton/joint controls load page->fx[idx].node before constructing the typed effect, construct effect after MBNodeSetParent, or read node directly in that call. Open forms give73/74 raw40; two helper forms74/74 raw25 move the parent call's relocation position; direct-node helper73/74 raw36. These are schedule/address counterexamples to a simple all-register classification of edited candidates, not improvements retained in production."
+    ],
+    "baseline": "Fresh 74/74, 24 differing words, all positional register-field differences with no mnemonic/relocation divergence. Target +0x14 `addi r29,r4,0` versus raw `addi r30,r4,0` is the EffectInfo base; target +0x1c `addi r30,r29,792` versus raw `addi r29,r30,792` is the FX_BLOCK header; target +0x28 `li r28,-1` versus raw `li r31,-1` is the returned index. Tail target +0xe4 `add r29,r29,r30`, +0xe8 `lwz r3,2996(r29)`, +0xec `addi r29,r29,2976` reuses its pre-offset home; raw uses an intermediate volatile carrier then a different saved home. The currently shipped rule remains unchanged, and the TU is NonMatching, not a pending automatic flip.",
+    "collateral": "Canonicalizing anonymous symbols by their actual section/offset/size/type shows that the retained baseline, all count-preserving initial helper controls, four inner-page typed controls and two74/74 raw25 controls preserve all sibling functions including geometry/relocation bindings, symbols, nontext datums and EH. The latter two move StartBlockFX's own call relocation. Count-changing variants shift downstream function offsets and extabindex entries; their sibling byte bodies remain unchanged, but they do NOT receive a geometry/EH-preservation certificate. Nothing from the candidate corpus is installed.",
+    "evidence": {
+      "anchor_commit": "ab7137a9db5196946c1769b8653b4f864e2856a9",
+      "archive_files": 107,
+      "archive_manifest": "r87_blockfx_manifest.json",
+      "archive_manifest_sha256": "1e95d2fe492d31e71293c4485c684f40505f5c1238299b1f7bf2d27754f85264",
+      "archive_name": "gdl-r87-blockfx-evidence-20260907",
+      "compiler_sha256": "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914",
+      "contents": "Every complete source/object pair, raw/processed/target/rules/splits/symbols/build edge/compiler/wrapper snapshots, full trace and canonical collateral audit, scripts, target assembly, GC Effect header, graph laws/context/full prior records and Xbox reference layout. Replays use unchanged committed analysis APIs at the anchor, not survival of this worktree.",
+      "controls": 39,
+      "processed_elf_sha256": "9553dd2b9c0ed22a8d6af2ac1a28ea1222f5e31d54af53eb6cf5a211bb3ab8ca",
+      "raw_elf_sha256": "b47b501dda6e0d234436b828257bf9acc3f58b7a8cca79d55b8512ebfbdc4a2a",
+      "source_sha256": "d83a443403fb44ed15bcab379f609baaacc1817aff9b50b1e0fe536aa3207351",
+      "target_elf_sha256": "52b0a889bcc3452a496ed58ce3b8f9a6026e9838eeafc9a189844e35dbb1c6a7"
+    },
+    "law_screen": "Entire current law corpus and full applicable records screened. inline-and-deadstrip-rules applies: definitions precede use, invalid-type/error branch folds and no extra body appears. webfrank-pin-freezes-its-inlined-helpers-too applies: both existing helper definitions and all protected callers remain frozen. inlined-callee-frames-reserve-dead-frame-bottom predicts the measured48->56 frame increase and natural removal of old caller padding. declaration-order-numbers-the-registers-assignment-order-schedules-the-loads is measured, not treated as a register-number recipe. member-form-does-not-restore-preoffset-association and two-use-preoffset-pointer-keeps-add-then-addi predict typed one-use reassociation, but their historical universal source-unreachable phrasing is not adopted. Joint helper/owner probes explicitly test the new input webs. Source-ownership and named-datum laws require actual addresses, not equal values. No new compiler-option sweep repeats the thin historical caps.",
+    "probed_form": "39 successful complete-TU source/object pairs: one same-basename full-ELF baseline plus38 distinct edited controls. Original-source actual Ninja full-ELF fidelity is checked before every batch and at closeout. Every finite source/object hash and all107 archive file hashes were verified. Exact source generators, argv/cwd/diagnostics, inventories and full aligned instruction streams are preserved externally for reproducible replay.",
+    "semantic_evidence": "FX_BLOCK is66 and the existing valid-type helper guard folds entirely: no new ErrorPrintf or helper call and no out-of-line function emitted. The target's live Effect address is EffectInfo+2976+240*idx; node is+20 and inline atree root pointer+24. include/game/effect.h and Xbox effect layout independently describe240-byte Effect, node0x14 and atree0x18. Each typed alternative preserves these actual addresses, parent source Player.node+116, and API order. Existing EffectPage layout is held fixed, not newly proven from mere adjacency. No unsupported aggregate or changed data ownership is installed.",
+    "verification": "Closeout reproduces actual original whole-ELF fidelity and confirms frozen production inputs; archive107 hashes verified. Fast-forwarded mainabcf2d4ad after freezing evidence. python configure.py and ninja -j2 pass; build/tools/dtk.exe shasum -c config/GUNE5D/build.sha1 prints build/GUNE5D/main.dol: OK. Both python -m memory_graph.test_graph -b and python -m unittest discover tools/gdl/tests -b are green. gdlmem validate is valid with equivalent_to_build_record_gate:true; claimscope --audit has4 active/4 owned units/0 unresolved. Worker uses the documented validation fallback; integrator runs gdlmem build at merge. Zero source edits, zero rules retired, zero new rules."
+  },
+  "denial": {
+    "expiry_check": "Recheck the actual compiler/source and full aligned raw stream; replay exact archived controls only at a genuinely new alignment with same-basename ELF fidelity first.",
+    "falsifier": "A source-evidenced change to genuine shared-helper/body architecture or complete owner identity that yields native74/74 raw0 and preserves every protected caller, datum, relocation, EH and final DOL. Existing helper-body architecture is untested here and requires a joint caller audit.",
+    "premise_measurement": "Baseline74/74 raw24; existing-helper natural no-padding forms74/74 raw24 with changed homes; typed inner-owner74/74 raw24 with changed address association; none native exact.",
+    "scope": "Only the finite39-control corpus at anchorab7137a9d; not a compiler-wide or source-impossibility claim."
+  },
+  "function": "function:StartBlockFX",
+  "held_fixed": "Complete same-basename sfx.c compiled through the actual Ninja GC/1.2.5 edge, original flags/compiler/headers/TU data/splits/rules and every other source function fixed. Initial 20 edited controls preserve the parent-tail operations; the 18 typed-owner controls preserve node/root effective addresses and call order while varying genuine local ownership/lifetime. Existing helpers remain byte-for-byte source unchanged throughout. No new pragma, flag, helper, wrapper, padding or rule. Only private complete-TU sources are compiled; production remains frozen.",
+  "id": "attempt.R87_startblockfx-existing-helper-and-typed-owner-native-frontier.20260907.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-07T07:45:07Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "unclassified",
+    "measured_at": "2026-09-07",
+    "signature": null
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.startblockfx-two-use-preoffset-w2.20260831.v1",
+  "valid_from": "2026-09-07"
+}
