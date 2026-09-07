@@ -5026,13 +5026,11 @@ void CritterLookForCriticalMove(Critter *c)
     CritterMove *move;
     u32 flags;
     s32 player;
-    f64 zero;
 
     i = 0;
     timeOffset = 0;
     moveOffset = 0;
     moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
-    zero = lbl_80346488;
 
     while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
         move = (CritterMove *)((u8 *)moves + moveOffset);
@@ -5054,7 +5052,7 @@ void CritterLookForCriticalMove(Critter *c)
                 goto next;
             }
         }
-        if ((f64)move->cooldown > zero &&
+        if (move->cooldown > 0.0 &&
             sMusicFadeBase <
                 c->moveTimes[i] + move->cooldown) {
             goto next;
