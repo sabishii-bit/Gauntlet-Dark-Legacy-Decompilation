@@ -1,0 +1,56 @@
+{
+  "attempted_axis": "Native entry-schedule retirement: narrow selector, existing MBObject members, initializer/flag-local sequencing, case layout and equivalent if-chain controls; bounded stock-compiler and schedule-option sensitivity. No source or rule change retained. Baseline remains 38/38 with exactly four entry words differing.",
+  "attributes": {
+    "anchors": {
+      "baseline_commit": "fae72805e",
+      "compiler_125n_sha256": "ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c",
+      "experiment_manifest_sha256": "ccece413cec044cc049df8ca3318f49f99797b81afb04cffbe0332b9fa7b55ac",
+      "processed_elf_sha256": "8b55408142cc7c384a892f8a2d7a8a9959ed6504b5bec4ae7ed2bbc85a0c2ac6",
+      "raw_elf_sha256": "3138f1b129380de6262e059b0a558867bc75b79b47799452af7d48027fb4e7d9",
+      "source_sha256": "6a3bf7b2e967b98197b3376c1ddf92965ae884127bdba6f590056557534824bc",
+      "target_elf_sha256": "06028785d9f341b76c0e3aa0772e5746f1f9e76b05976e625a180a1e4e3918fe"
+    },
+    "axis_log": [
+      "Legacy attempt.parked.pbobjtexsub.20260829.v1 names the old slwi/mr/rlwimi versus clrlwi packing mechanism and generic flagsweep, no literal forms; not the current four-word schedule. HV 20260901 rule was a no-source-edit derivation; its exact entry diagnosis reproduces.",
+      "All s16/int/s32 cached selector variants, split initializer, full/member-only field access:38/38,4words,11 sibling inventories unchanged and nontext unchanged.",
+      "Flag-local before and masked-local before/after, literal/compound forms, flag-view types:38/38,4words. Unmasked flag-local after selector:38/38,8words; selector and flag value homes exchange at entry and uses. Joint member+flag controls return38/38,4words.",
+      "Case permutations are sensitive: original order38/38,4words; five alternatives still starting with -1 give38/38,13/14/18/19 differing words; other18orders39/38. No alternative improves baseline. Direct member switch39/38,15overlapping differing words; it cannot eliminate the cached selector without affecting later code.",
+      "Three equality if chains37/38,35or36overlapping differing words. Duplicating flags clear per arm49/38,34overlapping words. These count-asymmetric outputs are rejected experiments, not progress.",
+      "Private option sensitivity authorized by integrator after source controls: baseline source under stock GC/1.2.5, GC/1.2.5n +schedule on, or +opt schedule produces COMPLETE-ELF identity to baseline. GC/1.2.5n +schedule off and +opt noschedule both accepted and sensitive:39/38,23overlapping differing words;8/11 sibling inventories change, nontext unchanged. Disabled scheduling entry is lha/lwz/rlwinm/stw/cmpwi, not target lha/lwz/cmpwi/rlwinm/stw; case-4 retains an additional mr. No source pragma overrides the option here. No option change retained."
+    ],
+    "law_screen": "Queried current whole laws corpus, read established law heads and relevant schedule/initializer provisional heads, then fetched full relevant records. declaration-initializer-split-controls-entry-schedule and declaration-order-numbers-the-registers-assignment-order-schedules-the-loads: tested, no entry improvement. independent-statement-reorder-matches-target-schedule and SB_a-schedule-window-is-owned-by-the-block-statement-order-not-by-the-expression-inside-it: independent flag read/mask moved before/after selector with source ordering held valid; no win. PC_in-place-update-operator-pins-the-register-and-blocks-the-scheduler-hoist: explicit versus compound integer flag update invariant; no unsupported floating-generalization claimed. int-vs-signed-long-extern-reorders-schedule and narrow-local-reextend-on-read: scalar-width/type controls measured rather than inferred, no extra extension in these cached-selector controls. regnorm-positional-pairing-fabricates-displacement-rows: aligned full target and actual words confirm a reorder, not old structural label. webfrank-pinned-function-source-freeze: production frozen, scratch only. R64_fixed-source-compiler-sweeps-do-not-establish-source-unreachability supersedes the CV universal conclusion; the private controls below measure only this TU/source and cannot prove patcher necessity. Pool-literal laws inapplicable: this leaf has zero target/raw relocations or pooled datum operands. Frame/padding/FP/helper laws have no matching symptom; no invented padding, volatile, helper, wrapper, or new rule used.",
+    "probed_form": "Selector matrix: replace `s32 t = *(s16*)(obj + 0x5c);` by s16/int/s32, combined initializer or `TYPE t; t = *(s16*)(obj + 0x5c);`; member variants use `MBObject* obj = (MBObject*)objv; TYPE t = obj->texchangeidx;` and `obj->texaltidx`, or selector-only `TYPE t = ((MBObject*)objv)->texchangeidx;` with the existing mbobject.h included. Flag controls: `TYPE f = *flags;` before/after selector followed by `f &= ~0x00080000; *flags = f;`, and `TYPE f = *flags & ~0x00080000; ... *flags = f;`, TYPE u32/unsigned int. Explicit forms `*flags = *flags & ~0x00080000;`, `*flags &= 0xFFF7FFFF;`, `*flags &= ~0x00080000U;`, `*flags = (int)*flags & ~0x00080000;`. Flag-view variants use `int* flagp = (int*)flags;` or unsigned int* with all flag writes through flagp, raw and member selector forms. Joint controls: s16/s32 member-selector with unmasked flag-local before selector or masked flag-local after selector. Case-source orders: all24 permutations of original case blocks [-1,-2,-4,-3], original default last and result arithmetic unchanged. Direct-member switch removes t cache and compares obj->texchangeidx again in default. If-chain controls use equality arms [-1,-2,-4,-3], [-2,-1,-4,-3], [-4,-3,-2,-1], preserving case actions then the original lo==t/default pack. Final store control places the same clear at entry of all five case/default arms, splitting local initializers where necessary so clear still precedes any potentially aliased texaltidx read. No production edit installed.",
+    "scope": "Only this proposed negative record is durable change. src/game/pb/pb_objects.c, configure.py, all rules/compiler bytes, splits/symbols and headers unchanged. TU remains NonMatching and not flipped; no new WebFrank proof/retirement is claimed.",
+    "verification": "Fresh provision/configure/ninja completed with build/GUNE5D/main.dol: OK. cv_probe --axes check reported complete baseline ELF BYTE-IDENTICAL. All67 recorded compile invocations accepted; production source/raw/processed/target/rules/splits/symbols/compiler hashes checked unchanged after every control. Both target and raw pbObjTexSub have no relocations. No raw-score claim is inferred from postprocessed output. Full final repository gates are reported separately at integration."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/cv_probe.py game/pb/pb_objects --axes check; python tools/gdl/fnasm.py game/pb/pb_objects pbObjTexSub --raw --diff. Compare current src/game/pb/pb_objects.c and actual raw ELF against the SHA-256 anchors below; changed source, flags, compiler, or raw bytes expires these finite measurements.",
+    "falsifier": "A faithful complete-TU replay of one enumerated form at the stated baseline producing a raw exact 38-instruction target, or a changed baseline alignment. A different untested source form is outside this denial, not evidence of failure.",
+    "premise_measurement": "python tools/gdl/fnasm.py game/pb/pb_objects pbObjTexSub --raw --diff: target/raw 38/38. Raw differs exactly at +0,+4,+8,+c; +0x10 through +0x94 are byte-identical. A same-basename complete-TU baseline replay via cv_probe.compile_with is byte-identical to the actual Ninja raw ELF. 67 recorded runs including baseline/identity controls and five bounded compiler/option controls produce no native exact target body.",
+    "scope": "Only the literal pbObjTexSub source and option controls enumerated here, at this exact baseline alignment. This is not a denial of other source models, compiler contexts, or native retirement."
+  },
+  "function": "function:pbObjTexSub",
+  "held_fixed": "Complete TU at fae72805e, all non-target functions and headers, prototype/callers, source function order, original packed-result statements, pools/splits/symbol map, dont_inline pragma, actual cflags_demo Ninja runner and GC/1.2.5n. Only the five explicitly labelled option controls changed the selected compiler/scheduling option; their source remained baseline. Production source and both production objects remained frozen throughout.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "A faithful private complete-TU compile of that predicate/remaining-switch form either preserves the original four entry words or changes instruction count away from 38 before other comparisons are spent.",
+    "count_consequence": "Unknown; must remain 38/38. Full if-chain controls produced 37 instructions, warning that a switch/if partition can alter the target's range-tree structure.",
+    "prescription": "Untried source candidate: a named predicate initialized from `t == -2` before the existing flag clear, consumed by an early alternate-texture return, with the remaining cases still expressed as a switch. This differs from the three fully linear if-chain controls. Treat it as a hypothesis, not a mandated cure; preserve possible flags/object alias behavior and audit all sibling output.",
+    "screened_against_target": "Yes, the full target has one pre-store compare and an immediate beq after the store, so a consumed predicate is compatible with that local dependency order. The original source provenance and the remaining-switch block layout are unverified.",
+    "statement": "The remaining choice is the entry scheduler's interleaving of the selector chain (target +0x0 `lha r7,92(r3)` then +0x8 `cmpwi r7,-2`) with the flag chain (+0x4 `lwz r0,0(r6)` then +0xc `rlwinm r0,r0,0,13,11`). The source model that seeds this interleaving remains unidentified; this lane does not prove an unavailable compiler is required."
+  },
+  "id": "attempt.R81_pbobjtexsub-native-entry-schedule-finite-controls.20260907.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-07T05:29:47Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-07",
+    "signature": null,
+    "signature_source": "Full raw/target fnasm read plus byte-by-byte object comparison, not postprocessed fndiff scoring."
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.pbobjtexsub.20260831.v1",
+  "valid_from": "2026-09-07"
+}
