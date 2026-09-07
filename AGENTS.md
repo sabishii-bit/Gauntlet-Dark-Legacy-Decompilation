@@ -382,7 +382,9 @@ For a matching result, require:
   `build/GUNE5D/main.dol: OK`, with post-link checks still exact. The configured
   build hash is different from the original retail DOL hash; use
   `config/GUNE5D/build.sha1` through the build, not a comparison to the retail
-  input's SHA-1. Never trust a stale `build/GUNE5D/ok` file.
+  input's SHA-1. Never trust a stale `build/GUNE5D/ok` file. On an up-to-date
+  tree the DOL edge does not rerun and prints nothing, so run the gate as
+  `Remove-Item build/GUNE5D/ok` (delete the stamp) and then `ninja -j2`.
 - Relevant focused tests during development and
   `python -m unittest discover tools/gdl/tests -b` for tool/config/postprocessor
   changes before their commit. Use unittest, not pytest; retain complete
