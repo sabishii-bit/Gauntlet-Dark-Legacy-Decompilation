@@ -527,27 +527,25 @@ void fn_800C7214(s32 id) {
 /* Load lightmap TLUTs for every model, reporting overflow via the debug
  * printf ("Lightmaps > %dK, %d/%d: %s"). */
 void fn_800C72DC(void) {
+    PbTexMgr* wg = gWinGlobals;
     s32 m;
     s32 loaded = 0;
-    PbTexMgr* wg = gWinGlobals;
 
     lbl_80345110 = 1;
     for (m = 0; m < *(s32*)wg->tbl; m++) {
-        u8* e = (u8*)wg->tbl + m * 0x10;
-        u8** ep = (u8**)(e + 0x4);
+        u8** ep = &((TEXDESCENT*)wg->tbl)[m].desc;
         s32 t;
         s32 base;
-        if (*(s32*)(e + 0x10) != 0)
+        if (*(s32*)((u8*)&((TEXDESCENT*)wg->tbl)[m] + 0x10) != 0)
             continue;
         if (((PbTextureDescView*)*ep)->lightmapCount == 0)
             continue;
         base = ((PbTextureDescView*)*ep)->lightmapBase;
         for (t = 0; t < ((PbTextureDescView*)*ep)->lightmapCount; t++) {
             if (fn_800C7558((m << 16) | (u16)(base + t)) == 0) {
-                u8* tb = (u8*)wg->tbl + 0x4;
                 FatalErrorf(lbl_80116AC0, 0x200, t + 1,
                             ((PbTextureDescView*)*ep)->lightmapCount,
-                            *(void**)(m * 0x10 + tb));
+                            ((TEXDESCENT*)wg->tbl)[m].desc);
             }
             loaded++;
         }

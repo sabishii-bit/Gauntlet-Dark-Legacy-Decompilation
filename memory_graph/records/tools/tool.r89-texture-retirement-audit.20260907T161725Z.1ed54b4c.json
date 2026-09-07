@@ -1,0 +1,22 @@
+{
+  "constraints": [
+    "Manual only; no production writes. Hashes raw.o, processed.o, webfrank.json and target.o against immutable r89-pbtexture-20260907-340eee6c5 manifest SHA256 3c1057eab1063dd6b2981447043bfcafe1d8adb62ed1e80cd5325b7d2fe78e61, and requires the current target hash to agree. Requires actual-Ninja full ELF fidelity, exactly one selected-TU rule removal, 18 unchanged raw siblings, nontext/symbol/EH equality, processed allocated-object equality and eight positionally named relocations. Foreign TU retirements are out of scope; global options remain checked. Full Ninja checksum is separate.",
+    "Validation: python -m unittest tools.gdl.tests.test_r89_texture_retirement_audit -b passes, including positive input anchors, refusal after each of four baseline mutations and current-target mutation, plus permitted foreign-TU retirement. Immutable archive replay passes at 65/65 instructions and zero raw differing words; no archive rewritten."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r89_texture_retirement_audit.py",
+  "id": "tool.r89-texture-retirement-audit.20260907T161725Z.1ed54b4c",
+  "kind": "tool",
+  "name": "r89-texture-retirement-audit",
+  "purpose": "Certify fn_800C72DC native retirement against four immutable baseline hashes and a matching current target object, with whole-TU sibling/data/EH and positional target binding checks.",
+  "recorded_at": "2026-09-07T16:17:25Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r89_texture_retirement_audit.py",
+  "status": "active",
+  "supersedes": "tool.r89-texture-retirement-audit.20260907T154500Z.722f1e44",
+  "tool_key": "tool:r89-texture-retirement-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "--before <pre-change-snapshot> --out build/r89_retirement_certificate"
+  ],
+  "valid_from": "2026-09-07T16:17:25+00:00"
+}

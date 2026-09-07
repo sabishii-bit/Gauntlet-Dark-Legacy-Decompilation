@@ -22,6 +22,9 @@ from tools.fix_exception_objects import Elf
 
 UNIT, FN = 'game/pb/pb_texture', 'pbInitTlutRegions'
 SOURCE_SHA256 = 'cf1c6a3d60e5bff87494fa5a873b3847586beb8b8e2517d057332d18e6029fa7'
+# R89 changes only fn_800C72DC, not this tool's pbInitTlutRegions controls.
+# Both complete contexts are reviewed, not a wildcard over adjacent source.
+R89_SOURCE_SHA256 = 'f485e02d0e68969ce8c3bfbcbb2103486d7019d99f6de46b8d5344b9a8fbea20'
 
 
 def sha(data):
@@ -30,7 +33,7 @@ def sha(data):
 
 def source_forms(source):
     source = source.replace('\r\n', '\n')
-    if sha(source.encode()) != SOURCE_SHA256:
+    if sha(source.encode()) not in (SOURCE_SHA256, R89_SOURCE_SHA256):
         raise ValueError('R71 source baseline changed; rederive the finite controls before updating the digest')
     old = 'void GXInitTlutRegion(void* region, u32 tmem_addr, u32 tlut_size);'
     if source.count(old) != 1 or source.count('typedef u8 GXBool;') != 1:
