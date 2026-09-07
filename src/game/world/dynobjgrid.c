@@ -18,7 +18,7 @@
  *    const-propagates to li 0 - the gcontrolpads remat-vs-copy quirk).
  *  - WorldDynCollide: target keeps an extra addi r6,r3,0 copy web for d +
  *    nonvolatile color rotation (r28..r31); opcode stream otherwise exact.
- *  - CreateDynobjGrid: r27/r28 web rotation through the rasterize loops.
+ *  - CreateDynobjGrid: native exact, with entry write before cell lookup.
  *  - NextDynGrid: complete semantic translation (255 target insns).
  */
 
@@ -249,7 +249,6 @@ void CreateDynobjGrid(void)
     s32 i;
     s32 cx, cz;
     s32 xlo, xhi, zlo, zhi;
-    s32 xloRaw;
     WorldObj* o;
     DynObj* d;
     f32* p;
@@ -271,20 +270,25 @@ void CreateDynobjGrid(void)
             p = ((MBObject*)o->prep)->mat[3];
         else
             p = o->bbox;
-        xloRaw = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
+        xlo = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         xhi = (s32)((p[0] + o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
         zlo = (s32)((p[2] - o->radius - gWorldInfo.min_z) * dyngrid_invwidth);
         zhi = (s32)((p[2] + o->radius - gWorldInfo.min_z) * dyngrid_invwidth);
-        xlo = (s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth);
-        xlo = (xlo < 0) ? 0 : (xloRaw > num_dyngridx - 1 ? num_dyngridx - 1 : xloRaw);
+        /* Retail materializes lower X twice (+0x10c/+0x120); the test
+         * expression needs no separate allocation-only xloRaw local. */
+        xlo = ((s32)((p[0] - o->radius - gWorldInfo.min_x) * dyngrid_invwidth) < 0)
+                  ? 0 : (xlo > num_dyngridx - 1 ? num_dyngridx - 1 : xlo);
         xhi = (xhi < 0) ? 0 : (xhi > num_dyngridx - 1 ? num_dyngridx - 1 : xhi);
         zlo = (zlo < 0) ? 0 : (zlo > num_dyngridz - 1 ? num_dyngridz - 1 : zlo);
         zhi = (zhi < 0) ? 0 : (zhi > num_dyngridz - 1 ? num_dyngridz - 1 : zhi);
         for (cz = zlo; cz <= zhi; cz++) {
             for (cx = xlo; cx <= xhi; cx++) {
-                u16* cell = &dyngrid[cz * num_dyngridx + cx];
+                u16* cell;
                 dyngrid_index++;
                 dyngrid_list[dyngrid_index * 2] = (s16)i;
+                /* Link the written entry into its cell. Computing this
+                 * address earlier changes MWCC's hoisted-load order. */
+                cell = &dyngrid[cz * num_dyngridx + cx];
                 ((u16*)dyngrid_list)[dyngrid_index * 2 + 1] = *cell;
                 *cell = dyngrid_index;
             }
