@@ -279,5 +279,149 @@ class GenuineAccountingTests(unittest.TestCase):
         self.assertEqual(len(result.renaming), 2)
 
 
+class PinScreenAndRawView(unittest.TestCase):
+    """Run-58 item 2: regnorm read the POSTPROCESSED body with no screen.
+
+    THE OBSERVATION (EN lane), reproduced at 43c6c9ce0:
+
+        python tools/gdl/regnorm.py game/enemy/enemy closest_enemy
+          == closest_enemy: T105/O105 PARITY, ..., 0 renaming,
+             0 STRUCTURAL (0 genuine), 0 unpaired -> EXACT
+
+    on a function that carries a WebFrank rule. The default view is
+    build/GUNE5D/src/<unit>.o, our POSTPROCESSED object, whose body the
+    rule drives toward the target by construction, so `EXACT` is
+    target-vs-target. The RAW body differs in 16 of its 105 words
+    (`wf_word_diff.py game/enemy/enemy closest_enemy`: DIFFERING WORDS =
+    16, REGFIELD-ONLY 16, PINNED = YES), and under `--raw` this tool now
+    reads `16 renaming, 0 STRUCTURAL -> CLEAN-RENAMING`. savedregs.py has
+    had both the screen and `--raw` since run 49; this is the tool
+    AGENTS.md names for recolor investigation and it had neither.
+
+    TWO-SIDED CALIBRATION over the whole live population at 43c6c9ce0
+    (build/T2_item2_calibrate.py; all 54 pinned units, both views built
+    from the same objdump pipeline):
+
+      PINNED    159 functions -- 159 tables DIFFER between the two views,
+                and the VERDICT FLIPS on 148 (93%). Every flip is
+                EXACT -> something weaker; none goes the other way.
+      UNPINNED  1337 functions in those same units -- 1337 IDENTICAL
+                tables, 0 flips.
+
+    The unpinned half is why the DEFAULT is unchanged and this is a
+    warning rather than a switch: on an unpinned function the two views
+    are the same object, so changing the default would move nothing for
+    1337 functions and break every caller's paths for nothing.
+    """
+
+    def test_a_dtk_suffix_is_stripped_to_the_parsed_name(self):
+        from regnorm import strip_dtk_suffix
+        self.assertEqual(strip_dtk_suffix("gendir_8004FBC8"), "gendir")
+        self.assertEqual(strip_dtk_suffix("StandardCamera_8002B828"),
+                         "StandardCamera")
+
+    def test_an_unnamed_dtk_function_keeps_its_whole_name(self):
+        # THE INVALID INPUT, and a live measurement: `fn_800516F8` ends in
+        # `_80` plus six hex digits, so an unguarded strip maps every
+        # dtk-unnamed function onto the single string `fn`. Caught while
+        # calibrating -- 6 of game/enemy/enemy's 23 rules collapsed and the
+        # unit's pin set read 17 instead of 23; image-wide the pin roster
+        # read 143 instead of 159. `fndiff.parse` carries the same guard.
+        from regnorm import strip_dtk_suffix
+        for name in ("fn_800516F8", "fn_80051C78", "fn_8004646C"):
+            self.assertEqual(strip_dtk_suffix(name), name)
+
+    def test_the_pin_note_fires_on_a_pinned_default_read(self):
+        from regnorm import pin_note
+        note = pin_note("closest_enemy", {"closest_enemy"}, raw=False)
+        self.assertIsNotNone(note)
+        self.assertIn("WEBFRANK-PINNED", note)
+        self.assertIn("--raw", note)
+
+    def test_the_pin_note_is_silent_under_raw(self):
+        from regnorm import pin_note
+        self.assertIsNone(pin_note("closest_enemy", {"closest_enemy"},
+                                   raw=True))
+
+    def test_the_pin_note_is_silent_on_an_unpinned_function(self):
+        from regnorm import pin_note
+        self.assertIsNone(pin_note("do_ai", {"closest_enemy"}, raw=False))
+
+    def test_a_suffixed_rule_name_still_matches_the_parsed_name(self):
+        from regnorm import pin_note
+        self.assertIsNotNone(pin_note("gendir", {"gendir"}, raw=False))
+        self.assertIsNotNone(
+            pin_note("gendir_8004FBC8", {"gendir"}, raw=False))
+
+
+class PinScreenLive(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        import os
+        cls.root = Path(__file__).resolve().parents[3]
+        if not (cls.root / "build/GUNE5D/obj/game/enemy/enemy.o").exists():
+            raise unittest.SkipTest("checkout is not built")
+        cls.os = os
+
+    def run_cli(self, *extra):
+        import subprocess
+        import sys as _sys
+        return subprocess.run(
+            [_sys.executable, "tools/gdl/regnorm.py",
+             "game/enemy/enemy", "closest_enemy", *extra],
+            cwd=str(self.root), capture_output=True, text=True)
+
+    def test_the_default_read_carries_the_pin_warning(self):
+        proc = self.run_cli()
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("-> EXACT", proc.stdout)
+        self.assertIn("WEBFRANK-PINNED", proc.stdout)
+        self.assertIn("POSTPROCESSED body", proc.stdout)
+
+    def test_the_raw_read_shows_the_residual_the_pin_closes(self):
+        proc = self.run_cli("--raw")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("16 renaming", proc.stdout)
+        self.assertIn("CLEAN-RENAMING", proc.stdout)
+        self.assertIn("RAW pre-postprocess body", proc.stdout)
+        self.assertNotIn("WEBFRANK-PINNED", proc.stdout)
+
+    def test_an_unpinned_function_reads_the_same_in_both_views(self):
+        """THE NEGATIVE SIDE, live: 1337 functions behave like this one."""
+        import subprocess
+        import sys as _sys
+
+        def verdict(*extra):
+            proc = subprocess.run(
+                [_sys.executable, "tools/gdl/regnorm.py",
+                 "game/enemy/enemy", "do_ai", *extra],
+                cwd=str(self.root), capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            return [line for line in proc.stdout.splitlines()
+                    if line.startswith("== ")]
+
+        self.assertEqual(verdict(), verdict("--raw"))
+
+    def test_an_unknown_flag_is_refused_not_swallowed(self):
+        proc = self.run_cli("--no-such-flag")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("unknown flag", proc.stdout)
+
+    def test_the_census_marks_pinned_rows(self):
+        import subprocess
+        import sys as _sys
+        proc = subprocess.run(
+            [_sys.executable, "tools/gdl/regnorm.py", "game/enemy/enemy"],
+            cwd=str(self.root), capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("POSTPROCESSED body", proc.stdout)
+        self.assertIn("PIN SCREEN:", proc.stdout)
+        marked = [line for line in proc.stdout.splitlines()
+                  if line.startswith("== ") and line.endswith(" PINNED")]
+        # 23 rules in this unit; every one is a function the census pairs.
+        self.assertEqual(len(marked), 23, marked)
+
+
 if __name__ == "__main__":
     unittest.main()

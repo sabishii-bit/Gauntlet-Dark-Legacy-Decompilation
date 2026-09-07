@@ -71,6 +71,25 @@ annotation lines. CLEAN-RENAMING is necessary, not sufficient, for a
 recolor rule: webfrank_audit can still reject on a per-web
 inconsistency the positional tally cannot see (live case: 0/0 verdict
 with an f0/f2 FPR conflict) — always run the audit before authoring.
+
+ON A WEBFRANK-PINNED FUNCTION, READ `--raw` (run-58 item 2). Without it
+this tool decodes build/GUNE5D/src/<unit>.o, our POSTPROCESSED object,
+whose body a pin drives toward the target BY CONSTRUCTION — so the
+verdict describes the postprocessor's output and not what the source
+compiles to. The reported case:
+
+    python tools/gdl/regnorm.py game/enemy/enemy closest_enemy
+      == closest_enemy: T105/O105 PARITY, ..., 0 renaming,
+         0 STRUCTURAL (0 genuine), 0 unpaired -> EXACT
+
+on a function whose RAW body differs from the target in 16 of 105 words
+(`wf_word_diff.py game/enemy/enemy closest_enemy`: DIFFERING WORDS = 16,
+REGFIELD-ONLY 16, PINNED = YES). `EXACT` there is target-vs-target.
+`savedregs.py` has carried this screen and a `--raw` mode since run 49;
+this tool is the one AGENTS.md sends you to for recolor investigation
+and it had neither. The default view is UNCHANGED — on an unpinned
+function both views read the same object — and every pinned row now says
+which body it decoded.
 """
 
 import difflib
@@ -81,9 +100,10 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fnasm  # noqa: E402  (raw_obj_path: the one spelling of "pre-pin body")
 import fndiff  # noqa: E402
 import slotdiff  # noqa: E402  (slot_map: the layout column)
-import unabsorbed  # noqa: E402  (the closability column)
+import unabsorbed  # noqa: E402  (the closability column + the pin roster)
 
 VERSION = "GUNE5D"
 
@@ -580,12 +600,71 @@ def resolve_name(table, name):
     return None
 
 
-def load_tables(bare):
-    target = fndiff.parse(Path(f"build/{VERSION}/obj/{bare}.o"))
-    ours = fndiff.parse(Path(f"build/{VERSION}/src/{bare}.o"))
-    resolver = make_object_resolver(
-        Path(f"build/{VERSION}/obj/{bare}.o"),
-        Path(f"build/{VERSION}/src/{bare}.o"))
+def pinned_names(bare):
+    """{stripped function name} carrying a WebFrank rule in this unit.
+
+    Run-58 item 2. The rules are read through `unabsorbed.rule_served_
+    functions`, the shipped join (a parser that iterates webfrank.json's
+    ROOT finds 0 pins, which reads exactly like "no pins exist"). Names are
+    reduced with `strip_dtk_suffix` because a rule spells a file-local
+    static the way the extracted object does — `gendir_8004FBC8` — while
+    `fndiff.parse` strips that suffix when the base is unique, so an
+    unreduced comparison silently drops those pins from the screen.
+    """
+    try:
+        return {strip_dtk_suffix(name)
+                for name in unabsorbed.rule_served_functions(bare)}
+    except Exception:                                       # noqa: BLE001
+        return set()   # fail-soft: no config, no screen, nothing breaks
+
+
+DTK_SUFFIX_RE = re.compile(r"_80[0-9A-Fa-f]{6}$")
+
+
+def strip_dtk_suffix(name):
+    """`gendir_8004FBC8` -> `gendir`, exactly as `fndiff.parse` reduces it.
+
+    THE `fn_` GUARD IS LOAD-BEARING, and `fndiff.parse` carries the same
+    one. dtk names an unnamed function `fn_800516F8`, whose tail IS `_80`
+    plus six hex digits, so an unguarded strip turns every such name into
+    the single string `fn` — measured here while calibrating: 6 of
+    game/enemy/enemy's 23 rules collapsed onto one key and the unit's pin
+    set read 17 instead of 23.
+    """
+    if name.startswith("fn_"):
+        return name
+    return DTK_SUFFIX_RE.sub("", name)
+
+
+def pin_note(fn, pins, raw):
+    """The paragraph a PINNED function's default read must carry, or None."""
+    if raw or strip_dtk_suffix(fn) not in pins:
+        return None
+    return (
+        f"  WEBFRANK-PINNED: {fn} carries a postprocessor rule, and this"
+        " table decoded build/GUNE5D/src/<unit>.o — our POSTPROCESSED"
+        " object, whose body the rule drives toward the target BY"
+        " CONSTRUCTION. Every verdict above therefore describes the"
+        " postprocessor's output, not what your source compiles to, and"
+        " `EXACT` here means target-vs-target."
+        f"\n  RE-READ IT: add `--raw` to decode the pre-postprocess body,"
+        " which is the one your source controls. Measured on"
+        " game/enemy/enemy::closest_enemy: the default reads 0 STRUCTURAL /"
+        " 0 renaming -> EXACT while the raw body differs from the target in"
+        " 16 of 105 words.")
+
+
+def load_tables(bare, raw=False):
+    target_path = Path(f"build/{VERSION}/obj/{bare}.o")
+    ours_path = Path(f"build/{VERSION}/src/{bare}.o")
+    if raw:
+        # ONE SPELLING of "the pre-pin body": fnasm.raw_obj_path walks the
+        # hash-bound Ninja graph (tools/gdl/raw_object.py) and REFUSES an
+        # ambiguous or stale one, rather than guessing a .postprocess path.
+        ours_path = Path(fnasm.raw_obj_path(bare))
+    target = fndiff.parse(target_path)
+    ours = fndiff.parse(ours_path)
+    resolver = make_object_resolver(target_path, ours_path)
     return target, ours, resolver
 
 
@@ -593,6 +672,14 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     show_all = "--all" in sys.argv
     show_map = "--map" in sys.argv
+    raw = "--raw" in sys.argv
+    unknown = [a for a in sys.argv[1:] if a.startswith("--")
+               and a not in ("--all", "--map", "--raw")]
+    if unknown:
+        # A swallowed flag is a silently different measurement; probe.py
+        # swallowed unknown flags for 45 runs.
+        print(f"unknown flag(s): {' '.join(unknown)}")
+        return 2
     if len(args) not in (1, 2):
         print(__doc__)
         return 2
@@ -603,11 +690,14 @@ def main():
         # one objdump per object instead of one subprocess per function.
         bare = re.sub(r"\.(c|cpp)$", "",
                       args[0].replace("\\", "/").removeprefix("src/"))
-        target, ours, resolver = load_tables(bare)
+        target, ours, resolver = load_tables(bare, raw)
+        pins = pinned_names(bare)
         common = sorted(set(target) & set(ours))
         print(f"-- regnorm census: {bare} ({len(common)} paired"
               " functions; rank by GENUINE structural rows, then"
-              " unpaired — real inverts tractability) --")
+              " unpaired — real inverts tractability)"
+              f" [{'RAW pre-postprocess' if raw else 'POSTPROCESSED'} body,"
+              f" {len(pins)} pinned in this TU] --")
         print("   columns: T<n>/O<n> = instruction counts; PARITY /"
               " COUNT<+-n> = the POSTPROCESSOR SCREEN (a count-asymmetric"
               " residual is outside every WebFrank/P6Frank class, and"
@@ -617,6 +707,11 @@ def main():
               " unabs Nu/Mc tier A|B = UNABSORBED words (tier A = the"
               " register-field stage alone reproduces the target), the"
               " CLOSABILITY column the structural counts cannot answer")
+        if pins and not raw:
+            print("   PIN SCREEN: rows marked PINNED were decoded from the"
+                  " POSTPROCESSED object, so their verdict is the rule's"
+                  " output and not the compiler's — re-run with --raw"
+                  " before ranking or believing one.")
         unabs_rows = {}
         try:
             unabs_rows = unabsorbed.unit_rows(bare)
@@ -624,13 +719,14 @@ def main():
             pass  # fail-soft: the column reads `unabs=?`, nothing breaks
         for name in common:
             result = analyze(target[name], ours[name], resolver)
-            print(summary_line(name, result, unabs_rows.get(name)))
+            mark = (" PINNED" if strip_dtk_suffix(name) in pins else "")
+            print(summary_line(name, result, unabs_rows.get(name)) + mark)
         return 0
 
     unit, fn = args
     unit = unit.replace("\\", "/").removeprefix("src/")
     unit = re.sub(r"\.(c|cpp)$", "", unit)
-    target, ours, resolver = load_tables(unit)
+    target, ours, resolver = load_tables(unit, raw)
     fn_t, fn_o = resolve_name(target, fn), resolve_name(ours, fn)
     if fn_t is None or fn_o is None:
         print(f"missing: {fn} (target: {fn_t is not None},"
@@ -650,8 +746,12 @@ def main():
             print(f"  {ours_reg} -> {body}{flag}")
     print(summary_line(fn, result))
     print("VERDICT (repeated):", result.verdict,
+          f"({'RAW pre-postprocess' if raw else 'POSTPROCESSED'} body)",
           "-- REGISTER_ONLY label is only honest at 0 STRUCTURAL,"
           " 0 unpaired")
+    note = pin_note(fn, pinned_names(unit), raw)
+    if note:
+        print(note)
     return 0
 
 
