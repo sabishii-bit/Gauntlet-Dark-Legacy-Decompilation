@@ -284,17 +284,35 @@ exit:
 }
 
 
+/* AUXANIM's Xbox symbols identify this five-argument fade helper and its
+ * fframe/nframes locals. Keep the GC node-handle interface used by this TU.
+ * Both fade directions inline here; nframes becomes the normalized alpha. */
+static inline void DoTexFadeSub(int node, TEXMOD* tm, int iframe,
+                                int idx, int fadeout)
+{
+    f32 fframe = (f32)(iframe - tm->unk4e);
+    f32 nframes = (f32)tm->frames;
+    if (fframe <= 0.0f || nframes <= 0.0) {
+        nframes = 0.0f;
+    } else if (fframe >= nframes) {
+        nframes = 1.0f;
+    } else {
+        nframes = fframe / nframes;
+    }
+    if (fadeout) {
+        nframes = (f32)(1.0 - nframes);
+    }
+    nframes *= 255.0;
+    MBTreeSetAlpha(node, (s32)nframes, idx);
+}
+
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 {
-    f32 k;
     s32 f;
     s32 d;
     f32 ra;
     f32 de;
     f32 fr2;
-    f32 d1;
-    f32 fr;
-    f32 d2;
 
     if (tm == NULL) {
         return;
@@ -319,31 +337,10 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         break;
     }
     case -4:
-        d1 = (f32)(frame - tm->unk4e);
-        d2 = (f32)(frame - tm->unk4e);
-        fr = (f32)tm->frames;
-        if (d1 <= 0.0f || fr <= 0.0) {
-            k = 0.0f;
-        } else if (d2 >= fr) {
-            k = 1.0f;
-        } else {
-            k = d2 / fr;
-        }
-        k = (f32)(1.0 - k);
-        MBTreeSetAlpha(ctx, (s32)(f32)(k * 255.0), 1);
+        DoTexFadeSub(ctx, tm, frame, 1, 1);
         break;
     case -5:
-        d1 = (f32)(frame - tm->unk4e);
-        d2 = (f32)(frame - tm->unk4e);
-        fr = (f32)tm->frames;
-        if (d1 <= 0.0f || fr <= 0.0) {
-            k = 0.0f;
-        } else if (d2 >= fr) {
-            k = 1.0f;
-        } else {
-            k = d2 / fr;
-        }
-        MBTreeSetAlpha(ctx, (s32)(f32)(k * 255.0), 1);
+        DoTexFadeSub(ctx, tm, frame, 1, 0);
         break;
     case -6:
         break;

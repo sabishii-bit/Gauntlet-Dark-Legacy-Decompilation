@@ -2710,9 +2710,9 @@
     "game/g3d/auxanim": [
       {
         "function": "DoTexModSeqSub",
-        "before_sha256": "07fb49b6eee2a74adf2fcce717639235500682ca6974a6b36cd1e7fcc3d43d4d",
+        "before_sha256": "4a03f79ddade9f7b6225d12af9cd496315a2bfa2f48434163ccc2ee4bf43a70a",
         "after_sha256": "7512b7b0bb6a89a41b35b58a7a29ac2ffa42e52e92a986a5fdbaf506afa3f8ee",
-        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.PF_dotexmodseqsub-second-buffer-plus-block-scope-closes-the-slot-class-and-the-nested-call-closes-the-fmr.20260904.v1 retained twelve source probes that closed the count, frame, slot and opcode classes and left a count-neutral schedule/register residual. This run additionally tested four case -5 carrier/live-range forms: reusing the dead fr, d1 or d2 local for the selected k value folded to the identical object, while defining k from d1 before the guard reordered the anonymous conversion slots and regressed real 30 to 48; every probe was reverted. FINAL RESIDUAL: 201/201 instructions, IDENTICAL opcode multiset, frame 64/64, SLOT MAP IDENTICAL, zero immediate or relocation-symbol differences, 15 raw differing words. PERMUTATIONS: [0x184,0x18c) and [0x244,0x24c), each order [1,0], move ours `stw r3,32(r1)` after the adjacent `fcmpo cr0,f1,f0` to retail's order. In each window the store reads r3 and writes stack memory while the compare reads f0/f1 and writes CR0, so the atoms are independent; check_permutation_dependences accepts both with no dead-final-write escape and both relocation sets are empty. RECOLOR: after the two swaps, all remaining differences are form-aware register fields in the case -4/-5 FP webs, including commutative fmul operand/destination selection; verify_consistent_recolor proves the complete function and verify_datum_binding runs against the retail DOL. The composed rule replayed through webfrank.apply_patch at full datum strength and produced the retail function bytes exactly without value-equality or unproven escapes.",
+        "mechanism": "R122 SOURCE RECOVERY: reconstruct DoTexFadeSub using the AUXANIM PDB's five-argument helper boundary and fframe/nframes locals, corroborated by the GC's duplicate fade bodies. Reusing nframes as the normalized/scaled result removes the entire former register-recolor stage: 201/201 instructions, frame 64/64, raw differing words 15 -> 4. The PDB corroborates a helper boundary, not identical GC source text. REMAINING PERMUTATIONS: the unchanged [0x184,0x18c) and [0x244,0x24c) windows, each order [1,0], move ours `stw r3,32(r1)` after adjacent `fcmpo cr0,f1,f0`. Each store reads r3 and writes stack memory; each compare reads f0/f1 and writes CR0. The existing dependence guards accept both without a dead-final-write escape; both relocation sets are empty and all four window hashes are unchanged. Derive the new body hash from the full actual-edge raw object, then replay only these existing permutations through webfrank.apply_patch with the retail image and datum guards: target bytes exact, all nine siblings and positional bindings unchanged, all allocated data/BSS/symbol layout and EH unchanged, complete processed canonical object equal to the prior result. No recolor, new window, proof relaxation, compiler or flag change. This narrows the rule; it neither retires both scheduling swaps nor proves that a native source form cannot remove them.",
         "audit": {
           "classification": "SCHEDULE_CANDIDATE",
           "instructions": 201,
@@ -2743,8 +2743,7 @@
             "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
           }
-        ],
-        "copy_register_fields": true
+        ]
       }
     ],
     "game/g3d/g3dpad": [
