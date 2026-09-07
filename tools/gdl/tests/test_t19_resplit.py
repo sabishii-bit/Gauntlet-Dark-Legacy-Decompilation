@@ -101,32 +101,44 @@ class ResplitFlag(unittest.TestCase):
 
 class AgentsDocumentation(unittest.TestCase):
     TEXT = (REPO / "AGENTS.md").read_text(encoding="utf-8", errors="replace")
+    # These are safety obligations, not historical heading/line-wrap locks.
+    NORMALIZED = " ".join(TEXT.split())
 
     def test_the_obj_hazard_and_its_one_command_recovery_are_written_down(self):
-        self.assertIn("IS A DTK-SPLIT REFERENCE, NOT A BUILD ARTIFACT",
-                      self.TEXT)
-        self.assertIn("provision_worktree.py --resplit", self.TEXT)
+        self.assertIn("DTK-extracted reference inputs, not disposable "
+                      "compiler outputs", self.NORMALIZED)
+        self.assertIn("Ninja may not recreate a deleted individual object",
+                      self.NORMALIZED)
+        self.assertIn("provision_worktree.py --resplit", self.NORMALIZED)
+        self.assertIn("never edit target objects or generated target assembly "
+                      "to obtain a match", self.NORMALIZED)
 
     def test_the_header_comment_convention_is_written_down(self):
         """NC met a confident, TU-wide, WRONG header claim carrying 'do not
         grind' -- a veto with no scope, no date and no way to be cleared."""
-        self.assertIn("A HEADER-COMMENT CLAIM IS A HINT UNTIL IT CARRIES A"
-                      " DATE AND A\nFALSIFICATION COMMAND", self.TEXT)
-        self.assertIn("do not grind", self.TEXT)
+        self.assertIn('historical stop claim (such as "do not grind")',
+                      self.NORMALIZED)
+        self.assertIn("A claim missing these checks is a hint, not a "
+                      "permanent veto", self.NORMALIZED)
 
-    def test_the_convention_points_at_the_typed_denial_it_mirrors(self):
-        head = self.TEXT[self.TEXT.index("A HEADER-COMMENT CLAIM IS A HINT"):]
-        block = head[:head.index("**IMPORTABLE CORE")]
-        for field in ("scope", "premise_measurement", "expiry_check",
-                      "falsifier"):
-            self.assertIn(field, block)
+    def test_a_stop_claim_has_scope_measurement_recheck_and_falsifier(self):
+        block = self.NORMALIZED.split("Before treating a historical stop "
+                                      "claim", 1)[1]
+        block = block.split("Report observations separately", 1)[0]
+        for requirement in ("exact scope", "current measured premise",
+                            "measurement date", "reproduction command",
+                            "a falsifier: the evidence that would disprove",
+                            "when to recheck", "changed inputs invalidate"):
+            with self.subTest(requirement=requirement):
+                self.assertIn(requirement, block)
 
-    def test_discipline_4_is_extended_not_contradicted(self):
+    def test_header_comments_remain_useful_evidence_not_automatic_vetoes(self):
         """Header comments remain free evidence; the convention is about
         what makes one a VETO."""
-        self.assertIn("Free evidence first:", self.TEXT)
-        head = self.TEXT[self.TEXT.index("A HEADER-COMMENT CLAIM IS A HINT"):]
-        self.assertIn("discipline 4", head[:head.index("**IMPORTABLE CORE")])
+        self.assertIn("Source and header comments are useful free evidence, "
+                      "not automatic vetoes", self.NORMALIZED)
+        self.assertIn("test its premise before following its prescription",
+                      self.NORMALIZED)
 
 
 if __name__ == "__main__":

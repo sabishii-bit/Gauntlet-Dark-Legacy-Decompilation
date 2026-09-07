@@ -103,8 +103,15 @@ Do not repeat unchanged negative controls from history. A revisit needs a
 genuinely new source hypothesis or changed source/header/compiler context;
 state what changed and what stayed fixed. Preserve promising private controls
 with complete source/object hashes, actual compile commands and a reproducible
-baseline. A historical stop claim without a date, scope and remeasurement
-command is a hint, not a permanent veto.
+baseline.
+
+Source and header comments are useful free evidence, not automatic vetoes.
+Before treating a historical stop claim (such as "do not grind") as binding,
+require its exact scope, current measured premise, measurement date,
+reproduction command and a falsifier: the evidence that would disprove the
+claim. State when to recheck it, including which changed inputs invalidate
+the old measurement. A claim missing these checks is a hint, not a permanent
+veto; test its premise before following its prescription.
 
 Report observations separately from theories. A finite failed source/flag
 matrix does not prove source impossibility or establish that a compiler patch
