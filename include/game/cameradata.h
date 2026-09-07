@@ -96,8 +96,8 @@
 /*
  * Scalar view of the 0xC8-byte prefix that precedes the camera array.
  *
- * Field-name evidence (behaviour-derived; no PDB record exists for this block
- * -- `gdlmem.py struct CAMERASTATE` returns no match):
+ * Field-name evidence (behaviour-derived; no matching CAMERASTATE record
+ * was found in the reference PDB material):
  *   +0x10 unk10       zeroed as a 3-element run by InitCamera; use unknown,
  *                     so the name is deliberately left neutral.
  *   +0x1C start_wpos  InitCamera seeds cameras[0].wpos from these three

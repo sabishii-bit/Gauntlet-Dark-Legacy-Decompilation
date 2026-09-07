@@ -6570,8 +6570,8 @@ void adjust_msidx(Enemy* enemy)
  *           identity.20260830.v1) - kept as the raw blob-base + literal
  *           offset for that reason, now with the identity documented.
  *   +0x20   first-level index table, inside lbl_80250E00's own declared
- *           0x40-byte anchor.  No covering struct found: gdlmem.py struct
- *           probes for gen_head/generator/enemy_gen/gen_record/gentable/
+ *           0x40-byte anchor.  No covering struct found: reference-type
+ *           searches for gen_head/generator/enemy_gen/gen_record/gentable/
  *           gen_table/texmod_owner/enemy_texmod all returned no PDB match,
  *           and no other function in the TU references this slot range.
  *           Left as a raw offset - no name to adopt without inventing one.

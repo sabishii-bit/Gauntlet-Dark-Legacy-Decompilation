@@ -130,7 +130,7 @@ class LiveBlocks(unittest.TestCase):
         units = cs.webfrank_units()
         if not units:
             self.skipTest("no webfrank.json in this checkout")
-        blocks = cs.webfrank_block_owners()
+        blocks = cs.webfrank_block_owners(claims=[])
         self.assertEqual(sorted(blocks), sorted(units))
         for unit, row in blocks.items():
             self.assertTrue(row["owners"], unit)

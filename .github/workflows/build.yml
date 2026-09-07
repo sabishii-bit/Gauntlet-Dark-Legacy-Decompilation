@@ -83,14 +83,9 @@ jobs:
         fi
 
     # Unit tests alone did not catch a broken datum-audit caller. Keep both
-    # suites and a live private-fixture workflow check alongside the DOL gate.
+    # analysis tests and a live private-fixture workflow check alongside the DOL gate.
     - name: Analysis tool tests
       run: python -m unittest discover tools/gdl/tests -b
-
-    - name: Memory graph tests and validation
-      run: |
-        python -m memory_graph.test_graph -b
-        python memory_graph/gdlmem.py validate
 
     - name: Reconstruction diagnostics
       env:

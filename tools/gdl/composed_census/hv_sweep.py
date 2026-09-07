@@ -24,7 +24,6 @@ corrections applied and a THIRD class none of them modelled.
 import json
 import os
 import re
-import subprocess
 import sys
 import traceback
 
@@ -50,11 +49,6 @@ import cn_census as census     # noqa: E402
 
 # TU-shaped path fragments, for reading ownership out of claim prose.
 TU_RE = re.compile(r"\b((?:game|dolphin|MSL|zlib|libc|runtime)/[\w/]+)")
-# The FALLBACK only: the value hardcoded at run 31, kept solely so the
-# sweep still gates sensibly when the graph cannot be queried.
-_FALLBACK_OWNED = ("game/sys/memcard", "game/movie/movieplayer",
-                   "game/world/gauntworld", "game/game/combat",
-                   "game/game/player")
 
 
 def units_from_claims(payload, me=None):
@@ -68,38 +62,10 @@ def units_from_claims(payload, me=None):
     return tuple(sorted(units))
 
 
-def owned_units(me=None):
-    """TUs claimed by OTHER lanes, read LIVE from `gdlmem claims`.
-
-    A webfrank rule FREEZES its function's source, so shipping into a TU
-    another lane is editing aborts THEIR build at the WEBFRANK step -- this
-    is a courtesy gate, not an optimisation. It was a hardcoded tuple that
-    had already drifted a full run out of date once (still harvest-3's
-    list during harvest-4), and a stale courtesy gate is worse than none:
-    it silently sweeps the TUs it was meant to protect while skipping ones
-    nobody owns any more.
-
-    Claim scopes are prose, so TU-shaped fragments are extracted from the
-    scope and function fields. Over-inclusion costs only a skipped
-    candidate; this sweep never edits source.
-    """
-    try:
-        out = subprocess.run(
-            [sys.executable, os.path.join(ROOT, "memory_graph", "gdlmem.py"),
-             "claims"], capture_output=True, text=True, cwd=ROOT, timeout=300)
-        payload = json.loads(out.stdout)
-    except Exception as exc:                                # noqa: BLE001
-        print(f"!! could not read `gdlmem claims` ({type(exc).__name__}:"
-              f" {exc}); falling back to the run-31 hardcoded list, which"
-              " MAY BE STALE — verify ownership by hand")
-        return tuple(_FALLBACK_OWNED)
-    units = tuple(units_from_claims(payload, me))
-    if units:
-        print(f"claims: {len(units)} TU(s) owned by other lanes will be"
-              f" skipped: {', '.join(sorted(units))}")
-    else:
-        print("claims: no other lane holds a TU-scoped claim — sweeping all")
-    return tuple(sorted(units))
+def excluded_units(value=""):
+    """Explicit TU exclusions supplied by the coordinator; no hidden lookup."""
+    return tuple(sorted({unit.strip().removesuffix(".c").removesuffix(".cpp")
+                         for unit in value.split(",") if unit.strip()}))
 
 
 # Rows the sweep could not EVALUATE, kept apart from rows it evaluated and
@@ -146,7 +112,7 @@ def triage(units=None, owned=None):
     full-image sweep for it.
     """
     have = shipped()
-    owned = tuple(owned if owned is not None else owned_units())
+    owned = tuple(owned or ())
     wanted = tuple(units) if units else None
     rows = []
     for unit in census.units():
@@ -250,8 +216,8 @@ USAGE = """hv_sweep — union re-sweep of the postprocessor-closability roster.
                     build/GUNE5D/hv/ — BUILD OUTPUT. They used to be written
                     beside this script, i.e. untracked JSON dropped into a
                     tracked directory of the repo.
-  --me OWNER        this lane's work_claim owner, so its OWN claim does not
-                    exclude the TUs it is sweeping.
+  --exclude=U[,U...] exclude TUs coordinated with other workers. There is
+                    no automatic ownership lookup or historical fallback.
 """
 
 if __name__ == "__main__":
@@ -269,7 +235,9 @@ if __name__ == "__main__":
     os.makedirs(outdir, exist_ok=True)
     rpath = os.path.join(outdir, "hv_roster.json")
     if mode == "triage":
-        rows = triage(only_units, owned_units(flags.get("--me") or None))
+        print("Ownership is coordinated manually; apply --exclude=U[,U...]"
+              " before sharing a roster with another worker.")
+        rows = triage(only_units, excluded_units(flags.get("--exclude", "")))
         with open(rpath, "w") as fh:
             json.dump(rows, fh, indent=1)
         ta = [r for r in rows if r["tier"] == "A"]

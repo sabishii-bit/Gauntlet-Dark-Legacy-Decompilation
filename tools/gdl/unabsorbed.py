@@ -55,8 +55,7 @@ wf_word_diff.py already did, and the two already-closed populations get their
 own classes so no roster can fold them into the open one again.
 
 The metric was derived in the HV lane and lived only in
-tools/gdl/composed_census/hv_perm.py, so every ROSTER -- the regnorm census,
-the memory graph's `brief` -- ranked functions by size and by residual
+tools/gdl/composed_census/hv_perm.py, so older rosters ranked functions by size and by residual
 counts that say nothing about closability. This module is the shared home;
 the classifier itself is REUSED from ha_close, never re-derived (a prior
 census that re-derived it dropped the copy->copy arrow and mis-TIERED rows

@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
 """Resolve a commit citation to a DATE, an AGE and a RUN NUMBER.
 
-RUN-56 ITEM 5b, from CU's run-55 report: `"measured at c0f978273"` is
-unreadable as an age, and nothing in the project resolved a commit to a run.
-Records are anchored to commits on purpose (AGENTS.md: "Anchor records to
-code paths, target addresses/hashes, reproducible commands, or immutable
-commits — never to Markdown"), and that is the right anchor; it just could
-not be READ. Freshness is how this project ranks two disagreeing records, so
-an unreadable anchor is a record whose age cannot enter the ranking.
+Resolve historical experiment citations directly from Git history.
 
     $ python tools/gdl/whenrun.py c0f978273
     c0f978273  2026-09-03  age 1d  run 52  (reachable)
@@ -22,19 +16,11 @@ and never as an exact run when the span is ambiguous. A run with no marker
 cannot be invented, and pretending otherwise would put a wrong number where
 there is currently an honest blank.
 
-TWO-SIDED CALIBRATION at 2a90f8403 over `memory_graph/records`:
-  POSITIVE  1,144 records cite at least one hash-shaped token; 1,194
-            distinct tokens; 956 of them (80%) are commits in this repo and
-            resolve.
-  NEGATIVE  238 (20%) are NOT commits — source sha1s from defake_gate
-            baselines, object hashes, pin body digests, and commits that
-            only ever existed on a worker branch. They must be reported as
-            `not a commit here`, never guessed at: `--scan-records` prints
-            both populations and the tool never treats a non-commit as one.
+Source hashes and object digests are not necessarily Git commits. Inputs
+that do not resolve to commits are reported explicitly, never guessed.
 
 Usage (from the repo root):
   python tools/gdl/whenrun.py <hash> [<hash> ...]
-  python tools/gdl/whenrun.py --scan-records [--limit N]
   python tools/gdl/whenrun.py --runs            # the marker table itself
 
 IMPORTABLE CORE: run_markers, run_for_commit, resolve — pure over `git`
@@ -50,8 +36,6 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
-RECORDS = REPO / "memory_graph" / "records"
-HASH_TOKEN = re.compile(r"\b[0-9a-f]{9,40}\b")
 MARKER = re.compile(r"Stage run-(\d+) work claims")
 
 
@@ -148,50 +132,11 @@ def _format(row):
             f" ({reach})\n    {row['subject'][:100]}")
 
 
-def scan_records(limit=None):
-    hist = history()
-    markers = run_markers(hist)
-    seen = {}
-    for path in sorted(RECORDS.rglob("*.json")):
-        try:
-            blob = path.read_text(encoding="utf-8-sig")
-        except OSError:
-            continue
-        for token in set(HASH_TOKEN.findall(blob)):
-            seen.setdefault(token, []).append(path.name)
-    commits, non_commits = [], []
-    for token in sorted(seen):
-        row = resolve(token, markers=markers, hist=hist)
-        row["cited_by"] = len(seen[token])
-        (commits if row["is_commit"] else non_commits).append(row)
-    print(f"hash-shaped tokens in memory_graph/records: {len(seen)}")
-    print(f"  commits in this repository: {len(commits)}")
-    print(f"  NOT commits here:           {len(non_commits)}"
-          "   (source sha1s, object/body digests, worker-branch commits --"
-          " reported, never guessed)")
-    by_run = {}
-    for row in commits:
-        by_run.setdefault(row["run_floor"], 0)
-        by_run[row["run_floor"]] += 1
-    print("\ncited commits per run (floor):")
-    for run in sorted(by_run, key=lambda r: (r is None, r)):
-        print(f"  run {str(run):<5} {by_run[run]} commit(s)")
-    if limit:
-        print(f"\nfirst {limit} resolved citations:")
-        for row in commits[:limit]:
-            print("  " + _format(row).replace("\n", "\n  "))
-    return 0
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("tokens", nargs="*", help="commit hashes to resolve")
-    parser.add_argument("--scan-records", action="store_true",
-                        help="resolve every commit citation in the corpus")
     parser.add_argument("--runs", action="store_true",
                         help="print the run-marker table")
-    parser.add_argument("--limit", type=int, default=0,
-                        help="with --scan-records, also list N citations")
     args = parser.parse_args(argv)
 
     if args.runs:
@@ -205,9 +150,6 @@ def main(argv=None):
         for number, sha, date, _index in markers:
             print(f"  run {number:<4} {date}  {sha[:9]}")
         return 0
-
-    if args.scan_records:
-        return scan_records(limit=args.limit or None)
 
     if not args.tokens:
         parser.print_help()

@@ -42,8 +42,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 # --------------------------------------------------------------- site scanning
-# Kept deliberately in sync with memory_graph/core.py::_DEBT_CAST_RE so the
-# draft covers exactly the population `gdlmem.py debt` counts.
+# Recognize raw typed pointer accesses for the source-layout draft.
 CAST_RE = re.compile(
     r"\*\s*\(\s*(?P<ty>(?:const\s+)?(?:[us](?:8|16|32|64)|f32|f64|int|char"
     r"|short|long|float|double|void\s*\*|\w+\s*\*))\s*\*?\s*\)\s*\(")
@@ -496,8 +495,7 @@ def load_project_headers(root):
 
 
 def load_pdb(root):
-    """Parse research/xbox_symbols/*.h -- 1885 structs, vs the 227 that
-    xbox_structs.tsv (and therefore `gdlmem struct`) indexes."""
+    """Parse the reference struct headers under research/xbox_symbols."""
     out = {}
     xs = root / "research" / "xbox_symbols"
     if not xs.is_dir():

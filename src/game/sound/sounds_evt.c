@@ -232,7 +232,7 @@ struct sound_data {
  * views are not needed. Boss-stream formats are ordinary string literals.
  * AudioSetupBossStreams still has one extra instruction, and its jump-table
  * destinations therefore remain four bytes later than retail. Consult the
- * memory graph and fresh reports for current function-level status.
+ * Git history and fresh reports for current function-level status.
  * ---------------------------------------------------------------------- */
 
 /* --- sound-engine callees (game/audio/sndfx.c + audio.c, 0x8001xxxx) --- */

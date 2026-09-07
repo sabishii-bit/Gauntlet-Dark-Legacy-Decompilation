@@ -11,8 +11,8 @@ Run from the repository root:
 
     python tools/gdl/composed_census/t22_systemexit_blind_handlers.py
 
-It parses every module under tools/gdl, tools/gdl/composed_census and
-memory_graph with `ast`, collects the functions that can raise SystemExit
+It parses every module under tools/gdl and tools/gdl/composed_census
+with `ast`, collects the functions that can raise SystemExit
 (including wf_word_diff's `CountAsymmetric` subclass), and reports every
 `try` block that has an `except Exception` handler and calls one of them.
 A `try` that ALSO lists `except SystemExit` is reported as HANDLED, so the
@@ -27,7 +27,6 @@ import sys
 ROOTS = (
     os.path.join("tools", "gdl"),
     os.path.join("tools", "gdl", "composed_census"),
-    "memory_graph",
 )
 # SystemExit itself plus the subclasses the project defines.
 EXIT_NAMES = {"SystemExit", "CountAsymmetric"}
@@ -56,7 +55,7 @@ def _handler_names(handler):
 
 
 def main():
-    if not os.path.isdir("memory_graph"):
+    if not os.path.isfile("configure.py") or not os.path.isdir("tools/gdl"):
         print("run this from the repository root")
         return 2
     raisers = {}

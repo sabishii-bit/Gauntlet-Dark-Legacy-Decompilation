@@ -12,8 +12,7 @@ but rarely verifies:
 
 Motivating measurement (run 35, lane MT): a work order dispatched a lane
 to "write the MSL float trig TU [0x800EA674,0x800EAE2C)" whose banked
-roster was said to live in the graph. `gdlmem search trigf` returned only
-the work_claim itself, and this census showed all 40 MSL .text TUs at
+roster had not been independently verified. This census showed all 40 MSL .text TUs at
 100.00 fuzzy / 100.00 matched with zero gaps -- the region had been
 matched two commits earlier. Cost of the census: about three seconds.
 

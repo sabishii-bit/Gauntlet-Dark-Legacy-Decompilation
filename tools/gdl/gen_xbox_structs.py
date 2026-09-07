@@ -17,13 +17,13 @@ spelled `__unnamed` and are disambiguated here by Id (`__unnamed_3269`), per
 claim.offsetcast-recoverable-blockers-ranked (the old hand-built table
 indexed 227 of ~1,885 named records, leaving the struct op blind to 88%).
 
-Output format matches memory_graph.core._import_pdb_types exactly:
+Output format:
     S<TAB>name<TAB>size-decimal<TAB>category
     F<TAB>offset-decimal<TAB>size-decimal<TAB>fieldname
 
 Duplicate names across headers keep the FIRST definition seen; headers are
 processed game-side first so game records win name collisions. Rerun after
-any header refresh, then `python memory_graph/gdlmem.py build`.
+any header refresh.
 """
 
 from __future__ import annotations

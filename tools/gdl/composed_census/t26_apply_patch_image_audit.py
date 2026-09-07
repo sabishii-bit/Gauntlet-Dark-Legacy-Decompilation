@@ -52,7 +52,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent.parent
-ROOTS = ("tools/gdl", "tools/gdl/composed_census", "memory_graph")
+ROOTS = ("tools/gdl", "tools/gdl/composed_census")
 
 # Sites that pass the image. Kept as data so the audit reports a REGRESSION
 # (a site that stops passing it) as loudly as a new omission.

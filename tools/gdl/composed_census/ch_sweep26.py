@@ -4,7 +4,7 @@
 Difference from run-25's ch_sweep.py: that script SKIPPED owned TUs outright,
 so its output cannot serve as a census.  Measurement is free and ownership only
 bars AUTHORING, so this derives everywhere and TAGS ownership instead.  Run-26
-ownership is taken from the live `gdlmem claims` scopes, not from run-25's list.
+ownership annotations below are historical run-26 labels, not current claims.
 """
 import json
 import os
@@ -19,8 +19,8 @@ import cn_census as census  # noqa: E402
 import webfrank as wf  # noqa: E402
 import ch_derive  # noqa: E402
 
-# Run-26 claim scopes (gdlmem claims, 2026-09-01).  Authoring only; not a
-# measurement filter.
+# Historical run-26 ownership (2026-09-01), not a measurement filter or
+# evidence of current ownership. Coordinate current authoring separately.
 OWNED = {
     "game/pb/pb_window": "PW", "game/sfx/sfx": "PE", "game/world/items": "IT",
     "game/game/controls": "IH", "game/world/camera": "WF",

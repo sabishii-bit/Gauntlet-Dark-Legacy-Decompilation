@@ -92,5 +92,15 @@ class ToolErrorReportingTests(unittest.TestCase):
         self.assertEqual(hv_sweep.report_tool_errors(), 1)
 
 
+class ExplicitExclusionsTests(unittest.TestCase):
+    def test_no_implicit_historical_exclusions(self):
+        self.assertEqual(hv_sweep.excluded_units(), ())
+
+    def test_paths_are_normalized_and_deduplicated(self):
+        self.assertEqual(hv_sweep.excluded_units(
+            "game/b/b.cpp, game/a/a.c,game/b/b"),
+            ("game/a/a", "game/b/b"))
+
+
 if __name__ == "__main__":
     unittest.main()
