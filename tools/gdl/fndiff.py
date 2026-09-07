@@ -416,8 +416,57 @@ def stale_object_warning(objfile) -> str:
         " pre-postprocess object, which IS current.)")
 
 
+_PARSE_CACHE: dict[tuple, dict] = {}
+
+
 def parse(objfile: Path):
-    """Return {function_name: [normalized instruction/reloc lines]}."""
+    """Return {function_name: [normalized instruction/reloc lines]}.
+
+    Memoized per PROCESS on the file's identity, exactly like `objdump`
+    above and for the same reason one layer up. `objdump` caches the DUMP
+    TEXT, so a repeat `parse` skipped the two subprocesses but still re-ran
+    the whole two-pass regex reduction over ~2 MB of text every time.
+
+    MEASURED (run-59 item 6, build/t3_scratch/t3_parse_repro.py at
+    2651955ed): composing the whole-TU relocation screen of
+    game/enemy/enemy per function — 84 functions x 2 objects — made 168
+    `parse` calls costing 8.744 s of parse time inside a 17.99 s wall,
+    with the objdump memo already hitting on all 168. After this memo the
+    same loop makes 168 calls that cost 0.239 s, and one single-function
+    `wf_word_diff` run (4 calls over 2 objects) drops 0.271 s -> 0.070 s.
+
+    THE KEY INCLUDES mtime_ns AND SIZE, never the path alone. A stale
+    parse table is worse than a slow one: probe.py builds an object and
+    reads it in the same process, and a path-keyed memo would answer with
+    the PRE-BUILD instruction lines — a false `EXACT` describing bytes
+    that no longer exist. A rebuilt object has a new mtime and simply
+    misses, which `test_t16_objdump_cache` pins from both sides.
+
+    Callers get a FRESH dict of FRESH lists every time (the lines are
+    strings, which are immutable), so a caller that edits its table cannot
+    poison the next reader's. The copy costs ~0.3 ms for an 84-function
+    object against ~50 ms to re-parse it.
+    """
+    path = Path(objfile)
+    try:
+        stat = path.stat()
+        key = (str(path), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        key = None
+    if key is not None:
+        cached = _PARSE_CACHE.get(key)
+        if cached is not None:
+            return {name: list(lines) for name, lines in cached.items()}
+    table = _parse_uncached(path)
+    if key is not None:
+        if len(_PARSE_CACHE) > 512:         # a sweep, not a leak
+            _PARSE_CACHE.clear()
+        _PARSE_CACHE[key] = table
+    return {name: list(lines) for name, lines in table.items()}
+
+
+def _parse_uncached(objfile: Path):
+    """`parse` without the memo; every comment below describes this body."""
     aliases = compiler_private_aliases(objfile)
     out = objdump(objfile, "-dr")
     # First pass: which stripped names are UNIQUE? dtk-suffixed names strip
