@@ -1,0 +1,54 @@
+{
+  "attempted_axis": "First measured source-native screen of this 106/106 composed pin: existing real row/entry ownership, explicit byte-offset induction, staged directory address and initializer lifetime, including touching-axis joints. No exact candidate or production change.",
+  "attributes": {
+    "axis_log": [
+      "Prior CN closure unchanged and still sound: permutation0x24:0x38 order[3,0,1,4,2], then equivalent_copy_form at0x30 with dominating_def proof. No recolor stage. This finite source negative supersedes the live attempt head, not the correctness of the existing rule.",
+      "create1 full-ELF faithful baseline; A/B/AB each106/106 raw5, complete ELF identical to production raw.",
+      "create2 fresh full-ELF faithful baseline; C/D/ABC each106/106 raw12 and same ELF. Offset remains a literal-zero definition, and explicit induction exchanges its homes with counter/negative fill, adding downstream register differences. Moving off=i around base alone does not alter output.",
+      "create3 fresh full-ELF faithful baseline; E/F/FG each106/106 raw10, G106/106 raw5 and complete-ELF neutral. Staged raw/typed address operations reach codegen but do not recover target seed/interleaving.",
+      "create4 fresh full-ELF faithful baseline; EC/FC each106/106 raw17. This closes the mandatory joint test between staged-address and explicit-induction axes; the individually worse forms do not conceal a joint native win.",
+      "All12 changed source controls preserve all29 sibling bodies and per-function relocation lists, data/BSS/EH and symbols. Count remains106/106 throughout. No exact source installed; no existing pin or freshly native sibling modified."
+    ],
+    "evidence_bundle": {
+      "bytes": 13099665,
+      "files": 115,
+      "manifest": "build/r96_memdir_evidence_manifest.json",
+      "sha256": "e74b4fd286bdf2d112ac927e95d74f64fa9814d8c794f477d600ddc0af0f13b3"
+    },
+    "law_screen": "Whole current R96 corpus screen and fresh brief/context/Xbox read, with full CN and MP records. CN explicitly says no source probe; MP is classification only. variable-identity-reopens-address-pre-and-zero-copy supplies the falsifiable ownership hypothesis and bounds the broad live-zero-copy-vs-remat-is-allocator-not-source necessity claim. Full explicit-offset-accumulator-places-induction-updates-early read: target has bottom updates, so explicit induction is a discriminant, not presumed original source. declared-alias-vs-repeated-cast and recomputed-index-array-form-safe v2 screen genuine entry/table types; declaration-initializer and independent-statement-order laws screen the address/zero scheduling interaction. No FP or frame residual is present. Pragma rescope remains vetoed by MC memcard records. Raw positional, full ELF, sibling and data/EH preservation gates applied; no candidate reaches installation.",
+    "limitations": "A finite negative does not prove a missing compiler, wrong flags, or universal postprocessor necessity. Xbox MEMCARD.OBJ's neighboring local init_files is an ownership lead only, not a recovered helper body; no helper invented. Global storage extent must be established before changing extern u8[] into a concrete array or inferring port/slot dimensions.",
+    "measured_at_commit": "b50d7c89f",
+    "probed_form": "A: `DirEntry* e=(DirEntry*)(base+i*16)` with e->size/e->time/strcpy(e->name). B: real `DirTable* row` assigned `(DirTable*)lbl_80274578+port+slot`, preserving separate u8* base for later GetHiMemCacheTop role, and raw entry address `(u8*)row+i*16`. AB: B plus `DirEntry* e=&row->entries[i]` and named members. C: original source with actual int off; `i=0; off=i; base=...;` then e=base+off and i++/off+=16 at loop tail. D: C but off=i occurs immediately after base assignment. ABC: explicit early offset with typed row/entry and `(DirEntry*)((u8*)row+off)`. E: original base assignment split into `base=lbl_80274578; base+=port*132; base+=slot*132`. F: AB's actual row split into `row=(DirTable*)lbl_80274578; row+=port; row+=slot`. G: original i declared with initializer `int i=0` instead of later assignment. FG: F with G. EC/FC: early explicit offset jointly with E/F. No order change across calls or stores. Exact complete source forms and actual command traces archived.",
+    "raw_diagnosis": "Fresh106/106, five raw differing words, three positional mnemonic mismatches, zero relocation-symbol mismatches. At+0x24 target `li r29,0`; +0x28 `mulli r0,r27,132`; +0x2c `add r3,r3,r4`; +0x30 `addi r31,r29,0`; +0x34 `add r28,r3,r0`. Baseline emits the three address words before `li r29,0; li r31,0`. The loop's counter and byte-offset initializations are therefore both scheduled late, and the offset is rematerialized rather than copied from the live zero counter. Every other101 word is identical, including loop updates and frame/save set. This is schedule plus live-zero rematerialization, not pure recolor.",
+    "verification": "python build/r96_create_probe.py create1/create2/create3/create4 each asserts complete raw ELF baseline identity and all frozen production hashes after every candidate. Every allocated inventory includes BSS metadata, symbol and relocation identities and opaque EH. Fresh wf_word_diff after controls confirms baseline106/106 raw5. No native exact, linked datum certificate, new WebFrank rule or TU-flip claim."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/sys/memcard MemCardCreateGaunt",
+    "falsifier": "A new evidenced initialization ownership or actual complete-TU alignment yielding the target seed-plus-copy and address interleaving invalidates transfer of these finite controls.",
+    "premise_measurement": "Four full-ELF faithful baselines, twelve changed forms, all106/106; raw counts5/5/5/12/12/12/10/10/5/10/17/17. Production remains raw5 and uses the unchanged composed rule.",
+    "scope": "Only the twelve literal row/entry, explicit-induction, staged-address and initializer source forms at this exact complete-TU alignment. Do not repeat them without a genuinely changed premise."
+  },
+  "function": "function:MemCardCreateGaunt",
+  "held_fixed": "Actual stock GC/1.2.5 Ninja edge, compiler SHA256 0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914; all TU pragmas including opt_propagation off and opt_common_subs scopes, all29 siblings including native memCardErrorPrompt, original call/store order, eight16-byte entries in132-byte rows, original port*132+slot*132 mapping, frame184 and existing144-byte declaration. No artificial helper/aggregate/wrapper/qualifier/padding/compiler flag or new rule. Production source, objects, rules, splits and symbols frozen throughout.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "A proven existing initialization abstraction or corrected genuine data declaration producing the target preheader would reopen this bounded screen.",
+    "count_consequence": "Native closure must retain106 instructions, frame184 and all current sibling/data/EH bindings.",
+    "prescription": "Seek new real initialization or storage ownership evidence before another equivalent initializer or declaration matrix. Neighboring Xbox init_files alone does not justify a helper, and no new helper/pragma is prescribed.",
+    "screened_against_target": "yes: full106-word target/raw stream read, all entry dependencies and relocation bindings checked; no call to init_files in GC target.",
+    "statement": "The unresolved source mechanism is the creation and scheduling of the compiler-induced byte-offset zero relative to the real loop counter and directory address. Local row typing, source-declared offset and staged arithmetic do not recover it in this alignment."
+  },
+  "id": "attempt.R96_MemCardCreateGaunt-real-row-and-induction-controls.20260907.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-09-07T17:12:25Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-07",
+    "signature": ""
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.CN_memcardcreategaunt-composed-close.20260901.v1",
+  "valid_from": "2026-09-07"
+}
