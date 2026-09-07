@@ -1,0 +1,44 @@
+{
+  "attempted_axis": "Native 107/107 raw 17 remains best after the shared owner's 20-control matrix. Existing accurate EnemyFxPage is full-ELF neutral; ES's formerly production-aborted header-before-sentinel point now measures 29 raw, not a cure. Preserve the existing at cache, page/flags pre-dispatch identity and literal-zero improvements. Do not repeat this finite matrix unchanged.",
+  "attributes": {
+    "axis_log": [
+      "Preserve SW finite controls: split at assignment from condition byte-neutral; independent page field load before or after h recomputes and adds two instructions; declaration without initializer followed by leading idx=-1 before type guard preserves old 17-word clusters. New AFTER-guard and AFTER-header points are distinct and now measured.",
+      "Preserve pre-dispatch-w2's successful page/flags common identity and explicit at cache; direct-load singleton here is a calibration of its known two-extra-load defect, not a novel untried axis. ES's literal-zero improvement remains. Its proposed header-before-sentinel source point had previously aborted on a pinned sibling; private actual-Ninja controls now supply real measurements (Gem29, Combo41, fn_80094164 89 at count parity), removing that unmeasured-next-step ambiguity without rederiving a pin."
+    ],
+    "census": "Correct source census is 9 calls in 3 functions: Gem3, Combo2, fn_80094164 has4. Two consumers are pinned; Gem is not. A list of 8 TU pins is not a helper caller census. Existing EnemyFxPage uses the target-confirmed 218 headers, 45 death and 45 hit entries, +2976 Effect pool with 240 stride; all globals and original declarations remain fixed.",
+    "diagnosis": "Target first arm +0x2c 'addi r29,r30,948' then +0x30 'lwz r3,948(r30)'; raw loads at +0x2c then +0x30 'addi r31,r30,948'. Second arm target +0x9c 'addi r27,r30,936' then +0xa0 'lwz r3,936(r30)'; raw reverses these and uses the other header home. Entire third arm from +0x104 is exact at baseline. This is header-materialization/load scheduling plus local-home assignment, not the old pool load hoisting above a guard; ES already removed that component.",
+    "evidence": {
+      "anchor_commit": "a19494fcb",
+      "archive_files": 71,
+      "archive_manifest": "r90_sfx_manifest.json",
+      "archive_manifest_sha256": "84dea3799d308ca9cdcd5c62d179ff957bea5ed6817bcd3fb424d021ea9b5b23",
+      "archive_name": "gdl-r90-sfxhelper-evidence-20260907",
+      "detail_record": "attempt.R90_fn80094164-shared-owner-and-initializer-native-frontier.20260907.v1"
+    },
+    "law_screen": "Unchanged contract and full 289-law screen; TU brief, all target/raw streams, context/Xbox, full SW/R79/PR plus pre-dispatch-w2 and ES records read. Applied scalar-field-cache-defeats-call-boundary-reload, pre-dispatch-literal-web-feeds-case-call-args, block-allocation-order-is-textual-not-nesting-depth and shared-inline source-freeze discipline. Source initialization chronology is a candidate, not proof of emitted chronology. Count-asymmetric controls explicitly excluded from recolor classification. Complete pool/EH review required, not just raw opcode equality; no literal substitutions made.",
+    "probed_form": "20 shared controls: baseline and accurate EnemyFxPage singleton remain 107/107 raw 17. Post-type-guard sentinel is 32; valid-header declaration block or function-top header/idx declarations with h assignment then idx=-1 is 29; successful Effect* is 43; header block plus Effect* 62. Existing public direct h->atree reads and nested same produce 107/109, reproducing the old double-read defect; early null return 107/112; direct reads plus Effect* 107/109. Each form tested under old and accurate owner produces identical entire ELF within its pair. All moving equal-count controls break the previously exact third arm. No production candidate retained.",
+    "verification": "Original and same-basename entire-ELF fidelity passes; all 71 archived digests verified. All unrelated bodies preserved, but private geometry/EH changes are reported, not certified away. Production raw/processed/source/rules unchanged. Full graph/GDL suites pass; final graph/DOL/diff gates in handoff. No new rule or source artifact installed."
+  },
+  "denial": {
+    "expiry_check": "Rebuild and run wf_word_diff.py game/sfx/sfx StartGemFX; inspect all 3 target/raw arms and fidelity-certify complete scratch TU before a genuinely changed helper/source alignment probe.",
+    "falsifier": "An evidence-supported new source structure producing target header materialization before its atree load in the two constant arms while keeping 107/107, the exact variable arm, both pinned consumers and whole-object data/EH bindings exact.",
+    "premise_measurement": "Fresh 107/107, raw 17 = 13 REGFIELD plus 4 OPCODE schedule differences, 0 relocation-symbol mismatch; third variable-type arm exact. Accurate owner singleton matches entire baseline ELF. No candidate exact.",
+    "scope": "Only the archived 20-control shared-helper matrix and the preserved finite SW variants. No claim that every source-compatible helper boundary or MWCC version is incapable of matching."
+  },
+  "function": "function:StartGemFX",
+  "held_fixed": "Actual Ninja GC/1.2.5, exact ordered flags, complete same-basename sfx.c, headers/storage/pool literals, pragmas, normal helper, source order and all callers' selection/call/store order. Only P's existing owner/body plus 3 consumers' page-pointer types vary privately. No new helper, source wrapper, padding, rule or compiler option, and no production source retained.",
+  "id": "attempt.R90_startgemfx-shared-owner-and-initializer-native-frontier.20260907.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-07T16:09:18Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-07",
+    "signature": null
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.SW_startgemfx-the-residual-is-address-materialisation-before-load-not-a-guard-hoist.20260903.v1",
+  "valid_from": "2026-09-07"
+}
