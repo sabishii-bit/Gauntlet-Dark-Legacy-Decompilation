@@ -1672,40 +1672,34 @@ void AudioPlayerEatFood(int pidx, int foodType)
 
 void AudioPlayerEatSFX(int pidx)
 {
-    /* NOTE: this function's compiled body is pinned by a WebFrank rule
-     * (config/GUNE5D/webfrank.json), so its source SHAPE must not change --
-     * the byte-offset walk below is deliberately left in its original form
-     * rather than converted to Player member access.  Only the base
-     * derivation is respelled for the retyped gPlayers declaration;
-     * `(u8*)gPlayers + playerOffset` is the same arithmetic the previous
-     * `&gPlayers[playerOffset]` performed when gPlayers was `u8[]`. */
-    int playerOffset = pidx * 13148;
+    /* Keep the byte-offset calculation signed; sizeof alone would promote
+     * the multiplication to unsigned and change MWCC's index sharing.
+     * The default sound uses direct array members instead of rebasing player. */
+    int playerOffset = pidx * (int)sizeof(Player);
     int f284;
-    u8* player;
+    Player* player = (Player*)((u8*)gPlayers + playerOffset);
 
-    player = (u8*)gPlayers + playerOffset;
-    f284 = *(int*)(player + 284);
+    f284 = player->field_11C;
 
     if (f284 & 0x580000) {
-        sndFxPlay3DAtten(66, (int)(player + 68), 127, 40);
+        sndFxPlay3DAtten(66, (int)player->pos, 127, 40);
     } else {
         switch (f284 & 0xF) {
         case 1:
-            sndFxPlay3DAtten(68, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(68, (int)player->pos, 127, 40);
             break;
         case 2:
-            sndFxPlay3DAtten(70, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(70, (int)player->pos, 127, 40);
             break;
         case 3:
-            sndFxPlay3DAtten(69, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(69, (int)player->pos, 127, 40);
             break;
         case 4:
-            sndFxPlay3DAtten(67, (int)(player + 68), 127, 40);
+            sndFxPlay3DAtten(67, (int)player->pos, 127, 40);
             break;
         default:
-            player = (u8*)gPlayers + playerOffset;
-            sndFxPlay3DAtten(lbl_801236A4[*(int*)(player + 8)],
-                            (int)(player + 68), 127, 42);
+            sndFxPlay3DAtten(lbl_801236A4[gPlayers[pidx].char_type],
+                            (int)gPlayers[pidx].pos, 127, 42);
             break;
         }
     }
