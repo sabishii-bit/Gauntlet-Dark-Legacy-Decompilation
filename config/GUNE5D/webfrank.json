@@ -1396,16 +1396,6 @@
         }
       },
       {
-        "function": "CritterLineNodeColSub",
-        "before_sha256": "4fe4f25441134b3e375edd97faf35482a77056679ed21c467533a3aeadb2ec06",
-        "after_sha256": "ae004f3fff367edaf58b7940265e3c1bec60874b89e1d62aba91cdd4429bcf3d",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 75
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "CritterLookForCriticalMove",
         "before_sha256": "271b765584a18816b8b21b4267b1076a612af19d19358fe0af1f915e135a738d",
         "after_sha256": "3f03e5abb59b4f7e260ef22275564b5b93c3200b55e46ff717f9b521c18437d6",
