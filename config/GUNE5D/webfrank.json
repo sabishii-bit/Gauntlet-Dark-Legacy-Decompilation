@@ -1396,16 +1396,6 @@
         }
       },
       {
-        "function": "CritterLookForCriticalMove",
-        "before_sha256": "271b765584a18816b8b21b4267b1076a612af19d19358fe0af1f915e135a738d",
-        "after_sha256": "3f03e5abb59b4f7e260ef22275564b5b93c3200b55e46ff717f9b521c18437d6",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 75
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "CritterLineCollide",
         "before_sha256": "55e8457b86a0c856b9c3c281953f0cf5409fa0a83b6e7a7368b757221d1bd85c",
         "after_sha256": "2c1698f67d83392d148dcb8148d6cb66fb1e3812b09c6ea5fa37425cf0dc532a",
