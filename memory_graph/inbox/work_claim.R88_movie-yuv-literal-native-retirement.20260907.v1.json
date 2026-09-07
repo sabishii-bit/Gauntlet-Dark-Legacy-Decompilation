@@ -1,8 +1,12 @@
 {
   "attributes": {
     "integrator": "codex-root",
+    "planned_source_files": ["src/game/movie/movie_runtime.cpp"],
+    "ownership_note": "The new source is explicitly assigned here as planned_source_files; add its owned_units entry atomically with file creation. The claim resolver cannot resolve a not-yet-created source or a src-normalized directory on a clean checkout. No additional movie source edits are authorized beyond movieplayer.cpp and planned movie_runtime.cpp.",
     "owned_units": [
-      "game/movie/movieplayer.cpp"
+      "game/movie/movieplayer.cpp",
+      "config/GUNE5D/splits.txt",
+      "configure.py"
     ],
     "scope": "Worker r79_newcam: private native retirement via genuine YUV literal storage, beginning exact128.0f then precise same-type coefficient subset/joint controls. Existing alias/order history held external storage fixed. Fresh53/53raw9 REGFIELD includes adjacent fsubs transposition, not pure bijection; target+1c lfd f4 versusrawf3. No FP reassociation, dropped rounding, type widening, new helper/pragma/rule or class constructor rewrite. Whole actual Ninja baseline ELF, all siblings/data/EH/positionally anchored literal bindings required. Current partial sdata2 ownership is a separate obligation; a raw0 candidate alone does not authorize arbitrary pool matching or data/splits claims."
   },

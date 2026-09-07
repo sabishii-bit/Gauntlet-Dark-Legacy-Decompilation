@@ -2,7 +2,9 @@
   "attributes": {
     "integrator": "codex-root",
     "owned_units": [
-      "game/pb/pb_texture.c"
+      "game/pb/pb_texture.c",
+      "tools/gdl/composed_census/r71_texture_source_probe.py",
+      "tools/gdl/tests/test_r71_texture_source_probe.py"
     ],
     "scope": "Worker r77_literal_scout: fresh65/65 raw18 REGFIELD, no relocation mismatch. Probe genuine existing TEXDESCENT row/descriptor-field-address identity while preserving descriptor reloads across calls. Prior attempt.pb-texture-defakematch-tu-pass.20260830.v1/v2 cached descriptor-local failure remains a finite veto, not permission to repeat it; new row plus field-address carrier differs. Target+0x80 lwz r4,48(r31), +0x9c lwzx r7,r28,r0 versus current lwz r6,48(r31), lwzx r7,r7,r30. Whole Ninja baseline ELF before private controls; all siblings/datums/EH/bindings mandatory. Do not name or reconstruct unknown descriptor flag ownership, alter reload semantics, add scaffolding, flags or rules. No production pin drift before native candidate independently proven."
   },
