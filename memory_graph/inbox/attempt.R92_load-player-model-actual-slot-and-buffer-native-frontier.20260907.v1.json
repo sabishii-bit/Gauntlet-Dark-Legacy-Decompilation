@@ -1,0 +1,44 @@
+{
+  "attempted_axis": "Existing PlayerModelSlot array, tbuf buffer, actual field-pointer types, explicit signed byte-stride identity and authorized old-CSE-setting removal did not retire the current native 80/80 raw30 rule. Forty-seven successful complete-TU controls are archived. Equal-length typed controls trade coloring for a different class-load shape, not an improvement. Do not repeat this finite owner matrix unchanged; no source-impossibility or compiler-necessity claim.",
+  "attributes": {
+    "axis_log": "PL's retained call-site reassociation pot+(prod+1300) and extension of the existing opt_common_subs off bracket remain production: previously81 then80 instructions. R92 changes the previously held raw pot/q/member ownership jointly with only the authorized old setting. HV's proof remains valid: an inconsistent whole-function positional register map does not disprove consistent per-value-web recoloring; do not resurrect PL's old eligibility denial. Geo and subfunction prior declaration/cache controls were read but not replayed or changed here.",
+    "diagnosis": "Baseline target +0x10 'addi r28,r3,0' versus raw 'addi r29,r3,0' is player index; target +0x20 'mulli r30,r28,76' versus raw 'mulli r27,r29,76' retains signed model stride across calls; target +0xa8 'add r30,r29,r30' versus raw 'add r26,r30,r27' is the after-sprintf model base. Target +0xc8 'mr r26,r3' versus raw 'mr r29,r3' is the returned model handle. Target's +0x28 'lwz r26,3140(r3)' class load must remain a displacement load. Typed indexed+explicit-stride controls instead emit +0x1c 'addi r0,r3,3140' and +0x28 'lwzx r27,r29,r0', with global relocation movement despite count parity. Naming actual model fields therefore perturbs the earlier Player-class addressing/allocator input, not only the model-field homes.",
+    "evidence": {
+      "anchor_commit": "3e1d9c0df",
+      "archive_files": 121,
+      "archive_manifest": "r92_model_manifest.json",
+      "archive_manifest_sha256": "41658dfc34ae58a5cfb059ecb76abac4fd430a9d29c5c28f3c1c748cd8db051c",
+      "archive_name": "gdl-r92-playermodel-evidence-20260907",
+      "compiler_sha256": "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914",
+      "detail": "controls/r92_report.json carries every successful source/object hash, exact commands, full object inventory, raw/target disassembly and field-class screens. r92_model_probe.py and r92_model_finalize.py reproduce the corpus and integrity closure. C89-invalid mid-block declaration and initial malformed token-replacement generator failures are explicitly excluded from47; corrected field-alias source is counted. The initial malformed source was overwritten and is not claimed archived.",
+      "raw_baseline_sha256": "5e3ed22ad2395d136467e1ff32bb3778257aefa44bc33c6620be2ae53971ff16"
+    },
+    "law_screen": "Current full289-law corpus screened, brief/context/Xbox and full PL/HV/geo/sub histories read. Applied claim.law.reload-vs-cache-liveness.20260829.v1, claim.law.point-of-use-single-use-pointer-delay.20260830.v1, claim.law.direct-global-member-flips-index-base-association.20260831.v1 and claim.law.multifield-alias-defeats-indexed-addressing.20260830.v2 as scoped hypotheses, not universal cures. claim.law.tu-wide-literalization-requires-joint-source-and-pool-binding-review.20260906.v2 enforces full storage/binding review; no storage literalization or final-link candidate is retained. Source-freeze and declaration/initializer discipline observed; equal instruction counts and raw word totals are explicitly not shape proof.",
+    "next_hypothesis": "The actual Player-class read and global character/name table ownership remain untested jointly with true model-array ownership. First resolve those owners/prototypes and inspect why target keeps the initial class read displacement-based while typed model fields turn it indexed. This is a new semantic source-ownership investigation, not another array-pointer spelling or declaration-order sweep; it is not measured here and needs a fresh claim/screen.",
+    "ownership": "True static tbuf[32] at0x80275394 and player_multiple_models[4] at0x802753b4 already own storage. PlayerModelSlot is76 bytes; arena+16, model_buf+36, anim_buf+48, sfx_arena+52, sfx_remap+56, sfx_max+60, sfx_buf_max+64, sfx_buf+72. Existing subfunction and GC loads/stores corroborate these identities. No PlayerGeoBssView or synthetic aggregate is used. Bare symbol span is not asserted to prove array dimensions or original C provenance.",
+    "probed_form": "47 successful controls /46 edits /36 distinct edited ELFs. Baseline80/raw30; tbuf or first actual-slot singleton80/raw35. Indexed field owners81, pointer owners82; actual arena-pointer types and signed sizeof stride each full-ELF neutral80/raw30. Four singleton field owners82, authorized default-CSE joints81; both real pointer types+field owners81/default82. Direct slot fields78/default76; retaining each genuine field-address alias individually79. Explicit signed byte stride plus indexed owners80/raw30, plus all actual owners80/raw33; pointer-stride forms81; either all-owner default-CSE joint80/raw67. Signed stride plus tbuf or first slot individually80/raw30 but structurally different. Same-point prod declaration initializer80/raw23 changes frame56 to64 and class-load addressing; raw23 is not a recolor improvement. Early actual-slot pointer80/raw62, plus tbuf/default80/raw65. Named tbuf pointer forms81. Count-asymmetric positional word lists are diagnostic alignment only, not recolor distances.",
+    "verification": "All121 external archive digests verified. All unrelated raw function bodies and nontext data outside EH remain unchanged across successful controls, but own-body geometry, EH, symbol/relocation positions do not uniformly hold. No candidate final-address binding certificate or native installation is claimed. Frozen production source/raw/processed/target/rules/splits unchanged; rules retired0. Final suites, graph and DOL gates are reported in commit handoff."
+  },
+  "denial": {
+    "expiry_check": "Rebuild and run python tools/gdl/composed_census/wf_word_diff.py game/game/player load_player_model --decode, then compare full target/raw and reproduce archived complete actual-Ninja baseline before a genuinely changed source-ownership alignment.",
+    "falsifier": "A source-supported different ownership/helper form reaching native 80/80 raw0 with exact positional bindings and all player siblings, data and EH preserved.",
+    "premise_measurement": "Fresh actual-Ninja baseline is 80/80, 30 REGFIELD-ONLY, 0 mnemonic divergence, 0 relocation-symbol mismatch. Original and same-basename scratch full raw ELF fidelity pass. Only real arena-pointer typing and signed sizeof stride are full-ELF neutral; no candidate native-exact.",
+    "scope": "R92's explicit 47 successful complete-TU owner/stride/buffer controls, not all possible parent Player/global-table or helper architectures."
+  },
+  "function": "function:load_player_model",
+  "held_fixed": "Actual Ninja GC/1.2.5, ordered cflags_demo, complete same-basename player.c, target/splits/rules, original global storage declarations, headers, arithmetic and call/store order, all siblings including ExpToLevel and load_player_model_sub fixed. Initial controls retain load_player_model opt_common_subs off; named default-CSE joints remove only the formerly-added bracket for this function, retaining the original subfunction off/reset bracket. No new settings, helpers, wrappers, synthetic aggregates, padding or production edits.",
+  "id": "attempt.R92_load-player-model-actual-slot-and-buffer-native-frontier.20260907.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-07T16:43:30Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-07",
+    "signature": null
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.PL_load-player-model-cse-break-and-pragma-bracket.20260901.v1",
+  "valid_from": "2026-09-07"
+}
