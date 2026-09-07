@@ -1506,29 +1506,19 @@ static s32 ModifyExp(Player* p, s32 delta) {
     return res;
 }
 
-/* Inverse of LevelToExp: scan 99..1 for the level exp buys (running
- * rate = lv*30 maintained incrementally, 99-step guard). */
+/* Inverse of LevelToExp: scan 99..1 for the level exp buys, using the
+ * shared level curve. */
 s32 ExpToLevel(s32 exp) {
-    s32 need;
-    s32 rate;
     s32 lv;
-    s32 product;
+    s32 need;
 
     lv = 99;
-    rate = 2970;
     while (lv != 0) {
-        if (lv <= 60) {
-            need = (lv - 1) * (rate + 1000);
-        } else {
-            product = (lv - 60) * 4600;
-            need = 0x28550;
-            need += product;
-        }
+        need = CalcLevelExp(lv);
         if (exp >= need) {
             return lv;
         }
         lv--;
-        rate -= 30;
     }
     return 1;
 }
