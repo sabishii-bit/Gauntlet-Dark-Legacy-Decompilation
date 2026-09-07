@@ -110,8 +110,10 @@ retirement of ONE function's rule against the previous state, not the
 correctness of the recovered source, not compiler-internal causality, and
 not the absence of other units' drift.
 
-IMPORTABLE CORE: classify_word, classify_stream, object_image, normalize_relocations
--- pure over words/parsed objects; no build and no printing.
+IMPORTABLE CORE: classify_word, classify_stream, object_image,
+normalize_relocations, section_bases, relocation_addresses,
+resolve_relocation_symbol, resolve_relocations -- pure over words/parsed
+objects and the read-only config; no build and no printing.
 """
 from __future__ import annotations
 
@@ -129,6 +131,9 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tools.fix_exception_objects import Elf
+from tools.gdl import fndiff
+from tools.gdl import pool_owner
+from tools.gdl import poolval
 from tools.gdl.composed_census import cv_probe as cv
 from tools.gdl.composed_census import wf_word_diff as wd
 from tools.gdl.exception_metadata import exception_records
@@ -213,6 +218,111 @@ def normalize_relocations(rows, source):
             offset -= 2
         out.append((offset, kind, name, addend))
     return sorted(out)
+
+
+_SPLIT_RUNS = None
+_RELOCATION_ADDRESSES = None
+
+
+def section_bases(unit, runs=None):
+    """{section name: linked base address} for one unit's split runs.
+
+    A section claimed by MORE THAN ONE run is omitted: with two runs an
+    offset into the section does not determine an address, and picking one
+    is how a wrong binding would read as equal.
+    """
+    global _SPLIT_RUNS
+    if runs is None:
+        if _SPLIT_RUNS is None:
+            _SPLIT_RUNS = pool_owner.load_splits()
+        runs = _SPLIT_RUNS
+    counts, bases = {}, {}
+    for owner, section, start, _end in runs:
+        if owner != unit:
+            continue
+        counts[section] = counts.get(section, 0) + 1
+        bases[section] = start
+    return {section: base for section, base in bases.items()
+            if counts[section] == 1}
+
+
+def relocation_addresses(symbols=None):
+    """{symbol name: linked address} from symbols.txt, dtk suffixes included.
+
+    dtk spells a file-local symbol `gendir_8004FBC8` while our object emits
+    it as `gendir`, so the stripped spelling is registered as an alias --
+    but ONLY when it is unique and does not collide with a real symbol.
+    `fndiff.strip_dtk_suffix` is the one reduction (run-59 item 4) and its
+    placeholder guard is what stops 4,282 `lbl_*` names collapsing onto the
+    single key `lbl`.
+    """
+    global _RELOCATION_ADDRESSES
+    cache = symbols is None
+    if cache and _RELOCATION_ADDRESSES is not None:
+        return _RELOCATION_ADDRESSES
+    if symbols is None:
+        symbols = poolval.load_symbols()
+    table = {name: info["addr"] for name, info in symbols.items()}
+    counts = {}
+    for name in table:
+        stripped = fndiff.strip_dtk_suffix(name)
+        if stripped != name:
+            counts[stripped] = counts.get(stripped, 0) + 1
+    aliases = {}
+    for name, address in table.items():
+        stripped = fndiff.strip_dtk_suffix(name)
+        if stripped != name and stripped not in table \
+                and counts[stripped] == 1:
+            aliases[stripped] = address
+    table.update(aliases)
+    if cache:
+        _RELOCATION_ADDRESSES = table
+    return table
+
+
+def resolve_relocation_symbol(name, bases, addresses):
+    """The linked ADDRESS a relocation's symbol denotes, or None.
+
+    RUN-59 ITEM 11. `positional_relocations` compared relocation SYMBOL
+    NAMES, and the two sides of a retirement never spell a pool datum the
+    same way: `object_image` normalizes our anonymous MWCC pool label to
+    its allocation -- `("@", ".sdata2", 572, 4, 1, 0)` -- while dtk names
+    the same datum `lbl_80346A4C`. Every enemy and critter retirement fails
+    on that, on a NAMING limitation rather than a binding difference: the
+    ER lane hand-verified all 14 of gendir_8004FBC8's bindings (same
+    offset, type and addend, identical resolved addresses) while the audit
+    reported FAIL.
+
+    Both spellings denote an address, so both are resolved to one:
+      * an anonymous entry, to its section's claimed base in splits.txt
+        plus its offset in that section;
+      * a named entry, to its symbols.txt address.
+    An unresolvable name is returned as None so the caller keeps the NAME
+    and the comparison stays fail-closed -- a datum whose ownership is not
+    claimed must not silently compare equal to anything.
+
+    This is a naming resolution, not a value-equality relaxation. The
+    section BYTES are compared separately by `allocated_sections`, so a
+    pool that holds different data still fails there; what this removes is
+    only the difference in how the two toolchains SPELL the same address.
+    """
+    if isinstance(name, (list, tuple)):
+        if len(name) < 3 or name[0] != "@":
+            return None
+        base = bases.get(name[1])
+        return None if base is None else base + name[2]
+    return addresses.get(name)
+
+
+def resolve_relocations(rows, bases, addresses):
+    """`rows` with every resolvable symbol replaced by its address."""
+    out = []
+    for offset, kind, name, addend in rows:
+        address = resolve_relocation_symbol(name, bases, addresses)
+        out.append((offset, kind,
+                    ["address", address] if address is not None else name,
+                    addend))
+    return out
 
 
 def _reloc_types_by_index(*reloc_lists):
@@ -755,11 +865,24 @@ class Audit:
         try:
             a = normalize_relocations(ours["relocations"], "ours")
             b = normalize_relocations(target["relocations"], "target")
+            bases = section_bases(self.unit)
+            addresses = relocation_addresses()
         except Refused as error:
             return self.record("positional_relocations", "REFUSED", reason=str(error))
+        # Run-59 item 11: compare the ADDRESS each relocation binds, not the
+        # two toolchains' different spellings of it. Unresolvable names keep
+        # their name and still have to match verbatim.
+        a = resolve_relocations(a, bases, addresses)
+        b = resolve_relocations(b, bases, addresses)
 
         def rows(table):
             return [[o, RELOC_TYPE_NAMES[k], n, add] for o, k, n, add in table]
+
+        def unresolved(table):
+            return sorted({n if isinstance(n, str) else tuple(n)
+                           for _o, _k, n, _a in table
+                           if not (isinstance(n, list) and n and
+                                   n[0] == "address")}, key=repr)
 
         return self.record("positional_relocations", "PASS" if a == b else "FAIL",
                            our_count=len(a), target_count=len(b),
@@ -767,8 +890,17 @@ class Audit:
                            differences=[[x, y] for x, y in
                                         zip(rows(a) + [None] * len(b), rows(b) + [None] * len(a))
                                         if x != y][:20],
+                           section_bases={s: f"0x{b_:08x}"
+                                          for s, b_ in sorted(bases.items())},
+                           unresolved_ours=unresolved(a),
+                           unresolved_target=unresolved(b),
                            normalization="R_PPC_EMB_SDA21 offsets moved from "
-                                         "instruction+2 (MWCC) to instruction+0 (dtk)")
+                                         "instruction+2 (MWCC) to instruction+0 (dtk);"
+                                         " symbols resolved to linked addresses"
+                                         " (anonymous pool label -> its section's"
+                                         " splits.txt base + offset; named symbol ->"
+                                         " its symbols.txt address). Unresolvable"
+                                         " names are compared verbatim.")
 
     # -- the rest of the TU ------------------------------------------------
     def siblings(self):
