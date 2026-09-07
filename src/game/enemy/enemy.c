@@ -294,17 +294,26 @@ typedef union EnemyRuntimeOwner {
 EnemyRuntimePool lbl_80250E40;  /* 0x80250E40 */
 s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
 
-/* .bss first-use-order referencer.  MWCC allocates referenced bss symbols in
- * FIRST-USE order (then unreferenced ones in reverse declaration order); in
- * the original TU the earlier functions touch the scratch arrays before any
- * gEnemies access, anchoring the pool at lbl_80250E00 with gEnemies at +0xE18.
- * This unreferenced static reproduces that order and is stripped by mwld
- * (stripped functions still order the section - see docs/matching-recipes). */
+/* .bss first-use-order referencer.  MWCC allocates a bss object at the first
+ * reference that is compiled with the object already defined, in first-use
+ * order; everything it did not allocate that way follows in reverse definition
+ * order.  In the original TU the earlier code touches the scratch arrays before
+ * any gEnemies access, anchoring the pool at lbl_80250E00 with gEnemies at
+ * +0xE18.  This unreferenced static reproduces that order and is stripped by
+ * mwld (stripped functions still order the section).
+ *
+ * It must stay a LEAF, and it must not create a constant: a call here gives it
+ * an unwind record the linked image has none for, so the object carries one
+ * extab/extabindex record more than the target (measured 0x248/0x36C vs
+ * 0x240/0x360, 73 vs 72 records); and an `f32` zero here enters the anonymous
+ * constant pool at a new creation point, renumbering .sdata2 and moving every
+ * @sda21 displacement in the linked image (measured 183 differing DOL bytes).
+ * The integer store below references the vector without doing either. */
 static void enemy_bss_order(void)
 {
     lbl_80250E00[0] = 0;
     lbl_80250E40.words[0] = 0;
-    memset(lbl_802510F4, 0, sizeof(f32));
+    *(u32*)lbl_802510F4 = 0;
     lbl_80251100[0] = 0;
     lbl_80251148[0] = 0;
     lbl_802511FC[0] = 0;
@@ -8503,7 +8512,7 @@ s32 fn_80051480(f32* pos)
 {
     u8 unused[16];
     s32 best_idx = -1;
-    register f32 best_dist = 100000.0f;
+    f32 best_dist = 100000.0f;
     u8* node = sMilestones;
     s32 i;
 

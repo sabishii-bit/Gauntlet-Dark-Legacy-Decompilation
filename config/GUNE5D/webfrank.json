@@ -1375,9 +1375,9 @@
     },
       {
         "function": "CritterResolveMultipleTargets",
-        "before_sha256": "aa900ce7a9017394126cce19298bc130850f5356d20f7ac4f45f71c138a108cb",
+        "before_sha256": "c2cf33b3bd25d93b5eaca7e4295bd588f65933bfc17bb538568ce98c54cc6851",
         "after_sha256": "c9a716df57842e310244967d3b3469842a990436e65d0210a35ff9d5fff11458",
-        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.' The audit escape is removed and replaced by a machine proof. attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1 measured what was still missing after its datum screen: 'The datum screen closes the catastrophic sub-case for all of them -- a wrong constant bound -- but a use-side value crossing among NON-RELOCATED registers remains unproven in those six.' That crossing is exactly what verify_value_equality_recolor now proves here. claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 named this the one unproven pin its image-wide sweep retires: '111 insns, is served TODAY by copy_register_fields + unproven_recolor_audit ... The closure PROVES it with 4 substitutions, 0 exchanges, byte-equal.' Reproduced this run through the real apply_patch: four declared substitutions, +0x48 g29->g5, +0x19c g30->g28, +0x1a0 g29->g5, +0x1a8 g30->g28, and the narrow relation refuses the same rule with '+0x1a8: use of g30 is not value-equal to g28'. The census's staging IS the build's staging for this rule (no permutation, no form stage), so the two agree by construction. verify_datum_binding proves 5 bindings by name; 2 words rest on the pool correspondence alone (uninitialised data), which is the pre-existing state this rule does not change.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.' The audit escape is removed and replaced by a machine proof. attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1 measured what was still missing after its datum screen: 'The datum screen closes the catastrophic sub-case for all of them -- a wrong constant bound -- but a use-side value crossing among NON-RELOCATED registers remains unproven in those six.' That crossing is exactly what verify_value_equality_recolor now proves here. claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 named this the one unproven pin its image-wide sweep retires: '111 insns, is served TODAY by copy_register_fields + unproven_recolor_audit ... The closure PROVES it with 4 substitutions, 0 exchanges, byte-equal.' Reproduced this run through the real apply_patch: four declared substitutions, +0x48 g29->g5, +0x19c g30->g28, +0x1a0 g29->g5, +0x1a8 g30->g28, and the narrow relation refuses the same rule with '+0x1a8: use of g30 is not value-equal to g28'. The census's staging IS the build's staging for this rule (no permutation, no form stage), so the two agree by construction. verify_datum_binding proves 5 bindings by name; 2 words rest on the pool correspondence alone (uninitialised data), which is the pre-existing state this rule does not change. PIN MAINTENANCE 2026-09-07 (CP lane, pool-order campaign): the source carrier `decrement = lbl_803464A8` was an extern placeholder standing in for a compiler literal -- 0x803464A8 is an anonymous POOL datum (f32 1.0) inside critter's own .sdata2 run, first read by CritterCollideWorld+0x248, and our object already emits that exact datum as @208 from CritterCollideWorld. Recovering it as `1.0f` moves the raw residual 62 -> 56 differing words with the pool byte-equal (29 .sdata2 entries, identical offsets/sizes/values), one relocation row changed (+0x26 lbl_803464A8 -> @208, the datum the target names at the corresponding +0x24), one function body moved out of 86, and .text/.rodata/.sdata2/extab/extabindex sizes and every exception record identical. before_sha256 was re-derived through the real guarded replay (t16_rederive_body.py --apply): BODY-MOVED aa900ce7 -> c2cf33b3, the value-equality recolor re-proved its 4 substitutions and 0 comparison exchanges, and the result is BYTE-EQUAL after re-hashing (56 words changed). after_sha256 -- the target's body -- is unchanged, as it must be. No rule was authored or extended to preserve the change.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 111
@@ -1544,8 +1544,8 @@
           ],
           "before_sha256": "0c159a567645ccb5be9d4eed5b75893c96486304c180f71ff61ce90db560c89c",
           "after_sha256": "12891e8071e194eb938aa94d8edcb51a7f6b61739bd8df824e69fabadfbb74e8",
-          "before_relocations_sha256": "82c03db0e4791ec0d53d56c29141469cd0246c32c91d25b6cb01abc6fd4e05fc",
-          "after_relocations_sha256": "dc4fc105155cfa0894f998ae9dfe196cdb3e64e65ec1d240e9a09ff89df28ed4"
+          "before_relocations_sha256": "5cc92a5a048369d7a430f91bc906595ff386d10f2b2fe2303d2009765966156e",
+          "after_relocations_sha256": "7e934f1aea64f25f23d4d6cbbc814bf62101fdda76fdb6d52a3a4514a1fa8095"
         }
       ],
       "copy_register_fields": true
@@ -1572,8 +1572,8 @@
           ],
           "before_sha256": "1f25855d832a8568a492077e7ca0f60d8d010e14ee680ba02287bddc49d3b898",
           "after_sha256": "632794d5cba761fe5c5f2a052a45e51b74f2c67c045472e7d63bcd1fc3cf7fdc",
-          "before_relocations_sha256": "367074387440b48d3f96c326e69f950a695c4f22994afa6854f263f5850fcc02",
-          "after_relocations_sha256": "8a7fa6f448c7d0a9429e67c94280a8c634477f37e0dc5c6a61e28dd60472c21a"
+          "before_relocations_sha256": "44d2f99304df334320c84d2f7571d200e04cf81dc17abbac6ac2c1c9e1ecf5da",
+          "after_relocations_sha256": "938786bb57224e746099850de2bd18c99e9c94112ad6caf2621279b26dd2450e"
         }
       ],
       "copy_register_fields": true
