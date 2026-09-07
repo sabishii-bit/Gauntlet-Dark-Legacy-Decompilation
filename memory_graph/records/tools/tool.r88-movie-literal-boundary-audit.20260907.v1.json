@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "command": "python tools/gdl/composed_census/r88_movie_literal_boundary_audit.py --archive <bundle-root>",
+    "constraints": [
+      "Read-only, no compile or production changes.",
+      "Requires exact hash-anchored 213-file evidence bundle; no rebuild is silently substituted.",
+      "PASS_CONDITIONAL_ONLY means native function bytes, not native linked TU or rule retirement.",
+      "Opaque EH comparison does not decode exception payloads. Binding strengths do not prove final linked addresses.",
+      "Tested ownership cuts fail joint obligations; do not use this output to authorize inline global delete, filler, or weakening DTK."
+    ],
+    "entrypoint": "tools/gdl/composed_census/r88_movie_literal_boundary_audit.py",
+    "tests": "tools/gdl/tests/test_r88_movie_literal_boundary_audit.py"
+  },
+  "id": "tool.r88-movie-literal-boundary-audit.20260907.v1",
+  "kind": "tool",
+  "name": "R88 conditional YUV literal and boundary evidence replay",
+  "purpose": "Verify the immutable private R88 bundle and recompute native instruction closure plus the incompatible tested pool/EH boundary constraints; never certify production retirement.",
+  "recorded_at": "2026-09-07T15:59:59Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "r88_movie_literal_boundary_audit",
+  "tool_kind": "analysis",
+  "valid_from": "2026-09-07"
+}
