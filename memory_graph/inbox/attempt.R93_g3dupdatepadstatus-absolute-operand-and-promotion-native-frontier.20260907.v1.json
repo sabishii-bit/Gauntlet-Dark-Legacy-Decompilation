@@ -1,0 +1,48 @@
+{
+  "attempted_axis": "Commutative XOR source-operand order in the four existing signed-byte absolute comparisons; direct conditional and add/XOR equivalent expressions; natural int promotion versus existing signed-long shift casts, plus coherent long casts, separately on aggregate/pad operands and jointly.",
+  "attributes": {
+    "archive": {
+      "bytes": 6626561,
+      "contents": "Root census script/JSON, full target assembly, all private source/object/inventory/assembly controls, baseline raw/processed/target objects and exact Ninja traces, graph/law screens, semantic check and standalone replay driver. Initial mislabeled promotion prototype preserved separately. All copied hashes verified; no original DOL/PDB/compiler executable.",
+      "files": 231,
+      "id": "r93-padabs-20260907-5e03dc174",
+      "manifest_sha256": "1432077fbf546bcace4873b349cb62a1cdb34a162fb776e369a72b234cc1915a"
+    },
+    "axis_log": [
+      "Legacy attempt.parked.g3dupdatepadstatus.20260829.v1 records explicit temps/helper regressed but no literal forms. It remains a finite veto only on those named axes; not reproduced here.",
+      "Read R60_do-enemy-move-route-reload-inline-and-local-controls and R63_do-enemy-move-address-fold-closes-enemy-tu fully. Existing enemy ABS value^sign versus ABS_REVERSED sign^value is a real source precedent, not a guaranteed cure for controller s8 inputs.",
+      "XOR operand left/right/both reversal: all282/282 raw32/frame64, byte changes do not improve the full residual.",
+      "Direct x<0?-x:x left/right/both:282/290,282/290,282/298; full differing_words=null. Adds control flow; no keep. Metadata moves with changed text extent, not diagnosed as independent metadata corruption.",
+      "Equivalent (x+sign)^sign left/right/both:282/282 raw32/frame64, no native match.",
+      "s32 is signed long; bare s8 promotes to int. Removing shift casts or replacing with int: left36/right44/both48 raw words, natural and explicit-int forms identical. Joint reversal of all XORs preserves those counts and changes bytes without a cure.",
+      "Making XOR value explicitly s32 (all-long subexpression), left/right/both with both operand orders:36/44/48. With existing operand order, all-long and all-int generate identical new ELFs despite both differing from the original mixed-type expression. This is an observed per-expression front-end-type effect, not a general compiler law.",
+      "The initial r93_pad_promotions prototype generated two duplicate both-side controls and reversals on the other side under ambiguous _value_first labels. Preserved as raw history, excluded from31 final rows. Corrected r93_pad_promotions_corrected uses explicit _all_value_first labels and actually reverses all eight XORs; archived source and outputs are authoritative."
+    ],
+    "baseline": "At5e03dc174 fresh full actual-Ninja ELF equality verified against active raw object: SHA256196b699e7118678f64afc5fb4817ef11fe11b030ed2dcaa1dbb10c3f1ffc594a. Target/current282/282 instructions, raw32 differing words, frame64, four functions in TU. Target GUNE5D G3DUpdatePadStatus at0x800D811C.",
+    "census": "Root's pre-probe syntactic census:257 currently configured code-bearing target objects,2990 functions,34 srawi31/xor/subf candidate windows in8 functions;8 pad,10 enemy-move,6 enemy-collide,2 camera and8 dcs. Archived script/JSON include per-object and function hashes. This bounded register-flow window census is not an exhaustive abs recognizer or def-use/semantic proof; intervening writes can defeat a candidate and require aligned review. No semantic class-wide conclusion inferred.",
+    "law_screen": "Current law corpus, function context/brief and XOR residual screen read; complete claim.law.int-vs-signed-long-extern-reorders-schedule.20260831.v1 read as scope-limited precedent motivating promotion checks, not automatic proof. R60/R63 exact operand controls support finite opposite-order hypothesis. Identical-multiset, pinned-source-freeze, count-parity, signed promotion, pool-binding and EH preservation rules govern measurement. No helper/temp or generic compiler-flag sweeps; target full disassembly read before first control.",
+    "mechanism": "All baseline differences lie inside four repeated absolute-value blocks +0x330..+0x3ec. First block target +0x330 `extsb r9,r6`, +0x334 `srawi r10,r9,31`, +0x33c `srawi r7,r6,31`; raw +0x330 `extsb r7,r6`, +0x334 `srawi r10,r7,31`, +0x33c `srawi r9,r6,31`. Corresponding XOR/subtract/compare consumers exchange the same homes. Target +0x340 `xor r9,r10,r9`, raw `xor r7,r10,r7`; target +0x350 `cmpw r9,r6`, raw `cmpw r7,r6`. Four eight-word cycles, all other words exact. This is a measured allocator-home choice for paired abs expressions, not identification of an internal compiler algorithm.",
+    "next": "Do not repeat these corrected operand/conditional/add-XOR/promotion/coherence controls at unchanged context. Different genuine compiler/source ownership evidence remains open. Existing rule stays necessary for the current retained source only.",
+    "preservation": "Every parity-held candidate preserves all three raw siblings, nontext sections, symbols, EH and selected positional named relocations. All matrices first verify fresh baseline full ELF equality and finally assert production source/raw object unchanged. Conditional count-asymmetric forms move the following symbol/metadata positions and are not preservation candidates. Production remains byte-unchanged.",
+    "replay": "From checkout run python <archive>/r93_pad_probe.py --root . --out build/r93_operand_replay; repeat with --expressions, --promotions or --coherent and distinct output paths. Driver recomputes actual-Ninja baseline and refuses production drift. Current source changes imply a new alignment measurement, not the old cap.",
+    "semantics": "All four arithmetic absolute expressions exhaustively checked on256 values[-128,127], including -128->128 with no promoted signed overflow. Signed arithmetic shift behavior matches target srawi31. Types/header layouts remain unchanged. No standard-library abs builtin support inferred; no abs declaration added.",
+    "summary": "Finite native negative, no source/rule changes retained. G3DUpdatePadStatus still uses its existing guarded rule in Object(Matching) game/g3d/g3dpad.c. Neither this matrix nor the legacy park proves universal source impossibility or necessity of the project's postprocessing."
+  },
+  "function": "function:G3DUpdatePadStatus",
+  "held_fixed": "Whole TU source order, PADStatus and aggregate s8 field types, actual configured compiler/flags, all PADRead/PADClamp/PADReset calls and masks, source chronology, comparison direction and assignments, all other algorithms. Only eight existing absolute subexpressions vary; left-only/right-only/joint controls distinguish both inputs. Neither old explicit-temporary nor helper axis repeated.",
+  "id": "attempt.R93_g3dupdatepadstatus-absolute-operand-and-promotion-native-frontier.20260907.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "probed_form": "31 measured rows across four corrected matrices: operand-order4, conditional/add-XOR7, natural/explicit-int promotions13, coherent-long7. These include four baseline calibrations. No new helper, local temporary, flag, pragma, header declaration or production rule.",
+  "recorded_at": "2026-09-07T16:42:47Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-07",
+    "signature": "opcode multiset IDENTICAL; insns T282/O282"
+  },
+  "residual_class": "paired-absolute-value-register-home-cycles",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.g3dupdatepadstatus.20260829.v1",
+  "valid_from": "2026-09-07"
+}
