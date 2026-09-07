@@ -2,9 +2,10 @@
   "attributes": {
     "integrator": "codex-root",
     "owned_units": [
-      "game/world/items.c"
+      "game/world/items.c",
+      "game/world/lights.c"
     ],
-    "scope": "Exclusive src/game/world/items.c native WebFrank retirement. Start with InitLighting: fresh 38/38 instructions,8 differing words; recorded creation-order/local/helper controls in attempt.PR_initlighting-the-f0-f1-swap-is-invariant-under-source-creation-order.20260903.v1 remain vetoes. Inspect constant-storage ownership and current tail use-count diagnosis in isolated complete-TU controls. Root owns integration of this TU's config/GUNE5D/webfrank.json and any proven pool ownership changes; no other TU, header, compiler or postprocessor implementation edits. No new rules. Require raw body/relocation exactness, complete sibling/data/EH preservation and main.dol: OK. Screen individual context before any further function in this TU."
+    "scope": "Exclusive src/game/world/items.c and new src/game/world/lights.c native WebFrank retirement. InitLighting38/38 with8raw differing words; source-only0.0f control closes instruction bytes. Investigate evidenced two-function LIGHTS.OBJ separation with matching GC text/EH boundary and narrow4-byte zero ownership. Root owns these TUs' configure.py, splits.txt, symbols.txt and webfrank.json integration hunks. No other TU, header, compiler or postprocessor implementation edits. No new rules. Require raw body/relocation exactness, complete sibling/data/EH preservation and main.dol: OK. Screen context before further function work. The new lights.c path is prospective until installed in the isolated worktree."
   },
   "claimed_at": "2026-09-07",
   "function": "function:InitLighting",
