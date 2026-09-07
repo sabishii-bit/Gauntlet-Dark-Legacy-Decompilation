@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Manual audit only, never a build hook; requires immutable experiment archive, hash-anchored supplemental original-after configuration and freshly configured actual Ninja objects; foreign integrated rule deltas are reported but not certified; full DOL gate remains separate"
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r85_worldanim_retirement_audit.py",
+  "id": "tool.r85-worldanim-retirement-audit.20260907T071348Z.3e2f3a99",
+  "kind": "tool",
+  "name": "r85-worldanim-retirement-audit",
+  "purpose": "Manual certificate for native typed-array induction rule retirement in DoWorldAnimation",
+  "recorded_at": "2026-09-07T07:13:48Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r85_worldanim_retirement_audit.py",
+  "status": "active",
+  "tool_key": "tool:r85-worldanim-retirement-audit",
+  "tool_kind": "external",
+  "usage": [
+    "--archive build/r85_worldanim_archive --integration build/r85_worldanim_integration --out build/r85_worldanim_retirement_audit.json"
+  ],
+  "valid_from": "2026-09-07T07:13:48+00:00"
+}

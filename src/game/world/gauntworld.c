@@ -751,11 +751,37 @@ s16* FindWobjWanim(void* wobj)
     return 0;
 }
 
+/* Complete the worldinfo.h forward declarations with the layouts already
+ * used by world.c. GC allocation/swap loops confirm the 0x10/0xA0 strides;
+ * the track's keyframe-data pointer is at +0x0C. */
+struct worldanim {
+    /* 0x00 */ s16   objidx;   /* index into gWorldInfo.wobjs                */
+    /* 0x02 */ s16   nframes;  /* frame count                                */
+    /* 0x04 */ u16   fixed;    /* 0x8000 = data offset already relocated     */
+    /* 0x06 */ s16   state;    /* run-time state/direction flag bits         */
+    /* 0x08 */ f32   curframe; /* current frame position (advanced by 30*dt) */
+    /* 0x0C */ void* data;     /* keyframe stream (little-endian in file)    */
+};
+struct animdata {
+    /* 0x00 */ s32 seq;
+    /* 0x04 */ s32 used;
+    /* 0x08 */ s16 pidx;
+    /* 0x0A */ s16 nidx;
+    /* 0x0C */ s32 keycount;
+    /* 0x10 */ f32 ppyr[4];
+    /* 0x20 */ f32 npyr[4];
+    /* 0x30 */ f32 xpyr[4];
+    /* 0x40 */ f32 ppos[4];
+    /* 0x50 */ f32 npos[4];
+    /* 0x60 */ f32 xpos[4];
+    /* 0x70 */ f32 pscale[4];
+    /* 0x80 */ f32 nscale[4];
+    /* 0x90 */ f32 xscale[4];
+};
+
 /* Advance every active world-object animation track. */
 void DoWorldAnimation(void)
 {
-    u8* data_off;
-    u8* track_off;
     s32* count;
     s32* header;
     s32 i;
@@ -771,19 +797,15 @@ void DoWorldAnimation(void)
         header = (s32*)gWorldInfo.animheader;
         anim_base = (u8*)header[3];
         i = 0;
-        data_off = NULL;
-        track_off = NULL;
         lbl_803441B8 = header[0];
         lbl_803441B4 = header[1];
         lbl_803441B0 = header[2];
         while (i < *count) {
-            u8* track = (u8*)gWorldInfo.worldanims + (u32)track_off;
-            if (*(u32*)(track + 12) != 0) {
-                DoWorldAnimSub(track, (u8*)gWorldInfo.animdata + (u32)data_off, anim_base);
+            struct worldanim* track = &gWorldInfo.worldanims[i];
+            if (track->data != NULL) {
+                DoWorldAnimSub(track, &gWorldInfo.animdata[i], anim_base);
             }
             i++;
-            data_off += 160;
-            track_off += 16;
         }
     }
 }

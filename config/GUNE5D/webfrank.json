@@ -3256,16 +3256,6 @@
     ],
     "game/world/gauntworld": [
       {
-        "function": "DoWorldAnimation",
-        "before_sha256": "eb1d3bbe9f55641bca737789c158eb2cd9f7fc334da026e592a232daea6d5a3e",
-        "after_sha256": "7a07a28661203a8548af9187abac6702c59a21a1cecba8c10d28761ccc78018e",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 63
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "fn_8005FB48",
         "before_sha256": "2452e42c1d7457630545abce051877dfe6c7fa77ad97a9457e98225a98007e02",
         "after_sha256": "4f54a75732119478f1c3a9409fe341bda0a7fa55c43568811aff6d2cba645e2b",
