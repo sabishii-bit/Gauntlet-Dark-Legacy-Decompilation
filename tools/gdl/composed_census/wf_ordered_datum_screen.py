@@ -49,6 +49,12 @@ Per function it prints one of:
   UNDECIDABLE   the multisets differ (read fndiff.datum_multiset_screen
                 first), the relocation counts differ, or unpaired /
                 split-form / address-only mismatches remain.
+  UNRESOLVED    the screen did NOT RUN: an object is missing, or the name
+                does not locate a function in both objects.  This is not a
+                verdict about the function and never a clean bill, and it
+                EXITS 1 (run-58 item 3: a pinned function spelled with dtk's
+                `_80XXXXXX` suffix reported "function absent" at exit 0
+                while both objects held it under the stripped name).
 
 TWO-SIDED CALIBRATION at 5f9ef72ba, against es_named_reloc_census's own
 verdicts (its 8 TRANSPOSED are the positive control, its 7 WRONG-DATUM the
@@ -67,6 +73,7 @@ not fitted to, and one es_named_reloc_census never nominated.
 import argparse
 import json
 import os
+import re
 import sys
 from collections import Counter
 
@@ -146,6 +153,46 @@ def classify(tkeys, okeys, tinsn, oinsn, tsyms=None, osyms=None,
                    multiset_equal, words_equal)
 
 
+_DTK_SUFFIX = re.compile(r"_80[0-9A-Fa-f]{6}$")
+
+
+def resolve_function(table, name):
+    """The key in `table` naming `name`, or None.
+
+    RUN-58 ITEM 3. `fndiff.parse` STRIPS dtk's `_80XXXXXX` disambiguation
+    suffix from a file-local symbol whenever the stripped base is unique in
+    the object, while config/GUNE5D/webfrank.json spells the same function
+    with the suffix. So a pin named `gendir_8004FBC8` was looked up in a
+    table whose key is `gendir`, missed, and reported
+
+        UNDECIDABLE  game/enemy/enemy::gendir_8004FBC8
+            function absent                              EXIT 0
+
+    -- a soundness screen skipping a PINNED function and exiting successful.
+    Both objects hold the function; only the spelling differed. This is the
+    same resolution `regnorm.resolve_name` already does, and it is applied
+    in BOTH directions: a suffixed query against a stripped table and a
+    stripped query against a suffixed one.
+
+    An AMBIGUOUS base (dtk keeps both suffixes when two file-local symbols
+    strip to one name, e.g. dtor_800DB21C / dtor_800DBB94 -> "dtor") returns
+    None rather than picking one: fndiff.parse's own first pass exists for
+    exactly that case, and answering with the wrong function's rows is worse
+    than answering with nothing.
+    """
+    if name in table:
+        return name
+    stripped = _DTK_SUFFIX.sub("", name)
+    if stripped != name and stripped in table:
+        return stripped
+    candidates = [key for key in table
+                  if _DTK_SUFFIX.sub("", key) == stripped
+                  and _DTK_SUFFIX.search(key)]
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
 def screen(unit, function):
     unit = fndiff.unit_key(unit)
     target_object = os.path.join(
@@ -153,12 +200,29 @@ def screen(unit, function):
     ours_object = os.path.join(
         ROOT, "build", "GUNE5D", "src", unit + ".o")
     if not (os.path.exists(target_object) and os.path.exists(ours_object)):
-        return {"verdict": "UNDECIDABLE", "why": "missing object"}
+        return {"unit": unit, "function": function, "verdict": "UNRESOLVED",
+                "why": "missing object: build " + unit + " with ninja first."
+                       " NOTHING WAS SCREENED."}
     tfns = fndiff.parse(target_object)
     ofns = fndiff.parse(ours_object)
-    if function not in tfns or function not in ofns:
-        return {"verdict": "UNDECIDABLE", "why": "function absent"}
-    tlines, olines = tfns[function], ofns[function]
+    # UNRESOLVED, not UNDECIDABLE. UNDECIDABLE is a statement ABOUT the
+    # function ("the screen ran and could not decide"); this is the absence
+    # of a measurement, and conflating the two is how a pin went unscreened
+    # under a zero exit code (run-58 item 3).
+    tname = resolve_function(tfns, function)
+    oname = resolve_function(ofns, function)
+    if tname is None or oname is None:
+        return {"unit": unit, "function": function, "verdict": "UNRESOLVED",
+                "why": f"{function!r} does not name a function in "
+                       f"{'the target object' if tname is None else ''}"
+                       f"{' and ' if tname is None and oname is None else ''}"
+                       f"{'our object' if oname is None else ''}"
+                       " (dtk `_80XXXXXX` suffixes are resolved in both"
+                       " directions, so this is a real absence or an"
+                       " ambiguous base). NOTHING WAS SCREENED: this is not"
+                       " a clean bill."}
+    tlines, olines = tfns[tname], ofns[oname]
+    resolved = {"target_name": tname, "ours_name": oname}
 
     tlocal = fndiff.object_datum_table(target_object)
     olocal = fndiff.object_datum_table(ours_object)
@@ -176,6 +240,7 @@ def screen(unit, function):
         "relocs": (len(tkeys), len(okeys)),
         "words_equal": words_equal,
         "multiset_equal": multiset_equal,
+        **resolved,
     }
     if len(tkeys) != len(okeys):
         result.update(verdict="UNDECIDABLE",
@@ -396,12 +461,18 @@ def main():
         print(f"{result['verdict']:<12} {arguments.unit}::"
               f"{arguments.function}")
         print(f"    {result['why']}")
+        if result.get("target_name") not in (None, arguments.function):
+            print(f"    resolved to target {result['target_name']!r} / ours "
+                  f"{result['ours_name']!r} (dtk `_80XXXXXX` suffix)")
         for row in result.get("mismatch_rows", []):
             print(f"      [{row['index']:>4}] {row['kind']:<16} "
                   f"T@{row['target_at']} {row['target']} "
                   f"({row['target_key']})  O@{row['ours_at']} {row['ours']} "
                   f"({row['ours_key']})")
-        return 0
+        # EXIT 1 ON UNRESOLVED (run-58 item 3). A screen that did not run is
+        # not a screen that passed, and this one returned 0 on a PINNED
+        # function, which is how an unscreened pin reads as a clean one.
+        return 1 if result["verdict"] == "UNRESOLVED" else 0
 
     path = arguments.census
     if not os.path.isabs(path):
@@ -437,6 +508,11 @@ def main():
                   f"({row['ours_key']}){extra}")
         print()
     print("TALLY: " + ", ".join(f"{k} {v}" for k, v in sorted(tally.items())))
+    if tally["UNRESOLVED"]:
+        print(f"UNSCREENED: {tally['UNRESOLVED']} census row(s) named a "
+              "function this screen could not locate in both objects. Those "
+              "rows carry NO verdict — they are not BENIGN — and this run "
+              "exits 1 so a caller cannot read the tally as a clean bill.")
     if arguments.out:
         out = arguments.out
         if not os.path.isabs(out):
@@ -444,7 +520,7 @@ def main():
         with open(out, "w", encoding="utf-8") as handle:
             json.dump(results, handle, indent=1)
         print(f"wrote {out}")
-    return 0
+    return 1 if tally["UNRESOLVED"] else 0
 
 
 if __name__ == "__main__":
