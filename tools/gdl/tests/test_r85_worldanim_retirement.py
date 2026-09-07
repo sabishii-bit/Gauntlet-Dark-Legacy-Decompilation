@@ -78,6 +78,27 @@ class WorldAnimationRetirementTests(unittest.TestCase):
         after['units'][audit.UNIT][0]['hash']='changed'
         with self.assertRaises(ValueError): audit.rule_delta(before,after)
 
+    def test_original_foreign_change_still_rejected(self):
+        before={'units':{audit.UNIT:[{'function':audit.FN}],'foreign':[{'function':'old'}]}}
+        after={'units':{audit.UNIT:[],'foreign':[]}}
+        with self.assertRaisesRegex(ValueError,'one pin retirement'): audit.rule_delta(before,after)
+
+    def test_current_foreign_integration_is_reported_not_certified(self):
+        original={'version':1,'units':{audit.UNIT:[{'function':'keep'}],'foreign':[{'function':'old'}]}}
+        current=copy.deepcopy(original); current['units']['foreign']=[]
+        self.assertEqual(audit.current_rule_scope(original,current),
+                         [dict(unit='foreign',certified_here=False,original_functions=['old'],current_functions=[])])
+
+    def test_current_owned_unit_extra_deletion_rejected(self):
+        original={'units':{audit.UNIT:[{'function':'keep'}]}}
+        current={'units':{audit.UNIT:[]}}
+        with self.assertRaisesRegex(ValueError,'owned-unit'): audit.current_rule_scope(original,current)
+
+    def test_top_level_config_drift_rejected(self):
+        original={'version':1,'units':{audit.UNIT:[]}}
+        current=copy.deepcopy(original); current['version']=2
+        with self.assertRaisesRegex(ValueError,'top-level'): audit.current_rule_scope(original,current)
+
     def test_missing_duplicate_and_extra_rule_rejected(self):
         for rows in ([],[{'function':audit.FN}]*2):
             with self.subTest(rows=rows),self.assertRaises(ValueError):
