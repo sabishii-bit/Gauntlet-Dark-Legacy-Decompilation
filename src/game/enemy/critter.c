@@ -634,7 +634,7 @@ void CritterAwardExp(s32 who, f32 amount);
 struct CritterDamageDef;
 void CritterDamagePlayer(Player *player, Critter *c,
                          struct CritterDamageDef *damageDef, u32 flags,
-                         f32 *direction, s32 playSfx);
+                         f32 *direction, s32 playSfx, f32 scale);
 void CritterSetFxHitTime(s32 slot, s32 id, f32 amount);
 s32  CritterGetTarget(Critter *c, f32 *out);
 s32  CritterGetTargetSub(Critter *c, f32 *target, s32 mode);
@@ -1525,6 +1525,50 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
 #undef pyr
 }
 
+/* Scale the critter's animation rate by its remaining health and the level's
+   enemy-health multiplier.  Inlined into CritterGolemAI and CritterBossAI. */
+static void CritterSetDifficulty(Critter *c)
+{
+    f32 ratio;
+    f32 speed;
+    f32 rateBase;
+    f32 rateScale;
+
+    rateBase = 0.5f;
+    rateScale = 4.5f;
+    ratio = c->health /
+            (1.0 + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, maxHealth)) *
+                       *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_health)));
+    speed = 1.0 - ratio;
+    speed = rateBase + speed * rateScale;
+    c->invRateScale = 1.0 / speed;
+    c->rateScale = speed;
+}
+
+extern void  PlayerSetParent(Player *p, void *node, f32 *offset);
+extern void  PlayerUnsetParent(Player *p);
+
+/* Detach the grabbed player and throw it along the critter's forward axis.
+   Inlined into CritterAnimInterrupt's phase-2 grab release. */
+static void CritterReleasePlayer(Critter *c, u8 *damageDef, f32 *dir, s32 held)
+{
+    Player *pp;
+
+    pp = &gPlayers[held];
+    PlayerUnsetParent(pp);
+    dir[0] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][0]));
+    dir[1] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][1]));
+    dir[2] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][2]));
+    dir[1] = -0.1f;
+    NormalVector(dir);
+    dir[0] = dir[0] * *(f32 *)(damageDef + offsetof(CritterDamageDef, minSpeed));
+    dir[1] = dir[1] * *(f32 *)(damageDef + offsetof(CritterDamageDef, minSpeed));
+    dir[2] = dir[2] * *(f32 *)(damageDef + offsetof(CritterDamageDef, minSpeed));
+    CritterDamagePlayer(pp, c, (CritterDamageDef *)damageDef, 0x8050, dir, 0,
+                        0.5f);
+    c->unk128 = -1;
+}
+
 static inline void CritterDamagePlayerInline(Player *player, Critter *c,
                                               u8 *damageDef, u32 flags,
                                               f32 *direction, s32 playSfx,
@@ -1814,7 +1858,7 @@ void CritterAwardExp(s32 who, f32 amount)
  * the player's feedback timers and the critter's per-player hit counters. */
 void CritterDamagePlayer(Player *player, Critter *c,
                          CritterDamageDef *damageDef, u32 flags,
-                         f32 *direction, s32 playSfx)
+                         f32 *direction, s32 playSfx, f32 scale)
 {
     u32 damageFlags;
     s32 playerIndex;
@@ -3652,18 +3696,10 @@ s32 CritterGolemAI(Critter *c)
     f32 ratio;
     f32 best;
     s32 anim32;
-    f64 one;
     u8 unused[8];
 
     CritterGetSingleTargetPlayer(c);
-    one = lbl_80346490;
-    ratio = c->health /
-            (one + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, maxHealth)) *
-                       *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_health)));
-    speed = one - ratio;
-    speed = lbl_803464E8 + speed * lbl_803464EC;
-    c->invRateScale = one / speed;
-    c->rateScale = speed;
+    CritterSetDifficulty(c);
 
     if (c->state == 0) {
         if (c->particle == NULL) {
@@ -3800,10 +3836,6 @@ s32 CritterBossAI(Critter *c)
     u8 *header;
     u8 *surface;
     f32 best;
-    f32 speed;
-    f32 speedBase;
-    f32 speedScale;
-    f32 ratio;
     f32 duration;
     f32 angle;
     f32 distance;
@@ -3829,28 +3861,11 @@ s32 CritterBossAI(Critter *c)
     f64 one;
 
     CritterGetTargetPlayers(c);
-    header = (u8 *)c->hdr;
-    one = 1.0;
-    speedBase = 0.5f;
-    speedScale = 4.5f;
-    ratio = c->health /
-            (one + *(f32 *)(header + offsetof(CritterPackedType, maxHealth)) *
-                       *(f32 *)((u8 *)gCurLevel + 0xAC));
-    speed = one - ratio;
-    speed = speedBase + speed * speedScale;
-    c->invRateScale = one / speed;
-    c->rateScale = speed;
+    CritterSetDifficulty(c);
 
     for (child = c->next; child != NULL; child = child->next) {
         CritterGetTargetPlayers(child);
-        header = (u8 *)child->hdr;
-        ratio = child->health /
-                (one + *(f32 *)(header + offsetof(CritterPackedType, maxHealth)) *
-                           *(f32 *)((u8 *)gCurLevel + 0xAC));
-        speed = one - ratio;
-        speed = speedBase + speed * speedScale;
-        child->invRateScale = one / speed;
-        child->rateScale = speed;
+        CritterSetDifficulty(child);
     }
 
     CritterResolveMultipleTargets(c);
@@ -5690,20 +5705,9 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                                             (f32 *)(desc + offsetof(CritterDamageDef, offset)), 0);
             }
         } else if (phase == 2) {
-            if (c->unk128 >= 0) {
-                pp = &gPlayers[c->unk128];
-                PlayerUnsetParent(pp);
-                dir[0] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][0]));
-                dir[1] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][1]));
-                dir[2] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][2]));
-                dir[1] = lbl_803464F0;
-                NormalVector(dir);
-                dir[0] = dir[0] * *(f32 *)(desc + offsetof(CritterDamageDef, minSpeed));
-                dir[1] = dir[1] * *(f32 *)(desc + offsetof(CritterDamageDef, minSpeed));
-                dir[2] = dir[2] * *(f32 *)(desc + offsetof(CritterDamageDef, minSpeed));
-                CritterDamagePlayer(pp, c, (CritterDamageDef *)desc, 0x8050,
-                                    dir, 0);
-                c->unk128 = -1;
+            node = c->unk128;
+            if (node >= 0) {
+                CritterReleasePlayer(c, desc, dir, node);
             }
         }
         break;
