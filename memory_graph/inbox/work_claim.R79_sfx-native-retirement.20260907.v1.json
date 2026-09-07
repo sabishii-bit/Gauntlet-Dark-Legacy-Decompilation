@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/sfx/sfx.c"
+    ],
+    "scope": "Exclusive source src/game/sfx/sfx.c; focus StartComboFX native rule retirement. Complete-TU private baseline-fidelity experiments; no new postprocessing rules, no shared header edits. Existing config/GUNE5D/webfrank.json removals or rederivations ONLY for this unit after full body/data/relocation/sibling proof, serialized by root. Promote only r79_sfx_*-prefixed audit files/tests. No other TU source or configure/splits edits without root review. Preserve source semantics and all sibling bodies; records proposed, no accept/push. Root read context/brief and claimscope audit active0 unresolved0 at ad528ab82. Historical source controls must be screened and only new axes revisited; record finite negatives, not universal compiler impossibility."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:StartComboFX",
+  "id": "work_claim.R79_sfx-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r79_sfx",
+  "recorded_at": "2026-09-07T04:07:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
