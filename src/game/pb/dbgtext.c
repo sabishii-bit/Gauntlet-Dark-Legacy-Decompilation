@@ -57,8 +57,8 @@ extern s32 lbl_80344F80;
 /* Reset the overlay state. */
 void dbgTextInit(void)
 {
-    dbgTextActive = 0;
     dbgTextColor = 0x00FF0000;
+    dbgTextActive = 0;
     dbgTextLine = 0;
 }
 
