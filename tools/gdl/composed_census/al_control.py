@@ -42,7 +42,12 @@ def load():
     return tgt, ours, exact
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to run the whole 21 s image census.
+    cliscreen.help_only(__doc__)
     tgt, ours, exact = load()
     common = sorted(k for k in ours if k in tgt)
 

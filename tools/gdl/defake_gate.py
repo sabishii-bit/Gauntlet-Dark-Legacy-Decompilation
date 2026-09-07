@@ -586,6 +586,96 @@ def data_section_verdicts(base_entry, cur_entry):
     return [("__sections__", "DATA-CHANGED", detail)]
 
 
+def pool_placement_snapshot(objfile, targetfile):
+    """{section: {"0xBASE": [our datums]}} required section bases, or None.
+
+    RUN-59 ITEM 2. The KIND-EQUAL-VALUE rule below decides a changed pool
+    relocation by what the two entries HOLD, which is the right question
+    about SPELLING and says nothing about PLACEMENT: our whole compiled
+    pool lands at one base B, and every binding inside a byte-exact body
+    forces B = target address - our offset. A keep this gate accepted as
+    "the relocation did NOT move; only the pool SPELLING did" put
+    game/enemy/critter's .sdata2 from FIVE mutually incompatible required
+    bases to EIGHT, all new (measured with the CR lane's own candidate
+    object, build/t3_scratch/t3_item2_candidate.py at c546ef915).
+
+    None when either object is unreadable: a missing measurement never
+    manufactures a verdict, and never manufactures a clean one either.
+    """
+    objfile, targetfile = Path(objfile), Path(targetfile)
+    if not objfile.exists() or not targetfile.exists():
+        return None
+    try:
+        placement = fndiff.pool_placement(objfile, targetfile)
+    except Exception:                                       # noqa: BLE001
+        return None
+    return {section: {f"0x{base:08x}": list(names)
+                      for base, names in bases.items()}
+            for section, bases in placement.items()}
+
+
+def _placement_bases(entry):
+    """The banked JSON form back to {section: {int base: [names]}}."""
+    out = {}
+    for section, bases in (entry or {}).items():
+        if not isinstance(bases, dict):
+            return None
+        rows = {}
+        for base, names in bases.items():
+            try:
+                rows[int(str(base), 16)] = list(names)
+            except (TypeError, ValueError):
+                return None
+        out[section] = rows
+    return out
+
+
+def pool_placement_verdicts(base_entry, cur_entry):
+    """A REGRESSION row when a required section base is new or moved.
+
+    Its own evidence, not a per-function score: every row below reads the
+    .text stream, and a pool placement that no longer admits a contiguous
+    claim is invisible to all of them. A baseline taken before this feature
+    carries no `placement` key and yields no row rather than a false alarm.
+
+    The row NAME is `__sections__`, the reserved whole-TU name this gate
+    already uses, so nothing that filters per-function verdicts by name
+    mistakes it for a sibling.
+    """
+    base_raw = (base_entry or {}).get("placement")
+    cur_raw = (cur_entry or {}).get("placement")
+    # ABSENT is not EMPTY. A pre-run-59 baseline carries no `placement` key
+    # at all, and reading that as "no constraints existed" would report
+    # every base the current object needs as NEW -- a false alarm on every
+    # older gate file.
+    if not isinstance(base_raw, dict) or not isinstance(cur_raw, dict):
+        return []
+    base = _placement_bases(base_raw)
+    cur = _placement_bases(cur_raw)
+    if base is None or cur is None:
+        return []
+    rows = fndiff.pool_placement_regressions(base, cur)
+    if not rows:
+        return []
+    shown = "; ".join(f"{section} {text}" for section, text in rows[:6])
+    if len(rows) > 6:
+        shown += f"; and {len(rows) - 6} more"
+    counts = ", ".join(
+        f"{section} {len(base.get(section) or {})}->{len(cur.get(section) or {})}"
+        for section in sorted(set(base) | set(cur))
+        if len(base.get(section) or {}) != len(cur.get(section) or {}))
+    detail = (f"PLACEMENT REGRESSION: {shown}."
+              + (f" Distinct required bases {counts}." if counts else "")
+              + " A section claim puts our WHOLE pool at ONE base, so every"
+                " binding in a byte-exact body forces base = target address"
+                " - our pool offset. A NEW or MOVED base means no placement"
+                " satisfies them all -- which is true however equal the two"
+                " ends of the changed relocation are by VALUE, and no"
+                " per-function verdict here can see it. Arbitrate with"
+                " `pool_owner.py <unit>` before committing")
+    return [("__sections__", "REGRESSION", detail)]
+
+
 def snapshot(classify_text, count_text):
     """Merge the two fndiff views into {fn: {status, ti, bi, real}}."""
     roster = parse_classify(classify_text)
@@ -927,6 +1017,10 @@ def compare(baseline, current, renames=None, resolve=None,
     # separately and its reserved key skipped in the function loop.
     verdicts.extend(data_section_verdicts(baseline.get("__sections__"),
                                           current.get("__sections__")))
+    # Run-59 item 2: the pool PLACEMENT, which the KIND-EQUAL-VALUE rule
+    # below cannot see because it decides a row by what the entries hold.
+    verdicts.extend(pool_placement_verdicts(baseline.get("__sections__"),
+                                            current.get("__sections__")))
     for name, base in sorted(baseline.items()):
         if name == "__sections__":
             continue
@@ -2091,7 +2185,14 @@ def unknown_flags(argv, known=KNOWN_FLAGS):
     return out
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     unknown = unknown_flags(sys.argv[1:])
     if unknown:
@@ -2215,8 +2316,18 @@ def measure_unit(unit, arbiter=None):
         targetfile = Path(
             f"build/{VERSION}/obj/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
         data_sections = data_section_digests(objfile, targetfile)
-        if data_sections is not None:
-            snap["__sections__"] = {"data": data_sections}
+        placement = pool_placement_snapshot(objfile, targetfile)
+        if data_sections is not None or placement is not None:
+            entry = {}
+            if data_sections is not None:
+                entry["data"] = data_sections
+            if placement is not None:
+                # Run-59 item 2. Banked BESIDE the data digests rather than
+                # under a new reserved key: seven readers filter the
+                # snapshot on the exact name `__sections__`, and a second
+                # reserved key would have had to be added to all of them.
+                entry["placement"] = placement
+            snap["__sections__"] = entry
     # Genuine structural rows for every function `real` calls imperfect —
     # the structure arbiter's baseline half. Byte-exact rows can never be
     # disputed, so they are skipped and the count stays cheap.

@@ -143,7 +143,14 @@ def dump_ours(unit, names):
     return 0
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     args = sys.argv[1:]
     f32 = "--f32" in args
     args = [a for a in args if not a.startswith("--f32")]

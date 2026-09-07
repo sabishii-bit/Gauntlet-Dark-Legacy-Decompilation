@@ -132,7 +132,15 @@ def check_addic(unit, fn, insns):
     return out
 
 
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))  # tools/gdl
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` was taken as the MODE and exited 1 with the
+    # docstring on STDERR.
+    cliscreen.help_only(__doc__)
     mode = (sys.argv[1] if len(sys.argv) > 1 else "branch").lower()
     if mode not in ("branch", "addic"):
         raise SystemExit(__doc__)

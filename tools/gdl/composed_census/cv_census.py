@@ -89,7 +89,12 @@ def classify(t, o):
     return "OTHER", len(diffs)
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to run the whole 14 s image census.
+    cliscreen.help_only(__doc__)
     # Every built object is RAW compiler output EXCEPT the webfrank-pinned
     # units, whose raw output lives under .postprocess/body/.  Prefer the body
     # object wherever one exists so pinned functions are counted honestly.

@@ -171,6 +171,12 @@ def calibrate():
 
 
 if __name__ == "__main__":
+    # Run-59 item 9: `--help` was taken as a UNIT NAME and screened as
+    # `=== --help ===  MISSING OBJECT` at exit 2.
+    sys.path.insert(0, str(ROOT / "tools" / "gdl"))
+    import cliscreen
+    cliscreen.help_only(
+        __doc__, usage="usage: fl_textorder.py [--calibrate] [unit ...]")
     args = [a for a in sys.argv[1:] if a != "--calibrate"]
     rc = 0
     if "--calibrate" in sys.argv[1:]:

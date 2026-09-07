@@ -55,6 +55,11 @@ def _handler_names(handler):
 
 
 def main():
+    # Run-59 item 9: `--help` used to run the whole 3 s AST sweep.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    import cliscreen
+    cliscreen.help_only(__doc__)
     if not os.path.isfile("configure.py") or not os.path.isdir("tools/gdl"):
         print("run this from the repository root")
         return 2

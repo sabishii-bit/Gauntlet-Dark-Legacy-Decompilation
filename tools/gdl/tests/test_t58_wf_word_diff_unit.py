@@ -126,11 +126,18 @@ class UnitCliContract(unittest.TestCase):
                               cwd=str(ROOT), capture_output=True, text=True)
 
     def test_the_unit_flag_and_the_bare_positional_agree(self):
+        # Run-59 item 10: the paired count is DERIVED from the objects, not
+        # pinned at 84, so a retirement (or any source change that adds or
+        # drops a function) cannot break a test about flag equivalence.
         a = self.run_cli("--unit", "game/enemy/enemy")
         b = self.run_cli("game/enemy/enemy")
         self.assertEqual(a.returncode, 0, a.stdout + a.stderr)
         self.assertEqual(a.stdout, b.stdout)
-        self.assertIn("84 function(s) paired", a.stdout)
+        paired = len(set(wd.unit_bodies(wd.our_object("game/enemy/enemy")[0]))
+                     & set(wd.unit_bodies(
+                         wd.target_object("game/enemy/enemy"))))
+        self.assertGreater(paired, 0)
+        self.assertIn(f"{paired} function(s) paired", a.stdout)
 
     def test_giving_the_unit_twice_is_refused(self):
         # Ambiguous about which argument is the unit; a tool that picked
@@ -149,7 +156,9 @@ class UnitCliContract(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         payload = json.loads(proc.stdout)
         self.assertEqual(payload["unit"], "game/enemy/enemy")
-        self.assertEqual(len(payload["rows"]), 84)
+        rows, _kind = wd.unit_rows("game/enemy/enemy")
+        self.assertEqual(len(payload["rows"]), len(rows))
+        self.assertGreater(len(rows), 0)
         for row in payload["rows"]:
             self.assertEqual(
                 sorted(row),
@@ -158,10 +167,18 @@ class UnitCliContract(unittest.TestCase):
                         "mnemonic_divergence", "klass", "decode"]))
 
     def test_a_single_function_still_prints_its_headline(self):
-        # THE NEGATIVE SIDE: the per-function mode is untouched.
+        """THE NEGATIVE SIDE: the per-function mode is untouched.
+
+        Run-59 item 10: the word count is DERIVED from the module's own
+        measurement of the same function rather than pinned at 16, so this
+        gates CLI-vs-library agreement (what it is for) instead of the
+        current residual of one function in a TU other lanes are editing.
+        """
         proc = self.run_cli("game/enemy/enemy", "closest_enemy")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        self.assertIn("DIFFERING WORDS = 16", proc.stdout)
+        _kind, _insns, diffs, _mnem = wd.word_diff(
+            "game/enemy/enemy", "closest_enemy")
+        self.assertIn(f"DIFFERING WORDS = {len(diffs)}", proc.stdout)
         self.assertIn("PINNED = YES", proc.stdout)
 
 
@@ -180,9 +197,28 @@ class UnitTotalsMatchPerFunctionRuns(unittest.TestCase):
         os.chdir(ROOT)
 
     def test_each_row_equals_the_single_function_measurement(self):
+        """The `--unit` table equals the per-function measurements, row by
+        row and in total.
+
+        RUN-59 ITEM 10. The total was asserted as `== 835`, the unit's
+        differing-word count on the day this was written, so the next
+        successful RETIREMENT in game/enemy/enemy (which lowers it to 830)
+        broke a test about mode agreement. That is WR's run-53 defect —
+        a fixture hardcoding a TU's live state — and the cure is to compare
+        the two SIDES rather than either side against a constant.
+
+        Both numbers are now derived in this test: the row count from the
+        paired functions the module itself finds, and the total from the
+        per-function sum computed here. A retirement moves both together; a
+        real disagreement between the two modes still fails, and names the
+        function it disagreed on.
+        """
         rows, _kind = wd.unit_rows("game/enemy/enemy")
-        self.assertEqual(len(rows), 84)
-        checked = 0
+        paired = set(wd.unit_bodies(wd.our_object("game/enemy/enemy")[0])) & \
+            set(wd.unit_bodies(wd.target_object("game/enemy/enemy")))
+        self.assertEqual(len(rows), len(paired))
+        self.assertGreater(len(rows), 0, "no paired functions to compare")
+        checked = per_function_total = 0
         for row in rows:
             try:
                 kind, insns, diffs, mnem = wd.word_diff(
@@ -195,9 +231,13 @@ class UnitTotalsMatchPerFunctionRuns(unittest.TestCase):
                              row["function"])
             self.assertEqual(mnem, row["mnemonic_divergence"],
                              row["function"])
+            per_function_total += len(diffs)
             checked += 1
-        self.assertEqual(checked, 84)
-        self.assertEqual(sum(r["differing_words"] or 0 for r in rows), 835)
+        asymmetric = sum(1 for r in rows
+                         if r["verdict"] == "COUNT-ASYMMETRIC")
+        self.assertEqual(checked, len(rows) - asymmetric)
+        self.assertEqual(sum(r["differing_words"] or 0 for r in rows),
+                         per_function_total)
 
 
 if __name__ == "__main__":

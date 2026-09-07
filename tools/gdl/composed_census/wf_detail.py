@@ -31,7 +31,14 @@ def load(unit, name):
     return ours, tgt, is_raw
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to exit 1 with the usage on STDERR, so
+    # the documented capture pattern reported a FAILURE for a successful
+    # help request and a caller reading stdout got nothing.
+    cliscreen.help_only(__doc__)
     if len(sys.argv) < 3:
         raise SystemExit(
             "usage: wf_detail.py <unit> <function>   "

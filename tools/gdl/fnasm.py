@@ -107,7 +107,14 @@ def raw_obj_path(unit, *, root=None):
                           version=VERSION).path
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     raw = "--raw" in sys.argv
     ours = "--ours" in sys.argv or raw

@@ -60,7 +60,12 @@ def our_object(unit):
     return os.path.join(ROOT, "build", "GUNE5D", "src", *parts) + ".o"
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` exited 1 with the docstring on STDERR.
+    cliscreen.help_only(__doc__)
     if len(sys.argv) != 4:
         raise SystemExit(__doc__)
     unit, function, window = sys.argv[1], sys.argv[2], sys.argv[3]

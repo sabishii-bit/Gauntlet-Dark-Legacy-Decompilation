@@ -18,7 +18,12 @@ exec(compile(src, "al_addrlo_positive.py", "exec"), mod.__dict__)
 TGT, OURS = mod.TGT, mod.OURS
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to run the whole 17 s image census.
+    cliscreen.help_only(__doc__)
     units = []
     for root, _d, names in os.walk(OURS):
         if ".postprocess" in root.replace("\\", "/"):

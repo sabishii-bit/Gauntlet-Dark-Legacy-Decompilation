@@ -143,6 +143,10 @@ def analyse(insns):
 
 
 def main():
+    # Run-59 item 9: `--help` used to run the whole 20 s image census.
+    sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
+    import cliscreen
+    cliscreen.help_only(__doc__)
     out_path = os.path.join("build", "GUNE5D", "al_addrlo_positive.json")
     if "--out" in sys.argv:
         out_path = sys.argv[sys.argv.index("--out") + 1]

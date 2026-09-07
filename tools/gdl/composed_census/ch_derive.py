@@ -33,11 +33,16 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
+import cliscreen  # noqa: E402
 import webfrank as wf  # noqa: E402
 from reloc_symbols import moved_symbols as _moved_symbols  # noqa: E402
 from reloc_symbols import region_symbols as _region_symbols  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
 from cn_analyze import our_object, target_object, load  # noqa: E402
+
+USAGE = ("usage: ch_derive.py <unit> <function> <lo> <hi>"
+         "\n  e.g. ch_derive.py game/enemy/enemy move_logic00 0x24 0x2c"
+         "  (offsets are function-relative and take 0x forms)")
 
 MAX_ORDERS = 400000
 
@@ -290,6 +295,10 @@ def run(unit, fn, lo, hi, verbose=True):
 
 
 if __name__ == "__main__":
+    # Run-59 item 9: `--help` used to be an IndexError traceback on stderr.
+    cliscreen.help_only(__doc__, usage=USAGE)
+    if len(sys.argv) < 5:
+        raise SystemExit(USAGE)
     u, f = sys.argv[1], sys.argv[2]
     lo, hi = int(sys.argv[3], 0), int(sys.argv[4], 0)
     run(u, f, lo, hi)

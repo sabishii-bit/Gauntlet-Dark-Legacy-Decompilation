@@ -474,6 +474,13 @@ def search(unit, fn, verbose=False):
 
 if __name__ == "__main__":
     import json
+    import cliscreen
+    # Run-59 item 9: `--help` used to be an IndexError traceback on stderr.
+    USAGE = ("usage: hv_perm.py <unit> <function>"
+             "\n  e.g. hv_perm.py game/world/camera camera_mode_level")
+    cliscreen.help_only(__doc__, usage=USAGE)
+    if len(sys.argv) < 3:
+        raise SystemExit(USAGE)
     u, f = sys.argv[1], sys.argv[2]
     r, note = search(u, f, verbose=True)
     print(f"{u}::{f}: {note}")

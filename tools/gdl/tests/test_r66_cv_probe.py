@@ -172,5 +172,86 @@ class CompilerExecutionTests(unittest.TestCase):
                         self.assertEqual(command[0], "build/tools/wibo" if runner else str(root / "build/tools/sjiswrap.exe"))
 
 
+MWCC_STDOUT = (
+    "### mwcceppc.exe Compiler:\n"
+    "#    File: src/game/sys/sysservice.c\n"
+    "# -----------------------------------------\n"
+    "#     412: static void f(void) { return ; ; ) }\n"
+    "#   Error:                                  ^\n"
+    "#   declaration syntax error\n")
+MWCC_STDERR = "\nUser break, cancelled...\n"
+
+
+class DiagnosticPreference(unittest.TestCase):
+    """Run-59 item 8: the compiler's message, not the shell's noise.
+
+    MWCC writes its diagnostic to STDOUT and only `User break,
+    cancelled...` to stderr, and `compile_with` rendered
+    `r.stderr + r.stdout` and took the first non-empty line — so a
+    REJECTED SOURCE was reported to the lane as a CANCELLED probe, with
+    the file, line and message already in hand and thrown away.
+
+    Live reproduction at c52699758 (build/t3_scratch/t3_item8_repro.py,
+    one-line syntax error compiled through the real game/sys/sysservice
+    edge, GC/1.2.5 mwcc_sjis): the returned string was
+    `FAIL compile (exit 2): User break, cancelled...` while stdout held
+    `expression syntax error` with the file and the source line.
+
+    Two-sided: stdout wins when it has content, stderr is the fallback
+    the `extab_clean` (dtk) stage needs, and neither leaves an explicit
+    `no diagnostic` rather than an empty tail.
+    """
+
+    def test_the_stdout_block_is_preferred_over_the_stderr_noise(self):
+        text = cv.diagnostic(MWCC_STDOUT, MWCC_STDERR)
+        self.assertIn("declaration syntax error", text)
+        self.assertIn("src/game/sys/sysservice.c", text)
+        self.assertIn("412", text)
+        self.assertNotIn("User break", text)
+
+    def test_the_gutter_and_the_rule_line_are_dropped(self):
+        text = cv.diagnostic(MWCC_STDOUT, MWCC_STDERR)
+        self.assertNotIn("#", text)
+        self.assertNotIn("-----", text)
+
+    def test_stderr_is_the_fallback_when_stdout_is_empty(self):
+        # The extab_clean stage is dtk: it reports on stderr.
+        self.assertEqual(cv.diagnostic("", "bad padding value\n"),
+                         "bad padding value")
+
+    def test_no_output_at_all_says_so(self):
+        self.assertEqual(cv.diagnostic("", ""), "no diagnostic")
+        self.assertEqual(cv.diagnostic(None, None), "no diagnostic")
+
+    def test_the_rendering_is_bounded(self):
+        text = cv.diagnostic("x" * 5000, "")
+        self.assertEqual(len(text), cv.DIAGNOSTIC_LIMIT)
+
+    def test_compile_with_reports_the_compiler_message(self):
+        """End to end through the real refusal path."""
+        with tempfile.TemporaryDirectory(prefix="t3_cv_") as td:
+            root = Path(td)
+            output = root / "out.o"
+            trace = []
+
+            def fake_run(argv, **kwargs):
+                return subprocess.CompletedProcess(
+                    argv, 2, stdout=MWCC_STDOUT, stderr=MWCC_STDERR)
+
+            with patch.object(cv, "compile_commands",
+                              return_value=[("compile", ["mwcceppc"])]), \
+                 patch.object(cv.subprocess, "run", side_effect=fake_run):
+                got, err = cv.compile_with(
+                    {"_command_trace": trace}, "GC/fake", "", output, root)
+        self.assertIsNone(got)
+        self.assertTrue(err.startswith("FAIL compile (exit 2): "), err)
+        self.assertIn("declaration syntax error", err)
+        self.assertNotIn("User break", err)
+        # The RAW streams stay in the trace: the rendering is for reading,
+        # not a replacement for the evidence.
+        self.assertEqual(trace[0]["stderr"], MWCC_STDERR)
+        self.assertEqual(trace[0]["stdout"], MWCC_STDOUT)
+
+
 if __name__ == "__main__":
     unittest.main()

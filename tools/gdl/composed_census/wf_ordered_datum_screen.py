@@ -153,12 +153,14 @@ def classify(tkeys, okeys, tinsn, oinsn, tsyms=None, osyms=None,
                    multiset_equal, words_equal)
 
 
-_DTK_SUFFIX = re.compile(r"_80[0-9A-Fa-f]{6}$")
-
-
 def _strip(name):
-    """dtk's `_80XXXXXX` disambiguation suffix removed, `fn_` names intact."""
-    return name if name.startswith("fn_") else _DTK_SUFFIX.sub("", name)
+    """dtk's `_80XXXXXX` suffix removed, PLACEHOLDER names intact.
+
+    Run-59 item 4: `fndiff.strip_dtk_suffix` is the ONE definition. The
+    local copy this replaces guarded `fn_` only, so `lbl_80346840` and
+    `jumptable_80120B4C` still collapsed onto `lbl` and `jumptable`.
+    """
+    return fndiff.strip_dtk_suffix(name)
 
 
 def resolve_function(table, name):
@@ -185,21 +187,16 @@ def resolve_function(table, name):
     exactly that case, and answering with the wrong function's rows is worse
     than answering with nothing.
 
-    A `fn_` NAME IS NEVER STRIPPED, and `fndiff.parse` carries the same
-    guard: dtk spells an unnamed function `fn_800516F8`, whose tail is `_80`
-    plus six hex digits, so an unguarded strip maps every one of them onto
-    the single base `fn` and a query for one could resolve to another.
+    A PLACEHOLDER NAME IS NEVER STRIPPED: dtk spells an unnamed function
+    `fn_800516F8`, a pool datum `lbl_80346840` and a switch table
+    `jumptable_80120B4C`, and the tail of each IS `_80` plus six hex
+    digits, so an unguarded strip maps a whole population onto one base
+    and a query for one could resolve to another.
+
+    RUN-59 ITEM 4: the body is now `fndiff.resolve_function_name`, the ONE
+    definition, and this name stays as the module's published spelling.
     """
-    if name in table:
-        return name
-    stripped = _strip(name)
-    if stripped != name and stripped in table:
-        return stripped
-    candidates = [key for key in table
-                  if _strip(key) == stripped and key != stripped]
-    if len(candidates) == 1:
-        return candidates[0]
-    return None
+    return fndiff.resolve_function_name(table, name)
 
 
 def screen(unit, function):

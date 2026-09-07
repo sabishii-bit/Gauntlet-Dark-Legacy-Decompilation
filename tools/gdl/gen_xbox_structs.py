@@ -90,7 +90,17 @@ def parse_header(path: Path):
         yield name, size, category, fields
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main() -> int:
+    # `--help` used to REGENERATE research/xbox_symbols/xbox_structs.tsv --
+    # a tracked file rewritten by a help request, which is exactly the
+    # side effect run-53 item 2 was raised for.
+    cliscreen.help_only(__doc__)
     seen: dict[str, tuple[int, int]] = {}
     out_lines: list[str] = []
     records = fields_total = collisions = 0

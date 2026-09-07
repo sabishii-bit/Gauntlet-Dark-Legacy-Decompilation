@@ -140,6 +140,11 @@ def prove(rows, limit=None):
 
 
 if __name__ == "__main__":
+    import cliscreen
+    # Run-59 item 9: `--help` was taken as the MODE, fell into the `prove`
+    # branch and died reading build/HV_regfield_roster.json on stderr.
+    cliscreen.help_only(
+        __doc__, usage="usage: hv_regfield_sweep.py [triage|prove [limit]]")
     mode = sys.argv[1] if len(sys.argv) > 1 else "triage"
     if mode == "triage":
         rows = triage()

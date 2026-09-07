@@ -42,7 +42,13 @@ WHAT IS CERTIFIED
                         both. A sibling named by --allow-changed-sibling may
                         differ only if every changed bit moves TOWARD the
                         target (r84's monotonic rule); an unlisted change is
-                        a failure however good it looks.
+                        a failure however good it looks. The two aspects are
+                        reported separately (run-59 item 7): a permitted
+                        BODY change appears under `permitted_changes`, a
+                        RELOCATION change under `relocation_changes` (never
+                        permitted), a body change nobody granted under
+                        `unexpected_changes`, and `permission_errors` says
+                        why each listed sibling could not be permitted.
   nontext_sections      Every allocated non-.text section (data, rodata,
                         sdata, sdata2, bss, sbss ...), its bytes, size,
                         alignment, flags and relocations, plus SHN_COMMON
@@ -110,8 +116,10 @@ retirement of ONE function's rule against the previous state, not the
 correctness of the recovered source, not compiler-internal causality, and
 not the absence of other units' drift.
 
-IMPORTABLE CORE: classify_word, classify_stream, object_image, normalize_relocations
--- pure over words/parsed objects; no build and no printing.
+IMPORTABLE CORE: classify_word, classify_stream, object_image,
+normalize_relocations, section_bases, relocation_addresses,
+resolve_relocation_symbol, resolve_relocations -- pure over words/parsed
+objects and the read-only config; no build and no printing.
 """
 from __future__ import annotations
 
@@ -129,6 +137,9 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tools.fix_exception_objects import Elf
+from tools.gdl import fndiff
+from tools.gdl import pool_owner
+from tools.gdl import poolval
 from tools.gdl.composed_census import cv_probe as cv
 from tools.gdl.composed_census import wf_word_diff as wd
 from tools.gdl.exception_metadata import exception_records
@@ -213,6 +224,111 @@ def normalize_relocations(rows, source):
             offset -= 2
         out.append((offset, kind, name, addend))
     return sorted(out)
+
+
+_SPLIT_RUNS = None
+_RELOCATION_ADDRESSES = None
+
+
+def section_bases(unit, runs=None):
+    """{section name: linked base address} for one unit's split runs.
+
+    A section claimed by MORE THAN ONE run is omitted: with two runs an
+    offset into the section does not determine an address, and picking one
+    is how a wrong binding would read as equal.
+    """
+    global _SPLIT_RUNS
+    if runs is None:
+        if _SPLIT_RUNS is None:
+            _SPLIT_RUNS = pool_owner.load_splits()
+        runs = _SPLIT_RUNS
+    counts, bases = {}, {}
+    for owner, section, start, _end in runs:
+        if owner != unit:
+            continue
+        counts[section] = counts.get(section, 0) + 1
+        bases[section] = start
+    return {section: base for section, base in bases.items()
+            if counts[section] == 1}
+
+
+def relocation_addresses(symbols=None):
+    """{symbol name: linked address} from symbols.txt, dtk suffixes included.
+
+    dtk spells a file-local symbol `gendir_8004FBC8` while our object emits
+    it as `gendir`, so the stripped spelling is registered as an alias --
+    but ONLY when it is unique and does not collide with a real symbol.
+    `fndiff.strip_dtk_suffix` is the one reduction (run-59 item 4) and its
+    placeholder guard is what stops 4,282 `lbl_*` names collapsing onto the
+    single key `lbl`.
+    """
+    global _RELOCATION_ADDRESSES
+    cache = symbols is None
+    if cache and _RELOCATION_ADDRESSES is not None:
+        return _RELOCATION_ADDRESSES
+    if symbols is None:
+        symbols = poolval.load_symbols()
+    table = {name: info["addr"] for name, info in symbols.items()}
+    counts = {}
+    for name in table:
+        stripped = fndiff.strip_dtk_suffix(name)
+        if stripped != name:
+            counts[stripped] = counts.get(stripped, 0) + 1
+    aliases = {}
+    for name, address in table.items():
+        stripped = fndiff.strip_dtk_suffix(name)
+        if stripped != name and stripped not in table \
+                and counts[stripped] == 1:
+            aliases[stripped] = address
+    table.update(aliases)
+    if cache:
+        _RELOCATION_ADDRESSES = table
+    return table
+
+
+def resolve_relocation_symbol(name, bases, addresses):
+    """The linked ADDRESS a relocation's symbol denotes, or None.
+
+    RUN-59 ITEM 11. `positional_relocations` compared relocation SYMBOL
+    NAMES, and the two sides of a retirement never spell a pool datum the
+    same way: `object_image` normalizes our anonymous MWCC pool label to
+    its allocation -- `("@", ".sdata2", 572, 4, 1, 0)` -- while dtk names
+    the same datum `lbl_80346A4C`. Every enemy and critter retirement fails
+    on that, on a NAMING limitation rather than a binding difference: the
+    ER lane hand-verified all 14 of gendir_8004FBC8's bindings (same
+    offset, type and addend, identical resolved addresses) while the audit
+    reported FAIL.
+
+    Both spellings denote an address, so both are resolved to one:
+      * an anonymous entry, to its section's claimed base in splits.txt
+        plus its offset in that section;
+      * a named entry, to its symbols.txt address.
+    An unresolvable name is returned as None so the caller keeps the NAME
+    and the comparison stays fail-closed -- a datum whose ownership is not
+    claimed must not silently compare equal to anything.
+
+    This is a naming resolution, not a value-equality relaxation. The
+    section BYTES are compared separately by `allocated_sections`, so a
+    pool that holds different data still fails there; what this removes is
+    only the difference in how the two toolchains SPELL the same address.
+    """
+    if isinstance(name, (list, tuple)):
+        if len(name) < 3 or name[0] != "@":
+            return None
+        base = bases.get(name[1])
+        return None if base is None else base + name[2]
+    return addresses.get(name)
+
+
+def resolve_relocations(rows, bases, addresses):
+    """`rows` with every resolvable symbol replaced by its address."""
+    out = []
+    for offset, kind, name, addend in rows:
+        address = resolve_relocation_symbol(name, bases, addresses)
+        out.append((offset, kind,
+                    ["address", address] if address is not None else name,
+                    addend))
+    return out
 
 
 def _reloc_types_by_index(*reloc_lists):
@@ -496,13 +612,104 @@ def load_build_edges():
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+#: The rules that POSTPROCESS a compiled object. A unit with no rule left
+#: has its `build/<version>/src/<unit>.o` written by the COMPILER instead,
+#: and that edge is not a postprocessor.
+POSTPROCESS_RULES = frozenset({"webfrank", "webfrank_globalize_atree",
+                               "p6frank"})
+
+
 def postprocess_edge(edges_data, unit):
-    """The unit's WebFrank edge from the generator snapshot, or None."""
+    """The unit's postprocessor edge from the generator snapshot, or None.
+
+    RUN-59 ITEM 1 fixed the rule filter. This matched ANY edge writing
+    `build/<version>/src/<unit>.o`, and for a unit with no rules that is the
+    COMPILE edge -- so `postprocess_edge` reported a postprocessor for a
+    unit that has none, and the last-rule-retired case was undetectable from
+    it. Measured on game/audio/dcs, whose src object is written by
+    `mwcc_sjis`.
+    """
     wanted = f"build/{VERSION}/src/{unit}.o"
     for edge in edges_data["edges"]:
+        if edge["rule"] not in POSTPROCESS_RULES:
+            continue
         if wanted in [p.replace("\\", "/") for p in edge["outputs"]]:
             return edge
     return None
+
+
+def derive_postprocess_edge(edges_data, unit):
+    """The WebFrank edge the unit HAD, derived from the surviving ones.
+
+    RUN-59 ITEM 1. When a unit's LAST rule is retired, `configure.py` stops
+    emitting its WebFrank edge entirely, so the BEFORE state's postprocessor
+    invocation is no longer in `build_edges.json` -- and that replay is the
+    one measurement proving the retirement changed nothing else in the TU.
+
+    The edge is DERIVED, never guessed, and the derivation is checked before
+    it is used: every surviving `webfrank` edge must spell its target as
+    `build/<version>/obj/<its own unit>.o`, so the target is a pure function
+    of the unit name and substituting ours is justified rather than assumed;
+    and they must all agree on one `--image`. Anything else refuses.
+
+    The `webfrank_globalize_atree` variant is NOT derivable this way (it
+    carries an extra objcopy stage), and once a unit's edge is gone the
+    graph cannot say which of the two it used to have. That is safe rather
+    than silent: a wrongly derived rule produces a different processed
+    object, and `rule_replay` then FAILS on the comparison instead of
+    passing. The certificate records the derivation so a reader can see the
+    edge was reconstructed.
+    """
+    donors = [edge for edge in edges_data["edges"]
+              if edge["rule"] == "webfrank"]
+    if not donors:
+        raise Refused(
+            "no surviving `webfrank` edge to derive the retired unit's "
+            "previous postprocessor invocation from")
+    images = set()
+    for edge in donors:
+        variables = {k: v.replace("\\", "/")
+                     for k, v in (edge.get("variables") or {}).items()}
+        missing = [key for key in ("webfrank_unit", "webfrank_target",
+                                   "webfrank_image") if key not in variables]
+        if missing:
+            raise Refused("a surviving webfrank edge is missing "
+                          + ", ".join(missing))
+        donor_unit = variables["webfrank_unit"]
+        expected = f"build/{VERSION}/obj/{donor_unit}.o"
+        if variables["webfrank_target"] != expected:
+            raise Refused(
+                f"the webfrank target of {donor_unit} is "
+                f"{variables['webfrank_target']}, not {expected}, so the "
+                "retired unit's target cannot be derived by substitution")
+        images.add(variables["webfrank_image"])
+    if len(images) != 1:
+        raise Refused("surviving webfrank edges disagree on --image: "
+                      + ", ".join(sorted(images)))
+    image = images.pop()
+    return {
+        "rule": "webfrank",
+        "outputs": [f"build/{VERSION}/src/{unit}.o"],
+        "inputs": [],
+        "variables": {
+            "webfrank_config": f"config/{VERSION}/webfrank.json",
+            "webfrank_unit": unit,
+            "webfrank_target": f"build/{VERSION}/obj/{unit}.o",
+            "webfrank_image": image,
+        },
+        "derived": {
+            "why": "the unit's last rule was retired, so configure.py emits "
+                   "no WebFrank edge and the previous invocation is not in "
+                   "build_edges.json",
+            "donor_edges": len(donors),
+            "checked": f"every surviving webfrank edge targets build/"
+                       f"{VERSION}/obj/<its unit>.o and all {len(donors)} "
+                       f"agree on --image {image}",
+            "not_modelled": "webfrank_globalize_atree; a unit that needed it "
+                            "fails rule_replay's object comparison rather "
+                            "than passing on a wrong rule",
+        },
+    }
 
 
 def unit_linkage(edges_data, unit):
@@ -585,19 +792,60 @@ class Audit:
                             ("rule config", self.config), ("compiler", self.compiler)):
             if not path.exists():
                 raise Refused(f"missing {label}: {path} (run `ninja` first)")
-        if not self.edge.get("raw"):
-            raise Refused(f"{self.unit} has no pre-postprocessor body edge; "
-                          "there is no rule to retire in this unit")
-        self.post_edge = postprocess_edge(self.edges_data, self.unit)
-        if self.post_edge is None:
-            raise Refused(f"no postprocessor edge for {self.unit} in build_edges.json")
         self.before_oid = self.check_before_ref()
+        self.before_rules = json.loads(
+            git_show(self.before_ref, f"config/{VERSION}/webfrank.json"))
+        before_unit_rules = self.before_rules.get("units", {}).get(self.unit, [])
+        self.post_edge = postprocess_edge(self.edges_data, self.unit)
+        # RUN-59 ITEM 1: the LAST rule in a unit. Retiring it makes
+        # configure.py stop emitting the unit's WebFrank edge, so
+        # `edge["raw"]` is false, `postprocess_edge` finds nothing, and the
+        # audit used to refuse with "there is no rule to retire in this
+        # unit" -- of a unit whose rule had just been retired. Live positive:
+        # game/audio/dcs::update_chinfo at c4d71a603, whose parent still
+        # carries the unit key.
+        #
+        # THE DISCRIMINANT is the BEFORE-ref's config, not the current graph:
+        # a unit that was never pinned looks identical from HEAD alone, and
+        # that one must still refuse.
+        self.last_rule_retired = False
+        if not self.edge.get("raw") or self.post_edge is None:
+            if not before_unit_rules:
+                raise Refused(
+                    f"{self.unit} has no pre-postprocessor body edge and "
+                    f"carried NO rule at {self.before_ref}: this unit was "
+                    "never pinned, so there is no retirement to certify")
+            if self.edge.get("raw") or self.post_edge is not None:
+                raise Refused(
+                    f"{self.unit} is half-configured: raw body edge="
+                    f"{bool(self.edge.get('raw'))}, postprocessor edge="
+                    f"{self.post_edge is not None}. Re-run `python "
+                    "configure.py` before auditing.")
+            self.last_rule_retired = True
+            # Both views resolve to the DIRECT object: with no postprocessor
+            # edge the compiler writes build/<version>/src/<unit>.o itself,
+            # and that file is simultaneously the raw and the shipped one.
+            if self.raw_object != self.processed_object:
+                raise Refused(
+                    f"{self.unit} has no postprocessor edge but its raw "
+                    f"object {self.raw_object} is not the shipped "
+                    f"{self.processed_object}")
+            self.replay_edge = derive_postprocess_edge(self.edges_data,
+                                                       self.unit)
+        else:
+            self.replay_edge = self.post_edge
         self.record("inputs", "PASS", unit=self.unit, function=self.function,
                     before_ref=self.before_ref, before_ref_commit=self.before_oid,
                     source=self.edge["src"], raw_object=self.edge["body_o"],
                     target_object=str(self.target_object.relative_to(REPO)).replace("\\", "/"),
                     compiler=self.edge["mw"], compiler_sha256=sha256(self.compiler.read_bytes()),
-                    cflags=self.edge["cflags"], postprocess_rule=self.post_edge["rule"],
+                    cflags=self.edge["cflags"],
+                    postprocess_rule=(self.post_edge["rule"] if self.post_edge
+                                      else None),
+                    last_rule_in_unit_retired=self.last_rule_retired,
+                    rules_at_before_ref=[r["function"] for r in before_unit_rules],
+                    replay_edge=(self.replay_edge.get("derived")
+                                 if self.last_rule_retired else "from the graph"),
                     linkage=unit_linkage(self.edges_data, self.unit),
                     target_sha256=sha256(self.target_object.read_bytes()))
 
@@ -699,7 +947,9 @@ class Audit:
         before, _ = compile_source(
             self.edge, before_source_path.relative_to(REPO).as_posix(),
             self.folder / "ta_before.o", self.folder, extra_include=include_dir)
-        self.before_rules = json.loads(git_show(self.before_ref, f"config/{VERSION}/webfrank.json"))
+        # `self.before_rules` is banked by `inputs()`, which needs it to tell
+        # a retired LAST rule from a unit that was never pinned (run-59 item
+        # 1); reading it again here would run `git show` twice.
         self.record("before_image", "PASS", ref=self.before_ref,
                     before_source_sha256=sha256(old_source),
                     current_source_sha256=sha256(self.source.read_bytes()),
@@ -755,11 +1005,24 @@ class Audit:
         try:
             a = normalize_relocations(ours["relocations"], "ours")
             b = normalize_relocations(target["relocations"], "target")
+            bases = section_bases(self.unit)
+            addresses = relocation_addresses()
         except Refused as error:
             return self.record("positional_relocations", "REFUSED", reason=str(error))
+        # Run-59 item 11: compare the ADDRESS each relocation binds, not the
+        # two toolchains' different spellings of it. Unresolvable names keep
+        # their name and still have to match verbatim.
+        a = resolve_relocations(a, bases, addresses)
+        b = resolve_relocations(b, bases, addresses)
 
         def rows(table):
             return [[o, RELOC_TYPE_NAMES[k], n, add] for o, k, n, add in table]
+
+        def unresolved(table):
+            return sorted({n if isinstance(n, str) else tuple(n)
+                           for _o, _k, n, _a in table
+                           if not (isinstance(n, list) and n and
+                                   n[0] == "address")}, key=repr)
 
         return self.record("positional_relocations", "PASS" if a == b else "FAIL",
                            our_count=len(a), target_count=len(b),
@@ -767,8 +1030,17 @@ class Audit:
                            differences=[[x, y] for x, y in
                                         zip(rows(a) + [None] * len(b), rows(b) + [None] * len(a))
                                         if x != y][:20],
+                           section_bases={s: f"0x{b_:08x}"
+                                          for s, b_ in sorted(bases.items())},
+                           unresolved_ours=unresolved(a),
+                           unresolved_target=unresolved(b),
                            normalization="R_PPC_EMB_SDA21 offsets moved from "
-                                         "instruction+2 (MWCC) to instruction+0 (dtk)")
+                                         "instruction+2 (MWCC) to instruction+0 (dtk);"
+                                         " symbols resolved to linked addresses"
+                                         " (anonymous pool label -> its section's"
+                                         " splits.txt base + offset; named symbol ->"
+                                         " its symbols.txt address). Unresolvable"
+                                         " names are compared verbatim.")
 
     # -- the rest of the TU ------------------------------------------------
     def siblings(self):
@@ -780,33 +1052,69 @@ class Audit:
                 added=sorted(after.keys() - before.keys()),
                 removed=sorted(before.keys() - after.keys()))
         changed = sorted(n for n in before if n != self.function and before[n] != after[n])
-        allowed = {}
+        # RUN-59 ITEM 7. A permitted sibling whose RELOCATIONS also moved
+        # used to be listed under BOTH `permitted_changes` and
+        # `unexpected_changes`, which is correct per the rule (the body
+        # change is permitted, the relocation change never is) and reads as
+        # a contradiction. The two aspects now have their own fields, and
+        # the verdict text says which one failed:
+        #   permitted_changes    BODY moved, permitted, and monotonic
+        #   relocation_changes   RELOCATIONS moved -- never permitted
+        #   unexpected_changes   BODY moved and the change was NOT permitted
+        #   permission_errors    why a listed sibling could not be permitted
+        permitted = {}
         unexpected = []
+        relocation_changes = []
+        permission_errors = {}
         for name in changed:
             if name not in self.allow_changed:
                 unexpected.append(name)
+                permission_errors[name] = (
+                    "not named by --allow-changed-sibling")
                 continue
             target = self.target_image["functions"].get(name)
             if target is None:
                 unexpected.append(name)
+                permission_errors[name] = (
+                    "absent from the target object, so the monotonic rule "
+                    "cannot be evaluated")
                 continue
             try:
-                allowed[name] = monotonic_words(
+                permitted[name] = monotonic_words(
                     bytes.fromhex(before[name]["body"]),
                     bytes.fromhex(after[name]["body"]),
                     bytes.fromhex(target["body"]))
             except Refused as error:
-                allowed[name] = {"error": str(error)}
                 unexpected.append(name)
+                permission_errors[name] = str(error)
+                continue
             if before[name]["relocations"] != after[name]["relocations"]:
-                unexpected.append(name)
-        return self.record("sibling_bodies", "FAIL" if unexpected else "PASS",
+                relocation_changes.append(name)
+        failed = sorted(set(unexpected) | set(relocation_changes))
+        if not failed:
+            verdict = "no sibling changed outside the permitted set"
+        else:
+            parts = []
+            if unexpected:
+                parts.append(f"{len(set(unexpected))} sibling body change(s) "
+                             "were not permitted")
+            if relocation_changes:
+                parts.append(f"{len(relocation_changes)} permitted sibling(s) "
+                             "ALSO changed relocations, which no --allow-"
+                             "changed-sibling grant covers")
+            verdict = "; ".join(parts)
+        return self.record("sibling_bodies", "FAIL" if failed else "PASS",
                            siblings_compared=len(before) - 1,
                            siblings_byte_equal=len(before) - 1 - len(changed),
-                           changed=changed, unexpected_changes=sorted(set(unexpected)),
-                           permitted_changes=allowed,
+                           changed=changed,
+                           unexpected_changes=sorted(set(unexpected)),
+                           relocation_changes=sorted(relocation_changes),
+                           permitted_changes=permitted,
+                           permission_errors=permission_errors,
+                           verdict=verdict,
                            permitted_rule="a permitted sibling may only move toward "
-                                          "the target at every changed bit")
+                                          "the target at every changed bit, and its "
+                                          "positional relocations may not move at all")
 
     def nontext(self):
         differences = []
@@ -855,12 +1163,21 @@ class Audit:
                     relaxed.append(old)
             expected = relaxed
         unapproved_rederived = sorted(set(rederived) - set(self.allow_rederived))
+        # RUN-59 ITEM 1: when the retired rule was the unit's LAST one, the
+        # unit KEY must be gone, not present with an empty list. `.get(unit,
+        # [])` reads the two states identically, and they are not the same
+        # state: configure.py decides whether to emit a WebFrank edge from
+        # the key, so a leftover empty list is a configuration the build and
+        # this audit would disagree about.
+        empty_key_left = (not expected
+                          and self.unit in current.get("units", {}))
         foreign = sorted(k for k in set(before.get("units", {})) | set(current.get("units", {}))
                          if k != self.unit
                          and before.get("units", {}).get(k) != current.get("units", {}).get(k))
         top_level = {k: v for k, v in current.items() if k != "units"} != \
                     {k: v for k, v in before.items() if k != "units"}
-        ok = bool(removed) and not still_pinned and expected == after_unit and not top_level
+        ok = (bool(removed) and not still_pinned and expected == after_unit
+              and not top_level and not empty_key_left)
         reasons = []
         if not removed:
             reasons.append(f"{self.function} carried no rule at {self.before_ref}")
@@ -868,6 +1185,12 @@ class Audit:
             reasons.append(f"{self.function} is STILL rule-served in the current config")
         if expected != after_unit:
             reasons.append("the unit's remaining rules are not exactly the previous ones")
+        if empty_key_left:
+            reasons.append(
+                f"{self.function} was the unit's LAST rule, so the "
+                f"\"{self.unit}\" key must be REMOVED from webfrank.json; it "
+                "is still present with an empty rule list, which configure.py "
+                "and this audit would read differently")
         if unapproved_rederived:
             reasons.append("relocation hashes re-derived without --allow-rederived-rule: "
                            + ", ".join(unapproved_rederived))
@@ -876,6 +1199,8 @@ class Audit:
         return self.record("rule_delta", "PASS" if ok and not reasons else "FAIL",
                            rules_before=[r["function"] for r in before_unit],
                            rules_after=[r["function"] for r in after_unit],
+                           unit_key_present_after=self.unit in current.get("units", {}),
+                           last_rule_in_unit=not expected,
                            retired=removed, reasons=reasons,
                            rules_with_rederived_relocation_hashes=sorted(set(rederived)),
                            approved_rederived_rules=sorted(self.allow_rederived),
@@ -885,11 +1210,12 @@ class Audit:
         before_config = self.folder / "ta_before_webfrank.json"
         before_config.write_text(json.dumps(self.before_rules, indent=2), encoding="utf-8")
         results = {}
-        for label, source, config in (
-                ("before", self.paths["before"], before_config),
-                ("after", self.paths["fresh"], self.config)):
+        stages = [("before", self.paths["before"], before_config)]
+        if not self.last_rule_retired:
+            stages.append(("after", self.paths["fresh"], self.config))
+        for label, source, config in stages:
             out = self.folder / f"ta_{label}_processed.o"
-            proc, command = replay_rules(self.post_edge, config, source, out)
+            proc, command = replay_rules(self.replay_edge, config, source, out)
             results[label] = {
                 "returncode": proc.returncode, "produced": out.exists(),
                 "rules": [r["function"] for r in
@@ -900,6 +1226,23 @@ class Audit:
                 "stderr": proc.stderr.strip().splitlines()[-6:],
                 "command": command,
                 "sha256": sha256(out.read_bytes()) if out.exists() else None}
+        if self.last_rule_retired:
+            # RUN-59 ITEM 1. There is no "after" replay to run: the unit has
+            # no WebFrank edge any more, and webfrank.py REFUSES a unit it
+            # has no configuration for (measured on game/audio/dcs:
+            # `KeyError: no webfrank configuration for 'game/audio/dcs'`).
+            # The after image IS the compiler output, and the claim to
+            # certify is exactly that -- that ninja ships it unpostprocessed.
+            after = self.folder / "ta_after_processed.o"
+            shutil.copyfile(self.paths["fresh"], after)
+            results["after"] = {
+                "returncode": 0, "produced": True, "rules": [],
+                "stdout": [], "stderr": [], "command": None,
+                "postprocessor": "NONE -- the unit's last rule was retired, "
+                                 "so configure.py emits no WebFrank edge and "
+                                 "build/%s/src/%s.o IS the compiler output"
+                                 % (VERSION, self.unit),
+                "sha256": sha256(after.read_bytes())}
         shipped = self.processed_object.read_bytes()
         equal = (results["before"]["sha256"] == results["after"]["sha256"]
                  and results["after"]["sha256"] is not None)

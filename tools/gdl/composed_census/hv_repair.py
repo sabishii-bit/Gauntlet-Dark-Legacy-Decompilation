@@ -151,6 +151,13 @@ def repair(unit, fn, verbose=True):
 
 if __name__ == "__main__":
     import json
+    import cliscreen
+    # Run-59 item 9: `--help` used to be an IndexError traceback on stderr.
+    USAGE = ("usage: hv_repair.py <unit> <function>"
+             "\n  e.g. hv_repair.py game/world/camera camera_mode_level")
+    cliscreen.help_only(__doc__, usage=USAGE)
+    if len(sys.argv) < 3:
+        raise SystemExit(USAGE)
     u, f = sys.argv[1], sys.argv[2]
     r, note = repair(u, f)
     print(f"{u}::{f}: {note}")

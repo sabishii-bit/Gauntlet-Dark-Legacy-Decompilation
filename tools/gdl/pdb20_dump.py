@@ -1,7 +1,22 @@
+"""Dump the PDB 2.0 module/function table of research/xbox_symbols/shell3D.pdb.
+
+Takes no arguments and writes research/xbox_symbols/functions_by_module.txt:
+503 modules (the full Xbox TU list) with their named functions in source
+order. The PDB is private material and is not in the repository; without it
+this script cannot run.
+"""
 import struct
+
+try:                       # run-59 item 9: `--help` exits 0 on stdout
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
 
 PATH = 'research/xbox_symbols/shell3D.pdb'
 OUT = 'research/xbox_symbols/functions_by_module.txt'
+# `--help` must answer BEFORE any work: this one opened the PDB first and
+# died with a FileNotFoundError traceback on stderr.
+cliscreen.help_only(__doc__)
 d = open(PATH, 'rb').read()
 
 page_size, start_page, num_pages = struct.unpack_from('<IHH', d, 0x2C)

@@ -249,7 +249,14 @@ def _emit(name, classed, sev, width=20):
         print(f"    {text:<{width}} {cls:<14} {first[0]}:{first[1]}{more}")
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     show_all = "--all" in sys.argv
     counts = defaultdict(int)
 

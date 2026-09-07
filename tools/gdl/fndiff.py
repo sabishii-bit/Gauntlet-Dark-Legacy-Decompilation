@@ -128,7 +128,8 @@ agree. SCHEDULE_CANDIDATE is a review queue, not proof of semantic equivalence.
 The base object is rebuilt via ninja automatically whenever the source file
 is newer (pass --no-build to skip). This prevents analyzing stale objects.
 
-IMPORTABLE CORE: objdump, unit_key, parse, classify_function, count_real,
+IMPORTABLE CORE: objdump, unit_key, parse, strip_dtk_suffix,
+resolve_function_name, dtk_name_reducer, classify_function, count_real,
 instruction_lines, opcode_multiset_signature, pool_row_findings,
 datum_screen_from_lines, datum_multiset_screen, object_sections,
 object_datum_table, object_relocation_offsets, datum_is_relocated,
@@ -218,6 +219,97 @@ PLACEHOLDER_NAME_PREFIXES = ("fn_", "lbl_", "jumptable_")
 # The same set as bare stems, for the relocation-text match in `parse`.
 PLACEHOLDER_STEMS = tuple(p[:-1] for p in PLACEHOLDER_NAME_PREFIXES)
 
+DTK_SUFFIX_RE = re.compile(r"_80[0-9A-Fa-f]{6}$")
+
+
+def strip_dtk_suffix(name):
+    """`gendir_8004FBC8` -> `gendir`; a PLACEHOLDER name is returned intact.
+
+    THE ONE DEFINITION (run-59 item 4). dtk disambiguates a file-local
+    symbol by appending its address, and this project's tools have to move
+    between that ELF spelling and the config spelling constantly. Three
+    copies of the reduction existed — this one inside `parse`,
+    `regnorm.strip_dtk_suffix`/`regnorm.resolve_name`, and
+    `wf_ordered_datum_screen._strip`/`resolve_function` — and two were born
+    WITHOUT the guard below.
+
+    THE GUARD IS LOAD-BEARING and it is `PLACEHOLDER_NAME_PREFIXES`, not
+    `fn_` alone. dtk spells an unnamed function `fn_800516F8`, a pool datum
+    `lbl_80346840` and a switch table `jumptable_80120B4C`; the tail of
+    every one of them IS `_80` plus six hex digits, so an unguarded strip
+    maps a whole population onto the single key `fn`, `lbl` or `jumptable`.
+    Measured consequences already recorded in this tree: 6 of
+    game/enemy/enemy's 23 rules collapsed onto one key and the unit's pin
+    set read 17 instead of 23 (16 pins short of the roster across the
+    image); and over config/GUNE5D/symbols.txt, 4,686 of the 4,713 names
+    the reader touches are placeholder names minting exactly three keys
+    (`lbl` from 4,282, `fn` from 307, `jumptable` from 97).
+    """
+    if name.startswith(PLACEHOLDER_NAME_PREFIXES):
+        return name
+    return DTK_SUFFIX_RE.sub("", name)
+
+
+def resolve_function_name(table, name):
+    """The key of `table` that names `name`, or None. BOTH directions.
+
+    `parse` strips a file-local symbol's dtk suffix whenever the stripped
+    base is unique in the object, while config/GUNE5D/webfrank.json spells
+    the same function the way the extracted object does. So a caller holds
+    `gendir_8004FBC8` and the table is keyed `gendir` — or, when the base
+    collides, the caller holds `gendir` and the table kept the suffix. Both
+    lookups must succeed, and a plain `table[name]` fails at both.
+
+    The failure this replaces is silent and successful-looking: a soundness
+    screen reported `UNDECIDABLE ... function absent` at EXIT 0 for a
+    PINNED function both objects hold.
+
+    An AMBIGUOUS base returns None rather than a guess. dtk keeps both
+    suffixes when two file-local symbols strip to one name
+    (dtor_800DB21C / dtor_800DBB94 -> `dtor`), and `parse`'s own first pass
+    exists for exactly that case: answering with the wrong function's rows
+    is worse than answering with nothing.
+    """
+    if name in table:
+        return name
+    stripped = strip_dtk_suffix(name)
+    if stripped != name and stripped in table:
+        return stripped
+    candidates = [key for key in table
+                  if key != stripped and strip_dtk_suffix(key) == stripped]
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
+def dtk_name_reducer(dump_text):
+    """ELF header name -> the key every reader of this dump uses.
+
+    The other half of the ONE definition: `parse`, `raw_signature` and
+    `raw_words_signature` each carried their own copy of this two-pass
+    reduction, and every one of them has to agree, or a signature is keyed
+    on a name the line table does not hold.
+
+    Pass one counts how many header names reduce to each base; pass two
+    (the returned callable) strips a name ONLY when its base is unique in
+    this object. A collision keeps both suffixes — dtor_800DB21C and
+    dtor_800DBB94 both reduce to `dtor`, and collapsing them silently
+    returned one function's rows for the other, which is how a worker's
+    first baseline was the wrong function's.
+    """
+    strip_counts: dict[str, int] = {}
+    for name in re.findall(r"^[0-9a-f]+ <(.+)>:$", dump_text, re.M):
+        stripped = strip_dtk_suffix(name)
+        strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+
+    def reduce(name):
+        stripped = strip_dtk_suffix(name)
+        if stripped != name and strip_counts.get(stripped, 0) <= 1:
+            return stripped
+        return name
+
+    return reduce
+
 
 def symbol_addresses():
     """name -> absolute address for every symbols.txt entry (data identity)."""
@@ -243,9 +335,7 @@ def symbol_addresses():
                     # 97 — each resolving to whichever name parsed first).
                     # The 27 real dtk local statics keep their alias, which is
                     # what it is for.
-                    if name.startswith(PLACEHOLDER_NAME_PREFIXES):
-                        continue
-                    stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+                    stripped = strip_dtk_suffix(name)
                     if stripped != name:
                         table.setdefault(stripped, addr)
         _SYMBOL_ADDRESSES = table
@@ -416,22 +506,60 @@ def stale_object_warning(objfile) -> str:
         " pre-postprocess object, which IS current.)")
 
 
+_PARSE_CACHE: dict[tuple, dict] = {}
+
+
 def parse(objfile: Path):
-    """Return {function_name: [normalized instruction/reloc lines]}."""
+    """Return {function_name: [normalized instruction/reloc lines]}.
+
+    Memoized per PROCESS on the file's identity, exactly like `objdump`
+    above and for the same reason one layer up. `objdump` caches the DUMP
+    TEXT, so a repeat `parse` skipped the two subprocesses but still re-ran
+    the whole two-pass regex reduction over ~2 MB of text every time.
+
+    MEASURED (run-59 item 6, build/t3_scratch/t3_parse_repro.py at
+    2651955ed): composing the whole-TU relocation screen of
+    game/enemy/enemy per function — 84 functions x 2 objects — made 168
+    `parse` calls costing 8.744 s of parse time inside a 17.99 s wall,
+    with the objdump memo already hitting on all 168. After this memo the
+    same loop makes 168 calls that cost 0.239 s, and one single-function
+    `wf_word_diff` run (4 calls over 2 objects) drops 0.271 s -> 0.070 s.
+
+    THE KEY INCLUDES mtime_ns AND SIZE, never the path alone. A stale
+    parse table is worse than a slow one: probe.py builds an object and
+    reads it in the same process, and a path-keyed memo would answer with
+    the PRE-BUILD instruction lines — a false `EXACT` describing bytes
+    that no longer exist. A rebuilt object has a new mtime and simply
+    misses, which `test_t16_objdump_cache` pins from both sides.
+
+    Callers get a FRESH dict of FRESH lists every time (the lines are
+    strings, which are immutable), so a caller that edits its table cannot
+    poison the next reader's. The copy costs ~0.3 ms for an 84-function
+    object against ~50 ms to re-parse it.
+    """
+    path = Path(objfile)
+    try:
+        stat = path.stat()
+        key = (str(path), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        key = None
+    if key is not None:
+        cached = _PARSE_CACHE.get(key)
+        if cached is not None:
+            return {name: list(lines) for name, lines in cached.items()}
+    table = _parse_uncached(path)
+    if key is not None:
+        if len(_PARSE_CACHE) > 512:         # a sweep, not a leak
+            _PARSE_CACHE.clear()
+        _PARSE_CACHE[key] = table
+    return {name: list(lines) for name, lines in table.items()}
+
+
+def _parse_uncached(objfile: Path):
+    """`parse` without the memo; every comment below describes this body."""
     aliases = compiler_private_aliases(objfile)
     out = objdump(objfile, "-dr")
-    # First pass: which stripped names are UNIQUE? dtk-suffixed names strip
-    # to their base for pairing, but two functions whose bases collide
-    # (dtor_800DB21C / dtor_800DBB94 -> "dtor") must KEEP their suffixes —
-    # collapsing them silently returned one function's rows for the other,
-    # and a worker's first baseline was the wrong function's.
-    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
-    strip_counts: dict[str, int] = {}
-    for name in raw_names:
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
-
+    reduce_name = dtk_name_reducer(out)
     funcs = {}
     cur = None
     cur_start = 0
@@ -439,11 +567,7 @@ def parse(objfile: Path):
         m = re.match(r"^([0-9a-f]+) <(.+)>:$", line)
         if m:
             cur_start = int(m.group(1), 16)
-            cur = m.group(2)
-            if not cur.startswith("fn_"):
-                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
-                if strip_counts.get(stripped, 0) <= 1:
-                    cur = stripped
+            cur = reduce_name(m.group(2))
             funcs[cur] = []
             continue
         if cur is None:
@@ -536,12 +660,7 @@ def raw_words_signature(objfile: Path):
     """
     import hashlib
     out = objdump(objfile, "-dr")
-    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
-    strip_counts: dict[str, int] = {}
-    for name in raw_names:
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+    reduce_name = dtk_name_reducer(out)
     hashes = {}
     cur = None
     hasher = None
@@ -550,11 +669,7 @@ def raw_words_signature(objfile: Path):
         if m:
             if cur is not None:
                 hashes[cur] = hasher.hexdigest()[:12]
-            cur = m.group(1)
-            if not cur.startswith("fn_"):
-                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
-                if strip_counts.get(stripped, 0) <= 1:
-                    cur = stripped
+            cur = reduce_name(m.group(1))
             hasher = hashlib.sha1()
             continue
         if cur is None:
@@ -578,12 +693,7 @@ def raw_signature(objfile: Path):
     """
     import hashlib
     out = objdump(objfile, "-dr")
-    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
-    strip_counts: dict[str, int] = {}
-    for name in raw_names:
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+    reduce_name = dtk_name_reducer(out)
     hashes = {}
     cur = None
     cur_start = 0
@@ -593,12 +703,8 @@ def raw_signature(objfile: Path):
         if m:
             if cur is not None:
                 hashes[cur] = hasher.hexdigest()[:12]
-            cur = m.group(2)
+            cur = reduce_name(m.group(2))
             cur_start = int(m.group(1), 16)
-            if not cur.startswith("fn_"):
-                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
-                if strip_counts.get(stripped, 0) <= 1:
-                    cur = stripped
             hasher = hashlib.sha1()
             continue
         if cur is None:
@@ -1402,6 +1508,104 @@ def datum_is_relocated(symbol, objfile):
     return any(offset <= at < offset + span for at in hits)
 
 
+POOL_PLACEMENT_SECTIONS = (".sdata2", ".rodata", ".sdata", ".data")
+
+
+def required_pool_bases(ours_object, target_object,
+                        section=".sdata2"):
+    """{required section base: [our datum symbols pinned to it]}.
+
+    RUN-59 ITEM 2, the fact the KIND-EQUAL-VALUE rule cannot see. A section
+    claim places our WHOLE compiled pool at ONE base B: our datum at pool
+    offset K lands at B+K. Every relocation inside a BYTE-EXACT body pins
+    the datum it reads to the address the retail relocation names, so it
+    FORCES B = target_address - (our offset + our addend). Two bindings
+    that force different B cannot both be satisfied by any placement.
+
+    Value equality says nothing about that. `pool_row_findings` classifies
+    a named-versus-anonymous row POOL-KIND-EQUAL when the two entries hold
+    the same constant, and `defake_gate` keeps it -- correctly, as a
+    SPELLING question -- but a source change can make an EXACT body read a
+    pool entry at an offset that no placement admits, and both gates
+    reported it as benign. Measured on game/enemy/critter: the unit already
+    requires EIGHT mutually incompatible .sdata2 bases, and a candidate
+    accepted under kind-equal-value introduced a NINTH (0x80346480).
+
+    Restricted to byte-exact bodies with positionally paired relocation
+    tables of equal length and matching types, because that is the only
+    state in which "relocation i on our side is relocation i on theirs" is
+    a fact rather than a guess. A unit with no such evidence returns {} --
+    an absence of constraints, which the caller must not read as agreement.
+    """
+    ours_words = raw_words_signature(ours_object)
+    target_words = raw_words_signature(target_object)
+    ours_symbols, _blobs = object_sections(Path(ours_object), readable=None)
+    ours_relocs = relocation_symbols(ours_object)
+    target_relocs = relocation_symbols(target_object)
+    table = symbol_table()
+    bases: dict[int, set] = {}
+    for name, signature in ours_words.items():
+        if target_words.get(name) != signature:
+            continue                      # not byte-exact: pairing is a guess
+        ours_rows = ours_relocs.get(name) or []
+        target_rows = target_relocs.get(name) or []
+        if not ours_rows or len(ours_rows) != len(target_rows):
+            continue
+        for (our_kind, our_sym), (their_kind, their_sym) in zip(ours_rows,
+                                                                target_rows):
+            if our_kind != their_kind:
+                continue
+            our_name, our_addend = split_addend(our_sym.strip())
+            entry = ours_symbols.get(our_name)
+            if entry is None or entry[0] != section:
+                continue
+            their_name, their_addend = split_addend(their_sym.strip())
+            target_entry = table.get(their_name)
+            if target_entry is None or target_entry[0] != section:
+                continue
+            address = target_entry[1] + their_addend
+            bases.setdefault(address - entry[1] - our_addend,
+                             set()).add(our_name)
+    return {base: sorted(names) for base, names in bases.items()}
+
+
+def pool_placement(ours_object, target_object,
+                   sections=POOL_PLACEMENT_SECTIONS):
+    """{section: {required base: [datums]}} over every pooled section."""
+    out = {}
+    for section in sections:
+        bases = required_pool_bases(ours_object, target_object, section)
+        if bases:
+            out[section] = bases
+    return out
+
+
+def pool_placement_regressions(before, after):
+    """The bases `after` introduced or moved, as [(section, text)] rows.
+
+    A NEW base is a placement that no previous binding demanded; a MOVED
+    datum is one whose required base changed. Either means the section can
+    no longer be laid out the way it could before, whatever the two ends
+    of the changed relocation HOLD.
+    """
+    rows = []
+    for section in sorted(set(before) | set(after)):
+        old = before.get(section) or {}
+        new = after.get(section) or {}
+        for base in sorted(set(new) - set(old)):
+            rows.append((section,
+                         f"NEW required base 0x{base:08X} demanded by "
+                         + ", ".join(new[base])))
+        old_of = {name: base for base, names in old.items() for name in names}
+        new_of = {name: base for base, names in new.items() for name in names}
+        for name in sorted(set(old_of) & set(new_of)):
+            if old_of[name] != new_of[name]:
+                rows.append((section,
+                             f"{name} MOVED: required base "
+                             f"0x{old_of[name]:08X} -> 0x{new_of[name]:08X}"))
+    return rows
+
+
 def is_pointer_table(blob, name=""):
     """A relocation-filled table: resolved addresses in the retail image and
     ZEROS in our object, because our entries live in the relocation table.
@@ -2086,6 +2290,57 @@ def real_reconciliation(real, raw_rows, noise):
     return ""
 
 
+def print_pool_placement(ours_object, target_object):
+    """The unit's required section bases, under the `--clean` pool rows.
+
+    RUN-59 ITEM 2. `--clean` normalizes a named-versus-anonymous pool row
+    away and `pool_row_findings` reports it POOL-KIND-EQUAL when the two
+    entries hold the same constant. That is the right answer to the
+    SPELLING question and it is silent on PLACEMENT: a section claim puts
+    our WHOLE pool at one base, and each binding in a byte-exact body
+    forces base = target address - our pool offset. Two bindings forcing
+    different bases cannot both be satisfied, and a source change can add
+    one while every row here still reads benign -- measured on
+    game/enemy/critter, whose .sdata2 already requires FIVE incompatible
+    bases and whose CR-lane candidate required EIGHT.
+
+    Printed for every `--clean` run so the fact is not conditional on
+    which functions were named, and printed as EVIDENCE rather than a
+    verdict: `--clean` scores one function at a time and has no before
+    state to call anything a regression. `defake_gate` holds the before
+    state and does call it one.
+    """
+    try:
+        placement = pool_placement(ours_object, target_object)
+    except Exception as error:                              # noqa: BLE001
+        print(f"POOL PLACEMENT: not measured ({error})")
+        return
+    if not placement:
+        print("POOL PLACEMENT: no byte-exact body binds a pooled datum in"
+              " this unit, so no placement constraint could be derived —"
+              " an ABSENCE of evidence, not agreement")
+        return
+    print("POOL PLACEMENT (required section base per pinned datum, from"
+          " byte-exact bodies only):")
+    conflicted = 0
+    for section in sorted(placement):
+        bases = placement[section]
+        conflicted += len(bases) > 1
+        print(f"  {section}: {len(bases)} distinct required base(s)")
+        for base in sorted(bases):
+            names = bases[base]
+            shown = ", ".join(names[:8]) + (" ..." if len(names) > 8 else "")
+            print(f"    0x{base:08X}  {len(names):3d} datum(s)  {shown}")
+    if conflicted:
+        print("  NO CONTIGUOUS CLAIM EXISTS for the section(s) above with"
+              " more than one base: the pool cannot be laid out to satisfy"
+              " every binding at once. A POOL-KIND-EQUAL row is a statement"
+              " about what two entries HOLD and never about where ours can"
+              " GO — read this table before keeping one.")
+    else:
+        print("  a single base satisfies every pinned datum in each section")
+
+
 def clean_diff(name, t, b, ours_object=None):
     """Noise-free diff + always-printed summary + mechanical hints.
 
@@ -2356,7 +2611,14 @@ def truncate_ops(ops_text, limit):
     return "\n".join(kept + [note])
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean",
              "--raw", "--relocs", "--datum", "--resolve-lbl")
     args = [a for a in sys.argv[1:] if a not in flags]
@@ -2421,17 +2683,14 @@ def main():
     target, base = parse(target_o), parse(base_o)
 
     def resolve_name(name):
-        """Requested-name resolution across the suffix convention: try the
-        raw spelling first (collision-kept names like dtor_800DB21C stay
-        suffixed in parse output), then the stripped form. Unconditional
-        stripping made both dtors unreachable by their own names."""
-        if name in target or name in base:
-            return name
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            if stripped in target or stripped in base:
-                return stripped
-        return name
+        """Requested-name resolution across the suffix convention.
+
+        `resolve_function_name` is the ONE definition (run-59 item 4);
+        this wrapper only adds the two-table union and the fallback that
+        keeps the typed spelling in the MISSING-IN-BOTH line.
+        """
+        union = dict.fromkeys(list(target) + list(base))
+        return resolve_function_name(union, name) or name
 
     names = [resolve_name(name) for name in args[1:]] or sorted(
         set(target) | set(base), key=lambda n: list(target).index(n) if n in target else 999
@@ -2503,6 +2762,8 @@ def main():
         print("=" * 20, name)
         for line in difflib.unified_diff(t, b, "target", "base", lineterm="", n=2):
             print(line)
+    if clean:
+        print_pool_placement(base_o, target_o)
     return 0
 
 
