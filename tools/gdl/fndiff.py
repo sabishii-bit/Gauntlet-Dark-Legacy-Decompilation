@@ -1508,6 +1508,104 @@ def datum_is_relocated(symbol, objfile):
     return any(offset <= at < offset + span for at in hits)
 
 
+POOL_PLACEMENT_SECTIONS = (".sdata2", ".rodata", ".sdata", ".data")
+
+
+def required_pool_bases(ours_object, target_object,
+                        section=".sdata2"):
+    """{required section base: [our datum symbols pinned to it]}.
+
+    RUN-59 ITEM 2, the fact the KIND-EQUAL-VALUE rule cannot see. A section
+    claim places our WHOLE compiled pool at ONE base B: our datum at pool
+    offset K lands at B+K. Every relocation inside a BYTE-EXACT body pins
+    the datum it reads to the address the retail relocation names, so it
+    FORCES B = target_address - (our offset + our addend). Two bindings
+    that force different B cannot both be satisfied by any placement.
+
+    Value equality says nothing about that. `pool_row_findings` classifies
+    a named-versus-anonymous row POOL-KIND-EQUAL when the two entries hold
+    the same constant, and `defake_gate` keeps it -- correctly, as a
+    SPELLING question -- but a source change can make an EXACT body read a
+    pool entry at an offset that no placement admits, and both gates
+    reported it as benign. Measured on game/enemy/critter: the unit already
+    requires EIGHT mutually incompatible .sdata2 bases, and a candidate
+    accepted under kind-equal-value introduced a NINTH (0x80346480).
+
+    Restricted to byte-exact bodies with positionally paired relocation
+    tables of equal length and matching types, because that is the only
+    state in which "relocation i on our side is relocation i on theirs" is
+    a fact rather than a guess. A unit with no such evidence returns {} --
+    an absence of constraints, which the caller must not read as agreement.
+    """
+    ours_words = raw_words_signature(ours_object)
+    target_words = raw_words_signature(target_object)
+    ours_symbols, _blobs = object_sections(Path(ours_object), readable=None)
+    ours_relocs = relocation_symbols(ours_object)
+    target_relocs = relocation_symbols(target_object)
+    table = symbol_table()
+    bases: dict[int, set] = {}
+    for name, signature in ours_words.items():
+        if target_words.get(name) != signature:
+            continue                      # not byte-exact: pairing is a guess
+        ours_rows = ours_relocs.get(name) or []
+        target_rows = target_relocs.get(name) or []
+        if not ours_rows or len(ours_rows) != len(target_rows):
+            continue
+        for (our_kind, our_sym), (their_kind, their_sym) in zip(ours_rows,
+                                                                target_rows):
+            if our_kind != their_kind:
+                continue
+            our_name, our_addend = split_addend(our_sym.strip())
+            entry = ours_symbols.get(our_name)
+            if entry is None or entry[0] != section:
+                continue
+            their_name, their_addend = split_addend(their_sym.strip())
+            target_entry = table.get(their_name)
+            if target_entry is None or target_entry[0] != section:
+                continue
+            address = target_entry[1] + their_addend
+            bases.setdefault(address - entry[1] - our_addend,
+                             set()).add(our_name)
+    return {base: sorted(names) for base, names in bases.items()}
+
+
+def pool_placement(ours_object, target_object,
+                   sections=POOL_PLACEMENT_SECTIONS):
+    """{section: {required base: [datums]}} over every pooled section."""
+    out = {}
+    for section in sections:
+        bases = required_pool_bases(ours_object, target_object, section)
+        if bases:
+            out[section] = bases
+    return out
+
+
+def pool_placement_regressions(before, after):
+    """The bases `after` introduced or moved, as [(section, text)] rows.
+
+    A NEW base is a placement that no previous binding demanded; a MOVED
+    datum is one whose required base changed. Either means the section can
+    no longer be laid out the way it could before, whatever the two ends
+    of the changed relocation HOLD.
+    """
+    rows = []
+    for section in sorted(set(before) | set(after)):
+        old = before.get(section) or {}
+        new = after.get(section) or {}
+        for base in sorted(set(new) - set(old)):
+            rows.append((section,
+                         f"NEW required base 0x{base:08X} demanded by "
+                         + ", ".join(new[base])))
+        old_of = {name: base for base, names in old.items() for name in names}
+        new_of = {name: base for base, names in new.items() for name in names}
+        for name in sorted(set(old_of) & set(new_of)):
+            if old_of[name] != new_of[name]:
+                rows.append((section,
+                             f"{name} MOVED: required base "
+                             f"0x{old_of[name]:08X} -> 0x{new_of[name]:08X}"))
+    return rows
+
+
 def is_pointer_table(blob, name=""):
     """A relocation-filled table: resolved addresses in the retail image and
     ZEROS in our object, because our entries live in the relocation table.
@@ -2192,6 +2290,57 @@ def real_reconciliation(real, raw_rows, noise):
     return ""
 
 
+def print_pool_placement(ours_object, target_object):
+    """The unit's required section bases, under the `--clean` pool rows.
+
+    RUN-59 ITEM 2. `--clean` normalizes a named-versus-anonymous pool row
+    away and `pool_row_findings` reports it POOL-KIND-EQUAL when the two
+    entries hold the same constant. That is the right answer to the
+    SPELLING question and it is silent on PLACEMENT: a section claim puts
+    our WHOLE pool at one base, and each binding in a byte-exact body
+    forces base = target address - our pool offset. Two bindings forcing
+    different bases cannot both be satisfied, and a source change can add
+    one while every row here still reads benign -- measured on
+    game/enemy/critter, whose .sdata2 already requires FIVE incompatible
+    bases and whose CR-lane candidate required EIGHT.
+
+    Printed for every `--clean` run so the fact is not conditional on
+    which functions were named, and printed as EVIDENCE rather than a
+    verdict: `--clean` scores one function at a time and has no before
+    state to call anything a regression. `defake_gate` holds the before
+    state and does call it one.
+    """
+    try:
+        placement = pool_placement(ours_object, target_object)
+    except Exception as error:                              # noqa: BLE001
+        print(f"POOL PLACEMENT: not measured ({error})")
+        return
+    if not placement:
+        print("POOL PLACEMENT: no byte-exact body binds a pooled datum in"
+              " this unit, so no placement constraint could be derived —"
+              " an ABSENCE of evidence, not agreement")
+        return
+    print("POOL PLACEMENT (required section base per pinned datum, from"
+          " byte-exact bodies only):")
+    conflicted = 0
+    for section in sorted(placement):
+        bases = placement[section]
+        conflicted += len(bases) > 1
+        print(f"  {section}: {len(bases)} distinct required base(s)")
+        for base in sorted(bases):
+            names = bases[base]
+            shown = ", ".join(names[:8]) + (" ..." if len(names) > 8 else "")
+            print(f"    0x{base:08X}  {len(names):3d} datum(s)  {shown}")
+    if conflicted:
+        print("  NO CONTIGUOUS CLAIM EXISTS for the section(s) above with"
+              " more than one base: the pool cannot be laid out to satisfy"
+              " every binding at once. A POOL-KIND-EQUAL row is a statement"
+              " about what two entries HOLD and never about where ours can"
+              " GO — read this table before keeping one.")
+    else:
+        print("  a single base satisfies every pinned datum in each section")
+
+
 def clean_diff(name, t, b, ours_object=None):
     """Noise-free diff + always-printed summary + mechanical hints.
 
@@ -2613,6 +2762,8 @@ def main():
         print("=" * 20, name)
         for line in difflib.unified_diff(t, b, "target", "base", lineterm="", n=2):
             print(line)
+    if clean:
+        print_pool_placement(base_o, target_o)
     return 0
 
 
