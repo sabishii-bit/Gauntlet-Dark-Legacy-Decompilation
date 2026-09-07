@@ -1,7 +1,35 @@
 import copy
+import hashlib
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
+from tools.gdl.composed_census import r89_texture_retirement_audit as audit
 from tools.gdl.composed_census.r89_texture_retirement_audit import FN, UNIT, verify
+
+
+class InputHashTests(unittest.TestCase):
+    def test_snapshot_and_current_target_hashes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            baseline = Path(tmp)
+            contents = {name: name.encode() for name in audit.BASELINE_HASHES}
+            hashes = {name: hashlib.sha256(body).hexdigest() for name, body in contents.items()}
+            for name, body in contents.items():
+                (baseline/name).write_bytes(body)
+            target = baseline/'current-target.o'
+            target.write_bytes(contents['target.o'])
+            with patch.object(audit, 'BASELINE_HASHES', hashes):
+                self.assertEqual(audit.verify_inputs(baseline, target), hashes)
+                for name, body in contents.items():
+                    with self.subTest(changed=name):
+                        (baseline/name).write_bytes(body+b'drift')
+                        with self.assertRaisesRegex(ValueError, 'snapshot hash differs: '+name):
+                            audit.verify_inputs(baseline, target)
+                        (baseline/name).write_bytes(body)
+                target.write_bytes(b'wrong target')
+                with self.assertRaisesRegex(ValueError, 'current target object hash differs'):
+                    audit.verify_inputs(baseline, target)
 
 
 class TextureRetirementAuditTests(unittest.TestCase):
@@ -24,6 +52,11 @@ class TextureRetirementAuditTests(unittest.TestCase):
 
     def test_positive(self):
         self.assertEqual(self.check()['named_target_relocations'],8)
+
+    def test_foreign_tu_retirement_out_of_scope(self):
+        self.old_rules['units']['foreign/tu'] = [dict(function='foreign')]
+        self.new_rules['units']['foreign/tu'] = []
+        self.assertEqual(self.check()['configuration_scope'], UNIT)
 
     def test_raw_sibling_refusal(self):
         self.after['raw']['functions']['sibling0']['body']='60000000'
