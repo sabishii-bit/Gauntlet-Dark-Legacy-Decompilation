@@ -5524,7 +5524,7 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     timeOffset = 0;
     moveOffset = 0;
     result = -1;
-    best = lbl_80346470;
+    best = 0.0f;
 
     for (; i < *(s16 *)(hdr + offsetof(CritterPackedType, moveCount));
          i++, timeOffset += 4, moveOffset += sizeof(CritterMove)) {
