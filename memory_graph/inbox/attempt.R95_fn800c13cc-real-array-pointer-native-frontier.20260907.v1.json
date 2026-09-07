@@ -1,0 +1,43 @@
+{
+  "attempted_axis": "Pointers to the actual complete string/image arrays do not retire this 51/51 six-word schedule/recolor rule. Twenty-one successful complete-TU controls: direct complete-array addresses are full-ELF neutral; named string pointers reproduce the old home copy even with the current defined const array; named image pointers create a persistent saved stack-address value. Do not repeat this finite axis unchanged; no compiler-necessity claim.",
+  "attributes": {
+    "axis_log": "GC legacy literal forms remain finite vetoes: named char local initializer, in-loop/preheader assignment, register storage, &string[0] and alternate compiler did not remove home copy under then-extern source; raw scalar-extern retype was wrong, dropped HA/LO through SDA and regressed sibling, never repeat. GC removed named local to restore51count at expense of saved-home swap. WF image versus &image[0] was full-object neutral; named s16 transit neutral. CD later defined current const string, claimed own0x14 rodata and removed stale block_relocations, then installed guarded composition. R95 explicitly tests this changed source-definition context and the distinct complete-array identity, not the old mere &element spelling. The named-copy mechanism reproduces; source definition alone does not invalidate that finite result.",
+    "diagnosis": "Baseline target +0x3c 'addi r30,r3,0' with string LO relocation versus raw 'addi r31,r3,0'; target +0x44 'li r31,0' versus raw 'li r30,0'; target +0x48 'addi r3,r1,8' then +0x4c 'extsh r4,r31' versus raw +0x48 'extsh r4,r30' then +0x4c 'addi r3,r1,8'. The other register differences are +0x98 call string argument and +0xb0 offset increment. Named complete-string pointer control instead emits +0x3c 'addi r0,r3,0' then +0x40 'mr r30,r0', restoring desired string home but adding one instruction. Named image pointer adds +0x40 'addi r30,r1,8' and expands the save set to include a persistent stack address; the first call uses a saved-pointer copy rather than target stack-address rematerialization. These are measured frontend/address lifetime outcomes, not reverse-engineered MWCC internals.",
+    "evidence": {
+      "anchor_commit": "34e6961b3",
+      "archive_files": 68,
+      "archive_manifest": "r95_error_manifest.json",
+      "archive_manifest_sha256": "d4bdfd18df5738b4c101151432ed2637b4fef8ce8d7000045e3cef27a1a2043e",
+      "archive_name": "gdl-r95-error-evidence-20260907",
+      "compiler_sha256": "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914",
+      "detail": "controls/r95_report.json carries full source/object hashes, compile commands, inventories and target/raw disassembly. All21 successful controls, originals, compiler, wrapper, source dependencies, prior records and the reproducible probe/finalize scripts are archived."
+    },
+    "law_screen": "Current full289-law roster screened, complete contract and full GC/CD/WF records read, relevant law bodies revisited. claim.law.noop-cast-on-array-decay-not-neutral.20260831.v1 motivates distinct typed-address identity; claim.law.point-of-use-single-use-pointer-delay.20260830.v1 is tested with actual call use and produces hoisting/caching, not its proposed cure. claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 and claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 predict separate initializer group effects but are not proof of impossibility. Read superseding claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v2; obsolete roster and blanket source-unreachable clauses are not reasserted. Existing strict composition and own-rodata repair preserved; source freeze/whole-TU binding discipline applied.",
+    "next_hypothesis": "Further progress requires independent evidence for the original image descriptor/local-stack layout or API parameter declarations, before changing either; no arbitrary image retype, padding or invented wrapper is licensed. Both pb_error callers contain the image-address/sign-extension scheduling shape, but sibling fn_800C1174 remains untouched and requires its own context and scope review before any new reconstruction.",
+    "ownership": "Existing source defines const char lbl_801164C0[] with PB_ERROR.C:__LINE__ and declares actual u8 image[164]/u32 pixels[1024]. No global/object layout changes made. Complete-array locals use sizeof the existing array and take its address; their use reaches the same first byte. fn_800C1148 actual definition is src/game/pb/pb_winglobals.c with third void* parameter, contrary to pb_error's mb_window helper comment; PS2 image helper bodies are extant fakelib stubs, so no original descriptor-layout or full-prototype provenance is inferred from those bodies. Xbox exact-name query for fn_800C13CC returns no match; positional PB_ERROR naming is not adopted.",
+    "probed_form": "21 successful controls /20 edited controls /12 distinct edited ELFs. Baseline51; complete string pointer52; complete image pointer52; both53. Current defined-const ordinary char pointer52 and full-ELF equal to complete-string pointer. String initializer52; string assignment at actual call52; image initializer52; image preloop52; both preloop53; both initializers53. Direct whole-array string/image addresses individually/jointly51 and full-ELF neutral. Named pointers passed as whole-array addresses rather than decayed elements retain52. Named string plus direct image address52. Image pointer only first call, only second call, or first-call lexical block each52; first-call pointer jointly with string pointer53. No count-asymmetric positional word tally is claimed as a recolor distance.",
+    "verification": "All68 external archive digests verified. All four unrelated raw function bodies and nontext data outside EH are preserved across every control; EH and geometry are not uniformly preserved, and no final-address binding certificate is claimed for nonexact candidates. Production source/raw/processed/config unchanged, no rule retired or added. Final suites, graph and DOL gates reported in handoff."
+  },
+  "denial": {
+    "expiry_check": "Rebuild; run python tools/gdl/composed_census/wf_word_diff.py game/pb/pb_error fn_800C13CC --decode and fnasm.py game/pb/pb_error fn_800C13CC --diff --raw. Reproduce archived full-ELF baseline before testing at a genuinely changed source/API/storage alignment.",
+    "falsifier": "A source-evidenced alternative descriptor/local/API reconstruction yielding native51/51 exact bytes with all four sibling bodies and final positional bindings/data/EH preserved.",
+    "premise_measurement": "Fresh target/raw51/51, frame4288 both, six differing words:4REGFIELD and2OPCODE, mnemonic divergence2, relocation-symbol mismatch0. Both actual-source and same-basename scratch baseline fullELF fidelity pass. Direct complete string/image addresses independently and jointly preserve the entire baseline ELF. Named complete-string and ordinary const-char pointer controls are identical fullELF at51/52, retaining the same extra home copy.",
+    "scope": "The archived21 complete-TU array-ownership forms on fn_800C13CC, plus GC/WF's finite source controls recorded below; not all descriptor types, recovered locals or original API declarations."
+  },
+  "function": "function:fn_800C13CC",
+  "held_fixed": "Actual complete same-basename pb_error.c through Ninja GC/1.2.5 and cflags_demo; target, five-function source order, complete string definition and all storage dimensions, existing caller declarations, every call/guard, signed16 conversion, loop bounds/store order, all four siblings, rules/splits/headers/compiler/settings unchanged. Only named pointer identity to existing arrays, lifetime/use point and direct array-address versus element-decay expression are varied. No new storage, aggregate, helper, flags or pragma; production pinned source frozen.",
+  "id": "attempt.R95_fn800c13cc-real-array-pointer-native-frontier.20260907.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-07T17:00:33Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-07",
+    "signature": null
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.GC_fn800c13cc-the-home-copy-and-the-callee-saved-numbering-are-a-forced-trade.20260904.v1",
+  "valid_from": "2026-09-07"
+}
