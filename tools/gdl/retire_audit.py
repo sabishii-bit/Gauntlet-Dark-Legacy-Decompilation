@@ -42,7 +42,13 @@ WHAT IS CERTIFIED
                         both. A sibling named by --allow-changed-sibling may
                         differ only if every changed bit moves TOWARD the
                         target (r84's monotonic rule); an unlisted change is
-                        a failure however good it looks.
+                        a failure however good it looks. The two aspects are
+                        reported separately (run-59 item 7): a permitted
+                        BODY change appears under `permitted_changes`, a
+                        RELOCATION change under `relocation_changes` (never
+                        permitted), a body change nobody granted under
+                        `unexpected_changes`, and `permission_errors` says
+                        why each listed sibling could not be permitted.
   nontext_sections      Every allocated non-.text section (data, rodata,
                         sdata, sdata2, bss, sbss ...), its bytes, size,
                         alignment, flags and relocations, plus SHN_COMMON
@@ -912,33 +918,69 @@ class Audit:
                 added=sorted(after.keys() - before.keys()),
                 removed=sorted(before.keys() - after.keys()))
         changed = sorted(n for n in before if n != self.function and before[n] != after[n])
-        allowed = {}
+        # RUN-59 ITEM 7. A permitted sibling whose RELOCATIONS also moved
+        # used to be listed under BOTH `permitted_changes` and
+        # `unexpected_changes`, which is correct per the rule (the body
+        # change is permitted, the relocation change never is) and reads as
+        # a contradiction. The two aspects now have their own fields, and
+        # the verdict text says which one failed:
+        #   permitted_changes    BODY moved, permitted, and monotonic
+        #   relocation_changes   RELOCATIONS moved -- never permitted
+        #   unexpected_changes   BODY moved and the change was NOT permitted
+        #   permission_errors    why a listed sibling could not be permitted
+        permitted = {}
         unexpected = []
+        relocation_changes = []
+        permission_errors = {}
         for name in changed:
             if name not in self.allow_changed:
                 unexpected.append(name)
+                permission_errors[name] = (
+                    "not named by --allow-changed-sibling")
                 continue
             target = self.target_image["functions"].get(name)
             if target is None:
                 unexpected.append(name)
+                permission_errors[name] = (
+                    "absent from the target object, so the monotonic rule "
+                    "cannot be evaluated")
                 continue
             try:
-                allowed[name] = monotonic_words(
+                permitted[name] = monotonic_words(
                     bytes.fromhex(before[name]["body"]),
                     bytes.fromhex(after[name]["body"]),
                     bytes.fromhex(target["body"]))
             except Refused as error:
-                allowed[name] = {"error": str(error)}
                 unexpected.append(name)
+                permission_errors[name] = str(error)
+                continue
             if before[name]["relocations"] != after[name]["relocations"]:
-                unexpected.append(name)
-        return self.record("sibling_bodies", "FAIL" if unexpected else "PASS",
+                relocation_changes.append(name)
+        failed = sorted(set(unexpected) | set(relocation_changes))
+        if not failed:
+            verdict = "no sibling changed outside the permitted set"
+        else:
+            parts = []
+            if unexpected:
+                parts.append(f"{len(set(unexpected))} sibling body change(s) "
+                             "were not permitted")
+            if relocation_changes:
+                parts.append(f"{len(relocation_changes)} permitted sibling(s) "
+                             "ALSO changed relocations, which no --allow-"
+                             "changed-sibling grant covers")
+            verdict = "; ".join(parts)
+        return self.record("sibling_bodies", "FAIL" if failed else "PASS",
                            siblings_compared=len(before) - 1,
                            siblings_byte_equal=len(before) - 1 - len(changed),
-                           changed=changed, unexpected_changes=sorted(set(unexpected)),
-                           permitted_changes=allowed,
+                           changed=changed,
+                           unexpected_changes=sorted(set(unexpected)),
+                           relocation_changes=sorted(relocation_changes),
+                           permitted_changes=permitted,
+                           permission_errors=permission_errors,
+                           verdict=verdict,
                            permitted_rule="a permitted sibling may only move toward "
-                                          "the target at every changed bit")
+                                          "the target at every changed bit, and its "
+                                          "positional relocations may not move at all")
 
     def nontext(self):
         differences = []
