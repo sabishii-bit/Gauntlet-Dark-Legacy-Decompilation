@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/sound/sounds_evt.c"
+    ],
+    "scope": "Root source-native retirement of AudioPlayerEatSFX. Screened legacy park and attempt.sounds-evt-structdraft-pass.20260831.v1: prior full member conversion hit pinned hash before raw scoring, not a quantified new-source failure. Test typed Player field recovery with existing execution points, scale and default rebasing held fixed. Private complete TU actual-Ninja fidelity first, then exact body, positional bindings, siblings/data/EH and link gates. Only owned rule removal; no new rule, compiler/flag alteration, padding or wrapper. Preserve all neighboring sound-event source and tables."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:AudioPlayerEatSFX",
+  "id": "work_claim.R81_sounds-event-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r81_sounds",
+  "recorded_at": "2026-09-07T05:08:26Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
