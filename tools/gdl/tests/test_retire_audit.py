@@ -8,8 +8,9 @@ their own commits, and two deliberately broken inputs, which must FAIL and
 name the check that failed.
 
 Live-population calibration, re-measurable with
-`python build/ta_class_census.py` (scratch), over all 1461 functions present
-in both a raw body object and the dtk target at 306e80654:
+`python tools/gdl/composed_census/ta_class_census.py`, over all 1461
+functions present in both a raw body object and the dtk target at 50e8c254e
+(85 of them count-asymmetric, so 1376 are word-comparable):
 
     register-assignment  6875 words in 222 functions
     scheduling           4683 words in 141 functions
