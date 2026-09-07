@@ -74,8 +74,6 @@ typedef struct MotorCommands {
     u32 command[4];
 } MotorCommands;
 
-extern const MotorCommands lbl_80111FDC;
-
 /* PS2 scePad/sceMtap shim layer (game/ps2/fakelib TU @0x800AF000+) */
 extern s32 scePadGetState(s32 port, s32 slot);
 extern s32 scePadInfoMode(s32 port, s32 slot, s32 mode, s32 index);
@@ -435,6 +433,9 @@ static SMTAB lbl_8011AE10 = {
       "S_CHARGE", "S_STRAFE", "S_MAGIC_SHIELD", "S_THROW_MAGIC",
       "S_COMBO_MOVE" },
 };
+
+/* 0x80111FDC  PADControlAllMotors stop command per pad */
+static const MotorCommands lbl_80111FDC = { { 2, 2, 2, 2 } };
 
 /* 0x8011AE8C  vibe_inten */
 static f32 lbl_8011AE8C[5] = { 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
