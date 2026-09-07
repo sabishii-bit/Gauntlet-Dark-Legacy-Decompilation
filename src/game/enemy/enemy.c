@@ -7667,17 +7667,20 @@ static s32 PlayersAverageLevel(void)
     return totalLevel / activePlayers;
 }
 
+typedef struct EnemyNameRow {
+    s32  type;      /* 0x00 */
+    char name[32];  /* 0x04 */
+} EnemyNameRow;
+
 static char* findWorldName(s32 world)
 {
-    s32 off = 0;
+    EnemyNameRow* tbl = (EnemyNameRow*)lbl_8011AF48;
     s32 i;
 
     for (i = 0; i < 44; i++) {
-        u8* e = (u8*)((Row36*)lbl_8011AF48) + off;
-        if (world == *(s32*)e) {
-            return (char*)(e + 4);
+        if (world == tbl[i].type) {
+            return tbl[i].name;
         }
-        off += 36;
     }
     return 0;
 }
