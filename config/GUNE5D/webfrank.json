@@ -2281,18 +2281,6 @@
         "copy_register_fields": true
       }
     ],
-    "game/sound/sounds_evt": [
-      {
-        "function": "AudioPlayerEatSFX",
-        "before_sha256": "44433b8842e39abaefd63a622684fcbaee4fca98ddcbed7abf8bdf5c22cabfdc",
-        "after_sha256": "697fe56971b4f12588eab1398eeb785b92d717d827f2416e966cef4c0aba126f",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 68
-        },
-        "copy_register_fields": true
-      }
-    ],
     "game/sound/sounds": [
       {
         "function": "AudioAmbientUpdate",
