@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/anim/action.c"
+    ],
+    "scope": "Private native-source retirement of DoEnemyAction, preserving all other action.c functions, data, EH and bindings. Root current raw census:482/482, two differing words. Target+0x28 addi r3,r27,108 and+0x2c lwz r28,204(r27); raw emits lwz r28,204(r3) then addi r3,r27,108. Existing actual Enemy fields atree+0x6c, atree.animinfo+0x70, action+0xcc, daction+0xd0, actionlist+0xd4 are already defined in included enemy.h. New axis is genuine member/subobject ownership for node/current-action and whole entry roles, singly/jointly, not another raw statement-order or declaration-placement probe. NM prior three probes held raw s32 pointer ownership fixed; action-c-defakematch-tupass explicitly excluded typed intermediates. Root read both complete records and R57 rule closure. No new view wrapper, fake helper, qualifier, padding, pragma, compiler/flags, or postprocessing rule. No shared header changes without root review. Preserve actual node address (address of atree, not loading atree.root). Full target reading, current complete law screen, whole actual-Ninja baseline identity, sibling/positional binding/data/EH certificate before source install and sole-rule retirement. Root build/r98_enemyaction_context.json, r98_enemyaction_history.json and r98_action_typing_history.json hold dispatch evidence. NonMatching TU; no TU flip or linked-source claim from DOL fallback green. DoPlayerAction remains frozen and exact postprocessed. Commit each item before a new one; archive and review before reuse."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:DoEnemyAction",
+  "id": "work_claim.R98_enemyaction-real-member-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r98_action",
+  "recorded_at": "2026-09-07T17:18:49Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
