@@ -1375,9 +1375,9 @@
     },
       {
         "function": "CritterResolveMultipleTargets",
-        "before_sha256": "aa900ce7a9017394126cce19298bc130850f5356d20f7ac4f45f71c138a108cb",
+        "before_sha256": "c2cf33b3bd25d93b5eaca7e4295bd588f65933bfc17bb538568ce98c54cc6851",
         "after_sha256": "c9a716df57842e310244967d3b3469842a990436e65d0210a35ff9d5fff11458",
-        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.' The audit escape is removed and replaced by a machine proof. attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1 measured what was still missing after its datum screen: 'The datum screen closes the catastrophic sub-case for all of them -- a wrong constant bound -- but a use-side value crossing among NON-RELOCATED registers remains unproven in those six.' That crossing is exactly what verify_value_equality_recolor now proves here. claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 named this the one unproven pin its image-wide sweep retires: '111 insns, is served TODAY by copy_register_fields + unproven_recolor_audit ... The closure PROVES it with 4 substitutions, 0 exchanges, byte-equal.' Reproduced this run through the real apply_patch: four declared substitutions, +0x48 g29->g5, +0x19c g30->g28, +0x1a0 g29->g5, +0x1a8 g30->g28, and the narrow relation refuses the same rule with '+0x1a8: use of g30 is not value-equal to g28'. The census's staging IS the build's staging for this rule (no permutation, no form stage), so the two agree by construction. verify_datum_binding proves 5 bindings by name; 2 words rest on the pool correspondence alone (uninitialised data), which is the pre-existing state this rule does not change.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.' The audit escape is removed and replaced by a machine proof. attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1 measured what was still missing after its datum screen: 'The datum screen closes the catastrophic sub-case for all of them -- a wrong constant bound -- but a use-side value crossing among NON-RELOCATED registers remains unproven in those six.' That crossing is exactly what verify_value_equality_recolor now proves here. claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 named this the one unproven pin its image-wide sweep retires: '111 insns, is served TODAY by copy_register_fields + unproven_recolor_audit ... The closure PROVES it with 4 substitutions, 0 exchanges, byte-equal.' Reproduced this run through the real apply_patch: four declared substitutions, +0x48 g29->g5, +0x19c g30->g28, +0x1a0 g29->g5, +0x1a8 g30->g28, and the narrow relation refuses the same rule with '+0x1a8: use of g30 is not value-equal to g28'. The census's staging IS the build's staging for this rule (no permutation, no form stage), so the two agree by construction. verify_datum_binding proves 5 bindings by name; 2 words rest on the pool correspondence alone (uninitialised data), which is the pre-existing state this rule does not change. PIN MAINTENANCE 2026-09-07 (CP lane, pool-order campaign): the source carrier `decrement = lbl_803464A8` was an extern placeholder standing in for a compiler literal -- 0x803464A8 is an anonymous POOL datum (f32 1.0) inside critter's own .sdata2 run, first read by CritterCollideWorld+0x248, and our object already emits that exact datum as @208 from CritterCollideWorld. Recovering it as `1.0f` moves the raw residual 62 -> 56 differing words with the pool byte-equal (29 .sdata2 entries, identical offsets/sizes/values), one relocation row changed (+0x26 lbl_803464A8 -> @208, the datum the target names at the corresponding +0x24), one function body moved out of 86, and .text/.rodata/.sdata2/extab/extabindex sizes and every exception record identical. before_sha256 was re-derived through the real guarded replay (t16_rederive_body.py --apply): BODY-MOVED aa900ce7 -> c2cf33b3, the value-equality recolor re-proved its 4 substitutions and 0 comparison exchanges, and the result is BYTE-EQUAL after re-hashing (56 words changed). after_sha256 -- the target's body -- is unchanged, as it must be. No rule was authored or extended to preserve the change.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 111
@@ -1544,8 +1544,8 @@
           ],
           "before_sha256": "0c159a567645ccb5be9d4eed5b75893c96486304c180f71ff61ce90db560c89c",
           "after_sha256": "12891e8071e194eb938aa94d8edcb51a7f6b61739bd8df824e69fabadfbb74e8",
-          "before_relocations_sha256": "82c03db0e4791ec0d53d56c29141469cd0246c32c91d25b6cb01abc6fd4e05fc",
-          "after_relocations_sha256": "dc4fc105155cfa0894f998ae9dfe196cdb3e64e65ec1d240e9a09ff89df28ed4"
+          "before_relocations_sha256": "5cc92a5a048369d7a430f91bc906595ff386d10f2b2fe2303d2009765966156e",
+          "after_relocations_sha256": "7e934f1aea64f25f23d4d6cbbc814bf62101fdda76fdb6d52a3a4514a1fa8095"
         }
       ],
       "copy_register_fields": true
@@ -1572,8 +1572,8 @@
           ],
           "before_sha256": "1f25855d832a8568a492077e7ca0f60d8d010e14ee680ba02287bddc49d3b898",
           "after_sha256": "632794d5cba761fe5c5f2a052a45e51b74f2c67c045472e7d63bcd1fc3cf7fdc",
-          "before_relocations_sha256": "367074387440b48d3f96c326e69f950a695c4f22994afa6854f263f5850fcc02",
-          "after_relocations_sha256": "8a7fa6f448c7d0a9429e67c94280a8c634477f37e0dc5c6a61e28dd60472c21a"
+          "before_relocations_sha256": "44d2f99304df334320c84d2f7571d200e04cf81dc17abbac6ac2c1c9e1ecf5da",
+          "after_relocations_sha256": "938786bb57224e746099850de2bd18c99e9c94112ad6caf2621279b26dd2450e"
         }
       ],
       "copy_register_fields": true
@@ -2907,72 +2907,6 @@
           "instructions": 159
         },
         "copy_register_fields": true
-      }
-    ],
-    "game/audio/dcs": [
-      {
-        "function": "update_chinfo",
-        "before_sha256": "d221a1e0283c37ecc65afc7b44d4753ff21e4b1595c23d7bcd11428da5a541c8",
-        "after_sha256": "0d37b299b3ab6453507e5fc822ae7ce00ec2b9c20044092df667727075678321",
-        "mechanism": "attempt.HA_update-chinfo-combined-close.20260901.v1. THIS IS THE FUNCTION claim.CH_combined-stage-closability-roster-and-its-empty-whole-function-payoff.20260901.v1 NAMED AS 'the single highest-closability member in the image' AND THEN RULED REFUSING 'for reasons beyond the stage', concluding the combined stage is 'necessary for 25 functions and sufficient for NONE of them'. That verdict was an artifact of the simulation, not a property of this function. CH's ch_closable.py absorbs a form site by executing `cur[off:off+4] = tgt[off:off+4]` - it COPIES THE TARGET WORD - whereas the shipped stage's defining move, stated in one sentence by claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1, is that it NEVER copies the target word and instead re-encodes the target's ENCODING around OUR registers. Copying the target word at +0x84 imports the target's DESTINATION r24 into our stream, after which the remainder really is not a position-consistent renaming and the verifier really does refuse at +0x98 with 'use of g23 does not correspond to g24' - CH's reported bar, faithfully measured against a design the project did not build. Re-encoding instead leaves our destination r23 in place, the r23->r24 correspondence stays consistent with the other 28 words, and the function closes. CH's parallel finding that TIER A IS EMPTY is NOT refuted and reproduces exactly here: re-run against the shipped stage, zero of the sixteen HALF-A carriers close with no permutation at all, so the stage still always composes with a reorder. 75/75 instructions, 30 differing words. STAGE 1, PERMUTATION over [0x68,0x78), order [0,2,1,3]: ours emits the SDA21-relocated `lwz r0,0(r0)` then `li r22,0`; the target emits them in the opposite order. C1 STEP-0, run as a MEMBERSHIP test before authoring per claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1: the two swapped atoms are independent in OUR OWN colouring - the load defines r0 and the `li` defines r22, distinct destinations, and the `li` reads nothing at all so it can cross the load in either direction - and check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None, no escape invoked. This is the independent-displacement half of C1's split, so the permutation belongs BEFORE the recolor and no post-recolor stage is used. IDENTITY-ORDER TRAP checked rather than assumed: the identity order also passes step-0, so passing step-0 proves nothing about necessity; the discriminator is that with no permutation the function refuses with unabsorbed words at +0x6c and +0x70, and [0,2,1,3] is not the identity, so the stage is load-bearing. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: this window DOES carry a relocation - one R_PPC_EMB_SDA21 naming lbl_8034520C, riding the `lwz` atom from slot 1 to slot 2 - so the before and after region relocation hashes legitimately DIFFER, and the records are read as real (offset,type,addend) triples out of the object's own RELA section rather than reconstructed. Recorded because it cost a derivation: relocations RIDE THEIR ATOM, so any proof run against the permuted stream must be handed the PERMUTED relocation set. Handing prove_constant_dataflow the un-permuted set marks whichever word lands on a formerly-relocated offset as relocated, and a relocated word may never be a definition, so the `li r22,0` this permutation moves INTO +0x6c is refused as the definition it plainly is - a false refusal that reads exactly like a property of the function. STAGE 2, THE COMBINED SITE at +0x84: ours decodes ('li',23,0), the target ('copy',24,22) - a form change AND a destination recolor on ONE word, which every pre-existing mode refuses by name as 'a recolor, not a form change'. The stage re-encodes the target's `or` form around our registers, writing `mr r23,r22`, so what it leaves differs from the target in REGISTER FIELDS ONLY and the unchanged recolor stage completes it. The value obligation - that OUR r22 holds 0 at the site - is discharged by `constant_dataflow_recolor`, the whole-CFG forward dataflow, against the `li r22,0` the permutation places at +0x6c, six instructions earlier with NO interposed call (the surrounding calls are dcsMemLock at +0x30 and dcsVoiceInUse at +0x8c, both outside the def/use window). SERVED DIRECTION: the arrow is fwd_rc - ours the constant load, the target the copy - which `constant_dataflow_recolor` is the named mode for; the inverse mode is not applicable and is not requested. r22 is the UNIQUE provable source: all 31 GPRs were tried and only r22 proves, so `our_source` is determined by the dataflow rather than chosen. STAGE 3, the RECOLOR: verify_consistent_recolor proves the remaining 28 words a position-consistent renaming with NO unproven_recolor_audit escape, which a combined edit is refused outright anyway. src/game/audio/dcs.c is byte-unchanged.",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 75,
-          "permuted_instructions": 4,
-          "form_sites": 1
-        },
-        "instruction_permutation": {
-          "start": "0x68",
-          "end": "0x78",
-          "order": [
-            0,
-            2,
-            1,
-            3
-          ],
-          "before_sha256": "1860fa77ca33a39530b3d4217750bcf1f3807cb2ee4e5f0a3923743e8cc56a9b",
-          "after_sha256": "6fe2bf55c3dd4330eeaea094ef1ee66f69b54b31712cf2fd937781fccfbdc4cb",
-          "before_relocations_sha256": "f86f92b9bbbdd4f6594f9449443ef5bc6decb93a8f31551d7117bc50feae6809",
-          "after_relocations_sha256": "8207ef806cad30658153937f33f8f5acb9c6238cbed7c8383fc3211792a8ed14"
-        },
-        "equivalent_copy_form": [
-          {
-            "at": "0x84",
-            "proof": "constant_dataflow_recolor",
-            "our_source": 22
-          }
-        ],
-        "copy_register_fields": true
-      },
-      {
-        "function": "dcsSampleAllocUpload",
-        "before_sha256": "a46a62394379603232ffa4d7bf66dee5ae3477acfdd3f7acd0b352b5824ac385",
-        "after_sha256": "cf4826455a8885be7e97c05ab9c23967731adf8df72a8fcd1be0683cee9ccd9b",
-        "audit": {
-          "classification": "SCHEDULE_CANDIDATE",
-          "instructions": 74,
-          "permuted_instructions": 7
-        },
-        "mechanism": "attempt.CN_dcssampleallocupload-composed-close.20260901.v1 - a composed permute+copy-form rule that closes the whole 74/74 residual (7 differing words, ALL inside one prologue window) with NO recolor stage. REFUTES the STRUCTURAL label in attempt.mp-label-correction.dcssampleallocupload.20260831.v1, which was a label-only park with no source probe; a permutation plus two value-equivalent form rewrites reproducing the target bytes exactly is the constructive disproof. NOTE ON TU: the HV census and this lane's work claim both place this function in game/audio/dcsdrv; it is in fact in game/audio/dcs.c (splits .text 0x800D1E04-0x800D4308 covers 0x800D374C), which is why this is a new unit key. PERMUTATION over [0x10,0x2c), order [4,0,1,5,6,2,3]: our prologue homes the parameter and forms the ch_info address first and seeds the three zero accumulators last; the target interleaves them, emitting `li r26,0` first, then the parameter home and the address high half, then the two dependent zero seeds, then the two address-derived addi. The seven atoms are `addi r30,r3,0`, `lis r3,HA`, `addi r31,r30,16`, `addi r28,r3,LO`, `li r26,0`, `li r27,0`, `li r29,0`; the only def-use edges among them are r3(entry)->atom0, atom0(r30)->atom2 and atom1(r3)->atom3, and the chosen order preserves all three plus every final write, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape. RELOCATION BINDING, the obligation of the deriving agent per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: this window carries TWO relocations that both name ch_info, so the payload multiset check cannot distinguish them and binding was established explicitly by (type, symbol). The ADDR16_HA half rides atom 1 from +0x16 to +0x1a and the ADDR16_LO half rides atom 3 from +0x1e to +0x2a; both destinations were confirmed against the target object's own relocation at that offset (type 6 at 26, type 4 at 42). Because the two halves differ in TYPE they could not have been exchanged undetected here, but the check was run rather than assumed. FORM, two li-vs-copy sites, both sourced from the single `li r26,0` seed the permutation moves to +0x10: +0x1c target `addi r27,r26,0` vs our `li r27,0`, and +0x20 target `addi r29,r26,0` vs our `li r29,0`. Both destinations already agree (r27, r29), so each is a pure form change and never a disguised recolor, and both are discharged by the plain local `dominating_def` scan against the seed at +0x10 - straight-line, no interposed call, no branch target, so the weaker across-calls mode is NOT requested. All three sites are allocator choices with no source lever per claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1; src/game/audio/dcs.c is byte-unchanged. After the two stages the function is byte-identical to the target, so no register stage is configured at all.",
-        "instruction_permutation": {
-          "start": "0x10",
-          "end": "0x2c",
-          "order": [4, 0, 1, 5, 6, 2, 3],
-          "before_sha256": "87151c066ab5b3863b2151852dc0104dcb79df20789e8f8dd8e6aced63706a06",
-          "after_sha256": "57e291f7d842a0dc8f590daadb48be63e53679b16d27b3628824ca066543d447",
-          "before_relocations_sha256": "6e53821df1b4f9284536c4ede90220cf753fd39b8c1ee42d6fe41d5a5851f2a8",
-          "after_relocations_sha256": "ce113cbaed203ff12507dc9eccb0c0ffa4f751f211c45e035add3d8afd0d1203"
-        },
-        "equivalent_copy_form": [
-          {
-            "at": "0x1c",
-            "proof": "dominating_def"
-          },
-          {
-            "at": "0x20",
-            "proof": "dominating_def"
-          }
-        ]
       }
     ],
     "game/audio/dcsdrv": [

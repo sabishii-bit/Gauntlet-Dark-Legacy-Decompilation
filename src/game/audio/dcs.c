@@ -200,14 +200,29 @@ void dcsChannelPlay(s32 value) {
     }
 }
 
+/* The Xbox BANK.OBJ retains voiceDuck(int). Reconstruct the shared ducking
+ * operation before inlining it into the GC channel update; flattening this
+ * loop loses stock MWCC's native zero-copy and scheduling shape. */
+static inline s32 voiceDuck(s32 duck) {
+    s32 adjustment;
+    s32 i;
+
+    adjustment = (duck * lbl_80343FF8) >> 8;
+    lbl_8034520C += adjustment;
+    for (i = 0; i < 12; i++) {
+        if (dcsVoiceInUse(i)) {
+            ch_info[i].volume -= adjustment;
+            dcsVoiceUpdate(i);
+        }
+    }
+    return 0;
+}
+
 /* 0x800D1ED0  recompute per-channel voice state each tick */
 s32 update_chinfo(u32 channels) {
     u8 unused[8];
     s32 channel = 0;
     s32 channelMask;
-    s32 infoOffset;
-    s32 i;
-    s32 adjustment;
 
     channelMask = channels & 0xFFF;
     dcsMemLockTag(0, channelMask);
@@ -215,18 +230,7 @@ s32 update_chinfo(u32 channels) {
     while (channelMask != 0) {
         if ((channelMask & 1) != 0) {
             if (ch_info[channel].duck != 0) {
-                adjustment =
-                    -(s32)ch_info[channel].duck * lbl_80343FF8;
-                adjustment >>= 8;
-                lbl_8034520C += adjustment;
-                for (i = 0, infoOffset = i; i < 12;
-                     i++, infoOffset += sizeof(DcsChannelInfo)) {
-                    if (dcsVoiceInUse(i)) {
-                        ((DcsChannelInfo*)((u8*)ch_info + infoOffset))->volume -=
-                            adjustment;
-                        dcsVoiceUpdate(i);
-                    }
-                }
+                voiceDuck(-(s32)ch_info[channel].duck);
                 ch_info[channel].duck = 0;
             }
             ch_info[channel].sample = -1;
@@ -1186,36 +1190,45 @@ s32 dcsSampleUpload(void* state, u32 uploadArg) {
     return 0;
 }
 
-/* 0x800D374C  alloc ARAM + ARQ upload */
-s32 dcsSampleAllocUpload(void* sample, s32 arg) {
-    s32 channel;
+/* BANK.OBJ preserves sampleInUse(Sample*) in the Xbox PDB. Keeping the
+ * channel scan as a helper lets stock MWCC 1.2.5 inline the target's shared
+ * zero initialization and entry schedule. The GC loop is reconstructed from
+ * its own target, not copied from the platform-specific Xbox backend. */
+static inline s32 sampleInUse(DcsSampleData* sample) {
     s32 found = 0;
-    u32* p = (u32*)sample;
-    u32* puVar8 = p + 4;
+    s32 channel;
 
     for (channel = 0; channel < 12; channel++) {
         if (dcsVoiceInUse(channel) != 0 &&
-            ch_info[channel].sampleData == (DcsSampleData*)sample) {
+            ch_info[channel].sampleData == sample) {
             found = 1;
             break;
         }
     }
-    if (found) {
+    return found;
+}
+
+/* 0x800D374C  alloc ARAM + ARQ upload */
+s32 dcsSampleAllocUpload(void* sample, s32 arg) {
+    DcsSampleData* p = (DcsSampleData*)sample;
+    u32* stagingNode = &p->buffer;
+
+    if (sampleInUse((DcsSampleData*)sample)) {
         return 0xffffffff;
     }
-    if (BytesFree() < ((p[1] + 0x3f) & 0xffffffc0)) {
+    if (BytesFree() < ((p->swappedLength + 0x3f) & 0xffffffc0)) {
         return 0xfffffffe;
     }
-    *puVar8 = (u32)AllocHiMem((p[1] + 0x3f) & 0xffffffc0, p[1]);
-    puVar8[1] = (p[1] + 0x3f) & 0xffffffc0;
-    puVar8[2] = (u32)puVar8;
-    puVar8[3] = (u32)puVar8;
-    DCFlushRange((void*)*puVar8, p[1]);
+    *stagingNode = (u32)AllocHiMem((p->swappedLength + 0x3f) & 0xffffffc0, p->swappedLength);
+    stagingNode[1] = (p->swappedLength + 0x3f) & 0xffffffc0;
+    stagingNode[2] = (u32)stagingNode;
+    stagingNode[3] = (u32)stagingNode;
+    DCFlushRange((void*)*stagingNode, p->swappedLength);
     dcsSampleBusy = 1;
-    ARQPostRequest(&dcsSampleReq, 0, 1, 1, p[0], *puVar8, p[1], dcsSampleCallback);
+    ARQPostRequest(&dcsSampleReq, 0, 1, 1, p->aramAddress, *stagingNode, p->swappedLength, dcsSampleCallback);
     while (dcsSampleBusy != 0) {
     }
-    DCInvalidateRange((void*)*puVar8, p[1]);
+    DCInvalidateRange((void*)*stagingNode, p->swappedLength);
     return 0;
 }
 

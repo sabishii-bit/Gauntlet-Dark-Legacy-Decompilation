@@ -767,7 +767,7 @@ f32 *delta;
     s32 hit;
 
     cpos = c->pos;
-    best = lbl_80346470;
+    best = 0.0f;
     radius = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
     height = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, radius));
     center[0] = cpos[0] + delta[0];
@@ -820,7 +820,7 @@ f32 *delta;
                      offsetof(CritterPackedType, descriptor)) +
                      offsetof(CritterDescriptor, type)) == 3) {
             enemy = &gEnemies[bestIndex];
-            if ((f64)enemy->hht <= lbl_80346478) {
+            if ((f64)enemy->hht <= 2.0) {
                 damage_enemy(enemy, -1, 0,
                              ((CritterPackedType *)c->hdr)->damageScale *
                              *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage)),
@@ -828,7 +828,7 @@ f32 *delta;
                 return 0;
             }
         }
-        distance = lbl_80346470;
+        distance = 0.0f;
         delta[2] = distance;
         delta[0] = distance;
         return 1;
@@ -848,11 +848,9 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     s32 j;
     u8 *node;
     u8 *desc;
-    f64 dzero;
     f32 result;
     f32 radius;
     f32 height;
-    f32 zerof;
     f32 damage;
     s32 index;
     u8 *item;
@@ -862,13 +860,11 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     cpos = c->pos;
     radius = ((CritterPackedType *)c->hdr)->wallRadius;
     height = ((CritterPackedType *)c->hdr)->radius;
-    result = lbl_80346480;
+    result = -1.0f;
     center[0] = cpos[0] + delta[0];
     center[1] = cpos[1] + delta[1];
     center[2] = cpos[2] + delta[2];
     StartEnemyGrid(center, radius);
-    dzero = lbl_80346488;
-    zerof = lbl_80346470;
     while ((index = NextGridEnemy()) >= 0) {
         item = sItems + index * 0xF0;
         type = fn_8005D5C8(c, item);
@@ -900,7 +896,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
                 result = fn_8005F0F4(
                     item, npos,
                     center, out, *(f32 *)(desc + offsetof(CritterColDescriptor, radius)), *(f32 *)(desc + offsetof(CritterColDescriptor, radius)));
-                if (result >= dzero) {
+                if (result >= 0.0) {
                     break;
                 }
             }
@@ -911,12 +907,12 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
             result = fn_8005F0F4(item, cpos, center, out, radius, height);
         }
         hit = 0;
-        if (result >= dzero) {
+        if (result >= 0.0) {
             if (type != 2) {
                 if (type == 3) {
                     damage = ((CritterPackedType *)c->hdr)->damageScale *
                              *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
-                    if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != zerof) {
+                    if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != 0.0f) {
                         hit = 1;
                     }
                 } else {
@@ -925,8 +921,8 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
             }
         }
         if (hit) {
-            delta[2] = zerof;
-            delta[0] = zerof;
+            delta[2] = 0.0f;
+            delta[0] = 0.0f;
         }
     }
     return 0;
@@ -945,7 +941,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
     f32 combined;
     f32 combinedZ;
     f32 length;
-    f32 penetration;
+    f64 penetration;
     f32 scale;
     f64 maxPen;
     f64 minPen;
@@ -1052,10 +1048,11 @@ f32 *delta;
     f32 reach;
     f32 length;
     f32 difference;
-    u32 result;
-    s32 i;
     s32 offset;
+    s32 i;
+    u32 result;
     s32 grounded;
+    void *wallSurface;
     void *surface;
 
     minRise = (f32)(-16.0 * (f64)gClockFrameStep);
@@ -1063,10 +1060,9 @@ f32 *delta;
     from = NULL;
     wallRadius = ((CritterPackedType *)c->hdr)->wallRadius;
     radius = ((CritterPackedType *)c->hdr)->radius;
-    surface = NULL;
+    wallSurface = NULL;
     if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
-        offset = 0;
-        for (i = 0; i < ((CritterPackedType *)c->hdr)->colCount;
+        for (i = 0, offset = 0; i < ((CritterPackedType *)c->hdr)->colCount;
              i++, offset += sizeof(CritterHitNode)) {
             CritterHitNode *hitNode =
                 (CritterHitNode *)((u8 *)c->hitnodes + offset);
@@ -1083,10 +1079,10 @@ f32 *delta;
             probe[0] = from[0] + delta[0];
             probe[1] = from[1] + delta[1];
             probe[2] = from[2] + delta[2];
-            surface = EnemyWallCollide(
+            wallSurface = EnemyWallCollide(
                 *(f32 *)((u8 *)hitNode->descriptor + offsetof(CritterColDescriptor, radius)), from, probe,
                 contact);
-            if (surface != NULL) {
+            if (wallSurface != NULL) {
                 break;
             }
         }
@@ -1095,12 +1091,12 @@ f32 *delta;
         probe[1] = cpos[1] + delta[1];
         probe[2] = cpos[2] + delta[2];
         from = cpos;
-        surface = EnemyWallCollide(wallRadius, from, probe, contact);
+        wallSurface = EnemyWallCollide(wallRadius, from, probe, contact);
     }
 
-    if (surface != NULL) {
-        CritterWorldDamage(c, surface, cpos, contact);
-        if ((*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x38) != 0) {
+    if (wallSurface != NULL) {
+        CritterWorldDamage(c, wallSurface, cpos, contact);
+        if ((*(u32 *)((u8 *)wallSurface + offsetof(WorldObj, flags)) & 0x38) != 0) {
             result = 0;
         } else if (SlideAlongWall(wallRadius, from, delta, contact,
                                   lbl_8023CA98 + 4) < 0) {
@@ -1228,16 +1224,16 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
     material = allFlags & 0xF0000;
     switch (material) {
     case 0x10000:
-        damage = lbl_803464B8;
+        damage = 5.0f;
         break;
     case 0x20000:
-        damage = lbl_803464B8;
+        damage = 5.0f;
         flags = 0x10;
         break;
     case 0x30000:
     case 0x40000:
     case 0x50000:
-        damage = lbl_803464BC;
+        damage = 15.0f;
         flags = 0x20;
         break;
     case 0x60000:
@@ -1327,7 +1323,7 @@ s32 SafeRockNearestTarget(s32 player)
     void *node;
 
     bestIndex = -1;
-    best = lbl_803464C0;
+    best = 1e21f;
     if (player < 0) {
         s32 sum;
         for (i = 0; i < lbl_80344658; i++) {
@@ -1446,15 +1442,15 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
 
     {
         dd = yawv - *yaw;
-        if (dd > lbl_803464C8) {
-            nd = dd - lbl_803464D0;
-        } else if (dd <= lbl_803464D8) {
-            nd = lbl_803464D0 + dd;
+        if (dd > 3.141592654) {
+            nd = dd - 6.283185308;
+        } else if (dd <= -3.141592654) {
+            nd = 6.283185308 + dd;
         } else {
             nd = dd;
         }
         r = (f32)nd;
-        step = (f32)(lbl_803464E0 * gClockFrameStep);
+        step = (f32)(1.570796327 * gClockFrameStep);
         if (r > step) {
             r = step;
         }
@@ -1470,15 +1466,15 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
         f32 r;
         f32 step;
         f32 dd = pitchv - *pitch;
-        if (dd > lbl_803464C8) {
-            nd = dd - lbl_803464D0;
-        } else if (dd <= lbl_803464D8) {
-            nd = lbl_803464D0 + dd;
+        if (dd > 3.141592654) {
+            nd = dd - 6.283185308;
+        } else if (dd <= -3.141592654) {
+            nd = 6.283185308 + dd;
         } else {
             nd = dd;
         }
         r = (f32)nd;
-        step = (f32)(lbl_803464E0 * gClockFrameStep);
+        step = (f32)(1.570796327 * gClockFrameStep);
         if (r > step) {
             r = step;
         }
@@ -1493,10 +1489,10 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
     {
         f32 *pyrYaw = &pyr[1];
         nd = yawv - *pyrYaw;
-        if (nd > lbl_803464C8) {
-            nd = nd - lbl_803464D0;
-        } else if (nd <= lbl_803464D8) {
-            nd = lbl_803464D0 + nd;
+        if (nd > 3.141592654) {
+            nd = nd - 6.283185308;
+        } else if (nd <= -3.141592654) {
+            nd = 6.283185308 + nd;
         }
         r = (f32)nd;
         if (r > a) {
@@ -1511,10 +1507,10 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
     {
         f32 *pyrPitch = &pyr[0];
         nd = pitchv - *pyrPitch;
-        if (nd > lbl_803464C8) {
-            nd = nd - lbl_803464D0;
-        } else if (nd <= lbl_803464D8) {
-            nd = lbl_803464D0 + nd;
+        if (nd > 3.141592654) {
+            nd = nd - 6.283185308;
+        } else if (nd <= -3.141592654) {
+            nd = 6.283185308 + nd;
         }
         r = (f32)nd;
         if (r > c) {
@@ -2086,7 +2082,7 @@ void CritterResolveMultipleTargets(Critter *c)
     if (c->unk11C >= 0) {
         return;
     }
-    decrement = lbl_803464A8;
+    decrement = 1.0f;
     outerOffset = 0;
     for (i = 0; i < c->targetCount; i++, outerOffset += 0x24) {
         CritterTargetRecord *record = (CritterTargetRecord *)
