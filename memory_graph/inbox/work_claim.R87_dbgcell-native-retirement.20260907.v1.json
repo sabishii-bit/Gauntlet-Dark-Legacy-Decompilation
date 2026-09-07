@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/pb/dbgtext.c"
+    ],
+    "scope": "Root private native retirement of fn_800C031C: current30/30 raw8 REGFIELD, copied zero versus induction identity at target+8 li r0,0/+14 mr r4,r0 versus rawr7/r0. Existing DbgGraphCell type and actual caller pointer arguments, real dead parameter/counter and independent stores are new source-backed axes; old imported cap is thin but not presumed never-probed. Full actual Ninja complete ELF baseline, all siblings/positional bindings/data/EH preserved; no new pragma/rule/helper/dummy wrapper. Other dbgtext source stays fixed, including freshly retired dbgTextInit."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:fn_800C031C",
+  "id": "work_claim.R87_dbgcell-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r87_dbgcell",
+  "recorded_at": "2026-09-07T07:26:56Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
