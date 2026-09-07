@@ -4887,18 +4887,16 @@ void CritterLookForReady(Critter *c)
  * oldest ready child pattern / critical move and its target. */
 void CritterChildCriticalMove(Critter *c)
 {
+    s32 i;
+    s32 patternChoice;
+    s32 moveChoice;
+    s32 playerChoice;
     CritterPattern *patterns;
     CritterPattern *pattern;
     CritterMove *moves;
     CritterMove *move;
     f32 *time;
-    s32 patternChoice;
-    s32 moveChoice;
-    s32 playerChoice;
     s32 player;
-    s32 i;
-    s32 timeOffset;
-    s32 recordOffset;
     s32 type;
     u32 flags;
     f64 zero;
@@ -4921,10 +4919,8 @@ void CritterChildCriticalMove(Critter *c)
 
     i = 0;
     patterns = *(CritterPattern **)((u8 *)c->hdr + offsetof(CritterPackedType, patternsPtr));
-    timeOffset = 0;
-    recordOffset = 0;
     while (i < *(s16 *)((u8 *)c->hdr + 0x114)) {
-        pattern = (CritterPattern *)((u8 *)patterns + recordOffset);
+        pattern = &patterns[i];
         if (i == c->unk11C) {
             goto next_pattern;
         }
@@ -4935,7 +4931,7 @@ void CritterChildCriticalMove(Critter *c)
         if ((pattern->flags & 0x1000) != 0) {
             goto next_pattern;
         }
-        time = (f32 *)((u8 *)c + 0x318 + timeOffset);
+        time = &c->patternTimes[i];
         if (sMusicFadeBase < *time + pattern->cooldown) {
             goto next_pattern;
         }
@@ -4948,20 +4944,16 @@ void CritterChildCriticalMove(Critter *c)
 
     next_pattern:
         i++;
-        timeOffset += 4;
-        recordOffset += sizeof(CritterPattern);
     }
 
     moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     i = 0;
     zero = lbl_80346488;
-    timeOffset = 0;
-    recordOffset = 0;
     while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
         if (i == c->curmove) {
             goto next_move;
         }
-        move = (CritterMove *)((u8 *)moves + recordOffset);
+        move = &moves[i];
         type = move->type;
         if (type < 0x7F || type >= 0xF0) {
             goto next_move;
@@ -4991,14 +4983,12 @@ void CritterChildCriticalMove(Critter *c)
         }
 
         if ((f64)move->cooldown > zero &&
-            sMusicFadeBase <
-                *(f32 *)((u8 *)c + offsetof(Critter, moveTimes) + timeOffset) +
-                    move->cooldown) {
+            sMusicFadeBase < c->moveTimes[i] + move->cooldown) {
             goto next_move;
         }
         player = CritterGetTargetSub(c, (f32 *)((u8 *)move + 0x60), 0);
         if (player >= 0) {
-            time = (f32 *)((u8 *)c + offsetof(Critter, moveTimes) + timeOffset);
+            time = &c->moveTimes[i];
             if (*time < best) {
                 best = *time;
                 patternChoice = -1;
@@ -5018,8 +5008,6 @@ void CritterChildCriticalMove(Critter *c)
 
     next_move:
         i++;
-        timeOffset += 4;
-        recordOffset += sizeof(CritterMove);
     }
 
     if (patternChoice >= 0) {
