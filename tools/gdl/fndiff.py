@@ -128,7 +128,8 @@ agree. SCHEDULE_CANDIDATE is a review queue, not proof of semantic equivalence.
 The base object is rebuilt via ninja automatically whenever the source file
 is newer (pass --no-build to skip). This prevents analyzing stale objects.
 
-IMPORTABLE CORE: objdump, unit_key, parse, classify_function, count_real,
+IMPORTABLE CORE: objdump, unit_key, parse, strip_dtk_suffix,
+resolve_function_name, dtk_name_reducer, classify_function, count_real,
 instruction_lines, opcode_multiset_signature, pool_row_findings,
 datum_screen_from_lines, datum_multiset_screen, object_sections,
 object_datum_table, object_relocation_offsets, datum_is_relocated,
@@ -218,6 +219,97 @@ PLACEHOLDER_NAME_PREFIXES = ("fn_", "lbl_", "jumptable_")
 # The same set as bare stems, for the relocation-text match in `parse`.
 PLACEHOLDER_STEMS = tuple(p[:-1] for p in PLACEHOLDER_NAME_PREFIXES)
 
+DTK_SUFFIX_RE = re.compile(r"_80[0-9A-Fa-f]{6}$")
+
+
+def strip_dtk_suffix(name):
+    """`gendir_8004FBC8` -> `gendir`; a PLACEHOLDER name is returned intact.
+
+    THE ONE DEFINITION (run-59 item 4). dtk disambiguates a file-local
+    symbol by appending its address, and this project's tools have to move
+    between that ELF spelling and the config spelling constantly. Three
+    copies of the reduction existed — this one inside `parse`,
+    `regnorm.strip_dtk_suffix`/`regnorm.resolve_name`, and
+    `wf_ordered_datum_screen._strip`/`resolve_function` — and two were born
+    WITHOUT the guard below.
+
+    THE GUARD IS LOAD-BEARING and it is `PLACEHOLDER_NAME_PREFIXES`, not
+    `fn_` alone. dtk spells an unnamed function `fn_800516F8`, a pool datum
+    `lbl_80346840` and a switch table `jumptable_80120B4C`; the tail of
+    every one of them IS `_80` plus six hex digits, so an unguarded strip
+    maps a whole population onto the single key `fn`, `lbl` or `jumptable`.
+    Measured consequences already recorded in this tree: 6 of
+    game/enemy/enemy's 23 rules collapsed onto one key and the unit's pin
+    set read 17 instead of 23 (16 pins short of the roster across the
+    image); and over config/GUNE5D/symbols.txt, 4,686 of the 4,713 names
+    the reader touches are placeholder names minting exactly three keys
+    (`lbl` from 4,282, `fn` from 307, `jumptable` from 97).
+    """
+    if name.startswith(PLACEHOLDER_NAME_PREFIXES):
+        return name
+    return DTK_SUFFIX_RE.sub("", name)
+
+
+def resolve_function_name(table, name):
+    """The key of `table` that names `name`, or None. BOTH directions.
+
+    `parse` strips a file-local symbol's dtk suffix whenever the stripped
+    base is unique in the object, while config/GUNE5D/webfrank.json spells
+    the same function the way the extracted object does. So a caller holds
+    `gendir_8004FBC8` and the table is keyed `gendir` — or, when the base
+    collides, the caller holds `gendir` and the table kept the suffix. Both
+    lookups must succeed, and a plain `table[name]` fails at both.
+
+    The failure this replaces is silent and successful-looking: a soundness
+    screen reported `UNDECIDABLE ... function absent` at EXIT 0 for a
+    PINNED function both objects hold.
+
+    An AMBIGUOUS base returns None rather than a guess. dtk keeps both
+    suffixes when two file-local symbols strip to one name
+    (dtor_800DB21C / dtor_800DBB94 -> `dtor`), and `parse`'s own first pass
+    exists for exactly that case: answering with the wrong function's rows
+    is worse than answering with nothing.
+    """
+    if name in table:
+        return name
+    stripped = strip_dtk_suffix(name)
+    if stripped != name and stripped in table:
+        return stripped
+    candidates = [key for key in table
+                  if key != stripped and strip_dtk_suffix(key) == stripped]
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
+
+
+def dtk_name_reducer(dump_text):
+    """ELF header name -> the key every reader of this dump uses.
+
+    The other half of the ONE definition: `parse`, `raw_signature` and
+    `raw_words_signature` each carried their own copy of this two-pass
+    reduction, and every one of them has to agree, or a signature is keyed
+    on a name the line table does not hold.
+
+    Pass one counts how many header names reduce to each base; pass two
+    (the returned callable) strips a name ONLY when its base is unique in
+    this object. A collision keeps both suffixes — dtor_800DB21C and
+    dtor_800DBB94 both reduce to `dtor`, and collapsing them silently
+    returned one function's rows for the other, which is how a worker's
+    first baseline was the wrong function's.
+    """
+    strip_counts: dict[str, int] = {}
+    for name in re.findall(r"^[0-9a-f]+ <(.+)>:$", dump_text, re.M):
+        stripped = strip_dtk_suffix(name)
+        strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+
+    def reduce(name):
+        stripped = strip_dtk_suffix(name)
+        if stripped != name and strip_counts.get(stripped, 0) <= 1:
+            return stripped
+        return name
+
+    return reduce
+
 
 def symbol_addresses():
     """name -> absolute address for every symbols.txt entry (data identity)."""
@@ -243,9 +335,7 @@ def symbol_addresses():
                     # 97 — each resolving to whichever name parsed first).
                     # The 27 real dtk local statics keep their alias, which is
                     # what it is for.
-                    if name.startswith(PLACEHOLDER_NAME_PREFIXES):
-                        continue
-                    stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+                    stripped = strip_dtk_suffix(name)
                     if stripped != name:
                         table.setdefault(stripped, addr)
         _SYMBOL_ADDRESSES = table
@@ -469,18 +559,7 @@ def _parse_uncached(objfile: Path):
     """`parse` without the memo; every comment below describes this body."""
     aliases = compiler_private_aliases(objfile)
     out = objdump(objfile, "-dr")
-    # First pass: which stripped names are UNIQUE? dtk-suffixed names strip
-    # to their base for pairing, but two functions whose bases collide
-    # (dtor_800DB21C / dtor_800DBB94 -> "dtor") must KEEP their suffixes —
-    # collapsing them silently returned one function's rows for the other,
-    # and a worker's first baseline was the wrong function's.
-    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
-    strip_counts: dict[str, int] = {}
-    for name in raw_names:
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
-
+    reduce_name = dtk_name_reducer(out)
     funcs = {}
     cur = None
     cur_start = 0
@@ -488,11 +567,7 @@ def _parse_uncached(objfile: Path):
         m = re.match(r"^([0-9a-f]+) <(.+)>:$", line)
         if m:
             cur_start = int(m.group(1), 16)
-            cur = m.group(2)
-            if not cur.startswith("fn_"):
-                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
-                if strip_counts.get(stripped, 0) <= 1:
-                    cur = stripped
+            cur = reduce_name(m.group(2))
             funcs[cur] = []
             continue
         if cur is None:
@@ -585,12 +660,7 @@ def raw_words_signature(objfile: Path):
     """
     import hashlib
     out = objdump(objfile, "-dr")
-    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
-    strip_counts: dict[str, int] = {}
-    for name in raw_names:
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+    reduce_name = dtk_name_reducer(out)
     hashes = {}
     cur = None
     hasher = None
@@ -599,11 +669,7 @@ def raw_words_signature(objfile: Path):
         if m:
             if cur is not None:
                 hashes[cur] = hasher.hexdigest()[:12]
-            cur = m.group(1)
-            if not cur.startswith("fn_"):
-                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
-                if strip_counts.get(stripped, 0) <= 1:
-                    cur = stripped
+            cur = reduce_name(m.group(1))
             hasher = hashlib.sha1()
             continue
         if cur is None:
@@ -627,12 +693,7 @@ def raw_signature(objfile: Path):
     """
     import hashlib
     out = objdump(objfile, "-dr")
-    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
-    strip_counts: dict[str, int] = {}
-    for name in raw_names:
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+    reduce_name = dtk_name_reducer(out)
     hashes = {}
     cur = None
     cur_start = 0
@@ -642,12 +703,8 @@ def raw_signature(objfile: Path):
         if m:
             if cur is not None:
                 hashes[cur] = hasher.hexdigest()[:12]
-            cur = m.group(2)
+            cur = reduce_name(m.group(2))
             cur_start = int(m.group(1), 16)
-            if not cur.startswith("fn_"):
-                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
-                if strip_counts.get(stripped, 0) <= 1:
-                    cur = stripped
             hasher = hashlib.sha1()
             continue
         if cur is None:
@@ -2470,17 +2527,14 @@ def main():
     target, base = parse(target_o), parse(base_o)
 
     def resolve_name(name):
-        """Requested-name resolution across the suffix convention: try the
-        raw spelling first (collision-kept names like dtor_800DB21C stay
-        suffixed in parse output), then the stripped form. Unconditional
-        stripping made both dtors unreachable by their own names."""
-        if name in target or name in base:
-            return name
-        if not name.startswith("fn_"):
-            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-            if stripped in target or stripped in base:
-                return stripped
-        return name
+        """Requested-name resolution across the suffix convention.
+
+        `resolve_function_name` is the ONE definition (run-59 item 4);
+        this wrapper only adds the two-table union and the fallback that
+        keeps the typed spelling in the MISSING-IN-BOTH line.
+        """
+        union = dict.fromkeys(list(target) + list(base))
+        return resolve_function_name(union, name) or name
 
     names = [resolve_name(name) for name in args[1:]] or sorted(
         set(target) | set(base), key=lambda n: list(target).index(n) if n in target else 999

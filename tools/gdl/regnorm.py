@@ -590,14 +590,17 @@ def print_rows(result, show_all):
 
 
 def resolve_name(table, name):
-    # allow a dtk _80XXXXXX suffix on either side (suffix mismatches
-    # made this tool unavailable for exactly its roster's functions)
-    if name in table:
-        return name
-    for cand in table:
-        if cand.startswith(name + "_80") or name.startswith(cand + "_80"):
-            return cand
-    return None
+    """dtk `_80XXXXXX` suffix resolution in both directions.
+
+    Run-59 item 4: this is `fndiff.resolve_function_name`, the ONE
+    definition, and this name stays as the module's published spelling.
+    The local implementation it replaces was born WITHOUT the placeholder
+    guard and with a bare `startswith` test, so a query for
+    `fn_800516F8` resolved against a table key `fn` — and an ambiguous
+    base (dtor_800DB21C / dtor_800DBB94) returned whichever key iterated
+    first instead of refusing.
+    """
+    return fndiff.resolve_function_name(table, name)
 
 
 def pinned_names(bare):
@@ -618,22 +621,15 @@ def pinned_names(bare):
         return set()   # fail-soft: no config, no screen, nothing breaks
 
 
-DTK_SUFFIX_RE = re.compile(r"_80[0-9A-Fa-f]{6}$")
-
-
 def strip_dtk_suffix(name):
     """`gendir_8004FBC8` -> `gendir`, exactly as `fndiff.parse` reduces it.
 
-    THE `fn_` GUARD IS LOAD-BEARING, and `fndiff.parse` carries the same
-    one. dtk names an unnamed function `fn_800516F8`, whose tail IS `_80`
-    plus six hex digits, so an unguarded strip turns every such name into
-    the single string `fn` — measured here while calibrating: 6 of
-    game/enemy/enemy's 23 rules collapsed onto one key and the unit's pin
-    set read 17 instead of 23.
+    Run-59 item 4: `fndiff.strip_dtk_suffix` is the ONE definition and
+    carries the full `PLACEHOLDER_NAME_PREFIXES` guard. The copy this
+    replaces guarded `fn_` only, so `lbl_80346840` and
+    `jumptable_80120B4C` still collapsed onto `lbl` and `jumptable` here.
     """
-    if name.startswith("fn_"):
-        return name
-    return DTK_SUFFIX_RE.sub("", name)
+    return fndiff.strip_dtk_suffix(name)
 
 
 def pin_note(fn, pins, raw):
