@@ -25,6 +25,22 @@ sys.path.insert(0, str(TOOLS / "composed_census"))
 import t25_record_recheck as rc  # noqa: E402
 
 
+class ExplicitFileTests(unittest.TestCase):
+    def test_explicit_json_file_loads(self):
+        with tempfile.TemporaryDirectory(prefix="t25-explicit-") as folder:
+            path = Path(folder) / "metrics.json"
+            payload = {"verification": "DIFFERING WORDS = 2"}
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            self.assertEqual(rc.load_record(str(path)), (payload, path))
+
+    def test_missing_path_never_triggers_repository_identifier_lookup(self):
+        with mock.patch.object(Path, "is_file", return_value=False), \
+                mock.patch.object(Path, "rglob", side_effect=AssertionError(
+                    "must not search a repository registry")):
+            with self.assertRaisesRegex(SystemExit, "explicit file path"):
+                rc.load_record("attempt.synthetic.v1")
+
+
 class ParseAssertionTests(unittest.TestCase):
     def test_the_word_screen_metrics_are_read(self):
         got = rc.parse_assertions(

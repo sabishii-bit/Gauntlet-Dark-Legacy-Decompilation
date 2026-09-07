@@ -16,7 +16,10 @@ the proof mode reports the human escape by name.
 
 import sys
 import unittest
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
@@ -69,21 +72,6 @@ class ProofModeTests(unittest.TestCase):
         self.assertEqual(queue.proof_mode(["copy_register_fields"]), "strict")
 
 
-class ProvenanceCitationTests(unittest.TestCase):
-    def test_a_record_id_in_the_mechanism_is_found(self):
-        found = queue.RECORD_ID_RE.findall(
-            "attempt.CL_print-n-of-m-a-loaded-local-outranks-a-parameter-copy-"
-            "local.20260903.v2 (source-exhaustion provenance)")
-        self.assertEqual(len(found), 1)
-        self.assertTrue(found[0].endswith(".v2"))
-
-    def test_prose_naming_no_record_is_not_a_citation(self):
-        """`Banked in the graph` prose is not a citation (AGENTS.md)."""
-        self.assertEqual(queue.RECORD_ID_RE.findall(
-            "Symmetric two-web register crossing over 8 words; banked in the "
-            "graph."), [])
-
-
 class RankingTests(unittest.TestCase):
     def test_smallest_residual_ranks_first(self):
         rows = [{"words": 8, "insns": 68, "unit": "u", "function": "b"},
@@ -98,6 +86,22 @@ class RankingTests(unittest.TestCase):
                 {"words": 204, "insns": 441, "unit": "u", "function": "y"}]
         rows.sort(key=queue._sort_key)
         self.assertEqual([row["function"] for row in rows], ["y", "z"])
+
+
+class StandaloneQueueTests(unittest.TestCase):
+    def test_empty_or_unbuilt_queue_reports_unavailable(self):
+        for rows in ([], [{"unit": "u", "function": "f", "words": None,
+                           "insns": 10, "atoms": 0, "stage_count": 1,
+                           "proof": "strict"}]):
+            with mock.patch.object(queue, "rule_rows", return_value=rows), \
+                    redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(queue.main([]), 0)
+            self.assertIn("unavailable", output.getvalue())
+
+    def test_schema_contains_only_build_and_rule_fields(self):
+        self.assertEqual(set(queue.OUT_SCHEMA["fields"]), {
+            "unit", "function", "words", "insns", "atoms", "stages",
+            "stage_count", "proof", "classification"})
 
 
 if __name__ == "__main__":

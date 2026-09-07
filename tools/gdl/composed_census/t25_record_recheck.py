@@ -1,59 +1,12 @@
 #!/usr/bin/env python3
-"""Re-run the measurements a record QUOTES and say whether they still hold.
+"""Recheck metrics quoted in an explicit JSON file against existing objects.
 
-WHY THIS EXISTS (run-55 item 4, reported by CR against run 54): "I quoted a
-record number one commit stale ... a multi-probe pass invalidates its own
-earlier measurements, and nothing in the loop re-checks them at commit
-time."  A pass takes a baseline, probes three forms, keeps two, commits
-twice — and the numbers written into the record were read at different tree
-states along the way.  Every gate in the loop describes HEAD; none of them
-looks at what the RECORD says.
+Usage: python tools/gdl/composed_census/t25_record_recheck.py <path-to.json>
+       [--gate] [--unit U --function F]
 
-    python tools/gdl/composed_census/t25_record_recheck.py <record-id>
-    python tools/gdl/composed_census/t25_record_recheck.py <path-to.json>
-    python tools/gdl/composed_census/t25_record_recheck.py <id> --gate
-    python tools/gdl/composed_census/t25_record_recheck.py <id> --unit U --function F
-
-It reads the record (accepted or in the inbox), finds the metric assertions
-it makes, re-runs the read-only tools that produce them AT THE CURRENT TREE,
-and prints HELD / MOVED per metric.  No build is started: the objects must
-already exist, which after `ninja` they do.
-
-EXIT CODE follows wf_word_diff's rule — 0 whenever the re-check RAN, so a
-MOVED verdict does not look like a crashed tool.  `--gate` is the opt-in
-that makes MOVED exit 1, for use in a commit-time chain.  A record that
-quotes no re-checkable metric exits 0 and says so; that is an answer.
-
-SCOPE, measured at 030385209 over all 2,240 records in records/ + inbox/:
-  * 1,568 quote at least one metric this screen understands
-    (`DIFFERING WORDS = N`, `MNEMONIC DIVERGENCE = N`, `RELOC-SYMBOL
-    MISMATCH = N`, `real N`, `insns TN/ON`);
-  *   489 quote a `<tool> <unit> <function>` command;
-  *   434 carry BOTH and are re-checkable by this tool today;
-  * 1,134 quote a number with NO command that would reproduce it — the
-    negative side, and the reason this tool REPORTS that state instead of
-    treating it as a pass.  It is the same defect AGENTS.md names for work
-    orders ("a present-tense number in an order needs a record id"), on the
-    record side.
-
-TWO-SIDED CALIBRATION, run in-process over the whole corpus at 030385209:
-355 records were attributable and measurable, and **347 (97.7%) read HELD**
-— the negative side, and the number that says this is not a screen that
-flags everything. 8 read STALE, and every one is a real historical
-staleness: fn_800D8BCC's residual is quoted as 122 and 95 differing words in
-three records and measures 66 today, dbgtext::fn_800C03E0's 216 is 202,
-MBWorldToScreen3D's 55/7 is 32/5. 18 more were SKIPPED as multi-function
-(see the AMBIGUOUS branch) and 162 quote a unit/function that no longer
-measures. Nothing here is retro-actively wrong — a record describes its own
-moment — but a lane QUOTING one of those numbers today is quoting a number
-that is gone, which is the run-54 report.
-
-WHAT IT DELIBERATELY DOES NOT DO: guess. If the unit cannot be read out of a
-quoted command it says so and stops rather than searching every object for
-the function name — an inferred unit would make a HELD verdict meaningless.
-Pass `--unit`/`--function` to re-check by hand.
-
-IMPORTABLE CORE: parse_assertions, parse_commands, live_metrics, compare.
+Reads quoted commands to identify the function; does not guess ownership or
+build objects. Reports HELD / MOVED / NOT-MEASURED per metric. --gate makes
+a moved measurement exit 1. No repository-wide record or identifier lookup.
 """
 
 from __future__ import annotations
@@ -72,18 +25,7 @@ while not (ROOT / "config" / "GUNE5D").is_dir():
         raise SystemExit(f"repo root not found above {HERE}")
     ROOT = ROOT.parent
 
-# Metric name -> the pattern that reads it out of prose OR tool output. The
-# spellings are the tools' own, which is why a record that pastes tool
-# output (AGENTS.md discipline 8) is re-checkable and a paraphrase is not.
-#
-# EACH METRIC TAKES A LIST OF SPELLINGS, and the second entry of `real` and
-# `insns` is why. A record writes an improvement as a TRANSITION —
-# `IMPROVED real 68 -> 66` — so a pattern reading only `real N` collects the
-# BEFORE value and calls the record stale against its own kept result. Same
-# for the counts: probe prints `insns T148/O148` and `fndiff --count` prints
-# `insns 148/148`, so a screen that knows one spelling reports the other as
-# NOT-MEASURED. Both were live false verdicts on
-# attempt.CR_crittercollideitems-...20260904.v1 before these were added.
+# Recognize both direct measurements and before -> after transitions.
 METRIC_PATTERNS = {
     "differing_words": [re.compile(r"DIFFERING WORDS = (\d+)")],
     "mnemonic_divergence": [re.compile(r"MNEMONIC DIVERGENCE = (\d+)")],
@@ -166,28 +108,17 @@ def compare(quoted: dict, live: dict) -> list[tuple[str, object, object, str]]:
 
 
 def load_record(reference: str):
-    """(record_dict, path) for a record id or a path."""
+    """Load an explicitly supplied JSON file; never resolve an identifier."""
     path = Path(reference)
-    if path.is_file():
-        return json.loads(path.read_text(encoding="utf-8")), path
-    for base in (ROOT / "memory_graph" / "records",
-                 ROOT / "memory_graph" / "inbox"):
-        for candidate in base.rglob("*.json"):
-            try:
-                record = json.loads(candidate.read_text(encoding="utf-8"))
-            except Exception:
-                continue
-            if record.get("id") == reference:
-                return record, candidate
-    raise SystemExit(
-        f"no record and no file named {reference!r} — pass a record id"
-        " exactly as `gdlmem.py record` prints it, or a path to the draft"
-        " JSON you are about to propose")
+    if not path.is_file():
+        raise SystemExit(
+            f"JSON file not found: {reference!r}; pass an explicit file path")
+    return json.loads(path.read_text(encoding="utf-8")), path
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("record", help="record id, or path to a draft JSON")
+    ap.add_argument("record", help="explicit path to a JSON file containing quoted metrics")
     ap.add_argument("--unit", help="override the unit (when the record"
                                    " quotes no command)")
     ap.add_argument("--function", help="override the function")
@@ -215,13 +146,7 @@ def main() -> int:
     print("  QUOTED: " + "; ".join(
         f"{name}={values}" for name, values in quoted.items()))
 
-    # A RECORD THAT SPANS SEVERAL FUNCTIONS CANNOT BE ATTRIBUTED (found by
-    # reading the calibration's positives, not by counting them). A sweep
-    # record quotes one function's number and another's command, and every
-    # metric would be charged to whichever command came first:
-    # claim.CX_expiry-check-sweep-six-denials-are-unrunnable-not-one-and-two-
-    # premises-are-expired.20260903.v1 quotes [0, 66, 95, 122] differing
-    # words across four functions and read STALE against do_enemies' 172.
+    # Multiple functions make an unlabelled metric ambiguous.
     functions = {row[2] for row in commands}
     if len(functions) > 1 and not args.function:
         print(f"  AMBIGUOUS: this record quotes commands for"
@@ -242,8 +167,7 @@ def main() -> int:
     if not (unit and function):
         print("  UNANCHORED: the record quotes numbers but no"
               " `<tool>.py <unit> <function>` command, so there is nothing"
-              " to re-run. 1,134 of 2,240 records are in this state"
-              " (measured at 030385209). Pass --unit/--function to check it"
+              " to re-run. Pass --unit/--function to check it"
               " by hand, and quote the command in the record next time.")
         return 0
 
@@ -257,12 +181,7 @@ def main() -> int:
     if moved:
         print(f"  VERDICT: STALE — {len(moved)} quoted metric(s) no longer"
               " reproduce at this tree. Re-measure and rewrite them before"
-              " committing (AGENTS.md discipline 8: write records FROM tool"
-              " output), or say which commit each number belongs to, the way"
-              " attempt.CR_crittercollideitems-the-pointer-local-closes-both-"
-              "load-order-sites-and-the-residual-becomes-a-pure-recolor"
-              ".20260904.v1 anchors each of its numbers to 47ae4d37c /"
-              " 0a577abd3 / dc2c70e2f.")
+              " committing, or identify the source revision for each number.")
     else:
         print("  VERDICT: HELD — every quoted metric reproduces at this"
               " tree.")
