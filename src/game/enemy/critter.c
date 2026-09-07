@@ -2086,7 +2086,7 @@ void CritterResolveMultipleTargets(Critter *c)
     if (c->unk11C >= 0) {
         return;
     }
-    decrement = lbl_803464A8;
+    decrement = 1.0f;
     outerOffset = 0;
     for (i = 0; i < c->targetCount; i++, outerOffset += 0x24) {
         CritterTargetRecord *record = (CritterTargetRecord *)
