@@ -1,0 +1,41 @@
+{
+  "attempted_axis": "Finite native-retirement controls of indexed-record ownership, signed byte offset, counter/name-offset identity, scope and final bounds; no source or rule change retained.",
+  "attributes": {
+    "diagnosis": "Entire0x98 body read in aligned raw/target view. Target +0x10 'mulli r28,r3,68', +0x1c 'li r30,0', +0x20 'addi r27,r4,0', +0x24 'addi r31,r30,0', +0x28 'add r29,r0,r28'. Baseline list stride instead uses r29, record base r30 and counter r28; it emits two independent zero literals. Remaining differences span loop preheader scheduling, strength-reduced induction-variable zero copy and saved homes, not an arbitrary pure recolor. wf_word_diff reports10 REGFIELD,2 RA-ZERO,2 OPCODE; its relocation column is NOT COMPARABLE, not zero. fnasm raw symbol columns were inspected as gScrollMsgList and stricmp; no retention or equivalence claim relies on the incomplete word-diff relocation screen.",
+    "evidence": {
+      "archive": "W:/Temp/gdl-r83-btext-evidence-20260907",
+      "best_private_raw_sha256": "3e282d8881cefd503b26358aaa990f330084972a48149d0c192a5ee89fa25eed",
+      "manifest": "build/r83_search_evidence_manifest.json",
+      "manifest_files": 146,
+      "manifest_sha256": "4902d6ede0cb6cb72f7697968338ba958feddc53a96e3cf15e0e7412110414f8",
+      "measured_commit": "6af8f65c4",
+      "raw_sha256": "93019ada3707d35a1f922533a7d220ce6672f0ec6142f8943be5fb03ec195575",
+      "replay": "Preserved build/r83_search_probe.py with phases pointer, identity, initializers, returns compiles private complete btext.c via tools.gdl.composed_census.cv_probe actual edge and refuses non-identical baseline ELF. Original first pointer result filename is results.json. No accepted source/control dependencies on Markdown."
+    },
+    "law_screen": "Whole current289-law corpus screened and unchanged from R82 catalog. Full details applied as hypotheses: claim.law.direct-global-member-flips-index-base-association.20260831.v1; claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1; claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1. Prior UA explicit nameOffset and WF pin closure records read; no-repeat axes distinguished from new mixed pointer/global and signed-stride controls. PDB corroborates StrList pointer helper and indexed wrapper adjacency, not inlining. FP literal/precision, conditional LR epilogues, millicode and stack padding laws do not address this integer loop preheader. Source-freeze and raw-stage/positional-binding laws enforced.",
+    "probed_form": "A: preserve direct gScrollMsgList[list].nName final bound but use `StrList* p = &gScrollMsgList[list];` and p-> fields only in loop:38/38,11 words, all44 sibling inventories/nontext/EH/symbols unchanged. Use p-> also in final bound:35/38, rejected because target rematerializes list base after loop. B: jointly add `s32 listOffset = list * (int)sizeof(StrList); StrList* p = (StrList*)((u8*)gScrollMsgList + listOffset);` with A:38/38,16 words, five extra frame/save offsets from eight more stack bytes. Literal signed68 same; unsigned offset40/38. All explicit-offset field casts or pointer-only final bound35/38. C: int instead of s32 for counter, list parameter or nameOffset, and inner-block nameOffset tested independently on direct/pointer/offset cases: same14/11/16 classes. D: move pointer declaration after counter/nameOffset or confine pointer to loop block:14; split pointer initializer11. E: `s32 i = 0; for (; ...)` on direct/pointer/offset:14/11/16; place initialized counter before pointer or byte-offset declarations:14/19 respectively. Inline p->nameOff[i] in stricmp argument rather than explicit nameOffset increases pointer11 to14 and offset16 to19; joint initialized counter does not close. F: ordinary call to existing exported `FindStringMessageSub(&gScrollMsgList[list], name)` emits12/38 rather than inline body, rejected. G: final `return i >= gScrollMsgList[list].nName ? -1 : i;`, early return guard, and conditional assignment each39/38 (direct20 words, pointer17), rejected. H: fold nameOffset assignment into stricmp argument expression:direct14/pointer11, baseline-class exact ELF. All full files and compiler traces archived; no synthetic wrapper or force-inline control attempted.",
+    "scope": "Production source/config unchanged; existing pin still required for current source, not proven intrinsically necessary. No new postprocessor, no TU flip or matching-progress claim.",
+    "verification": "Four full ELF baseline fidelity checks; freshly reran raw word diff38/38,14 words; all146 archived files hash-verified. Full ninja exit0 at b8228e189 after merge, provenance PASS. Test and graph gates are reported only after actual execution in integration."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/ui/btext FindStringMessageListSub_8001FC4C --list",
+    "falsifier": "Changed raw stream or a genuinely new natural source representation producing target bytes and positional bindings with all prior sibling/data/EH quality preserved. Recompile the archived complete sources under the actual Ninja edge to reproduce this finite negative.",
+    "premise_measurement": "48 complete-TU compiles across four matrices, four full-ELF-identical baseline controls, 44 unique source byte strings including baseline, no compiler errors and no native exact candidate. Baseline target/current38/38 with14 raw differing words; best equal-count private candidate11 words, not retained.",
+    "scope": "Only these literal controls at the recorded complete raw ELF and source alignment. This is not a claim that all source forms, flags or original TU reconstructions are exhausted."
+  },
+  "function": "function:FindStringMessageListSub_8001FC4C",
+  "held_fixed": "Complete btext.c, all other functions and data declarations, headers, source basename, actual Ninja GC/1.2.5 flags, exception fixup path, splits and WebFrank rules. Each joint form below names its varied identities. No new helper, pragma, padding, volatile, assembly or rule.",
+  "id": "attempt.R83_findstringmessagelistsub-native-identity-and-bound-controls.20260907.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-07T06:13:46Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-07"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.WF_findstringmessagelistsub-existing-class-closes-it.20260902.v1",
+  "valid_from": "2026-09-07"
+}
