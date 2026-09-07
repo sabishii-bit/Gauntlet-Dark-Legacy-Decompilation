@@ -941,7 +941,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
     f32 combined;
     f32 combinedZ;
     f32 length;
-    f32 penetration;
+    f64 penetration;
     f32 scale;
     f64 maxPen;
     f64 minPen;
