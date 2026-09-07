@@ -101,6 +101,10 @@ Contributions that improve the accuracy of the decompilation are welcome. The
 project's helper scripts live in [`tools/gdl/`](tools/gdl/), and each script
 supports `--help`.
 
+Agents should read [AGENTS.md](AGENTS.md). Investigate directly from the source,
+headers, target disassembly, Git history and tests; coordinate exclusive file/TU
+ownership before editing and include reproducible measurements in the handoff.
+
 Before submitting a change, rebuild the project, inspect the affected object in
 objdiff, and make sure the linked DOL still passes the configured hash check.
 Please keep commits focused and avoid mixing unrelated cleanup with decompilation
@@ -199,8 +203,9 @@ outside that window must already match. Input/target/output hashes,
 relocation/datum binding, and control-flow/entry checks still apply.
 The proof is for normal completion, not identical intermediate register
 snapshots under hardware exceptions or debugging. Regression tests are in
-`tools/gdl/tests/test_address_fold.py`; the source-exhaustion and census
-records are searchable with `gdlmem.py context do_enemy_move`.
+`tools/gdl/tests/test_address_fold.py`. Inspect the rule's mechanism in
+`config/GUNE5D/webfrank.json`, its implementation and relevant Git history
+for the precise scope and source-first investigation.
 
 `python configure.py --non-matching` bypasses the target-bound object pipelines,
 so their rules do not require modders' edits to preserve input hashes. The
@@ -299,28 +304,27 @@ lead; the exact original GC grouping and production placement remain open.
 Reproduce those bounded experiments with
 `r67_audio_context_probe.py --flags`, `r67_audio_effective_string_audit.py`,
 and `r67_sound_boundary_probe.py` under `tools/gdl/composed_census/`.
-Detailed findings, negative controls, scope limits and next hypotheses are
-structured memory-graph records, not this overview.
+Inspect those scripts, their tests and relevant Git commits for the bounded
+controls and scope limits; this overview is not a complete source-recovery proof.
 
 ### Postprocessor policy boundaries
 
-Three constraints govern the harness itself, quoted from `AGENTS.md`:
+The full policy is in [AGENTS.md](AGENTS.md):
 
-- It is "used exactly within the constraints returned by
-  `gdlmem.py tool <name>`. Never weaken a guard, add an unaudited rule, or
-  use postprocessing to hide structural, operand, relocation-payload, ABI,
-  semantic, or data differences."
-- **Source-exhaustion provenance.** "A new rule additionally requires
-  SOURCE-EXHAUSTION provenance: the function must carry a parked/capped
-  attempt record with literal `probed_form` axes (or a law proving its
-  residual class source-unreachable), and the rule's attempt record must
-  cite it. Mechanical closability alone is not sufficient … Functions with
-  no such record get a source-first pass BEFORE any rule."
-- **Class ceiling.** "Every postprocessor class must be attributable to
-  allocator/scheduler variance under a proven compiler. The relational
-  value-equality mode is the outer boundary — no class may cross into 'any
-  semantically equivalent stream'. Proposals for new classes go to the
-  integrator as records, never shipped unilaterally."
+- **Explicit authorization and source-first evidence.** No new rule,
+  capability, compiler patch or expanded exception without explicit user
+  approval and integrator review. Supply reproducible source controls and
+  their held-fixed context; mechanical closability alone is insufficient.
+  A finite failed matrix does not prove that no source form exists.
+- **Fail-closed guards.** Preserve the current implementation's hash,
+  form-aware decoding, dataflow, dependence/liveness, branch-entry and
+  positional relocation/datum checks. Never hide structural, immediate,
+  operand, ABI, semantic or data differences as register changes. Existing
+  unproven/manual exceptions remain disclosed, not silently machine-proven.
+- **Class ceiling.** Supported transformations address attributable
+  allocator/scheduler variance, not arbitrary semantically equivalent streams.
+  Native retirement requires exact instructions, actual datum/address binding,
+  preserved siblings, data and exception metadata, and fresh build verification.
 
 A postprocessed function reads `real 0` by construction, so scores taken
 from a pinned function measure the rule rather than the source. Screen
@@ -333,31 +337,17 @@ Use the low-match queue for semantic and structural reconstruction work:
 
 ```sh
 python tools/gdl/lowmatch.py --refresh
-python tools/gdl/lowmatch.py --sort impact --min-size 200 --parked skip
+python tools/gdl/lowmatch.py --sort impact --min-size 200
 ```
 
 It excludes already linked translation units and, by default, lists functions
 at or below 50% fuzzy match. `--sort lowest` emphasizes the least reconstructed
 functions; `--sort impact` emphasizes their estimated remaining byte gap. Use
 `tools/gdl/nearmiss.py` separately when deliberately closing already high-match
-functions. Both queues honor the project's maintained parked-function cap list.
-
-Memory graph MCP server
-=======================
-
-[memory_graph/](memory_graph/) is the project's structured knowledge base — verified
-compiler behaviors, per-function attempt history, and reviewed tool policies. It ships
-with an optional MCP server that exposes its query surface as tools for AI-assisted
-workflows. Register it with Claude Code from the repository root:
-
-```sh
-claude mcp add gdl-memory -- uv run --project memory_graph/mcp python memory_graph/mcp/server.py
-```
-
-It requires [`uv`](https://docs.astral.sh/uv/) and runs no daemon — the host launches
-it per session. The same queries are available without an MCP host via
-`python memory_graph/gdlmem.py`. See [memory_graph/README.md](memory_graph/README.md)
-for the architecture and full usage.
+functions. Queues are discovery aids, not proof that an approach is untried or
+a function is free to edit. Check current source, configured postprocessor pins,
+relevant Git history and active worker ownership, then reproduce the residual
+before selecting a target.
 
 Xbox debug symbols
 ==================
