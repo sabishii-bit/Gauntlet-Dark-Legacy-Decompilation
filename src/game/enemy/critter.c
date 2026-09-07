@@ -248,7 +248,6 @@ extern f32   lbl_80346598;
 extern f64   lbl_803465A0;
 extern f64   lbl_803465A8;
 extern f64   lbl_803465B0;
-extern f64   lbl_80346550;
 extern f32   lbl_803464C0;
 extern f32   lbl_803465F8;
 extern f32   lbl_80346508;
@@ -2609,14 +2608,12 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
     s32 offset;
     s32 i;
     CritterHitNode *node;
-    f64 zero;
     f32 distance;
     u8 *record;
     u8 unused[16];
 
     i = 0;
     offset = 0;
-    zero = lbl_80346550;
     while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount))) {
         record = (u8 *)c + offset;
         node = (CritterHitNode *)(record + 0x4F8);
@@ -2634,7 +2631,7 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
         if (distance > radius + *(f32 *)((u8 *)node->descriptor + offsetof(CritterColDescriptor, radius))) {
             goto next;
         }
-        if ((f64)dotThreshold > zero &&
+        if (dotThreshold > -1.0 &&
             delta[0] * forward[0] + delta[2] * forward[2] < dotThreshold) {
             goto next;
         }
