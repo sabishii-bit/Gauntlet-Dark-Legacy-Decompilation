@@ -1,0 +1,46 @@
+{
+  "attempted_axis": "The R80 open reciprocal-pi expression is now measured: (1.0 / 3.141592654) folds to exact target binary64 but leaves the identical107/107 four-word native residual. Do not retry this expression or the superseded record's22 finite scalar/literal/source controls unchanged. No source/compiler impossibility is established; further work needs a genuinely new source-architecture hypothesis.",
+  "attributes": {
+    "axis_log": [
+      "R80 fully read and superseded without discarding vetoes: B8/C0/C8 exact decimal substitutions individually/jointly, one-expression and standalone arithmetic, inner arc scope, real segmentDegrees local replacing dead8bytes, step reuse, all10 constant literals with scope variant, radius-before-Round alone/joint, divisor initialization points and rad/deg split variants all measured negative. All22 remain finite do-not-retry controls at their recorded alignment. Historical run53 single-expression/identity splits also remain covered by that source record.",
+      "R89 only new control is the literal reciprocal expression replacing B8's read. Retail .sdata2 at803480B8 is3fd45f306dbe5bcd; host binary64 division and actual MWCC-emitted anonymous @107 at.sdata2+80 both reproduce those exact8bytes. No full-precision M_PI substitution or new runtime division occurs. Original source and complete same-basename scratch baselines reproduce whole raw ELF exactly before the edited compile."
+    ],
+    "baseline": "Fresh wf_word_diff107/107,4REGFIELD-ONLY,0mnemonic and0relocation-symbol divergence. Target+0x50 lfd f2, raw f0; target+0x54 lfd f3, raw f2; target+0x58 fmul f1,f2,f1, raw fmul f1,f0,f1; target+0x60 fmul f1,f3,f1, raw fmul f1,f2,f1. Original exact word pairs remain +50 c8000000/c8400000,+54 c8400000/c8600000,+58 fc200072/fc220072,+60 fc220072/fc230072. Both frames56; existing WebFrank is still needed for this retained source, not proven necessary for every faithful reconstruction.",
+    "evidence": {
+      "anchor_commit": "340eee6c5",
+      "archive_files": 27,
+      "archive_manifest": "r89_dmgfx_manifest.json",
+      "archive_manifest_sha256": "40b2863781c50a989b0e9ec7824a6a829c42773a125ba83d49a1258c18cf5168",
+      "archive_name": "gdl-r89-dmgfx-evidence-20260907",
+      "compiler_sha256": "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914",
+      "contents": "Both full source/object pairs; original source/raw/processed/target/rules/splits/symbols/compiler/wrapper/build edge; command diagnostics, inventories, all body/geometry/EH proof and exact folded datum binding; reproducible probe/finalizer scripts; full laws/prior records/context/Xbox; GC Effect header and target assembly. Archive hashes independently verified at closeout; replay uses committed analysis APIs at anchor."
+    },
+    "law_screen": "Read AGENTS.md completely, current TU brief/context/Xbox and full R80 record. Current entire law corpus has289 IDs identical to the previously fully screened corpus. Read full pool-literal-sweep-section-and-lvalue-preconditions: B8 readonly and non-address-taken, both host and actual compiler fold bit-exact, no full-precision pi substitution. literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell permits the measured hypothesis but promises no result. tu-wide-literalization-requires-joint-source-and-pool-binding-review v2 applies: anonymous scalar equality does not certify changed pool positions. Existing register/variable-identity source axes remain vetoed, not replayed; no FP reassociation or widened capability introduced.",
+    "native_result": "All function byte bodies and function geometry are identical between baseline and edited complete objects, including DmgFxAdd's same four differing target words. EH records unchanged. Fifteen siblings' canonical anonymous-pool relocation identities shift and .sdata2 changes; exact scalar value is not final address equality. No complete data/binding closure is claimed and no private source or pool change is installed.",
+    "probed_form": "One edited complete TU plus same-basename baseline, literal sources/objects/argv/cwd and full inventories retained. The baseline and candidate's exact original word-pair list is machine-equal. The report deliberately sets final_address_binding_certificate:false.",
+    "semantic_evidence": "Source arc is binary64. The runtime path remains acosf(float), C0 double multiply, reciprocal double multiply, C8 double divide, frsp and Round. At target+0x54 the B8 load carries the same readonly datum; edited relocation offset86 kind109 resolves to an8-byte local pool symbol containing3fd45f306dbe5bcd. Both source and target retain all branch/call/store ordering because every function body is unchanged. The ten-significant-digit pi spelling is independently common in current source and recorded pool evidence; this numerical coincidence does not prove original macro provenance.",
+    "verification": "Actual Ninja original and same-basename full-ELF baselines pass;27 archive hashes verified. Production source/config/raw/processed bytes unchanged at closeout. python -m memory_graph.test_graph -b and python -m unittest discover tools/gdl/tests -b pass; ninja -j2 passes and build/tools/dtk.exe shasum -c config/GUNE5D/build.sha1 prints build/GUNE5D/main.dol: OK. FF main100d0a977 adds only an unrelated ownership claim after these tests. Final proposal validation/build and diff gates are reported in the integration handoff."
+  },
+  "denial": {
+    "expiry_check": "At a genuinely changed alignment, reproduce complete actual-Ninja same-basename fidelity, read the full raw stream and replay the archived expression with exact datatype/datum and binding checks.",
+    "falsifier": "A source-evidenced new architecture or genuinely changed alignment producing native exact107/107 with whole-TU sibling/data/EH/final-binding proof. The current expression's exact scalar fold alone is insufficient.",
+    "premise_measurement": "Target107/107 raw4 baseline and candidate; exact3fd45f306dbe5bcd fold, all runtime function bytes unchanged, pool identities shifted.",
+    "scope": "Only the exact reciprocal-expression control at340eee6c5 and preserved finite R80 controls; not all source forms or the compiler."
+  },
+  "function": "function:DmgFxAdd",
+  "held_fixed": "Complete same-basename sfx.c under actual Ninja GC/1.2.5 compiler and exact ordered cflags_demo flags; all siblings, headers, pragmas, source declarations, local identities, frame locals, target, splits and rules fixed. Exactly one runtime source line differs privately: arc = lbl_803480B8 * arc becomes arc = (1.0 / 3.141592654) * arc. Existing preceding multiply by C0 and following division by C8 stay separate, in the same association and binary64 widths. No repeated decimal-only controls, new flags, helpers, wrappers, padding or rules.",
+  "id": "attempt.R89_dmgfxadd-exact-reciprocal-fold-does-not-change-native-residual.20260907.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-07T08:03:27Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-07",
+    "signature": null
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.R80_dmgfxadd-finite-native-storage-scope-and-consumer-controls.20260907.v1",
+  "valid_from": "2026-09-07"
+}
