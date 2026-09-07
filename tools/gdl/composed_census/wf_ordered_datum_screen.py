@@ -156,6 +156,11 @@ def classify(tkeys, okeys, tinsn, oinsn, tsyms=None, osyms=None,
 _DTK_SUFFIX = re.compile(r"_80[0-9A-Fa-f]{6}$")
 
 
+def _strip(name):
+    """dtk's `_80XXXXXX` disambiguation suffix removed, `fn_` names intact."""
+    return name if name.startswith("fn_") else _DTK_SUFFIX.sub("", name)
+
+
 def resolve_function(table, name):
     """The key in `table` naming `name`, or None.
 
@@ -179,15 +184,19 @@ def resolve_function(table, name):
     None rather than picking one: fndiff.parse's own first pass exists for
     exactly that case, and answering with the wrong function's rows is worse
     than answering with nothing.
+
+    A `fn_` NAME IS NEVER STRIPPED, and `fndiff.parse` carries the same
+    guard: dtk spells an unnamed function `fn_800516F8`, whose tail is `_80`
+    plus six hex digits, so an unguarded strip maps every one of them onto
+    the single base `fn` and a query for one could resolve to another.
     """
     if name in table:
         return name
-    stripped = _DTK_SUFFIX.sub("", name)
+    stripped = _strip(name)
     if stripped != name and stripped in table:
         return stripped
     candidates = [key for key in table
-                  if _DTK_SUFFIX.sub("", key) == stripped
-                  and _DTK_SUFFIX.search(key)]
+                  if _strip(key) == stripped and key != stripped]
     if len(candidates) == 1:
         return candidates[0]
     return None

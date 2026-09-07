@@ -185,6 +185,18 @@ class NameResolutionAndRefusal(unittest.TestCase):
         self.assertIsNone(
             screen.resolve_function({"gendir": []}, "no_such_function"))
 
+    def test_a_dtk_unnamed_function_is_never_stripped(self):
+        # `fn_800516F8` ends in `_80` plus six hex digits. An unguarded
+        # strip maps EVERY dtk-unnamed function onto the base `fn`, so a
+        # query for one could resolve to a different one whenever the exact
+        # name is absent. Measured in regnorm while calibrating run-58
+        # item 2: the pin roster read 143 instead of 159 under the same
+        # unguarded strip. `fndiff.parse` carries this guard too.
+        table = {"fn_800516F8": [], "closest_enemy": []}
+        self.assertIsNone(screen.resolve_function(table, "fn_80051C78"))
+        self.assertEqual(screen.resolve_function(table, "fn_800516F8"),
+                         "fn_800516F8")
+
     def test_a_partial_name_is_not_a_prefix_match(self):
         # `gen` must not resolve to `gendir_8004FBC8`: only dtk's exact
         # `_80XXXXXX` suffix is erasable.
