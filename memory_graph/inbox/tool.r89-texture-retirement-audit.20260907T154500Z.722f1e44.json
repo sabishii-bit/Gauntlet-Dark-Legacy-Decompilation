@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Manual only; no production writes. Requires exact baseline raw SHA, current actual-Ninja full ELF fidelity, exactly one rule removal, 18 unchanged raw siblings, nontext/symbol/EH equality, processed whole allocated object equality and eight positionally named target relocations. Full Ninja checksum remains separate."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r89_texture_retirement_audit.py",
+  "id": "tool.r89-texture-retirement-audit.20260907T154500Z.722f1e44",
+  "kind": "tool",
+  "name": "r89-texture-retirement-audit",
+  "purpose": "Certify fn_800C72DC native rule retirement against hash-anchored pre-change raw and processed full TU objects.",
+  "recorded_at": "2026-09-07T15:45:00Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r89_texture_retirement_audit.py",
+  "status": "active",
+  "tool_key": "tool:r89-texture-retirement-audit",
+  "tool_kind": "analysis",
+  "usage": [
+    "--before <pre-change-snapshot> --out build/r89_retirement_certificate"
+  ],
+  "valid_from": "2026-09-07T15:45:00+00:00"
+}

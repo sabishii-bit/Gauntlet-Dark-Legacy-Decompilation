@@ -18,6 +18,30 @@ class TextureSourceControlTests(unittest.TestCase):
         self.assertEqual(len(declarations), 24)
         self.assertEqual(len(set(forms[name] for name in declarations)), 24)
 
+    def test_reviewed_r89_context_preserves_historical_controls(self):
+        old = self.source.replace(
+            '    PbTexMgr* wg = gWinGlobals;\n    s32 m;\n    s32 loaded = 0;',
+            '    s32 m;\n    s32 loaded = 0;\n    PbTexMgr* wg = gWinGlobals;')
+        old = old.replace('        u8** ep = &((TEXDESCENT*)wg->tbl)[m].desc;',
+                          '        u8* e = (u8*)wg->tbl + m * 0x10;\n        u8** ep = (u8**)(e + 0x4);')
+        old = old.replace('((u8*)&((TEXDESCENT*)wg->tbl)[m] + 0x10)', '(e + 0x10)')
+        old = old.replace('                FatalErrorf(lbl_80116AC0, 0x200, t + 1,',
+                          '                u8* tb = (u8*)wg->tbl + 0x4;\n                FatalErrorf(lbl_80116AC0, 0x200, t + 1,')
+        old = old.replace('                            ((TEXDESCENT*)wg->tbl)[m].desc);',
+                          '                            *(void**)(m * 0x10 + tb));')
+        self.assertEqual(probe.sha(old.encode()), probe.SOURCE_SHA256)
+        self.assertEqual(probe.sha(self.source.encode()), probe.R89_SOURCE_SHA256)
+        historical, current = probe.source_forms(old), probe.source_forms(self.source)
+        self.assertEqual(len(historical), 61)
+        self.assertEqual(historical.keys(), current.keys())
+        def exclude_changed_function(source):
+            start = source.index('void fn_800C72DC(void) {')
+            end = source.index('\n}\n', start)+2
+            return source[:start] + source[end:]
+        for name in historical:
+            self.assertEqual(exclude_changed_function(historical[name]),
+                             exclude_changed_function(current[name]), name)
+
     def test_source_drift_cannot_silently_turn_a_control_into_a_noop(self):
         for source in ('', self.source + '\n', self.source.replace('u32 tlut_size', 'int tlut_size'),
                        self.source.replace('slot + 0x30,', 'slot + 0x40,')):

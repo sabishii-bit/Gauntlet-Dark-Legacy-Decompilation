@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Requires one of two exact complete-source digests, plus fresh actual-Ninja full raw ELF fidelity. Arbitrary source drift refuses; any new context requires explicit review and rederivation. Results apply to the measured context, not automatically to historical alignment.",
+    "Generated controls and diagnostics remain under build. full_header and slot_void_steps are deliberately invalid legacy controls, not neutral compiler measurements. Does not certify universal source impossibility or automatically retire rules."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r71_texture_source_probe.py",
+  "id": "tool.r71-texture-source-probe.20260907T154906Z.3b80c775",
+  "kind": "tool",
+  "name": "r71_texture_source_probe",
+  "purpose": "Replay finite pbInitTlutRegions controls on either of two exactly reviewed full-source contexts, historical R71 or native fn_800C72DC R89.",
+  "recorded_at": "2026-09-07T15:49:06Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r71_texture_source_probe.py",
+  "status": "active",
+  "supersedes": "tool.r71-texture-source-probe.20260906T015626Z.9cc5d2a1",
+  "tool_key": "tool:r71-texture-source-probe",
+  "tool_kind": "analysis",
+  "usage": [],
+  "valid_from": "2026-09-07T15:49:06+00:00"
+}
