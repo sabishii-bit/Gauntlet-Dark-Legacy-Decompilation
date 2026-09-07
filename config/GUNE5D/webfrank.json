@@ -1806,16 +1806,6 @@
         "copy_register_fields": true
       },
       {
-        "function": "InitLighting",
-        "before_sha256": "d0dd6ba801560e9fb01c5228d620663e5c4698d655e9a469ec8480880b5fbe0a",
-        "after_sha256": "1d201560763d69d43df89cd3c5f6c9704686b73c9600b4147c42a2f4c854a008",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 38
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "InitItemInfoData",
         "before_sha256": "0fa9ea8753aae2a63a525457b212d1ee66838e576de8a6a1124f8de8892f0ec5",
         "after_sha256": "e12ebe4361c4008294e7f5b39f1ebad6860220f73e09e886e291f81dcf58c1c4",

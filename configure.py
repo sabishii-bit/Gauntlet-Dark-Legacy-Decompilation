@@ -498,6 +498,7 @@ config.libs = [
             Object(NonMatching, "game/world/newcam.c", cflags=cflags_demo),
             Object(Matching, "game/world/world.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/items.c", cflags=cflags_demo),
+            Object(Matching, "game/world/lights.c", cflags=cflags_demo),
             Object(Matching, "game/world/dyngrid.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/dynobjgrid.c", cflags=cflags_demo),
             Object(NonMatching, "game/boss/bosscam.c", cflags=cflags_demo),
