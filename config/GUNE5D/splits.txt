@@ -116,6 +116,7 @@ game/game/controls.c:
 	.bss        start:0x802407B8 end:0x80240FD0
 	.sdata      start:0x80343BE0 end:0x80343BE8
 	.sbss       start:0x803445D8 end:0x80344624
+	.sdata2     start:0x803463F8 end:0x80346470
 
 game/enemy/critter.c:
 	extab       start:0x80005CE0 end:0x80005F28
