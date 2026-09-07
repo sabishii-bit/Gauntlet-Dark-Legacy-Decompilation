@@ -1,0 +1,46 @@
+{
+  "attempted_axis": "Existing SDK clock division identity, unsigned int versus unsigned long divisor/conversion types, initialized interval local, real first-versus-wait clock lifetimes and signed bounded period, jointly with first deadline expression order/conversion splitting.",
+  "attributes": {
+    "archive": {
+      "bytes": 12687043,
+      "contents": "All34 private full-TU source/object/inventory/assembly rows, three immutable baseline raw/processed/target objects plus rules and actual Ninja traces, full target disassembly, root/worker context/history/law/Xbox screens, read-window census and standalone replay driver. Every copied file hash verified. No original DOL/PDB/compiler executable.",
+      "files": 176,
+      "id": "r94-blit-20260907-34e6961b3",
+      "manifest_sha256": "32d5ce106a03ca72ce539878313b8fba114521616ddf53ad7c22c0987d5be4fd"
+    },
+    "axis_log": [
+      "Legacy attempt.parked.fn_800b27c4.20260829.v1 describes renum,tpms/1000 web order plus f0/f1 conversion tie but has no reproducible sourceforms. Its diagnosis remeasured; no assertion that this function was previously untried.",
+      "All16 spelling controls generate the exact baseline whole ELF: source>>2 versus/4, unsigned-int divisor versus u32(unsigned long), unsigned-int quotient cast, initialized tpms at first evaluation with remainder scoped, deadline constant-first, and listed joint forms.74/74 raw8 frame48.",
+      "Three independent interval scopes yield74/76 frame48 with two additional carrier copies: first wait has +0x70 divwu r0,r0,r29 then +0x88 mr r29,r0; third interval likewise copies its quotient. Constant-first and split conversion variants retain76 instructions.",
+      "Inline initial OSGetTime divisor, with either shared or separately scoped loop periods, yields74/72 frame48 or56. All six such variants emit only TWO bus-clock reads: target second read eliminated through common-subexpression reuse. Source spells three loads, but target read-count constraint fails; explicitly not viable semantic/output candidates.",
+      "Distinct initial period versus shared wait period, declared or scoped at the actual evaluation points, yields identical74/75 frame48 ELFs. One extra +0x88 mr r29,r0 remains after the second period divwu. No initial FP-home cure.",
+      "Signed s32 period is mathematically bounded by (UINT32_MAX>>2)/1000=1073741, so nonnegative; compiler nevertheless emits three srawi31 high-word extensions. Shared period yields74/77 frame56; distinct initial/shared wait variants74/78 frame56. Target highword li0 retained only in unsigned forms."
+    ],
+    "baseline": "At34e6961b3 fresh complete actual-Ninja raw ELF matches active body object exactly: SHA256c0e0ee34148893700fe6e178322e6d8092c9bb4819af5eb3aab91c3b4df49e31.42 raw functions in game/mb/mb_blit. Target GUNE5D function0x800B27C4. Baseline repeated identically before each matrix.",
+    "law_screen": "Complete current law corpus and function context/brief plus signature screens read. Full claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1, claim.law.int-vs-signed-long-extern-reorders-schedule.20260831.v1 and claim.law.noop-cast-on-array-decay-not-neutral.20260831.v1 screened; first two scope-limited precedents motivate tests, array-decay law not applicable. Full claim.law.SA_mwcc-canonicalises-commutative-float-operand-order-before-register-assignment.20260903.v1 read; measured constant-first controls are neutral, consistent with its limited observation. Target full assembly, three reads and signed64 division checked before experiments. Pinned-source freeze, exact counts, positionally bound data and full-ELF preservation rules applied. No universal allocator or compiler conclusion.",
+    "mechanism": "Baseline target +0x40 `li r28,1000`, raw `li r29,1000`; target +0x48 `divwu r29,r0,r28`, raw `divwu r28,r0,r29`; target +0x50 `addi r6,r29,0`, raw `addi r6,r28,0`; target +0x70 `divwu r29,r0,r28`, raw `divwu r29,r0,r29`. First FP conversion target +0x78 `lfs f1,0(0)`, +0x7c `lfd f0,8(r1)`, +0x80 `fsubs f0,f0,f31`, +0x84 `fadds f30,f1,f0`; raw exchanges f0/f1 in those four words. The remaining66 words are exact. These identify measured allocator homes, not a reverse-engineered compiler algorithm.",
+    "next": "Do not repeat these enumerated clock spelling, initializer, scope, type or deadline-order controls at unchanged context. Fresh genuine source-ownership or compiler mechanism evidence remains open; current retained source still needs its existing rule.",
+    "preservation": "All16 initial spelling controls and three matrix baselines are whole-ELF identical, preserving every sibling, nontext datum, symbol, EH record and positional relocation. Other forms have changed text extent; canonical metadata and later symbol positions move, so they are not asserted to preserve full TU fidelity or to regress every sibling algorithm. Every matrix verifies production source/raw unchanged. Production and rules remain unchanged.",
+    "replay": "From checkout run python <archive>/r94_blit_probe.py --root . --out build/r94_spelling_replay; repeat with --intervals or --lifetimes and separate output paths. Driver recomputes actual-Ninja baseline and refuses production drift. Source/flags changes require a fresh alignment result rather than assuming this cap transfers.",
+    "exact_expressions": "Baseline deadline = (f32)(u32)(OSGetTime() / tpms) + 500.0f; order control deadline = 500.0f + (f32)(u32)(OSGetTime() / tpms); split control deadline = (f32)(u32)(OSGetTime() / tpms); deadline += 500.0f;. Inline forms replace initial tpms operand with ((*(u32*)0x800000F8 >> 2) / 1000), with the same order/split alternatives. Source chronology: mgr+12 zero store; G3DInitPadStatus and G3DUpdatePadStatus; clock read1; first OSGetTime conversion/deadline; clock read2; first wait; mbBlitPadTest; deadline+=500; clock read3; second wait; mbBlitPadTest. Target schedules read2 at+0x5c after first __div2i and before finishing FP conversion. The same memory address does not justify merging distinct reads across calls; inline variants lose that read2, so they fail target operation chronology even though a constant bus-clock assumption might mask the difference at runtime.",
+    "source_evidence": "src/dolphin/exi/EXIBios.c defines OSTicksToMilliseconds as ticks/(OS_TIMER_CLOCK/1000); include/dolphin/os.h defines OS_TIMER_CLOCK as OS_BUS_CLOCK/4. No OSTicksToMilliseconds declaration assumed in os.h and no new macro/helper introduced. u32 is unsigned long and OSGetTime returns s64. Xbox exact-name lookup returned no candidate; anonymous function name preserved.",
+    "summary": "Finite native negative. fn_800B27C4 remains74/74 with8 raw differing words, frame48, under its existing guarded rule. No source/rule change retained. Neither this matrix nor the vague legacy park proves source impossibility, a missing compiler, or universal necessity of postprocessing."
+  },
+  "function": "function:fn_800B27C4",
+  "held_fixed": "Configured compiler/flags, complete TU and source order, manager layout, G3D initialization and update calls, signed64 OSGetTime division, unsigned32 quotient-to-float conversion, two500f additions, two mbBlitPadTest calls and loop conditions. Target three separate hardware-clock reads are an acceptance constraint; inline forms that compile to only two are explicitly rejected. No helper, wrapper, padding, pragma, flag or new rule.",
+  "id": "attempt.R94_blit-clock-expression-and-interval-lifetime-native-frontier.20260907.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "probed_form": "34 measured rows in three matrices including three baseline calibrations: spelling/initializer/type16, interval-expression10, first-versus-shared-wait lifetime/type8. Exact source, assembly and whole ELF saved for every row. No production edits.",
+  "recorded_at": "2026-09-07T17:01:30Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-07",
+    "signature": "opcode multiset IDENTICAL; insns T74/O74"
+  },
+  "residual_class": "clock-divisor-saved-home-and-initial-unsigned-float-conversion-home-cycles",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.fn_800b27c4.20260829.v1",
+  "valid_from": "2026-09-07"
+}
