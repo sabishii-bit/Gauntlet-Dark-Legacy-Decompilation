@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/pb/pb_error.c"
+    ],
+    "scope": "Root rederived full51-word raw/target and fully read GC/CD prior records. Current string is a real defined const char array, unlike GC record's old extern. Six residual words: target+0x3c addi r30,r3,LO versus raw r31, target+0x44 li r31,0 versus raw r30, plus +0x48/+0x4c array-address/extsh transposition. New source axis is a pointer to the existing complete string array (not an invented aggregate/wrapper), with element decay only at call use, independently/jointly with an actual pointer to existing image array. No retyping string as scalar/struct, no new data, no fake helper, no compiler/flags/pragmas, no generic reorder sweep. Preserve original array layout, every load/call, signed16 argument conversion and own rodata. Existing image versus &image[0] and s16 transit caps are vetoes, not this distinct complete-array identity. Current source-defined const context may invalidate old extern-only home-copy premise; verify rather than assume. Private complete actual-Ninja baseline then target exact bytes/positional bindings/all siblings/EH/data before pin drift. Other reporter may be examined as same-mechanism sibling, but don't change it without its own context screen and root review. Root build/r94_error_* holds full prior evidence and target read; independently screen all laws."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:fn_800C13CC",
+  "id": "work_claim.R95_error-real-array-address-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r95_error",
+  "recorded_at": "2026-09-07T16:51:20Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
