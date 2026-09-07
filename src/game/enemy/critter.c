@@ -767,7 +767,7 @@ f32 *delta;
     s32 hit;
 
     cpos = c->pos;
-    best = lbl_80346470;
+    best = 0.0f;
     radius = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
     height = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, radius));
     center[0] = cpos[0] + delta[0];
@@ -820,7 +820,7 @@ f32 *delta;
                      offsetof(CritterPackedType, descriptor)) +
                      offsetof(CritterDescriptor, type)) == 3) {
             enemy = &gEnemies[bestIndex];
-            if ((f64)enemy->hht <= lbl_80346478) {
+            if ((f64)enemy->hht <= 2.0) {
                 damage_enemy(enemy, -1, 0,
                              ((CritterPackedType *)c->hdr)->damageScale *
                              *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage)),
@@ -828,7 +828,7 @@ f32 *delta;
                 return 0;
             }
         }
-        distance = lbl_80346470;
+        distance = 0.0f;
         delta[2] = distance;
         delta[0] = distance;
         return 1;
@@ -848,11 +848,9 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     s32 j;
     u8 *node;
     u8 *desc;
-    f64 dzero;
     f32 result;
     f32 radius;
     f32 height;
-    f32 zerof;
     f32 damage;
     s32 index;
     u8 *item;
@@ -862,13 +860,11 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     cpos = c->pos;
     radius = ((CritterPackedType *)c->hdr)->wallRadius;
     height = ((CritterPackedType *)c->hdr)->radius;
-    result = lbl_80346480;
+    result = -1.0f;
     center[0] = cpos[0] + delta[0];
     center[1] = cpos[1] + delta[1];
     center[2] = cpos[2] + delta[2];
     StartEnemyGrid(center, radius);
-    dzero = lbl_80346488;
-    zerof = lbl_80346470;
     while ((index = NextGridEnemy()) >= 0) {
         item = sItems + index * 0xF0;
         type = fn_8005D5C8(c, item);
@@ -900,7 +896,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
                 result = fn_8005F0F4(
                     item, npos,
                     center, out, *(f32 *)(desc + offsetof(CritterColDescriptor, radius)), *(f32 *)(desc + offsetof(CritterColDescriptor, radius)));
-                if (result >= dzero) {
+                if (result >= 0.0) {
                     break;
                 }
             }
@@ -911,12 +907,12 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
             result = fn_8005F0F4(item, cpos, center, out, radius, height);
         }
         hit = 0;
-        if (result >= dzero) {
+        if (result >= 0.0) {
             if (type != 2) {
                 if (type == 3) {
                     damage = ((CritterPackedType *)c->hdr)->damageScale *
                              *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
-                    if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != zerof) {
+                    if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != 0.0f) {
                         hit = 1;
                     }
                 } else {
@@ -925,8 +921,8 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
             }
         }
         if (hit) {
-            delta[2] = zerof;
-            delta[0] = zerof;
+            delta[2] = 0.0f;
+            delta[0] = 0.0f;
         }
     }
     return 0;
