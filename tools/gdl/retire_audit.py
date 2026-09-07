@@ -96,7 +96,13 @@ did not hold; the verdict line names it. 2 REFUSED -- an input was missing
 or a measurement could not be made, which is NOT a failing check and must
 never be read as one. --before-ref is REQUIRED: a sibling inventory compared
 against itself is not evidence, and two empty inventories are not a
-certificate.
+certificate. It is also REFUSED when it holds a byte-identical audited source
+to the working tree -- the same principle, enforced instead of assumed. Spell
+the parent `<rev>~1`: the caret in `<rev>^` is consumed before it reaches argv
+in this environment at every quoting level, so the audit would run against the
+retirement commit itself (run-58 item 5). Refs resolve through
+`git cat-file`, not `rev-parse --verify <rev>^{commit}`, which rejects every
+revision here.
 
 LIMITS. This is not a TU flip: a NonMatching unit still links its extracted
 object, and `linkage` is reported so that stays visible. It certifies the
@@ -458,6 +464,31 @@ def git_show(ref, path):
     return proc.stdout
 
 
+def resolve_commit(ref):
+    """(object id, type) for `ref`, resolved with `git cat-file`.
+
+    RUN-58 ITEM 5, first half. NOT `git rev-parse --verify <rev>^{commit}`:
+    measured at 631d2e0ab under git 2.51.0 in this checkout, EVERY `^{...}`
+    peel spelling fails with `fatal: Needed a single revision` -- the full
+    40-character sha, the abbreviation, `HEAD` and a branch name alike, and
+    `^{tree}` too -- while `git cat-file -t` resolves the same revision and
+    plain `rev-parse --verify <sha>` resolves it as well. A ref check written
+    on the peel syntax therefore rejects every valid revision it is given, so
+    resolution here goes through `cat-file --batch-check`, which returns the
+    id and the TYPE in one call and says `missing` or `ambiguous` in words.
+    """
+    proc = subprocess.run(["git", "cat-file", "--batch-check"],
+                          input=(ref + "\n").encode(), cwd=str(REPO),
+                          capture_output=True)
+    fields = proc.stdout.decode(errors="replace").strip().split()
+    if proc.returncode or len(fields) < 3:
+        detail = " ".join(fields[1:]) or \
+            proc.stderr.decode(errors="replace").strip() or "unresolvable"
+        raise Refused(f"--before-ref {ref!r} does not resolve: {detail}"
+                      f" (`git cat-file --batch-check` over {ref!r})")
+    return fields[0], fields[1]
+
+
 def load_build_edges():
     path = REPO / "build" / VERSION / "build_edges.json"
     if not path.exists():
@@ -560,13 +591,69 @@ class Audit:
         self.post_edge = postprocess_edge(self.edges_data, self.unit)
         if self.post_edge is None:
             raise Refused(f"no postprocessor edge for {self.unit} in build_edges.json")
+        self.before_oid = self.check_before_ref()
         self.record("inputs", "PASS", unit=self.unit, function=self.function,
+                    before_ref=self.before_ref, before_ref_commit=self.before_oid,
                     source=self.edge["src"], raw_object=self.edge["body_o"],
                     target_object=str(self.target_object.relative_to(REPO)).replace("\\", "/"),
                     compiler=self.edge["mw"], compiler_sha256=sha256(self.compiler.read_bytes()),
                     cflags=self.edge["cflags"], postprocess_rule=self.post_edge["rule"],
                     linkage=unit_linkage(self.edges_data, self.unit),
                     target_sha256=sha256(self.target_object.read_bytes()))
+
+    def check_before_ref(self):
+        """Resolve --before-ref, and REFUSE one that is the current state.
+
+        RUN-58 ITEM 5, second half. `--before-ref <sha>^` is the natural
+        spelling of "the commit before the retirement", and in this
+        environment the caret NEVER reaches argv: measured at 631d2e0ab,
+        `--before-ref 631d2e0ab^` arrives at a Python script as
+        `'631d2e0ab'`, unquoted, single-quoted, double-quoted and doubled
+        (`^^`) alike, and `^{commit}` additionally spawns a nested shell
+        (`-encodedCommand YwBvAG0AbQBpAHQA`). So the audit silently ran
+        against the RETIREMENT COMMIT ITSELF.
+
+        Reproduced end-to-end before this check existed:
+
+          retire_audit.py game/sys/memcard memCardErrorPrompt \\
+              --before-ref e7f9d740b        # the eaten-caret form
+
+          -> [   PASS] before_image   source_changed: false
+             [   FAIL] rule_delta
+             FAILING CHECK(S): rule_delta        EXIT 1
+
+        Two things are wrong with that. `before_image` is recorded PASS
+        while the before image IS the after image -- the tool's own
+        docstring says a sibling inventory compared against itself is not
+        evidence. And exit 1 means "the measurement happened and a named
+        check did not hold", so the operator reads a rule_delta defect in
+        a retirement whose only defect is the ref they typed. A measurement
+        that did not happen is REFUSED (exit 2), and it is refused BEFORE
+        the three compiles and the link, not after them.
+
+        Returns the resolved commit id and banks the before-image source so
+        `build_images` does not run `git show` twice.
+        """
+        oid, kind = resolve_commit(self.before_ref)
+        if kind != "commit":
+            raise Refused(f"--before-ref {self.before_ref!r} names a {kind}, "
+                          f"not a commit ({oid[:9]})")
+        head_oid, _ = resolve_commit("HEAD")
+        self.before_source = git_show(self.before_ref, self.edge["src"])
+        if self.before_source == self.source.read_bytes():
+            same = (" -- it resolves to HEAD itself"
+                    if oid == head_oid else "")
+            raise Refused(
+                f"--before-ref {self.before_ref!r} ({oid[:9]}) holds a "
+                f"BYTE-IDENTICAL {self.edge['src']} to the working tree"
+                f"{same}, so the before image would be the after image and "
+                "nothing would be compared. Pass the revision BEFORE the "
+                f"change, spelled `{self.before_ref}~1`. Do NOT spell it "
+                f"`{self.before_ref}^`: the caret is consumed before it "
+                "reaches argv in this environment, at every quoting level, "
+                "and the audit then runs against the very commit you meant "
+                "to exclude.")
+        return oid
 
     # -- fidelity and the before image ------------------------------------
     def build_images(self):
@@ -606,7 +693,7 @@ class Audit:
                           "include path reproduces the same object BYTE for BYTE, "
                           "so the before image is measured through a validated "
                           "command and stays byte-comparable"))
-        old_source = git_show(self.before_ref, self.edge["src"])
+        old_source = self.before_source   # banked by check_before_ref
         before_source_path = before_dir / basename
         before_source_path.write_bytes(old_source)
         before, _ = compile_source(
