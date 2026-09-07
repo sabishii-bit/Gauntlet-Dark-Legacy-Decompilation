@@ -142,6 +142,7 @@ holds the two word streams and the repo root:
 """
 import argparse
 import difflib
+import json
 import os
 import re
 import sys
@@ -267,7 +268,19 @@ def _reloc_map(objpath, fn, insn_count):
     instruction count disagrees, so the caller reports "not comparable"
     instead of a silent empty result.
     """
-    lines = fndiff.parse(objpath).get(fn)
+    return _reloc_map_from_lines(fndiff.parse(objpath).get(fn), insn_count)
+
+
+def _reloc_map_from_lines(lines, insn_count):
+    """The same map, from ALREADY-PARSED lines.
+
+    Split out for `--unit` (run-58 item 4): `fndiff.parse` memoizes the
+    objdump TEXT but re-parses it on every call, so building this per
+    function cost 84 re-parses of each object and dominated a whole-TU
+    screen -- 21.2s of it at 59fe8f6b3 against 0.4s once the two objects
+    are parsed once. The single-function path is unchanged and still goes
+    through `_reloc_map`.
+    """
     if lines is None:
         return None
     out = {}
@@ -785,6 +798,140 @@ class CountAsymmetric(SystemExit):
                 " `fnasm --diff`), then re-run this.")
 
 
+def unit_bodies(objpath):
+    """{ELF symbol name: body bytes} for every sized .text function.
+
+    ONE READ of the object, which is the whole point of `--unit`: the TU
+    screen AGENTS.md mandates ("screen the whole TU, not only the most
+    promising function") was being composed by hand as one `fnsurvey` plus
+    one `wf_word_diff` subprocess per function, ~2 minutes a run over 84-86
+    functions, with a throwaway scraper written each time. Symbols come
+    from `cn_census.functions` -- the shipped roster helper `unabsorbed`
+    already uses -- so this file does not carry a second definition of
+    "which symbols are functions".
+
+    Names are the ELF names, NOT `fndiff.parse`'s stripped ones: they are
+    what `webfrank.json` spells (`gendir_8004FBC8` in both objects here)
+    and what the per-function CLI takes, so the PINNED join and the two
+    modes agree by construction.
+    """
+    import cn_census
+    with open(objpath, "rb") as handle:
+        data = bytearray(handle.read())
+    sections = wf._sections(data)
+    bodies = {}
+    for symbol in cn_census.functions(data, sections):
+        start = sections[symbol.section_index].offset + symbol.value
+        bodies[symbol.name] = bytes(data[start:start + symbol.size])
+    return bodies
+
+
+def unit_rows(unit):
+    """One row per function present in BOTH objects, in target order.
+
+    Each row carries exactly what a per-function run prints as its headline:
+    the count pair, the differing-word count, the mnemonic divergence, the
+    CLASS, the DECODE counts and PINNED. A count-asymmetric function keeps
+    its row with `verdict: COUNT-ASYMMETRIC` and `differing_words: null` --
+    the same determinate answer the single-function mode gives at exit 0,
+    not an omission.
+    """
+    ours_path, kind = our_object(unit)
+    target_path = target_object(unit)
+    if not (os.path.exists(ours_path) and os.path.exists(target_path)):
+        raise SystemExit(f"missing object for {unit} — run ninja first")
+    ours_all = unit_bodies(ours_path)
+    target_all = unit_bodies(target_path)
+    served = rule_served_functions(unit, ROOT)
+    # ONE parse of each object for the relocation tables, and the SAME
+    # tables `_reloc_map` reads per function, so the two modes classify a
+    # RELOCATED word identically (the calibration gate compares them).
+    parsed = {path: fndiff.parse(path)
+              for path in (target_path, ours_path)}
+    rows = []
+    for name, tgt in target_all.items():
+        ours = ours_all.get(name)
+        if ours is None:
+            continue
+        row = {"function": name, "pinned": name in served,
+               "target_insns": len(tgt) // 4,
+               "ours_insns": len(ours) // 4}
+        if len(ours) != len(tgt):
+            row.update(verdict="COUNT-ASYMMETRIC", differing_words=None,
+                       mnemonic_divergence=None, klass=None, decode=None)
+            rows.append(row)
+            continue
+        diffs = [(offset, wf._u32(ours, offset), wf._u32(tgt, offset))
+                 for offset in range(0, len(ours), 4)
+                 if wf._u32(ours, offset) != wf._u32(tgt, offset)]
+        mnem = mnemonic_divergence(ours, tgt)
+        types = {}
+        for path in (target_path, ours_path):
+            table = _reloc_map_from_lines(parsed[path].get(name),
+                                          len(ours) // 4)
+            if table is None:
+                continue
+            for index, (rtype, _sym) in table.items():
+                types.setdefault(index, set()).add(rtype)
+        counts = decode_counts(
+            diffs, {i: tuple(sorted(t)) for i, t in types.items()})
+        recolourable = all(
+            counts[cls] == 0 for cls in DECODE_CLASSES
+            if cls not in REACHABLE_DECODE_CLASSES
+            and cls not in LINKER_OWNED_DECODE_CLASSES)
+        if not diffs:
+            klass = "EXACT"
+        elif mnem == 0 and recolourable:
+            klass = "RECOLOR"
+        elif mnem == 0:
+            klass = "RECOLOR-SHAPED BUT NOT RECOLOURABLE"
+        else:
+            klass = "SCHEDULE-REORDER"
+        row.update(verdict="MEASURED", differing_words=len(diffs),
+                   mnemonic_divergence=mnem, klass=klass,
+                   decode={cls: counts[cls] for cls in DECODE_CLASSES})
+        rows.append(row)
+    return rows, kind
+
+
+def print_unit(unit, rows, kind):
+    """The TU table, ranked the way a sweep is read: open work first."""
+    def order(row):
+        return (row["pinned"],
+                row["verdict"] == "COUNT-ASYMMETRIC",
+                -(row["differing_words"] or 0), row["function"])
+
+    print(f"{unit} ({kind}): {len(rows)} function(s) paired")
+    for row in sorted(rows, key=order):
+        counts = f"T{row['target_insns']}/O{row['ours_insns']}"
+        if row["verdict"] == "COUNT-ASYMMETRIC":
+            words, extra = "words n/a", "COUNT-ASYMMETRIC"
+        else:
+            words = f"words {row['differing_words']:>4}"
+            extra = (f"mnem {row['mnemonic_divergence']:>3}  "
+                     + row["klass"])
+        decode = ("  DECODE: " + ", ".join(
+            f"{cls} {row['decode'][cls]}" for cls in DECODE_CLASSES
+            if row["decode"][cls])) if row.get("decode") and \
+            row["differing_words"] else ""
+        pin = "  PINNED" if row["pinned"] else ""
+        print(f"  {row['function']:<34} {counts:>12}  {words}  {extra}"
+              f"{decode}{pin}")
+    open_rows = [r for r in rows
+                 if not r["pinned"] and r.get("differing_words")]
+    total = sum(r["differing_words"] for r in open_rows)
+    pinned_words = sum(r["differing_words"] or 0
+                       for r in rows if r["pinned"])
+    asym = sum(1 for r in rows if r["verdict"] == "COUNT-ASYMMETRIC")
+    print(f"  TU TOTALS: {len(open_rows)} OPEN function(s) carrying"
+          f" {total} differing word(s); "
+          f"{sum(1 for r in rows if r['pinned'])} pinned"
+          f" ({pinned_words} words their rules already close — DROP these"
+          f" before ranking); {asym} count-asymmetric (outside every"
+          " postprocessor class by construction); "
+          f"{sum(1 for r in rows if r.get('differing_words') == 0)} exact.")
+
+
 def word_streams(unit, fn):
     """(kind, ours_bytes, target_bytes) for one function, count-checked."""
     op, kind = our_object(unit)
@@ -842,8 +989,15 @@ def rows_in_range(rows, window):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("unit")
-    ap.add_argument("function")
+    ap.add_argument("unit", nargs="?")
+    ap.add_argument("function", nargs="?",
+                    help="omit it (or use --unit) for the whole-TU screen")
+    ap.add_argument("--unit", dest="unit_option", metavar="UNIT",
+                    help="screen every paired function in this TU in one"
+                         " pass, instead of one function")
+    ap.add_argument("--json", dest="as_json", action="store_true",
+                    help="machine-readable rows instead of the table"
+                         " (whole-TU mode only)")
     ap.add_argument("--list", action="store_true",
                     help="print every differing word, not just the count")
     ap.add_argument("--decode", action="store_true",
@@ -863,12 +1017,31 @@ def main():
                          " postprocessor candidacy")
     args = ap.parse_args()
     window = parse_range(args.window)
-    unit = args.unit
+    # `--unit U` and a bare positional `U` mean the same thing; giving both
+    # is ambiguous about which is the unit, so it is refused rather than
+    # silently preferred.
+    if args.unit_option and args.unit:
+        ap.error("give the unit once: either the positional or --unit")
+    unit = args.unit_option or args.unit
+    if not unit:
+        ap.error("a unit is required")
+    function = args.function if not args.unit_option else args.function
     if unit.startswith("src/"):
         unit = unit[4:]
     for suffix in (".cpp", ".c"):
         if unit.endswith(suffix):
             unit = unit[:-len(suffix)]
+    if function is None:
+        rows, kind = unit_rows(unit)
+        if args.as_json:
+            print(json.dumps({"unit": unit, "object": kind, "rows": rows},
+                             indent=1))
+        else:
+            print_unit(unit, rows, kind)
+        return 0
+    if args.as_json:
+        ap.error("--json is the whole-TU output; drop the function name")
+    args.function = function
     try:
         kind, ours, tgt = word_streams(unit, args.function)
     except CountAsymmetric as gap:
