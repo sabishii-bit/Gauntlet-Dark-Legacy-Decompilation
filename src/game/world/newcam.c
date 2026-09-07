@@ -1126,8 +1126,6 @@ f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
 void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fov) {
     f32 up[3];
     u8 pad60[60];
-    f32 tx;
-    f32 ty;
     f32 cx;
     f32 cy;
     f32 cz;
@@ -1143,20 +1141,25 @@ void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fo
     cx = look->y * up[2] - look->z * up[1];
     cy = look->z * up[0] - look->x * up[2];
     cz = look->x * up[1] - look->y * up[0];
-    tx = (f32)tan(lbl_80344EE8->ang * lbl_803474A0);
-    ty = (f32)tan(lbl_80344EE8->hang * lbl_803474A0);
-    up[0] = up[0] * tx;
-    cx = cx * ty;
-    cy = cy * ty;
-    cz = cz * ty;
-    up[1] = up[1] * tx;
-    up[2] = up[2] * tx;
+    {
+        f32 tx;
+        f32 ty;
+
+        tx = (f32)tan(lbl_80344EE8->ang * lbl_803474A0);
+        ty = (f32)tan(lbl_80344EE8->hang * lbl_803474A0);
+        up[0] = up[0] * tx;
+        cx = cx * ty;
+        cy = cy * ty;
+        cz = cz * ty;
+        up[1] = up[1] * tx;
+        up[2] = up[2] * tx;
+    }
+    px = look->x + up[0];
+    mx = look->x - up[0];
     py = look->y + up[1];
     my = look->y - up[1];
-    mz = look->z - up[2];
     pz = look->z + up[2];
-    mx = look->x - up[0];
-    px = look->x + up[0];
+    mz = look->z - up[2];
     r1y = py + cy;
     r2z = mz + cz;
     r1z = pz + cz;

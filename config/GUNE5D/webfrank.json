@@ -2118,16 +2118,6 @@
         ]
       },
       {
-        "function": "CalcFrustrumNormals",
-        "before_sha256": "b34989509724156a1c09b98b279d46b23c5ad5fc3232aeeda1cc6fe7093987e0",
-        "after_sha256": "1be628a8dcabe2421e96e9407fc8e353576c4b192a6c4d383ed315b3ea42d470",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 117
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "GetPlayerAvgPos",
         "before_sha256": "f109a5b50fc1c73d495e4b180c6d79b78b21c78bcecf19457c6cfa826ca4bbeb",
         "after_sha256": "653b29fb74dbe3763aa75da3fb723e223fc6e3ef9f242497ab14adc1c7a061d7",

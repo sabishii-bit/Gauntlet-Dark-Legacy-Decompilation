@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Manual only; never rewrites objects or runs as a build hook. Requires hash-anchored archives and actual unchanged stock GC/1.2.5 edge. Proves 117 raw instructions and 11 positional relocation identities, every other raw ELF byte unchanged, and complete processed ELF byte identity. Newcam remains NonMatching; not a TU flip or final-address certificate. Output must be lane-prefixed under build."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r79_newcam_retirement_audit.py",
+  "id": "tool.r79-newcam-retirement-audit.20260907T042047Z.a629d22e",
+  "kind": "tool",
+  "name": "r79-newcam-retirement-audit",
+  "purpose": "Manual source-native CalcFrustrumNormals retirement certificate with complete raw before/after fidelity and whole-ELF preservation.",
+  "recorded_at": "2026-09-07T04:20:47Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r79_newcam_retirement_audit.py",
+  "status": "active",
+  "tool_key": "tool:r79-newcam-retirement-audit",
+  "tool_kind": "python",
+  "usage": [
+    "Run from repo root after configure and fresh ninja, with --baseline-dir pointing at archived r79_newcam_controls; writes build/r79_newcam_retirement.json."
+  ],
+  "valid_from": "2026-09-07T04:20:47+00:00"
+}
