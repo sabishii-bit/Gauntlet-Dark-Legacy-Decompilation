@@ -7387,7 +7387,6 @@ static f32 gendir_8004FBC8(f32* input, f32* output, s32 direction)
 {
     f32 x = input[0];
     f32 z = input[2];
-    f64 term;
 
     output[1] = input[1];
     switch (direction) {
@@ -7408,24 +7407,20 @@ static f32 gendir_8004FBC8(f32* input, f32* output, s32 direction)
         output[2] = -x;
         return 1.5707964f;
     case 4:
-        term = 0.707 * z;
-        output[0] = 0.707 * x + term;
-        output[2] = 0.707 * -x + term;
+        output[0] = 0.707 * x + 0.707 * z;
+        output[2] = 0.707 * -x + 0.707 * z;
         return 0.7853982f;
     case 5:
-        term = 0.707 * x;
-        output[0] = 0.707 * -z + term;
-        output[2] = 0.707 * z + term;
+        output[0] = 0.707 * -z + 0.707 * x;
+        output[2] = 0.707 * z + 0.707 * x;
         return (-0.7853982f);
     case 6:
-        term = 0.707 * -x;
-        output[0] = 0.707 * z + term;
-        output[2] = 0.707 * -z + term;
+        output[0] = 0.707 * z + 0.707 * -x;
+        output[2] = 0.707 * -z + 0.707 * -x;
         return 2.3561945f;
     case 7:
-        term = 0.707 * -z;
-        output[0] = 0.707 * -x + term;
-        output[2] = 0.707 * x + term;
+        output[0] = 0.707 * -x + 0.707 * -z;
+        output[2] = 0.707 * x + 0.707 * -z;
         return (-2.3561945f);
     }
 }
@@ -8371,7 +8366,7 @@ void fn_80051164(void)
 
 #pragma opt_common_subs off
 #pragma opt_propagation off
-s32 fn_800511D0(s32 arg0, f32 arg1)
+s32 fn_800511D0(s32 milestone, f32 tolerance)
 {
     u8 unusedHi[12];
     f32 pos[3];
@@ -8383,7 +8378,6 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     f32 secondDist;
     f32 bestDy;
     f32 secondDy;
-    f32 tolerance;
     f64 kThree;
     f64 kHalf;
     f32 kZero;
@@ -8392,7 +8386,6 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     f64 kPi;
     f32 base;
     s32 second;
-    s32 milestone;
     u8* m;
     s32 i;
     s32 best;
@@ -8404,8 +8397,6 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     bestDy = bestDist;
     second = -1;
     secondDy = bestDist;
-    tolerance = arg1;
-    milestone = arg0;
     if (milestone < 0) {
         return milestone;
     }
