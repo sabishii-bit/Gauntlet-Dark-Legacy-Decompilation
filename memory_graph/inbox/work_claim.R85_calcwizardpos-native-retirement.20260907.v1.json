@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/ui/auxscreen.c"
+    ],
+    "scope": "Worker r77_literal_scout: native retirement using existing Player state/pos type and real vector-pointer ownership. Root fresh55/55 raw10 words including2 mnemonic-order differences. Screen mp-label correction, CN closure, and SY corrected constant bindings; typed-pointer axis unrecorded by these, not assumed never tried elsewhere. Preserve exact pool identities and real py address lifetime; no new helper invented. Private complete TU actual-Ninja baseline fidelity, frozen source until native exact/full sibling/data/EH/binding gates, no new patcher."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:calc_wizard_pos",
+  "id": "work_claim.R85_calcwizardpos-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r85_wizard",
+  "recorded_at": "2026-09-07T06:55:54Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
