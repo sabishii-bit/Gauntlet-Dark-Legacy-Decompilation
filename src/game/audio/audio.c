@@ -1265,10 +1265,10 @@ void AudioUnloadPart(char* bankName)
     bankOffset = i * 292;
     {
         u8* bankEntry = (u8*)gAudioBankTbl + bankOffset + 20;
-        u8* romBank;
+        AudioRomBankEntry* romBank;
         u16 handle;
 
-        partId = *(s32*)(bankEntry + 284);
+        partId = ((AudioRomModeBankEntry*)bankEntry)->loadedPart;
         if (partId < 0) {
             return;
         }
@@ -1276,8 +1276,8 @@ void AudioUnloadPart(char* bankName)
         {
             u32 loadedRomBankId;
 
-            romBank = *(u8**)(sAudioBankTable + 16) + (loadedRomBankId = *(s32*)(bankEntry + 28)) * 44;
-            handle = *(u16*)(romBank + 42);
+            romBank = (AudioRomBankEntry*)((AudioRomRoot*)sAudioBankTable)->banks + (loadedRomBankId = *(s32*)(bankEntry + 28));
+            handle = romBank->handle;
             scanOffset = (s32)loadedRomBankId;
         }
 
@@ -1285,8 +1285,8 @@ void AudioUnloadPart(char* bankName)
             s32 j;
             for (j = gAudioBankTbl[4] - 1; j >= 0; j--) {
                 if (j != i) {
-                    u8* other = (u8*)gAudioBankTbl + j * 292 + 20;
-                    if (scanOffset == *(s32*)(other + *(s32*)(other + 284) * 4 + 28)) {
+                    AudioRomModeBankEntry* other = &((AudioRomMode*)gAudioBankTbl)->banks[j];
+                    if (scanOffset == other->partRomBank[other->loadedPart]) {
                         bulletproof_printf(lbl_8011145C);
                         break;
                     }
@@ -1294,16 +1294,16 @@ void AudioUnloadPart(char* bankName)
             }
             if (j < 0) {
                 AudioKillByBank(scanOffset);
-                sndCmd18(*(s16*)(romBank + 40));
-                *(s16*)(romBank + 40) = 0;
-                *(s16*)(romBank + 42) = 0;
+                sndCmd18(romBank->loadState);
+                romBank->loadState = 0;
+                romBank->handle = 0;
             }
         }
     }
     {
         u8* bankEntry = (u8*)gAudioBankTbl + bankOffset + 20;
-        *(s32*)(bankEntry + 284) = -1;
-        *(s32*)(bankEntry + 288) = -1;
+        ((AudioRomModeBankEntry*)bankEntry)->loadedPart = -1;
+        ((AudioRomModeBankEntry*)bankEntry)->loadedHandle = -1;
     }
 }
 
