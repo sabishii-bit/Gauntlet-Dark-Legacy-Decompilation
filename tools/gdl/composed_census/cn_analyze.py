@@ -15,8 +15,12 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
+import cliscreen  # noqa: E402
 import webfrank as wf  # noqa: E402
 from fndiff import unit_key  # noqa: E402
+
+USAGE = ("usage: cn_analyze.py <unit> <function>"
+         "\n  e.g. cn_analyze.py game/enemy/enemy move_logic00")
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))  # repo root (fixed after promotion)
 
@@ -119,6 +123,10 @@ def report(unit, fn):
 
 
 if __name__ == "__main__":
+    # Run-59 item 9: `--help` used to be an IndexError traceback on stderr.
+    cliscreen.help_only(__doc__, usage=USAGE)
+    if len(sys.argv) < 3:
+        raise SystemExit(USAGE)
     try:
         report(sys.argv[1], sys.argv[2])
     except ValueError as error:

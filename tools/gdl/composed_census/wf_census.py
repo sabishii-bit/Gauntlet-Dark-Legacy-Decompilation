@@ -119,7 +119,11 @@ def destination_agreement(counts):
     return agree, differs
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    cliscreen.help_only(__doc__)      # run-59 item 9: help must not census
     rows = []
     seen_funcs = set()
     for unit in units():

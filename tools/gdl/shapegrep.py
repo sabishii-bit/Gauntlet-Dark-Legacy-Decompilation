@@ -45,7 +45,14 @@ def load_scores():
     return scores
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     args = sys.argv[1:]
     if not args or args[0] in ("--help", "-h"):
         print(__doc__)

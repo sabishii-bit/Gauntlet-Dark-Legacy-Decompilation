@@ -16,6 +16,10 @@ import sys
 import glob
 import json
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import cliscreen  # noqa: E402
+cliscreen.help_only(__doc__)      # run-59 item 9: help must not screen
+
 PINS = {}
 for _unit, _rules in json.load(
         open("config/GUNE5D/webfrank.json"))["units"].items():

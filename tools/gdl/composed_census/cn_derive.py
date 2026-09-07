@@ -19,6 +19,7 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
+import cliscreen  # noqa: E402
 import webfrank as wf  # noqa: E402
 from fndiff import unit_key  # noqa: E402
 from reloc_symbols import moved_symbols, region_symbols  # noqa: E402
@@ -195,7 +196,18 @@ CANDIDATES = {
 }
 
 if __name__ == "__main__":
+    # Run-59 item 9: `--help` used to be `KeyError: '--help'` on stderr,
+    # because argv was looked up in CANDIDATES without being screened.
+    cliscreen.help_only(
+        __doc__,
+        usage="usage: cn_derive.py [candidate ...]   (default: all of "
+              + ", ".join(CANDIDATES) + ")")
     keys = sys.argv[1:] or list(CANDIDATES)
+    unknown = [k for k in keys if k not in CANDIDATES]
+    if unknown:
+        raise SystemExit(
+            f"unknown candidate(s): {', '.join(unknown)}\n"
+            f"this tool's candidates: {', '.join(CANDIDATES)}")
     for k in keys:
         derive(*CANDIDATES[k])
         print()

@@ -135,7 +135,12 @@ def _tab(rows, key):
               % (str(k), d[k].get("LMW_FIRST", 0), d[k].get("LFD_FIRST", 0)))
 
 
+import cliscreen  # noqa: E402
+
+
 def main(argv):
+    # Run-59 item 9: `--help` used to run the whole 16 s image census.
+    cliscreen.help_only(__doc__, argv=list(argv))
     show = "--examples" in argv
     ours, n_ours = population(OURS_ROOT)
     targ, n_targ = population(TARGET_ROOT)

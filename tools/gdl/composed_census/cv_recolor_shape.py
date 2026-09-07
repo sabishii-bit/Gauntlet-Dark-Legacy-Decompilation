@@ -17,6 +17,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]  # repo root (fixed after promotion out of CV_scratch)
 sys.path.insert(0, str(REPO / "tools" / "gdl"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cliscreen  # noqa: E402
+# Run-59 item 9: `--help` used to run the whole 3 s fingerprint pass.
+cliscreen.help_only(__doc__)
 import matchtool  # noqa: E402
 from cv_census import body  # noqa: E402
 

@@ -664,7 +664,16 @@ def load_tables(bare, raw=False):
     return target, ours, resolver
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    # Before the unknown-flag screen below, which counted `--help` itself
+    # as an unknown flag and refused it at exit 2.
+    cliscreen.help_only(__doc__)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     show_all = "--all" in sys.argv
     show_map = "--map" in sys.argv

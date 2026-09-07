@@ -442,7 +442,14 @@ def restore_transient(unit, config_path, path):
     return restored, notes
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9 (one of the two tools the item names): `--help` exited
+    # 1 with the docstring on STDERR, because `args` drops every `--` token
+    # and the length check below then raised SystemExit(__doc__).
+    cliscreen.help_only(__doc__)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     transient = "--transient" in sys.argv
     apply = "--apply" in sys.argv or transient

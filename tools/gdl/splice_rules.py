@@ -1,6 +1,21 @@
+"""Splice re-derived pb_window rules into config/GUNE5D/webfrank.json.
+
+A run-26 migration script: it reads WF_scratch/pb_window_rules.json (a lane
+scratch file that is not in the repository) and rewrites only that unit's
+rule block, preserving every other unit's serialization. `--apply` writes;
+with no flag it is a dry run.
+"""
 import json, sys
 from pathlib import Path
 
+try:                       # run-59 item 9: `--help` exits 0 on stdout
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+# `--help` must answer BEFORE any work, and this one read a scratch file
+# that no longer exists and died with a traceback on stderr.
+cliscreen.help_only(__doc__)
 ROOT = Path(__file__).resolve().parents[1]
 new = json.loads((ROOT / "WF_scratch/pb_window_rules.json").read_text())
 wf_path = ROOT / "config/GUNE5D/webfrank.json"

@@ -9,9 +9,15 @@ the extracted target object.
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+# Run-59 item 9: `parents[1]` is tools/gdl, so `from tools.gdl.webfrank
+# import ...` raised ModuleNotFoundError and this script could not run at
+# all from its promoted location. The repo root is `parents[3]`.
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools" / "gdl"))
 
+import cliscreen  # noqa: E402
+cliscreen.help_only(__doc__)
 from tools.gdl.webfrank import (  # noqa: E402
     _find_symbol,
     _function_text_relocations,

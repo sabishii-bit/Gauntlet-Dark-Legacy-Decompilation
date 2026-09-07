@@ -2462,7 +2462,14 @@ def truncate_ops(ops_text, limit):
     return "\n".join(kept + [note])
 
 
+try:                       # noqa: E402  run-59 item 9: --help exits 0
+    import cliscreen
+except ImportError:        # imported as tools.gdl.<module>
+    from tools.gdl import cliscreen
+
+
 def main():
+    cliscreen.help_only(__doc__)
     flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean",
              "--raw", "--relocs", "--datum", "--resolve-lbl")
     args = [a for a in sys.argv[1:] if a not in flags]

@@ -59,7 +59,12 @@ def survivors():
     return out
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    # Run-59 item 9: `--help` used to run the whole 7 s sweep.
+    cliscreen.help_only(__doc__)
     closed, refused = [], []
     for unit, fn, lo, hi in survivors():
         if unit in OWNED:

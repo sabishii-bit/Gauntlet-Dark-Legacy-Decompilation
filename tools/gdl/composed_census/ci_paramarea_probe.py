@@ -337,6 +337,11 @@ def run(cases, header):
 
 
 def main():
+    # Run-59 item 9: help must not compile anything.
+    sys.path.insert(0, os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    import cliscreen
+    cliscreen.help_only(__doc__)
     if not os.path.exists(sjis()):
         print("run from the REPOSITORY ROOT (sjiswrap not found from %s)"
               % ROOT)

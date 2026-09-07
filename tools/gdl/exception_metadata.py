@@ -110,3 +110,9 @@ def compare_exception_records(target, ours):
                     for k in target if k in ours and target[k] != ours[k]},
         "scope": "Function-indexed metadata only. Extra records require a separate link-reachability check; not a whole-TU flip verdict.",
     }
+
+
+if __name__ == "__main__":
+    # A library, not a command. Run-59 item 9: exiting 0 with no output at
+    # all is indistinguishable from a tool that ran and found nothing.
+    print(__doc__.strip())

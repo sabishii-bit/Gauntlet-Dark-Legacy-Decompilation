@@ -95,7 +95,11 @@ def split_roster(mod, roster):
     return rows
 
 
+import cliscreen  # noqa: E402
+
+
 def main():
+    cliscreen.help_only(__doc__)      # run-59 item 9: help must not sweep
     out = os.path.join("build", "GUNE5D", "al_dest_split.json")
     if "--out" in sys.argv:
         out = sys.argv[sys.argv.index("--out") + 1]
