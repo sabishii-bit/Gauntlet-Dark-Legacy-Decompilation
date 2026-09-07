@@ -1127,32 +1127,13 @@ s32 StartMagicPlayerFX(f32* pos)
 extern char lbl_80114790[];     /* "Bad throw effect" fmt */
 extern f32 lbl_80348134;
 
-/* throw-specialized guts clone: time constant lives inside the body so its
- * load stays below the atree branch (arg-eval at an inline call site hoists
- * a global-load argument above the inlined bounds checks). */
-static s32 StartThrowGutsX(EffectPage* page, s32 type, f32* pos)
-{
-    s32 idx = -1;
-    EffectHeader* h;
-
-    if (type < 0 || type >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", type);
-        return -1;
-    }
-    h = &page->info[type];
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0x20010E, 0x800, 0.667f)) >= 0) {
-        MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
-        MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
-        page->fx[idx].type = (fx_type)type;
-    }
-    return idx;
-}
-
 /* 0x80092B58 StartThrowMagicFX -- spawn a thrown-magic projectile: def id
  * from the magic table, launch velocity/yaw from vel, damage + light setup.
- * STRUCTURAL MATCH 167/167 via StartThrowGutsX clone (time const inside the
- * inlinee sinks its lfs below the atree branch; a GutsP time argument gets
- * hoisted at arg-eval), vz arg2-first atan2 temp, ep multi-def address
+ * The recovered 0.667f literal stays under the atree guard when passed to
+ * the shared helper. The former throw-only clone compensated for a mutable
+ * extern argument; removing it preserves this caller's complete raw body
+ * and bindings, and removes only an unused 192-byte reconstruction helper.
+ * STRUCTURAL MATCH 167/167, vz arg2-first atan2 temp, ep multi-def address
  * blocks. PARKED residual: one clrlwi (t4) 3 slots early + renum (rad/size
  * f30<->f31, e web r23 vs r3/r20, fxh r3/r4). Exhausted: t4 stmt placement
  * x4, cast-transit, assignment-in-index, sz param-copy, e/ep chain forms.
@@ -1181,7 +1162,7 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
         rad = 1.0f;
     }
     t4 = type & 0xF;
-    ret = StartThrowGutsX(page, tbl->throwid[type & 0xF], pos);
+    ret = StartFXSubGutsP(page, tbl->throwid[type & 0xF], pos, 0x20010E, 0x800, 0.667f);
     if (ret >= 0) {
         ep = (u8*)page;
         ep += ret * 240;
