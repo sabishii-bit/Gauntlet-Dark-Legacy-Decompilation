@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/mb/mb_camera.c"
+    ],
+    "scope": "Root private complete-TU matrix2D row/column source reconstruction, replacing hand-lowered mixed-stride transpose. Fresh159/159 raw18,frame40,16REGFIELD/2IMMEDIATE: target+0x1e4 addi r4,r4,4 and+0x1ec addi r3,r3,16 versus current addi r9,r9,16 and addi r3,r3,4. CT/CL/R78 full histories screened: old scalar offset-derivation/declaration/literal/first-counter finite controls not repeated. Genuine matrix row-pointer/index forms are new; no speculative MBWINDOW field names, owner aggregates, artificial locals, flags or rules. Complete actual Ninja baseline ELF, siblings/data/EH/bindings mandatory; production pinned input frozen pending independently exact candidate."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:MBCameraUpdate",
+  "id": "work_claim.R89_mbcamera-matrix-row-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r89_mbcamera",
+  "recorded_at": "2026-09-07T07:58:35Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
