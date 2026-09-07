@@ -200,14 +200,29 @@ void dcsChannelPlay(s32 value) {
     }
 }
 
+/* The Xbox BANK.OBJ retains voiceDuck(int). Reconstruct the shared ducking
+ * operation before inlining it into the GC channel update; flattening this
+ * loop loses stock MWCC's native zero-copy and scheduling shape. */
+static inline s32 voiceDuck(s32 duck) {
+    s32 adjustment;
+    s32 i;
+
+    adjustment = (duck * lbl_80343FF8) >> 8;
+    lbl_8034520C += adjustment;
+    for (i = 0; i < 12; i++) {
+        if (dcsVoiceInUse(i)) {
+            ch_info[i].volume -= adjustment;
+            dcsVoiceUpdate(i);
+        }
+    }
+    return 0;
+}
+
 /* 0x800D1ED0  recompute per-channel voice state each tick */
 s32 update_chinfo(u32 channels) {
     u8 unused[8];
     s32 channel = 0;
     s32 channelMask;
-    s32 infoOffset;
-    s32 i;
-    s32 adjustment;
 
     channelMask = channels & 0xFFF;
     dcsMemLockTag(0, channelMask);
@@ -215,18 +230,7 @@ s32 update_chinfo(u32 channels) {
     while (channelMask != 0) {
         if ((channelMask & 1) != 0) {
             if (ch_info[channel].duck != 0) {
-                adjustment =
-                    -(s32)ch_info[channel].duck * lbl_80343FF8;
-                adjustment >>= 8;
-                lbl_8034520C += adjustment;
-                for (i = 0, infoOffset = i; i < 12;
-                     i++, infoOffset += sizeof(DcsChannelInfo)) {
-                    if (dcsVoiceInUse(i)) {
-                        ((DcsChannelInfo*)((u8*)ch_info + infoOffset))->volume -=
-                            adjustment;
-                        dcsVoiceUpdate(i);
-                    }
-                }
+                voiceDuck(-(s32)ch_info[channel].duck);
                 ch_info[channel].duck = 0;
             }
             ch_info[channel].sample = -1;
