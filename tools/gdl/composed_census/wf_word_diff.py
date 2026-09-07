@@ -258,6 +258,31 @@ def region_word_counts(rows, regions):
     return counts
 
 
+def parsed_lines(table, fn):
+    """`table`'s lines for `fn`, across the dtk suffix convention.
+
+    RUN-59 ITEM 5. Every name in this tool is an ELF name — that is what
+    `unit_bodies` returns, what webfrank.json spells and what the
+    per-function CLI takes — while `fndiff.parse` KEYS its table on the
+    reduced name (`gendir` for `gendir_8004FBC8`). A plain `.get(fn)`
+    therefore missed for exactly the dtk-suffixed functions, `_reloc_map`
+    returned None, and the headline read
+
+        RELOC-SYMBOL MISMATCH = not comparable
+
+    for game/enemy/enemy::gendir_8004FBC8 at 4f3f9c6f0 — i.e. the
+    wrong-symbol class (claim.law.SA_a-wrong-global-that-shares-an-
+    instruction-word-is-invisible-to-every-score) was UNSCREENED on those
+    functions, and the `--unit` mode dropped their relocation TYPES
+    silently, so a RELOCATED word classified as a codegen difference.
+
+    The join is `fndiff.resolve_function_name`, the one resolver (run-59
+    item 4), so both modes and every other reader agree by construction.
+    """
+    resolved = fndiff.resolve_function_name(table, fn)
+    return None if resolved is None else table[resolved]
+
+
 def _reloc_map(objpath, fn, insn_count):
     """{instruction index: (reloc_type, symbol_text)} for one function.
 
@@ -268,7 +293,8 @@ def _reloc_map(objpath, fn, insn_count):
     instruction count disagrees, so the caller reports "not comparable"
     instead of a silent empty result.
     """
-    return _reloc_map_from_lines(fndiff.parse(objpath).get(fn), insn_count)
+    return _reloc_map_from_lines(
+        parsed_lines(fndiff.parse(objpath), fn), insn_count)
 
 
 def _reloc_map_from_lines(lines, insn_count):
@@ -867,8 +893,8 @@ def unit_rows(unit):
         mnem = mnemonic_divergence(ours, tgt)
         types = {}
         for path in (target_path, ours_path):
-            table = _reloc_map_from_lines(parsed[path].get(name),
-                                          len(ours) // 4)
+            table = _reloc_map_from_lines(
+                parsed_lines(parsed[path], name), len(ours) // 4)
             if table is None:
                 continue
             for index, (rtype, _sym) in table.items():
