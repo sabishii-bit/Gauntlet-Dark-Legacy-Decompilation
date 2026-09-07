@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/sfx/sfx.c"
+    ],
+    "scope": "Worker r79_worldcol: native retirement via already-defined StartFXSubGuts/P helper reuse for initial spawn/setup block, retaining verified parent tail. Fresh74/74 raw24REGFIELD0reloc differences; target+14 addi r29,r4,0 vsrawr30;target+28 li r28,-1 vsrawr31. Prior two-use-preoffset-w2 caps tail rewrites/later-defined SfxSetParent, not existing earlier helper. Whole actual Ninja baseline ELF, all siblings/data/EH/reloc identities preserved. No new helper, pragma, compiler patch, rule, or synthetic wrapper. Scope whole sfx TU for coupling, but unrelated functions untouched unless separately justified and graph-screened."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:StartBlockFX",
+  "id": "work_claim.R87_startblockfx-existing-helper-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r87_blockfx",
+  "recorded_at": "2026-09-07T07:28:30Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
