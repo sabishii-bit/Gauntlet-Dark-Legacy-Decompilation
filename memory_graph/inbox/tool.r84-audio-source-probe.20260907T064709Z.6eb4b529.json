@@ -1,0 +1,21 @@
+{
+  "constraints": [
+    "Private full-TU compilations using actual Ninja compiler and flags; writes only beneath build. Requires production baseline ELF byte identity. No source/config rewrites or automatic retirement.",
+    "A count-asymmetric prefix difference is not a full-body difference: inspect instructions and differing_words=null for 70/68 forms. Raw body equality is not final pool ownership. The finite matrix does not prove source impossibility."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/r84_audio_source_probe.py",
+  "id": "tool.r84-audio-source-probe.20260907T064709Z.6eb4b529",
+  "kind": "tool",
+  "name": "r84-audio-source-probe",
+  "purpose": "Replay finite AudioAng source controls and verify full raw baseline fidelity plus existing sndfx helper-consumer ELF preservation.",
+  "recorded_at": "2026-09-07T06:47:09Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/composed_census/r84_audio_source_probe.py",
+  "status": "active",
+  "tool_key": "tool:r84-audio-source-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "--forms all --out build/r84_audio_replay"
+  ],
+  "valid_from": "2026-09-07T06:47:09+00:00"
+}
