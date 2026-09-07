@@ -1925,8 +1925,9 @@ s32 memCardErrorPrompt(const char* msg)
     case 0:
         return 1;
     case 1: {
+        s32* serial = &lbl_80344A24;
         register s32 zero = 0;
-        lbl_80344A24 = zero;
+        *serial = zero;
         {
             register s32 neg = -1;
             r = zero;
