@@ -5038,19 +5038,15 @@ void CritterLookForCriticalMove(Critter *c)
 {
     s32 i;
     CritterMove *moves;
-    s32 moveOffset;
-    s32 timeOffset;
     CritterMove *move;
     u32 flags;
     s32 player;
 
     i = 0;
-    timeOffset = 0;
-    moveOffset = 0;
     moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
 
     while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
-        move = (CritterMove *)((u8 *)moves + moveOffset);
+        move = &moves[i];
         if (move->type != 0x23) {
             goto next;
         }
@@ -5070,8 +5066,7 @@ void CritterLookForCriticalMove(Critter *c)
             }
         }
         if (move->cooldown > 0.0 &&
-            sMusicFadeBase <
-                c->moveTimes[i] + move->cooldown) {
+            sMusicFadeBase < c->moveTimes[i] + move->cooldown) {
             goto next;
         }
         player = CritterGetTargetSub(c, (f32 *)((u8 *)move + 0x60), 0);
@@ -5082,8 +5077,6 @@ void CritterLookForCriticalMove(Critter *c)
 
     next:
         i++;
-        timeOffset += 4;
-        moveOffset += sizeof(CritterMove);
     }
 }
 /* 0x8003BC28 -- select a child-pattern move, with damage reactions taking
