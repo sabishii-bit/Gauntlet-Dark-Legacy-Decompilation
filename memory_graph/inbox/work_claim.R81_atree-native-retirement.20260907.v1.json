@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/anim/atree.c"
+    ],
+    "scope": "Native AtreeInitSub source reconstruction. Fresh180/180instructions19REGFIELDwords. Preserve R73 data export/zero ownership. Screen legacy declaration-order park and R73 attempts; distinct natural allocation/init block scopes are candidate axes, not prescribed cures. Private complete actual-Ninja fidelity, rawexactbody+bindings, all siblings/data/EH and full link before retaining. No rule additions, compiler/flag changes or allocation-only wrappers/padding. Only owned rule-removal hunks and lane-specific evidence/tests permitted beyond TU."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:AtreeInitSub",
+  "id": "work_claim.R81_atree-native-retirement.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r81_atree",
+  "recorded_at": "2026-09-07T05:15:07Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
