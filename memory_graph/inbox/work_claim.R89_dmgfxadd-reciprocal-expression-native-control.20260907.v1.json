@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "owned_units": [
+      "game/sfx/sfx.c"
+    ],
+    "scope": "Worker r79_worldcol: execute mandatory untried reciprocal-pi macro expression from attempt.R80_dmgfxadd-finite-native-storage-scope-and-consumer-controls.20260907.v1. Fresh107/107 raw4, frame56; target+0x50 lfd f2,C0 versus raw f0, target+0x54 lfd f3,B8 versus raw f2. Only test expression1.0/3.141592654 if folded bits equal target3fd45f306dbe5bcd. Keep runtime multiply/multiply/divide association, existing types and rounding. Prior22 decimal storage, lifetime/scope and raddeg controls remain vetoed. No source reassociation, full precision M_PI replacement, arbitrary constants, helper/pragma/rule. Complete actual Ninja baseline ELF and raw/data/binding/EH proof required. If finite counterexample fails, archive/record result and screen another candidate rather than repeat old decimal probes."
+  },
+  "claimed_at": "2026-09-07",
+  "function": "function:DmgFxAdd",
+  "id": "work_claim.R89_dmgfxadd-reciprocal-expression-native-control.20260907.v1",
+  "kind": "work_claim",
+  "owner": "r89_dmgfx",
+  "recorded_at": "2026-09-07T07:55:15Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-07"
+}
