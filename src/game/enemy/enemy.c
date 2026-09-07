@@ -8512,7 +8512,7 @@ s32 fn_80051480(f32* pos)
 {
     u8 unused[16];
     s32 best_idx = -1;
-    register f32 best_dist = 100000.0f;
+    f32 best_dist = 100000.0f;
     u8* node = sMilestones;
     s32 i;
 
