@@ -1,0 +1,10 @@
+id: FM009
+valid:
+  - 'void f(){ use(strings + OFFSET); }'
+  - 'void f(){ use(strings[i]); }'
+  - 'void f(){ use(flags & 0x1000); }'
+  - 'void f(){ use(strings + 1.5f); }'
+invalid:
+  - 'void f(){ use(strings + 364); }'
+  - 'void f(){ use(strings - 364); }'
+  - 'void f(){ use(strings + (0x16Cu)); }'

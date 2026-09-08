@@ -126,6 +126,78 @@ rule:
             kind: type_qualifier
             regex: '^(const|constexpr)$'
 ---
+id: FM009
+language: Cpp
+severity: hint
+message: Constant-offset access candidate; the wrapper requires a visible pointer/array declaration.
+rule:
+  any:
+    - pattern: '$BASE + $OFFSET'
+    - pattern: '$BASE - $OFFSET'
+constraints:
+  BASE:
+    regex: '^[A-Za-z_][A-Za-z_0-9]*$'
+  OFFSET:
+    regex: '^\(*\s*(?:0[xX][0-9a-fA-F]+|[0-9]+)[uUlL]*\s*\)*$'
+---
+id: FM009-left
+language: Cpp
+severity: hint
+message: Constant-left offset candidate; the wrapper requires a visible pointer/array declaration.
+rule:
+  pattern: '$OFFSET + $BASE'
+constraints:
+  BASE:
+    regex: '^[A-Za-z_][A-Za-z_0-9]*$'
+  OFFSET:
+    regex: '^\(*\s*(?:0[xX][0-9a-fA-F]+|[0-9]+)[uUlL]*\s*\)*$'
+---
+id: decomp-binding-name
+language: Cpp
+severity: hint
+message: Declaration name for lexical pointer-offset review, not a diagnostic.
+rule:
+  kind: identifier
+  all:
+    - inside:
+        any:
+          - kind: declaration
+          - kind: parameter_declaration
+        stopBy: end
+    - any:
+        - inside: { kind: declaration, field: declarator }
+        - inside: { kind: parameter_declaration, field: declarator }
+        - inside: { kind: init_declarator, field: declarator }
+        - inside: { kind: pointer_declarator, field: declarator }
+        - inside: { kind: array_declarator, field: declarator }
+---
+id: decomp-storage-name
+language: Cpp
+severity: hint
+message: Syntactically explicit pointer/array declaration name, not a type-inference claim.
+rule:
+  kind: identifier
+  all:
+    - inside:
+        any:
+          - kind: declaration
+          - kind: parameter_declaration
+        stopBy: end
+    - any:
+        - inside: { kind: pointer_declarator, field: declarator }
+        - inside: { kind: array_declarator, field: declarator }
+---
+id: decomp-block
+language: Cpp
+severity: hint
+message: Lexical scope for declaration visibility, not a diagnostic.
+rule:
+  any:
+    - kind: compound_statement
+    - kind: for_statement
+    - kind: if_statement
+    - kind: switch_statement
+---
 id: decomp-function
 language: Cpp
 severity: hint

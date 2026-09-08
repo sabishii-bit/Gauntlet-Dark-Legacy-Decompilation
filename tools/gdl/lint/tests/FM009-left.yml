@@ -1,0 +1,7 @@
+id: FM009-left
+valid:
+  - 'void f(){ use(OFFSET + strings); }'
+  - 'void f(){ use(flags & 0x1000); }'
+invalid:
+  - 'void f(){ use(364 + strings); }'
+  - 'void f(){ use((0x16Cu) + strings); }'

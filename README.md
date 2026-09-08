@@ -287,6 +287,7 @@ python tools/gdl/fakematch_lint.py src/game/movie/movieplayer.cpp --out build/mo
 | FM006 | Pragmas and recognized function optimization attributes against a per-file/scope allowlist |
 | FM007 | Hex expression literals outside named constants/enums and direct bitwise-mask operands |
 | FM008 | Reintroduced legacy WebFrank/P6Frank configuration |
+| FM009 | Unnamed numeric offsets into visibly declared pointers/arrays, including decimal pool offsets |
 
 The push/PR workflow runs rule tests and a complete `src/` + `include/` scan in
 the independent **Reconstruction source lint** job, publishing
@@ -305,11 +306,17 @@ a lower-level four-family diagnostic, **not** the full reconstruction report.
 
 #### VS Code / Cursor errors
 
-After installing the pinned dependencies, run **Tasks: Run Task → GDL: watch
-reconstruction debt**. It populates the Problems panel with errors and warnings
-and refreshes on **saved** source/config changes; unchanged source snapshots are
-cached. It is also configured to start on folder open if you allow automatic
-tasks in this trusted workspace. Stop it with **Tasks: Terminate Task**.
+After installing the pinned dependencies, open the repository folder and run
+**Tasks: Run Task → GDL: lint current file** for a quick check. For ongoing
+checks, run **GDL: watch reconstruction debt** and wait for its first scan to
+finish. Both populate Problems and inline diagnostic squiggles, not syntax-theme
+colors. The watcher refreshes on **saved** source/config changes; unchanged
+source snapshots are cached. A command run in an unrelated terminal does not
+populate the editor's Problems collection.
+For startup on folder open, use **Tasks: Manage Automatic Tasks → Allow Automatic
+Tasks**, then reopen the trusted workspace. Automatic execution is controlled
+by the editor, not forced by this repository. Stop it with **Tasks: Terminate
+Task**. See the [VS Code task documentation](https://code.visualstudio.com/docs/debugtest/tasks#processing-task-output-with-problem-matchers).
 No additional editor extension is required. The existing Ninja build task is
 unchanged. This is a task-based watcher, not an unsaved-buffer language server.
 Restart the task after changing the scanner itself or installing dependencies.
@@ -356,6 +363,14 @@ To make warnings build-breaking locally or in CI, use:
 pnpm run lint:decomp --warnings-as-errors
 ```
 
+FM009 flags unnamed decimal or hexadecimal offsets into visibly declared
+pointers/arrays, including `MBOX_FindTexture(strings + 364, 0)`. It requires
+lexical declaration evidence, so ordinary scalar arithmetic is not classified
+as pointer access. Typedef-hidden pointers, member expressions and missing
+include/type information remain limitations. The diagnostic requests recovery
+of the referenced string, field or element; it does not prescribe a struct or
+loop. Actual pool bytes and relocation ownership decide the source repair.
+
 The TOML `warning_pragmas` list controls this narrow severity policy. Removing
 an entry makes that directive an ordinary error; other pragmas remain errors.
 
@@ -373,7 +388,7 @@ at or below 50% fuzzy match. `--sort lowest` emphasizes the least reconstructed
 functions; `--sort impact` emphasizes their estimated remaining byte gap. Use
 `tools/gdl/nearmiss.py` separately when deliberately closing already high-match
 functions. Queues are discovery aids, not proof that an approach is untried or
-a function is free to edit. Check current source, configured postprocessor pins,
+a function is free to edit. Check current source, native build provenance,
 relevant Git history and active worker ownership, then reproduce the residual
 before selecting a target.
 

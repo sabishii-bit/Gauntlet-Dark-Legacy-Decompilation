@@ -5,13 +5,14 @@
   "tasks": [
     {
       "label": "GDL: watch reconstruction debt",
+      "detail": "Saved-file diagnostics for the whole repository. First scan can take a short while; this task must be running to show inline Problems markers.",
       "type": "process",
       "command": "python",
-      "args": ["tools/gdl/fakematch_lint.py", "--postprocessors", "--format", "problems", "--watch"],
+      "args": ["-u", "tools/gdl/fakematch_lint.py", "--postprocessors", "--format", "problems", "--watch"],
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 },
-      "presentation": { "reveal": "silent", "panel": "dedicated" },
+      "presentation": { "reveal": "silent", "revealProblems": "onProblem", "panel": "dedicated" },
       "problemMatcher": {
         "owner": "gdl-reconstruction",
         "source": "GDL reconstruction",
@@ -26,6 +27,25 @@
           "activeOnStart": true,
           "beginsPattern": "^GDL_LINT_BEGIN$",
           "endsPattern": "^GDL_LINT_END"
+        }
+      }
+    },
+    {
+      "label": "GDL: lint current file",
+      "detail": "Quick saved-file check with inline diagnostics; no watcher or build required.",
+      "type": "process",
+      "command": "python",
+      "args": ["-u", "tools/gdl/fakematch_lint.py", "${file}", "--postprocessors", "--format", "problems"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "silent", "revealProblems": "onProblem", "panel": "dedicated" },
+      "problemMatcher": {
+        "owner": "gdl-reconstruction-current-file",
+        "source": "GDL reconstruction (current file)",
+        "fileLocation": "absolute",
+        "applyTo": "allDocuments",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): (error|warning) (FM\\d{3}): (.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "code": 5, "message": 6
         }
       }
     },

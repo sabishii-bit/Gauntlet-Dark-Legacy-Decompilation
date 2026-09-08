@@ -1,6 +1,6 @@
 """Review-only ast-grep C++ reconstruction-debt scanner; never rewrites source.
 
-All seven rule families run through the pinned ast-grep rules. Python supplies
+Source rule families run through the pinned ast-grep rules. Python supplies
 lexical-use/byte-shape/mask filters, exact review policy, and MWCC asm fallback.
 Macros are scanned in a separate offset-preserving projection, not expanded.
 Parse recovery is reported, not treated as proof of clean source. No type/CFG
@@ -37,6 +37,7 @@ RULES = {
     'FM006': 'Source-level compilation override',
     'FM007': 'Unnamed hexadecimal expression constant',
     'FM008': 'Configured postprocessor dependency requiring native retirement',
+    'FM009': 'Unnamed constant-offset pointer or array access',
 }
 POSTPROCESSORS = [('WebFrank','config/GUNE5D/webfrank.json'),('P6Frank','config/GUNE5D/p6frank.json')]
 EXTENSIONS = {'.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hh', '.hxx'}
@@ -143,6 +144,28 @@ def scan_source(text, path='<input>', diagnostics=None):
     def owner(at):
         inside=[(b-a,n) for a,b,n in functions if a<=at<b]
         return min(inside)[1] if inside else '<file>'
+    # Conservative lexical evidence, not C++ type inference. Refuse ambiguity
+    # (shadowing/redeclarations), and never guess from a name
+    # such as "strings". Typedef-hidden pointers and member expressions are
+    # intentionally outside this check until type-backed analysis exists.
+    blocks=[span(row) for row in rows if row['ruleId']=='decomp-block'
+            and Path(row['file']).name=='source.cpp']
+    storage={span(row)[0] for row in rows if row['ruleId']=='decomp-storage-name'
+             and Path(row['file']).name=='source.cpp'}
+    bindings=[]
+    for row in rows:
+        if row['ruleId']!='decomp-binding-name' or Path(row['file']).name!='source.cpp': continue
+        a,b=span(row)
+        scopes=[(y-x,x,y) for x,y in blocks if x<=a<y]
+        scopes += [(y-x,x,y) for x,y,_ in functions if x<=a<y]
+        _,begin,end=min(scopes) if scopes else (len(text),0,len(text))
+        bindings.append((row['text'],a,begin,end,a in storage))
+    def explicit_storage(name, at):
+        visible=[row for row in bindings if row[0]==name and row[1]<at and row[2]<=at<row[3]]
+        if not visible: return None
+        width=min(row[3]-row[2] for row in visible)
+        nearest=[row for row in visible if row[3]-row[2]==width]
+        return nearest[0] if len(nearest)==1 and nearest[0][4] else None
     starts=[m.start() for m in tokens]
     lines=[0]+[m.end() for m in re.finditer('\n',text)]
     findings=[]
@@ -217,6 +240,13 @@ def scan_source(text, path='<input>', diagnostics=None):
             if projected and not any(x<=a<y and functionlike for x,y,functionlike in macro_ranges): continue
             if not any(file==Path(row['file']).name and x<=a and b<=y for file,x,y in masks):
                 emit('FM007',a,b,row['message'],'heuristic')
+        elif rid in ('FM009','FM009-left'):
+            meta=row['metaVariables']['single']
+            binding=explicit_storage(meta['BASE']['text'],a)
+            if binding:
+                emit('FM009',a,b,'Unnamed numeric offset into a declared pointer/array; recover the referenced string, field or element from target data. This does not prove a struct or loop.',
+                     'heuristic',base=meta['BASE']['text'],offset=meta['OFFSET']['text'],
+                     declaration_line=bisect_right(lines,binding[1]))
         elif rid=='FM005':
             pass  # Unified token fallback below covers GNU + MWCC + opaque macro bodies once.
         else:

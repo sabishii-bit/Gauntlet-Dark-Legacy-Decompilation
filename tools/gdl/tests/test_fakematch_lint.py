@@ -28,6 +28,47 @@ class SourceRules(unittest.TestCase):
             with self.subTest(expr=expr):
                 self.assertFalse(self.hits('int f() { return '+expr+'; }', 'FM001'))
 
+    def test_numeric_pointer_offsets_include_decimal_and_both_sides(self):
+        for expr in ('strings + 364','strings - 364','364 + strings','strings + (0x16Cu)'):
+            with self.subTest(expr=expr):
+                rows=self.hits('void f(char* strings){use('+expr+');}','FM009')
+                self.assertEqual(len(rows),1)
+                self.assertEqual(rows[0]['base'],'strings')
+        self.assertTrue(self.hits('extern char names[]; void f(){use(names + 364);}','FM009'))
+
+    def test_numeric_scalar_arithmetic_and_unknown_types_are_not_pointer_claims(self):
+        for source in ('int f(int strings){return strings+364;}',
+                       'void f(){int strings=0;use(strings+364);}',
+                       'void f(){use(unknown+364);}',
+                       'void f(){int* ptr, scalar;use(scalar+364);}',
+                       'void f(char* strings){use(strings+OFFSET);use(strings[i]);}',
+                       'void f(){/* strings + 364 */ use("strings + 364");}'):
+            with self.subTest(source=source):
+                self.assertFalse(self.hits(source,'FM009'))
+
+    def test_pointer_scope_shadowing_is_respected(self):
+        for source in ('char* p; int f(int p){return p+364;}',
+                       'char* p; void f(){int p=0;use(p+364);}',
+                       'void f(){ {char* p;use(p);} use(p+364);}',
+                       'void f(char* p){{int p=0;use(p+364);}}'):
+            with self.subTest(source=source):
+                self.assertFalse(self.hits(source,'FM009'))
+        self.assertEqual(len(self.hits('char* p; void f(){{int p=0;use(p+364);} use(p+364);}','FM009')),1)
+
+    def test_gamemain_texture_pool_regression_and_editor_locations(self):
+        source='void f(){\n char* strings=pool;\n' + ''.join(
+            ' out=MBOX_FindTexture(strings + '+str(offset)+', 0);\n'
+            for offset in range(364,473,12)) + '}\n'
+        rows=self.hits(source,'FM009')
+        self.assertEqual([r['line'] for r in rows],list(range(3,13)))
+        for row in rows:
+            self.assertIn(': error FM009:',lint.diagnostic(row,Path('.'),'problems'))
+            self.assertIn('does not prove a struct or loop',row['message'])
+
+    def test_declaration_scope_in_for_loop_does_not_leak(self):
+        self.assertFalse(self.hits('void f(){for(char* p=0;p;){use(p);} use(p+364);}','FM009'))
+        self.assertEqual(len(self.hits('char* p; void f(){for(int p=0;p<2;p++){use(p+364);} use(p+364);}','FM009')),1)
+
     def test_nested_dereference_threshold(self):
         rows=self.hits('int f() { return *(int*)*(void**)(p + 0x8); }','FM002')
         self.assertEqual(len(rows),1)
@@ -345,6 +386,20 @@ class PolicyAndCli(unittest.TestCase):
         pattern=json.loads(encoded)
         match=re.match(pattern,'W:/My Project/a.c:12:3: error FM008: native retirement required')
         self.assertEqual(match.groups(),('W:/My Project/a.c','12','3','error','FM008','native retirement required'))
+
+    def test_both_editor_tasks_recognize_new_errors_and_pragma_warnings(self):
+        import re
+        tasks=(lint.ROOT/'.vscode/tasks.json').read_text()
+        patterns=re.findall(r'"regexp":\s*("(?:[^"\\]|\\.)*")',tasks)
+        self.assertEqual(len(patterns),2)
+        for encoded in patterns:
+            for severity,rule in (('error','FM009'),('warning','FM006')):
+                row=dict(path='src/a.c',line=3,column=5,rule=rule,severity=severity,scope='f',message='review')
+                output=lint.diagnostic(row,Path('W:/My Project'),'problems')
+                match=re.match(json.loads(encoded),output)
+                self.assertIsNotNone(match)
+                self.assertEqual(match.group(4),severity)
+                self.assertEqual(match.group(5),rule)
 
     def test_watch_cache_reuses_only_unchanged_source(self):
         with tempfile.TemporaryDirectory() as td:

@@ -301,7 +301,7 @@ finite matrix proves that postprocessing is necessary.
 
 Before source-debt cleanup, run `pnpm install --frozen-lockfile` once, then
 `python tools/gdl/fakematch_lint.py <owned-source-path> --out build/lint.json`.
-The ast-grep-backed report covers seven reconstruction-debt families. Findings
+The ast-grep-backed report covers source reconstruction-debt families. Findings
 are review candidates, not proven fakematches; parser recovery, macro expansion
 and absent type/liveness analysis limit coverage. Never mechanically rewrite
 findings to improve the lint count or weaken matching gates. Review exceptions
@@ -319,6 +319,10 @@ VS Code/Cursor: run the `GDL: watch reconstruction debt` task (or allow its
 folder-open task). It refreshes Problems errors on saved changes using the same
 filters/policy as CI. Write-only, incremented locals are review candidates too,
 following Fable's Critter induction-variable retirement; no autofix is allowed.
+FM009 also catches numeric offsets into visibly declared pointers/arrays,
+including decimal string-pool offsets without casts. It does not prove a
+struct, loop or array-of-struct layout. Recover the actual referenced objects
+and bindings before choosing a replacement; unknown types remain unclassified.
 
 Before adding a raw-offset access or inventing a type, search existing project
 headers, the TU's own structs, sibling consumers and Xbox declarations. Verify
