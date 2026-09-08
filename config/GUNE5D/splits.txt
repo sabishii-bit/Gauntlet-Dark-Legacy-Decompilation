@@ -92,6 +92,7 @@ game/ui/btext.c:
 	.bss        start:0x8023EAE0 end:0x8023F7E8
 	.sdata      start:0x80343BB8 end:0x80343BC4
 	.sbss       start:0x803443D8 end:0x803443E4
+	.sdata2     start:0x80345CB0 end:0x80345CC4
 
 game/world/btricol.c:
 	extab       start:0x80005A68 end:0x80005A80
