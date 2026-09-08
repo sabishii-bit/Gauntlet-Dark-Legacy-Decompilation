@@ -117,7 +117,7 @@ typedef struct AtreeDataBases {
 
 /* -- one selected tree blob inside an atree resource -- */
 typedef struct AtreeDefinition {
-    /* 0x00 */ animseqdesc* seqheader;
+    /* 0x00 */ struct atreeseq* seqheader;
     /* 0x04 */ void* animheader;
     /* 0x08 */ void* oanimheader;
     /* 0x0C */ AtreeNodeDef* nodes;
@@ -1312,7 +1312,7 @@ anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
     bases = (AtreeDataBases*)&tree->animinfo;
     tree->animinfo.animheader = definition->animheader;
     tree->animinfo.oanimheader = definition->oanimheader;
-    tree->animinfo.seqheader = (struct atreeseq*)definition->seqheader;
+    tree->animinfo.seqheader = definition->seqheader;
     tree->animinfo.numseqs = (s16)definition->sequenceCount;
     InitAnimInfo(&tree->animinfo, 0);
 
