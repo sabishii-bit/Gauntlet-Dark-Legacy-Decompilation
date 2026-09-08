@@ -1795,16 +1795,15 @@ void game_main(void)
         }
     }
     if (opt_quit_request && OptionsDone()) {
-        i = 0;
-        opt_quit_request = i;
+        opt_quit_request = 0;
         gGameMode = MG_OVER;
-        gGameBusy = i;
+        gGameBusy = 0;
         AudioStopSelect();
         AudioSelectReset();
         fn_8009D34C();
-        lbl_80344774 = i;
+        lbl_80344774 = 0;
         lbl_80344778 = 240;
-        for (; i < 4; i++) {
+        for (i = 0; i < 4; i++) {
             abort_player(i);
         }
         lbl_80344824 = 0;
@@ -1848,13 +1847,12 @@ void game_main(void)
         AudioStopSelect();
         AudioSelectReset();
         bulletproof_printf(strs + 0x1f0);
-        v = 0;
-        alpha = v;
+        alpha = 0;
         fn_800520C8();
         AudioClearInputFlag();
         init_targets();
-        lbl_80344A2C = v;
-        options_state = v;
+        lbl_80344A2C = 0;
+        options_state = 0;
         end_all_optmenus();
         FireScrollReset();
         TriggerCameraEnd();
@@ -1865,13 +1863,12 @@ void game_main(void)
         bulletproof_printf(strs + 0x200);
         fn_80053D08(-1, 0, -1);
         bulletproof_printf(strs + 0x210);
-        i = -1;
-        lbl_80343C10 = i;
-        lbl_80343DD4 = i;
-        lbl_80343B38 = i;
+        lbl_80343C10 = -1;
+        lbl_80343DD4 = -1;
+        lbl_80343B38 = -1;
         AudioStopSelect();
-        lbl_803448AC = i;
-        lbl_803448A8 = i;
+        lbl_803448AC = -1;
+        lbl_803448A8 = -1;
         while (!MBOX_BGLoadModelDone()) {
         }
         init_attract_mode(0x8009);
@@ -1888,8 +1885,17 @@ void game_main(void)
     }
     c = gGameMode;
     switch (c) {
-    default:
-        if (c >= 0x8000) {
+    case MA_CREDITS:
+    case MA_TITLEMOVIE:
+    case MA_MOVIE:
+    case MA_INSTRUCT:
+    case MA_SCREEN2D:
+    case MA_CONTEST:
+    case MA_DEMO:
+    case MA_HSTABLE:
+    case MA_FLYBY:
+    case MA_TITLESCREEN:
+        {
             switch (c) {
             default:
             case MA_CREDITS:
@@ -2021,15 +2027,14 @@ void game_main(void)
             lbl_803447CC += gFrameTicks;
         }
         if (!lbl_80344824) {
-            i = 0;
             gGameMode = MG_OVER;
-            gGameBusy = i;
+            gGameBusy = 0;
             AudioStopSelect();
             AudioSelectReset();
             fn_8009D34C();
-            lbl_80344774 = i;
+            lbl_80344774 = 0;
             lbl_80344778 = 240;
-            for (; i < 4; i++) {
+            for (i = 0; i < 4; i++) {
                 abort_player(i);
             }
             lbl_80344824 = 0;
@@ -2043,15 +2048,14 @@ void game_main(void)
         if (do_players() && !sndFxUpdate(1)) {
             lvl = (lbl_803448D0 << 8) | (lbl_803448CC & 0xFF);
             if (!lbl_80344824) {
-                i = 0;
                 gGameMode = MG_OVER;
-                gGameBusy = i;
+                gGameBusy = 0;
                 AudioStopSelect();
                 AudioSelectReset();
                 fn_8009D34C();
-                lbl_80344774 = i;
+                lbl_80344774 = 0;
                 lbl_80344778 = 240;
-                for (; i < 4; i++) {
+                for (i = 0; i < 4; i++) {
                     abort_player(i);
                 }
                 lbl_80344824 = 0;
@@ -2060,13 +2064,12 @@ void game_main(void)
             }
             fn_8009D610(2, 0);
             if (lvl == sWorldDataConst) {
-                i = -1;
-                lbl_80343C10 = i;
-                lbl_80343DD4 = i;
-                lbl_80343B38 = i;
+                lbl_80343C10 = -1;
+                lbl_80343DD4 = -1;
+                lbl_80343B38 = -1;
                 AudioStopSelect();
-                lbl_803448AC = i;
-                lbl_803448A8 = i;
+                lbl_803448AC = -1;
+                lbl_803448A8 = -1;
                 lbl_80343C04 = next_world();
                 ResolveWorldData(lbl_80343C04);
                 lbl_80343C00 = init_mapscreen(120, 0);
@@ -2162,6 +2165,8 @@ void game_main(void)
         if (pbDiagDrawMenu() == 2) {
             gGameMode = lbl_80344788;
         }
+        break;
+    default:
         break;
     }
 }
