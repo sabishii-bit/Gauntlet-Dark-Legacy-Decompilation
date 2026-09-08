@@ -823,9 +823,9 @@ void AudioAmbientUpdate(void)
     s32 mode;
     s32 idx;
     s32 pi;
-    s32 j;
     s32 joff;
     s32 k;
+    s32 j;
     s32 koff;
     s32 poff;
     s32 t;
