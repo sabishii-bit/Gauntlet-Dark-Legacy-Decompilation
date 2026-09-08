@@ -246,7 +246,7 @@ extern s32   gFrameTicks;
 extern s32   lbl_80344778;
 extern s32   lbl_803441F8;
 extern void  fn_8009FB00(void);
-extern void  SetDrawStringScale(f32 s);
+extern f32   SetDrawStringScale(f32 s);
 /* Local mirror of mb_font.c's queued message, returned through the opaque
  * DrawStringText API. GC MBDrawText uses a 44-byte stride and initializes
  * every field below; its +0x10 pointer addresses the copied character data.
@@ -266,7 +266,7 @@ typedef struct MBTextMsg {
     u32 color;
 } MBTextMsg;
 extern void* DrawStringText(s32 a, s32 b, s32 c, s32 d, s32 e, ...);
-extern void  RestoreDrawStringScale(void);
+extern f32   RestoreDrawStringScale(void);
 extern void  init_attract_mode(s32 mode);
 extern Player gPlayers[];      /* gPlayerRecords[4], stride 13148 (0x335C) */
 extern f32   lbl_803447D4;
@@ -401,7 +401,7 @@ extern s32 lbl_803447CC;
 extern s32 lbl_803447E8;
 extern s32 lbl_80344780;
 extern s32 ShowMilestones(s32 idx);
-extern s32 msgPost();
+extern s32 msgPost(s32 message, s32 player, char* position);
 
 extern void* lbl_803447A8[2];        /* meter blit handles */
 extern Item* sSpecialItem10;
@@ -2225,7 +2225,8 @@ void default_options(void)
 }
 
 /* Xbox exposes StartCompass as a standalone function; GC embeds this
- * same creation sequence in game_main. */
+ * same creation sequence in game_main. A native whole-link control verifies
+ * that mwld discards the unused outlined body and its exception records. */
 void StartCompass(void)
 {
     if (lbl_8034479C == 0) {
