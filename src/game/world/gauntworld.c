@@ -942,6 +942,7 @@ s32 fn_80055F68(s32 arg0, s32 arg1)
 {
     register u8* table = (u8*)lbl_80257680;
     char name[264];
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 10 words in fn_80055F68 at unchanged 1028-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     volatile u8 unused[4];
     s32 type;
     s32 qty;
@@ -1782,6 +1783,7 @@ void PrintWorldMemSizes(void)
     char* fmt = lbl_80112788;
     WorldMemTable* t = (WorldMemTable*)lbl_80257680;
     s32 sum;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in PrintWorldMemSizes at unchanged 368-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[8];
     s32 i;
     WorldMemTable* entry;
@@ -3148,6 +3150,7 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
         s16 field;
     } WorldRecordView;
     WorldRecordView* view = (WorldRecordView*)record;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 10 words in fn_8005AF98 at unchanged 512-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unusedHigh[8];
     s32 type;
     s32 value;
@@ -3162,6 +3165,7 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     u8** worldRecords;
     s32 count;
     s32 i;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 42 words in fn_8005AF98 at unchanged 512-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unusedLow[8];
 
     if (view->type == -1) {
@@ -3254,6 +3258,7 @@ f32 fn_8005B274(f32* position, f32 bias, f32 radius, f32* direction,
                 f32* resultPosition, Item** resultItem)
 {
     f32 delta[3];
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 17 words in fn_8005B274 at unchanged 740-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[4];
     f32 dot;
     f32 weighted;
@@ -3613,6 +3618,7 @@ s32 fn_8005D0C4(s32 id, f32* position)
     f32 best = sCameraVisibilityRadius;
     s32 best_idx = -1;
     s32 idx;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 7 words in fn_8005D0C4 at unchanged 328-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[16];
     struct {
         u8 pad[8];
@@ -3710,6 +3716,7 @@ void fn_8005E90C(Item* item, s32* inst)
     s32 idx;
     u32 fl;
     s32 t;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005E90C at unchanged 1080-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[24];
 
     idx = *(s16*)&item->data[0];
@@ -3863,6 +3870,7 @@ int fn_8005EE18(Item* item, s32 arg)
     int result = 0;
     iteminfo* info = item->info;
     s32* sub = (s32*)info + 1;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005EE18 at unchanged 404-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 _pad[8];
 
     switch (info->type) {
@@ -3988,6 +3996,7 @@ Item* fn_8005EFAC(f32 radius, s32 a2, f32* position, s32 a4, s32 a5)
 
 Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
 {
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 7 words in fn_80062FF0 at unchanged 444-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[40];
     Item* item;
     f32 min_flagged = 100000.0f;
@@ -4136,6 +4145,7 @@ void fn_8005BA1C(Item* item, u8* player)
     iteminfo** records;
     iteminfo* rec;
     s32* rsub;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 5 words in fn_8005BA1C at unchanged 1964-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[32];
 
     (void)unused;
@@ -4449,12 +4459,14 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     f32 Rsum;
     f32 dist;
     f32 cx, cz;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 10 words in fn_8005F0F4 at unchanged 2640-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     f32 unused2[4];
     f32 nv[3];
     f32 mv[3];
     f32 norm[3];
     f32 hitpt[3];
     f32 f1, f2, f3, f4;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 85 words in fn_8005F0F4 at unchanged 2640-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     f32 unused[6];
 
     (void)unused;
@@ -5496,6 +5508,7 @@ s32 fn_8005D730(Player* player, Item* item)
     iteminfodata* data;
     f32 playerPos[3];
     f32 itemPos[3];
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 23 words in fn_8005D730 at unchanged 1820-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[28];
 
     result = 0;
@@ -5652,6 +5665,7 @@ s32 fn_8005D730(Player* player, Item* item)
             }
             if ((flags & 0x30) != 0) {
                 f32 direction[3];
+                // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 27 words in fn_8005D730 at unchanged 1820-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
                 u8 directionPad[24];
 
                 direction[0] =
@@ -5845,6 +5859,7 @@ void fn_8005DE50(Player* a, Item* b)
     iteminfodata* it;
     s32 ret;
     s32 flag;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 15 words in fn_8005DE50 at unchanged 2748-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[8];
 
     ret = 0;
@@ -6382,6 +6397,7 @@ void fn_800606FC(void)
     f32 gpos[3];
     f32 gypr[3];
     u8* rt = sItemRuntime;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 99 words in fn_800606FC at unchanged 8872-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[120];
 
     if (gGameMode == MA_FLYBY) {
@@ -6804,6 +6820,7 @@ void fn_800606FC(void)
                 f32 dx = gCameras[0].attn[0] - it->objgrp.worldmat[3][0];
                 f32 dz = gCameras[0].attn[2] - it->objgrp.worldmat[3][2];
                 f32 d2 = dy * dy;
+                // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, dropping the volatile moves 1359 words and shrinks fn_800606FC 8872 -> 8864 bytes. Recovering which original local it represents is a source-recovery question; it is not deletable.
                 volatile f32 root;
                 d2 = dx * dx + d2;
                 d2 = dz * dz + d2;
@@ -7398,6 +7415,7 @@ void fn_800606FC(void)
                             f32 dx = it->objgrp.coll_pos[0] - p->pos[0];
                             f32 dz = it->objgrp.coll_pos[2] - p->pos[2];
                             f32 d2 = dy * dy;
+                            // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, dropping the volatile moves 315 words and shrinks fn_800606FC 8872 -> 8864 bytes. Recovering which original local it represents is a source-recovery question; it is not deletable.
                             volatile f32 root;
                             d2 = dx * dx + d2;
                             d2 = dz * dz + d2;
@@ -7702,6 +7720,7 @@ s32 fn_8005A738(s32 player)
     Player* p = &gPlayers[player];
     s32 ret = 0;
     s16 t;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005A738 at unchanged 304-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 _spare[8];
 
     if (*(u32*)(gGameOptions + 44) & 1) {
@@ -8571,6 +8590,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     s32 idx;
     f32 root;
     f32 d2;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 8 words in fn_80060114 at unchanged 1496-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[40];
 
     sp = (enemydata*)it->data;
