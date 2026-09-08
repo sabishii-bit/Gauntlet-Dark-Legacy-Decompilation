@@ -1,4 +1,5 @@
 #include "game/enemy.h"
+#include "game/item.h"
 #include "game/gamemode.h"
 #include "game/worldobj.h"
 #include "game/dyngrid.h"
@@ -1217,9 +1218,9 @@ void do_enemy_move(s32 index)
         CreateYPRMatrix(mat, e->pyr);
         CopyMat3(mat, &e->objgrp.worldmat[0][0]);
         if (e->shadow != 0) {
-            *(f32*)((u8*)e->shadow + 48) = e->objgrp.worldmat[3][0];
-            *(f32*)((u8*)e->shadow + 52) = e->objgrp.worldmat[3][1];
-            *(f32*)((u8*)e->shadow + 56) = e->objgrp.worldmat[3][2];
+            ((MBObject *)e->shadow)->mat[3][0] = e->objgrp.worldmat[3][0];
+            ((MBObject *)e->shadow)->mat[3][1] = e->objgrp.worldmat[3][1];
+            ((MBObject *)e->shadow)->mat[3][2] = e->objgrp.worldmat[3][2];
             if (e->action == 1) {
                 MBTreeSetFlags(e->shadow, 2, 0);
             } else {
@@ -1943,19 +1944,19 @@ static inline void enemy_nearest_live_player(u8* e, f32 best1, u8* p, s32* neare
             /* A live mikey supplies its collision position instead of
              * the player's own effectpos. */
             if (((Player *)p)->field_A1C > 2) {
-                dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                dx = ((Enemy *)e)->objgrp.coll_pos[0] -
                      ((Player *)p)->mikey_coll_pos[0];
-                dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                dy = ((Enemy *)e)->objgrp.coll_pos[1] -
                      ((Player *)p)->mikey_coll_pos[1];
-                dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                dz = ((Enemy *)e)->objgrp.coll_pos[2] -
                      ((Player *)p)->mikey_coll_pos[2];
                 d = fn_80034C88(dx * dx + dy * dy + dz * dz);
             } else {
-                dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                dx = ((Enemy *)e)->objgrp.coll_pos[0] -
                      ((Player *)p)->effectpos[0];
-                dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                dy = ((Enemy *)e)->objgrp.coll_pos[1] -
                      ((Player *)p)->effectpos[1];
-                dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                dz = ((Enemy *)e)->objgrp.coll_pos[2] -
                      ((Player *)p)->effectpos[2];
                 d = fn_80034C88(dx * dx + dy * dy + dz * dz);
             }
@@ -2902,9 +2903,9 @@ void move_logic07(s32 index)
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero07;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3065,9 +3066,9 @@ void move_logic08(s32 index)
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero08;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3130,8 +3131,8 @@ void move_logic08(s32 index)
             s32 valid;
             if (ip == 0) {
                 valid = 0;
-            } else if (*(s16*)(ip + ITEM_ACTIVE) == -1 || **(s32**)ip != 2
-                       || *(s8*)(ip + ITEM_MINOFF) != 0) {
+            } else if (((Item *)ip)->active == -1 || **(s32**)ip != 2
+                       || ((Item *)ip)->minoff != 0) {
                 valid = 0;
             } else {
                 valid = -1;
@@ -3873,11 +3874,11 @@ void move_logic12(s32 index)
             goto flee_zero;
         } else {
             f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] -
-                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
+                     ((Enemy *)p)->objgrp.worldmat[3][0];
             f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] -
-                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
+                     ((Enemy *)p)->objgrp.worldmat[3][1];
             f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] -
-                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
+                     ((Enemy *)p)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3974,11 +3975,11 @@ void move_logic13(s32 index)
             goto flee_zero13;
         } else {
             f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] -
-                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
+                     ((Enemy *)p)->objgrp.worldmat[3][0];
             f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] -
-                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
+                     ((Enemy *)p)->objgrp.worldmat[3][1];
             f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] -
-                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
+                     ((Enemy *)p)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -4240,9 +4241,9 @@ void move_logic15(s32 index)
         } else if (index == it || ((Enemy *)row15)->birth_style != 0 || ((Enemy *)row15)->dead_end > 0) {
             goto flee_zero15;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)row15)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)row15)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)row15)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -4282,10 +4283,10 @@ void move_logic15(s32 index)
         f32 d;
 
         for (i = 0; i < sNumLookoutParams; i++, n += 108) {
-            if (*(s16*)(n + LOOKOUT_NEXT) >= 0) {
-                f32 dx = *(f32*)(n + LOOKOUT_POS_X) - ex;
-                f32 dy = *(f32*)(n + LOOKOUT_POS_Y) - ey;
-                f32 dz = *(f32*)(n + LOOKOUT_POS_Z) - ez;
+            if (((LookoutParam *)n)->next >= 0) {
+                f32 dx = ((LookoutParam *)n)->worldmat[3][0] - ex;
+                f32 dy = ((LookoutParam *)n)->worldmat[3][1] - ey;
+                f32 dz = ((LookoutParam *)n)->worldmat[3][2] - ez;
                 if ((d = dx * dx + dy * dy + dz * dz) > thresh) {
                     f64 y = __frsqrte(d);
                     y = 0.5 * y * (3.0 - y * y * d);
@@ -4310,13 +4311,13 @@ void move_logic15(s32 index)
         f32 dz;
 
         e->ang = get_yaw((f32*)(n + LOOKOUT_POS_X), &e->objgrp.worldmat[3][0]);
-        dy = *(f32*)(n + LOOKOUT_POS_Y) - e->objgrp.worldmat[3][1];
-        dx = *(f32*)(n + LOOKOUT_POS_X) - e->objgrp.worldmat[3][0];
-        dz = *(f32*)(n + LOOKOUT_POS_Z) - e->objgrp.worldmat[3][2];
+        dy = ((LookoutParam *)n)->worldmat[3][1] - e->objgrp.worldmat[3][1];
+        dx = ((LookoutParam *)n)->worldmat[3][0] - e->objgrp.worldmat[3][0];
+        dz = ((LookoutParam *)n)->worldmat[3][2] - e->objgrp.worldmat[3][2];
         ady = dy;
         *(u32*)&ady &= 0x7FFFFFFF;
         if (ady < 4.0 && fqdist(dx, dz) < 1.0) {
-            e->flag1 = *(s16*)(n + LOOKOUT_NEXT);
+            e->flag1 = ((LookoutParam *)n)->next;
         }
         break;
     }
@@ -7594,7 +7595,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 #pragma opt_propagation reset
 
 /* Enemy loading, targeting and milestone tail: recovered TU ownership. */
-#include "game/item.h"
 typedef struct Row36 {
     s32 f0;      /* 0x00 key   */
     s32 f4;      /* 0x04       */
@@ -8646,7 +8646,7 @@ void fn_800516F8(s32 slot)
     bestSpecial = 100000.0f;
 
     for (i = 0, p = (u8*)gPlayers.players; i < 4; i++, p += 13148) {
-        if (*(s32*)(p + offsetof(Player, state)) == 1) {
+        if (((Player *)p)->state == 1) {
             break;
         }
     }
@@ -8664,7 +8664,7 @@ void fn_800516F8(s32 slot)
         q = (u8*)gPlayers.players + lbl_80344B24 * 13148;
         {
             f32 fd;
-            if (*(s16*)(q + offsetof(Player, field_A1C)) > 2) {
+            if (((Player *)q)->field_A1C > 2) {
                 ENEMY_DISTANCE3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, mikey_coll_pos)),
                                 0.0f, 0.5, 3.0, distanceScratch0);
             } else {
@@ -8701,15 +8701,15 @@ void fn_800516F8(s32 slot)
             kThree = 3.0;
             {
                 for (; i < 4; i++, p += 13148) {
-                    if (*(s32*)(p + offsetof(Player, state)) != 1) {
+                    if (((Player *)p)->state != 1) {
                         continue;
                     }
-                    if (*(u32*)(p + offsetof(Player, flags)) & 4) {
+                    if (((Player *)p)->flags & 4) {
                         continue;
                     }
                     {
                         f32 measuredDistance;
-                        if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                        if (((Player *)p)->field_A1C > 2) {
                             ENEMY_DISTANCE3(measuredDistance, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, mikey_coll_pos)),
                                             kZero, kHalf, kThree, distanceScratch2);
                         } else {
@@ -8721,7 +8721,7 @@ void fn_800516F8(s32 slot)
                     if (range > *(f32*)(e + offsetof(Enemy, sight))) {
                         continue;
                     }
-                    if (*(s32*)e == 30 && (*(u32*)(p + offsetof(Player, shield_flags)) & 0x80000)) {
+                    if (*(s32*)e == 30 && (((Player *)p)->shield_flags & 0x80000)) {
                         if (range < bestSpecial) {
                             bestSpecial = range;
                             *(s32*)(e + offsetof(Enemy, counter2)) = i;
