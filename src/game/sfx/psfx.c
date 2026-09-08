@@ -545,6 +545,7 @@ extern f32 lbl_80347E20;
  * DoPlyrSfxSub, then seed flags, lifetime, hit/morph links and velocity. */
 s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
 {
+    u8* flp;
     u8 highPad[8];
     f32 pos[3];
     f32 vel[3];
@@ -553,7 +554,6 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
     u8** hdrp;
     u8* seq;
     u8* sub;
-    u8* flp;
     u32 fl;
     f32 health;
     u8 unused[20];

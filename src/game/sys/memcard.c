@@ -1752,8 +1752,8 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     u8* sizeHi;
     u8* out;
     s32 bytes;
-    int i;
     int bit;
+    int i;
 
     fmtA = fmtA & 3;
     fmtB = fmtB & 4;
