@@ -8570,7 +8570,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
             crit->visrad = sp->rad * gCurLevel->ene_visrad;
         }
         if (sp->pickup >= 0) {
-            crit->gotitem = (struct item *)&sItems[sp->pickup];
+            crit->gotitem = &sItems[sp->pickup];
         }
         return;
     }
