@@ -752,6 +752,14 @@ static inline f32 sqrtf_accurate(f32 value)
     return value;
 }
 
+/* The game-over and good-wizard timers use this decrement/store/test shape.
+ * Return the stored value, without reloading the timer. This descriptive
+ * inline's original name is unknown; no extra timer storage is needed. */
+static inline s32 countdown_ticks(s32* timer, s32 ticks)
+{
+    return *timer -= ticks;
+}
+
 /* Public definitions: reverse of their emitted order. */
 /* 0x80055AFC -- milestone blink cycle: flash the milestone markers while the
  * party is idle at a boss gate. */
@@ -2182,8 +2190,7 @@ void fn_800521E8(void)
         return;
     }
     {
-        s32 remaining = lbl_80344778 - gFrameTicks;
-        lbl_80344778 = remaining;
+        s32 remaining = countdown_ticks(&lbl_80344778, gFrameTicks);
         if (remaining > 0) {
             return;
         }
