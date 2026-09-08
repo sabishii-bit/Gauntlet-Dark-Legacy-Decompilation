@@ -216,22 +216,14 @@ extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
 extern f32   lbl_803468B0;
 extern f32   lbl_80346A80;
-/* Milestone table record (stride 0x68). Layout adopted from the recovered
- * MilestoneParam in src/game/world/items.c, which walks the same table:
- * items.c's GetMilestonePos reads matrix[12..14] as the world position,
- * exactly the m+48/52/56 triple this TU reads raw. Declared file-locally
- * (never added to a shared header) per the whole-TU cascade law. */
-typedef struct MilestoneParam {
-    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
-    f32 pos[3];       /* 0x40 */
-    u8  _pad4C[4];
-    f32 saved_pos[3]; /* 0x50 */
-    u8  _pad5C[4];
-    s32 handle;       /* 0x60 */
-    s32 active;       /* 0x64 */
-} MilestoneParam;     /* 0x68 */
-
-extern u8    sMilestones[];
+/* Xbox MILESTONE is an OBJGRP wrapper (misc.h, size 0x68). GC confirms
+ * stride 104 and node at +96 in fn_80055AFC; ShowMilestones supplies the
+ * matrix to add_arrow and stores that returned node at the same offset.
+ * Keep this declaration local: no shared-header layout change is needed. */
+typedef struct MILESTONE {
+    OBJGRP objgrp;
+} MILESTONE;
+extern MILESTONE sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
 extern f32   gIdentityMatrix[];       /* identity matrix */
@@ -1211,7 +1203,7 @@ extern s32 msgPost();
 void fn_80055AFC(void)
 {
     s32 i;
-    u8* ms;
+    MILESTONE* ms;
     s32 n;
     s32 limit;
     u8 _spare[32];
@@ -1259,8 +1251,8 @@ void fn_80055AFC(void)
         ms = sMilestones;
         i = 0;
         while (i < sNumMilestones) {
-            u8* mp = ms + i * 104;
-            MBTreeClearFlags(*(void**)(mp + 96), 2, 0);
+            MILESTONE* mp = &ms[i];
+            MBTreeClearFlags(mp->objgrp.node, 2, 0);
             i++;
         }
         if (sNumMilestones > 0 && lbl_80344780 == 0) {
@@ -1271,8 +1263,8 @@ void fn_80055AFC(void)
         ms = sMilestones;
         i = 0;
         while (i < sNumMilestones) {
-            u8* mp = ms + i * 104;
-            MBTreeSetFlags(*(void**)(mp + 96), 2, 0);
+            MILESTONE* mp = &ms[i];
+            MBTreeSetFlags(mp->objgrp.node, 2, 0);
             i++;
         }
     }
