@@ -43,6 +43,16 @@
 #include "game/psys.h"
 #include "game/mbobject.h"
 
+/* The GameCube write-gather pipe.  include/dolphin/gx/GXVert.h spells this
+ * address `#define GXFIFO_ADDR 0xCC008000` and declares
+ * `volatile PPCWGPipe GXWGFifo : GXFIFO_ADDR` over it; the peer engine TU
+ * src/game/pb/pb_objregs.c declares the same union at the same address.
+ * Only the address constant is adopted here: writing the stores through a
+ * union instead moves 25 words in DrawPsysSub (size unchanged, 1160), because
+ * the union base is materialised once instead of per store. */
+#define GXFIFO_ADDR 0xCC008000
+
+
 #ifndef offsetof
 #define offsetof(type, member) ((u32)&(((type*)0)->member))
 #endif
@@ -67,6 +77,7 @@ void  __as__4vec3FRC4vec3(u32 a, u32 b);                          /* copy vec */
 void  sceSamp0MultVec(void* out, const f32* m, const f32* v);
 void  GXSetChanMatColor(s32 chan, void* color);
 void  GXBegin(s32 prim, s32 fmt, s32 count);
+#define GX_TRIANGLESTRIP 0x98 /* dolphin/gx/GXEnum.h */
 void  SetMultiPassTextureParams(s32 n);
 void  SetVertexFormat(s32 fmt);
 void  SetCullMode(s32 mode);
@@ -718,7 +729,8 @@ static s32 getNewDirSingle1(Psys* p, MBObject* node) {
 
 /* 0x800CC8F4 - project one particle sprite and submit a GX quad.
  * Documented flow: cull against the psys screen-rect, back-project two
- * corners, then GXBegin(GX_QUADS) and stream 4 verts to the FIFO. */
+ * corners, then GXBegin(GX_TRIANGLESTRIP) and stream 4 verts to the
+ * FIFO (four strip vertices = the two triangles of the quad). */
 static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
     f32 v[3];
     f32 corner[4];
@@ -826,32 +838,32 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
     v0 = (8.0f / (f32)iy) * 0.0625f;
     v1 = ((f32)sb / (f32)iy) * 0.0625f;
 
-    GXBegin(0x98, 0, 4);
+    GXBegin(GX_TRIANGLESTRIP, 0, 4);
     x2 = out1[2];
     y2 = out1[1];
     z1 = out1[0];
     d = out2[0];
     nhs = out2[1];
-    *(volatile f32*)0xCC008000 = z1;
-    *(volatile f32*)0xCC008000 = y2;
-    *(volatile f32*)0xCC008000 = x2;
-    *(volatile f32*)0xCC008000 = u0;
-    *(volatile f32*)0xCC008000 = v0;
-    *(volatile f32*)0xCC008000 = z1;
-    *(volatile f32*)0xCC008000 = nhs;
-    *(volatile f32*)0xCC008000 = x2;
-    *(volatile f32*)0xCC008000 = u0;
-    *(volatile f32*)0xCC008000 = v1;
-    *(volatile f32*)0xCC008000 = d;
-    *(volatile f32*)0xCC008000 = y2;
-    *(volatile f32*)0xCC008000 = x2;
-    *(volatile f32*)0xCC008000 = u1;
-    *(volatile f32*)0xCC008000 = v0;
-    *(volatile f32*)0xCC008000 = d;
-    *(volatile f32*)0xCC008000 = nhs;
-    *(volatile f32*)0xCC008000 = x2;
-    *(volatile f32*)0xCC008000 = u1;
-    *(volatile f32*)0xCC008000 = v1;
+    *(volatile f32*)GXFIFO_ADDR = z1;
+    *(volatile f32*)GXFIFO_ADDR = y2;
+    *(volatile f32*)GXFIFO_ADDR = x2;
+    *(volatile f32*)GXFIFO_ADDR = u0;
+    *(volatile f32*)GXFIFO_ADDR = v0;
+    *(volatile f32*)GXFIFO_ADDR = z1;
+    *(volatile f32*)GXFIFO_ADDR = nhs;
+    *(volatile f32*)GXFIFO_ADDR = x2;
+    *(volatile f32*)GXFIFO_ADDR = u0;
+    *(volatile f32*)GXFIFO_ADDR = v1;
+    *(volatile f32*)GXFIFO_ADDR = d;
+    *(volatile f32*)GXFIFO_ADDR = y2;
+    *(volatile f32*)GXFIFO_ADDR = x2;
+    *(volatile f32*)GXFIFO_ADDR = u1;
+    *(volatile f32*)GXFIFO_ADDR = v0;
+    *(volatile f32*)GXFIFO_ADDR = d;
+    *(volatile f32*)GXFIFO_ADDR = nhs;
+    *(volatile f32*)GXFIFO_ADDR = x2;
+    *(volatile f32*)GXFIFO_ADDR = u1;
+    *(volatile f32*)GXFIFO_ADDR = v1;
     lbl_80345188 = lbl_80345188 + 1;
 }
 
