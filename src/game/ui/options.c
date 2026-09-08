@@ -15,8 +15,11 @@
  * .data       ~0x8011DDB0..~0x80120050 (rgb trios, menu defs + item tables,
  *              hint tables, controller-diagram tables; NOT claimed yet)
  * .sdata      0x80343D00..0x80343D68  (OPTMENU_* tunables; NOT claimed yet)
- * .sdata2     0x80347594..0x80347608  (float pool + "slider"/" ~ "/prompt
- *              strings; PLAYER.OBJ pool starts at 0x80347608 "XRay")
+ * .rodata     0x80113830..0x80113ADC  (menu/hint label strings, then the
+ *              text-referenced literals from 0x80113A0C; NOT claimed yet)
+ * .sdata2     0x80347510..0x80347608  (18 short menu strings pointed at by
+ *              the .data menu tables, then the float/double pool and the
+ *              prompt strings; PLAYER.OBJ pool starts at 0x80347608 "XRay")
  * .sbss       0x80344A98..0x80344AF8+ (menu state, hint counters)
  * .bss        0x80274E00..0x80274EA0  (optglobals.tbuf, options_stack, sliders, prefs)
  *
@@ -31,6 +34,15 @@
  *    0x80343D68 (=75) belongs to the next TU.
  *  - string ownership: "A Hint for You"/"OPTONS MAXLEVEL EXCEEDED"/"end_optmenu
  *    called with bad opti" all referenced only from this range.
+ *  - rodata base: start_audioslider loads the .rodata SECTION base and adds
+ *    0x208/0x214/0x220/0x22C (target 0x800725F0..0x80072630).  0x80113830 +
+ *    0x208 = "empty_bar", so this TU's .rodata section starts at 0x80113830
+ *    (optionsStringPool), immediately after newcam.c's claimed run, and the
+ *    0x1DC bytes before "A Hint for You" are menu/hint label literals that
+ *    only the (still extern) .data menu tables reference.  Until those tables
+ *    are defined here, the `optionsStringPool + N` forms above are the only
+ *    ones that reproduce those displacements: writing the four literals
+ *    directly emits +28/+40/+52/+64 instead.
  *
  * GC function order does NOT match the Xbox PDB listing (the Xbox linker
  * reorders /Gy COMDATs); names below are anchored by behavior + strings:
@@ -1481,7 +1493,6 @@ s32 OptionsStart(s32 player)
 
 #pragma push
 #pragma opt_propagation off
-extern char lbl_80113A1C[9];  /* "AAAWHITE" */
 
 static void do_screenmenu(void)
 {
@@ -1505,7 +1516,7 @@ static void do_screenmenu(void)
     w = 0x10;
     h = 2;
     one = 1.0f;
-    tex = (s32)MBOX_FindTexture(lbl_80113A1C, NULL);
+    tex = (s32)MBOX_FindTexture("AAAWHITE", NULL);
 
     blit = MBNewTempBlit(tex, 1, 1, w, h);
     if (blit != NULL) {
@@ -2299,8 +2310,6 @@ void show_optmenu(OPTMENU* m)
 /* 0x80073718 end_optmenu                                              */
 /* ================================================================== */
 
-extern char lbl_80113A78[]; /* "end_optmenu called with bad options_level" */
-
 #pragma opt_propagation off
 static void end_optmenu(s32 dir, s32 mode)
 {
@@ -2311,7 +2320,7 @@ static void end_optmenu(s32 dir, s32 mode)
     s32 i;
 
     if (options_level < 0 || og->stack[options_level] == NULL) {
-        FatalError(lbl_80113A78, 0x800000);
+        FatalError("end_optmenu called with bad options_level", 0x800000);
     }
 
     if (mode < 0) {
