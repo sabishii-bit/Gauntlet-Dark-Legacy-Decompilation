@@ -7,6 +7,8 @@ Usage:
   python tools/gdl/fndiff.py dolphin/dvd/dvd.c              # all mismatching functions
   python tools/gdl/fndiff.py dolphin/dvd/dvd.c DVDInit      # specific function(s)
   python tools/gdl/fndiff.py dolphin/si/SIBios.c -l         # just list match status
+      # OK = identical, POOL = 0 real diff lines once pool NAMES are
+      # normalized (what --clean scores), DIFF = a real residual
   python tools/gdl/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
   python tools/gdl/fndiff.py game/g3d/sndvoice.c --classify # semantic-risk class
   python tools/gdl/fndiff.py game/mb/mb_window.c --clean    # noise-free + hints
@@ -1373,6 +1375,58 @@ def pool_candidate_count(findings, reliability):
         return 0
     return sum(1 for index, row in enumerate(findings)
                if row[0] in LOUD_POOL_CLASSES and reliability[index])
+
+
+def list_row(name, t, b, ours_object=None):
+    """One `-l` line, scored the way `--clean` scores the same function.
+
+    RUN-62 ITEM 3b. `-l` decided on raw line equality alone, so the moment a
+    literal was recovered -- our anonymous `@37` becoming the target's
+    `lbl_80346490`, or two spellings of ONE address such as critter's
+    `gControllerButtons+0x4` and the target's `sFlags` -- the function
+    changed from `OK` to `DIFF` while `--clean` still printed
+    `MATCH (pool-name noise only), 0 real diff lines`. A lane reading the
+    list saw its literal recovery as a batch of regressions.
+
+    CENSUSED at f08e8640d over 255 configured units
+    (build/c62_listmode_census.py): 3001 paired functions -- 2051 byte
+    identical, 442 with a real residual, and 508 (17%) that `-l` called DIFF
+    and `--clean` scored at 0 real diff lines, spread over 98 units
+    (enemy 38, player 31, sfx 28, critter 27, sounds_evt 27). Not one of the
+    508 carried a confirmed POOL-DEFECT row, so the whole class was noise.
+
+    The line now says which of the three states it is, and a pool row that
+    IS a defect keeps its own word so this can never bury one:
+
+        OK   <fn>                     identical lines
+        POOL <fn>  ...                0 real diff lines after normalization
+        POOL-DEFECT <fn> ...          ...but a suppressed row reads a
+                                      DIFFERENT datum (`--clean` prints it)
+        DIFF <fn>                     a real residual
+
+    Item 3a's unaligned-CANDIDATE class cannot occur here: it needs an
+    unpaired block, and an unpaired block is real diff lines, which is DIFF.
+
+    Pure over the two line lists (plus the object path the datum reader
+    needs); no build, no printing.
+    """
+    if t == b:
+        return f"OK   {name}"
+    tn, bn = normalized_reloc_lines(t), normalized_reloc_lines(b)
+    real = sum(1 for line in difflib.unified_diff(tn, bn, lineterm="", n=0)
+               if line[:1] in "+-" and line[:3] not in ("+++", "---"))
+    if real:
+        return f"DIFF {name}"
+    # At real 0 the two normalized streams are IDENTICAL, so the sequence
+    # matcher yields one equal block over the whole function and no pool row
+    # here can be a matcher's guess (item 3a's candidate class is empty by
+    # construction in this branch). Every loud row is therefore a verdict.
+    findings = pool_row_findings(t, b, ours_object)
+    loud = sum(1 for row in findings if row[0] in LOUD_POOL_CLASSES)
+    if loud:
+        return (f"POOL-DEFECT {name}  ({loud} suppressed row(s) read a"
+                " DIFFERENT datum; run --clean)")
+    return f"POOL {name}  (0 real diff lines after pool-name normalization)"
 
 
 def pool_findings_note(findings):
@@ -2878,7 +2932,7 @@ def main():
             print(f"{category:<19} {name}  insns {ti}/{bi}")
             continue
         if list_only:
-            print(f"DIFF {name}")
+            print(list_row(name, t, b, base_o))
             continue
         if count_only:
             diff = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
