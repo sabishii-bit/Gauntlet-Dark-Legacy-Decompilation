@@ -2,6 +2,7 @@
 #define GAME_CRITTER_H
 
 #include "types.h"
+#include "game/atree.h"
 
 /* Gauntlet Dark Legacy - critter/creature record (the "Critter" / CRITTER.OBJ
  * struct).  Critters are the large, scripted, multi-part creatures (golems,
@@ -290,13 +291,9 @@ typedef struct Critter {
     u8  _res068[4];           /* 0x068                                        */
     struct MBObject *mbnode;  /* 0x06C OBJGRP.node -- the critter's model node */
     u8  _res070[4];           /* 0x070                                        */
-    void *colhandle;          /* 0x074 collision/link handle (AtreeDelete)     */
-    u8  sound[0x20];          /* 0x078 embedded sound/voice control block      */
-    f32 animtimer;            /* 0x098 anim blend accumulator                  */
-    u8  _blk09C[0x14];        /* 0x09C .. 0x0B0                               */
-    s32 anodeCount;           /* 0x0B0 number of animation-node records        */
-    void *anodes;             /* 0x0B4 anode array base (stride 0x28)          */
-    u8  _res0B8[4];           /* 0x0B8                                        */
+    atree atree;              /* 0x074 crit_inst.atree (include/game/atree.h,
+                               * 0x48): root@0x74, animinfo@0x78, nanodes@0xB0,
+                               * firstanode@0xB4, anodeinfo@0xB8             */
     void *subnodes;           /* 0x0BC aux node list head (node->next @0x50)   */
     struct MBObject *anim;    /* 0x0C0 crit_inst.root -- animation root node   */
     struct MBObject *shadow;  /* 0x0C4 crit_inst.shadow                        */

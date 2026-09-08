@@ -519,7 +519,7 @@ typedef struct CritterAddAnim {
     struct CritterAddAnim *next; /* 0x08 next entry linked onto the same type      */
     u8 _pad0C[4];
     char name[8];      /* 0x10 debug name (ErrorPrintf "Bad critter anim inst: %s") -- text, unswapped */
-    char attachNodeName[8]; /* 0x18 AtreeFindNode(&c->colhandle, name, 8) target -- text, unswapped */
+    char attachNodeName[8]; /* 0x18 AtreeFindNode(&c->atree, name, 8) target -- text, unswapped */
     f32 offset[3];      /* 0x20 local position offset applied to the new node's matrix */
     u8 _pad2C[4];
 } CritterAddAnim;   /* size 0x30 */
@@ -3143,15 +3143,15 @@ credited_damage_done:
                             MBSetObject(*(void **)(hitNode + offsetof(CritterHitNode, active)), object);
                         }
                         activeNode = *(void **)(hitNode + offsetof(CritterHitNode, active));
-                        for (i = 0; i < c->anodeCount; i++) {
+                        for (i = 0; i < c->atree.nanodes; i++) {
                             u8 *anode;
 
-                            anode = (u8 *)c->anodes + i * 0x28;
+                            anode = (u8 *)&c->atree.firstanode[i];
                             if (*(void **)anode == activeNode) {
                                 s32 j;
 
                                 *(s32 *)(anode + 0x20) = 0;
-                                *(void **)((u8 *)c->anodes + i * 0x28) = NULL;
+                                c->atree.firstanode[i].obj = NULL;
                                 for (j = 0;
                                      j < c->hdr->moveCount;
                                      j++) {
@@ -3790,7 +3790,7 @@ s32 CritterGolemAI(Critter *c)
     move += c->curmove;
     switch (move->type) {
     case MOVE_DEATH:
-        if (AnimDone(c->sound)) {
+        if (AnimDone(&c->atree.animinfo)) {
             CritterDropItem(c);
             CritterDelInst(c);
             return 0;
@@ -4009,9 +4009,9 @@ s32 CritterBossAI(Critter *c)
             CritterAnimate(child);
         } else {
             DoAnimateTreeFrame(
-                (u8 *)child + 0x74, *(s16 *)&c->sound[0x0E],
+                &child->atree, c->atree.animinfo.animseq,
                 (s32)(frameHalf +
-                      (f64)*(f32 *)&c->sound[0x18]),
+                      (f64)c->atree.animinfo.frame),
                 1);
             child->movedone = c->movedone;
             child->curmove = -1;
@@ -4023,9 +4023,9 @@ s32 CritterBossAI(Critter *c)
         }
     }
 
-    frame = (s32)*(f32 *)&c->sound[0x18];
+    frame = (s32)c->atree.animinfo.frame;
     duration = move->holdDuration;
-    done = AnimDone(c->sound);
+    done = AnimDone(&c->atree.animinfo);
     if ((f64)duration > 0.0) {
         switch (move->type) {
         case MOVE_DEATH:
@@ -4154,7 +4154,7 @@ s32 CritterBossAI(Critter *c)
         DrawText(8, 214, 0, 0xFFFFFF, lbl_80112104, moveName,
                  (u8 *)move + 0x10, (s32)c->health,
                  (s32)(10.0f * c->rateScale),
-                 (s32)(0.5 + *(f32 *)&c->sound[0x18]),
+                 (s32)(0.5 + c->atree.animinfo.frame),
                  c->unk124, (s32)(0.5 + angle),
                  (s32)(0.5 + distance));
 
@@ -4193,7 +4193,7 @@ s32 CritterBossAI(Critter *c)
             }
             childFrame = -1;
             if (c->curmove >= 0) {
-                childFrame = (s32)*(f32 *)&c->sound[0x18];
+                childFrame = (s32)c->atree.animinfo.frame;
             }
             /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
             DrawText(8, y, 0, 0xFFFFFF, lbl_8011213C, i,
@@ -4612,7 +4612,7 @@ static inline void *sCritterMoveNode(Critter *c, s32 nodeIndex)
         return node;
     }
     {
-        void *candidate = ((void **)((u8 *)c->anodes + nodeIndex * 0x28))[0];
+        void *candidate = c->atree.firstanode[nodeIndex].obj;
 
         if (candidate == NULL) {
             candidate = node;
@@ -5332,15 +5332,15 @@ void CritterAnimate(Critter *c)
         FatalError(lbl_80112174, 0x800000);
     }
     if (current != next && transition == 0 && sMusicFadeBase > c->rate &&
-        AnimDone(&c->sound[0])) {
+        AnimDone(&c->atree.animinfo)) {
         transition = 1;
     }
 
     if (c->pausecnt > 0) {
-        c->animtimer += gClockFrameStep;
+        c->atree.animinfo.starttime += gClockFrameStep;
         done = 0;
     } else {
-        done = AnimateATree(&c->colhandle, sequence, transition);
+        done = AnimateATree(&c->atree, sequence, transition);
     }
     if (current != NULL && current == next && current->type == 0) {
         done = 0;
@@ -5358,7 +5358,7 @@ void CritterAnimate(Critter *c)
     c->movedone = (s16)doneResult;
     if ((s16)doneResult != 0) {
         CritterMoveDone(c, nextIndex);
-    } else if (nextIndex < 0 && AnimDone(&c->sound[0])) {
+    } else if (nextIndex < 0 && AnimDone(&c->atree.animinfo)) {
         c->curmove = -1;
     }
 }
@@ -6222,10 +6222,6 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
 }
 /* 0x8003E048 -- allocate and initialize a root critter and the child chain
  * described by its loaded type header. */
-typedef struct CritterChildLinks {
-    u32 words[18];
-} CritterChildLinks;
-
 Critter *CritterNewInst(s32 type, s32 subtype, void *object)
 {
     u8 *childDef;
@@ -6267,21 +6263,20 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         CritterInitInst(child, childHeader);
         childDef = (u8 *)child->hdr;
         geo = root->hdr->atree;
-        *(CritterChildLinks *)&child->colhandle =
-            *(CritterChildLinks *)&root->colhandle;
+        child->atree = root->atree;
 
         nodeIndex = AtreeFindNodeIdx(((struct atreeheader *)geo)->nodeinfo,
                                      ((struct atreeheader *)geo)->numnodes,
                                      (char *)child->hdr + 0x10, 0x10);
-        child->colhandle = (u8 *)root->anodes + nodeIndex * 0x28;
-        AtreeNodeSetParent(child->colhandle, NULL, NULL, 0);
-        child->anim = *(void **)child->colhandle;
+        child->atree.root = &root->atree.firstanode[nodeIndex];
+        AtreeNodeSetParent(child->atree.root, NULL, NULL, 0);
+        child->anim = *(void **)child->atree.root;
 
         nodeIndex = ((CritterPackedType *)childDef)->node0Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
-            node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
+            node = child->atree.firstanode[nodeIndex].obj;
             if (node == NULL) {
                 node = NULL;
             }
@@ -6297,7 +6292,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         if (nodeIndex < 0) {
             node = NULL;
         } else {
-            node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
+            node = child->atree.firstanode[nodeIndex].obj;
             if (node == NULL) {
                 node = NULL;
             }
@@ -6308,7 +6303,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         if (nodeIndex < 0) {
             node = NULL;
         } else {
-            node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
+            node = child->atree.firstanode[nodeIndex].obj;
             if (node == NULL) {
                 node = NULL;
             }
@@ -6410,10 +6405,10 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x1000) == 0) {
         atreeFlags |= 0x800;
     }
-    c->colhandle = AtreeInit(((CritterPackedType *)header)->atree, &c->colhandle, 0,
+    c->atree.root = AtreeInit(((CritterPackedType *)header)->atree, &c->atree, 0,
                              atreeFlags);
-    c->anim = *(void **)c->colhandle;
-    MBNodeSetParent(*(void **)c->colhandle, c->mbnode);
+    c->anim = *(void **)c->atree.root;
+    MBNodeSetParent(*(void **)c->atree.root, c->mbnode);
 
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 1) != 0) {
         s16 shadowType = c->hdr->descriptor->modelIndex;
@@ -6432,7 +6427,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     if (idx < 0) {
         node = NULL;
     } else {
-        n = *(void **)((u8 *)c->anodes + idx * 0x28);
+        n = c->atree.firstanode[idx].obj;
         node = n;
         if (node == NULL) {
             node = NULL;
@@ -6447,7 +6442,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     if (idx < 0) {
         node = NULL;
     } else {
-        n = *(void **)((u8 *)c->anodes + idx * 0x28);
+        n = c->atree.firstanode[idx].obj;
         node = n;
         if (node == NULL) {
             node = NULL;
@@ -6458,7 +6453,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     if (idx < 0) {
         node = NULL;
     } else {
-        n = *(void **)((u8 *)c->anodes + idx * 0x28);
+        n = c->atree.firstanode[idx].obj;
         node = n;
         if (node == NULL) {
             node = NULL;
@@ -6643,8 +6638,8 @@ void CritterDelInst(Critter *c)
     if (c->emitterset != 0) {
         MBRemoveNode(c->emitter, 2);
     }
-    if (c->colhandle != NULL) {
-        AtreeDelete(&c->colhandle);
+    if (c->atree.root != NULL) {
+        AtreeDelete(&c->atree);
     }
     if (c->mbnode != NULL) {
         MBRemoveNode(c->mbnode, 0);
@@ -6765,12 +6760,12 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
         next = node->next;
         MBRemoveNode(node, 0);
 
-        for (i = 0, animOffset = 0; i < c->anodeCount;
+        for (i = 0, animOffset = 0; i < c->atree.nanodes;
              i++, animOffset += sizeof(CritterAnimNode)) {
-            if (*(CritterColnode **)((u8 *)c->anodes + animOffset) == node) {
+            if (*(CritterColnode **)((u8 *)c->atree.firstanode + animOffset) == node) {
                 j = 0;
-                *(void **)((u8 *)c->anodes + animOffset + 0x20) = NULL;
-                *(CritterColnode **)((u8 *)c->anodes + animOffset) = NULL;
+                *(void **)((u8 *)c->atree.firstanode + animOffset + 0x20) = NULL;
+                *(CritterColnode **)((u8 *)c->atree.firstanode + animOffset) = NULL;
                 moveOffset = j;
                 while (j < c->hdr->moveCount) {
                     if (*(s16 *)((u8 *)c->hdr->movesPtr +
@@ -6807,7 +6802,7 @@ static inline void *CritterColnodeAnimNode(Critter *c, s32 index)
     if (index < 0) {
         return node;
     }
-    candidate = *(void **)((u8 *)c->anodes + index * 0x28);
+    candidate = c->atree.firstanode[index].obj;
     if (candidate == NULL) {
         candidate = node;
     }
@@ -6955,7 +6950,7 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix)
                 parent = lbl_8034473C;
                 if ((*(s16 *)(node + offsetof(CritterAddAnim, flags)) & 1) != 0) {
                     if (*(s8 *)(node + offsetof(CritterAddAnim, attachNodeName)) != 0) {
-                        parent = AtreeFindNode(&c->colhandle,
+                        parent = AtreeFindNode(&c->atree,
                                                (char *)(node + offsetof(CritterAddAnim, attachNodeName)), 8);
                         if (parent == NULL) {
                             parent = c->anim;
