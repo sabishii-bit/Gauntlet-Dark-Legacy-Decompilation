@@ -1189,13 +1189,13 @@ s32 fn_80054CDC(void)
 void game_main(void)
 {
     s32 i;
+    s32 v;
     s32 reset_player;
     s32 cond;
     s32 flag;
     s32 lvl;
     s32 next;
     s32 all;
-    s32 v;
     s32 c;
 
     lbl_80344800++;
@@ -1411,7 +1411,7 @@ void game_main(void)
         lbl_803447E4 = 0;
         if (!(gGameBusy | gGameplayPauseTimer | gScriptedCameraState)) {
             if (good_wiz_exit_timer > 0) {
-                if ((good_wiz_exit_timer -= gFrameTicks) <= 0) {
+                if (countdown_ticks(&good_wiz_exit_timer, gFrameTicks) <= 0) {
                     lbl_80344808 = 1;
                 }
             }
@@ -1482,8 +1482,12 @@ void game_main(void)
                 break;
             }
             next = -1;
-            cond = is_level_transition(c = lbl_8034481C);
-            flag2 = cond ? 1 : 0;
+            c = lbl_8034481C;
+            cond = is_level_transition(c);
+            /* GC normalizes this predicate again. Use it for the destination
+             * decision, retaining the map-screen argument across later calls. */
+            cond = cond ? 1 : 0;
+            flag2 = cond;
             all = 1;
             for (i = 0; i < 4; i++) {
                 v = gPlayers[i].state;
@@ -1493,7 +1497,7 @@ void game_main(void)
             }
             if (all) {
                 next = sWorldDataConst;
-            } else if (flag2) {
+            } else if (cond) {
                 next = lbl_80344B84;
             } else if (opt_restart_request) {
                 next = sWorldDataConst;
