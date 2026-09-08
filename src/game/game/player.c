@@ -178,6 +178,7 @@
 #include "game/leveldata.h"
 #include "game/worldobj.h"
 #include "game/mbnode.h"
+#include "game/plyrdata.h"
 #include "game/item.h"      /* Item* sItems, stride 0xF0 */
 #include "game/worldinfo.h" /* WorldInfo gWorldInfo */
 
@@ -2406,7 +2407,7 @@ extern s32 lbl_8025EC98[4];   /* see-thru: saved parent */
 extern mbnode* lbl_8025ECA8[4]; /* see-thru: proxy node */
 extern void* lbl_8025ECB8[4][0x12]; /* see-thru: overlay handle (stride 0x48) */
 // lint-end FM007
-extern u8* lbl_80282930[4];   /* per-player class record (att bases at +0x28..) */
+extern plyr_data* lbl_80282930[4]; /* PDATA PDAT record, one per player */
 extern void* FamiliarTree[4][2]; /* level-tier halo atrees */
 extern void* WeapHoldFxTree[4][5];
 extern void* PojoTree;
@@ -3816,12 +3817,10 @@ void load_player(s32 i) {
     p->grab_partner = NULL;
     p->grab_pending = NULL;
     p->anchor_pos[0] = 0.0f;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
-    PF(p, offsetof(Player, anchor_pos) + 4, f32) = PF(lbl_80282930[i], 0x50, f32);
+    PF(p, offsetof(Player, anchor_pos) + 4, f32) = lbl_80282930[i]->attny;
     PF(p, offsetof(Player, anchor_pos) + 8, f32) = 0.0f;
     p->anchor_fwd[0] = 0.0f;
-    PF(p, offsetof(Player, anchor_fwd) + 4, f32) = PF(lbl_80282930[i], 0x54, f32);
-    // lint-end FM007
+    PF(p, offsetof(Player, anchor_fwd) + 4, f32) = lbl_80282930[i]->coly;
     PF(p, offsetof(Player, anchor_fwd) + 8, f32) = 0.0f;
     p->light_vec[0] = 0.0f;
     PF(p, offsetof(Player, light_vec) + 4, f32) = 0.0f;
@@ -3847,8 +3846,8 @@ void load_player(s32 i) {
     // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     PF(p, 0x7DC, f32) = 0.0f;
     PF(p, 0x95A, s16) = 0;
-    p->col_radius = PF(lbl_80282930[i], 0x4C, f32);
-    p->col_height = PF(lbl_80282930[i], 0x48, f32) * 0.5;
+    p->col_radius = lbl_80282930[i]->width;
+    p->col_height = lbl_80282930[i]->height * 0.5;
     p->timer_1F0 = 0;
     p->timer_1FA = 0;
     p->timer_1FC = 0;
@@ -5310,13 +5309,10 @@ void* PlayerModel(s32 i) {
  * + DropMikey + player_find_powerup_from_typemask (all inlined here).
  * Real body next session -- transcribe from Ghidra 0x8007CC48.
  */
-/* Per-tier (level/10) color entry in the class record: tint table at +0x68,
- * glow table at +0xE0, 12-byte stride.  Array-of-struct indexing keeps the
- * table base constant in the load displacement instead of feeding an
- * indexed-address web (lfsx).                                               */
-typedef struct TierColor {
-    f32 rgb[3];
-} TierColor;
+/* The two per-weapon-tier tables at plyr_data+0x68 and +0xE0 are the PDB's
+ * weapon_fx_offset[10][3] and weapon_fx_scale[10][3] (game/plyrdata.h); the
+ * shipped PDATA values prove they are an XYZ offset and a scale triple, not
+ * the colours this slice previously assumed.                                */
 
 // lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
 #define PLAYER_SET_FAMILIAR(source_, parent_)                                  \
@@ -5805,22 +5801,22 @@ void PlayerProcessPowerups(void* vp) {
 
                 tier /= 10;
                 *(f32*)((u8*)*(void**)p->weaphold_atree + 0x30) =
-                    ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[0];
+                    lbl_80282930[p->index]->weapon_fx_offset[tier][0];
                 *(f32*)((u8*)*(void**)p->weaphold_atree + 0x34) =
-                    ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[1];
+                    lbl_80282930[p->index]->weapon_fx_offset[tier][1];
                 *(f32*)((u8*)*(void**)p->weaphold_atree + 0x38) =
-                    ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[2];
-                if (((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[0] !=
+                    lbl_80282930[p->index]->weapon_fx_offset[tier][2];
+                if (lbl_80282930[p->index]->weapon_fx_scale[tier][0] !=
                 // lint-end FM001, FM002, FM007
                     0.0f) {
                     // lint-begin FM001, FM002, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                     PF(*(void**)p->weaphold_atree, 0x60, u32) |= 8;
                     *(f32*)((u8*)*(void**)p->weaphold_atree + 0x40) =
-                        ((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[0];
+                        lbl_80282930[p->index]->weapon_fx_scale[tier][0];
                     *(f32*)((u8*)*(void**)p->weaphold_atree + 0x44) =
-                        ((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[1];
+                        lbl_80282930[p->index]->weapon_fx_scale[tier][1];
                     *(f32*)((u8*)*(void**)p->weaphold_atree + 0x48) =
-                        ((TierColor*)(lbl_80282930[p->index] + 0xE0))[tier].rgb[2];
+                        lbl_80282930[p->index]->weapon_fx_scale[tier][2];
                     // lint-end FM001, FM002, FM007
                 }
             }
@@ -6072,19 +6068,19 @@ static void PlayerProcessSkinFX(void* vp) {
     if (fresh != 0 && ps->atree != NULL) {
         if (p->level >= 99) {
             // lint-begin FM001, FM002, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
-            *(f32*)((u8*)ps->atree + 0x10) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)((u8*)ps->atree + 0x14) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)((u8*)ps->atree + 0x18) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x16C);
-            *(f32*)(*(u8**)ps->atree + 0x30) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)(*(u8**)ps->atree + 0x34) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)(*(u8**)ps->atree + 0x38) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)((u8*)ps->atree + 0x10) = 1.2 * lbl_80282930[p->index]->familiar_offset[0];
+            *(f32*)((u8*)ps->atree + 0x14) = 1.2 * lbl_80282930[p->index]->familiar_offset[1];
+            *(f32*)((u8*)ps->atree + 0x18) = 1.2 * lbl_80282930[p->index]->familiar_offset[2];
+            *(f32*)(*(u8**)ps->atree + 0x30) = 1.2 * lbl_80282930[p->index]->familiar_offset[0];
+            *(f32*)(*(u8**)ps->atree + 0x34) = 1.2 * lbl_80282930[p->index]->familiar_offset[1];
+            *(f32*)(*(u8**)ps->atree + 0x38) = 1.2 * lbl_80282930[p->index]->familiar_offset[2];
         } else {
-            *(f32*)((u8*)ps->atree + 0x10) = *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)((u8*)ps->atree + 0x14) = *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)((u8*)ps->atree + 0x18) = *(f32*)(lbl_80282930[p->index] + 0x16C);
-            *(f32*)(*(u8**)ps->atree + 0x30) = *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)(*(u8**)ps->atree + 0x34) = *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)(*(u8**)ps->atree + 0x38) = *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)((u8*)ps->atree + 0x10) = lbl_80282930[p->index]->familiar_offset[0];
+            *(f32*)((u8*)ps->atree + 0x14) = lbl_80282930[p->index]->familiar_offset[1];
+            *(f32*)((u8*)ps->atree + 0x18) = lbl_80282930[p->index]->familiar_offset[2];
+            *(f32*)(*(u8**)ps->atree + 0x30) = lbl_80282930[p->index]->familiar_offset[0];
+            *(f32*)(*(u8**)ps->atree + 0x34) = lbl_80282930[p->index]->familiar_offset[1];
+            *(f32*)(*(u8**)ps->atree + 0x38) = lbl_80282930[p->index]->familiar_offset[2];
             // lint-end FM001, FM002, FM007
         }
     }
@@ -6564,9 +6560,7 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
     s32 j;
     s32 pick = 0;
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
-    str = strength * PF(lbl_80282930[p->index], 0x58, f32);
-    // lint-end FM007
+    str = strength * lbl_80282930[p->index]->powerup_time;
     for (j = 0; j < 11; j++) {
         if (overlay->powerups[j].type == type &&
             (s32)overlay->powerups[j].specialflags == (s32)mask) {
@@ -6680,31 +6674,29 @@ void check_player_atts(void* vp, s32 chartype, f32* stats) {
     }
     LoadPlyrData(index, chartype, NULL);
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
-    v = PF(lbl_80282930[index], 0x28, f32) +
+    v = lbl_80282930[index]->fight_min +
         (f32)((p->level - 1) * 5);
-    cap = *(volatile f32*)(lbl_80282930[index] + 0x2C);
+    cap = *(volatile f32*)&lbl_80282930[index]->fight_max;
     if (v < cap) {
         cap = v;
     }
     ATT_FIGHT(p) = (cap + stats[2] < 999.0) ? cap + stats[2] : 999.0;
 
-    v = PF(lbl_80282930[index], 0x38, f32) +
+    v = lbl_80282930[index]->armor_min +
         (f32)((p->level - 1) * 5);
-    cap = PF(lbl_80282930[index], 0x3C, f32);
+    cap = lbl_80282930[index]->armor_max;
     cap = v < cap ? v : cap;
     ATT_ARMOR(p) = (cap + stats[3] < 999.0) ? cap + stats[3] : 999.0;
 
-    v = PF(lbl_80282930[index], 0x40, f32) +
+    v = lbl_80282930[index]->magic_min +
         (f32)((p->level - 1) * 5);
-    cap = PF(lbl_80282930[index], 0x44, f32);
+    cap = lbl_80282930[index]->magic_max;
     cap = v < cap ? v : cap;
     ATT_MAGIC(p) = (cap + stats[4] < 999.0) ? cap + stats[4] : 999.0;
 
-    v = PF(lbl_80282930[index], 0x30, f32) +
+    v = lbl_80282930[index]->speed_min +
         (f32)((p->level - 1) * 5);
-    cap = PF(lbl_80282930[index], 0x34, f32);
-    // lint-end FM007
+    cap = lbl_80282930[index]->speed_max;
     cap = v < cap ? v : cap;
     ATT_SPEED(p) = (cap + stats[5] < 999.0) ? cap + stats[5] : 999.0;
 }
