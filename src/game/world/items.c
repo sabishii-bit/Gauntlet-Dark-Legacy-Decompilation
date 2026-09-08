@@ -390,10 +390,10 @@ void AddItemSub(Item* item)
         void* linked;
         void* scene;
 
-        if ((*(s16*)&item->data[4] & 0x400) == 0) {
+        if ((*(s16*)&item->data.raw[4] & 0x400) == 0) {
             goto done;
         }
-        linked = *(void**)&item->data[0];
+        linked = *(void**)&item->data.raw[0];
         if (linked == 0) {
             goto done;
         }
@@ -405,7 +405,7 @@ void AddItemSub(Item* item)
             linked != *(void**)((u8*)scene + offsetof(WorldObj, parent))) {
             goto done;
         }
-        *(s16*)&item->data[4] |= 0x100;
+        *(s16*)&item->data.raw[4] |= 0x100;
     }
 done:
     return;
@@ -654,28 +654,28 @@ void LinkItemTriggers(void)
                  j1 < sNumItems; j1++, ot1++) {
                 if (j1 != i1 && ot1->active != -1 &&
                     ot1->info->type == 5 &&
-                    (*(s16*)&ot1->data[4] & 0x40) ==
-                        (*(s16*)&it1->data[4] & 0x40) &&
-                    *(s8*)&it1->data[6] > 0) {
-                    if (*(s8*)&ot1->data[6] == *(s8*)&it1->data[6]) {
-                        *(s8*)&ot1->data[6] = 0;
+                    (*(s16*)&ot1->data.raw[4] & 0x40) ==
+                        (*(s16*)&it1->data.raw[4] & 0x40) &&
+                    *(s8*)&it1->data.raw[6] > 0) {
+                    if (*(s8*)&ot1->data.raw[6] == *(s8*)&it1->data.raw[6]) {
+                        *(s8*)&ot1->data.raw[6] = 0;
                         dup1++;
                     }
-                    if (*(volatile s8*)&ot1->data[7] ==
-                        *(volatile s8*)&it1->data[6]) {
+                    if (*(volatile s8*)&ot1->data.raw[7] ==
+                        *(volatile s8*)&it1->data.raw[6]) {
                         dup2++;
                     }
                 }
             }
             if (dup1 > 0) {
-                if (*(s16*)&it1->data[4] & 0x40) {
+                if (*(s16*)&it1->data.raw[4] & 0x40) {
                     ErrorPrintf(strings + 0x2EC,
                                 dup1 + 1,
-                                (s32)*(s8*)&it1->data[6]);
+                                (s32)*(s8*)&it1->data.raw[6]);
                 } else {
                     ErrorPrintf(strings + 0x310,
                                 dup1 + 1,
-                                (s32)*(s8*)&it1->data[6]);
+                                (s32)*(s8*)&it1->data.raw[6]);
                 }
             }
         }
@@ -686,41 +686,41 @@ void LinkItemTriggers(void)
     item = sItems;
     for (i = 0; i < (nitems = sNumItems); i++, item++) {
         if (item->active != -1 && item->info->type == 5) {
-            s8 next_id = *(s8*)&item->data[7];
+            s8 next_id = *(s8*)&item->data.raw[7];
 
             if (next_id != 0) {
                 other = sItems;
                 for (j = 0; j < nitems; j++, other++) {
                     if (j != i && other->active != -1 &&
                         other->info->type == 5 &&
-                        (*(s16*)&other->data[4] & 0x40) == 0 &&
-                        next_id == *(s8*)&other->data[6]) {
+                        (*(s16*)&other->data.raw[4] & 0x40) == 0 &&
+                        next_id == *(s8*)&other->data.raw[6]) {
                         Item* next;
                         s32 loop = 0;
                         Item* chain;
 
                         for (chain = other; chain != NULL;
                              chain = next) {
-                            next = *(Item**)&chain->data[8];
+                            next = *(Item**)&chain->data.raw[8];
                             if (next == item) {
                                 ErrorPrintf(strings + 0x32C,
                                             (s32)next_id,
-                                            (s32)*(s8*)&other->data[7]);
+                                            (s32)*(s8*)&other->data.raw[7]);
                                 loop = 1;
                                 break;
                             }
                         }
                         if (!loop) {
-                            *(Item**)&item->data[8] = other;
-                            *(s16*)&other->data[4] |= 0x200;
+                            *(Item**)&item->data.raw[8] = other;
+                            *(s16*)&other->data.raw[4] |= 0x200;
                         }
                         break;
                     }
                 }
                 if (j >= sNumItems) {
                     ErrorPrintf(strings + 0x350,
-                                (s32)*(s8*)&item->data[6],
-                                (s32)*(s8*)&item->data[7]);
+                                (s32)*(s8*)&item->data.raw[6],
+                                (s32)*(s8*)&item->data.raw[7]);
                 }
             }
         }
@@ -737,7 +737,7 @@ void DeleteItem(Item* item, s32 flag)
 
     if (flag != 0) {
         if (item->info->type == 1 &&
-            (ei = *(Item**)&item->data[0xC]) != NULL) {
+            (ei = *(Item**)&item->data.raw[0xC]) != NULL) {
             e = (u8*)ei;
             if (*(u32*)ei->atree != 0) {
                 AtreeDelete(ei->atree);
@@ -754,7 +754,7 @@ void DeleteItem(Item* item, s32 flag)
             }
         }
         if (item->info->type == 2 &&
-            (ei = *(Item**)&item->data[0xC]) != NULL) {
+            (ei = *(Item**)&item->data.raw[0xC]) != NULL) {
             e = (u8*)ei;
             if (*(u32*)ei->atree != 0) {
                 AtreeDelete(ei->atree);
@@ -885,11 +885,11 @@ s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 
     while (i < sNumItems) {
         it = &sItems[i];
-        if (it->info->type == 10 && *(s16*)&it->data[0] == 0x29) {
+        if (it->info->type == 10 && *(s16*)&it->data.raw[0] == 0x29) {
             out[count] = i;
             if (flag != 0) {
                 MBTreeSetFlags(it->objgrp.node, 1, 1);
-                *(s16*)&it->data[2] = -1;
+                *(s16*)&it->data.raw[2] = -1;
             }
             count++;
             if (count >= max) {
@@ -904,7 +904,7 @@ s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 /* item proximity/timer gate; returns 1 when the item should trigger. */
 s32 generate_now(Item* it, f32* pos, s32 a3, s32 a4)
 {
-    u8* p = it->data;
+    u8* p = it->data.raw;
     s32 v;
 
     if ((gGameBusy | gScriptedCameraState) != 0) {
@@ -1086,12 +1086,12 @@ void LinkTriggerToCam(s32 idx, s32 type)
     p = sItems;
     for (i = 0; i < sNumItems; i++, p = (Item*)((u8*)p + 240)) {
         if (p->active != -1 && p->info->type == 5 &&
-            *(s8*)&p->data[6] == type) {
-            s16 cur = *(s16*)&p->data[0x12];
+            *(s8*)&p->data.raw[6] == type) {
+            s16 cur = *(s16*)&p->data.raw[0x12];
             if (cur >= 0) {
                 ErrorPrintf(sTriggerCameraConflictFmt, i, cur, idx);
             }
-            *(s16*)&p->data[0x12] = sidx;
+            *(s16*)&p->data.raw[0x12] = sidx;
         }
     }
 }
@@ -1131,17 +1131,17 @@ void AddItemWobj(Item* it)
     } else {
         tier = 3;
     }
-    if (tier != *(s16*)(it->data + 2)) {
+    if (tier != *(s16*)(it->data.raw + 2)) {
         s32 found;
         s32 tex;
-        *(s16*)(it->data + 2) = tier;
+        *(s16*)(it->data.raw + 2) = tier;
         sprintf(buf, sItemHealthTextureFmt, it->info->item.desc,
-                *(s16*)(it->data + 2));
+                *(s16*)(it->data.raw + 2));
         found = ItemFindMBObjectL1(buf);
         tex = found;
         if (found < 0) {
             MBTreeSetFlags(it->objgrp.node, 1, 1);
-            *(s16*)(it->data + 2) = -1;
+            *(s16*)(it->data.raw + 2) = -1;
         } else {
             MBSetObject(it->objgrp.node, tex);
             if (tier == 0) {
@@ -1162,7 +1162,7 @@ void SafeRockActivate(s32 idx)
 
     MBTreeClearFlags(it->objgrp.node, 1, 1);
     it->health = it->info->item.hitpoints * 3;
-    *(s16*)&it->data[2] = 0;
+    *(s16*)&it->data.raw[2] = 0;
     it->armor = (s8)it->info->item.armor;
     AddItemWobj(it);
 }
@@ -1172,7 +1172,7 @@ s32 SafeRockActive(s32 idx)
 {
     Item* it = &sItems[idx];
 
-    if (it->health > 0 && *(s16*)&it->data[2] > 0) {
+    if (it->health > 0 && *(s16*)&it->data.raw[2] > 0) {
         return 1;
     }
     return 0;
@@ -1306,7 +1306,7 @@ void place_logic12(s8* data, s32 enemy_index)
  */
 void generate_single(Item* item, s32 algorithm, s32 important)
 {
-    u8* data = item->data;
+    u8* data = item->data.raw;
     f32 position[3];
     f32 direction[3];
     s32 enemy_index;
@@ -1500,13 +1500,13 @@ keyring_found:
     item->armor = (s8)info->item.armor;
     item->health = info->item.hitpoints;
 
-#define DATA_S16(off) (*(s16*)&item->data[(off)])
-#define DATA_U16(off) (*(u16*)&item->data[(off)])
-#define DATA_S32(off) (*(s32*)&item->data[(off)])
-#define DATA_U32(off) (*(u32*)&item->data[(off)])
-#define DATA_F32(off) (*(f32*)&item->data[(off)])
-#define DATA_S8(off)  (*(s8*)&item->data[(off)])
-#define DATA_U8(off)  (*(u8*)&item->data[(off)])
+#define DATA_S16(off) (*(s16*)&item->data.raw[(off)])
+#define DATA_U16(off) (*(u16*)&item->data.raw[(off)])
+#define DATA_S32(off) (*(s32*)&item->data.raw[(off)])
+#define DATA_U32(off) (*(u32*)&item->data.raw[(off)])
+#define DATA_F32(off) (*(f32*)&item->data.raw[(off)])
+#define DATA_S8(off)  (*(s8*)&item->data.raw[(off)])
+#define DATA_U8(off)  (*(u8*)&item->data.raw[(off)])
 #define params (instance->params)
 #define PARAM_S16(off, fallback) \
     (instance != NULL ? *(s16*)&params[(off)] : (fallback))
