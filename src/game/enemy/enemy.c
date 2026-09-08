@@ -1936,24 +1936,24 @@ static inline void enemy_nearest_live_player(u8* e, f32 best1, u8* p, s32* neare
     *nearest = -1;
     /* Keep the literal stride used by the original traversal. */
     for (i = 0; i < 4; i++, p += PLAYER_STRIDE) {
-        if (*(s32*)(p + offsetof(Player, state)) == 1) {
+        if (((Player *)p)->state == 1) {
             /* A live mikey supplies its collision position instead of
              * the player's own effectpos. */
-            if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+            if (((Player *)p)->field_A1C > 2) {
                 dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
-                     *(f32*)(p + offsetof(Player, mikey_coll_pos[0]));
+                     ((Player *)p)->mikey_coll_pos[0];
                 dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
-                     *(f32*)(p + offsetof(Player, mikey_coll_pos[1]));
+                     ((Player *)p)->mikey_coll_pos[1];
                 dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
-                     *(f32*)(p + offsetof(Player, mikey_coll_pos[2]));
+                     ((Player *)p)->mikey_coll_pos[2];
                 d = fn_80034C88(dx * dx + dy * dy + dz * dz);
             } else {
                 dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
-                     *(f32*)(p + offsetof(Player, effectpos[0]));
+                     ((Player *)p)->effectpos[0];
                 dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
-                     *(f32*)(p + offsetof(Player, effectpos[1]));
+                     ((Player *)p)->effectpos[1];
                 dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
-                     *(f32*)(p + offsetof(Player, effectpos[2]));
+                     ((Player *)p)->effectpos[2];
                 d = fn_80034C88(dx * dx + dy * dy + dz * dz);
             }
             if (d < best1) {
@@ -1984,7 +1984,7 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
         start = 0;
         last = 3;
     } else {
-        if (*(s16*)(e + offsetof(Enemy, closest)) < 0) {
+        if (((Enemy *)e)->closest < 0) {
             return -1;
         }
         enemy_nearest_live_player(e, best, (u8*)gPlayerWords, &last);
@@ -1992,10 +1992,10 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     }
     q = (u8*)gPlayerWords + start * PLAYER_STRIDE;
     for (j = start; j <= last; j++, q += PLAYER_STRIDE) {
-        if (*(s32*)(q + offsetof(Player, state)) == 1) {
+        if (((Player *)q)->state == 1) {
             if (LineCylinderCollide((f32*)(q + offsetof(Player, effectpos[0])),
-                                    rad + *(f32*)(q + offsetof(Player, col_radius)),
-                                    hht + *(f32*)(q + offsetof(Player, col_height)),
+                                    rad + ((Player *)q)->col_radius,
+                                    hht + ((Player *)q)->col_height,
                                     oldc, newc, hit, 1) != 0) {
                 d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
                 if (d < best) {
@@ -2187,9 +2187,9 @@ void move_logic00(s32 index)
         u8* other = basep + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero00;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -2330,9 +2330,9 @@ void move_logic01(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || dead0 > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dead0 > 0) {
             goto flee_zero01;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -2412,9 +2412,9 @@ void move_logic02(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -2558,9 +2558,9 @@ void move_logic04(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -2894,9 +2894,9 @@ void move_logic07(s32 index)
         u8* other = (u8*)page + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero07;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -3057,9 +3057,9 @@ void move_logic08(s32 index)
         u8* other = (u8*)page + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero08;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -3863,10 +3863,10 @@ void move_logic12(s32 index)
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
         } else if (*(f32*)(other + OFF_E(actual_dist)) >
-                   *(f32*)(p + offsetof(Enemy, sight))) {
+                   ((Enemy *)p)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(p + offsetof(Enemy, birth_style)) != 0 ||
-                   *(s32*)(p + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)p)->birth_style != 0 ||
+                   ((Enemy *)p)->dead_end > 0) {
             goto flee_zero;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
@@ -3964,10 +3964,10 @@ void move_logic13(s32 index)
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
         } else if (*(f32*)(other + OFF_E(actual_dist)) >
-                   *(f32*)(p + offsetof(Enemy, sight))) {
+                   ((Enemy *)p)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(p + offsetof(Enemy, birth_style)) != 0 ||
-                   *(s32*)(p + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)p)->birth_style != 0 ||
+                   ((Enemy *)p)->dead_end > 0) {
             goto flee_zero13;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
@@ -4089,9 +4089,9 @@ void move_logic14(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero14;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -4232,9 +4232,9 @@ void move_logic15(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(row15 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)row15)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(row15 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(row15 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)row15)->birth_style != 0 || ((Enemy *)row15)->dead_end > 0) {
             goto flee_zero15;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -4361,9 +4361,9 @@ void move_logic16(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || dend > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dend > 0) {
             goto flee_zero16;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -4403,7 +4403,7 @@ void move_logic16(s32 index)
     if (c16 >= 0) {
         u8* gp = (u8*)&gPlayers + c16 * PLAYER_STRIDE;
         f32 dvert = e->objgrp.worldmat[3][1] -
-                    *(f32*)(gp + offsetof(Player, pos[1]));
+                    ((Player *)gp)->pos[1];
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 0.6 * e->sight) {
@@ -4875,9 +4875,9 @@ void move_logic22(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero22;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -5147,9 +5147,9 @@ void move_logic29(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
             flee = 0;
-        } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || dend > 0) {
+        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dend > 0) {
             goto flee_zero29;
         } else {
             f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
@@ -5194,7 +5194,7 @@ void move_logic29(s32 index)
     if (c29 >= 0) {
         u8* gp = (u8*)&gPlayers + c29 * PLAYER_STRIDE;
         f32 dvert = e->objgrp.worldmat[3][1] -
-                    *(f32*)(gp + offsetof(Player, pos[1]));
+                    ((Player *)gp)->pos[1];
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 8.0) {
@@ -5437,8 +5437,8 @@ s32 fn_8004C8CC(f32* pos, s32 index)
     f32 probe[3];
     void* obj;
 
-    rad = (f32)(0.1 + *(f32*)((u8*)e + offsetof(Enemy, rad)));
-    hht = (f32)(0.1 + *(f32*)((u8*)e + offsetof(Enemy, hht)));
+    rad = (f32)(0.1 + e->rad);
+    hht = (f32)(0.1 + e->hht);
     probe[0] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[0]));
     probe[1] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[1]));
     result = -1;
@@ -5667,20 +5667,20 @@ s32 fn_8004CE38(Enemy* e)
     f32 x2;
     f32 z2;
 
-    p = (u8*)&gPlayerWords[*(s16*)((u8*)e + offsetof(Enemy, closest))];
+    p = (u8*)&gPlayerWords[e->closest];
     /* When the closest player's mikey is live (field_A1C > 2) the chase
      * bearing is taken from the mikey object's world translation
      * (mikey_worldmat[3], the mikey OBJGRP embed) rather than from pos[]. */
-    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+    if (((Player *)p)->field_A1C > 2) {
         dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) -
-             *(f32*)(p + offsetof(Player, mikey_worldmat[3][0]));
+             ((Player *)p)->mikey_worldmat[3][0];
         dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) -
-             *(f32*)(p + offsetof(Player, mikey_worldmat[3][2]));
+             ((Player *)p)->mikey_worldmat[3][2];
     } else {
         dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) -
-             *(f32*)(p + offsetof(Player, pos[0]));
+             ((Player *)p)->pos[0];
         dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) -
-             *(f32*)(p + offsetof(Player, pos[2]));
+             ((Player *)p)->pos[2];
     }
     a = (f32)(0.5235987756666667 + *(f32*)((u32)e + offsetof(Enemy, pyr[1])));
     if (a > 3.141592654) {
@@ -5693,7 +5693,7 @@ s32 fn_8004CE38(Enemy* e)
     ang = (f32)t;
     x1 = dx + sin(ang);
     z1 = dz + cos(ang);
-    a = (f32)(*(f32*)((u8*)e + offsetof(Enemy, pyr[1])) - 0.5235987756666667);
+    a = (f32)(e->pyr[1] - 0.5235987756666667);
     if (a > 3.141592654) {
         t = a - 6.283185308;
     } else if (a <= (-3.141592654)) {
@@ -5825,7 +5825,7 @@ void do_enemies(void)
         for (i = 0; i < 45; i++) {
             u8* dst = pool + i * 4;
 
-            *(f32*)(dst + offsetof(EnemyMovePage05, speed)) =
+            ((EnemyMovePage05 *)dst)->speed[0] =
                 rate * lbl_8011B878[i];
         }
     }
@@ -6014,9 +6014,9 @@ void do_enemies(void)
                 }
             sync:
                 if (e->shadow != 0) {
-                    *(f32*)((u8*)e->shadow + offsetof(MBObject, mat[3][0])) = e->objgrp.worldmat[3][0];
-                    *(f32*)((u8*)e->shadow + offsetof(MBObject, mat[3][1])) = e->objgrp.worldmat[3][1];
-                    *(f32*)((u8*)e->shadow + offsetof(MBObject, mat[3][2])) = e->objgrp.worldmat[3][2];
+                    ((MBObject *)e->shadow)->mat[3][0] = e->objgrp.worldmat[3][0];
+                    ((MBObject *)e->shadow)->mat[3][1] = e->objgrp.worldmat[3][1];
+                    ((MBObject *)e->shadow)->mat[3][2] = e->objgrp.worldmat[3][2];
                 }
                 break;
             case 0:
@@ -6069,28 +6069,28 @@ void do_enemies(void)
                 if ((f64)lbl_803447D8 != zero) {
                     if (e->objgrp.node != 0) {
                         MBTreeSetFlags(e->objgrp.node, 8, 0);
-                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[0])) = lbl_803447D8;
-                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[1])) = lbl_803447D8;
-                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[2])) = lbl_803447D8;
+                        ((MBObject *)e->objgrp.node)->scale[0] = lbl_803447D8;
+                        ((MBObject *)e->objgrp.node)->scale[1] = lbl_803447D8;
+                        ((MBObject *)e->objgrp.node)->scale[2] = lbl_803447D8;
                     }
                     if (e->shadow != 0) {
                         MBTreeSetFlags(e->shadow, 8, 0);
-                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[0])) = lbl_803447D8;
-                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[1])) = lbl_803447D8;
-                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[2])) = lbl_803447D8;
+                        ((MBObject *)e->shadow)->scale[0] = lbl_803447D8;
+                        ((MBObject *)e->shadow)->scale[1] = lbl_803447D8;
+                        ((MBObject *)e->shadow)->scale[2] = lbl_803447D8;
                     }
                 } else {
                     if (e->objgrp.node != 0) {
                         MBTreeClearFlags(e->objgrp.node, 8, 0);
-                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[0])) = skinOne;
-                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[1])) = skinOne;
-                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[2])) = skinOne;
+                        ((MBObject *)e->objgrp.node)->scale[0] = skinOne;
+                        ((MBObject *)e->objgrp.node)->scale[1] = skinOne;
+                        ((MBObject *)e->objgrp.node)->scale[2] = skinOne;
                     }
                     if (e->shadow != 0) {
                         MBTreeClearFlags(e->shadow, 8, 0);
-                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[0])) = skinOne;
-                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[1])) = skinOne;
-                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[2])) = skinOne;
+                        ((MBObject *)e->shadow)->scale[0] = skinOne;
+                        ((MBObject *)e->shadow)->scale[1] = skinOne;
+                        ((MBObject *)e->shadow)->scale[2] = skinOne;
                     }
                 }
             }
@@ -6119,22 +6119,22 @@ s32 fn_8004D958(s32 index)
     s16 t;
     s16 v;
 
-    *(s16*)((u8*)e + offsetof(Enemy, watchdog)) += gFrameTicks;
-    if (*(f32*)((u8*)e + offsetof(Enemy, actual_dist)) >
-        *(f32*)((u8*)e + offsetof(Enemy, sight))) {
-        if (*(s16*)((u8*)e + offsetof(Enemy, visactive)) == 0) {
+    e->watchdog += gFrameTicks;
+    if (e->actual_dist >
+        e->sight) {
+        if (e->visactive == 0) {
             return -1;
         }
     }
-    own = *(s16*)((u8*)e + offsetof(Enemy, prev_closest));
-    if (own >= 0 && *(s16*)((u8*)e + offsetof(Enemy, closest)) != own) {
-        *(s32*)((u8*)e + offsetof(Enemy, ms_idx)) = 0;
-        *(s32*)((u8*)e + offsetof(Enemy, max_msidx)) = 4;
+    own = e->prev_closest;
+    if (own >= 0 && e->closest != own) {
+        e->ms_idx = 0;
+        e->max_msidx = 4;
     }
     if (gBossType >= 0 && gBossDying != 0) {
         fn_800945D0((u8*)e + offsetof(Enemy, objgrp.attn_pos[0]),
                     (u8*)e + offsetof(Enemy, objgrp), 0, 1, *(u32*)e,
-                    *(f32*)((u8*)e + offsetof(Enemy, hht)));
+                    e->hht);
         kill_enemy(index);
         return -1;
     }
@@ -8402,12 +8402,12 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     }
 
     m = sMilestones + milestone * 104;
-    pos[0] = *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
-    pos[1] = *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
-    pos[2] = *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
+    pos[0] = ((MilestoneParam *)m)->matrix[12];
+    pos[1] = ((MilestoneParam *)m)->matrix[13];
+    pos[2] = ((MilestoneParam *)m)->matrix[14];
     {
-        f32 x = *(f32*)(m + offsetof(MilestoneParam, matrix[10]));
-        f32 r = atan2(*(f32*)(m + offsetof(MilestoneParam, matrix[8])), x);
+        f32 x = ((MilestoneParam *)m)->matrix[10];
+        f32 r = atan2(((MilestoneParam *)m)->matrix[8], x);
         f64 p = 3.141592654;
         f32 a = (f32)(p + r);
         f64 t;
@@ -8453,9 +8453,9 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         ad = (f32)nd;
         *(u32*)&ad &= 0x7FFFFFFF;
         if (ad <= tolerance) {
-            dy = *(f32*)(m + offsetof(MilestoneParam, matrix[13])) - pos[1];
-            dx = *(f32*)(m + offsetof(MilestoneParam, matrix[12])) - pos[0];
-            dz = *(f32*)(m + offsetof(MilestoneParam, matrix[14])) - pos[2];
+            dy = ((MilestoneParam *)m)->matrix[13] - pos[1];
+            dx = ((MilestoneParam *)m)->matrix[12] - pos[0];
+            dz = ((MilestoneParam *)m)->matrix[14] - pos[2];
             dist = dx * dx + dy * dy;
             dist = dz * dz + dist;
             if (dist > kZero) {
@@ -8513,9 +8513,9 @@ s32 fn_80051480(f32* pos)
         f32 dy;
         f32 dz;
 
-        dy = pos[1] - *(f32*)(node + offsetof(MilestoneParam, matrix[13]));
-        dx = pos[0] - *(f32*)(node + offsetof(MilestoneParam, matrix[12]));
-        dz = pos[2] - *(f32*)(node + offsetof(MilestoneParam, matrix[14]));
+        dy = pos[1] - ((MilestoneParam *)node)->matrix[13];
+        dx = pos[0] - ((MilestoneParam *)node)->matrix[12];
+        dz = pos[2] - ((MilestoneParam *)node)->matrix[14];
         d = dx * dx + dy * dy;
         d = dz * dz + d;
 
@@ -8778,7 +8778,7 @@ void fn_80051C78(void)
 
     for (i = 0; i < 128; i++) {
         u8* row = (u8*)mp + i * sizeof(s32);
-        *(s32*)(row + offsetof(MilestonePool, slots)) = -1;
+        ((MilestonePool *)row)->slots[0] = -1;
     }
     lbl_80344724 = 0;
     best = -1;
@@ -8788,9 +8788,9 @@ void fn_80051C78(void)
         u8* m = sMilestones;
 
         for (i = 0; i < sNumMilestones; i++, m += 0x68) {
-            f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
-            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
-            f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
+            f32 dx = gDefaultPlayerPosition[0] - ((MilestoneParam *)m)->matrix[12];
+            f32 dy = gDefaultPlayerPosition[1] - ((MilestoneParam *)m)->matrix[13];
+            f32 dz = gDefaultPlayerPosition[2] - ((MilestoneParam *)m)->matrix[14];
             f32 d2 = dz * dz + (dx * dx + dy * dy);
             if (d2 > 0.0f) {
                 volatile f32 tmp;
@@ -8816,13 +8816,13 @@ void fn_80051C78(void)
         lbl_80344724 = count + 1;
         {
             u8* row = (u8*)mp + count * sizeof(s32);
-            *(s32*)(row + offsetof(MilestonePool, slots)) = cur;
+            ((MilestonePool *)row)->slots[0] = cur;
         }
         cur = fn_800511D0(prev, 0.17453292f);
         count = lbl_80344724;
         for (i = 0; i < count; i++) {
             u8* row = (u8*)mp + i * sizeof(s32);
-            if (cur == *(s32*)(row + offsetof(MilestonePool, slots))) {
+            if (cur == ((MilestonePool *)row)->slots[0]) {
                 break;
             }
         }
