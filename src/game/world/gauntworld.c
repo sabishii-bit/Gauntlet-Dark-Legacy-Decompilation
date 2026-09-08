@@ -8447,23 +8447,53 @@ void fn_80062A00(void)
     }
 }
 
+/* Item.data (game/item.h declares it as an opaque u8[0x14]) is the Xbox PDB's
+ * per-item-type union `union __unnamed` (misc.h Id=3251), whose eleven
+ * variants - containerdata / triggerdata / enemydata / gendata / exitdata /
+ * transdata / rotdata / sounddata / obsticledata / trapdata / powerupdata -
+ * all sit at offset 0x00 of that 0x14-byte member and are selected by
+ * Item.info->type.  item.h is a shared header with a different owner, so the
+ * union is NOT added to Item this run; the variants this TU actually reads
+ * are declared here as file-local views, the same way camera_data /
+ * audio_data / map_data / bosscam_data above name the world-WAD records.
+ *
+ * enemydata is Xbox game.h Id=3325.  Every field below is independently
+ * GC-verified by fn_80060114's own loads/stores: etype s16@0x00 (the switch
+ * selector, generate_enemy's `kind`, and the `>= 0` / `== 31` guards),
+ * strength s8@0x02 and ai s8@0x03 (generate_enemy arguments 3 and 5, both
+ * sign-extended by the target), flags u32@0x08 (the `& 1` spawn gate),
+ * rad f32@0x0C (multiplied by gCurLevel->ene_visrad into Enemy.sight and
+ * Critter+0xAD0), interval s16@0x10 (scaled by sItemFloorYOffset into
+ * Enemy.idle_time) and pickup s16@0x12 (an sItems element index stored into
+ * Enemy.gotitem).  ang f32@0x04 is not read by this TU. */
+typedef struct enemydata {
+    /* 0x00 */ s16 etype;
+    /* 0x02 */ s8  strength;
+    /* 0x03 */ s8  ai;
+    /* 0x04 */ f32 ang;
+    /* 0x08 */ u32 flags;
+    /* 0x0C */ f32 rad;
+    /* 0x10 */ s16 interval;
+    /* 0x12 */ s16 pickup;
+} enemydata; /* 0x14 == sizeof(Item.data) */
+
 /* 0x80060114 - convert a pending enemy-spawn item into a live critter or
  * generated enemy once it becomes visible, then retire the item slot. */
 void fn_80060114(Item* item, f32* pos, f32* dir)
 {
-    u8* it = (u8*)item;
-    u8* sp;
+    Item* it = item;
+    enemydata* sp;
     s32 kind;
-    u8* crit;
-    u8* e;
+    Critter* crit;
+    Enemy* e;
     s32 g;
     s32 idx;
     f32 root;
     f32 d2;
     u8 unused[40];
 
-    sp = it + 220;
-    kind = *(s16*)(it + 220);
+    sp = (enemydata*)it->data;
+    kind = sp->etype;
     if (kind < 0) {
         return;
     }
@@ -8477,17 +8507,17 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     if (*(s32*)(gGameOptions + 8) == 0) {
         return;
     }
-    if (MBWorldSphereVisible3((f32*)(it + 52),
-                              lbl_80347014 * *(f32*)(it + 212)) == 0) {
+    if (MBWorldSphereVisible3(it->objgrp.worldmat[3],
+                              lbl_80347014 * it->visrad) == 0) {
         return;
     }
-    if (*(s16*)(it + 220) == 31 && gNumPlayers <= 1) {
+    if (((enemydata*)it->data)->etype == 31 && gNumPlayers <= 1) {
         return;
     }
     {
-        f32 dy = *(f32*)((u8*)gCameras + offsetof(Camera, attn) + 4) - *(f32*)(it + 56);
-        f32 dx = *(f32*)((u8*)gCameras + offsetof(Camera, attn)) - *(f32*)(it + 52);
-        f32 dz = *(f32*)((u8*)gCameras + offsetof(Camera, attn) + 8) - *(f32*)(it + 60);
+        f32 dy = gCameras[0].attn[1] - it->objgrp.worldmat[3][1];
+        f32 dx = gCameras[0].attn[0] - it->objgrp.worldmat[3][0];
+        f32 dz = gCameras[0].attn[2] - it->objgrp.worldmat[3][2];
         d2 = dy * dy;
         d2 = dx * dx + d2;
         d2 = dz * dz + d2;
@@ -8509,133 +8539,131 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
         }
     }
     if (kind == 29 || kind == 30 || kind == 32) {
-        if (lbl_80346EE8 != (f64)lbl_803447D8 && *(void**)(it + 100) != NULL) {
-            MBTreeSetScale(*(void**)(it + 100), lbl_803447D8, lbl_803447D8,
+        if (lbl_80346EE8 != (f64)lbl_803447D8 && it->objgrp.node != NULL) {
+            MBTreeSetScale(it->objgrp.node, lbl_803447D8, lbl_803447D8,
                            lbl_803447D8);
         }
-        if (!(*(u32*)(it + 228) & 1)) {
+        if (!(((enemydata*)it->data)->flags & 1)) {
             return;
         }
-        if (!(*(s16*)(it + 196) & 1)) {
-            *(s16*)(it + 196) |= 1;
-            *(u8*)(it + 202) = 1;
+        if (!(it->active & 1)) {
+            it->active |= 1;
+            it->daction = 1;
             return;
         }
-        if (*(s16*)(it + 198) > 0) {
+        if (it->activetime > 0) {
             return;
         }
     }
     crit = 0;
-    pos[0] = *(f32*)(it + 84);
-    pos[1] = *(f32*)(it + 88);
-    pos[2] = *(f32*)(it + 92);
-    dir[0] = *(f32*)(it + 36);
-    dir[1] = *(f32*)(it + 40);
-    dir[2] = *(f32*)(it + 44);
+    pos[0] = it->objgrp.coll_pos[0];
+    pos[1] = it->objgrp.coll_pos[1];
+    pos[2] = it->objgrp.coll_pos[2];
+    dir[0] = it->objgrp.worldmat[2][0];
+    dir[1] = it->objgrp.worldmat[2][1];
+    dir[2] = it->objgrp.worldmat[2][2];
     switch (kind) {
     case 29:
-        crit = CritterNewInst(3, 0, it + 4);
+        crit = (Critter*)CritterNewInst(3, 0, &it->objgrp);
         break;
     case 33:
-        crit = CritterNewInst(8, 0, it + 4);
+        crit = (Critter*)CritterNewInst(8, 0, &it->objgrp);
         break;
     case 32:
-        crit = CritterNewInst(7, 0, it + 4);
+        crit = (Critter*)CritterNewInst(7, 0, &it->objgrp);
         break;
     }
     if (crit != NULL) {
-        if (*(u32*)(it + 108) != 0) {
-            AtreeDelete(it + 108);
-            *(s32*)(it + 108) = 0;
+        if (*(u32*)it->atree != 0) {
+            AtreeDelete(it->atree);
+            *(s32*)it->atree = 0;
         }
-        if (*(void**)(it + 100) != NULL) {
-            MBRemoveNode(*(void**)(it + 100), 0);
-            *(s32*)(it + 100) = 0;
+        if (it->objgrp.node != NULL) {
+            MBRemoveNode(it->objgrp.node, 0);
+            it->objgrp.node = NULL;
         }
-        *(s16*)(it + 196) = -1;
-        idx = (s32)(it - (u8*)sItems) / 240;
+        it->active = -1;
+        idx = it - sItems;
         if (idx < gNextItemIdx) {
             gNextItemIdx = idx;
         }
-        if (*(f32*)(sp + 12) > sZeroDouble) {
-            *(f32*)(crit + 2768) =
-                *(f32*)(sp + 12) * gCurLevel->ene_visrad;
+        if (sp->rad > sZeroDouble) {
+            crit->unkAD0 = sp->rad * gCurLevel->ene_visrad;
         }
-        if (*(s16*)(sp + 18) >= 0) {
-            *(u8**)(crit + 2764) =
-                (u8*)sItems + *(s16*)(sp + 18) * 240;
+        if (sp->pickup >= 0) {
+            *(Item**)crit->_blkACC = &sItems[sp->pickup];
         }
         return;
     }
-    g = generate_enemy(pos, kind, (s8)*(u8*)(sp + 2), dir, (s8)*(u8*)(sp + 3),
+    g = generate_enemy(pos, kind, sp->strength, dir, sp->ai,
                        0, 1, sItemFloorRadius);
     if (g >= 0) {
         f64 yaw;
-        e = (u8*)gEnemies + g * 916;
-        *(s16*)(e + 728) = 1;
-        *(s16*)(e + 724) = 1;
-        *(f32*)(e + 588) = atan2(dir[0], *(f32*)((u8*)dir + 32));
-        yaw = *(f32*)(e + 588);
+        e = &gEnemies[g];
+        e->birth_style = 1;
+        e->endurance = 1;
+        // lint-allow-next-line FM001: the target reads 32 bytes past `dir`, which fn_800606FC supplies as a 3-float stack array; this out-of-range read of the neighbouring frame slot is the game's own behaviour and is reproduced, not repaired.
+        e->ang = atan2(dir[0], *(f32*)((u8*)dir + 32));
+        yaw = e->ang;
         if (yaw > sPi) {
             yaw = yaw - sTwoPi;
         } else if (yaw <= sNegativePi) {
             yaw = sTwoPi + yaw;
         }
-        *(f32*)(e + 588) = yaw;
-        *(f32*)(e + 592) = *(f32*)(e + 588);
-        *(f32*)(e + 580) = *(f32*)(e + 588);
+        e->ang = yaw;
+        e->angbak = e->ang;
+        e->pyr[1] = e->ang;
         {
             f32 mtx[12];
-            CreateYPRMatrix(mtx, (f32*)(e + 576));
-            CopyMat3(mtx, e + 4);
+            CreateYPRMatrix(mtx, e->pyr);
+            CopyMat3(mtx, &e->objgrp);
         }
-        UpdateObjWorldMat((OBJGRP*)(e + 4));
-        *(f32*)(e + 748) = *(f32*)(e + 52);
-        *(f32*)(e + 752) = *(f32*)(e + 56);
-        *(f32*)(e + 756) = *(f32*)(e + 60);
-        if (*(s32*)e != 31 && *(s32*)e != 30 && (s8)*(u8*)(sp + 2) == 0) {
-            *(s32*)(e + 180) = 6;
-        } else if ((s8)*(u8*)(sp + 2) < 4) {
-            *(s32*)(e + 524) = 30;
+        UpdateObjWorldMat(&e->objgrp);
+        e->birth_pos[0] = e->objgrp.worldmat[3][0];
+        e->birth_pos[1] = e->objgrp.worldmat[3][1];
+        e->birth_pos[2] = e->objgrp.worldmat[3][2];
+        if (e->type != 31 && e->type != 30 && sp->strength == 0) {
+            e->state = 6;
+        } else if (sp->strength < 4) {
+            e->stun_timer = 30;
         }
-        if (*(s32*)e == 30) {
-            *(f32*)(e + 768) = sNoNearbyPlayerDistance;
-        } else if (*(f32*)(sp + 12) > sZeroDouble) {
-            *(f32*)(e + 768) =
-                *(f32*)(sp + 12) * gCurLevel->ene_visrad;
+        if (e->type == 30) {
+            e->sight = sNoNearbyPlayerDistance;
+        } else if (sp->rad > sZeroDouble) {
+            e->sight = sp->rad * gCurLevel->ene_visrad;
         }
-        if (*(s16*)(sp + 16) > 0) {
-            if (*(s16*)(sp + 16) == 1) {
-                *(f32*)(e + 888) = sItemZero;
+        if (sp->interval > 0) {
+            if (sp->interval == 1) {
+                e->idle_time = sItemZero;
             } else {
-                *(f32*)(e + 888) =
-                    (f32)(sItemFloorYOffset * (f64)*(s16*)(sp + 16));
+                e->idle_time =
+                    (f32)(sItemFloorYOffset * (f64)sp->interval);
             }
         }
-        if (*(s16*)(sp + 18) >= 0) {
-            *(u8**)(e + 900) = (u8*)sItems + *(s16*)(sp + 18) * 240;
+        if (sp->pickup >= 0) {
+            e->gotitem = (struct item*)&sItems[sp->pickup];
         }
     } else if (g > -99) {
-        if ((s8)*(u8*)(sp + 2) >= 4 || *(s32*)e > 1) {
+        if (sp->strength >= 4 || e->type > 1) {
             if (g == -5) {
                 ErrorPrintf(lbl_80112CA4, lbl_8011B578[kind],
-                            (s8)*(u8*)(sp + 2));
+                            sp->strength);
             } else {
                 ErrorPrintf(lbl_80112CD4, lbl_8011B578[kind],
-                            (s8)*(u8*)(sp + 3), lbl_8011C8F0[-(g + 1)]);
+                            sp->ai, lbl_8011C8F0[-(g + 1)]);
             }
         }
     }
-    if (*(u32*)(it + 108) != 0) {
-        AtreeDelete(it + 108);
-        *(s32*)(it + 108) = 0;
+    if (*(u32*)it->atree != 0) {
+        AtreeDelete(it->atree);
+        *(s32*)it->atree = 0;
     }
-    if (*(void**)(it + 100) != NULL) {
-        MBRemoveNode(*(void**)(it + 100), 0);
-        *(s32*)(it + 100) = 0;
+    if (it->objgrp.node != NULL) {
+        MBRemoveNode(it->objgrp.node, 0);
+        it->objgrp.node = NULL;
     }
-    *(s16*)(it + 196) = -1;
-    idx = (s32)(it - (u8*)sItems) / 240;
+    it->active = -1;
+    idx = it - sItems;
     if (idx < gNextItemIdx) {
         gNextItemIdx = idx;
     }
