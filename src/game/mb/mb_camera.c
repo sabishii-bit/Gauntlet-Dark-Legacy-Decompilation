@@ -29,15 +29,20 @@
 
 /* File-local mirror of pb_window.c's PBSCREEN (no Xbox PDB counterpart;
  * layout re-verified against this TU's own MBWorldToScreen[3D] target asm,
- * consistent with pb_window.c's reconstruction). pad2@0x28 is unresolved
- * there too (never read in pb_window.c) - the two dwords inside it are left
- * as raw offsets below since no field name is known. */
+ * consistent with pb_window.c's reconstruction). The old pad2@0x28 is split
+ * into the two dwords the GC actually reads: MBWorldToScreen3D forms the
+ * per-axis scale as w/+0x28 and h/+0x2C, and MBWorldToScreen scales the
+ * projected point by +0x28/w and +0x2C/h, so the pair is the reference
+ * extent that w/h are expressed against. That is a GC-verified partial view
+ * of their ROLE, not a recovered original field name; pb_window.c never
+ * reads either dword. */
 typedef struct PBSCREEN {
     /* 0x00 */ u32 flags;
     /* 0x04 */ u8 pad[0x1C];
     /* 0x20 */ s32 w;
     /* 0x24 */ s32 h;
-    /* 0x28 */ u8 pad2[8];
+    /* 0x28 */ s32 wref;
+    /* 0x2C */ s32 href;
     /* 0x30 */ s32 w2;
     /* 0x34 */ s32 h2;
     /* 0x38 */ f32 xoff;
@@ -75,9 +80,9 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     f32 yScale;
     f32 xNumerator;
     f32 yNumerator;
-    f32 yDenomB;
     f32 yDenomA;
     f32 yDepthScale;
+    f32 yDenomB;
     f64 centeredX;
     f64 centeredY;
     u8 unused[8];
@@ -94,10 +99,8 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     projected[2] = world[2];
     viewport = (PBSCREEN*)globals->screen;
     camera = globals->current;
-    xScale = (f32)viewport->w /
-             (f32)*(s32*)((u8*)viewport + 0x28);
-    yScale = (f32)viewport->h /
-             (f32)*(s32*)((u8*)viewport + 0x2C);
+    xScale = (f32)viewport->w / (f32)viewport->wref;
+    yScale = (f32)viewport->h / (f32)viewport->href;
     centeredX =
         (f64)(world[0] * xScale) -
         lbl_80348B28 * (f64)viewport->w;
@@ -148,8 +151,8 @@ void MBWorldToScreen(f32* dst, f32* world)
              ((PBSCREEN*)globals->screen)->xoff;
     dst[1] = (lbl_80348B38 * portHeight + dst[1] * invW) -
              ((PBSCREEN*)globals->screen)->yoff;
-    dst[0] *= (f32)*(s32*)((u8*)globals->screen + 0x28) / portWidth;
-    dst[1] *= (f32)*(s32*)((u8*)globals->screen + 0x2C) / portHeight;
+    dst[0] *= (f32)((PBSCREEN*)globals->screen)->wref / portWidth;
+    dst[1] *= (f32)((PBSCREEN*)globals->screen)->href / portHeight;
     dst[2] = dst[3];
     dst[3] = lbl_80348B20;
 }
