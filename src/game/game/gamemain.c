@@ -992,18 +992,27 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
 }
 
 /* 0x80054D18 -- choose and resolve the next world/level selection. */
+/* This exit-reason test recurs in next_world, level entry and game_main.
+ * The local name describes its use; the original helper name is unknown. */
+static inline s32 is_level_transition(s32 state)
+{
+    s32 transitioning = 0;
+    if (state >= 13 && state < WORLD_OVERRIDE_BASE) {
+        transitioning = 1;
+    }
+    return transitioning;
+}
+
 s32 next_world(void)
 {
     s32 world;
     s32 forced;
-    s32 transitioning = 0;
+    s32 transitioning;
     s32 state = lbl_8034481C;
     s32 t2;
     register s32 selected;
 
-    if (state >= 13 && state < WORLD_OVERRIDE_BASE) {
-        transitioning = 1;
-    }
+    transitioning = is_level_transition(state);
     if (transitioning != 0) {
         t2 = 1;
     } else {
@@ -1029,8 +1038,8 @@ s32 next_world(void)
 
         world = -1;
         for (i = 0; i < 4; i++) {
-            Player* player = &gPlayers[i];
-            state = player->state;
+            Player* player;
+            state = (player = &gPlayers[i])->state;
             if (state != 0 && state != 2) {
                 state = player->exit_dest;
                 if (world < state) {
