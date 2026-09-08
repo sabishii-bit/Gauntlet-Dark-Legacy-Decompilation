@@ -485,7 +485,7 @@ def git_state(root=None):
     commit is compared again on every check.
     """
     head = _head_commit(root)
-    tree = _git("rev-parse", "HEAD^{tree}", root=root)
+    tree = _git("show", "-s", "--format=%T", "HEAD", root=root)
     status = _git("status", "--porcelain", root=root)
     lines = sorted(line.rstrip() for line in status.splitlines()
                    if line.strip()) if status is not None else None
