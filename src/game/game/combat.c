@@ -115,7 +115,7 @@ s32 pmissile_sfxidx[5];
 s32 WeapThrowFx[4][5];
 void* WeapHoldFxTree[4][5];
 void* FamiliarSpit[4];
-void* PhoenixTree;
+void* lbl_80240624;
 void* FamiliarTree[4][2];
 void* EnemyMissileTree[28][3];
 MissileTreeInfo PlayerMissileTreeInfo[4];
@@ -4415,7 +4415,7 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
                 tree = BossAcidTree;
             } else if ((f & 0x400) != 0) {
                 extraFlags |= 0x10000;
-                tree = PhoenixTree;
+                tree = lbl_80240624;
             } else if ((damageType & 0x100000) != 0 &&
                        (damageType & 0x2000000) == 0) {
                 tree = BallistaTree;
@@ -4524,9 +4524,9 @@ void InitEnemyMissiles(s32 enemyType)
     }
 }
 
-extern void *BallistaTree, *BossElecTree, *BossAcidTree, *lbl_803445B0;
+extern void *BallistaTree, *BossElecTree, *BossAcidTree, *PhoenixTree;
 extern void *WingsTree, *PojoTree, *BreatheFireTree, *BreatheElecTree;
-extern void *BreatheAcidTree, *FireShieldTree, *PhoenixTree;
+extern void *BreatheAcidTree, *FireShieldTree, *lbl_80240624;
 extern void *sWeaponsBuf, *sPowerupsBuf;
 void* MBOX_FindTexture(char* name, void* arg);
 s32 InitCustomEffect(void* tree, char* name, s32 zmod, s32 alpha);
@@ -4591,14 +4591,14 @@ void InitPlayerMissiles(void* player)
     BossElecTree = AtreeMatch(sWeaponsBuf, "BOSSG_ELEC", 1);
     BossAcidTree = AtreeMatch(sWeaponsBuf, "BOSSG_ACID", 1);
     if (sPowerupsBuf != 0) {
-        lbl_803445B0 = AtreeMatch(sPowerupsBuf, "PHOENIX", 1);
+        PhoenixTree = AtreeMatch(sPowerupsBuf, "PHOENIX", 1);
         WingsTree = AtreeMatch(sPowerupsBuf, "WINGS", 1);
         PojoTree = AtreeMatch(sPowerupsBuf, "POJO", 1);
         BreatheFireTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEF", 1);
         BreatheElecTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEE", 1);
         BreatheAcidTree = AtreeMatch(sPowerupsBuf, "HEAD_BREATHEA", 1);
     } else {
-        lbl_803445B0 = 0;
+        PhoenixTree = 0;
         WingsTree = 0;
         PojoTree = 0;
         BreatheFireTree = 0;
@@ -4609,7 +4609,7 @@ void InitPlayerMissiles(void* player)
     FamiliarTree[idx][0] = AtreeMatch(weaponWad, "FAMILIAR1", 1);
     FamiliarTree[idx][1] = AtreeMatch(weaponWad, "FAMILIAR2", 1);
     FamiliarSpit[idx] = AtreeMatch(weaponWad, "FAMILIAR_SPIT", 1);
-    PhoenixTree = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
+    lbl_80240624 = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
     if (missing) {
         FatalError("InitPlayerMissiles failed!", 0x800000);
     }

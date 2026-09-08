@@ -271,7 +271,7 @@ extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-sl
 
 /* --- TU .bss (declaration order = address order; the compiler addresses the
  * whole block off the first symbol, lbl_80250E00 - gEnemies rides at +0xE18,
- * the world-probe hit normal lbl_802510F4 at +0x2F4). --- */
+ * the world-probe hit normal enemy_wall_collp at +0x2F4). --- */
 /* NOTE: MWCC allocates .bss in REVERSE declaration order - declare in reverse
  * address order so lbl_80250E00 lands at section offset 0 (the pool anchor)
  * and gEnemies at +0xE18, matching the target's base+displacement addressing. */
@@ -281,7 +281,7 @@ s32 lbl_802512B0[45];          /* 0x802512B0 per-type spawn-allowed */
 s32 lbl_802511FC[45];          /* 0x802511FC per-type min-level class */
 s32 lbl_80251148[45];          /* 0x80251148 per-type generator-fx enable */
 u32 lbl_80251100[0x48 / 4];    /* 0x80251100 */
-f32 lbl_802510F4[3];           /* 0x802510F4 world-probe hit normal */
+f32 enemy_wall_collp[3];           /* 0x802510F4 world-probe hit normal */
 typedef union EnemyRuntimePool {
     u32 words[0x2B4 / 4];
     struct {
@@ -318,7 +318,7 @@ static void enemy_bss_order(void)
 {
     lbl_80250E00[0] = 0;
     lbl_80250E40.words[0] = 0;
-    *(u32*)lbl_802510F4 = 0;
+    *(u32*)enemy_wall_collp = 0;
     lbl_80251100[0] = 0;
     lbl_80251148[0] = 0;
     lbl_802511FC[0] = 0;
@@ -932,14 +932,14 @@ void do_enemy_move(s32 index)
                 half[0] = oldpos[0] + e->trans[0];
                 half[1] = oldpos[1] + e->trans[1];
                 half[2] = oldpos[2] + e->trans[2];
-                lbl_80344730 = EnemyWallCollide(rad2, oldpos, half, lbl_802510F4);
+                lbl_80344730 = EnemyWallCollide(rad2, oldpos, half, enemy_wall_collp);
                 if (lbl_80344730 != 0) {
-                    EnemyWorldDamage(e, lbl_80344730, oldpos, lbl_802510F4);
+                    EnemyWorldDamage(e, lbl_80344730, oldpos, enemy_wall_collp);
                     if (*(u32*)((u8*)lbl_80344730 + 16) & 0x38) {
                         result = 0;
                     } else if (!(e->ai_flags & 1)
                                && SlideAlongWall(rad2, oldpos, e->trans,
-                                              lbl_802510F4, lbl_8023CA98[1]) < 0) {
+                                              enemy_wall_collp, lbl_8023CA98[1]) < 0) {
                         result = 2;
                         e->trans[2] = 0.0f;
                         e->trans[0] = 0.0f;
