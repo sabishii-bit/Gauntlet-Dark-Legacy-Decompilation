@@ -247,6 +247,7 @@ game/shop/shop.c:
 	extab       start:0x80006EB0 end:0x80006F18
 	extabindex  start:0x8000AE58 end:0x8000AEF4
 	.text       start:0x800988A4 end:0x8009C228
+	.rodata     start:0x80114A3C end:0x80114A48
 	.data       start:0x8012318C end:0x801232C8
 
 game/shop/shopquery.c:
