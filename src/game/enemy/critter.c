@@ -2013,7 +2013,7 @@ waypoint_test:
 done:
     return result;
 }
-#pragma dont_inline on
+/* lint-allow-next-line FM006: measured -- removing it moves CritterAddAnimInsts by 3 words at unchanged size */
 #pragma opt_propagation off
 /* 0x80036A58 */ s32 CritterGetTargetSub(Critter *c, f32 *target, s32 mode)
 {
@@ -2046,8 +2046,8 @@ done:
     }
     return best;
 }
+/* lint-allow-next-line FM006: measured -- removing it moves CritterAddAnimInsts by 3 words at unchanged size */
 #pragma opt_propagation reset
-#pragma dont_inline off
 /* 0x80036B5C -- score one entry in the critter's target list against the
  * optional move targeting constraints. */
 f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
@@ -2994,6 +2994,7 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
 
 /* 0x800383A8 -- apply damage to a critter/hit node, accumulate combat
  * bookkeeping and transition a depleted critter into its death state. */
+/* lint-allow-next-line FM006: measured -- removing it moves ProcessCritter by 233 words at 1680 -> 1772 B */
 #pragma dont_inline on
 s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source)
@@ -3357,6 +3358,7 @@ credited_damage_done:
     }
     return 0;
 }
+/* lint-allow-next-line FM006: measured -- removing it moves CritterAddAnimInsts by 80 words at 444 -> 324 B */
 #pragma dont_inline off
 /* 0x80038D18 -- per-frame critter list step: reset per-player scratch, count
  * active players, then process every live critter, summing their results. */
@@ -3386,6 +3388,7 @@ s32 ProcessCritterList(void)
     }
     return total;
 }
+/* lint-allow-next-line FM006: measured -- removing it moves CritterDamage by 305 words at 2416 -> 2692 B */
 #pragma dont_inline on
 /* 0x80038DDC -- update one root critter and its child chain, including world
  * transforms, hit nodes, AI, animation, skin effects and render matrices. */
@@ -3635,6 +3638,7 @@ ai_done:
     c->pos[2] = c->vel[2] + c->pos[2];
     return 1;
 }
+/* lint-allow-next-line FM006: measured -- removing it moves ProcessCritterList by 5 words at unchanged size */
 #pragma dont_inline off
 /* 0x8003946C -- consume a critter's pending knockback vector, applying the
  * damage-class scale and clamping the accumulated velocity. */
@@ -5299,6 +5303,7 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
  *  s16 moveidx[8] at 0x20, which the shipped PTRN records and
  *  CritterInitHeader's 8-entry swap loop both confirm, and the readers here
  *  index it as moveidx[c->unk120 + 1] -- the same addresses as before.) */
+/* lint-allow-next-line FM006: measured -- removing it moves CritterFindMoveType by 9 words at unchanged size */
 #pragma opt_propagation off
 void CritterAnimate(Critter *c)
 {
@@ -5404,6 +5409,7 @@ void CritterAnimate(Critter *c)
         c->curmove = -1;
     }
 }
+/* lint-allow-next-line FM006: measured -- removing it moves CritterMoveDone by 8 words at unchanged size */
 #pragma opt_propagation reset
 
 /* 0x8003C6FC -- record cooldown/pattern progress and install the move that
@@ -5520,6 +5526,7 @@ s32 CritterGetDmove(CritterMove *a, CritterMove *b)
 
 /* 0x8003C988 -- select an available move of the requested type, preferring
  * the candidate whose cooldown expires first. */
+/* lint-allow-next-line FM006: measured -- removing it moves CritterAnimate by 7 words at unchanged size */
 #pragma opt_propagation off
 s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
 {
@@ -5567,6 +5574,7 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     }
     return result;
 }
+/* lint-allow-next-line FM006: measured -- removing it moves CritterAddAnimInsts by 3 words at unchanged size */
 #pragma opt_propagation on
 /* -- externs used by CritterAnimInterrupt -- */
 extern void *SfxGetNode(s32 node);
@@ -5745,6 +5753,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 
 /* 0x8003D0A4 -- execute the visual/sound payload attached to an action
  * descriptor at either a supplied world position or the critter node. */
+/* lint-allow-next-line FM006: measured -- removing it moves CritterDoTexmodNode by 24 words at unchanged size */
 #pragma opt_lifetimes off
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
@@ -5992,6 +6001,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 done:
     return result;
 }
+/* lint-allow-next-line FM006: measured -- removing it moves CritterDoSfx by 213 words at 1156 -> 1160 B */
 #pragma opt_lifetimes reset
 /* 0x8003D7E0 */
 s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
@@ -6390,7 +6400,9 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
 }
 /* 0x8003E2E8 -- reserve the first free critter pool slot, wipe it, and stamp
  * it with a fresh index + rolling unique id. */
+/* lint-allow-next-line FM006: measured -- removing it moves CritterGetTargetSub by 3 words at unchanged size */
 #pragma opt_propagation off
+/* lint-allow-next-line FM006: measured -- removing it moves CritterEmptyInst by 32 words at 256 -> 252 B */
 #pragma opt_common_subs off
 Critter *CritterEmptyInst(void)
 {
@@ -6433,7 +6445,9 @@ Critter *CritterEmptyInst(void)
     }
     return (Critter *)c;
 }
+/* lint-allow-next-line FM006: measured -- removing it moves CritterAddAnimInsts by 26 words at unchanged size */
 #pragma opt_common_subs reset
+/* lint-allow-next-line FM006: measured -- removing it moves CritterBossAI by 446 words at unchanged size */
 #pragma opt_propagation reset
 /* 0x8003E3E8 -- instantiate the model/animation tree and cache the principal
  * scene nodes and world-space transforms used by movement and collision. */
