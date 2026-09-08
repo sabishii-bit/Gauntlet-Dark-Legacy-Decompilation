@@ -213,6 +213,7 @@ void fn_800C38A0(void)
  * pb_objregs geometry path. */
 int fn_800C38C0(void* a, u8* obj)
 {
+    int pcount;
     u8* def;
     int hi;
     u8* v1c;
@@ -221,7 +222,6 @@ int fn_800C38C0(void* a, u8* obj)
     int v24;
     u8 unusedA[4];
     u32 packed;
-    int pcount;
     u8* prim;
     int stride;
     PBObjSlot* t;
