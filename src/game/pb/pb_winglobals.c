@@ -59,16 +59,25 @@ typedef struct PbWGProj {
 /* texture bank views (shared shape with pb_objregs/pb_texture) */
 typedef struct PbWGBank {
     u8   _pad00[0x48];
-    s32  nslots;           /* 0x48 */
+    u32  nslots;           /* 0x48 : GC uses cmplwi/srwi on it, so unsigned */
     u8   _pad4c[0x2c];
     u8*  stamps;           /* 0x78 : 8 bytes per slot */
 } PbWGBank;
 
+/* The GC accesses read the busy flag at (table + i*0x10 + 0x10) and the bank
+ * pointer at (table + i*0x10 + 4), so the 16-byte entries start one word
+ * into the table: entry i has its bank pointer at +0x00 and its busy flag
+ * at +0x0C, behind a leading count word. */
 typedef struct PbWGBankRef {   /* 16 bytes */
-    s32 m0;                /* 0x00 : count (in refs[0]) / busy flag */
-    PbWGBank* bank;        /* 0x04 */
-    u8  _pad8[8];
+    PbWGBank* bank;        /* 0x00 */
+    u8  _pad04[8];
+    s32 busy;              /* 0x0C */
 } PbWGBankRef;
+
+typedef struct PbWGBankTable {
+    s32 count;             /* 0x00 */
+    PbWGBankRef refs[1];   /* 0x04 */
+} PbWGBankTable;
 
 /* *gWinGlobals view used by this TU */
 typedef struct PbWGGlobals {
@@ -77,7 +86,7 @@ typedef struct PbWGGlobals {
     u8    _pad20[0x08];
     u32* volatile hook28;  /* 0x28 */
     u8    _pad2c[0x04];
-    PbWGBankRef* banks;    /* 0x30 */
+    PbWGBankTable* banks;  /* 0x30 */
     u8    _pad34[0x04];
     PbWGProj* volatile proj; /* 0x38 */
 } PbWGGlobals;
@@ -358,27 +367,22 @@ void fn_800C1004(void)
         u32 m;
         u32 mm[2];
         u64 mk;
-        s32 off;
 
         m = ~(((b & 0xFF) << 24) | ((b & 0xFF) << 16) |
               ((b & 0xFF) << 8) | (b & 0xFF));
         mm[0] = m;
         mm[1] = mm[0];
         mk = *(u64*)mm;
-        for (i = 0, off = 0; i < g->banks[0].m0; i++, off += 0x10) {
-            s32* p = (s32*)((u8*)g->banks + off);
-            s32 busy = p[4];
-            s32* q = p + 1;
-            if (busy == 0) {
-                PbWGBank* bank = *(PbWGBank**)q;
-                u32 nslots = bank->nslots;
-                if (nslots != 0) {
-                    u8* stamps = bank->stamps;
-                    s32 so = 0;
+        for (i = 0; i < g->banks->count; i++) {
+            PbWGBankRef* ref = &g->banks->refs[i];
+            if (g->banks->refs[i].busy == 0) {
+                PbWGBank* bank = ref->bank;
+                if (bank->nslots != 0) {
+                    u64* stamps = (u64*)bank->stamps;
+                    s32 nwords = (bank->nslots + 7) >> 3;
                     s32 k;
-                    for (k = (nslots + 7) >> 3; k > 0; k--) {
-                        *(u64*)(stamps + so) &= mk;
-                        so += 8;
+                    for (k = 0; k < nwords; k++) {
+                        stamps[k] &= mk;
                     }
                 }
             }
