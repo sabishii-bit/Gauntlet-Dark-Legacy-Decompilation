@@ -142,6 +142,7 @@ holds the two word streams and the repo root:
 """
 import argparse
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -861,6 +862,27 @@ def unit_rows(unit):
     its row with `verdict: COUNT-ASYMMETRIC` and `differing_words: null` --
     the same determinate answer the single-function mode gives at exit 0,
     not an omission.
+
+    RUN-61 ITEM 3, two additions, both because a JSON row was being read
+    for something it did not say.
+
+    `differing_words: null` is the honest value (0 would read as EXACT), but
+    a census that sums the column throws on it. Reproduced at 20c0d7ea1 with
+    build/t4_scratch/t4_wf_json_probe.py: game/movie/movieplayer, 52 rows,
+    one count-asymmetric (DTextInitColorRamp), and
+    `sum(row["differing_words"] for row in rows)` raises `TypeError:
+    unsupported operand type(s) for +: 'int' and 'NoneType'`; game/enemy/
+    enemy has no such row and sums to 830. So every row now also carries the
+    BOOLEAN `count_asymmetric` and the integer `instruction_delta`, which a
+    consumer can filter and sum without pattern-matching a verdict string,
+    and the whole-TU JSON carries integer `totals`.
+
+    And every row carries `body_sha256_ours` / `body_sha256_target`. Equal
+    instruction COUNTS with zero differing words already imply equal bytes,
+    but the row was being used the other way round -- "same word count" read
+    as "same bytes" -- and lanes hand-rolled their own hashing to check.
+    The hash is of the raw body bytes this row measured, so the two are
+    never out of step.
     """
     ours_path, kind = our_object(unit)
     target_path = target_object(unit)
@@ -881,7 +903,11 @@ def unit_rows(unit):
             continue
         row = {"function": name, "pinned": name in served,
                "target_insns": len(tgt) // 4,
-               "ours_insns": len(ours) // 4}
+               "ours_insns": len(ours) // 4,
+               "instruction_delta": (len(ours) - len(tgt)) // 4,
+               "count_asymmetric": len(ours) != len(tgt),
+               "body_sha256_ours": hashlib.sha256(ours).hexdigest(),
+               "body_sha256_target": hashlib.sha256(tgt).hexdigest()}
         if len(ours) != len(tgt):
             row.update(verdict="COUNT-ASYMMETRIC", differing_words=None,
                        mnemonic_divergence=None, klass=None, decode=None)
@@ -918,6 +944,31 @@ def unit_rows(unit):
                    decode={cls: counts[cls] for cls in DECODE_CLASSES})
         rows.append(row)
     return rows, kind
+
+
+def unit_totals(rows):
+    """Integer whole-TU totals, so a consumer never sums a null column.
+
+    `differing_words_total` sums only the rows that HAVE a residual measured;
+    `count_asymmetric` says how many rows were left out of it, so the total
+    can never be read as covering the TU when it does not. Every value here
+    is an int.
+    """
+    measured = [row for row in rows if not row["count_asymmetric"]]
+    return {
+        "functions": len(rows),
+        "measured": len(measured),
+        "count_asymmetric": sum(1 for row in rows if row["count_asymmetric"]),
+        "pinned": sum(1 for row in rows if row["pinned"]),
+        "exact": sum(1 for row in measured if row["differing_words"] == 0),
+        "differing_words_total": sum(row["differing_words"]
+                                     for row in measured),
+        "open_differing_words": sum(row["differing_words"] for row in measured
+                                    if not row["pinned"]),
+        "body_equal": sum(1 for row in rows
+                          if row["body_sha256_ours"]
+                          == row["body_sha256_target"]),
+    }
 
 
 def print_unit(unit, rows, kind):
@@ -1060,7 +1111,8 @@ def main():
     if function is None:
         rows, kind = unit_rows(unit)
         if args.as_json:
-            print(json.dumps({"unit": unit, "object": kind, "rows": rows},
+            print(json.dumps({"unit": unit, "object": kind,
+                              "totals": unit_totals(rows), "rows": rows},
                              indent=1))
         else:
             print_unit(unit, rows, kind)
