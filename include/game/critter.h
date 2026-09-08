@@ -55,6 +55,9 @@
  */
 
 struct Critter;
+struct CritterColDescriptor;  /* one stride-0x50 NODE record of a loaded
+                               * CRITTER wad; completed in critter.c, the only
+                               * TU that dereferences it */
 struct CritterHeader;   /* loaded type template (CRITTER.OBJ CritterInitHeader);
                          * full layout not reconstructed - known offsets:
                          *   0x0E4 f32  base health scale
@@ -118,6 +121,37 @@ typedef struct CritterMove {
     f32 turnRate;         /* 0x88 CritterRotate max turn rate (rad/tick, x frameStep) */
     f32 holdDuration;     /* 0x8C CritterAnimate move-hold/fade duration        */
 } CritterMove;            /* size 0x90 */
+
+/* -- CritterHitNode (0x5C): one runtime collision/attach node.  Critter has a
+ *    fixed array of 16 of them at +0x4F8 (0x5C0 bytes == 16 * 0x5C); the live
+ *    count is the owning type's CritterPackedType.colCount (+0x118), which
+ *    CritterInitInst uses as the memset length (`colCount * 92`) and every
+ *    collide/sfx walk uses as the loop bound.  Stride 0x5C is GC-verified
+ *    (CritterUpdateSkinfx / CritterInitColnodes step by 0x5C; ProcessCritter
+ *    indexes `c->unkAB8 * 0x5C`).  The 16-entry bound is consistent with the
+ *    shipped assets: the NODE section of every CRITTER/*.WAD is a stride-0x50
+ *    CritterColDescriptor table and the largest per-type colCount shipped is
+ *    12 (GARM.WAD), with colBase + colCount within the file's NODE count for
+ *    every type in all 18 files (build/a_lane/a_wad.py). -- */
+typedef struct CritterHitNode {
+    struct CritterColDescriptor *descriptor;
+                              /* 0x00 the owning type's NODE record; set by
+                               * CritterInitColnodes to
+                               * `file->nodes + (hdr->colBase + i) * 0x50`,
+                               * so the pointee is one stride-0x50 NODE entry
+                               * (the WAD directory proves that stride) */
+    void *volatile active;    /* 0x04 live atree/scene node; NULL == inactive  */
+    void *boundNode;          /* 0x08 secondary node handle; walked via the
+                                 * MBNode parent/child links in
+                                 * CritterInitColnodes                          */
+    f32 matrix[12];           /* 0x0C node world transform (3x4)                */
+    f32 position[3];          /* 0x3C node world position                       */
+    u8 _pad48[4];             /* 0x48                                           */
+    void *dmgfx;              /* 0x4C optional DmgFxCircleAdd handle            */
+    s32 state;                /* 0x50 per-node hit state                        */
+    f32 activeUntil;          /* 0x54 window end   (active while from < until)  */
+    f32 activeFrom;           /* 0x58 window start                              */
+} CritterHitNode;             /* size 0x5C */
 
 /* ==================================================================== *
  *  Critter - the active critter record (0xAE0 / 2784 bytes)            *
@@ -207,8 +241,8 @@ typedef struct Critter {
     f32 counterTime;          /* 0x4DC last counter-update timestamp           */
     s16 unk4E0[4];            /* 0x4E0 four ids (init -1)                     */
     f32 timed[4];              /* 0x4E8 expiry times paired with unk4E0 ids  */
-    u8  hitnodes[0x5C0];      /* 0x4F8 collision/sfx nodes (16 x 0x5C,         */
-                              /*       hdr->0x118 count)                       */
+    CritterHitNode hitnodes[16]; /* 0x4F8 collision/sfx nodes; hdr->colCount   */
+                              /*       of them are live (0x5C0 bytes)          */
     s16 unkAB8;               /* 0xAB8                                        */
     s16 unkABA;               /* 0xABA (init -1)                              */
     s16 unkABC;               /* 0xABC (init -1)                              */
