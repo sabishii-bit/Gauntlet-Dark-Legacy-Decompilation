@@ -458,7 +458,6 @@ int scroll_credits(void) {
     int alive;
     u32 idx;
     int offBottom;
-    int offset;
     void* line;
 
     text = (char**)lbl_80118188;
@@ -466,7 +465,6 @@ int scroll_credits(void) {
     alive = 1;
     offBottom = 0;
     idx = 0;
-    offset = 0;
     y = credits_scroll;
 
     /* column 1 (92 lines) */
@@ -475,7 +473,7 @@ int scroll_credits(void) {
             break;
         }
         if (y < 384) {
-            entry = (char**)((u8*)text + offset);
+            entry = &text[idx];
             line = DrawText(32, 383 - y, 13, 0xFFFFFF,
                             entry[337]);
             if (line != NULL) {
@@ -492,23 +490,21 @@ int scroll_credits(void) {
                 alive = 0;
             }
         }
-        idx++;
         y -= 21;
-        offset += 4;
+        idx++;
     } while (idx < 92);
 
     if (offBottom != 0 || alive != 0) {
         result = 1;
     }
 
-    offset = 0;
     idx = 0;
     do {
         if (y < 0) {
             break;
         }
         if (y < 384) {
-            entry = (char**)((u8*)text + offset);
+            entry = &text[idx];
             line = DrawTextKeepScale(creditsTextScale, 32, 383 - y, 13,
                                      0xFFFFFF,
                                      entry[429]);
@@ -523,19 +519,17 @@ int scroll_credits(void) {
                 alive = 0;
             }
         }
-        idx++;
         y -= 15;
-        offset += 4;
+        idx++;
     } while (idx < 40);
 
-    offset = 0;
     idx = 0;
     do {
         if (y < 0) {
             break;
         }
         if (y < 384) {
-            entry = (char**)((u8*)text + offset);
+            entry = &text[idx];
             line = DrawTextKeepScale(creditsTextScale, 32, 383 - y, 13,
                                      0xFFFFFF,
                                      entry[469]);
@@ -550,9 +544,8 @@ int scroll_credits(void) {
                 alive = 0;
             }
         }
-        idx++;
         y -= 15;
-        offset += 4;
+        idx++;
     } while (idx < 10);
 
     if (gFrameTicks != 0) {
