@@ -5392,7 +5392,6 @@ void CritterAnimate(Critter *c)
  * just completed its blend. */
 void CritterMoveDone(Critter *c, s32 moveIndex)
 {
-    u8 unused[1];
     CritterMove* move;
     Critter* child;
     s32 nextPatternMove;
