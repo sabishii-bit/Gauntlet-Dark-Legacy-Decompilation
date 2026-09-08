@@ -8,6 +8,8 @@
 #include "game/worldinfo.h"
 #include "game/item.h"
 #include "game/leveldata.h"
+#include "game/mbnode.h"
+#include "game/newcam.h"
 #include "game/mbobject.h"
 #include "game/player.h"
 #include "game/worldobj.h"
@@ -1349,7 +1351,7 @@ void world_update(void)
             WorldObj* w = FindWORLDOBJ(strs + 0xd0);
 
             if (w != 0 && w->nodeptr != 0) {
-                *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
+                w->nodeptr->flags |= 2;
             } else {
                 ErrorPrintf(strs + 0xdc);
             }
@@ -1358,7 +1360,7 @@ void world_update(void)
             WorldObj* w = FindWORLDOBJ(strs + 0xfc);
 
             if (w != 0 && w->nodeptr != 0) {
-                *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
+                w->nodeptr->flags |= 2;
             } else {
                 ErrorPrintf(strs + 0x108);
             }
@@ -1486,10 +1488,10 @@ void world_update(void)
         case 0x26:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 void* found = MBOX_FindObject(strs + 0x128);
-                u32 o = (u32)gBossObj->hitnode1;
+                mbnode* o = (mbnode*)gBossObj->hitnode1;
 
-                if (o != 0 && *(u32*)(o + 0x78) != 0) {
-                    MBSetObject((void*)*(s32*)(o + 0x78), found);
+                if (o != 0 && o->child != 0) {
+                    MBSetObject(o->child, found);
                 }
                 gBossObj->unkAC6 = 0;
                 lbl_8034489C = 6;
@@ -1510,7 +1512,7 @@ void world_update(void)
 
             if (dt < lbl_80346C40) {
                 if (!(*(s32*)(e + 0x64) & 0x4020)) {
-                    u32 o = *(u32*)(e + 0x14);
+                    mbnode* o = *(mbnode**)(e + 0x14);
 
                     if (o != 0) {
                         s32 al = (s32)(lbl_80346C90 * dt);
@@ -1519,7 +1521,7 @@ void world_update(void)
                             al -= 255;
                         }
                         MBTreeSetAlpha(
-                            (void*)*(s32*)(*(s32*)(o + 0x78) + 0x78), al, 2);
+                            o->child->child, al, 2);
                     }
                 }
             }
@@ -3022,6 +3024,7 @@ void fn_8005ACE0(f32* position)
         if ((u32)value >= 17) {
             return;
         }
+        // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawText(-screenX, screenY, 0, 0xFFFFFF, "%s:%s:%d(%d)",
                  names[displayType + 43], names[value + 57], field,
                  item->minplayers);
@@ -3051,6 +3054,7 @@ void fn_8005ACE0(f32* position)
         break;
 
     default:
+        // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawText(-screenX, screenY, 0, 0xFFFFFF, "%s(%d)",
                  names[displayType + 43], item->minplayers);
         break;
@@ -5060,7 +5064,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             StartFXMat(0x20, &item->objgrp);
             StartFXMat(0x21, &item->objgrp);
             MBOX_NewObject(&objects[0x14C], item->objgrp.node,
-                           *(s32*)((u8*)item->objgrp.node + 0x74), 0x80800);
+                           (s32)item->objgrp.node->parent, 0x80800);
             if (item->info->type == 1 && *(Item**)&item->data.raw[0xC] != 0) {
                 DeleteItem(*(Item**)&item->data.raw[0xC], 0);
             }
@@ -5150,11 +5154,11 @@ found_gen:
                 StartFXMat(0x21, &item->objgrp);
                 if (*sub == 0x30) {
                     MBOX_NewObject(&objects[0x164], item->objgrp.node,
-                                   *(s32*)((u8*)item->objgrp.node + 0x74),
+                                   (s32)item->objgrp.node->parent,
                                    0x80800);
                 } else {
                     MBOX_NewObject(&objects[0x170], item->objgrp.node,
-                                   *(s32*)((u8*)item->objgrp.node + 0x74),
+                                   (s32)item->objgrp.node->parent,
                                    0x80800);
                 }
                 if (item->info->type == 1 && *(Item**)&item->data.raw[0xC] != 0) {
@@ -5269,7 +5273,7 @@ found_gen:
             AudioGeneratorDies(&v[1], *generator);
             enemy_count = gNumEnemies;
             for (k = 0; k < enemy_count; k++) {
-                if (gEnemies[k].generator == (struct Item*)item) {
+                if (gEnemies[k].generator == item) {
                     gEnemies[k].generator = 0;
                 }
             }
@@ -5304,7 +5308,7 @@ found_gen:
                                      gCurLevel->trap_damage));
                 fn_8009D9D8(&v[1]);
                 MBOX_NewObject(lbl_80346F90, item->objgrp.node,
-                               *(s32*)((u8*)item->objgrp.node + 0x74),
+                               (s32)item->objgrp.node->parent,
                                0x80800);
                 alive = 0;
                 ret = -2;
@@ -5321,7 +5325,7 @@ found_gen:
                                      gCurLevel->trap_damage));
                 fn_8009DA28(&v[1]);
                 MBOX_NewObject(lbl_80346FA0, item->objgrp.node,
-                               *(s32*)((u8*)item->objgrp.node + 0x74),
+                               (s32)item->objgrp.node->parent,
                                0x80800);
                 alive = 0;
                 ret = -2;
@@ -6155,7 +6159,6 @@ extern s32   lbl_803447DC;
 extern s32   lbl_803447E0;
 extern s32   lbl_80344500;
 extern s32   lbl_80344960;
-extern u8*   lbl_80344A6C;
 extern u32   lbl_80344A80;
 extern s32   sNumLookoutParams;
 extern s32   sMusicSubIndex;
@@ -6335,9 +6338,9 @@ void fn_800606FC(void)
         }
         vis = MBWorldSphereVisible3(it->objgrp.attn_pos, it->visrad);
         if (vis != 0 && lbl_80344A6C != NULL && (u32)(lbl_80344A80 - 1) <= 1) {
-            f32 dy = *(f32*)(lbl_80344A6C + 0xA8) - it->objgrp.attn_pos[1];
-            f32 dx = *(f32*)(lbl_80344A6C + 0xA4) - it->objgrp.attn_pos[0];
-            f32 dz = *(f32*)(lbl_80344A6C + 0xAC) - it->objgrp.attn_pos[2];
+            f32 dy = lbl_80344A6C->attention.y - it->objgrp.attn_pos[1];
+            f32 dx = lbl_80344A6C->attention.x - it->objgrp.attn_pos[0];
+            f32 dz = lbl_80344A6C->attention.z - it->objgrp.attn_pos[2];
             f32 d2 = dy * dy;
             d2 = dx * dx + d2;
             d2 = dz * dz + d2;
@@ -6771,7 +6774,7 @@ void fn_800606FC(void)
             link = (u8*)it->data.container.contents;
             if (link != NULL && *(void**)it->atree != NULL &&
                 it->info->item.subtype != 0x2C) {
-                void* node2 = *(void**)(link + 0x64);
+                mbnode* node2 = ((Item*)link)->objgrp.node;
                 if ((s8)it->action < 2) {
                     animinfo* anim = &((atree*)it->atree)->animinfo;
                     f32 al;
@@ -6786,9 +6789,9 @@ void fn_800606FC(void)
                         al = sItemFloorRadius;
                     }
                     MBTreeSetFlags(node2, 8, 0);
-                    *(f32*)((u8*)node2 + 0x40) = al;
-                    *(f32*)((u8*)node2 + 0x44) = al;
-                    *(f32*)((u8*)node2 + 0x48) = al;
+                    node2->scale[0] = al;
+                    node2->scale[1] = al;
+                    node2->scale[2] = al;
                 } else {
                     MBTreeClearFlags(node2, 8, 0);
                 }
@@ -8216,7 +8219,7 @@ void fn_80062A00(void)
     u8* rt;
     u8* row;
     WorldObj* w;
-    void* node;
+    mbnode* node;
     s32 heard;
     s32 i;
     s32 off;
@@ -8257,9 +8260,9 @@ void fn_80062A00(void)
         st = w->triggerstate;
         prev = w->ptriggerstate;
         gen = did_generate(w, 1);
-        pos[0] = *(f32*)((u8*)w->nodeptr + 48);
-        pos[1] = *(f32*)((u8*)w->nodeptr + 52);
-        pos[2] = *(f32*)((u8*)w->nodeptr + 56);
+        pos[0] = w->nodeptr->mat[3][0];
+        pos[1] = w->nodeptr->mat[3][1];
+        pos[2] = w->nodeptr->mat[3][2];
         dcur = *(f32*)(row + 2400);
         kind = w->triggertype & 0xFF;
         flags8 = (w->triggertype >> 8) & 0xFF;
@@ -8317,8 +8320,8 @@ void fn_80062A00(void)
             if (node == NULL) {
                 goto tail;
             }
-            if (*(u32*)((u8*)node + 96) & 0x200) {
-                a = 255 - *(u8*)((u8*)node + 83);
+            if (node->flags & 0x200) {
+                a = 255 - node->alpha;
             } else {
                 a = 0;
             }
@@ -8389,7 +8392,7 @@ void fn_80062A00(void)
             }
         } else {
             if (!(flags8 & 8) && gen >= 2) {
-                *(f32*)((u8*)w->nodeptr + 52) =
+                w->nodeptr->mat[3][1] =
                     *(f32*)(row + 600) + *(f32*)row;
                 goto next;
             }
@@ -8421,7 +8424,7 @@ void fn_80062A00(void)
             } else {
                 w->flags &= ~0x08000000;
             }
-            *(f32*)((u8*)w->nodeptr + 52) = *(f32*)(row + 600) + *(f32*)row;
+            w->nodeptr->mat[3][1] = *(f32*)(row + 600) + *(f32*)row;
         }
     tail:
         if (act != 0) {
@@ -8616,7 +8619,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
             }
         }
         if (sp->pickup >= 0) {
-            e->gotitem = (struct Item*)&sItems[sp->pickup];
+            e->gotitem = &sItems[sp->pickup];
         }
     } else if (g > -99) {
         if (sp->strength >= 4 || e->type > 1) {

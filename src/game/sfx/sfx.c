@@ -113,26 +113,12 @@
 #include "game/camera.h"
 #include "game/effect.h"
 #include "game/player.h"
+#include "game/mbnode.h"
 
 #ifndef offsetof
 #define offsetof(type, member) ((u32)&(((type*)0)->member))
 #endif
 
-/* --- partial MB scene-node view (offsets verified in this TU's asm) --- */
-struct mbnode {
-    /* 0x00 */ f32 mat[12];   /* 3x4 rotation rows                          */
-    /* 0x30 */ f32 pos[3];
-    /* 0x3C */ u8 _3c[4];
-    /* 0x40 */ f32 scale[3];
-    /* 0x4C */ u8 _4c[0x14];
-    /* 0x60 */ u32 flags;
-    /* 0x64 */ u8 _64[6];
-    /* 0x6A */ s16 frame;
-    /* 0x6C */ u8 _6c[8];
-    /* 0x74 */ struct mbnode* parent;
-    /* 0x78 */ struct mbnode* child;
-    /* 0x7C */ struct mbnode* sibling;
-};
 
 /* skin-FX record packed by SetSkinFX, driven by ProcessSkinFX */
 typedef struct SkinFx {
@@ -380,9 +366,9 @@ struct mbnode* DmgFxConeAdd(s32 objid, f32* pos, s32 alpha, f32 rx, f32 rz, f32 
         sz = sx;
     }
     node = MBOX_NewObject("COLCYL", 0, objid, flags);
-    node->pos[0] = pos[0];
-    node->pos[1] = pos[1];
-    node->pos[2] = pos[2];
+    node->mat[3][0] = pos[0];
+    node->mat[3][1] = pos[1];
+    node->mat[3][2] = pos[2];
     DmgFxNodeUpdate(node, 1, sx, sz, rotp, roty);
     if (flags & 1) {
         MBTreeSetFlags(node, 1, 0);
@@ -409,9 +395,9 @@ struct mbnode* DmgFxCircleAdd(s32 objid, f32* pos, s32 alpha, f32 r, f32 rotp, f
         sz = sx;
     }
     node = MBOX_NewObject("COLCIR", 0, objid, flags);
-    node->pos[0] = pos[0];
-    node->pos[1] = pos[1];
-    node->pos[2] = pos[2];
+    node->mat[3][0] = pos[0];
+    node->mat[3][1] = pos[1];
+    node->mat[3][2] = pos[2];
     DmgFxNodeUpdate(node, 1, sx, sz, rotp, roty);
     if (flags & 1) {
         MBTreeSetFlags(node, 1, 0);
@@ -1712,11 +1698,11 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                     f32* pv = (f32*)(en + 48);
                     f32 t0;
                     t0 = pv[0];
-                    e->node->pos[0] = t0;
+                    e->node->mat[3][0] = t0;
                     t0 = pv[1];
-                    e->node->pos[1] = t0;
+                    e->node->mat[3][1] = t0;
                     t0 = pv[2];
-                    e->node->pos[2] = t0;
+                    e->node->mat[3][2] = t0;
                 }
             }
         }
@@ -2105,9 +2091,9 @@ void SfxSetMat(s32 idx, f32* mat, f32* pos)
         CopyMat3(mat, e->node);
     }
     if (pos != NULL) {
-        e->node->pos[0] = pos[0];
-        e->node->pos[1] = pos[1];
-        e->node->pos[2] = pos[2];
+        e->node->mat[3][0] = pos[0];
+        e->node->mat[3][1] = pos[1];
+        e->node->mat[3][2] = pos[2];
     }
 }
 
@@ -2376,9 +2362,9 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
     e->maxtime = e->endtime - gClockTime;
     e->flags = fla;
     if (pos != NULL) {
-        e->node->pos[0] = pos[0];
-        e->node->pos[1] = pos[1];
-        e->node->pos[2] = pos[2];
+        e->node->mat[3][0] = pos[0];
+        e->node->mat[3][1] = pos[1];
+        e->node->mat[3][2] = pos[2];
     }
     return idx;
 }
@@ -3932,7 +3918,7 @@ void ChangeEffect(s32 idx, s32 type, u32 newflags)
             root = ATREE_ROOT(e);
             n = root->node;
             newflags |= n->flags & 0x890;
-            oldframe = n->frame;
+            oldframe = n->ambient_add;
             AtreeDelete(&e->atree[0]);
             ATREE_ROOT(e) = AtreeInit(h->atree, &e->atree[0], 0, 0);
             MBNodeSetParent(ATREE_ROOT(e)->node, e->node);
@@ -3974,7 +3960,7 @@ static s32 SfxDeleteParentedSub(s32 idx, struct mbnode* node, s32 fxnum, s32 mod
         if (mode != 2) {
             break;
         }
-        node = node->sibling;
+        node = node->next;
     }
     return 0;
 }
