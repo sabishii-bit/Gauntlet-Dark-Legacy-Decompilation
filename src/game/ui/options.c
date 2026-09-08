@@ -730,7 +730,7 @@ int DoOptions(void)
     s32 skipBackSound;
     u8* data = lbl_8011DD20;
 
-    choice = 0;
+    choice = OPT_NONE;
     skipBackSound = 0;
 
     /* menu clock: full speed, or (paused w/ button held) 2, else 0 */
@@ -794,7 +794,7 @@ int DoOptions(void)
         if (m->title_blit != NULL) {
             mbBlitInit3414(m->title_blit, 1);
         }
-        if ((u32)(choice + 2) <= 1 || choice == 0xF) {
+        if ((u32)(choice + 2) <= 1 || choice == OPT_INVENTORY) {
             draw_fullscreen_inventory();
         }
         return 1;
@@ -811,7 +811,7 @@ int DoOptions(void)
     switch (options_state) {
     case OPTMENU_TITLE:
         if ((gControllerButtons & 4) != 0) {
-            choice = 0xB;
+            choice = OPT_START_GAME;
         }
         switch (choice) {
         case OPT_CHANGED:
@@ -1244,7 +1244,7 @@ int DoOptions(void)
             }
             break;
         case OPT_ABORT:
-            choice = 0;
+            choice = OPT_NONE;
             break;
         case OPT_ABORTALL:
         case OPT_CTLSCHEME:
