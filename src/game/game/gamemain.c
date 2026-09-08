@@ -1192,7 +1192,6 @@ void game_main(void)
     s32 reset_player;
     s32 cond;
     s32 flag;
-    s32 flag2;
     s32 lvl;
     s32 next;
     s32 all;
@@ -1452,6 +1451,7 @@ void game_main(void)
         do_enemies();
         enemy_update();
         if (do_players() && !sndFxUpdate(1)) {
+            s32 flag2;
             lvl = (lbl_803448D0 << 8) | (lbl_803448CC & 0xFF);
             if (!lbl_80344824) {
                 gGameMode = MG_OVER;
