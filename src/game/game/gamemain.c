@@ -971,7 +971,8 @@ void fn_800553B4(void)
 /* 0x800552A4 -- animate the two halves of the loading thermometer. */
 void fn_800552A4(f32 total, f32 current)
 {
-    f32 progress = (total - current) / total;
+    f32 remaining = total - current;
+    f32 progress = remaining / total;
     mbBlitSetupVerts(lbl_80257630[1], -1.0f, -1.0f,
                      (f32)((41.0 * progress + 23.0) / 128.0), -1.0f);
     mbBlitProject(lbl_80257630[1], 0, 41 - Round((f32)(39.0 * progress)));
@@ -1009,13 +1010,11 @@ void fn_80054E78(void)
     if ((gCurLevel->flags & 4) &&
         (gGameBusy | gGameplayPauseTimer) == 0 &&
         (gControllerButtons & 4) == 0 && active != 0) {
-        f32 t;
         f32 nt;
         s32 oldi;
 
-        t = lbl_80344818;
-        oldi = (s32)t;
-        lbl_80344818 = t - gClockFrameStep;
+        oldi = (s32)lbl_80344818;
+        lbl_80344818 -= gClockFrameStep;
         nt = lbl_80344818;
         if (nt <= 0.0) {
             for (i = 0; i < 4; i++) {
