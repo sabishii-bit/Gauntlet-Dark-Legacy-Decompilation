@@ -102,7 +102,7 @@ extern s32   opt_force_player;
 extern void* lbl_8034479C;
 extern s32   options_state;
 extern s32   optionsAudioAndPrefs30[];
-extern s16   lbl_80343C14;
+extern s16   lbl_80343C14[2];
 extern f32   lbl_80343C18;
 extern f32   lbl_80343C1C;
 extern s32   lbl_80343C20;
@@ -390,6 +390,20 @@ static int stat_cx[4] = {128, 128, 384, 384};
 static int stat_rx[4] = {245, 245, 501, 501};
 static int stat_ty[4] = {33, 177, 33, 177};
 static int stat_yoff[7] = {4, 26, 46, 66, 86, 106, 126};
+
+/* GC small-data initializers. The compass position is two signed shorts,
+ * confirmed by both MBWindowTo3D's reads and Xbox's CompassPos[2]. Its
+ * scale, depth and alpha are separate scalars, not fields in a packed blob.
+ * The final four zero bytes of the claimed range are alignment slack. */
+s32 lbl_80343C00 = -1;
+s32 lbl_80343C04 = -1;
+f32 lbl_80343C08 = 1.0f;
+s32 lbl_80343C0C = 30;
+s32 lbl_80343C10 = -1;
+s16 lbl_80343C14[2] = {64, 128};
+f32 lbl_80343C18 = 1.5f;
+f32 lbl_80343C1C = 10.0f;
+s32 lbl_80343C20 = 128;
 
 #define CHAR_STAT(p) ((p)->save.stats[(p)->character])
 
@@ -2186,7 +2200,7 @@ void fn_80052134(void)
             MBTreeSetFlags(lbl_8034479C, 1, 0);
         } else {
             MBTreeClearFlags(lbl_8034479C, 1, 0);
-            MBWindowTo3D(&lbl_80343C14, &lbl_80344EE8->cam,
+            MBWindowTo3D(lbl_80343C14, &lbl_80344EE8->cam,
                          ((MBObject*)lbl_8034479C)->mat[3], lbl_80343C1C);
             for (i = 0; i < 3; i++) {
                 ((MBObject*)lbl_8034479C)->scale[i] = lbl_80343C18;
