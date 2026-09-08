@@ -1544,16 +1544,14 @@ extern s32  welcome_timer;
 
 void fn_8005351C(void)
 {
-    s32 t = 0;
+    s32 t;
     s32 state = lbl_8034481C;
     s32 inTower;
     s32 isSelect;
     s32 i;
     Player* p;
 
-    if (state >= 13 && state < WORLD_OVERRIDE_BASE) {
-        t = 1;
-    }
+    t = is_level_transition(state);
     if (t != 0) {
         inTower = 1;
     } else {
