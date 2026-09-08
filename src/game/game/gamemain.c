@@ -1166,38 +1166,27 @@ void LoadTowerAndSelect(void)
 }
 
 /* 0x80053D08 -- tear down the current front-end/world state and load a wave. */
-#pragma opt_propagation off
 #pragma opt_lifetimes off
 s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
 {
     char* strings = lbl_80112538;
     s32 result;
     f32 zero;
-    u32 buttons;
-    s32 flagMask;
-    s32 flags;
 
     EndFireScroll();
     DeleteOptionBlits();
-    lbl_8034479C = (void*)(result = 0);
+    lbl_8034479C = 0;
     SumnerEnd();
     AudioStopSelect();
-    good_wiz_enabled = result;
+    good_wiz_enabled = 0;
     Randomize(0x12D687);
-    good_wiz_state = result;
+    good_wiz_state = 0;
     ResetPlayerMissiles();
     ClearAllPlyrData();
     InitializeClockIRQ();
     vibrators_off();
 
-    buttons = *(u32*)&gControllerButtons;
-    flagMask = 0x10;
-    flags = sFlags;
-    buttons &= result;
-    flagMask = flags & flagMask;
-    flagMask ^= result;
-    buttons ^= result;
-    if ((flagMask | buttons) != 0) {
+    if ((gControllerButtons & 0x10) != 0) {
         LoadWorldData();
     }
 
@@ -1267,7 +1256,6 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
     return result;
 }
 #pragma opt_lifetimes reset
-#pragma opt_propagation reset
 
 /* 0x80054D18 -- choose and resolve the next world/level selection. */
 #pragma opt_propagation off
