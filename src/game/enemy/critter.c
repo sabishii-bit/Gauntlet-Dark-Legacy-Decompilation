@@ -192,8 +192,16 @@ typedef struct CritterPattern {
     s16 unk12;              /* 0x12 swapped s16, no consumer found in this TU */
     f32 cooldown;
     u8 _pad18[8];
-    s16 move;
-    s16 sequence[7];
+    s16 moveidx[8];         /* 0x20 the pattern's move-index chain, -1 padded.
+                             * FILE EVIDENCE (build/a_lane/a_dump.py CHIMERA.WAD
+                             * PTRN): every shipped record holds eight halfwords
+                             * here, e.g. {6, 6, -1, -1, -1, -1, -1, -1} and
+                             * {9, 10, -1 x6}; CritterInitHeader's swap loop
+                             * walks exactly 8 of them from 0x20, and the Xbox
+                             * PDB crit_pattern carries s16 moveidx[8] at 0x20.
+                             * The two readers index it as [unk120 + 1], which
+                             * is the same address the earlier `move` +
+                             * `sequence[7]` split produced. */
     CritterTargetCriteria target; /* 0x30 CritterChildCriticalMove's
                                     * CritterGetTargetSub(c, pattern+0x30, 0)
                                     * arg -- same block as CritterMove.target */
@@ -443,30 +451,50 @@ typedef struct CritterPackedType {
     struct CritterPattern *patternsPtr; /* 0x128 resolved pattern table base (stride 0x50) */
     u8 *colnodesPtr;            /* 0x12C resolved colnode table base (stride 0x50)  */
     struct CritterFileHeader *file;
-    void *attachments;
+    struct CritterAddAnim *attachments; /* 0x134 head of this type's ADDA list,
+                              * threaded by CritterInitHeader through
+                              * CritterAddAnim.next                          */
     void *atree;
     u8 _pad13C[4];
 } CritterPackedType;
 
+/* -- CritterFileHeader: the runtime record for one loaded CRITTER wad.  The
+ *    eight (count, pointer) pairs are the wad's eight sections, filled by
+ *    MBGetFromWad from the file's own trailing directory.  FILE EVIDENCE
+ *    (build/a_lane/a_wad.py over all 18 orig/GUNE5D/Gauntlet/CRITTER/*.wad):
+ *    the container is `u32 dirOffset; u32 sectionCount; u32 0; u32 0;` then the
+ *    payloads back to back, then sectionCount 16-byte directory entries
+ *    `char tag[4] (stored reversed); u32 offset; u32 count; u32 count`.  Every
+ *    file's section extents divide exactly by these strides, which is what
+ *    types the pointers below:
+ *      SFXX 0x50 CritterSfxRecord      DAMG 0x50 CritterDamageDef
+ *      DESC 0x30 CritterDescriptor     ADDA 0x30 CritterAddAnim
+ *      NODE 0x50 CritterColDescriptor  MOVE 0x90 CritterMove
+ *      PTRN 0x50 CritterPattern        TYPE 0x140 CritterPackedType
+ *    (e.g. DRAGON.WAD: SFXX@0x10 x21, DAMG@0x6A0 x17, DESC@0xBF0 x1,
+ *    ADDA@0xC20 x0, NODE@0xC20 x8, MOVE@0xEA0 x41, PTRN@0x25B0 x0,
+ *    TYPE@0x25B0 x1, directory at 0x26F0 -- each section ends exactly where
+ *    the next begins.)  No stride is inferred from spacing alone: the
+ *    directory states each section's start and count independently. -- */
 typedef struct CritterFileHeader {
     s32 state;
     s32 wad[3];
     s32 typeCount;
-    u8 *types;
+    CritterPackedType *types;
     s32 descriptorCount;
-    u8 *descriptors;
+    CritterDescriptor *descriptors;
     s32 addAnimCount;
-    u8 *addAnims;
+    struct CritterAddAnim *addAnims;
     s32 moveCount;
-    u8 *moves;
+    CritterMove *moves;
     s32 patternCount;
-    u8 *patterns;
+    CritterPattern *patterns;
     s32 nodeCount;
-    u8 *nodes;
+    CritterColDescriptor *nodes;
     s32 damageCount;
-    u8 *damage;
+    CritterDamageDef *damage;
     s32 sfxCount;
-    u8 *sfx;
+    CritterSfxRecord *sfx;
 } CritterFileHeader;
 
 /* -- CritterAddAnim (0x30): one file->addAnims[] entry, a singly-linked list
@@ -4901,8 +4929,7 @@ void CritterChildCriticalMove(Critter *c)
 
     if (c->unk11C >= 0 && c->unk120 + 1 < 8) {
         patterns = *(CritterPattern **)((u8 *)c->hdr + offsetof(CritterPackedType, patternsPtr));
-        c->nextmove =
-            patterns[c->unk11C].sequence[c->unk120];
+        c->nextmove = patterns[c->unk11C].moveidx[c->unk120 + 1];
         if (c->nextmove >= 0) {
             c->unk11E = c->unk11C;
             return;
@@ -5006,7 +5033,7 @@ void CritterChildCriticalMove(Critter *c)
         c->unk11E = (s16)patternChoice;
         c->unk126 = (s16)playerChoice;
         pattern = *(CritterPattern **)((u8 *)c->hdr + offsetof(CritterPackedType, patternsPtr));
-        c->nextmove = pattern[patternChoice].move;
+        c->nextmove = pattern[patternChoice].moveidx[0];
     } else if (moveChoice >= 0) {
         c->nextmove = (s16)moveChoice;
         c->unk126 = (s16)playerChoice;
@@ -5270,11 +5297,11 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 /* 0x8003C40C -- select/blend the active sequence, animate auxiliary trees,
  * and hand completed moves to CritterMoveDone.
  * (A second pattern-row reconstruction that lived here -- CritterAnimPatternRow,
- *  s16 sequence[8] @0x22 -- was reconciled into CritterPattern: the Xbox PDB
- *  crit_pattern record (0x50, exact) puts one s16 moveidx[8] array at 0x20
- *  followed by vis@0x30, so a 0x22-based 8-slot read crosses the field
- *  boundary; CritterPattern.move@0x20 + sequence[7]@0x22 is the same bytes and
- *  the sequence[c->unk120] read below is the same address arithmetic.) */
+ *  s16 sequence[8] @0x22 -- and a later move@0x20 + sequence[7]@0x22 split are
+ *  both superseded: CritterPattern now carries the Xbox PDB crit_pattern's
+ *  s16 moveidx[8] at 0x20, which the shipped PTRN records and
+ *  CritterInitHeader's 8-entry swap loop both confirm, and the readers here
+ *  index it as moveidx[c->unk120 + 1] -- the same addresses as before.) */
 #pragma opt_propagation off
 void CritterAnimate(Critter *c)
 {
@@ -5297,7 +5324,7 @@ void CritterAnimate(Critter *c)
     if (c->unk11E < 0 || c->unk120 < 0 || c->unk120 >= 8 ||
         (candidate = ((CritterPackedType *)c->hdr)
                          ->patternsPtr[c->unk11E]
-                         .sequence[c->unk120]) < 0) {
+                         .moveidx[c->unk120 + 1]) < 0) {
         candidate = c->nextmove;
     }
     nextIndex = candidate;
@@ -5421,7 +5448,7 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
                 CritterPattern* patterns =
                     *(CritterPattern **)((u8 *)c->hdr + offsetof(CritterPackedType, patternsPtr));
                 nextPatternMove =
-                    (&patterns[c->unk11C].move)[c->unk120];
+                    patterns[c->unk11C].moveidx[c->unk120];
             }
             if (nextPatternMove < 0) {
                 c->unk11C = -1;
@@ -7605,10 +7632,10 @@ void CritterInitHeader(void *hdr, void *file)
     s32 *wad;
     s32 swapped;
     s32 i;
-    u8 *p;
+    CritterAddAnim *anim;
     s32 j;
-    u8 *type;
-    u8 *tail;
+    CritterPackedType *owner;
+    CritterAddAnim *tail;
     s32 typeIndex;
 
     header = (CritterFileHeader *)hdr;
@@ -7616,28 +7643,28 @@ void CritterInitHeader(void *hdr, void *file)
     if (header->state == 0) {
         wad = header->wad;
         swapped = MBSetupWad(wad, (s32)file);
-        header->sfx = (u8 *)MBGetFromWad(wad,
+        header->sfx = (CritterSfxRecord *)MBGetFromWad(wad,
                                          CRITTER_SFX_TAG(lbl_8034665C),
                                          &header->sfxCount);
-        header->damage = (u8 *)MBGetFromWad(wad,
+        header->damage = (CritterDamageDef *)MBGetFromWad(wad,
                                             CritterWadTag(lbl_80346664),
                                             &header->damageCount);
-        header->moves = (u8 *)MBGetFromWad(wad,
+        header->moves = (CritterMove *)MBGetFromWad(wad,
                                            CritterWadTag(lbl_8034666C),
                                            &header->moveCount);
-        header->patterns = (u8 *)MBGetFromWad(wad,
+        header->patterns = (CritterPattern *)MBGetFromWad(wad,
                                               CritterWadTag(lbl_80346674),
                                               &header->patternCount);
-        header->nodes = (u8 *)MBGetFromWad(wad,
+        header->nodes = (CritterColDescriptor *)MBGetFromWad(wad,
                                            CritterWadTag(lbl_8034667C),
                                            &header->nodeCount);
-        header->descriptors = (u8 *)MBGetFromWad(wad,
+        header->descriptors = (CritterDescriptor *)MBGetFromWad(wad,
                                                  CritterWadTag(lbl_80346684),
                                                  &header->descriptorCount);
-        header->types = (u8 *)MBGetFromWad(wad,
+        header->types = (CritterPackedType *)MBGetFromWad(wad,
                                            CritterWadTag(lbl_8034668C),
                                            &header->typeCount);
-        header->addAnims = (u8 *)MBGetFromWad(wad,
+        header->addAnims = (struct CritterAddAnim *)MBGetFromWad(wad,
                                               CritterWadTag(lbl_80346694),
                                               &header->addAnimCount);
         if (header->types == NULL) {
@@ -7648,230 +7675,229 @@ void CritterInitHeader(void *hdr, void *file)
 
     if ((u8)swapped) {
         for (i = 0; i < header->sfxCount; i++) {
-            p = header->sfx + i * 0x50;
-            *(u16 *)(p + offsetof(CritterSfxRecord, custom0)) = CritterSwap16(*(u16 *)(p + offsetof(CritterSfxRecord, custom0)));
-            *(u16 *)(p + offsetof(CritterSfxRecord, custom1)) = CritterSwap16(*(u16 *)(p + offsetof(CritterSfxRecord, custom1)));
-            *(u32 *)(p + offsetof(CritterSfxRecord, flags)) = CritterSwap32(*(u32 *)(p + offsetof(CritterSfxRecord, flags)));
-            *(u32 *)(p + offsetof(CritterSfxRecord, linkIndex)) = CritterSwap32(*(u32 *)(p + offsetof(CritterSfxRecord, linkIndex)));
-            *(u32 *)(p + offsetof(CritterSfxRecord, textureId)) = CritterSwap32(*(u32 *)(p + offsetof(CritterSfxRecord, textureId)));
-            *(u32 *)(p + offsetof(CritterSfxRecord, audioId)) = CritterSwap32(*(u32 *)(p + offsetof(CritterSfxRecord, audioId)));
-            *(f32 *)(p + offsetof(CritterSfxRecord, life)) = CritterSwapF(*(f32 *)(p + offsetof(CritterSfxRecord, life)));
-            *(f32 *)(p + offsetof(CritterSfxRecord, rate)) = CritterSwapF(*(f32 *)(p + offsetof(CritterSfxRecord, rate)));
-            *(u32 *)(p + offsetof(CritterSfxRecord, tintColor)) = CritterSwap32(*(u32 *)(p + offsetof(CritterSfxRecord, tintColor)));
-            *(f32 *)(p + offsetof(CritterSfxRecord, scale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterSfxRecord, scale)));
+            CritterSfxRecord *rec = &header->sfx[i];
+            rec->custom0 = CritterSwap16(rec->custom0);
+            rec->custom1 = CritterSwap16(rec->custom1);
+            rec->flags = CritterSwap32(rec->flags);
+            rec->linkIndex = CritterSwap32(rec->linkIndex);
+            rec->textureId = CritterSwap32(rec->textureId);
+            rec->audioId = CritterSwap32(rec->audioId);
+            rec->life = CritterSwapF(rec->life);
+            rec->rate = CritterSwapF(rec->rate);
+            rec->tintColor = CritterSwap32(rec->tintColor);
+            rec->scale = CritterSwapF(rec->scale);
             for (j = 0; j < 3; j++) {
-                *(f32 *)(p + offsetof(CritterSfxRecord, color) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterSfxRecord, color) + j * 4));
+                rec->color[j] = CritterSwapF(rec->color[j]);
             }
         }
 
         for (i = 0; i < header->damageCount; i++) {
-            p = header->damage + i * 0x50;
-            *(u16 *)(p + offsetof(CritterDamageDef, type)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDamageDef, type)));
-            *(u16 *)(p + offsetof(CritterDamageDef, behaviorFlags)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDamageDef, behaviorFlags)));
-            *(u16 *)(p + offsetof(CritterDamageDef, sfxIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDamageDef, sfxIndex)));
-            *(u16 *)(p + offsetof(CritterDamageDef, sfx)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDamageDef, sfx)));
-            *(u16 *)(p + offsetof(CritterDamageDef, morphTargetIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDamageDef, morphTargetIndex)));
-            *(u16 *)(p + offsetof(CritterDamageDef, morphIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDamageDef, morphIndex)));
-            *(f32 *)(p + offsetof(CritterDamageDef, radius)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, radius)));
-            *(f32 *)(p + offsetof(CritterDamageDef, maxDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, maxDistance)));
-            *(f32 *)(p + offsetof(CritterDamageDef, minDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, minDistance)));
-            *(f32 *)(p + offsetof(CritterDamageDef, yaw)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, yaw)));
-            *(f32 *)(p + offsetof(CritterDamageDef, mindp)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, mindp)));
-            *(f32 *)(p + offsetof(CritterDamageDef, pitch)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, pitch)));
-            *(f32 *)(p + offsetof(CritterDamageDef, damage)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, damage)));
-            *(f32 *)(p + offsetof(CritterDamageDef, minSpeed)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, minSpeed)));
-            *(f32 *)(p + offsetof(CritterDamageDef, maxSpeed)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, maxSpeed)));
-            *(f32 *)(p + offsetof(CritterDamageDef, gravity)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, gravity)));
-            *(f32 *)(p + offsetof(CritterDamageDef, morphSpeed)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, morphSpeed)));
-            *(f32 *)(p + offsetof(CritterDamageDef, yawSpread)) = CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, yawSpread)));
-            *(u32 *)(p + offsetof(CritterDamageDef, flags)) = CritterSwap32(*(u32 *)(p + offsetof(CritterDamageDef, flags)));
+            CritterDamageDef *def = &header->damage[i];
+            def->type = CritterSwap16(def->type);
+            def->behaviorFlags = CritterSwap16(def->behaviorFlags);
+            def->sfxIndex = CritterSwap16(def->sfxIndex);
+            def->sfx = CritterSwap16(def->sfx);
+            def->morphTargetIndex = CritterSwap16(def->morphTargetIndex);
+            def->morphIndex = CritterSwap16(def->morphIndex);
+            def->radius = CritterSwapF(def->radius);
+            def->maxDistance = CritterSwapF(def->maxDistance);
+            def->minDistance = CritterSwapF(def->minDistance);
+            def->yaw = CritterSwapF(def->yaw);
+            def->mindp = CritterSwapF(def->mindp);
+            def->pitch = CritterSwapF(def->pitch);
+            def->damage = CritterSwapF(def->damage);
+            def->minSpeed = CritterSwapF(def->minSpeed);
+            def->maxSpeed = CritterSwapF(def->maxSpeed);
+            def->gravity = CritterSwapF(def->gravity);
+            def->morphSpeed = CritterSwapF(def->morphSpeed);
+            def->yawSpread = CritterSwapF(def->yawSpread);
+            def->flags = CritterSwap32(def->flags);
             for (j = 0; j < 3; j++) {
-                *(f32 *)(p + offsetof(CritterDamageDef, offset) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterDamageDef, offset) + j * 4));
+                def->offset[j] =
+                    CritterSwapF(def->offset[j]);
             }
         }
 
         for (i = 0; i < header->moveCount; i++) {
-            p = header->moves + i * 0x90;
-            *(u16 *)(p + offsetof(CritterMove, anim)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, anim)));
-            *(u16 *)(p + offsetof(CritterMove, node)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, node)));
-            *(u16 *)(p + offsetof(CritterMove, interruptAnim0)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, interruptAnim0)));
-            *(u16 *)(p + offsetof(CritterMove, interruptAnim1)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, interruptAnim1)));
-            *(u16 *)(p + offsetof(CritterMove, frameEnd)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, frameEnd)));
-            *(u16 *)(p + offsetof(CritterMove, frameEnd2)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, frameEnd2)));
-            *(u16 *)(p + offsetof(CritterMove, link)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, link)));
-            *(u16 *)(p + offsetof(CritterMove, unk56)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMove, unk56)));
-            *(u16 *)(p + offsetof(CritterMoveFx, sfx)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMoveFx, sfx)));
-            *(u16 *)(p + offsetof(CritterMoveFx, sfxFrame)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMoveFx, sfxFrame)));
-            *(u16 *)(p + offsetof(CritterMoveFx, sfx2)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMoveFx, sfx2)));
-            *(u16 *)(p + offsetof(CritterMoveFx, sfx2Frame)) = CritterSwap16(*(u16 *)(p + offsetof(CritterMoveFx, sfx2Frame)));
-            *(u32 *)(p + offsetof(CritterMove, flags)) = CritterSwap32(*(u32 *)(p + offsetof(CritterMove, flags)));
-            *(u32 *)(p + offsetof(CritterMove, unk08)) = CritterSwap32(*(u32 *)(p + offsetof(CritterMove, unk08)));
-            *(u32 *)(p + offsetof(CritterMove, frameStart)) = CritterSwap32(*(u32 *)(p + offsetof(CritterMove, frameStart)));
-            *(u32 *)(p + offsetof(CritterMove, frameStart2)) = CritterSwap32(*(u32 *)(p + offsetof(CritterMove, frameStart2)));
-            *(f32 *)(p + offsetof(CritterMove, framePeriod)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, framePeriod)));
-            *(f32 *)(p + offsetof(CritterMove, cooldown)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, cooldown)));
-            *(f32 *)(p + offsetof(CritterMove, readyDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, readyDistance)));
-            *(f32 *)(p + offsetof(CritterMove, turnRate)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, turnRate)));
-            *(f32 *)(p + offsetof(CritterMove, holdDuration)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, holdDuration)));
-            *(u32 *)(p + offsetof(CritterMove, type)) = CritterSwap32(*(u32 *)(p + offsetof(CritterMove, type)));
-            *(f32 *)(p + offsetof(CritterMove, target.minDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.minDistance)));
-            *(f32 *)(p + offsetof(CritterMove, target.maxDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.maxDistance)));
-            *(f32 *)(p + offsetof(CritterMove, target.yaw)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.yaw)));
-            *(f32 *)(p + offsetof(CritterMove, target.minDot)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.minDot)));
-            *(f32 *)(p + offsetof(CritterMove, target.minRateScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.minRateScale)));
-            *(f32 *)(p + offsetof(CritterMove, target.maxRateScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.maxRateScale)));
-            *(f32 *)(p + offsetof(CritterMove, target.idleGate)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.idleGate)));
-            *(f32 *)(p + offsetof(CritterMove, target.maxVertical)) = CritterSwapF(*(f32 *)(p + offsetof(CritterMove, target.maxVertical)));
+            CritterMove *mv = &header->moves[i];
+            CritterMoveFx *fx = (CritterMoveFx *)mv;
+            mv->anim = CritterSwap16(mv->anim);
+            mv->node = CritterSwap16(mv->node);
+            mv->interruptAnim0 = CritterSwap16(mv->interruptAnim0);
+            mv->interruptAnim1 = CritterSwap16(mv->interruptAnim1);
+            mv->frameEnd = CritterSwap16(mv->frameEnd);
+            mv->frameEnd2 = CritterSwap16(mv->frameEnd2);
+            mv->link = CritterSwap16(mv->link);
+            mv->unk56 = CritterSwap16(mv->unk56);
+            fx->sfx = CritterSwap16(fx->sfx);
+            fx->sfxFrame = CritterSwap16(fx->sfxFrame);
+            fx->sfx2 = CritterSwap16(fx->sfx2);
+            fx->sfx2Frame = CritterSwap16(fx->sfx2Frame);
+            mv->flags = CritterSwap32(mv->flags);
+            mv->unk08 = CritterSwap32(mv->unk08);
+            mv->frameStart = CritterSwap32(mv->frameStart);
+            mv->frameStart2 = CritterSwap32(mv->frameStart2);
+            mv->framePeriod = CritterSwapF(mv->framePeriod);
+            mv->cooldown = CritterSwapF(mv->cooldown);
+            mv->readyDistance = CritterSwapF(mv->readyDistance);
+            mv->turnRate = CritterSwapF(mv->turnRate);
+            mv->holdDuration = CritterSwapF(mv->holdDuration);
+            mv->type = CritterSwap32(mv->type);
+            mv->target.minDistance = CritterSwapF(mv->target.minDistance);
+            mv->target.maxDistance = CritterSwapF(mv->target.maxDistance);
+            mv->target.yaw = CritterSwapF(mv->target.yaw);
+            mv->target.minDot = CritterSwapF(mv->target.minDot);
+            mv->target.minRateScale = CritterSwapF(mv->target.minRateScale);
+            mv->target.maxRateScale = CritterSwapF(mv->target.maxRateScale);
+            mv->target.idleGate = CritterSwapF(mv->target.idleGate);
+            mv->target.maxVertical = CritterSwapF(mv->target.maxVertical);
         }
 
         for (i = 0; i < header->patternCount; i++) {
-            p = header->patterns + i * 0x50;
-            *(u16 *)(p + offsetof(CritterPattern, flags)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPattern, flags)));
-            *(u16 *)(p + offsetof(CritterPattern, unk12)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPattern, unk12)));
-            *(f32 *)(p + offsetof(CritterPattern, cooldown)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, cooldown)));
-            *(f32 *)(p + offsetof(CritterPattern, target.minDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.minDistance)));
-            *(f32 *)(p + offsetof(CritterPattern, target.maxDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.maxDistance)));
-            *(f32 *)(p + offsetof(CritterPattern, target.yaw)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.yaw)));
-            *(f32 *)(p + offsetof(CritterPattern, target.minDot)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.minDot)));
-            *(f32 *)(p + offsetof(CritterPattern, target.minRateScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.minRateScale)));
-            *(f32 *)(p + offsetof(CritterPattern, target.maxRateScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.maxRateScale)));
-            *(f32 *)(p + offsetof(CritterPattern, target.idleGate)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.idleGate)));
-            *(f32 *)(p + offsetof(CritterPattern, target.maxVertical)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPattern, target.maxVertical)));
+            CritterPattern *pat = &header->patterns[i];
+            pat->flags = CritterSwap16(pat->flags);
+            pat->unk12 = CritterSwap16(pat->unk12);
+            pat->cooldown = CritterSwapF(pat->cooldown);
+            pat->target.minDistance = CritterSwapF(pat->target.minDistance);
+            pat->target.maxDistance = CritterSwapF(pat->target.maxDistance);
+            pat->target.yaw = CritterSwapF(pat->target.yaw);
+            pat->target.minDot = CritterSwapF(pat->target.minDot);
+            pat->target.minRateScale = CritterSwapF(pat->target.minRateScale);
+            pat->target.maxRateScale = CritterSwapF(pat->target.maxRateScale);
+            pat->target.idleGate = CritterSwapF(pat->target.idleGate);
+            pat->target.maxVertical = CritterSwapF(pat->target.maxVertical);
             for (j = 0; j < 8; j++) {
-                *(u16 *)(p + offsetof(CritterPattern, move) + j * 2) =
-                    CritterSwap16(*(u16 *)(p + offsetof(CritterPattern, move) + j * 2));
+                pat->moveidx[j] = CritterSwap16(pat->moveidx[j]);
             }
         }
 
         for (i = 0; i < header->nodeCount; i++) {
-            p = header->nodes + i * 0x50;
-            *(u16 *)(p + offsetof(CritterColDescriptor, flags)) = CritterSwap16(*(u16 *)(p + offsetof(CritterColDescriptor, flags)));
-            *(u16 *)(p + offsetof(CritterColDescriptor, sfxIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterColDescriptor, sfxIndex)));
-            *(u16 *)(p + offsetof(CritterColDescriptor, nodeIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterColDescriptor, nodeIndex)));
-            *(u16 *)(p + offsetof(CritterColDescriptor, zsortParam)) = CritterSwap16(*(u16 *)(p + offsetof(CritterColDescriptor, zsortParam)));
-            *(f32 *)(p + offsetof(CritterColDescriptor, maxTargetDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterColDescriptor, maxTargetDistance)));
-            *(f32 *)(p + offsetof(CritterColDescriptor, targetScoreScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterColDescriptor, targetScoreScale)));
-            *(f32 *)(p + offsetof(CritterColDescriptor, radius)) = CritterSwapF(*(f32 *)(p + offsetof(CritterColDescriptor, radius)));
-            *(f32 *)(p + offsetof(CritterColDescriptor, damageScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterColDescriptor, damageScale)));
-            *(f32 *)(p + offsetof(CritterColDescriptor, healthScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterColDescriptor, healthScale)));
+            CritterColDescriptor *nodeDef = &header->nodes[i];
+            nodeDef->flags = CritterSwap16(nodeDef->flags);
+            nodeDef->sfxIndex = CritterSwap16(nodeDef->sfxIndex);
+            nodeDef->nodeIndex = CritterSwap16(nodeDef->nodeIndex);
+            nodeDef->zsortParam = CritterSwap16(nodeDef->zsortParam);
+            nodeDef->maxTargetDistance = CritterSwapF(nodeDef->maxTargetDistance);
+            nodeDef->targetScoreScale = CritterSwapF(nodeDef->targetScoreScale);
+            nodeDef->radius = CritterSwapF(nodeDef->radius);
+            nodeDef->damageScale = CritterSwapF(nodeDef->damageScale);
+            nodeDef->healthScale = CritterSwapF(nodeDef->healthScale);
             for (j = 0; j < 3; j++) {
-                *(f32 *)(p + offsetof(CritterColDescriptor, position) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterColDescriptor, position) + j * 4));
+                nodeDef->position[j] =
+                    CritterSwapF(nodeDef->position[j]);
             }
         }
 
         for (i = 0; i < header->descriptorCount; i++) {
-            p = header->descriptors + i * 0x30;
-            *(u16 *)(p + offsetof(CritterDescriptor, type)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDescriptor, type)));
-            *(u16 *)(p + offsetof(CritterDescriptor, loadState)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDescriptor, loadState)));
-            *(u16 *)(p + offsetof(CritterDescriptor, loadTick)) = CritterSwap16(*(u16 *)(p + offsetof(CritterDescriptor, loadTick)));
-            *(u32 *)(p + offsetof(CritterDescriptor, model)) = CritterSwap32(*(u32 *)(p + offsetof(CritterDescriptor, model)));
+            CritterDescriptor *desc = &header->descriptors[i];
+            desc->type = CritterSwap16(desc->type);
+            desc->loadState = CritterSwap16(desc->loadState);
+            desc->loadTick = CritterSwap16(desc->loadTick);
+            *(u32 *)&desc->model = CritterSwap32(*(u32 *)&desc->model);
         }
 
         for (i = 0; i < header->typeCount; i++) {
-            p = header->types + i * 0x140;
-            *(u16 *)(p + offsetof(CritterPackedType, descriptorIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, descriptorIndex)));
-            *(u16 *)(p + offsetof(CritterPackedType, subtype)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, subtype)));
-            *(u16 *)(p + offsetof(CritterPackedType, node0Index)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, node0Index)));
-            *(u16 *)(p + offsetof(CritterPackedType, node1Index)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, node1Index)));
-            *(u16 *)(p + offsetof(CritterPackedType, node2Index)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, node2Index)));
-            *(u16 *)(p + offsetof(CritterPackedType, sfxIndex0)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, sfxIndex0)));
-            *(u16 *)(p + offsetof(CritterPackedType, sfxIndex1)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, sfxIndex1)));
-            *(u16 *)(p + offsetof(CritterPackedType, meterX)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, meterX)));
-            *(u16 *)(p + offsetof(CritterPackedType, meterY)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, meterY)));
-            *(u16 *)(p + offsetof(CritterPackedType, meterW)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, meterW)));
-            *(u16 *)(p + offsetof(CritterPackedType, meterH)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, meterH)));
-            *(u16 *)(p + offsetof(CritterPackedType, moveCount)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, moveCount)));
-            *(u16 *)(p + offsetof(CritterPackedType, moveIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, moveIndex)));
-            *(u16 *)(p + offsetof(CritterPackedType, auxMoveCount)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, auxMoveCount)));
-            *(u16 *)(p + offsetof(CritterPackedType, patternIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, patternIndex)));
-            *(u16 *)(p + offsetof(CritterPackedType, colCount)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, colCount)));
-            *(u16 *)(p + offsetof(CritterPackedType, colBase)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, colBase)));
-            *(u16 *)(p + offsetof(CritterPackedType, childIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, childIndex)));
-            *(u16 *)(p + offsetof(CritterPackedType, parentIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterPackedType, parentIndex)));
-            *(u32 *)(p + offsetof(CritterPackedType, typeFlags)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, typeFlags)));
-            *(f32 *)(p + offsetof(CritterPackedType, lookYawRate0)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, lookYawRate0)));
-            *(f32 *)(p + offsetof(CritterPackedType, lookYawRate1)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, lookYawRate1)));
-            *(f32 *)(p + offsetof(CritterPackedType, lookPitchRate0)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, lookPitchRate0)));
-            *(f32 *)(p + offsetof(CritterPackedType, lookPitchRate1)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, lookPitchRate1)));
-            *(f32 *)(p + offsetof(CritterPackedType, lookPitchBias0)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, lookPitchBias0)));
-            *(f32 *)(p + offsetof(CritterPackedType, lookPitchBias1)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, lookPitchBias1)));
-            *(f32 *)(p + offsetof(CritterPackedType, radius)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, radius)));
-            *(f32 *)(p + offsetof(CritterPackedType, wallRadius)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, wallRadius)));
-            *(f32 *)(p + offsetof(CritterPackedType, speed)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, speed)));
-            *(f32 *)(p + offsetof(CritterPackedType, floorOffset)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, floorOffset)));
-            *(f32 *)(p + offsetof(CritterPackedType, vertDrift)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, vertDrift)));
-            *(f32 *)(p + offsetof(CritterPackedType, damageScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, damageScale)));
-            *(f32 *)(p + offsetof(CritterPackedType, armor)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, armor)));
-            *(f32 *)(p + offsetof(CritterPackedType, turnLimit)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, turnLimit)));
-            *(f32 *)(p + offsetof(CritterPackedType, unkDC)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, unkDC)));
-            *(u32 *)(p + offsetof(CritterPackedType, shieldFlags)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, shieldFlags)));
-            *(f32 *)(p + offsetof(CritterPackedType, maxHealth)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, maxHealth)));
-            *(f32 *)(p + offsetof(CritterPackedType, expValue)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, expValue)));
-            *(f32 *)(p + offsetof(CritterPackedType, wakeThreshold)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, wakeThreshold)));
-            *(f32 *)(p + offsetof(CritterPackedType, unkF0)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, unkF0)));
-            *(u32 *)(p + offsetof(CritterPackedType, descriptor)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, descriptor)));
-            *(u32 *)(p + offsetof(CritterPackedType, movesPtr)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, movesPtr)));
-            *(u32 *)(p + offsetof(CritterPackedType, patternsPtr)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, patternsPtr)));
-            *(u32 *)(p + offsetof(CritterPackedType, colnodesPtr)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, colnodesPtr)));
-            *(u32 *)(p + offsetof(CritterPackedType, file)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, file)));
-            *(u32 *)(p + offsetof(CritterPackedType, atree)) = CritterSwap32(*(u32 *)(p + offsetof(CritterPackedType, atree)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.minDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.minDistance)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.maxDistance)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.maxDistance)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.yaw)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.yaw)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.minDot)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.minDot)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.minRateScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.minRateScale)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.maxRateScale)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.maxRateScale)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.idleGate)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.idleGate)));
-            *(f32 *)(p + offsetof(CritterPackedType, target.maxVertical)) = CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, target.maxVertical)));
+            CritterPackedType *type = &header->types[i];
+            type->descriptorIndex = CritterSwap16(type->descriptorIndex);
+            type->subtype = CritterSwap16(type->subtype);
+            type->node0Index = CritterSwap16(type->node0Index);
+            type->node1Index = CritterSwap16(type->node1Index);
+            type->node2Index = CritterSwap16(type->node2Index);
+            type->sfxIndex0 = CritterSwap16(type->sfxIndex0);
+            type->sfxIndex1 = CritterSwap16(type->sfxIndex1);
+            type->meterX = CritterSwap16(type->meterX);
+            type->meterY = CritterSwap16(type->meterY);
+            type->meterW = CritterSwap16(type->meterW);
+            type->meterH = CritterSwap16(type->meterH);
+            type->moveCount = CritterSwap16(type->moveCount);
+            type->moveIndex = CritterSwap16(type->moveIndex);
+            type->auxMoveCount = CritterSwap16(type->auxMoveCount);
+            type->patternIndex = CritterSwap16(type->patternIndex);
+            type->colCount = CritterSwap16(type->colCount);
+            type->colBase = CritterSwap16(type->colBase);
+            type->childIndex = CritterSwap16(type->childIndex);
+            type->parentIndex = CritterSwap16(type->parentIndex);
+            type->typeFlags = CritterSwap32(type->typeFlags);
+            type->lookYawRate0 = CritterSwapF(type->lookYawRate0);
+            type->lookYawRate1 = CritterSwapF(type->lookYawRate1);
+            type->lookPitchRate0 = CritterSwapF(type->lookPitchRate0);
+            type->lookPitchRate1 = CritterSwapF(type->lookPitchRate1);
+            type->lookPitchBias0 = CritterSwapF(type->lookPitchBias0);
+            type->lookPitchBias1 = CritterSwapF(type->lookPitchBias1);
+            type->radius = CritterSwapF(type->radius);
+            type->wallRadius = CritterSwapF(type->wallRadius);
+            type->speed = CritterSwapF(type->speed);
+            type->floorOffset = CritterSwapF(type->floorOffset);
+            type->vertDrift = CritterSwapF(type->vertDrift);
+            type->damageScale = CritterSwapF(type->damageScale);
+            type->armor = CritterSwapF(type->armor);
+            type->turnLimit = CritterSwapF(type->turnLimit);
+            type->unkDC = CritterSwapF(type->unkDC);
+            type->shieldFlags = CritterSwap32(type->shieldFlags);
+            type->maxHealth = CritterSwapF(type->maxHealth);
+            type->expValue = CritterSwapF(type->expValue);
+            type->wakeThreshold = CritterSwapF(type->wakeThreshold);
+            type->unkF0 = CritterSwapF(type->unkF0);
+            *(u32 *)&type->descriptor = CritterSwap32(*(u32 *)&type->descriptor);
+            *(u32 *)&type->movesPtr = CritterSwap32(*(u32 *)&type->movesPtr);
+            *(u32 *)&type->patternsPtr = CritterSwap32(*(u32 *)&type->patternsPtr);
+            *(u32 *)&type->colnodesPtr = CritterSwap32(*(u32 *)&type->colnodesPtr);
+            *(u32 *)&type->file = CritterSwap32(*(u32 *)&type->file);
+            *(u32 *)&type->atree = CritterSwap32(*(u32 *)&type->atree);
+            type->target.minDistance = CritterSwapF(type->target.minDistance);
+            type->target.maxDistance = CritterSwapF(type->target.maxDistance);
+            type->target.yaw = CritterSwapF(type->target.yaw);
+            type->target.minDot = CritterSwapF(type->target.minDot);
+            type->target.minRateScale = CritterSwapF(type->target.minRateScale);
+            type->target.maxRateScale = CritterSwapF(type->target.maxRateScale);
+            type->target.idleGate = CritterSwapF(type->target.idleGate);
+            type->target.maxVertical = CritterSwapF(type->target.maxVertical);
             for (j = 0; j < 3; j++) {
-                *(f32 *)(p + offsetof(CritterPackedType, defaultPos) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, defaultPos) + j * 4));
-                *(f32 *)(p + offsetof(CritterPackedType, originOffset) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, originOffset) + j * 4));
-                *(f32 *)(p + offsetof(CritterPackedType, unkD0) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, unkD0) + j * 4));
-                *(f32 *)(p + offsetof(CritterPackedType, healthbarOffset) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterPackedType, healthbarOffset) + j * 4));
+                type->defaultPos[j] =
+                    CritterSwapF(type->defaultPos[j]);
+                type->originOffset[j] =
+                    CritterSwapF(type->originOffset[j]);
+                type->unkD0[j] =
+                    CritterSwapF(type->unkD0[j]);
+                type->healthbarOffset[j] =
+                    CritterSwapF(type->healthbarOffset[j]);
             }
         }
 
         for (i = 0; i < header->addAnimCount; i++) {
-            p = header->addAnims + i * 0x30;
-            *(u16 *)(p + offsetof(CritterAddAnim, typeIndex)) = CritterSwap16(*(u16 *)(p + offsetof(CritterAddAnim, typeIndex)));
-            *(u16 *)(p + offsetof(CritterAddAnim, flags)) = CritterSwap16(*(u16 *)(p + offsetof(CritterAddAnim, flags)));
-            *(u32 *)(p + offsetof(CritterAddAnim, atree)) = CritterSwap32(*(u32 *)(p + offsetof(CritterAddAnim, atree)));
-            *(u32 *)(p + offsetof(CritterAddAnim, next)) = CritterSwap32(*(u32 *)(p + offsetof(CritterAddAnim, next)));
+            CritterAddAnim *anim = &header->addAnims[i];
+            anim->typeIndex = CritterSwap16(anim->typeIndex);
+            anim->flags = CritterSwap16(anim->flags);
+            *(u32 *)&anim->atree = CritterSwap32(*(u32 *)&anim->atree);
+            *(u32 *)&anim->next = CritterSwap32(*(u32 *)&anim->next);
             for (j = 0; j < 3; j++) {
-                *(f32 *)(p + offsetof(CritterAddAnim, offset) + j * 4) =
-                    CritterSwapF(*(f32 *)(p + offsetof(CritterAddAnim, offset) + j * 4));
+                anim->offset[j] =
+                    CritterSwapF(anim->offset[j]);
             }
         }
     }
 
     for (i = 0; i < header->descriptorCount; i++) {
-        *(s16 *)(header->descriptors + i * 0x30 + offsetof(CritterDescriptor, modelIndex)) = -1;
+        header->descriptors[i].modelIndex = -1;
     }
     for (i = 0; i < header->typeCount; i++) {
-        *(u8 **)(header->types + i * 0x140 + offsetof(CritterPackedType, attachments)) = NULL;
+        header->types[i].attachments = NULL;
     }
     for (i = 0; i < header->addAnimCount; i++) {
-        p = header->addAnims + i * 0x30;
-        if ((typeIndex = *(s16 *)(p + offsetof(CritterAddAnim, typeIndex))) > header->typeCount) {
+        anim = &header->addAnims[i];
+        if ((typeIndex = anim->typeIndex) > header->typeCount) {
             ErrorPrintf("CRITTER: AddAnim has addto idx %d > max %d",
                         typeIndex, header->typeCount);
         } else {
-            type = header->types + typeIndex * 0x140;
-            if (*(u8 **)(type + offsetof(CritterPackedType, attachments)) != NULL) {
-                tail = *(u8 **)(type + offsetof(CritterPackedType, attachments));
-                while (*(u8 **)(tail + offsetof(CritterAddAnim, next)) != NULL) {
-                    tail = *(u8 **)(tail + offsetof(CritterAddAnim, next));
+            owner = &header->types[typeIndex];
+            if (owner->attachments != NULL) {
+                tail = owner->attachments;
+                while (tail->next != NULL) {
+                    tail = tail->next;
                 }
-                *(u8 **)(tail + offsetof(CritterAddAnim, next)) = p;
+                tail->next = anim;
             } else {
-                *(u8 **)(type + offsetof(CritterPackedType, attachments)) = p;
+                owner->attachments = anim;
             }
         }
     }
