@@ -250,6 +250,17 @@ Iteration rules:
 
 ## Types, names and de-fakematching
 
+Before source-debt cleanup, run `pnpm install --frozen-lockfile` once, then
+`python tools/gdl/fakematch_lint.py <owned-source-path> --out build/lint.json`.
+The ast-grep-backed report covers seven reconstruction-debt families. Findings
+are review candidates, not proven fakematches; parser recovery, macro expansion
+and absent type/liveness analysis limit coverage. Never mechanically rewrite
+findings to improve the lint count or weaken matching gates. Review exceptions
+in `config/GUNE5D/fakematch_lint.json` require exact fingerprints or scoped,
+count-bound pragma entries and a reason; suppressed rows remain in the report.
+Test rule changes with `pnpm run test:lint` and `pnpm run test:lint:integration`.
+CI runs the complete scan as reporting-only; scanner/test failures block it.
+
 Before adding a raw-offset access or inventing a type, search existing project
 headers, the TU's own structs, sibling consumers and Xbox declarations. Verify
 every proposed name, offset, width, stride and signedness against GameCube

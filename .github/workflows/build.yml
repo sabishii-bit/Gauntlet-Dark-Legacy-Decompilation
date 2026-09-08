@@ -5,6 +5,37 @@ on:
   pull_request:
 
 jobs:
+  source_lint:
+    name: Reconstruction source lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - uses: pnpm/action-setup@v4
+      with:
+        version: '10.25.0'
+    - name: Install pinned lint dependencies
+      run: pnpm install --frozen-lockfile
+    - name: Test structural rules and reporting policy
+      run: |
+        pnpm run test:lint
+        pnpm run test:lint:integration
+    # Existing candidates are review debt, not established fakematches. Scanner
+    # failures fail this step; findings remain visible in the complete artifact.
+    - name: Scan all reconstructed source and headers
+      run: pnpm run lint:decomp
+    - name: Upload reconstruction lint findings
+      uses: actions/upload-artifact@v4
+      with:
+        name: reconstruction_source_lint
+        path: build/fakematch_lint.json
+        if-no-files-found: error
+
   build:
     name: Build GUNE5D
     # This is a *private* build container from gdl-build repository.
@@ -84,6 +115,16 @@ jobs:
 
     # Unit tests alone did not catch a broken datum-audit caller. Keep both
     # analysis tests and a live private-fixture workflow check alongside the DOL gate.
+    - name: Set up Node for lint integration tests
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - uses: pnpm/action-setup@v4
+      with:
+        version: '10.25.0'
+    - name: Install pinned test dependencies
+      run: pnpm install --frozen-lockfile
+
     - name: Analysis tool tests
       run: python -m unittest discover tools/gdl/tests -b
 
