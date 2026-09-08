@@ -1920,8 +1920,8 @@ void CritterDamagePlayer(Player *player, Critter *c,
         hit->bossdamage = lbl_80346470;
         counter = (u8 *)c + playerIndex * 0x10;
         hit->fxhittime = (f32)(lbl_80346500 + (f64)sMusicFadeBase);
-        *(f32 *)(counter + 0x1BC) += damage;
-        *(f32 *)(counter + 0x1C0) = sMusicFadeBase;
+        ((Critter *)counter)->playerDamage[0].received += damage;
+        ((Critter *)counter)->playerDamage[0].receivedTime = sMusicFadeBase;
     }
 }
 
@@ -2247,7 +2247,7 @@ void CritterGetTargetPlayers(Critter *c)
             continue;
         }
         if ((player->flags & 4) && c->state != 0) {
-            if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor)) + offsetof(CritterDescriptor, type)) != 4) {
+            if (*(s16 *)((u8 *)c->hdr->descriptor + offsetof(CritterDescriptor, type)) != 4) {
                 continue;
             }
         }
@@ -3065,7 +3065,7 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
         f32 maximumHealth;
 
         maximumHealth = c->hdr->maxHealth *
-                        *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_health));
+                        gCurLevel->ene_health;
         creditedDamage = lbl_80346470;
         if (damage < creditedDamage) {
             goto credited_damage_done;
@@ -3110,16 +3110,16 @@ credited_damage_done:
         }
 
         if (critterClass != 4 &&
-            *(f32 *)((u8 *)gCurLevel + offsetof(level_data, plevel)) > lbl_80346470) {
+            gCurLevel->plevel > lbl_80346470) {
             s32 level;
 
             playerData = &gPlayers[player];
-            level = *(s32 *)((u8 *)playerData + offsetof(Player, level));
+            level = playerData->level;
             damageScale = lbl_803464A8;
-            if ((f32)level < *(f32 *)((u8 *)gCurLevel + offsetof(level_data, plevel))) {
+            if ((f32)level < gCurLevel->plevel) {
                 damageScale = (f32)(lbl_80346490 -
                     lbl_80346568 *
-                    (f64)(*(f32 *)((u8 *)gCurLevel + offsetof(level_data, plevel)) -
+                    (f64)(gCurLevel->plevel -
                           (f32)level));
             }
             if ((f64)damageScale < lbl_803464B0) {
@@ -4174,7 +4174,7 @@ s32 CritterBossAI(Critter *c)
             if ((f64)angle >= 1e21) {
                 angle = distance;
             }
-            dot = *(f32 *)((u8 *)c + 0x130);
+            dot = c->targets[0].dp;
             distance = (f32)(0.31830988614222805 *
                              (180.0 *
                               (f64)acosf((f32)(
@@ -4214,7 +4214,7 @@ s32 CritterBossAI(Critter *c)
                 if ((f64)angle >= angleLimit) {
                     angle = distance;
                 }
-                dot = *(f32 *)((u8 *)c + 0x130);
+                dot = c->targets[0].dp;
                 distance = (f32)(angleScale *
                                  (radianScale *
                                   (f64)acosf((f32)(
@@ -5874,7 +5874,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 
     if (radius >= lbl_80346470) {
         damageRadius = desc->maxDistance * scale;
-        damage = radius * *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
+        damage = radius * gCurLevel->ene_damage;
         radius = desc->radius * scale;
         Effects[result].damage = damage;
         Effects[result].mindp = desc->mindp;
@@ -5926,18 +5926,18 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                     desc->minSpeed;
 
             if ((desc->behaviorFlags & 4) != 0) {
-                velocity[0] = *(f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20);
-                velocity[1] = *(f32 *)((u8 *)c + 0x30);
-                velocity[2] = *(f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x28);
+                velocity[0] = c->mtx[2][0];
+                velocity[1] = c->mtx[2][1];
+                velocity[2] = c->mtx[2][2];
             } else if ((desc->behaviorFlags & 1) != 0 && c->unk124 >= 0) {
                 GetPlayerColPos(c->unk124, velocity);
                 velocity[0] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][0]));
                 velocity[1] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][1]));
                 velocity[2] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][2]));
             } else {
-                velocity[0] = *(f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20);
-                velocity[1] = *(f32 *)((u8 *)c + 0x30);
-                velocity[2] = *(f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x28);
+                velocity[0] = c->mtx[2][0];
+                velocity[1] = c->mtx[2][1];
+                velocity[2] = c->mtx[2][2];
                 velocity[1] = lbl_80346628;
             }
 
@@ -6318,12 +6318,12 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         child = CritterEmptyInst();
         CritterInitInst(child, childHeader);
         childDef = (u8 *)child->hdr;
-        geo = *(u8 **)((u8 *)root->hdr + offsetof(CritterPackedType, atree));
+        geo = root->hdr->atree;
         *(CritterChildLinks *)&child->colhandle =
             *(CritterChildLinks *)&root->colhandle;
 
-        nodeIndex = AtreeFindNodeIdx(*(void **)(geo + 0x0C),
-                                     *(s32 *)(geo + 0x10),
+        nodeIndex = AtreeFindNodeIdx(((struct atreeheader *)geo)->nodeinfo,
+                                     ((struct atreeheader *)geo)->numnodes,
                                      (char *)child->hdr + 0x10, 0x10);
         child->colhandle = (u8 *)root->anodes + nodeIndex * 0x28;
         AtreeNodeSetParent(child->colhandle, NULL, NULL, 0);
@@ -6439,12 +6439,6 @@ Critter *CritterEmptyInst(void)
  * scene nodes and world-space transforms used by movement and collision. */
 void CritterInitGeo(Critter *c, void *object, s32 subtype)
 {
-    typedef struct CritterInitGeoView {
-        u8 unused000[0xFC];
-        f32 yaw;
-        u8 unused100[0x318];
-        f32 cachedVelocity[3];
-    } CritterInitGeoView;
     u8 *header;
     f32 *gid = gIdentityMatrix;
     s32 atreeFlags;
@@ -6460,14 +6454,13 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     header = (u8 *)c->hdr;
     c->mbnode = MBNewNode(lbl_8034473C, gid, 1);
     atanX = *(f32 *)((u8 *)object + 0x28);
-    *(f32 *)((u8 *)c + 0xF8) =
-        atan2(*(f32 *)((u8 *)object + 0x20), atanX);
-    *(f32 *)((u8 *)c + 0xFC) = *(f32 *)((u8 *)c + 0xF8);
+    c->inityaw = atan2(*(f32 *)((u8 *)object + 0x20), atanX);
+    c->curyaw = c->inityaw;
     CopyMat3(gid, &c->mtx[0][0]);
     c->vel[0] = *(f32 *)((u8 *)object + 0x30);
     c->vel[1] = *(f32 *)((u8 *)object + 0x34);
     c->vel[2] = *(f32 *)((u8 *)object + 0x38);
-    YawMat3(((CritterInitGeoView *)c)->yaw, &c->mtx[0][0]);
+    YawMat3(c->curyaw, &c->mtx[0][0]);
 
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x1000) == 0) {
         atreeFlags |= 0x800;
@@ -6483,11 +6476,11 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         node = MBOX_ReallyFindObject(lbl_8011AEA0[shadowIdx], shadowType,
                                      shadowType, 1);
         c->shadow = MBNewObject(node, gIdentityMatrix, NULL, 0x880);
-        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
-        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
-        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
-        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, zsort_add)) = lbl_80346640;
-        *(s16 *)((u8 *)c->shadow + offsetof(MBObject, zmod)) = -32;
+        c->shadow->mat[3][0] = c->vel[0];
+        c->shadow->mat[3][1] = c->vel[1];
+        c->shadow->mat[3][2] = c->vel[2];
+        c->shadow->zsort_add = lbl_80346640;
+        c->shadow->zmod = -32;
     }
 
     idx = *(s16 *)(header + offsetof(CritterPackedType, node0Index));
@@ -6502,8 +6495,8 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     }
     c->hitnode0 = node;
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x10) != 0 && c->hitnode0 != NULL &&
-        *(void **)((u8 *)c->hitnode0 + offsetof(MBObject, parent)) != NULL) {
-        c->hitnode0 = *(void **)((u8 *)c->hitnode0 + offsetof(MBObject, parent));
+        c->hitnode0->parent != NULL) {
+        c->hitnode0 = c->hitnode0->parent;
     }
     idx = *(s16 *)(header + offsetof(CritterPackedType, node1Index));
     if (idx < 0) {
@@ -6537,10 +6530,10 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                     *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
+            c->shadow->mat[3][0] = c->vel[0];
+            c->shadow->mat[3][1] = c->vel[1];
+            c->shadow->mat[3][2] = c->vel[2];
+            c->shadow->mat[3][1] =
                 *(f32 *)(gFloorCollisionResult + 0x34);
         }
     } else {
@@ -6548,11 +6541,11 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     }
 
     CopyMat4(&c->mtx[0][0], (f32 *)c->mbnode);
-    UnparentMatrix(c->mbnode, *(f32 **)((u8 *)c->mbnode + offsetof(MBObject, parent)));
-    CopyMat3(&c->mtx[0][0], (f32 *)((u8 *)c + 0x3D8));
-    ((CritterInitGeoView *)c)->cachedVelocity[0] = c->vel[0];
-    ((CritterInitGeoView *)c)->cachedVelocity[1] = c->vel[1];
-    ((CritterInitGeoView *)c)->cachedVelocity[2] = c->vel[2];
+    UnparentMatrix(c->mbnode, (f32 *)c->mbnode->parent);
+    CopyMat3(&c->mtx[0][0], &c->initmat[0][0]);
+    c->prevMovePathPos[0] = c->vel[0];
+    c->prevMovePathPos[1] = c->vel[1];
+    c->prevMovePathPos[2] = c->vel[2];
     MulVec4Mat3((f32 *)(header + offsetof(CritterPackedType, originOffset)), c->pos, &c->mtx[0][0]);
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
@@ -6563,14 +6556,14 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->obj_d0 = c->anim;
     GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);
 
-    if (*(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[1])) < lbl_80346618) {
-        *(f32 *)((u8 *)c + 0x49C) = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[0]));
-        *(f32 *)((u8 *)c + 0x4A0) = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[1]));
-        *(f32 *)((u8 *)c + 0x4A4) = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[2]));
+    if (c->hdr->defaultPos[1] < lbl_80346618) {
+        c->movePathPos[0] = c->hdr->defaultPos[0];
+        c->movePathPos[1] = c->hdr->defaultPos[1];
+        c->movePathPos[2] = c->hdr->defaultPos[2];
     } else {
-        *(f32 *)((u8 *)c + 0x49C) = *(f32 *)((u8 *)c + 0x418);
-        *(f32 *)((u8 *)c + 0x4A0) = *(f32 *)((u8 *)c + 0x41C);
-        *(f32 *)((u8 *)c + 0x4A4) = *(f32 *)((u8 *)c + 0x420);
+        c->movePathPos[0] = c->prevMovePathPos[0];
+        c->movePathPos[1] = c->prevMovePathPos[1];
+        c->movePathPos[2] = c->prevMovePathPos[2];
     }
 }
 /* 0x8003E7D0 -- create the optional HUD meter and attach the optional
@@ -6676,7 +6669,7 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
 typedef struct CritterSubnode {
     void *atree;
     u8 _pad04[68];
-    void *mbnode;
+    struct MBObject *mbnode;
     u8 _pad4C[4];
     struct CritterSubnode *next;
 } CritterSubnode;
@@ -6685,7 +6678,7 @@ void CritterDelInst(Critter *c)
 {
     CritterSubnode *node;
 
-    if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + 288) + 32) == 4) {
+    if (c->hdr->descriptor->type == 4) {
         del_target(c->mtx);
         if (c->parent == NULL) {
             BossDeath();
@@ -6927,10 +6920,8 @@ void CritterInitColnodes(Critter *c)
                     if (atc != NULL && name != NULL && ch != 0 &&
                         name[1] != 0) {
                         idx = AtreeFindNodeIdx(
-                            *(void **)((u8 *)atc +
-                                       offsetof(struct atreeheader, nodeinfo)),
-                            *(s32 *)((u8 *)atc +
-                                     offsetof(struct atreeheader, numnodes)),
+                            ((struct atreeheader *)atc)->nodeinfo,
+                            ((struct atreeheader *)atc)->numnodes,
                             name, 0x10);
                     }
                     record->boundNode = CritterColnodeAnimNode(c, idx);
