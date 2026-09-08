@@ -658,9 +658,9 @@ void check_prefs_loaded(void)
 /* init_all_dir_info - reset the dir-info table and card state */
 void init_all_dir_info(void)
 {
-    s32 off;
     s32 zero;
     s32 fill;
+    s32 off;
     u8* base;
     int i;
     u8 pad[48]; /* unused, matches original frame */
