@@ -181,7 +181,6 @@ typedef struct BlitPlacement {
  * spelling for one record (mb_struct.c calls it MBRomTexture, mb_poly.c
  * TexInfo).  Only used to feed offsetof(); never cast a live pointer. */
 typedef struct MBTextureDef {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad00[0x0A];
     u16 width;   /* +0x0A */
     u16 height;  /* +0x0C */
@@ -274,7 +273,6 @@ typedef struct OptMenuLayout {
     void* items;       /* 0x1C == OPTMENU.items (OPTITEM*) */
     u8 _pad20[20];
     f32 scale;         /* 0x34 == OPTMENU.scale */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad38[0x34];
     s32 active;         /* 0x6C == OPTMENU.active */
     u8 _pad70[4];
@@ -387,14 +385,12 @@ static s32 LimitSeltype(u8* player, s32 idx, s32 step)
                 idx = 16;
             }
             flag = 1;
-            /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             if (idx == 16 &&
                 (*(u16*)(player + offsetof(Player, name) +
                          offsetof(P_SAVE_HEAD, class_unlock)) & 0x100) == 0) {
                 idx += step;
                 flag = 0;
             }
-            /* lint-end FM001 */
         }
     }
     return idx;
@@ -456,11 +452,9 @@ void update_class_spec(s32 player);
  * memset(p + 0x1ECC, 0, 0x1434) -- one name for one record, per AGENTS.md's
  * "grep for an existing view before inventing a second spelling". */
 typedef struct PlayerSaveBlk {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     s32 w[0x50D];                    /* 5172 bytes */
 } PlayerSaveBlk;
 
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves do_player_select by 25 words at unchanged size */
 #pragma dont_inline on
 /* Top-level select state machine (invoked from gamemain / attract).
  * Returns 1 once every pad has sat idle long enough to leave the screen. */
@@ -481,7 +475,6 @@ s32 do_player_select(void)
     s32 moff;
     s32 choice;
     s32 ch;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves do_player_select by 25 words at unchanged size; original local unrecovered */
     u8 unused[24];
 
     if (lbl_80344BB0 > 0) {
@@ -489,7 +482,6 @@ s32 do_player_select(void)
         if (lbl_80344BB0 == 0) {
             AudioSelect(1);
         } else {
-            /* lint-allow-next-line FM007, FM009: unrecovered: offset into a module global whose record has no type in this tree */
             DrawGlowText(1.0f, 0x154, 0x104, pool + 144);
         }
     }
@@ -498,17 +490,14 @@ s32 do_player_select(void)
 
     pl = (u8*)gPlayers;
     for (i = 0; i < 4; i++, pl += 13148) {
-        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
         if (*(s32*)(pl + offsetof(Player, state)) == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);
         }
-        /* lint-end FM001 */
     }
     setup_vmu_entries();
 
     pl = (u8*)gPlayers;
     for (i = 4; i != 0; i--, pl += 13148) {
-        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
         switch (*(s32*)(pl + offsetof(Player, state))) {
         case 2:
             anySelecting = 1;
@@ -518,7 +507,6 @@ s32 do_player_select(void)
             anySelecting = 1;
             break;
         }
-        /* lint-end FM001 */
     }
     if (lbl_80344824 == 0) {
         lbl_80344BA8 = 1;
@@ -550,7 +538,6 @@ s32 do_player_select(void)
     pl = (u8*)gPlayers;
     for (i = 0; i < 4; i++, padoff += 60, poff += 13148, xoff += 4,
         boff += 132, moff += 232, pl += 13148) {
-        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
         s32 costume = *(s32*)(pl + offsetof(Player, class_id));
         s32 st;
         u8* menu;
@@ -564,30 +551,22 @@ s32 do_player_select(void)
         if (lbl_80344BA8 != 0) {
             continue;
         }
-        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
         st = *(s32*)(pl + offsetof(Player, state));
         switch (st) {
         case 2:
-            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
             switch (*(u32*)(pl + offsetof(Player, motion_state))) {
-            /* lint-end FM001 */
             case 0: /* top select menu */
-                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 *(s32*)(pl + offsetof(Player, motion_state_save)) = *(s32*)(pl + offsetof(Player, motion_state));
                 if (gControllerButtons & 4) {
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, state)) = 3;
                     strcpy((char*)(pl + offsetof(Player, name)), lbl_80347F40);
                 } else {
                     slot = page + moff;
-                    /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                     act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
-                    /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
                     menu = slot + 712;
                     if (act == 0) {
                         setup_sel_menu(i, 0);
                         if (vmu_directory_exists() >= 2 && saveExists() != 0) {
-                            /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                             u8* base = *(u8**)(menu + offsetof(OptMenuLayout, items));
                             s32 k = 0;
                             s32 off = k;
@@ -597,19 +576,16 @@ s32 do_player_select(void)
                                 if (*(u32*)en == 0) {
                                     break;
                                 }
-                                /* lint-begin FM001: unrecovered: the save/VMU menu entry record has no full layout in this tree */
                                 if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1001) {
                                     if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                         found = k;
                                         break;
                                     }
                                 }
-                                /* lint-end FM001 */
                                 k++;
                                 off += 36;
                             }
                             if (found >= 0) {
-                                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                                 *(s32*)(menu + offsetof(OptMenuLayout, sel)) = found;
                             }
                         }
@@ -629,17 +605,13 @@ s32 do_player_select(void)
                         break;
                     case 1000:
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 3;
                         AudioCursorSelect();
                         break;
                     case 1001:
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 5;
                         AudioCursorSelect();
                         break;
@@ -647,17 +619,13 @@ s32 do_player_select(void)
                 }
                 break;
             case 1: { /* load/save menu */
-                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 *(s32*)(pl + offsetof(Player, motion_state_save)) = *(s32*)(pl + offsetof(Player, motion_state));
                 slot = page + moff;
-                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                 act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
-                /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
                 menu = slot + 712;
                 if (act == 0) {
                     setup_sel_menu(i, 1);
                     if (vmu_directory_exists() < 2 || saveExists() == 0) {
-                        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                         u8* base = *(u8**)(menu + offsetof(OptMenuLayout, items));
                         s32 k = 0;
                         s32 off = k;
@@ -667,19 +635,16 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            /* lint-begin FM001: unrecovered: the save/VMU menu entry record has no full layout in this tree */
                             if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1005) {
                                 if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                     found = k;
                                     break;
                                 }
                             }
-                            /* lint-end FM001 */
                             k++;
                             off += 36;
                         }
                         if (found >= 0) {
-                            /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                             *(s32*)(menu + offsetof(OptMenuLayout, sel)) = found;
                         }
                     }
@@ -687,50 +652,41 @@ s32 do_player_select(void)
                         s32 off2;
                         off2 = 0;
                         for (;;) {
-                            /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                             u8* en = *(u8**)(menu + offsetof(OptMenuLayout, items)) + off2;
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            /* lint-begin FM001: unrecovered: the save/VMU menu entry record has no full layout in this tree */
                             if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1003) {
                                 if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                     *(s32*)(en + offsetof(VmuMenuEntry, value)) = -1;
                                 }
                             }
-                            /* lint-end FM001 */
                             off2 += 36;
                         }
                         off2 = 0;
                         for (;;) {
-                            /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                             u8* en = *(u8**)(menu + offsetof(OptMenuLayout, items)) + off2;
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            /* lint-begin FM001: unrecovered: the save/VMU menu entry record has no full layout in this tree */
                             if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1001) {
                                 if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                     *(s32*)(en + offsetof(VmuMenuEntry, value)) = -1;
                                 }
                             }
-                            /* lint-end FM001 */
                             off2 += 36;
                         }
                         off2 = 0;
                         for (;;) {
-                            /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                             u8* en = *(u8**)(menu + offsetof(OptMenuLayout, items)) + off2;
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            /* lint-begin FM001: unrecovered: the save/VMU menu entry record has no full layout in this tree */
                             if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1004) {
                                 if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                     *(s32*)(en + offsetof(VmuMenuEntry, value)) = -1;
                                 }
                             }
-                            /* lint-end FM001 */
                             off2 += 36;
                         }
                     }
@@ -742,25 +698,20 @@ s32 do_player_select(void)
                 case 1005:
                     AudioCursorSelect();
                     remove_optmenu(menu);
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, state)) = 3;
                     break;
                 case 1002:
                     remove_optmenu(menu);
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = 10;
                     break;
                 case 1001:
                     remove_optmenu(menu);
-                    /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (*(s8*)(pl + offsetof(Player, name) +
                               offsetof(P_SAVE_HEAD, saved)) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     }
-                    /* lint-end FM001 */
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = 5;
                     break;
                 case 1003: /* resume character */
@@ -768,53 +719,34 @@ s32 do_player_select(void)
                     if (set_hidden_player(pl) != 0) {
                         s32 pi = *(s32*)pl;
                         u8* b;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                         b = blitbase + pi * 132;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 5;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-begin FM001: unrecovered: the select blit page record has no full layout in this tree */
                         mbBlitInit3414(*(void**)(blitbase + (pi * 132 + 24)),
                                        0);
-                        /* lint-end FM001 */
-                        /* lint-begin FM001, FM007: unrecovered: the select blit page record has no full layout in this tree | numeric constant whose meaning is not recovered yet */
                         MBBlitSetAlpha(*(void**)(blitbase + (pi * 132 + 24)),
                                        0xFF);
-                        /* lint-end FM001, FM007 */
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 7;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                     } else {
-                        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, respawn_char)) =
                             LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
-                        /* lint-end FM001 */
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 4;
                     }
                     break;
                 case 1004: /* change character */
                     remove_optmenu(menu);
-                    /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (*(s8*)(pl + offsetof(Player, name) +
                               offsetof(P_SAVE_HEAD, saved)) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     }
-                    /* lint-end FM001 */
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = 2;
                     break;
                 case -1:
@@ -823,7 +755,6 @@ s32 do_player_select(void)
                 break;
             }
             case 2: /* change-character confirm */
-                /* lint-begin FM001, FM009: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: the option-menu layout view covers only the fields it names */
                 switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
                     slot = page + moff;
@@ -857,10 +788,8 @@ s32 do_player_select(void)
                     }
                     break;
                 }
-                /* lint-end FM001, FM009 */
                 break;
             case 5: /* pick a memory card (load) */
-                /* lint-begin FM001, FM009: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: the option-menu layout view covers only the fields it names */
                 switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
                     slot = page + moff;
@@ -884,19 +813,13 @@ s32 do_player_select(void)
                     do_sel_menu_8008E4F4(i, 5);
                     break;
                 }
-                /* lint-end FM001, FM009 */
-                /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 if (*(s32*)(pl + offsetof(Player, sel_step)) != 0) {
-                /* lint-end FM001 */
                     slot = page + moff;
-                    /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                     act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
-                    /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
                     menu = slot + 712;
                     if (act == 0) {
                         setup_sel_menu(i, 5);
                     }
-                    /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                     *(s32*)(menu + offsetof(OptMenuLayout, num_items)) = 0;
                     show_optmenu(menu);
                     choice = do_optmenu(menu, 1);
@@ -907,7 +830,6 @@ s32 do_player_select(void)
                     switch (choice) {
                     case -1:
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                         break;
                     default:
@@ -915,9 +837,7 @@ s32 do_player_select(void)
                         s32 r;
                         set_directory_refresh_flags(-1);
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_card_chan)) = choice - 1000;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_card_slot)) = 0;
                         r = setup_file_entries(pl, 1);
                         if (r == -1) {
@@ -926,7 +846,6 @@ s32 do_player_select(void)
                             s32 n;
                             for (n = 4; n != 0; n--, qoff += 13148) {
                                 u8* q = (u8*)gPlayers + qoff;
-                                /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                                 if (((Player *)q)->state == 2 && pl != q &&
                                     ((Player *)q)->sel_card_chan == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                     ((Player *)q)->sel_card_slot == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -938,26 +857,19 @@ s32 do_player_select(void)
                                         goto got5;
                                     }
                                 }
-                                /* lint-end FM001 */
                             }
                             busy = 0;
                             got5:;
                             if (busy) {
-                                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                                 *(s32*)(pl + offsetof(Player, motion_state)) = 5;
                             } else {
-                                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                                 *(s32*)(pl + offsetof(Player, motion_state)) = 6;
                             }
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                         } else if (r <= 0) {
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, motion_state)) = 7;
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         } else {
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, motion_state)) = 8;
                         }
                     }
@@ -967,86 +879,67 @@ s32 do_player_select(void)
                 break;
             case 7: /* "no files" notice */
                 do_sel_menu_8008E4F4(i, 7);
-                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
-                /* lint-begin FM001, FM007: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
                     *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                     *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                 }
-                /* lint-end FM001, FM007 */
                 break;
             case 8: /* pick a save file (load) */
                 slot = page + moff;
-                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                 act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
-                /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
                 menu = slot + 712;
                 if (act == 0) {
                     setup_sel_menu(i, 8);
                 }
-                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                 *(s32*)(menu + offsetof(OptMenuLayout, num_items)) = 0;
                 show_optmenu(menu);
                 choice = do_optmenu(menu, 1);
-                /* lint-begin FM001, FM002: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 if (*(s32*)((u8*)&lbl_80344A14 + *(s32*)(pl + offsetof(Player, sel_card_chan)) * 4 +
                             *(s32*)(pl + offsetof(Player, sel_card_slot)) * 4) != 1 ||
                     *(s32*)((u8*)&lbl_80344A18 + *(s32*)(pl + offsetof(Player, sel_card_chan)) * 4 +
                             *(s32*)(pl + offsetof(Player, sel_card_slot)) * 4) != 3) {
                     choice = -1;
                 }
-                /* lint-end FM001, FM002 */
                 setup_file_entries(pl, 0);
                 do_sel_menu_8008E4F4(i, 8);
                 switch (choice) {
                 case -1:
                     remove_optmenu(menu);
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = 5;
                     break;
                 default:
                     if (choice >= 1000 &&
                         verify_vmu_file_ok(pl, choice - 1000) != 0) {
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 9;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_save_file)) = choice - 1000;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_file_cursor)) = choice - 1000;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     }
                     break;
                 }
                 break;
             case 9: { /* load-file progress */
-                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 s32 t = *(s32*)(pl + offsetof(Player, sel_step));
                 switch (t) {
                 case 0:
                 case 1:
                 case 2:
                     if (fn_80055F68(0, 0) != 0) {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     }
                     break;
                 case 3:
-                    /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (PlayerLoadSaveFile(i, *(s32*)(pl + offsetof(Player, sel_save_file))) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     } else {
                         *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
-                    /* lint-end FM001 */
                     break;
                 default:
                 if (t >= 0) {
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
-                    /* lint-begin FM001, FM007: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: the select blit page record has no full layout in this tree */
                     if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
                         if (set_hidden_player(pl) != 0) {
                             s32 pi = *(s32*)pl;
@@ -1073,16 +966,12 @@ s32 do_player_select(void)
                         *(s32*)(pl + offsetof(Player, intower)) = 1;
                         *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
-                    /* lint-end FM001, FM007 */
                 } else {
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, sel_step)) -= gFrameTicks;
-                    /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (*(s32*)(pl + offsetof(Player, sel_step)) <= -0x78) {
                         *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                         *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
-                    /* lint-end FM001 */
                 }
                     break;
                 }
@@ -1091,14 +980,11 @@ s32 do_player_select(void)
             }
             case 10: /* pick a memory card (save) */
                 slot = page + moff;
-                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                 act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
-                /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
                 menu = slot + 712;
                 if (act == 0) {
                     setup_sel_menu(i, 10);
                 }
-                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                 *(s32*)(menu + offsetof(OptMenuLayout, num_items)) = 0;
                 show_optmenu(menu);
                 choice = do_optmenu(menu, 1);
@@ -1109,7 +995,6 @@ s32 do_player_select(void)
                 switch (choice) {
                 case -1:
                     remove_optmenu(menu);
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                     break;
                 default:
@@ -1117,14 +1002,11 @@ s32 do_player_select(void)
                     s32 r;
                     set_directory_refresh_flags(-1);
                     remove_optmenu(menu);
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, sel_card_chan)) = choice - 1000;
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, sel_card_slot)) = 0;
                     r = setup_file_entries(pl, 1);
                     if (r == -2) {
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 10;
                     } else if (r == -1) {
                         s32 busy;
@@ -1132,7 +1014,6 @@ s32 do_player_select(void)
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = (u8*)gPlayers + qoff;
-                            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             if (((Player *)q)->state == 2 && pl != q &&
                                 ((Player *)q)->sel_card_chan == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                 ((Player *)q)->sel_card_slot == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -1144,18 +1025,14 @@ s32 do_player_select(void)
                                     goto got6;
                                 }
                             }
-                            /* lint-end FM001 */
                         }
                         busy = 0;
                         got6:;
                         if (busy) {
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, motion_state)) = 10;
                         } else {
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, motion_state)) = 11;
                         }
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     } else if (r == 0) {
                         s32 busy;
@@ -1163,7 +1040,6 @@ s32 do_player_select(void)
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = (u8*)gPlayers + qoff;
-                            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             if (((Player *)q)->state == 2 && pl != q &&
                                 ((Player *)q)->sel_card_chan == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                 ((Player *)q)->sel_card_slot == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -1175,21 +1051,16 @@ s32 do_player_select(void)
                                     goto got10a;
                                 }
                             }
-                            /* lint-end FM001 */
                         }
                         busy = 0;
                         got10a:;
                         if (busy) {
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, motion_state)) = 10;
                         } else {
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, motion_state)) = 12;
                         }
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     } else {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 13;
                     }
                 }
@@ -1199,27 +1070,22 @@ s32 do_player_select(void)
             case 6:  /* mount / create-file confirm + progress */
             case 11:
             case 12: {
-                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 s32 t = *(s32*)(pl + offsetof(Player, sel_step));
                 switch (t) {
                 case 0:
                     slot = page + moff;
-                    /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                     act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
-                    /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
                     menu = slot + 712;
                     if (act == 0) {
                         setup_sel_menu(i, 15);
                     }
                     show_optmenu(menu);
                     choice = do_optmenu(menu, 1);
-                    /* lint-begin FM001, FM002: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (*(s32*)((u8*)&lbl_80344A14 +
                                 *(s32*)(pl + offsetof(Player, sel_card_chan)) * 4 +
                                 *(s32*)(pl + offsetof(Player, sel_card_slot)) * 4) != 1) {
                         choice = -1;
                     }
-                    /* lint-end FM001, FM002 */
                     if (setup_file_entries(pl, 1) > 0) {
                         choice = -1;
                     }
@@ -1229,7 +1095,6 @@ s32 do_player_select(void)
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = (u8*)gPlayers + qoff;
-                            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             if (((Player *)q)->state == 2 && pl != q &&
                                 ((Player *)q)->sel_card_chan == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                 ((Player *)q)->sel_card_slot == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -1241,7 +1106,6 @@ s32 do_player_select(void)
                                     goto got6b;
                                 }
                             }
-                            /* lint-end FM001 */
                         }
                         busy = 0;
                         got6b:;
@@ -1253,18 +1117,15 @@ s32 do_player_select(void)
                     case -1:
                     case 1007:
                         remove_optmenu(menu);
-                        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         if (*(s32*)(pl + offsetof(Player, motion_state)) == 6) {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 5;
                             *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         } else {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 10;
                         }
-                        /* lint-end FM001 */
                         break;
                     case 1006:
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         break;
                     }
@@ -1272,13 +1133,11 @@ s32 do_player_select(void)
                 case 1:
                 case 2:
                     if (fn_80055F68(0, 0) != 0) {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     }
                     break;
                 case 3: {
                     s32 ok;
-                    /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (*(s32*)(pl + offsetof(Player, motion_state)) == 6) {
                         ok = saveMount(*(s32*)(pl + offsetof(Player, sel_card_chan)),
                                        *(s32*)(pl + offsetof(Player, sel_card_slot)), 1);
@@ -1296,30 +1155,22 @@ s32 do_player_select(void)
                         ok = MemCardCreateGaunt(*(s32*)(pl + offsetof(Player, sel_card_chan)),
                                                 *(s32*)(pl + offsetof(Player, sel_card_slot)));
                     }
-                    /* lint-end FM001 */
                     if (ok != 0) {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     } else {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
                     break;
                 }
                 default:
                     if (t >= 1000) {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
-                        /* lint-begin FM001, FM007: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x460) {
                             *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                             *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                         }
-                        /* lint-end FM001, FM007 */
                     } else if (t >= 0) {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
-                        /* lint-begin FM001, FM007: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
                             if (*(s32*)(pl + offsetof(Player, motion_state)) == 6) {
                                 *(s32*)(pl + offsetof(Player, motion_state)) = 5;
@@ -1330,21 +1181,16 @@ s32 do_player_select(void)
                                 *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                             }
                         }
-                        /* lint-end FM001, FM007 */
                     } else {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) -= gFrameTicks;
-                        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         if (*(s32*)(pl + offsetof(Player, sel_step)) <= -0x78) {
                             *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                             *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                         }
-                        /* lint-end FM001 */
                     }
                     break;
                 }
             serve6:
-                /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 if (*(s32*)(pl + offsetof(Player, motion_state)) == 11) {
                     do_sel_menu_8008E4F4(i, 11);
                 } else if (*(s32*)(pl + offsetof(Player, motion_state)) == 6) {
@@ -1352,14 +1198,11 @@ s32 do_player_select(void)
                 } else {
                     do_sel_menu_8008E4F4(i, 12);
                 }
-                /* lint-end FM001 */
                 break;
             }
             case 13: /* pick a save slot (save target) */
                 slot = page + moff;
-                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                 act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
-                /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
                 menu = slot + 712;
                 if (act == 0) {
                     setup_sel_menu(i, 13);
@@ -1374,32 +1217,24 @@ s32 do_player_select(void)
                 switch (choice) {
                 case -1:
                     remove_optmenu(menu);
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = 10;
                     break;
                 default:
                     if (choice >= 1000 && lbl_80344BB4 == 0) {
                         remove_optmenu(menu);
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 14;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_save_file)) = choice - 1000;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_file_cursor)) = choice - 1000;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
-                        /* lint-allow-next-line FM007: unrecovered: offset into a module global whose record has no type in this tree */
                         lbl_80344BB4 = 0x1E;
                     }
                     break;
                 }
                 break;
             case 14: { /* write-file progress */
-                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 s32 t = *(s32*)(pl + offsetof(Player, sel_step));
                 switch (t) {
                 case 0:
-                    /* lint-begin FM001, FM002, FM009: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: the option-menu layout view covers only the fields it names */
                     if (*(s32*)(lbl_80274578 + *(s32*)(pl + offsetof(Player, sel_card_chan)) * 132 +
                                 *(s32*)(pl + offsetof(Player, sel_card_slot)) * 132 +
                                 *(s32*)(pl + offsetof(Player, sel_save_file)) * 16) < 0) {
@@ -1425,17 +1260,14 @@ s32 do_player_select(void)
                             break;
                         }
                     }
-                    /* lint-end FM001, FM002, FM009 */
                     break;
                 case 1:
                 case 2:
                     if (fn_80055F68(0, 0) != 0) {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     }
                     break;
                 case 3:
-                    /* lint-begin FM001, FM007, FM009: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (PlayerWriteSaveFile(i, *(s32*)(pl + offsetof(Player, sel_save_file))) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                         add_vmu_file(*(s32*)(pl + offsetof(Player, sel_card_chan)),
@@ -1446,13 +1278,10 @@ s32 do_player_select(void)
                     } else {
                         *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
-                    /* lint-end FM001, FM007, FM009 */
                     break;
                 default:
                     if (t >= 0) {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
-                        /* lint-begin FM001, FM007, FM009: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: the option-menu layout view covers only the fields it names | unrecovered: the save/VMU menu entry record has no full layout in this tree */
                         if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
                             *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                             *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
@@ -1484,16 +1313,12 @@ s32 do_player_select(void)
                                 }
                             }
                         }
-                        /* lint-end FM001, FM007, FM009 */
                     } else {
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, sel_step)) -= gFrameTicks;
-                        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         if (*(s32*)(pl + offsetof(Player, sel_step)) <= -0x78) {
                             *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                             *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                         }
-                        /* lint-end FM001 */
                     }
                     break;
                 }
@@ -1503,7 +1328,6 @@ s32 do_player_select(void)
             }
             case 3: /* name entry */
                 menu = page + moff + 712;
-                /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
                 case 1:
@@ -1511,62 +1335,41 @@ s32 do_player_select(void)
                     *(s32*)(pl + offsetof(Player, sel_step)) = 2;
                     break;
                 }
-                /* lint-end FM001 */
                 if (fn_8005A738(i) != 0) {
                     if (set_hidden_player(pl) != 0) {
                         s32 pi = *(s32*)pl;
                         u8* b;
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                         b = blitbase + pi * 132;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 5;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-begin FM001: unrecovered: the select blit page record has no full layout in this tree */
                         mbBlitInit3414(*(void**)(blitbase + (pi * 132 + 24)),
                                        0);
-                        /* lint-end FM001 */
-                        /* lint-begin FM001, FM007: unrecovered: the select blit page record has no full layout in this tree | numeric constant whose meaning is not recovered yet */
                         MBBlitSetAlpha(*(void**)(blitbase + (pi * 132 + 24)),
                                        0xFF);
-                        /* lint-end FM001, FM007 */
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 7;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)(b + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                     } else {
-                        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, respawn_char)) =
                             LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
-                        /* lint-end FM001 */
-                        /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         *(s32*)(pl + offsetof(Player, motion_state)) = 4;
                     }
-                    /* lint-begin FM001, FM007, FM009: unrecovered: an aggregate copy through the save block, not a scalar member read | measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(PlayerSaveBlk*)(pl + 0x1ECC) =
                         *(PlayerSaveBlk*)(pl + offsetof(Player, name));
-                    /* lint-end FM001, FM007, FM009 */
                 }
                 choice = do_optmenu(menu, 0);
                 do_sel_menu_8008E4F4(i, 2);
                 switch (choice) {
                 case -1:
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                     break;
                 }
                 break;
             case 4: { /* class / costume pick */
-                /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 s32 sel = *(s32*)(pl + offsetof(Player, respawn_char));
                 s32 moved = 0;
                 s32 step = 0;
@@ -1600,19 +1403,14 @@ s32 do_player_select(void)
                     moved = 1;
                     break;
                 case -1:
-                    /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
-                    /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (*(s32*)(pl + offsetof(Player, motion_state)) == 0) {
                         new_player(i);
                     }
-                    /* lint-end FM001 */
-                    /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                     mbBlitInit3414(*(void**)((blitbase + boff) + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), 1);
                     break;
                 }
                 sel += step;
-                /* lint-begin FM001, FM009: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: offset into a module global whose record has no type in this tree | measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: the select blit page record has no full layout in this tree */
                 if (!(moved == 0 && sel == *(s32*)(pl + offsetof(Player, respawn_char)) &&
                       *(s32*)(pl + offsetof(Player, prev_state)) == 2)) {
                     *(s32*)(pl + offsetof(Player, prev_state)) = 2;
@@ -1652,37 +1450,25 @@ s32 do_player_select(void)
                     *(s32*)(pl + offsetof(Player, respawn_char)) = sel;
                     *(s32*)(pl + offsetof(Player, class_id)) = costume;
                 }
-                /* lint-end FM001, FM009 */
                 if (new_menu_accept(i, 0) != 0) {
-                    /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                     if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
                         known = 1;
                     } else if (*(u16*)(pl + offsetof(Player, name) +
-                    /* lint-end FM001 */
                                        offsetof(P_SAVE_HEAD, class_unlock)) &
-                               /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                                (1 << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
                         known = 1;
                     } else {
                         known = 0;
                     }
-                               /* lint-end FM001 */
                     if (known) {
                         AudioCursorSelect();
-                        /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                         if (*(s32*)(pl + offsetof(Player, intower)) != 0) {
-                        /* lint-end FM001 */
                             s32 wflag = 1;
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             change_player(i, *(s32*)(pl + offsetof(Player, respawn_char)));
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, intower)) = 1;
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(pl + offsetof(Player, motion_state)) = 1;
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             setup_sel_menu(i, *(s32*)(pl + offsetof(Player, motion_state)));
                             {
-                                /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                                 u8* base = *(u8**)(menu + offsetof(OptMenuLayout, items));
                                 s32 k = 0;
                                 s32 off = k;
@@ -1692,94 +1478,65 @@ s32 do_player_select(void)
                                     if (*(u32*)en == 0) {
                                         break;
                                     }
-                                    /* lint-begin FM001: unrecovered: the save/VMU menu entry record has no full layout in this tree */
                                     if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1005) {
                                         if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                             found = k;
                                             break;
                                         }
                                     }
-                                    /* lint-end FM001 */
                                     k++;
                                     off += 36;
                                 }
                                 if (found >= 0) {
-                                    /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
                                     *(s32*)(menu + offsetof(OptMenuLayout, sel)) = found;
                                 }
                             }
-                            /* lint-begin FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree | measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             setup_tex(i, 2, 0, 0, pool + 168,
                                       lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char)) & 7]);
-                            /* lint-end FM001, FM009 */
-                            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                             mbBlitProject(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), -1, 320);
-                            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             if (*(s32*)(pl + offsetof(Player, respawn_char)) == 16 ||
                                 *(u32*)(pl + offsetof(Player, hidden_code)) != 0) {
                                 wflag = 0;
                             }
-                            /* lint-end FM001 */
-                            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             if (*(s32*)(pl + offsetof(Player, exp)) == 0) {
                                 AudioWelcomeBack(i, wflag);
                             } else {
                                 AudioWelcome(i, wflag);
                             }
-                            /* lint-end FM001 */
                         } else {
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             s32 picked = *(s32*)(pl + offsetof(Player, respawn_char));
                             u8* p2 = (u8*)gPlayers + poff;
                             s32 saved;
                             s32 wflag;
                             ((Player *)p2)->state = 3;
                             ((Player *)p2)->exit_dest = other_players_next_level(i);
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             saved = *(s32*)(p2 + offsetof(Player, hidden_code));
                             change_player(i, picked);
-                            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             *(s32*)(p2 + offsetof(Player, hidden_code)) = saved;
-                            /* lint-begin FM009: unrecovered: offset into a module global whose record has no type in this tree */
                             setup_tex(i, 2, 0, 0, pool + 168,
                                       lbl_801200B0[picked & 7]);
-                            /* lint-end FM009 */
-                            /* lint-begin FM001: unrecovered: the select blit page record has no full layout in this tree */
                             mbBlitProject(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)),
                                           -1, 320);
-                            /* lint-end FM001 */
-                            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                             if (*(u32*)(p2 + offsetof(Player, hidden_code)) != 0) {
                                 wflag = 0;
                             } else {
                                 wflag = 1;
                             }
-                            /* lint-end FM001 */
                             if (((Player *)p2)->exp == 0) {
                                 AudioWelcomeBack(i, wflag);
                             } else {
                                 AudioWelcome(i, wflag);
                             }
                         }
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 5;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         mbBlitInit3414(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), 0);
-                        /* lint-allow-next-line FM001, FM007: unrecovered: the select blit page record has no full layout in this tree */
                         MBBlitSetAlpha(*(void**)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)), 0xFF);
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 7;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 3 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 6 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
-                        /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                         *(s32*)((blitbase + boff) + 5 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
                     } else {
                         AudioBuzzer();
@@ -1790,58 +1547,40 @@ s32 do_player_select(void)
 
             }
 
-            /* lint-begin FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
             if (*(s32*)(pl + offsetof(Player, state)) == 2) {
                 update_class_spec(i);
                 update_class_attr(i);
             }
-            /* lint-end FM001 */
             break;
         case 3: /* character locked in */
             if (allIdle == 0 && !(servedMask & (1 << i))) {
-                /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                 s32 nx = -(*(s32*)(page + xoff) + 64);
-                /* lint-begin FM007, FM009: blit/scene-graph API bit or colour; no enum for it exists in this tree | unrecovered: offset into a module global whose record has no type in this tree */
                 DrawTextKeepScale(1.2f, nx, 0x8E, 0, 0xFFFFFF,
                                   pool + 180);
-                /* lint-end FM007, FM009 */
-                /* lint-begin FM007, FM009: blit/scene-graph API bit or colour; no enum for it exists in this tree | unrecovered: offset into a module global whose record has no type in this tree */
                 DrawTextKeepScale(1.2f, nx, 0x9A, 0, 0xFFFFFF,
                                   pool + 192);
-                /* lint-end FM007, FM009 */
-                /* lint-begin FM007, FM009: blit/scene-graph API bit or colour; no enum for it exists in this tree | unrecovered: offset into a module global whose record has no type in this tree */
                 DrawTextKeepScale(1.2f, nx, 0xA6, 0, 0xFFFFFF,
                                   pool + 208);
-                /* lint-end FM007, FM009 */
-                /* lint-begin FM007, FM009: blit/scene-graph API bit or colour; no enum for it exists in this tree | unrecovered: offset into a module global whose record has no type in this tree */
                 DrawTextKeepScale(1.2f, nx, 0xB2, 0, 0xFFFFFF,
                                   pool + 220);
-                /* lint-end FM007, FM009 */
-                /* lint-begin FM001: unrecovered: offset into a module global whose record has no type in this tree | measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
                 if (*(u32*)(lbl_80240E30 + padoff + 8) & 0x40000) {
                     *(s32*)(pl + offsetof(Player, state)) = 2;
                     *(s32*)(pl + offsetof(Player, motion_state)) = 1;
                     *(s32*)(pl + offsetof(Player, motion_state_save)) = 1;
                 }
-                /* lint-end FM001 */
             }
-            /* lint-allow-next-line FM001: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words */
             ch = *(s32*)(pl + offsetof(Player, character));
-            /* lint-begin FM001, FM009: measured: spelling the pl cursor's Player fields as members is 7544 -> 7680 B, 1785 words | unrecovered: offset into a module global whose record has no type in this tree */
             if (ch == 2 &&
                 *(u32*)(pl + offsetof(Player, hidden_code)) == lbl_80343D6C) {
                 setup_tex(i, 8, 0, 0, pool + 232);
             } else {
                 setup_tex(i, 8, 0, 0, lbl_80347F58, lbl_801200B0[ch]);
             }
-            /* lint-end FM001, FM009 */
             break;
         case 1:
             break;
         default:
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 1;
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             *(s32*)((blitbase + boff) + 2 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
             break;
         }
@@ -1851,7 +1590,6 @@ s32 do_player_select(void)
         s32 r = ShowLoading();
         if (r == 0) {
             if (allIdle != 0 || lbl_80344BA8 != 0) {
-                /* lint-allow-next-line FM007, FM009: unrecovered: offset into a module global whose record has no type in this tree */
                 DrawGlowText(1.0f, -0x100, 0xEA, pool + 144);
                 WritePlayerInfo(-1);
             }
@@ -1862,7 +1600,6 @@ s32 do_player_select(void)
                 for (i = 0; i < 4; i++) {
                     abort_player(i);
                 }
-                /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                 init_attract_mode(0x8000);
                 lbl_803445DC = 0;
                 return 0;
@@ -1883,7 +1620,6 @@ s32 do_player_select(void)
     }
     return 0;
 }
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves do_player_select by 25 words at unchanged size */
 #pragma dont_inline off
 
 extern s32 lbl_80343DDC;
@@ -1928,7 +1664,6 @@ extern void* lbl_80344E48;
 extern s32 saveGetFreeBytes(s32 chan, s32 handle);
 static s32 sel_set_choice(s32 player, s32 mode);
 
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves do_sel_menu by 1123 words at 4724 -> 4732 B */
 #pragma opt_propagation off
 static void do_sel_menu_8008E4F4(s32 player, u32 mode)
 {
@@ -1974,14 +1709,10 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         s32 x2;
         s32 tx;
         s32 y2;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(0.8f, nx, 64, 6, 0xFFFFFF, lbl_80347F68);
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(0.8f, nx, 90, 6, 0xFFFFFF, lbl_80347F70);
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(0.8f, nx, 116, 6, 0xFFFFFF,
                           lbl_80347F78);
-        /* lint-end FM007 */
         bx = *xp + sz;
         bx += 10;
         y2 = lbl_80343DE4;
@@ -1991,24 +1722,17 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         MBNewTempBlit(lbl_80344E2C, bx, y2, sz, sz2);
         tx = sz + 8;
         tx = bx + tx;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, tx, y2 + 4, font, 0xFFFFFF, lbl_80347F1C);
         MBNewTempBlit(lbl_80344E38, x2, y2 + 20, sz, sz2);
         MBNewTempBlit(lbl_80344E34, bx, y2 + 20, sz, sz2);
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, tx, y2 + 24, font, 0xFFFFFF,
                           lbl_80347F80);
-        /* lint-end FM007 */
         MBNewTempBlit(lbl_80344E48, bx, y2 + 40, sz, sz2);
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, tx, y2 + 44, font, 0xFFFFFF,
                           lbl_80347F88);
-        /* lint-end FM007 */
         MBNewTempBlit(lbl_80344E44, bx, y2 + 60, sz, sz2);
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, tx, y2 + 64, font, 0xFFFFFF,
                           lbl_80347F90);
-        /* lint-end FM007 */
         showSel = 0;
         break;
     }
@@ -2020,11 +1744,8 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         lh = 20;
         MBNewTempBlit(lbl_80344E38, bx - sz, by, sz, sz2);
         MBNewTempBlit(lbl_80344E34, bx, by, sz, sz2);
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, bx + (sz + 8), by + 4, font,
                           0xFFFFFF, lbl_80347F1C);
-        /* lint-end FM007 */
-        /* lint-begin FM001: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
             t = 1;
         } else {
@@ -2037,7 +1758,6 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
                 break;
             }
         }
-        /* lint-end FM001 */
         if (t != 0) {
             showSel = 1;
         } else {
@@ -2046,7 +1766,6 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 5:
-        /* lint-begin FM001, FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         if (*(s32*)(pl + offsetof(Player, sel_step)) == 0) {
             u8* row = tbl + player * 232;
             s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 6;
@@ -2064,44 +1783,31 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FA0);
             break;
         }
-        /* lint-end FM001, FM007, FM009 */
         /* fall through */
     case 10: {
         u8* row = tbl + player * 232;
-        /* lint-allow-next-line FM001, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 3;
         s32 nx = -(x + 64);
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FA8);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FAC);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FB4);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 268);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 280);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 292);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 304);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FBC);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 320);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC0);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 336);
         showBack = 1;
         break;
@@ -2109,50 +1815,38 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     case 7: {
         s32 y = lbl_80343DD8;
         s32 nx = -(x + 64);
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 348);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 360);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FAC);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC8);
         break;
     }
     case 8: {
         u8* row = tbl + player * 232;
-        /* lint-allow-next-line FM001, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 2;
         s32 nx = -(x + 64);
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 388);
         showBack = 1;
         break;
     }
     case 13: {
         u8* row = tbl + player * 232;
-        /* lint-allow-next-line FM001, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 3;
         s32 nx = -(x + 64);
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 404);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 416);
         showBack = 1;
         break;
     }
     case 6: {
-        /* lint-allow-next-line FM001: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         s32 st = *(s32*)(pl + offsetof(Player, sel_step));
         s32 y = lbl_80343DD8 - lh * 5;
         s32 nx;
@@ -2162,45 +1856,33 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         goto fmt_prog;
 fmt_none:
         nx = -(x + 64);
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 428);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FAC);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC8);
         y += lh;
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 440);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FD0);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 452);
         break;
 fmt_prog:
         nx = -(x + 64);
         y = lbl_80343DD8;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 464);
         y += lh;
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 304);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 480);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FD8);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC0);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 492);
         showSel = 0;
         break;
@@ -2208,18 +1890,14 @@ fmt_result:
         if (st >= 0) {
             nx = -(x + 64);
             y = lbl_80343DD8;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE0);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 508);
         } else {
             nx = -(x + 64);
             y = lbl_80343DD8;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE0);
             y += lh;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE8);
         }
         showSel = 0;
@@ -2227,7 +1905,6 @@ fmt_result:
     }
     case 11:
     case 12: {
-        /* lint-allow-next-line FM001: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         s32 st = *(s32*)(pl + offsetof(Player, sel_step));
         s32 y = lbl_80343DD8 - lh * 5;
         s32 nx;
@@ -2239,95 +1916,66 @@ fmt_result:
 cr_none:
         if ((s32)mode == 11) {
             nx = -(x + 64);
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 428);
             y += lh;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FAC);
             y += lh;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC8);
             y += lh;
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 520);
             y += lh;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FB4);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 536);
             y += lh;
-            /* lint-allow-next-line FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             sprintf(buf, pool + 548, lbl_80344BB8 / 8192);
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, buf);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 560);
         } else {
             nx = -(x + 64);
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 348);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 360);
             y += lh;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FAC);
             y += lh;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC8);
             y += lh;
             y += lh;
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FF0);
             y += lh;
-            /* lint-allow-next-line FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             sprintf(buf, pool + 548, lbl_80344BB8 / 8192);
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, buf);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 560);
             y += lh;
             y += lh;
-            /* lint-begin FM001: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             fr = saveGetFreeBytes(*(s32*)(pl + offsetof(Player, sel_card_chan)),
                                   *(s32*)(pl + offsetof(Player, sel_card_slot)));
-            /* lint-end FM001 */
-            /* lint-allow-next-line FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             sprintf(buf, pool + 572, fr / 8192);
-            /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, buf);
         }
         break;
 cr_prog:
         nx = -(x + 64);
         y = lbl_80343DD8;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 588);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 600);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 612);
         y += lh;
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 304);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 480);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FD8);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FC0);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 492);
         showSel = 0;
         break;
@@ -2335,32 +1983,25 @@ cr_result:
         if (st < 1000) goto cr_chk2;
         nx = -(x + 64);
         y = lbl_80343DD8;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 628);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 644);
         goto cr_done;
 cr_chk2:
         if (st < 0) goto cr_fail;
         nx = -(x + 64);
         y = lbl_80343DD8;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 656);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 668);
         goto cr_done;
 cr_fail:
         nx = -(x + 64);
         y = lbl_80343DD8;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FF0);
         y += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 656);
         y += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FE8);
 cr_done:
         showSel = 0;
@@ -2368,7 +2009,6 @@ cr_done:
     }
     case 9:
     case 14: {
-        /* lint-allow-next-line FM001: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         s32 st = *(s32*)(pl + offsetof(Player, sel_step));
         s32 w = (mode == 14);
         s32 nx;
@@ -2381,67 +2021,49 @@ io_none:
         yy = lbl_80343DD8;
         if (w == 0) goto io_prog;
         nx = -(x + 64);
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 680);
         yy += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 692);
         yy += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FF8);
         break;
 io_prog:
         yy = lbl_80343DD8;
-        /* lint-begin FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, -(x + 64), yy, font, 0xFFFFFF,
                           (w != 0) ? pool + 704 : pool + 716);
-        /* lint-end FM007, FM009 */
         nx = -(x + 64);
         yy += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FAC);
         yy += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80348000);
         yy += lh;
         yy += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 304);
         yy += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 480);
         yy += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FD8);
         yy += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FC0);
         yy += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 492);
         showSel = 0;
         break;
 io_result:
         yy = lbl_80343DD8;
         if (st < 0) goto io_neg;
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, -(x + 64), yy, font, 0xFFFFFF,
                           (w != 0) ? lbl_80347F14 : lbl_80347F0C);
-        /* lint-end FM007 */
         nx = -(x + 64);
         yy += lh;
-        /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, pool + 732);
         goto io_done;
 io_neg:
         if (st >= -1) goto io_done;
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, -(x + 64), yy, font, 0xFFFFFF,
                           (w != 0) ? lbl_80347F14 : lbl_80347F0C);
-        /* lint-end FM007 */
         nx = -(x + 64);
         yy += lh;
-        /* lint-allow-next-line FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, nx, yy, font, 0xFFFFFF, lbl_80347FE8);
 io_done:
         showSel = 0;
@@ -2451,23 +2073,17 @@ io_done:
         s32 y = lbl_80343DD8;
         if (gDemoMode != 0) {
             s32 nx = -(x + 64);
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 744);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 760);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 772);
         } else {
             s32 nx = -(x + 64);
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 220);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 244);
             y += lh;
-            /* lint-allow-next-line FM007, FM009: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 784);
         }
         break;
@@ -2478,10 +2094,8 @@ io_done:
         s32 bx = *xp + 20;
         s32 t8 = sz + 8;
         MBNewTempBlit(lbl_80344E48, bx, 252, sz, sz2);
-        /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
         DrawTextKeepScale(scale, bx + t8, 256, font, 0xFFFFFF,
                           lbl_80348008);
-        /* lint-end FM007 */
     }
     if (showBack != 0) {
         s32 by;
@@ -2495,14 +2109,11 @@ io_done:
         {
             s32 t8 = sz + 8;
             MBNewTempBlit(lbl_80344E44, bx, by, sz, sz2);
-            /* lint-begin FM007: measured: this body sits inside the opt_propagation region whose removal is 4724 -> 4732 B, 1123 words; its offsets share that register web */
             DrawTextKeepScale(scale, bx + t8, by + 4, font, 0xFFFFFF,
                               lbl_80348010);
-            /* lint-end FM007 */
         }
     }
 }
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves do_sel_menu by 1123 words at 4724 -> 4732 B */
 #pragma opt_propagation reset
 
 void init_player_change(s32 idx, s32 arg1)
@@ -2515,11 +2126,9 @@ void init_player_change(s32 idx, s32 arg1)
     s32 wflag;
 
     p = (u8*)gPlayers;
-    /* lint-allow-next-line FM007: record stride of a recovered type, kept as the literal the cursor steps by */
     pl = p + idx * 0x335C;
     ((Player*)pl)->state = 3;
 
-    /* lint-begin FM007: record stride of a recovered type, kept as the literal the cursor steps by */
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
             s32 st = ((Player*)p)->state;
@@ -2529,27 +2138,20 @@ void init_player_change(s32 idx, s32 arg1)
             }
         }
     }
-    /* lint-end FM007 */
-    /* lint-allow-next-line FM001, FM007: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + offsetof(Player, exit_dest));
 gotv:
     ((Player*)pl)->exit_dest = v;
 
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     saved = *(s32*)(pl + offsetof(Player, hidden_code));
     change_player(idx, arg1);
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     *(s32*)(pl + offsetof(Player, hidden_code)) = saved;
 
     setup_tex(idx, 2, 0, 0, lbl_801144A0, lbl_801200B0[arg1 & 7]);
 
-    /* lint-begin FM001: unrecovered: the select blit page record has no full layout in this tree */
     mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 +
                             2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)),
                   -1, 320);
-    /* lint-end FM001 */
 
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     wflag = *(u32*)(pl + offsetof(Player, hidden_code)) ? 0 : 1;
     if (((Player*)pl)->exp == 0) {
         AudioWelcomeBack(idx, wflag);
@@ -2572,16 +2174,12 @@ int setup_file_entries(u8* pl, s32 fromLoad)
     s32 nameOff;
     s32 entOff;
 
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     a = *(s32*)(pl + offsetof(Player, sel_card_chan));
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     b = *(s32*)(pl + offsetof(Player, sel_card_slot));
-    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
     state = *(s32*)((u8*)&lbl_80344A18 + a * 4 + b * 4);
     if (state == 1) {
         return -1;
     }
-    /* lint-begin FM001, FM002: unrecovered: offset into a module global whose record has no type in this tree | unrecovered: the save/VMU menu entry record has no full layout in this tree */
     if (state == 3 &&
         *(s32*)((u8*)&lbl_80344A14 + a * 4 + b * 4) == 1) {
         count = get_vmu_directory(a, b);
@@ -2620,19 +2218,15 @@ int setup_file_entries(u8* pl, s32 fromLoad)
         }
         return 1;
     }
-    /* lint-end FM001, FM002 */
     return -2;
 }
 
 int verify_vmu_file_ok(u8* pl, s32 v)
 {
     int i;
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     s32 a = *(s32*)(pl + offsetof(Player, sel_card_chan));
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     s32 b = *(s32*)(pl + offsetof(Player, sel_card_slot));
     for (i = 0; i < 4; i++) {
-        /* lint-allow-next-line FM007: record stride of a recovered type, kept as the literal the cursor steps by */
         u8* p = (u8*)gPlayers + i * 0x335C;
         if (p != pl && ((Player*)p)->state != 0 &&
             ((Player *)p)->sel_card_chan == a && ((Player *)p)->sel_card_slot == b &&
@@ -2649,7 +2243,6 @@ void setup_vmu_entries(void)
     u8* base = lbl_80284878;
     s32 n = 0;
     s32 idx = 0;
-    /* lint-allow-next-line FM007, FM009: unrecovered: offset into a module global whose record has no type in this tree */
     char* buf = (char*)(base + 0x744);
     VmuMenuEntry* entry;
     s32* cardPresent = &lbl_80344A14;
@@ -2663,7 +2256,6 @@ void setup_vmu_entries(void)
             }
             sprintf(buf, slotFormat, n + 1, idx);
         }
-        /* lint-allow-next-line FM007, FM009: unrecovered: the save/VMU menu entry record has no full layout in this tree */
         entry = (VmuMenuEntry*)(base + 0x720);
         entry->text = buf;
         entry->code = 1000;
@@ -2676,13 +2268,11 @@ void setup_vmu_entries(void)
         idx = 1;
     }
 end:
-    /* lint-allow-next-line FM001, FM007, FM009: unrecovered: the save/VMU menu entry record has no full layout in this tree */
     ((VmuMenuEntry*)(base + 0x720))[idx].text = 0;
 }
 
 static s32 sel_set_choice(s32 player, s32 mode);
 
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves setup_sel_menu by 108 words at 492 -> 484 B */
 #pragma opt_propagation off
 void setup_sel_menu(s32 player, s32 mode)
 {
@@ -2698,40 +2288,30 @@ void setup_sel_menu(s32 player, s32 mode)
     menu = data;
     menu += playerOffset;
     menu += 712;
-    /* lint-allow-next-line FM009: unrecovered: the option-menu layout view covers only the fields it names */
     memcpy(menu, data + 1640, 232);
 
     field = data;
     field += playerOffset;
-    /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
     baseChoice = ((s32*)data)[player];
     *(s32*)(field += 712 + offsetof(OptMenuLayout, x)) -= baseChoice;
     *(s32*)menu = mode;
 
     switch (mode) {
     case 0:
-        /* lint-allow-next-line FM001, FM009: unrecovered: the option-menu layout view covers only the fields it names */
         *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = data + 280;
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = sel_set_choice(player, mode);
         break;
     case 1:
-        /* lint-allow-next-line FM001, FM009: unrecovered: the option-menu layout view covers only the fields it names */
         *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = data + 388;
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = sel_set_choice(player, mode);
         break;
     case 15:
-        /* lint-allow-next-line FM001, FM009: unrecovered: the option-menu layout view covers only the fields it names */
         *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = data + 604;
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = 1;
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = lbl_80343DD8 + 64;
         break;
     case 5:
     case 10: {
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         u8* entries = bss + 1824;
         VmuMenuEntry* entry;
         s32 sum;
@@ -2739,22 +2319,16 @@ void setup_sel_menu(s32 player, s32 mode)
         s32 i;
         s32* selected;
 
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = entries;
-        /* lint-allow-next-line FM007: record stride of a recovered type, kept as the literal the cursor steps by */
         sum = player * 0x335C;
         *(s32*)field = baseChoice + 4;
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
         selected = (s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel));
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
         off = 0;
         *selected = off;
-        /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         sum = *(s32*)((u8*)gPlayers + sum + offsetof(Player, sel_card_chan)) +
               *(s32*)((u8*)gPlayers + sum + offsetof(Player, sel_card_slot));
-        /* lint-end FM001 */
         sum += 1000;
         i = 0;
         for (;; i++, off += 36) {
@@ -2771,29 +2345,20 @@ void setup_sel_menu(s32 player, s32 mode)
     }
     case 8:
     case 13:
-        /* lint-begin FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) =
             (field = bss + player * 324) + 528;
-        /* lint-end FM001 */
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, x)) = baseChoice + 8;
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
-        /* lint-allow-next-line FM001, FM007: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)((u8*)gPlayers + player * 0x335C + offsetof(Player, sel_file_cursor));
-        /* lint-begin FM001: unrecovered: the option-menu layout view covers only the fields it names */
         if (*(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) < 0) {
             *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = 0;
         }
-        /* lint-end FM001 */
         break;
     }
 
     start_optmenu_nostack(menu, player);
 }
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves setup_sel_menu by 108 words at 492 -> 484 B */
 #pragma opt_propagation reset
 
 void sel_set_inactive(s32 slot)
@@ -2801,12 +2366,10 @@ void sel_set_inactive(s32 slot)
     lbl_80121950[slot].state = 0;
 }
 
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves sel_set_choice by 22 words at unchanged size */
 #pragma opt_propagation off
 static s32 sel_set_choice(s32 player, s32 mode)
 {
     u8* menu = (u8*)&lbl_80121950[player];
-    /* lint-allow-next-line FM007: record stride of a recovered type, kept as the literal the cursor steps by */
     u8* pl = (u8*)gPlayers + player * 0x335C;
     u8* e;
     s32 best = -1;
@@ -2815,7 +2378,6 @@ static s32 sel_set_choice(s32 player, s32 mode)
     u32 owner;
 
     for (;;) {
-        /* lint-allow-next-line FM001: unrecovered: the option-menu layout view covers only the fields it names */
         e = *(u8**)(menu + offsetof(OptMenuLayout, items)) + off;
         if (*(u32*)e == 0) {
             break;
@@ -2855,7 +2417,6 @@ static s32 sel_set_choice(s32 player, s32 mode)
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
                 ((VmuMenuEntry*)e)->value = -1;
             } else {
-                /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
                 owner = *(u32*)(pl + offsetof(Player, hidden_code));
                 if (owner != 0 && owner != lbl_80343D6C) {
                     ((VmuMenuEntry*)e)->value = -1;
@@ -2876,7 +2437,6 @@ static s32 sel_set_choice(s32 player, s32 mode)
     }
     return best;
 }
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves sel_set_choice by 22 words at unchanged size */
 #pragma opt_propagation reset
 
 s32 other_players_next_level(s32 idx)
@@ -2886,7 +2446,6 @@ s32 other_players_next_level(s32 idx)
     int i;
 
     p = (u8*)gPlayers;
-    /* lint-begin FM007: record stride of a recovered type, kept as the literal the cursor steps by */
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
             st = ((Player*)p)->state;
@@ -2895,9 +2454,7 @@ s32 other_players_next_level(s32 idx)
             }
         }
     }
-    /* lint-end FM007 */
     p = (u8*)gPlayers;
-    /* lint-allow-next-line FM007: record stride of a recovered type, kept as the literal the cursor steps by */
     p += idx * 0x335C;
     return ((Player*)p)->exit_dest;
 }
@@ -2909,14 +2466,12 @@ int check_active_players(void)
     int count = 0;
     new_menu_accept(-1, 1);
     p = (u8*)gPlayers;
-    /* lint-begin FM007: record stride of a recovered type, kept as the literal the cursor steps by */
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (((Player*)p)->state == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);
             count++;
         }
     }
-    /* lint-end FM007 */
     return count;
 }
 
@@ -2974,36 +2529,26 @@ void update_class_attr(s32 player)
     u8* pl = (u8*)gPlayers + player * 13148;
     char* pool = lbl_801143F8;
     s32 stats[4];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves update_class_attr by 35 words at unchanged size; original local unrecovered */
     u8 statsPad[4];
     char buf[40];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves update_class_attr by 42 words at unchanged size; original local unrecovered */
     u8 bufPad[4];
     u8* expslot;
     s32 lvl;
     s32 best;
     s32 j;
 
-    /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     LoadPlyrData(player, *(s32*)(pl + offsetof(Player, character)), 0);
-    /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     if (*(s32*)(pl + offsetof(Player, level)) <= 0) {
         *(s32*)(pl + offsetof(Player, level)) = 1;
     }
-    /* lint-end FM001 */
-    /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     switch (*(s32*)(pl + offsetof(Player, state))) {
     case 2:
         break;
     default:
         return;
     }
-    /* lint-end FM001 */
-    /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     switch (*(s32*)(pl + offsetof(Player, motion_state))) {
-    /* lint-end FM001 */
     case 4: {
-        /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         s32 sel = *(s32*)(pl + offsetof(Player, respawn_char));
         s32 avail;
         s32* xp;
@@ -3013,9 +2558,7 @@ void update_class_attr(s32 player)
         f32 kScale;
         if (sel < 8) {
             avail = 1;
-        /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         } else if (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (1 << (sel - 8))) {
-        /* lint-end FM001 */
             avail = 1;
         } else {
             avail = 0;
@@ -3034,30 +2577,21 @@ void update_class_attr(s32 player)
             expslot = pl + offsetof(Player, name) + sizeof(P_SAVE_HEAD) +
                       sel * sizeof(P_SAVE_ATTS);
             lvl = ExpToLevel(*(s32*)expslot);
-            /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
             {
                 u8* cls = lbl_80282930[player];
-                /* lint-begin FM001, FM009: numeric constant whose meaning is not recovered yet */
                 stats[0] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, fight_add)) +
                                  (*(f32*)(cls + 40) +
                                   (f32)((lvl - 1) * 5)));
-                /* lint-end FM001, FM009 */
-                /* lint-begin FM001, FM009: numeric constant whose meaning is not recovered yet */
                 stats[1] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, speed_add)) +
                                  (*(f32*)(cls + 48) +
                                   (f32)((lvl - 1) * 5)));
-                /* lint-end FM001, FM009 */
-                /* lint-begin FM001, FM009: numeric constant whose meaning is not recovered yet */
                 stats[2] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, armor_add)) +
                                  (*(f32*)(cls + 56) +
                                   (f32)((lvl - 1) * 5)));
-                /* lint-end FM001, FM009 */
-                /* lint-begin FM001, FM009: numeric constant whose meaning is not recovered yet */
                 stats[3] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, magic_add)) +
                                  (*(f32*)(cls + 64) +
                                   (f32)((lvl - 1) * 5)));
-                /* lint-end FM001, FM009 */
             }
             for (j = 0; j < 4; j++) {
                 s32 v = stats[j];
@@ -3090,60 +2624,46 @@ void update_class_attr(s32 player)
             if (best == row) {
                 DrawGlowText(kScale, textX, y - 2, name);
             } else {
-                /* lint-begin FM007: blit/scene-graph API bit or colour; no enum for it exists in this tree */
                 DrawTextKeepScale(kScale, textX, y - 2, 6, 0xFFFFFF,
                                   name);
-                /* lint-end FM007 */
             }
             vx = lbl_80343DB8 + *xp;
             sprintf(buf, lbl_8034802C, stats[row]);
             if (best == row) {
-                /* lint-begin FM009: unrecovered: offset into a module global whose record has no type in this tree */
                 MBNewTempBlit(MBOX_FindTexture(pool + 824, 0), vx - 6,
                               y - 6, 68, -1);
-                /* lint-end FM009 */
             }
-            /* lint-allow-next-line FM007: unrecovered: offset into a module global whose record has no type in this tree */
             DrawTextKeepScale(kScale, vx, y, lbl_80343DC0, 0xFFFFFF, buf);
         }
         {
             s32 y2 = lbl_80343DCC;
             s32 x2 = -(*xp + 64);
             if (expslot != 0 && *(s32*)expslot > 0) {
-                /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
                 sprintf(buf, pool + 836, lvl);
             } else {
                 sprintf(buf, lbl_80348034);
             }
-            /* lint-begin FM007: unrecovered: offset into a module global whose record has no type in this tree */
             DrawTextKeepScale(lbl_80343DD0, x2, y2, lbl_80344BBC, 0xFFFFFF,
                               buf);
-            /* lint-end FM007 */
         }
         break;
     }
     case 1: {
         s32 y2 = lbl_80343DCC;
-        /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
         s32 x2 = -(*(s32*)(lbl_80121688 + (player << 2)) + 64);
-        /* lint-allow-next-line FM001, FM009: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         sprintf(buf, pool + 836, ExpToLevel(*(s32*)(pl + offsetof(Player, exp))));
-        /* lint-begin FM007: unrecovered: offset into a module global whose record has no type in this tree */
         DrawTextKeepScale(lbl_80343DD0, x2, y2, lbl_80344BBC, 0xFFFFFF,
                           buf);
-        /* lint-end FM007 */
         break;
     }
     }
 }
 
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves update_class_spec by 104 words at 868 -> 872 B */
 #pragma opt_propagation off
 void update_class_spec(s32 player)
 {
     char* pool = lbl_801143F8;
     u8* blitBase = lbl_80284878;
-    /* lint-allow-next-line FM007: record stride of a recovered type, kept as the literal the cursor steps by */
     u8* pl = (u8*)gPlayers + player * 0x335C;
     s32 boff;
     u8* eWeap;
@@ -3158,18 +2678,14 @@ void update_class_spec(s32 player)
     char* qfmt;
     char* extra;
     char* texName;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves update_class_spec by 5 words at unchanged size; original local unrecovered */
     u8 unused[40];
     StrBlock4 tmp;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves update_class_spec by 10 words at unchanged size; original local unrecovered */
     u8 pad[8];
 
     PlayerModel(player);
     setup_player_display(player);
-    /* lint-begin FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree | measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     setup_tex(player, 2, 0, 0, pool + 168,
               lbl_801200B0[*(s32*)(pl + offsetof(Player, character)) & 7]);
-    /* lint-end FM001, FM009 */
     boff = player * 132;
     eWeap = blitBase;
     eWeap += boff;
@@ -3188,7 +2704,6 @@ void update_class_spec(s32 player)
     mbBlitInit3414(*(void**)(eD += 96), 1);
 
     if (gGameMode == MG_PLAYER_SELECT) {
-        /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         state = *(s32*)(pl + offsetof(Player, state));
         if (state == 3) {
             return;
@@ -3203,52 +2718,41 @@ void update_class_spec(s32 player)
     return;
 
 substate:
-    /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
     switch (*(s32*)(pl + offsetof(Player, motion_state))) {
-    /* lint-end FM001 */
     case 2:
         break;
     case 1:
-        /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         cls = *(s32*)(pl + offsetof(Player, character));
-        /* lint-begin FM001, FM009: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body | unrecovered: offset into a module global whose record has no type in this tree */
         if (cls == 2 && *(u32*)(pl + offsetof(Player, hidden_code)) == lbl_80343D6C) {
             setup_tex(player, 8, 0, 0, pool + 232);
         } else {
             setup_tex(player, 8, 0, 0, lbl_80347F58,
                       lbl_801200B0[cls]);
         }
-        /* lint-end FM001, FM009 */
         break;
     case 0:
     case 3:
         hide_select_blits(player, 0);
         break;
     case 4:
-        /* lint-allow-next-line FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree */
         tmp = *(StrBlock4*)(pool + 80);
         mbBlitInit3414(*(void**)eWeap, 1);
-        /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
         spec = *(s32*)(pl + offsetof(Player, respawn_char));
         if (spec < 8) {
             known = 1;
         } else {
             known = 1;
-            /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             switch (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) {
             case 0:
                 known = 0;
                 break;
             }
-            /* lint-end FM001 */
         }
         if (known != 0) {
             texName = tmp.s[0];
-            /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             extra = lbl_80120104[*(s32*)(pl + offsetof(Player, class_id))];
             qfmt = 0;
         } else {
-            /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
             qfmt = pool + 848;
             extra = lbl_80347F44;
             texName = 0;
@@ -3256,13 +2760,10 @@ substate:
         if (spec == 16) {
             setup_tex(player, 3, 0, 0, lbl_80347F4C);
         } else {
-            /* lint-begin FM009: unrecovered: offset into a module global whose record has no type in this tree */
             setup_tex(player, 3, 0, 0, pool + 156,
                       lbl_801200B0[spec], extra);
-            /* lint-end FM009 */
         }
         if (texName != 0) {
-            /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             extra = lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))];
             (void)pbLoad;
             setup_tex(player, 8, 0, 0, lbl_80347F58, extra);
@@ -3273,9 +2774,7 @@ substate:
         }
         if (qfmt != 0) {
             setup_tex(player, 7, 0, 0, qfmt);
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             *(s32*)(blitBase + boff + 7 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 3;
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             *(s32*)(blitBase + boff + 7 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
         } else {
             mbBlitInit3414(*(void**)eA, 1);
@@ -3284,7 +2783,6 @@ substate:
         break;
     }
 }
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves update_class_spec by 104 words at 868 -> 872 B */
 #pragma opt_propagation reset
 
 /* Enter / initialise the select screen. */
@@ -3324,7 +2822,6 @@ extern void mbBlitCvtCoord(void* blit, f32 c);
 extern void mbBlitCalcWidth(void* blit, s32 x, s32 w, f32 h);
 void update_class_spec(s32 player);
 
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves init_player_select by 108 words at 952 -> 948 B */
 #pragma opt_propagation off
 void init_player_select(s32 mode)
 {
@@ -3335,7 +2832,6 @@ void init_player_select(s32 mode)
     s32* xp;
     u8* pl;
     s32 initValue;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves init_player_select by 16 words at unchanged size; original local unrecovered */
     u8 _spare[32];
 
     AudioStopSelect();
@@ -3361,24 +2857,18 @@ void init_player_select(s32 mode)
                 abort_player(i1);
             }
             *(s32*)pl = i1;
-            /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             if (*(s32*)(pl + offsetof(Player, state)) == 4) {
                 *(s32*)(pl + offsetof(Player, state)) = 1;
             }
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             if (mode == 2 && *(s32*)(pl + offsetof(Player, state)) == 5) {
                 *(s32*)(pl + offsetof(Player, state)) = 2;
                 *(s32*)(pl + offsetof(Player, motion_state)) = 1;
             }
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             if (*(s32*)(pl + offsetof(Player, state)) == 1) {
                 *(s32*)(pl + offsetof(Player, state)) = 3;
                 player_store_in_save(pl);
                 remove_player_geo(i1);
             }
-            /* lint-end FM001 */
         }
     }
     if (mode == 0) {
@@ -3400,12 +2890,10 @@ void init_player_select(s32 mode)
     {
         initValue = 1;
         for (pl = (u8*)gPlayers; i2 < 4; i2++, pl += 13148) {
-            /* lint-begin FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             if (*(s32*)(pl + offsetof(Player, state)) == 0 &&
                 (lbl_80344824 & (initValue << i2))) {
                 new_player(i2);
             }
-            /* lint-end FM001 */
         }
     }
     {
@@ -3421,56 +2909,39 @@ void init_player_select(s32 mode)
             for (j = 0, joff = 0; j < 11; j++, joff += 12) {
                 u8* e = page + joff;
                 void* b;
-                /* lint-allow-next-line FM001, FM007, FM009: unrecovered: the select blit page record has no full layout in this tree */
                 s32 w = *(s32*)(e + 0x20 + offsetof(BlitPlacement, x));
-                /* lint-allow-next-line FM001, FM007, FM009: unrecovered: the select blit page record has no full layout in this tree */
                 s32 h = *(s32*)(e + 0x20 + offsetof(BlitPlacement, y));
                 w += *xp;
                 e += 32;
                 b = (void*)MBCreateBlit(0, 0, w, h, -1, -1);
-                /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                 *(void**)(blits + joff) = b;
-                /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                 mbBlitInit3414(*(void**)(blits + joff), 1);
-                /* lint-begin FM001: unrecovered: the select blit page record has no full layout in this tree */
                 mbBlitCvtCoord(*(void**)(blits + joff),
                                (f32)((BlitPlacement *)e)->scale);
-                /* lint-end FM001 */
-                /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
                 *(s32*)(blits + joff + offsetof(BlitEntry, mode)) = 0;
             }
-            /* lint-allow-next-line FM001: measured: spelling the Player cursor's fields as members is 7544 -> 7680 B, 1785 words in the shared do_player_select body */
             *(s32*)(pl + offsetof(Player, exit_dest)) = sLastWorldLevel;
             if (!(((SelOptsView*)gGameOptions)->flags44 & 1)) {
-                /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
                 setup_tex(i3, 0, 0, 0, pool + 868, i3 + 1);
-                /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
                 setup_tex(i3, 1, 0, 0, pool + 880, i3 + 1);
-                /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
                 setup_tex(i3, 9, 16384, 0, pool + 892);
-                /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
                 setup_tex(i3, 10, 16384, 0, pool + 904);
                 update_class_spec(i3);
             }
             /* placement entries 9 and 10, whose BlitEntry handles sit at the
              * matching blits+108 / blits+120 slots */
-            /* lint-begin FM001, FM009: unrecovered: the select blit page record has no full layout in this tree */
             mbBlitCalcWidth(*(void**)(blits + 9 * sizeof(BlitEntry) +
                                       offsetof(BlitEntry, handle)),
                             *(s32*)(page + 140 + offsetof(BlitPlacement, x)) + *xp,
                             *(s32*)(page + 140 + offsetof(BlitPlacement, y)),
                             (f32)*(s32*)(page + 140 + offsetof(BlitPlacement, scale)));
-            /* lint-end FM001, FM009 */
-            /* lint-begin FM001, FM009: unrecovered: the select blit page record has no full layout in this tree */
             mbBlitCalcWidth(*(void**)(blits + 10 * sizeof(BlitEntry) +
                                       offsetof(BlitEntry, handle)),
                             *(s32*)(page + 152 + offsetof(BlitPlacement, x)) + *xp,
                             *(s32*)(page + 152 + offsetof(BlitPlacement, y)),
                             (f32)*(s32*)(page + 152 + offsetof(BlitPlacement, scale)));
-            /* lint-end FM001, FM009 */
         }
     }
-    /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
     if (!(*(u32*)((u32)gGameOptions + offsetof(SelOptsView, flags44)) & 1)) {
         lbl_80344B90 = 0;
         lbl_80344B98 = 0;
@@ -3478,14 +2949,11 @@ void init_player_select(s32 mode)
         lbl_80344BA0 = 0;
         lbl_80344B9C = 0;
     }
-    /* lint-end FM001 */
     lbl_80344BA4 = 0;
     fn_80053C70();
 }
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves init_player_select by 108 words at 952 -> 948 B */
 #pragma opt_propagation reset
 
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves hide_select_blits by 4 words at unchanged size */
 #pragma opt_propagation off
 void hide_select_blits(s32 arg0, s32 flag)
 {
@@ -3517,7 +2985,6 @@ void hide_select_blits(s32 arg0, s32 flag)
         }
     }
 }
-/* lint-allow-next-line FM006: measured -- removing this directive WITH its matching opener/closer moves hide_select_blits by 4 words at unchanged size */
 #pragma opt_propagation reset
 
 void setup_tex(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
@@ -3537,7 +3004,6 @@ void setup_tex(s32 id, s32 slot, s32 flags, s32 hide, char* fmt, ...)
     mbBlitUpdateEntry(*entry, -1, flags);
     MBBlitSetAlpha(*entry, 0);
     if (flags & 0x4000) {
-        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         MBBlitSetColor4(*entry, 0x80808080, 0x80808080, 0x80808080, 0x80808080);
     }
 }
@@ -3572,54 +3038,41 @@ s32 serve_blits(s32 player)
         sp = (s32*)(e + offsetof(BlitEntry, mode));
         h = *(u8**)e;
 
-        /* lint-begin FM001: unrecovered: the select blit page record has no full layout in this tree */
         switch (*(u32*)(e + offsetof(BlitEntry, mode))) {
-        /* lint-end FM001 */
         case 0:
             break;
 
         case 1: /* hide */
             *sp = 0;
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             *(s32*)(e + offsetof(BlitEntry, timer)) = 0;
             mbBlitInit3414(h, 1);
             break;
 
         case 3: { /* looping pulse */
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             u8* tex = MBRomTexPtr(*(u32*)(h + offsetof(MBBlit, tex_idx)));
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             s32 w = *(u16*)(tex + offsetof(MBTextureDef, width));
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             s32 ht = *(u16*)(tex + offsetof(MBTextureDef, height));
             s32 amp;
             f32 f;
             s32 du;
             s32 dv;
-            /* lint-begin FM001: unrecovered: the select blit page record has no full layout in this tree */
             *(s32*)(e + offsetof(BlitEntry, timer)) =
                 (*(s32*)(e + offsetof(BlitEntry, timer)) + 1) & 0x3F;
-            /* lint-end FM001 */
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             amp = *(s32*)(e + offsetof(BlitEntry, timer));
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (amp >= 0x20) {
                 amp = 0x20 - (amp & 0x1F);
             }
-            /* lint-end FM007 */
             f = (f32)(ka * (f64)amp + kb);
             du = (s32)((f32)w * f);
             dv = (s32)((f32)ht * f);
             {
                 u8* pe = page + off;
-                /* lint-begin FM001, FM007, FM009: unrecovered: the select blit page record has no full layout in this tree */
                 mbBlitCalcWidth(h,
                                 *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) -
                                     du / 2 + *xp,
                                 *(s32*)(pe + 0x20 + offsetof(BlitPlacement, y)) -
                                     dv / 2,
                                 (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
-                /* lint-end FM001, FM007, FM009 */
             }
             mbBlitProject(h, du, dv);
             break;
@@ -3634,18 +3087,14 @@ s32 serve_blits(s32 player)
             u = t * t;
             {
                 u8* pe = page + off;
-                /* lint-begin FM001, FM007, FM009: unrecovered: the select blit page record has no full layout in this tree */
                 mbBlitCalcWidth(h,
                                 *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) +
                                     (*xp + u / 8),
                                 u + t * 3,
                                 (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
-                /* lint-end FM001, FM007, FM009 */
             }
             MBBlitSetAlpha(h, u);
-            /* lint-allow-next-line FM007: blit/scene-graph API bit or colour; no enum for it exists in this tree */
             mbBlitProject(h, 0x80, 0x100 - u);
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (u >= 0x100) {
                 *sp = 0;
                 *tp2 = 0;
@@ -3653,7 +3102,6 @@ s32 serve_blits(s32 player)
             } else {
                 mbBlitInit3414(h, 0);
             }
-            /* lint-end FM007 */
             count++;
             break;
         }
@@ -3668,7 +3116,6 @@ s32 serve_blits(s32 player)
             *tp = x;
             half = x >> 1;
             if (*sp == 7) {
-                /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                 half -= 0x10;
                 if (half < 0) {
                     half = 0;
@@ -3676,13 +3123,11 @@ s32 serve_blits(s32 player)
             }
             a = half * half;
             MBBlitSetAlpha(h, a);
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (a >= 0x100) {
                 *sp = 0;
                 *tp = 0;
                 mbBlitInit3414(h, 1);
             }
-            /* lint-end FM007 */
             count++;
             break;
         }
@@ -3697,24 +3142,17 @@ s32 serve_blits(s32 player)
             s32 du;
             s32 dv;
             tp4 = (s32*)(e + offsetof(BlitEntry, timer));
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             *(s32*)(e + offsetof(BlitEntry, timer)) += gFrameTicks;
-            /* lint-allow-next-line FM001: unrecovered: the select blit page record has no full layout in this tree */
             half = *(s32*)(e + offsetof(BlitEntry, timer)) >> 1;
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             tex = MBRomTexPtr(*(u32*)(h + offsetof(MBBlit, tex_idx)));
             a = half * half;
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             w = *(u16*)(tex + offsetof(MBTextureDef, width));
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             ht = *(u16*)(tex + offsetof(MBTextureDef, height));
-            /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
             f = (f32)(0x100 - a) * kf;
             du = (s32)((f32)w * f);
             dv = (s32)((f32)ht * f);
             {
                 u8* pe = page + off;
-                /* lint-begin FM001, FM007, FM009: unrecovered: the select blit page record has no full layout in this tree */
                 mbBlitCalcWidth(h,
                                 w / 2 +
                                     *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) -
@@ -3723,16 +3161,13 @@ s32 serve_blits(s32 player)
                                     *(s32*)(pe + 0x20 + offsetof(BlitPlacement, y)) -
                                     dv / 2,
                                 (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
-                /* lint-end FM001, FM007, FM009 */
             }
             mbBlitProject(h, du, dv);
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (a >= 0x100) {
                 *sp = 0;
                 *tp4 = 0;
                 mbBlitInit3414(h, 1);
             }
-            /* lint-end FM007 */
             count++;
             break;
         }
@@ -3746,19 +3181,14 @@ s32 serve_blits(s32 player)
             a = x >> 1;
             *tp = x;
             a = a * a;
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (a > 0x100) {
                 a = 0x100;
             }
-            /* lint-end FM007 */
-            /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
             MBBlitSetAlpha(h, 0x100 - a);
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (a >= 0x100) {
                 *sp = 0;
                 *tp = 0;
             }
-            /* lint-end FM007 */
             count++;
             break;
         }

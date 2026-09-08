@@ -871,7 +871,6 @@ s32 fn_80055F68(s32 arg0, s32 arg1)
 {
     register u8* table = (u8*)lbl_80257680;
     char name[264];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 10 words in fn_80055F68 at unchanged 1028-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     volatile u8 unused[4];
     s32 type;
     s32 qty;
@@ -1286,13 +1285,11 @@ void world_update(void)
                                      lbl_80346BF0, lbl_80346BF0);
             } else {
                 if (!lbl_80344868) {
-                    // lint-begin FM001, FM007, FM009: 0x70 is level_data.fog (game/leveldata.h) and 0x80 is that block's fog_data.max, but this pair is load-bearing in world_update at unchanged 2264-byte size: level_data* lv + lv->fog + hdr+offsetof(FogData,max) moves 18 words, keeping u8* lv and converting only the 0x80 read moves 18, level_data* lv with lv->fog+0x10 moves 14, and u8* lv with ((level_data*)lv)->fog moves 18. The target keeps a raw gCurLevel byte cursor here, so both offsets stay raw.
                     u8* lv = (u8*)gCurLevel;
                     u8* hdr = lv + 0x70;
                     s32 col = 0;
 
                     if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
-                        // lint-end FM001, FM007, FM009
                         col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                     }
                     MBCompVertScaleAddUV(
@@ -1318,13 +1315,11 @@ void world_update(void)
             }
         } else {
             if (!lbl_80344868) {
-                // lint-begin FM001, FM007, FM009: 0x70 is level_data.fog (game/leveldata.h) and 0x80 is that block's fog_data.max, but this pair is load-bearing in world_update at unchanged 2264-byte size: level_data* lv + lv->fog + hdr+offsetof(FogData,max) moves 18 words, keeping u8* lv and converting only the 0x80 read moves 18, level_data* lv with lv->fog+0x10 moves 14, and u8* lv with ((level_data*)lv)->fog moves 18. The target keeps a raw gCurLevel byte cursor here, so both offsets stay raw.
                 u8* lv = (u8*)gCurLevel;
                 u8* hdr = lv + 0x70;
                 s32 col = 0;
 
                 if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
-                    // lint-end FM001, FM007, FM009
                     col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                 }
                 MBCompVertScaleAddUV(
@@ -1354,7 +1349,6 @@ void world_update(void)
             WorldObj* w = FindWORLDOBJ(strs + 0xd0);
 
             if (w != 0 && w->nodeptr != 0) {
-                // lint-allow-next-line FM001, FM007: 0x60 off WorldObj.nodeptr is mbnode.flags (Xbox misc.h struct mbnode Id=3249: unsigned int flags at 0x60); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
             } else {
                 ErrorPrintf(strs + 0xdc);
@@ -1364,7 +1358,6 @@ void world_update(void)
             WorldObj* w = FindWORLDOBJ(strs + 0xfc);
 
             if (w != 0 && w->nodeptr != 0) {
-                // lint-allow-next-line FM001, FM007: 0x60 off WorldObj.nodeptr is mbnode.flags (Xbox misc.h struct mbnode Id=3249: unsigned int flags at 0x60); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
             } else {
                 ErrorPrintf(strs + 0x108);
@@ -1495,10 +1488,8 @@ void world_update(void)
                 void* found = MBOX_FindObject(strs + 0x128);
                 u32 o = (u32)gBossObj->hitnode1;
 
-                // lint-begin FM001, FM007: 0x78 off this node is mbnode.child (Xbox misc.h struct mbnode Id=3249: struct mbnode *child at 0x78); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 if (o != 0 && *(u32*)(o + 0x78) != 0) {
                     MBSetObject((void*)*(s32*)(o + 0x78), found);
-                    // lint-end FM001, FM007
                 }
                 gBossObj->unkAC6 = 0;
                 lbl_8034489C = 6;
@@ -1712,7 +1703,6 @@ void PrintWorldMemSizes(void)
     char* fmt = lbl_80112788;
     WorldMemTable* t = (WorldMemTable*)lbl_80257680;
     s32 sum;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in PrintWorldMemSizes at unchanged 368-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[8];
     s32 i;
     WorldMemTable* entry;
@@ -3079,7 +3069,6 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
         s16 field;
     } WorldRecordView;
     WorldRecordView* view = (WorldRecordView*)record;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 10 words in fn_8005AF98 at unchanged 512-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unusedHigh[8];
     s32 type;
     s32 value;
@@ -3094,7 +3083,6 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     u8** worldRecords;
     s32 count;
     s32 i;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 42 words in fn_8005AF98 at unchanged 512-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unusedLow[8];
 
     if (view->type == -1) {
@@ -3187,7 +3175,6 @@ f32 fn_8005B274(f32* position, f32 bias, f32 radius, f32* direction,
                 f32* resultPosition, Item** resultItem)
 {
     f32 delta[3];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 17 words in fn_8005B274 at unchanged 740-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[4];
     f32 dot;
     f32 weighted;
@@ -3547,7 +3534,6 @@ s32 fn_8005D0C4(s32 id, f32* position)
     f32 best = sCameraVisibilityRadius;
     s32 best_idx = -1;
     s32 idx;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 7 words in fn_8005D0C4 at unchanged 328-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[16];
     struct {
         u8 pad[8];
@@ -3645,7 +3631,6 @@ void fn_8005E90C(Item* item, s32* inst)
     s32 idx;
     u32 fl;
     s32 t;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005E90C at unchanged 1080-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[24];
 
     idx = *(s16*)&item->data.raw[0];
@@ -3799,7 +3784,6 @@ int fn_8005EE18(Item* item, s32 arg)
     int result = 0;
     iteminfo* info = item->info;
     s32* sub = (s32*)info + 1;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005EE18 at unchanged 404-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 _pad[8];
 
     switch (info->type) {
@@ -3925,7 +3909,6 @@ Item* fn_8005EFAC(f32 radius, s32 a2, f32* position, s32 a4, s32 a5)
 
 Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
 {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 7 words in fn_80062FF0 at unchanged 444-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[40];
     Item* item;
     f32 min_flagged = 100000.0f;
@@ -4074,7 +4057,6 @@ void fn_8005BA1C(Item* item, u8* player)
     iteminfo** records;
     iteminfo* rec;
     s32* rsub;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 5 words in fn_8005BA1C at unchanged 1964-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[32];
 
     (void)unused;
@@ -4388,14 +4370,12 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     f32 Rsum;
     f32 dist;
     f32 cx, cz;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 10 words in fn_8005F0F4 at unchanged 2640-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     f32 unused2[4];
     f32 nv[3];
     f32 mv[3];
     f32 norm[3];
     f32 hitpt[3];
     f32 f1, f2, f3, f4;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 85 words in fn_8005F0F4 at unchanged 2640-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     f32 unused[6];
 
     (void)unused;
@@ -4953,7 +4933,6 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
         gCurLevel->plevel > sItemZero) {
         f32 mult;
         f32 ramp = gCurLevel->plevel;
-        // lint-allow-next-line FM007: 0x335C is the Player stride and 0x3324 is Player.level (game/player.h, GC-verified there); gPlayers[owner].level is NOT byte-neutral here - it moves 6 words in fn_8005C1DC at unchanged 3696-byte size - so the indexed form stays raw while the field is named in this comment.
         f32 gold = (f32)*(s32*)((u8*)gPlayers + owner * 0x335C + 0x3324);
 
         if (gold < ramp) {
@@ -5080,7 +5059,6 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
         if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
             StartFXMat(0x20, &item->objgrp);
             StartFXMat(0x21, &item->objgrp);
-            // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
             MBOX_NewObject(&objects[0x14C], item->objgrp.node,
                            *(s32*)((u8*)item->objgrp.node + 0x74), 0x80800);
             if (item->info->type == 1 && *(Item**)&item->data.raw[0xC] != 0) {
@@ -5133,9 +5111,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             /* enemy chest converts to an apple generator */
             *sub = 1;
             rec = (u8*)gWorldInfo.iteminfo;
-            // lint-begin FM001: this is gWorldInfo.niteminfos; writing it as the plain member moves 549 words and shrinks fn_8005C1DC 3696 -> 3692 bytes, because the target keeps a separate base register for the count. Measured, not assumed.
             for (k = 0; k < *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, niteminfos)); k++) {
-                // lint-end FM001
                 s32* rec_sub = &((iteminfo*)rec)->item.subtype;
 
                 if (strcmp(lbl_80346F18, ((iteminfodata*)rec_sub)->desc) == 0 &&
@@ -5173,12 +5149,10 @@ found_gen:
                 StartFXMat(0x1F, &item->objgrp);
                 StartFXMat(0x21, &item->objgrp);
                 if (*sub == 0x30) {
-                    // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                     MBOX_NewObject(&objects[0x164], item->objgrp.node,
                                    *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
                 } else {
-                    // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                     MBOX_NewObject(&objects[0x170], item->objgrp.node,
                                    *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
@@ -5401,7 +5375,6 @@ found_gen:
     if (alive != 0) {
         k = fn_80094440(&v[1], flags, destroyed);
         if (k >= 0) {
-            // lint-allow-next-line FM001, FM007: 0xF0 is the Effect stride and the member is Effect.node; Effects[k].node moves 3 words in fn_8005C1DC at unchanged size, so the raw indexed form stays.
             MBTreeSetZsortAdd(*(void**)((u8*)Effects + k * 0xF0 + offsetof(Effect, node)),
                               (s32)(lbl_80346FA8 * info->item.radius), 1);
         }
@@ -5437,7 +5410,6 @@ s32 fn_8005D730(Player* player, Item* item)
     iteminfodata* data;
     f32 playerPos[3];
     f32 itemPos[3];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 23 words in fn_8005D730 at unchanged 1820-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[28];
 
     result = 0;
@@ -5594,7 +5566,6 @@ s32 fn_8005D730(Player* player, Item* item)
             }
             if ((flags & 0x30) != 0) {
                 f32 direction[3];
-                // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 27 words in fn_8005D730 at unchanged 1820-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
                 u8 directionPad[24];
 
                 direction[0] =
@@ -5788,7 +5759,6 @@ void fn_8005DE50(Player* a, Item* b)
     iteminfodata* it;
     s32 ret;
     s32 flag;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 15 words in fn_8005DE50 at unchanged 2748-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[8];
 
     ret = 0;
@@ -6326,7 +6296,6 @@ void fn_800606FC(void)
     f32 gpos[3];
     f32 gypr[3];
     u8* rt = sItemRuntime;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 99 words in fn_800606FC at unchanged 8872-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[120];
 
     if (gGameMode == MA_FLYBY) {
@@ -6366,11 +6335,9 @@ void fn_800606FC(void)
         }
         vis = MBWorldSphereVisible3(it->objgrp.attn_pos, it->visrad);
         if (vis != 0 && lbl_80344A6C != NULL && (u32)(lbl_80344A80 - 1) <= 1) {
-            // lint-begin FM001, FM007, FM009: lbl_80344A6C is the live NEWCAM camera and 0xA4/0xA8/0xAC are its Vec3 attention point, recovered and named in src/game/world/newcam.c (NcCamera.attention, offset 0x0A4, newcam.c:135) and consistent with the f32 triple read here; that type is a file-local view inside newcam.c and this run makes no header edits, so the three loads stay raw until NcCamera is promoted to a shared header.
             f32 dy = *(f32*)(lbl_80344A6C + 0xA8) - it->objgrp.attn_pos[1];
             f32 dx = *(f32*)(lbl_80344A6C + 0xA4) - it->objgrp.attn_pos[0];
             f32 dz = *(f32*)(lbl_80344A6C + 0xAC) - it->objgrp.attn_pos[2];
-            // lint-end FM001, FM007, FM009
             f32 d2 = dy * dy;
             d2 = dx * dx + d2;
             d2 = dz * dz + d2;
@@ -6682,13 +6649,11 @@ void fn_800606FC(void)
                                (f32)(sCameraVisibilityRadius * (f32)max);
                     wob = (s32)((f32)(lbl_80347050 * (f32)gen->interval) * fa);
                     it->data.gen.counter = (s16)wob;
-                    // lint-begin FM007: Item.data+0xC is gendata.genratio, but converting this accumulate-and-wrap pair to ((gendata*)it->data)->genratio is NOT byte-neutral: the pair together moves 1538 words and grows the function 8872 -> 8876 bytes, the accumulate alone moves 37 words at unchanged size; the target keeps a raw base+0xE8 web here, so the two statements stay raw and typed recovery is recorded instead.
                     *(f32*)&it->data.raw[0xC] =
                         *(f32*)&it->data.raw[0xC] + rate;
                     if (*(f32*)&it->data.raw[0xC] > sItemFloorRadius) {
                         *(f32*)&it->data.raw[0xC] = sItemZero;
                     }
-                    // lint-end FM007
                     e->birth_style = 0;
                     e->ang = it->data.gen.ang + e->genang_offset;
                     WRAP_ANGLE(e->ang);
@@ -6749,7 +6714,6 @@ void fn_800606FC(void)
                 f32 dx = gCameras[0].attn[0] - it->objgrp.worldmat[3][0];
                 f32 dz = gCameras[0].attn[2] - it->objgrp.worldmat[3][2];
                 f32 d2 = dy * dy;
-                // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, dropping the volatile moves 1359 words and shrinks fn_800606FC 8872 -> 8864 bytes. Recovering which original local it represents is a source-recovery question; it is not deletable.
                 volatile f32 root;
                 d2 = dx * dx + d2;
                 d2 = dz * dz + d2;
@@ -6822,11 +6786,9 @@ void fn_800606FC(void)
                         al = sItemFloorRadius;
                     }
                     MBTreeSetFlags(node2, 8, 0);
-                    // lint-begin FM001, FM007: node2 is the linked item's OBJGRP.node and 0x40/0x44/0x48 are mbnode.scale[0..2] (Xbox misc.h struct mbnode Id=3249, float scale[4] at 0x40, matching the three consecutive f32 stores and MBTreeSetFlags on the same handle); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this run makes no header edits.
                     *(f32*)((u8*)node2 + 0x40) = al;
                     *(f32*)((u8*)node2 + 0x44) = al;
                     *(f32*)((u8*)node2 + 0x48) = al;
-                    // lint-end FM001, FM007
                 } else {
                     MBTreeClearFlags(node2, 8, 0);
                 }
@@ -6877,12 +6839,10 @@ void fn_800606FC(void)
             if (it->active & 0x400) {
                 break;
             }
-            // lint-begin FM007: Item.data+0x10 is triggerdata.idletime and +4 is triggerdata.flags, but neither converts byte-neutrally here: the idletime countdown alone moves 1128 words and grows fn_800606FC 8872 -> 8876 bytes, and this first flags read alone moves 1757 words and grows it 8872 -> 8884, while the same two fields DO convert identically at their later reads below. The target keeps a raw base+disp web across this prologue, so these two stay raw.
             if (*(s16*)&it->data.raw[0x10] > 0) {
                 *(s16*)&it->data.raw[0x10] -= gFrameTicks;
             }
             flags = *(s16*)&it->data.raw[4];
-            // lint-end FM007
             tgt = it->data.trigger.target;
             if (flags & 0x40) {
                 Item* p2;
@@ -7344,7 +7304,6 @@ void fn_800606FC(void)
                             f32 dx = it->objgrp.coll_pos[0] - p->pos[0];
                             f32 dz = it->objgrp.coll_pos[2] - p->pos[2];
                             f32 d2 = dy * dy;
-                            // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, dropping the volatile moves 315 words and shrinks fn_800606FC 8872 -> 8864 bytes. Recovering which original local it represents is a source-recovery question; it is not deletable.
                             volatile f32 root;
                             d2 = dx * dx + d2;
                             d2 = dz * dz + d2;
@@ -7649,7 +7608,6 @@ s32 fn_8005A738(s32 player)
     Player* p = &gPlayers[player];
     s32 ret = 0;
     s16 t;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005A738 at unchanged 304-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 _spare[8];
 
     if (*(u32*)(gGameOptions + 44) & 1) {
@@ -7809,7 +7767,6 @@ extern f64 sNewtonThree;
 extern s32 damage_enemy(u8* e, f32 amount, s32 dtype, s32 knock, s32 srcflags,
                         s32 arg6, s32 arg7);
 
-// lint-begin FM001, FM009: `wobj` is an Item and `hdr` is its iteminfo, so every offset here is a named field: hdr+16 = iteminfo.item.height, wobj+220/222/226 = Item.data read as the variant info->type selects (obsticledata.strength s16@0x02 for type 10, gendata.etype s16@0x00 and gendata.ai s8@0x06 for type 3; Xbox misc.h Id=3332 and Id=3328). Typing all four is NOT byte-neutral in this dont_inline function: it moves 74 words and grows it 496 -> 500 bytes, the same whole-body sensitivity its sibling fn_8005D20C shows, so the offsets stay raw with the fields named here.
 s32 fn_8005D3D8(s32 index, u8* wobj)
 {
     u8* hdr = *(u8**)wobj;
@@ -7992,7 +7949,6 @@ s32 fn_8005D5C8(u8* pl, u8* wobj)
     }
     return ret;
 }
-// lint-end FM001, FM009
 
 extern f64 sArrowFloorYOffset;
 extern f64 sZeroDouble;
@@ -8004,7 +7960,6 @@ extern f64 lbl_80346FB8;
 #pragma dont_inline on
 s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
 {
-    // lint-begin FM001, FM009: every offset off `e` here is a named Enemy field (game/enemy.h): 568=rad, 652=coll_ip (the cached blocking item), 812=skip_itemcol (the rescan countdown), 184=atts.invspeed. None of them converts byte-neutrally in this dont_inline function: all four typed moves 108 words and grows it 460 -> 468 bytes, dropping only coll_ip still moves 82 words at 460 -> 464, and skip_itemcol alone moves 82 words at 460 -> 464. The target holds one raw byte cursor across the whole body, so the offsets stay raw and the names live in this comment.
     u8* e = (u8*)&gEnemies[index];
     u32 obj;
     s32 blocked;
@@ -8046,7 +8001,6 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
     } else {
         *(s32*)(e + 652) = 0;
     }
-    // lint-end FM001, FM009
     return blocked;
 }
 #pragma dont_inline off
@@ -8297,20 +8251,15 @@ void fn_80062A00(void)
     heard = 0;
     i = 0;
     off = 0;
-    // lint-begin FM009: `row` walks the sItemRuntime parallel columns declared above as ItemWobjRuntime (y +0, initialY +600, openY +1200, closedY +1800, dist +2400, object +29216). Replacing the byte cursor with rt->y[i]/rt->object[i] indexing is NOT byte-neutral: 57 differing words at unchanged function size. The target really does keep one base register plus these fixed displacements - a single base relocation, not six separate array symbols - so the raw cursor is the faithful form and the recovered column names stay in the ItemWobjRuntime declaration.
     for (; i < sNumItemWobjs; i++, off += 4) {
         row = rt + off;
         w = *(WorldObj**)(row + 29216);
-        // lint-end FM009
         st = w->triggerstate;
         prev = w->ptriggerstate;
         gen = did_generate(w, 1);
-        // lint-begin FM001: 48/52/56 off WorldObj.nodeptr are mbnode.mat[3][0..2], the node's world translation row (Xbox misc.h struct mbnode Id=3249: float mat[4][4] at 0x00); no shared header declares mbnode's body (only a file-local view in src/game/sfx/sfx.c:122) and this run makes no header edits.
         pos[0] = *(f32*)((u8*)w->nodeptr + 48);
         pos[1] = *(f32*)((u8*)w->nodeptr + 52);
         pos[2] = *(f32*)((u8*)w->nodeptr + 56);
-        // lint-end FM001
-        // lint-begin FM009: `row` walks the sItemRuntime parallel columns declared above as ItemWobjRuntime (y +0, initialY +600, openY +1200, closedY +1800, dist +2400, object +29216). Replacing the byte cursor with rt->y[i]/rt->object[i] indexing is NOT byte-neutral: 57 differing words at unchanged function size. The target really does keep one base register plus these fixed displacements - a single base relocation, not six separate array symbols - so the raw cursor is the faithful form and the recovered column names stay in the ItemWobjRuntime declaration.
         dcur = *(f32*)(row + 2400);
         kind = w->triggertype & 0xFF;
         flags8 = (w->triggertype >> 8) & 0xFF;
@@ -8369,7 +8318,6 @@ void fn_80062A00(void)
                 goto tail;
             }
             if (*(u32*)((u8*)node + 96) & 0x200) {
-                // lint-allow-next-line FM001: 83 off this node is mbnode.alpha (Xbox misc.h struct mbnode Id=3249, unsigned char alpha at 0x53); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 a = 255 - *(u8*)((u8*)node + 83);
             } else {
                 a = 0;
@@ -8441,7 +8389,6 @@ void fn_80062A00(void)
             }
         } else {
             if (!(flags8 & 8) && gen >= 2) {
-                // lint-allow-next-line FM001: 52 off WorldObj.nodeptr is mbnode.mat[3][1] (Xbox misc.h struct mbnode Id=3249); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 *(f32*)((u8*)w->nodeptr + 52) =
                     *(f32*)(row + 600) + *(f32*)row;
                 goto next;
@@ -8474,7 +8421,6 @@ void fn_80062A00(void)
             } else {
                 w->flags &= ~0x08000000;
             }
-            // lint-allow-next-line FM001: 52 off WorldObj.nodeptr is mbnode.mat[3][1] (Xbox misc.h struct mbnode Id=3249); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
             *(f32*)((u8*)w->nodeptr + 52) = *(f32*)(row + 600) + *(f32*)row;
         }
     tail:
@@ -8502,7 +8448,6 @@ void fn_80062A00(void)
         w->triggerstate = (s8)st;
     next:;
     }
-    // lint-end FM009
     if (heard == 0) {
         fn_8009D694(-1, 0, 0);
     }
@@ -8521,7 +8466,6 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     s32 idx;
     f32 root;
     f32 d2;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 8 words in fn_80060114 at unchanged 1496-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[40];
 
     sp = &it->data.enemy;
@@ -8634,7 +8578,6 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
         e = &gEnemies[g];
         e->birth_style = 1;
         e->endurance = 1;
-        // lint-allow-next-line FM001: the target reads 32 bytes past `dir`, which fn_800606FC supplies as a 3-float stack array; this out-of-range read of the neighbouring frame slot is the game's own behaviour and is reproduced, not repaired.
         e->ang = atan2(dir[0], *(f32*)((u8*)dir + 32));
         yaw = e->ang;
         if (yaw > sPi) {
