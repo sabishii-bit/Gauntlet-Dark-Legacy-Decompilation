@@ -1245,7 +1245,6 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
 }
 
 /* 0x800359F0 -- damage swarm enemies intersecting an active critter node. */
-#pragma dont_inline on
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
 {
     u8 unusedHigh[8];
@@ -1306,7 +1305,6 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     }
     return count;
 }
-#pragma dont_inline off
 
 /* 0x80035BC8 -- choose an available safe rock, or the available rock nearest
  * a requested player. */

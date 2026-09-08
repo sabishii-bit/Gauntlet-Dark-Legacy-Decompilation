@@ -122,6 +122,9 @@ extern char lbl_80112410[];
 extern char lbl_8011241C[];
 extern char lbl_80112428[];
 char* lbl_8011BFF8[3] = { lbl_80112410, lbl_8011241C, lbl_80112428 };
+/* force_active keeps these otherwise unreferenced tables in the image: without
+ * it mwld dead-strips them and the DOL shrinks below the target size. It leaves
+ * no trace in .text/.data/.symtab, only in .comment. */
 #pragma force_active on
 s32 lbl_8011C004[16] = { 16, 23, 14, 13, 7, 7, 7, 7, 2, 24, 20, 25, 30, 30, 7, 7 };
 f32 lbl_8011C044[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
@@ -8924,7 +8927,6 @@ s32 EnemyDescType(const char* name)
     return -1;
 }
 
-#pragma dont_inline on
 void fn_8005207C(s32 arg0, s32 arg1, s32 arg2)
 {
     lbl_8034476C = arg0;
@@ -8941,7 +8943,6 @@ void fn_8005207C(s32 arg0, s32 arg1, s32 arg2)
     }
     lbl_80344760 = arg2;
 }
-#pragma dont_inline off
 
 void fn_800520C8(void)
 {
