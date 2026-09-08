@@ -18,6 +18,7 @@
 #include "game/gamemode.h"
 #include "game/player.h"
 #include "game/worldobj.h"
+#include "game/worldcol.h"
 #include "game/critter.h"   /* Critter gCritterPool[16], stride 0xAE0 */
 #include "game/mbobject.h"  /* MBObject: the boss-chain scene nodes */
 #include "game/enemy.h"     /* Enemy gEnemies[25], stride 0x394 */
@@ -254,7 +255,7 @@ extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
 extern void fn_8009C98C(f32* pos);
 extern s32 fn_80088EF4(Player* p, f32 range, f32 minDot);
-extern f32 gFloorCollisionResult[]; /* transporter table (0x34 = target height) */
+extern FloorCollisionResult gFloorCollisionResult; /* 0x8023CAE0 */
 extern f32 lbl_80344880;
 extern f64 lbl_80347B38;
 extern s32 lbl_803443A8;
@@ -690,7 +691,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             pos[2] = gDefaultPlayerPosition[2];
             halfR = 0.5 * r;
             y = FloorPos(lbl_80344880, halfR, pos, 1);
-            if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
+            if (*(void**)((u8*)&gFloorCollisionResult + 0x44) == NULL) {
                 ok = 0;
             } else {
                 f32 d = y - pos[1];
@@ -716,7 +717,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 pos[0] += r * spread[16 + i * 2];
                 pos[2] += r * spread[17 + i * 2];
                 y = FloorPos(lbl_80344880, halfR, pos, 1);
-                if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
+                if (*(void**)((u8*)&gFloorCollisionResult + 0x44) == NULL) {
                     ok = 0;
                 } else {
                     d = y - pos[1];
@@ -783,12 +784,12 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
 
     if (findFloor != 0) {
         screen[0] = FloorPos(lbl_80344880, (f32)(lbl_80347B00 * radius), position, 1);
-        if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
+        if (gFloorCollisionResult.obj == NULL) {
             return 0;
         }
         if ((WorldObj*)SV(motion)->floor_obj != NULL &&
             ((((WorldObj*)SV(motion)->floor_obj)->flags & 0x1000) != 0) &&
-            (WorldObj*)SV(motion)->floor_obj != *(void**)((u8*)gFloorCollisionResult + 0x44)) {
+            (WorldObj*)SV(motion)->floor_obj != gFloorCollisionResult.obj) {
             return 0;
         }
         delta = screen[0] - SV(motion)->floor_y;
@@ -1442,7 +1443,7 @@ void PlayerMotion(Player* p) {
     }
 
     if (transporter == 2) {
-        p->floor_base = gFloorCollisionResult[13];
+        p->floor_base = gFloorCollisionResult.mtx[3][1];
         if (lbl_80344B38 != 0) {
             p->floor_cur = lbl_80344B34;
         } else {
@@ -3887,7 +3888,7 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
             FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1);
             out[0] = local[0] - pos[0];
             out[2] = local[2] - pos[2];
-            out[1] = gFloorCollisionResult[13] - p->pos[1];
+            out[1] = gFloorCollisionResult.mtx[3][1] - p->pos[1];
             tv->counter = 1;
             msgPost(9, p->index, (u32)&p->col_pos);
             return 2;
@@ -4478,16 +4479,16 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         }
         if (hit != 0) {
             u8 padend2[12];
-            ts2 = gFloorCollisionResult[13] - fh;
+            ts2 = gFloorCollisionResult.mtx[3][1] - fh;
             *(u32*)&ts2 &= 0x7FFFFFFF;
-            if ((*(u32*)(*(u32*)((u8*)gFloorCollisionResult + 68) + 16) & 8)
+            if ((gFloorCollisionResult.obj->flags & 8)
                 && (f64)ts2 < lbl_80347BA8) {
                 d = lbl_80347B30;
             } else {
-                dx = end[0] - *(f32*)((u8*)gFloorCollisionResult + 48);
-                dz = end[2] - *(f32*)((u8*)gFloorCollisionResult + 56);
+                dx = end[0] - gFloorCollisionResult.mtx[3][0];
+                dz = end[2] - gFloorCollisionResult.mtx[3][2];
                 dq = dpos[1] *
-                         (end[1] - gFloorCollisionResult[13]) +
+                         (end[1] - gFloorCollisionResult.mtx[3][1]) +
                      dpos[0] * dx + dpos[2] * dz;
                 d = fqdist(dx, dz);
             }

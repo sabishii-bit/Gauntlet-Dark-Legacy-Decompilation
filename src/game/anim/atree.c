@@ -19,6 +19,7 @@
 
 #include "types.h"
 #include "game/mbobject.h"
+#include "game/atree.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -68,20 +69,6 @@ typedef struct animdata {
     /* 0x70 */ u8 _pad70[0x30];
 } animdata; /* 0xA0 */
 
-/* -- anode: one animation-tree node -- */
-typedef struct anode {
-    /* 0x00 */ void* obj;
-    /* 0x04 */ struct anode* parent;
-    /* 0x08 */ struct anode* child;
-    /* 0x0C */ struct anode* next;
-    /* 0x10 */ f32 x;
-    /* 0x14 */ f32 y;
-    /* 0x18 */ f32 z;
-    /* 0x1C */ void* anim;
-    /* 0x20 */ s32 type;
-    /* 0x24 */ f32 frame;
-} anode; /* 0x28 */
-
 typedef struct animseqdesc {
     /* 0x00 */ u8 _pad00[0x24];
     /* 0x24 */ s16 wraps;
@@ -90,38 +77,6 @@ typedef struct animseqdesc {
     /* 0x2A */ s16 flags;
     /* 0x2C */ TEXMOD* texmods;
 } animseqdesc; /* 0x30 */
-
-/* -- animinfo: atree playback state (graphics.h Id=3256, 0x38) -- */
-typedef struct animinfo {
-    /* 0x00 */ animseqdesc* seqheader;
-    /* 0x04 */ void* animheader;
-    /* 0x08 */ void* oanimheader;
-    /* 0x0C */ s16 numseqs;
-    /* 0x0E */ s16 animseq;
-    /* 0x10 */ s16 numframes;
-    /* 0x12 */ s8 setpanim;
-    /* 0x13 */ u8 flags;
-    /* 0x14 */ f32 transfrac;
-    /* 0x18 */ f32 frame;
-    /* 0x1C */ s16 animseq0;
-    /* 0x1E */ s16 active;
-    /* 0x20 */ f32 starttime;
-    /* 0x24 */ f32 transtime;
-    /* 0x28 */ f32 animscale;
-    /* 0x2C */ f32 seqscale;
-    /* 0x30 */ f32 atime;
-    /* 0x34 */ s16 repeat;
-    /* 0x36 */ u16 stage;
-} animinfo; /* 0x38 */
-
-/* -- atree: animation-tree instance (misc.h Id=2219, 0x48) -- */
-typedef struct atree {
-    /* 0x00 */ anode* root;
-    /* 0x04 */ animinfo animinfo;
-    /* 0x3C */ s32 nanodes;
-    /* 0x40 */ anode* firstanode;
-    /* 0x44 */ anodeinfo* anodeinfo;
-} atree; /* 0x48 */
 
 /* -- animheader: sequence-name table header (AtreeHeaderFindSeq) -- */
 typedef struct animheader {
@@ -162,7 +117,7 @@ typedef struct AtreeDataBases {
 
 /* -- one selected tree blob inside an atree resource -- */
 typedef struct AtreeDefinition {
-    /* 0x00 */ animseqdesc* seqheader;
+    /* 0x00 */ struct atreeseq* seqheader;
     /* 0x04 */ void* animheader;
     /* 0x08 */ void* oanimheader;
     /* 0x0C */ AtreeNodeDef* nodes;
@@ -551,7 +506,7 @@ s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
     if (recurse > 0) {
         if (info->seqheader != NULL) {
             void* obj = root->obj;
-            seq = &info->seqheader[sequence];
+            seq = &((animseqdesc*)info->seqheader)[sequence];
             DoSeqTexModsInPlace(obj, frame, seq);
         }
         AnimateNode(root, info, recurse);
@@ -590,7 +545,7 @@ s32 DoAnimateTree(f32 time, atree* tree, s32 sequence, s32 first, s32 last,
     if (recurse > 0 && info->seqheader != NULL) {
         animseqdesc* seq;
 
-        seq = (animseqdesc*)((u8*)info->seqheader + info->animseq * 0x30);
+        seq = &((animseqdesc*)info->seqheader)[info->animseq];
         if ((seq->flags & 1) != 0) {
             frame = info->numframes -
                     (s32)(sAtreeFrameRoundBias + info->frame) - 1;
@@ -610,7 +565,7 @@ void AnimateNode(anode* node, animinfo* info, s32 recurse)
     u32 flags;
     animseqdesc* seq;
 
-    seq = (animseqdesc*)((u8*)info->seqheader + info->animseq * 0x30);
+    seq = &((animseqdesc*)info->seqheader)[info->animseq];
     if ((seq->flags & 1) != 0) {
         frame = info->numframes - (s32)(sAtreeFrameRoundBias + info->frame) - 1;
     } else {

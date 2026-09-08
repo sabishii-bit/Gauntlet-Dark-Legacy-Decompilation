@@ -2,6 +2,7 @@
 #define GAME_ENEMY_H
 
 #include "types.h"
+#include "game/atree.h"
 
 /* Gauntlet Dark Legacy - enemy record (the "Enemy" / ENEMY.OBJ struct).
  *
@@ -91,37 +92,6 @@ typedef struct OBJGRP {
 } OBJGRP;                     /* size 0x68 */
 #endif
 
-/* -- animinfo (graphics.h Id=3256, 0x38): playback state for one atree -- */
-typedef struct animinfo {
-    struct atreeseq *seqheader;      /* 0x00 */
-    struct animheader *animheader;   /* 0x04 */
-    struct objanimheader *oanimheader; /* 0x08 */
-    s16 numseqs;             /* 0x0C */
-    s16 animseq;             /* 0x0E */
-    s16 numframes;           /* 0x10 */
-    s8 setpanim;             /* 0x12 */
-    u8 flags;                /* 0x13 */
-    f32 transfrac;           /* 0x14 */
-    f32 frame;               /* 0x18 */
-    s16 animseq0;            /* 0x1C */
-    s16 active;              /* 0x1E */
-    f32 starttime;           /* 0x20 */
-    f32 transtime;           /* 0x24 */
-    f32 animscale;           /* 0x28 */
-    f32 seqscale;            /* 0x2C */
-    f32 atime;               /* 0x30 */
-    s16 repeat;              /* 0x34 */
-    u16 stage;               /* 0x36 */
-} animinfo;                  /* size 0x38 */
-
-/* -- atree (misc.h Id=2219, 0x48): animation tree instance -- */
-typedef struct atree {
-    struct anode *root;      /* 0x00 */
-    animinfo animinfo;       /* 0x04 */
-    s32 nanodes;             /* 0x3C */
-    struct anode *firstanode; /* 0x40 */
-    struct anodeinfo *anodeinfo; /* 0x44 */
-} atree;                     /* size 0x48 */
 
 /* -- E_ATTRIBUTES (misc.h Id=3246, 0x14): per-enemy combat attributes -- */
 typedef struct E_ATTRIBUTES {
