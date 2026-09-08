@@ -8,8 +8,11 @@
 #include "game/mbobject.h"
 #include "game/worldinfo.h"
 #include "game/player.h"
+#include "game/camera.h"
 
-#define offsetof(type, member) ((u32)&((type*)0)->member)
+#define offsetof(type, member) ((size_t)&((type*)0)->member)
+
+extern void* memcpy(void* dst, const void* src, size_t size);
 
 /*
  * game/game/gamemain.c -- the top-level game-flow TU (a slice of it).
@@ -166,8 +169,7 @@ typedef struct Row36 {
 } Row36;                           /* size 0x24 (36) */
 extern Row36 lbl_8011AF48[];       /* 44-entry, stride 36 lookup table   */
 extern s32  lbl_80257640[];        /* 4-entry threshold table            */
-extern void* lbl_80257630[];       /* two thermometer blits at [1],[2]   */
-extern u8    lbl_802575C0[];
+extern void* lbl_80257630[4];      /* timer face, upper/lower sand, animation */
 extern s32  gGameOptions[];        /* prefs/config block                 */
 extern s32  lbl_802577CC[];        /* 8 keys                             */
 extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
@@ -1338,11 +1340,6 @@ s32 fn_80054CDC(void)
 /* 0x800553B4 -- initialize the four timer/thermometer HUD blits. */
 void fn_800553B4(void)
 {
-    u8* state = lbl_802575C0;
-    void** blit1;
-    void** blit2;
-    void** blit3;
-    s32 offset;
     s32 i;
     s32 hide;
     s32 texture;
@@ -1358,15 +1355,15 @@ void fn_800553B4(void)
     }
 
     lbl_80344810 = 0;
-    *(void**)(state + 112) = MBCreateBlit(0, 0, 1, 1, -1, -1);
-    *(blit1 = (void**)(state + 116)) = MBCreateBlit(0, 0, 1, 24, -1, -1);
-    *(blit2 = (void**)(state + 120)) = MBCreateBlit(0, 0, 1, 106, -1, -1);
-    *(blit3 = (void**)(state + 124)) = MBCreateBlit(0, 0, 63, 58, -1, -1);
+    lbl_80257630[0] = MBCreateBlit(0, 0, 1, 1, -1, -1);
+    lbl_80257630[1] = MBCreateBlit(0, 0, 1, 24, -1, -1);
+    lbl_80257630[2] = MBCreateBlit(0, 0, 1, 106, -1, -1);
+    lbl_80257630[3] = MBCreateBlit(0, 0, 63, 58, -1, -1);
 
-    mbBlitCvtCoord(*(void**)(state + 112), 63913.0f);
-    mbBlitCvtCoord(*blit1, 63911.0f);
-    mbBlitCvtCoord(*blit2, 63911.0f);
-    mbBlitCvtCoord(*blit3, 63912.0f);
+    mbBlitCvtCoord(lbl_80257630[0], 63913.0f);
+    mbBlitCvtCoord(lbl_80257630[1], 63911.0f);
+    mbBlitCvtCoord(lbl_80257630[2], 63911.0f);
+    mbBlitCvtCoord(lbl_80257630[3], 63912.0f);
 
     if ((gControllerButtons & 0x10) == 0) {
         if ((gCurLevel->flags & 4) != 0) {
@@ -1377,27 +1374,26 @@ void fn_800553B4(void)
     } else {
         hide = 1;
     }
-    for (i = 0, offset = 0; i < 4; i++, offset += 4) {
-        void** entry = (void**)(state + offset);
-        mbBlitInit3414(entry[28], hide);
+    for (i = 0; i < 4; i++) {
+        mbBlitInit3414(lbl_80257630[i], hide);
     }
-    mbBlitInit3414(*blit3, 1);
+    mbBlitInit3414(lbl_80257630[3], 1);
 
     texture = MBOX_FindTexture_Err("TIMER", 0, 1);
-    mbInitBlitEntry(*(void**)(state + 112), texture, 0);
-    mbInitBlitEntry(*blit1,
+    mbInitBlitEntry(lbl_80257630[0], texture, 0);
+    mbInitBlitEntry(lbl_80257630[1],
                     MBOX_FindTexture_Err("TIMER_SAND", 0, 1), 0);
-    mbInitBlitEntry(*blit2,
+    mbInitBlitEntry(lbl_80257630[2],
                     MBOX_FindTexture_Err("TIMER_SAND", 0, 1), 0);
-    mbInitBlitEntry(*blit3,
+    mbInitBlitEntry(lbl_80257630[3],
                     MBOX_FindTexture_Err("SAND_ANIM", 0, 1), 0);
 
-    mbBlitSetupVerts(*blit1, -1.0f, -1.0f,
+    mbBlitSetupVerts(lbl_80257630[1], -1.0f, -1.0f,
                      0.1796875f, 0.5f);
-    mbBlitProject(*blit1, 0, 41);
-    mbBlitSetupVerts(*blit2, -1.0f, -1.0f,
+    mbBlitProject(lbl_80257630[1], 0, 41);
+    mbBlitSetupVerts(lbl_80257630[2], -1.0f, -1.0f,
                      0.8203125f, 1.0f);
-    mbBlitProject(*blit2, 0, 23);
+    mbBlitProject(lbl_80257630[2], 0, 23);
 }
 
 /* 0x80054070 -- load a world/level, measuring its heap usage. */
@@ -1454,8 +1450,6 @@ void fn_80052134(void)
 /* 0x8005412C -- categorise the loaded worlds and update the flow globals. */
 void SetPlayerVars(void)
 {
-    u8* base = (u8*)gPlayers;
-    s32 offset = 0;
     s32 bossType = gBossType;
     s32 count1 = 0;
     s32 count2 = 0;
@@ -1466,11 +1460,11 @@ void SetPlayerVars(void)
     s32 f292;
 
     lbl_803447D4 = lbl_803447D8;
-    lbl_803447DC = offset;
+    lbl_803447DC = 0;
     lbl_803447D8 = 1.0f;
-    lbl_803447E0 = offset;
-    for (i = 0; i < 4; i++, offset += 13148) {
-        e = (Player*)(base + offset);
+    lbl_803447E0 = 0;
+    for (i = 0; i < 4; i++) {
+        e = &gPlayers[i];
         type = e->state;
         if (type != 0) {
             count1++;
@@ -1595,7 +1589,7 @@ void fn_80055AFC(void)
     lbl_803447F4 = lbl_803447F4 - limit;
 }
 
-extern s32 lbl_803447A8[2];        /* meter blit handles */
+extern void* lbl_803447A8[2];        /* meter blit handles */
 extern Item* sSpecialItem10;
 extern s32 lbl_80344790;
 extern s32 lbl_8034478C;
@@ -1624,23 +1618,24 @@ void fn_80055678(f32* a, f32* b)
     f32 dy;
     f32 dz;
 
-    if (mbBlitReset33F8((void*)lbl_803447A8[0]) != 0 || sSpecialItem10 == 0) {
-        mbBlitInit3414((void*)lbl_803447A8[0], 1);
-        mbBlitInit3414((void*)lbl_803447A8[1], 1);
+    if (mbBlitReset33F8(lbl_803447A8[0]) != 0 || sSpecialItem10 == 0) {
+        mbBlitInit3414(lbl_803447A8[0], 1);
+        mbBlitInit3414(lbl_803447A8[1], 1);
     } else {
         dx = a[0] - b[0];
         dy = a[1] - b[1];
         dz = a[2] - b[2];
         d = dx * dx + dy * dy + dz * dz;
         if (d > 0.0f) {
-            volatile f32 tmp[3];
+            // lint-allow-next-line FM003: The GC square-root path rounds through a single-precision store/reload, as in MSL math_ppc.h; this scalar is not padding.
+            volatile f32 rounded;
             f64 y = __frsqrte(d);
             y = 0.5 * y * (3.0 - y * y * d);
             y = 0.5 * y * (3.0 - y * y * d);
             y = 0.5 * y * (3.0 - y * y * d);
             d = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
-            tmp[0] = d;
-            d = tmp[0];
+            rounded = d;
+            d = rounded;
         }
         v = (f32)(d - 8.0);
         v = v * lbl_80343C08;
@@ -1664,66 +1659,61 @@ void fn_80055678(f32* a, f32* b)
         base = 101.0;
         lvl2 = scale * (f64)(f6 = (f32)(1.0 - lvl));
         t = base - lvl2;
-        mbBlitSetupVerts((void*)lbl_803447A8[1], -1.0f, -1.0f,
+        mbBlitSetupVerts(lbl_803447A8[1], -1.0f, -1.0f,
                          (f32)(t * 0.0078125),
                          -1.0f);
-        mbBlitProject((void*)lbl_803447A8[1], 0, Round((f32)lvl2) + 27);
-        mbBlitCalcY((void*)lbl_803447A8[1], 102 - Round((f32)lvl2));
+        mbBlitProject(lbl_803447A8[1], 0, Round((f32)lvl2) + 27);
+        mbBlitCalcY(lbl_803447A8[1], 102 - Round((f32)lvl2));
     }
 }
 
 void init_thermometer(void)
 {
-    s32 playerOffset;
-    s32* blits;
+    void** blits;
     s32 player;
-    u8* playerData;
     s32 enabled;
-    u8* players;
     u32 texture;
     f32 length;
     f32 x;
     f32 yCoord;
     f32 z;
-    volatile f32 tmp[3];
+    // lint-allow-next-line FM003: The GC square-root path rounds through a single-precision store/reload, as in MSL math_ppc.h; this scalar is not padding.
+    volatile f32 rounded;
 
     enabled = 1;
-    playerOffset = 0;
-    lbl_8034478C = lbl_80344790 = playerOffset;
+    lbl_8034478C = lbl_80344790 = 0;
     if ((gGameMode & MODE_GROUP_GAME) != 0 && sSpecialItem10 != 0) {
-        players = (u8*)gPlayers;
         player = 0;
         do {
-            playerData = players + playerOffset;
+            Player* playerData = &gPlayers[player];
             if (PlayerHasShard(player, sSpecialItem10->info->item.value) != 0) {
                 enabled = 1;
                 break;
             }
             if (sMusicTrackHi == BATTLE) {
-                s32 charIdx = ((Player*)playerData)->character;
-                if ((((Player*)playerData)->waves[charIdx][BATTLE] & 4) != 0) {
+                s32 charIdx = playerData->character;
+                if ((playerData->waves[charIdx][BATTLE] & 4) != 0) {
                     enabled = 0;
                 }
             } else if (PlayerHasRune(player, GetWorldOrder(5)) != 0) {
                 enabled = 0;
             }
             player++;
-            playerOffset += 13148;
         } while (player < 4);
     }
 
-    lbl_803447A8[0] = (s32)MBCreateBlit(0, 0, 392, -1, -1, -1);
-    *(blits = &lbl_803447A8[1]) = (s32)MBCreateBlit(0, 0, 392, -1, -1, -1);
-    mbBlitCvtCoord((void*)lbl_803447A8[0], 63912.0f);
-    mbBlitCvtCoord((void*)*blits, 63911.0f);
-    mbBlitInit3414((void*)lbl_803447A8[0], enabled);
-    mbBlitInit3414((void*)*blits, enabled);
+    lbl_803447A8[0] = MBCreateBlit(0, 0, 392, -1, -1, -1);
+    *(blits = &lbl_803447A8[1]) = MBCreateBlit(0, 0, 392, -1, -1, -1);
+    mbBlitCvtCoord(lbl_803447A8[0], 63912.0f);
+    mbBlitCvtCoord(*blits, 63911.0f);
+    mbBlitInit3414(lbl_803447A8[0], enabled);
+    mbBlitInit3414(*blits, enabled);
     texture = MBOX_FindTexture_Err("THERMBASE", 0, 1);
-    mbInitBlitEntry((void*)lbl_803447A8[0], texture, 0);
-    mbInitBlitEntry((void*)*blits, MBOX_FindTexture_Err("THERMCOL", 0, 1), 0);
-    mbBlitSetupVerts((void*)*blits, -1.0f, -1.0f,
+    mbInitBlitEntry(lbl_803447A8[0], texture, 0);
+    mbInitBlitEntry(*blits, MBOX_FindTexture_Err("THERMCOL", 0, 1), 0);
+    mbBlitSetupVerts(*blits, -1.0f, -1.0f,
                      0.7890625f, 1.0f);
-    mbBlitProject((void*)*blits, 0, 27);
+    mbBlitProject(*blits, 0, 27);
 
     x = gWorldInfo.worldsize[0];
     yCoord = gWorldInfo.worldsize[1];
@@ -1735,8 +1725,8 @@ void init_thermometer(void)
         y = 0.5 * y * (3.0 - y * y * length);
         y = 0.5 * y * (3.0 - y * y * length);
         length = (f32)(length * (0.5 * y * (3.0 - y * y * length)));
-        tmp[0] = length;
-        length = tmp[0];
+        rounded = length;
+        length = rounded;
     }
     lbl_80343C08 = (f32)(1.0 / (0.7 * length));
 }
@@ -1760,7 +1750,7 @@ extern void sumnerUpdatePresence(void);
 void fn_80057024(void);
 extern void SetupDynGrid(void);
 extern void CreateDynobjGrid(void);
-extern void player_store_in_save(u8* pl);
+extern void player_store_in_save(void* pl);
 extern void PlayerRestoreState(s32 player);
 extern void EnterTower(void);
 extern void InitCamera(s32 mode);
@@ -1784,9 +1774,18 @@ extern void do_enemies(void);
 extern void AudioMusicVolUpdate(void);
 extern s32  welcome_timer;
 
-typedef struct PlayerSaveBlk {
-    s32 w[1293];                    /* 5172 bytes */
-} PlayerSaveBlk;
+/* Both persistent-image regions contain the same fields and reserved bytes.
+ * These checks deliberately follow the header boundaries, not a word count
+ * chosen to make MWCC emit its old aggregate-copy loop. */
+typedef char SaveShadowExtentCheck[
+    (offsetof(Player, pad_3300) - offsetof(Player, pad_1ECC) ==
+     offsetof(Player, health) - offsetof(Player, name)) ? 1 : -1];
+typedef char SaveShadowCharOffsetCheck[
+    (offsetof(Player, char_save_ckpt) - offsetof(Player, pad_1ECC) ==
+     offsetof(Player, char_save) - offsetof(Player, name)) ? 1 : -1];
+typedef char SaveShadowHelpOffsetCheck[
+    (offsetof(Player, help_disp_ckpt) - offsetof(Player, pad_1ECC) ==
+     offsetof(Player, help_disp) - offsetof(Player, name)) ? 1 : -1];
 
 void fn_8005351C(void)
 {
@@ -1795,7 +1794,7 @@ void fn_8005351C(void)
     s32 inTower;
     s32 isSelect;
     s32 i;
-    u8* p;
+    Player* p;
 
     if (state >= 13 && state < 0x10000) {
         t = 1;
@@ -1858,8 +1857,8 @@ void fn_8005351C(void)
 
     if (sMusicTrackHi == 13) {
         s32 one = 1;
-        for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
-            Player* player = (Player*)p;
+        for (i = 0, p = gPlayers; i < 4; i++, p++) {
+            Player* player = p;
             s32 st = player->state;
             if (st == 1) {
                 player_store_in_save(p);
@@ -1877,12 +1876,12 @@ void fn_8005351C(void)
 
     InitCamera(0);
     {
-        for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
-            ((Player*)p)->exit_dest = sLastWorldLevel;
-            ((Player*)p)->node = 0;
-            ((Player*)p)->platform = 0;
-            if ((lbl_80344824 & (1 << i)) && ((Player*)p)->state != INTOWER) {
-                Player* player = (Player*)p;
+        for (i = 0, p = gPlayers; i < 4; i++, p++) {
+            p->exit_dest = sLastWorldLevel;
+            p->node = 0;
+            p->platform = 0;
+            if ((lbl_80344824 & (1 << i)) && p->state != INTOWER) {
+                Player* player = p;
                 player->state = ACTIVE;
                 load_player(i);
                 add_target(player->mat);
@@ -1902,10 +1901,8 @@ void fn_8005351C(void)
     }
 
     if (inTower == 0) {
-        u8* base = (u8*)gPlayers;
         for (i = 0; i < 4; i++) {
-            u8* q = base + i * sizeof(Player);
-            Player* player = (Player*)q;
+            Player* player = &gPlayers[i];
             if (player->state != INACTIVE) {
                 if (sMusicTrackHi == 13) {
                     PlayerSaveState(i, 0);
@@ -1945,9 +1942,18 @@ void fn_8005351C(void)
             welcome_timer = 300;
         }
         if (mt == 13) {
-            for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
-                if (((Player*)p)->state == ACTIVE) {
-                    *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
+            for (i = 0, p = gPlayers; i < 4; i++, p++) {
+                if (p->state == ACTIVE) {
+                    /* GC copies the complete persistent image: 646 pairs
+                     * of words plus one word, from +0xA80 to +0x1ECC.
+                     * Player still flattens this image into fields. Copy
+                     * its object representation, including reserved bytes,
+                     * without pretending those fields are an s32 array.
+                     * The image ends before live health; its shadow ends
+                     * immediately after help_disp_ckpt. */
+                    memcpy((u8*)p + offsetof(Player, pad_1ECC),
+                           (const u8*)p + offsetof(Player, name),
+                           offsetof(Player, health) - offsetof(Player, name));
                 }
             }
         }
@@ -1977,7 +1983,6 @@ extern s32  lbl_803441FC;
 extern s32  lbl_80344794;
 extern s32  lbl_80344C18;
 extern s32  gScriptedCameraState;
-extern f32  gCameras[];
 extern f32  lbl_8025EA04[];
 extern void* lbl_80344EA8;
 extern s32  lbl_80344788;
@@ -2270,7 +2275,7 @@ void game_main(void)
             }
         }
         fn_80054E78();
-        fn_80055678(lbl_8025EA04, gCameras + 75);
+        fn_80055678(lbl_8025EA04, gCameras[0].attn);
         if (!lbl_803447B8) {
             StartCompass();
         }
