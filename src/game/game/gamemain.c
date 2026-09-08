@@ -495,6 +495,24 @@ extern s32   lbl_803441F8;
 extern f32   lbl_80346AB8;
 extern void  fn_8009FB00(void);
 extern void  SetDrawStringScale(f32 s);
+/* Local mirror of mb_font.c's queued message, returned through the opaque
+ * DrawStringText API. GC MBDrawText uses a 44-byte stride and initializes
+ * every field below; its +0x10 pointer addresses the copied character data.
+ * fn_800521E8 truncates that copy, not the original string resource. */
+typedef struct MBTextMsg {
+    u32 flags;
+    s32 x;
+    s32 y;
+    f32 z;
+    char* text;
+    f32 xspace;
+    f32 xscale;
+    f32 yspace;
+    f32 yscale;
+    s16 font;
+    s16 seq;
+    u32 color;
+} MBTextMsg;
 extern void* DrawStringText(s32 a, s32 b, s32 c, s32 d, s32 e, ...);
 extern void  RestoreDrawStringScale(void);
 extern void  init_attract_mode(s32 mode);
@@ -1108,8 +1126,8 @@ void fn_800521E8(void)
     s32 flag = gGameBusy;
     s32 oldTimer = lbl_80344774;
     s32 newTimer;
-    void* txt;
-    u8* textData;
+    MBTextMsg* txt;
+    char* textData;
     u8 unused[8];
 
     lbl_80344774 = oldTimer + gFrameTicks;
@@ -1124,9 +1142,9 @@ void fn_800521E8(void)
         idx = 9;
     }
     SetDrawStringScale(lbl_80346AB8);
-    txt = DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
+    txt = (MBTextMsg*)DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
     RestoreDrawStringScale();
-    textData = ((void**)txt)[4];
+    textData = txt->text;
     textData[idx] = 0;
     if (flag != 0) {
         return;
