@@ -1533,9 +1533,6 @@ void fn_8005351C(void)
     s32 state = lbl_8034481C;
     s32 inTower;
     s32 isSelect;
-    s32 off;
-    u8* tbl;
-    f32* idmat;
     s32 i;
     u8* p;
 
@@ -1619,9 +1616,7 @@ void fn_8005351C(void)
 
     InitCamera(0);
     {
-        idmat = (f32*)gIdentityMatrix;
-        tbl = (u8*)lbl_80257650;
-        for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 12, p += 13148) {
+        for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
             ((Player*)p)->exit_dest = sLastWorldLevel;
             ((Player*)p)->node = 0;
             ((Player*)p)->platform = 0;
@@ -1633,8 +1628,8 @@ void fn_8005351C(void)
                 LoadPlyrData(i, player->character, 1);
                 if (isSelect != 0) {
                     f32* v;
-                    CopyMat3(idmat, player->mat);
-                    v = (f32*)(tbl + off);
+                    CopyMat3(gIdentityMatrix, player->mat);
+                    v = &lbl_80257650[i * 3];
                     player->pos[0] = v[0];
                     player->pos[1] = v[1];
                     player->pos[2] = v[2];
@@ -1646,10 +1641,9 @@ void fn_8005351C(void)
     }
 
     if (inTower == 0) {
-        s32 off2;
         u8* base = (u8*)gPlayers;
-        for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
-            u8* q = base + off2;
+        for (i = 0; i < 4; i++) {
+            u8* q = base + i * sizeof(Player);
             Player* player = (Player*)q;
             if (player->state != INACTIVE) {
                 if (sMusicTrackHi == 13) {
