@@ -609,10 +609,14 @@ GAP_BLURB = {
         "UNCLAIMED SECTION — the target side is 0x0 because the dtk split"
         " assigned no bytes of this section to this TU. Ownership and"
         " link-reachability review required: surplus may be dead-stripped;"
-        " its values are not proved correct or wrong. Use"
-        " tools/gdl/composed_census/af_data_base_census.py for CANDIDATE"
-        " bases, then verify bytes/relocations/ownership before changing"
-        " config/GUNE5D/splits.txt. Do not automatically add its claim."),
+        " its values are not proved correct or wrong. Run"
+        " tools/gdl/claimable_sections.py <unit> for the relocation-resolved"
+        " candidate extent SCORED AGAINST THE DOL BYTES (and the whole-image"
+        " ranking of every such section), or"
+        " tools/gdl/composed_census/af_data_base_census.py for the per-unit"
+        " base derivation alone; then verify bytes/relocations/ownership"
+        " before changing config/GUNE5D/splits.txt. Do not automatically add"
+        " its claim."),
     "blocker-nonzero-tail": ("the target's extra bytes are NONZERO — real"
                              " bytes are missing from ours"),
     "blocker-head-differs": ("the compared head DIFFERS, so this is not a"
