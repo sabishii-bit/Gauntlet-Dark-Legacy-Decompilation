@@ -11,13 +11,27 @@ from tools.gdl import raw_object as raw
 UNIT = "game/example/example"
 
 
-def graph_fixture(root, *, unit=UNIT, chain=(), editable=False, outputs=True):
-    """Write a standalone hash-bound graph, independent of the real build."""
+def graph_fixture(root, *, unit=UNIT, chain=(), editable=False, outputs=True,
+                  native_only=False, policy=b"native policy"):
+    """Write a standalone hash-bound graph, independent of the real build.
+
+    `native_only` writes the post-retirement shape: the policy fingerprint is
+    `tools/gdl/native_build.py` instead of the two retired rule JSON files,
+    and the graph carries the `rules` table `native_build.check_snapshot`
+    reads. It is incompatible with `chain`, which is a postprocessing pipeline.
+    """
     root = Path(root)
+    if native_only and chain:
+        raise ValueError("a native-only graph has no postprocessing chain")
     files = {"configure.py": b"generator", "tools/project.py": b"project",
              "tools/gdl/build_provenance.py": b"recorder"}
+    if native_only:
+        files["tools/gdl/native_build.py"] = policy
+    else:
+        files.update({"config/GUNE5D/" + name: b"config"
+                      for name in ("webfrank.json", "p6frank.json")})
     files.update({"config/GUNE5D/" + name: b"config" for name in
-                  ("webfrank.json", "p6frank.json", "config.yml", "splits.txt", "symbols.txt")})
+                  ("config.yml", "splits.txt", "symbols.txt")})
     for name, content in files.items():
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -41,6 +55,9 @@ def graph_fixture(root, *, unit=UNIT, chain=(), editable=False, outputs=True):
         ninja_sha256=hashlib.sha256((root/'build.ninja').read_bytes()).hexdigest(),
         generator_inputs={name:hashlib.sha256(value).hexdigest() for name,value in files.items()},
         edges=edges, units=[dict(name=unit+'.c', source_object=plain)])
+    if native_only:
+        result["native_only"] = True
+        result["rules"] = {"mwcc_sjis": dict(command_template="mwcc -c $in -o $out")}
     save_graph(root, result)
     if outputs:
         for edge in edges:
@@ -148,6 +165,44 @@ class RawObjectTests(unittest.TestCase):
         _, body, _ = graph_fixture(self.root, chain=('webfrank',))
         for spelling in (UNIT, UNIT+'.c', 'src/'+UNIT+'.c', ('src/'+UNIT+'.c').replace('/','\\')):
             self.assertEqual(raw.resolve_object(spelling, root=self.root).relative, body)
+
+    def test_native_only_graph_selects_the_direct_compiler_output(self):
+        _, _, plain = graph_fixture(self.root, native_only=True)
+        selected = raw.resolve_object(UNIT, root=self.root)
+        self.assertEqual(selected.relative, plain)
+        self.assertIn('(raw)', selected.description)
+        self.assertEqual(selected.pipeline, ('mwcc_sjis',))
+
+    def test_native_only_graph_without_its_policy_fingerprint_refuses(self):
+        # The memo keys on generator_inputs, so a native-only graph that does
+        # not inventory tools/gdl/native_build.py must never be accepted: it
+        # could otherwise be cached under a fingerprint that omits the policy.
+        graph_fixture(self.root, native_only=True)
+        graph = json.loads((self.root/'build/GUNE5D/build_edges.json').read_text())
+        graph['generator_inputs'].pop('tools/gdl/native_build.py')
+        save_graph(self.root, graph)
+        with self.assertRaisesRegex(raw.RawObjectError, 'incomplete generator-input'):
+            raw.resolve_object(UNIT, root=self.root)
+
+    def test_native_only_graph_refuses_a_rewrite_edge_or_postprocessed_output(self):
+        mutations = [
+            lambda g: g['edges'].append(dict(rule='webfrank', outputs=['build/x.o'],
+                                             inputs=['build/y.o'])),
+            lambda g: g['edges'].append(dict(rule='cleanup', outputs=['build/x.o'],
+                                             inputs=['build/y.o'])),
+            lambda g: g['edges'][0].update(
+                outputs=['build/GUNE5D/src/game/example/.postprocess/body/example.o']),
+            lambda g: g['edges'][0].update(rule='mystery_compiler'),
+        ]
+        for index, mutate in enumerate(mutations):
+            with self.subTest(mutation=index):
+                graph_fixture(self.root, native_only=True)
+                graph = json.loads((self.root/'build/GUNE5D/build_edges.json').read_text())
+                graph['rules']['cleanup'] = dict(command_template='python tools/gdl/webfrank.py $in')
+                mutate(graph)
+                save_graph(self.root, graph)
+                with self.assertRaises(raw.RawObjectError):
+                    raw.resolve_object(UNIT, root=self.root)
 
     def test_cn_input_and_fnasm_compiler_use_distinct_views(self):
         from tools.gdl import fnasm
