@@ -3,6 +3,10 @@
 
     python tools/gdl/pool_owner.py game/sys/ml_mem
     python tools/gdl/pool_owner.py game/enemy/enemy --json --out build/x.json
+    python tools/gdl/pool_owner.py game/enemy/critter \
+        --range .sdata2:0x80346470-0x80346559
+        # test the first-use order against a CANDIDATE extent the unit does
+        # not yet claim -- the one claimable_sections.py derived and scored
 
 Every pool question a retirement lane asks is the same four:
 
@@ -48,7 +52,8 @@ only through a computed address is invisible here. Equal bytes never prove
 one original object, and this tool never proposes a binding: it reports
 ownership evidence for a human decision.
 
-IMPORTABLE CORE: load_splits, owner_of, decode_value, pool_datums, predict_first_use
+IMPORTABLE CORE: load_splits, owner_of, decode_value, pool_datums,
+predict_first_use, parse_range, check_range_conflict, apply_candidate_ranges
 -- pure over parsed data; no build and no printing.
 """
 from __future__ import annotations
@@ -290,6 +295,88 @@ def pool_datums(unit, symbols, runs, references, target_sections, dol,
     return rows
 
 
+class RangeRefused(ValueError):
+    """A candidate extent that cannot be tested, never a silent empty test."""
+
+
+def parse_range(text):
+    """`SECTION:0xSTART-0xEND` -> (section, start, end). Half-open.
+
+    RUN-62 ITEM 3d. The first-use order test only ever ran over datums the
+    unit ALREADY claims in splits.txt, so the units that most need it --
+    the ones deciding whether to write a claim at all -- got
+    `FIRST-USE ORDER: NOT APPLICABLE`. Measured at 1958d45b3, three of five
+    units sampled printed exactly that: `game/enemy/critter`,
+    `game/world/tower` and `dolphin/si/SIBios`, all of which HAVE referenced
+    pool datums, just none inside a run they own. `--range` supplies the
+    candidate extent -- the one `claimable_sections.py` derives and scores
+    against the DOL -- so the order test can be run BEFORE the claim is
+    written, which is when its answer is worth anything.
+    """
+    match = re.fullmatch(r"\s*(\.[A-Za-z0-9_.]+)\s*:\s*(0[xX][0-9A-Fa-f]+|\d+)"
+                         r"\s*-\s*(0[xX][0-9A-Fa-f]+|\d+)\s*", str(text))
+    if not match:
+        raise RangeRefused(
+            f"unreadable --range {text!r}; expected SECTION:0xSTART-0xEND,"
+            " e.g. .sdata2:0x803463F8-0x80346470")
+    section, start, end = (match.group(1), int(match.group(2), 0),
+                           int(match.group(3), 0))
+    if section not in POOL_SECTIONS:
+        raise RangeRefused(
+            f"--range names {section}, which is not a pool section"
+            f" ({', '.join(POOL_SECTIONS)}); first-use order is a property of"
+            " a literal pool, and a writable or BSS extent has none")
+    if end <= start:
+        raise RangeRefused(f"--range {section}:0x{start:08X}-0x{end:08X} is"
+                           " empty or backwards")
+    return section, start, end
+
+
+def check_range_conflict(runs, unit, candidate):
+    """Refuse a candidate extent another unit already claims.
+
+    Testing order over someone else's claimed datums would answer a question
+    about THIS unit using evidence that belongs to another TU. The overlap
+    is named rather than trimmed: which unit is wrong is a split-ownership
+    decision, not this tool's.
+    """
+    section, start, end = candidate
+    for owner, name, run_start, run_end in runs:
+        if name != section or owner == unit:
+            continue
+        if run_start < end and start < run_end:
+            raise RangeRefused(
+                f"--range {section}:0x{start:08X}-0x{end:08X} overlaps"
+                f" {owner}'s claimed run 0x{run_start:08X}-0x{run_end:08X}."
+                " Resolve the ownership question first; this tool will not"
+                " test order over another unit's datums")
+
+
+def apply_candidate_ranges(rows, candidates):
+    """Mark datums inside a candidate extent as owned, and say so.
+
+    Returns the number of rows the extents adopted. Every adopted row keeps
+    its real `owner` field: the extent is a HYPOTHESIS being tested, and a
+    report that overwrote the measured owner would be asserting the answer.
+    """
+    adopted = 0
+    for row in rows:
+        row.setdefault("ownership_source",
+                       "splits.txt" if row["owned_by_this_unit"] else None)
+        if row["owned_by_this_unit"]:
+            continue
+        address = int(row["address"], 16)
+        for section, start, end in candidates:
+            if row["section"] == section and start <= address < end:
+                row["owned_by_this_unit"] = True
+                row["ownership_source"] = (
+                    f"--range candidate {section}:0x{start:08X}-0x{end:08X}"
+                    f" (NOT claimed in splits.txt; owner reads {row['owner']})")
+                adopted += 1
+                break
+    return adopted
+
+
 def predict_first_use(rows, unit):
     """First-use order against address order, for this unit's OWN datums.
 
@@ -340,13 +427,16 @@ def predict_first_use(rows, unit):
                      "ownership, not a verdict"}
 
 
-def analyze(unit, symbols=None, runs=None):
+def analyze(unit, symbols=None, runs=None, candidate_ranges=()):
     symbols = symbols if symbols is not None else poolval.load_symbols()
     runs = runs if runs is not None else load_splits()
     if not symbols:
         raise Refused("symbols.txt yielded no symbols")
     if not any(r[0] == unit for r in runs):
         raise Refused(f"{unit} has no entry in splits.txt")
+    candidates = [parse_range(text) for text in candidate_ranges]
+    for candidate in candidates:
+        check_range_conflict(runs, unit, candidate)
     target = REPO / "build" / VERSION / "obj" / (unit + ".o")
     if not target.exists():
         raise Refused(f"missing target object {target}; run `ninja` or "
@@ -369,6 +459,7 @@ def analyze(unit, symbols=None, runs=None):
     source_text = source.read_text(encoding="utf-8", errors="replace") if source else ""
     rows = pool_datums(unit, symbols, runs, references, target_sections,
                        poolval.load_dol(), our_anonymous, source_text)
+    adopted = apply_candidate_ranges(rows, candidates)
     claimed = [{"section": section, "start": f"0x{start:08X}", "end": f"0x{end:08X}",
                 "size": end - start,
                 "named_datums_in_symbols": sum(
@@ -385,6 +476,11 @@ def analyze(unit, symbols=None, runs=None):
         "our_object": str(ours.relative_to(REPO)).replace("\\", "/") if ours.exists() else None,
         "claimed_pool_extent": claimed,
         "claims_no_pool_run": not claimed,
+        "candidate_ranges": [
+            {"section": section, "start": f"0x{start:08X}",
+             "end": f"0x{end:08X}", "size": end - start}
+            for section, start, end in candidates],
+        "candidate_datums_adopted": adopted,
         "split_asm_labels": len(labels),
         "split_asm_first_labels": [row[3] for row in labels[:8]],
         "our_anonymous_pool_entries": len(our_anonymous),
@@ -415,6 +511,20 @@ def format_report(result, limit=None):
                        f"  {row['size']} bytes, {row['named_datums_in_symbols']}"
                        f" named datums, {row['target_section_bytes']} bytes in"
                        " the target object")
+    for row in result.get("candidate_ranges") or []:
+        out.append(f"  CANDIDATE EXTENT (--range): {row['section']}"
+                   f" {row['start']}..{row['end']}  {row['size']} bytes"
+                   " -- NOT claimed in splits.txt; the order test below"
+                   " treats it as if it were, which is evidence FOR a claim,"
+                   " never the claim itself")
+    if result.get("candidate_ranges"):
+        out.append(f"    {result['candidate_datums_adopted']} referenced datum(s)"
+                   " fall inside the candidate extent(s)")
+        if not result["candidate_datums_adopted"]:
+            out.append("    NOTHING TO TEST: no referenced pool datum lies in"
+                       " that extent. Check the address range against"
+                       " `claimable_sections.py <unit>` before reading any"
+                       " verdict below.")
     out.append(f"  our object: {result['our_anonymous_pool_entries']} anonymous"
                f" + {result['our_named_pool_entries']} named pool entries;"
                f" split asm lists {result['split_asm_labels']} labels")
@@ -468,6 +578,12 @@ def format_report(result, limit=None):
                    + (f" ({prediction['referenced_own_datums']} own datums are"
                       " declared globals or writable)"
                       if prediction["referenced_own_datums"] else ""))
+        if not result.get("candidate_ranges") and result["datums"]:
+            out.append("    This unit DOES reference pool datums; they are"
+                       " owned elsewhere or unclaimed. To test the order"
+                       " against a candidate extent before writing a claim:"
+                       "  --range <section>:0xSTART-0xEND  (derive the extent"
+                       " with tools/gdl/claimable_sections.py)")
         out.append("  LIMITS: " + " ".join(result["limitations"]))
         return "\n".join(out)
     out.append(f"  FIRST-USE ORDER over {prediction['modelled_generated_literals']}"
@@ -500,13 +616,21 @@ def main(argv=None):
     parser.add_argument("unit", help="unit key, e.g. game/sys/ml_mem")
     parser.add_argument("--limit", type=int, default=25,
                         help="datum rows to print (0 = all; default 25)")
+    parser.add_argument("--range", dest="ranges", action="append", default=[],
+                        metavar="SECTION:0xSTART-0xEND",
+                        help="test first-use order against a CANDIDATE extent"
+                             " this unit does not yet claim (repeatable);"
+                             " derive it with tools/gdl/claimable_sections.py")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--out", type=Path, help="write the JSON report here")
     args = parser.parse_args(argv)
     if args.out is not None and not args.out.resolve().is_relative_to((REPO / "build").resolve()):
         parser.error("--out must be under this checkout's build/")
     try:
-        result = analyze(args.unit)
+        result = analyze(args.unit, candidate_ranges=args.ranges)
+    except RangeRefused as error:
+        print(f"REFUSED: {error}", file=sys.stderr)
+        return 2
     except Refused as error:
         print(f"REFUSED: {error}", file=sys.stderr)
         return 2

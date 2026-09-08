@@ -215,11 +215,14 @@ class HelpDoesNoWork(unittest.TestCase):
     """
 
     def test_help_writes_no_file_for_the_tools_that_write_one(self):
+        # Run-61 item 6 moved these artifacts out of the source tree into
+        # build/<version>/composed_census/, so the witness path moved with
+        # them; the property under test is unchanged.
         witnesses = {
             "tools/gdl/composed_census/ch_shipped.py":
-                "tools/gdl/composed_census/ch_shipped.json",
+                "build/GUNE5D/composed_census/ch_shipped.json",
             "tools/gdl/composed_census/ch_census26.py":
-                "tools/gdl/composed_census/ch_census26.json",
+                "build/GUNE5D/composed_census/ch_census26.json",
         }
         for relative, artifact in witnesses.items():
             full = os.path.join(ROOT, artifact)

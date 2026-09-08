@@ -74,6 +74,26 @@ class RefineUnclaimedTests(unittest.TestCase):
         """Claim debt is a real flip blocker; only the CAUSE was misnamed."""
         self.assertTrue("blocker-unclaimed-section".startswith("blocker"))
 
+    def test_the_blurb_points_at_the_scored_whole_image_census_first(self):
+        # This IS the data campaign's queue, and the only tool that scores a
+        # candidate extent against the DOL bytes is claimable_sections.py;
+        # af_data_base_census derives bases for ONE unit. Naming only the
+        # latter left a lane with candidate addresses and no discriminant.
+        blurb = dd.GAP_BLURB["blocker-unclaimed-section"]
+        self.assertIn("tools/gdl/claimable_sections.py", blurb)
+        self.assertLess(blurb.index("claimable_sections.py"),
+                        blurb.index("af_data_base_census.py"))
+
+    def test_no_other_gap_class_advertises_a_census_tool(self):
+        # A pointer printed on every row is not a pointer. Only the class
+        # that HAS an unclaimed extent to derive may name these tools.
+        for gap, blurb in dd.GAP_BLURB.items():
+            if gap == "blocker-unclaimed-section":
+                continue
+            with self.subTest(gap=gap):
+                self.assertNotIn("claimable_sections.py", blurb)
+                self.assertNotIn("af_data_base_census.py", blurb)
+
 
 class SplitsCrossCheckTests(unittest.TestCase):
     def test_the_worked_pair_from_the_law_still_holds(self):

@@ -19,6 +19,7 @@ import cliscreen  # noqa: E402
 cliscreen.help_only(__doc__)
 import webfrank as wf  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
+import cc_artifact  # noqa: E402
 from cn_analyze import our_object, target_object, load, decode  # noqa: E402
 from cn_search import try_candidate  # noqa: E402
 
@@ -80,10 +81,10 @@ for lo, hi in ((0x10c, 0x128), (0xfc, 0x118), (0x100, 0x11c), (0xf8, 0x118),
     print(f"  window [0x{lo:x},0x{hi:x}):")
     try_candidate("game/ui/options", "next_rune_hint", lo, hi)
 
-found = json.load(open(os.path.join(os.path.dirname(__file__), "cn_found.json")))
+found = cc_artifact.load_artifact("cn_found.json", "cn_final.py")
 found["game/enemy/critter::ProcessCritter"] = pc
-json.dump(found, open(os.path.join(os.path.dirname(__file__), "cn_found.json"),
-                      "w"), indent=2)
+cc_artifact.write_artifact("cn_found.json", found,
+                           cc_artifact.out_override(sys.argv), indent=2)
 print("\nfinal rule set:")
 for k, v in found.items():
     print(f"  {k}: stages="

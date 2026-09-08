@@ -20,6 +20,7 @@ import cliscreen  # noqa: E402
 cliscreen.help_only(__doc__)      # run-59 item 9: help must not search
 import webfrank as wf  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
+import cc_artifact  # noqa: E402
 from cn_analyze import our_object, target_object, load  # noqa: E402
 from reloc_symbols import moved_symbols, region_symbols  # noqa: E402
 
@@ -212,5 +213,7 @@ if __name__ == "__main__":
         if r:
             out[f"{unit}::{fn}"] = r
     print(f"\nCLOSABLE: {list(out)}")
-    open(os.path.join(os.path.dirname(__file__), "cn_found.json"), "w").write(
-        json.dumps(out, indent=2))
+    written = cc_artifact.write_artifact("cn_found.json", out,
+                                         cc_artifact.out_override(sys.argv),
+                                         indent=2)
+    print(f"wrote {cc_artifact.artifact_label(written)}")

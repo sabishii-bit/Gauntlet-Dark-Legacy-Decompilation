@@ -7,6 +7,8 @@ Usage:
   python tools/gdl/fndiff.py dolphin/dvd/dvd.c              # all mismatching functions
   python tools/gdl/fndiff.py dolphin/dvd/dvd.c DVDInit      # specific function(s)
   python tools/gdl/fndiff.py dolphin/si/SIBios.c -l         # just list match status
+      # OK = identical, POOL = 0 real diff lines once pool NAMES are
+      # normalized (what --clean scores), DIFF = a real residual
   python tools/gdl/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
   python tools/gdl/fndiff.py game/g3d/sndvoice.c --classify # semantic-risk class
   python tools/gdl/fndiff.py game/mb/mb_window.c --clean    # noise-free + hints
@@ -1226,28 +1228,205 @@ def pool_row_findings(t, b, ours_object=None):
 
 LOUD_POOL_CLASSES = ("WRONG-POOL-DATUM", "WRONG-POOL-VALUE")
 
+#: How close to an unpaired block a pool row may sit before its PAIRING is
+#: a matcher's choice rather than evidence. Deliberately the same rule and
+#: the same value as IMMEDIATE_ADJACENCY, which fixed this defect class for
+#: the IMMEDIATE rows in run 39; a test pins the two together.
+POOL_ADJACENCY = 2
 
-def print_pool_findings(name, findings):
-    """Print the suppressed pool rows. Returns the loud-row count."""
-    loud = [row for row in findings if row[0] in LOUD_POOL_CLASSES]
-    if loud:
-        print(f"POOL-DEFECT {name}  ({len(loud)} relocation row(s) that"
+
+def pool_row_reliability(t, b, adjacency=POOL_ADJACENCY):
+    """[reason or None] per suppressed pool row: is its PAIRING evidence?
+
+    RUN-62 ITEM 3a. `suppressed_pool_rows` pairs POSITIONALLY inside the
+    sequence matcher's EQUAL runs, exactly as `immediate_deltas` does, and
+    it inherits exactly the same weakness: at a run's edge the matcher CHOSE
+    that boundary, so the two relocation lines printed side by side need not
+    be each other's counterparts. Where they are not, `print_pool_findings`
+    announced `POOL-DEFECT ... VALUES DIFFER` — a confident wrong-constant
+    verdict over two unrelated pool entries.
+
+    REPRODUCED at 33f9f8da8, `fndiff.py game/enemy/critter
+    CritterCollidePlayers --clean`:
+
+        POOL-DEFECT CritterCollidePlayers (1 relocation row(s) ...)
+            pool@0x7c  target lbl_80346490 = 0x3FF0000000000000 (f64 1.0)
+                       ours @131 = 0x4008000000000000 (f64 3.0)
+                       VALUES DIFFER (first at +0x0)
+
+    That function is COUNT-ASYMMETRIC (target 150, ours 151 instructions;
+    `wf_word_diff.py` says so and refuses to measure words for it), its
+    whole `--ops` table pairs T[n] with O[n+1], and the row above is the
+    FIRST line of a six-line equal run that abuts an unpaired block.
+
+    CALIBRATED over the live population at 33f9f8da8
+    (build/c62_pool_align_census.py, 255 configured units): 125 loud pool
+    rows in 49 functions — 79 in count-asymmetric functions and 46 in
+    symmetric ones; 108 sit within `adjacency` lines of an unpaired block
+    and 17 are interior. The gate is ADJACENCY, not count asymmetry: 7 of
+    the asymmetric rows are interior (a long anchored run after one
+    insertion is still correctly aligned) and 36 of the symmetric ones are
+    at an edge (the matcher chose that boundary too). Count drift is
+    reported as CONTEXT in the reason, never as the verdict — the same
+    split `immediate_row_reliability` documents.
+
+    NEGATIVE SIDE: the recorded true positive this whole class exists for,
+    adsInitFromHeader's prologue, normalizes to ONE equal run with no
+    unpaired neighbour at all, so no row of it is demoted (pinned by
+    tools/gdl/tests/test_pool_rows.py).
+
+    Pure over the two line lists, and ALIGNED with `suppressed_pool_rows` /
+    `pool_row_findings`: same order, same length, one entry per row.
+    """
+    tn, bn = normalized_reloc_lines(t), normalized_reloc_lines(b)
+    blocks = difflib.SequenceMatcher(None, tn, bn,
+                                     autojunk=False).get_opcodes()
+    out = []
+    for index, (tag, i1, i2, j1, j2) in enumerate(blocks):
+        if tag != "equal":
+            continue
+        # A run bounded by the FUNCTION's own start/end abuts nothing.
+        after_unpaired = index > 0
+        before_unpaired = index < len(blocks) - 1
+        run = i2 - i1
+        for k in range(run):
+            t_line, o_line = t[i1 + k], b[j1 + k]
+            if t_line == o_line or not t_line.startswith("    "):
+                continue
+            reasons = []
+            if after_unpaired and k < adjacency:
+                reasons.append(f"only {k} row(s) after an unpaired block")
+            if before_unpaired and (run - 1 - k) < adjacency:
+                reasons.append(f"only {run - 1 - k} row(s) before an"
+                               " unpaired block")
+            drift = (i1 + k) - (j1 + k)
+            if reasons and drift:
+                reasons.append(f"the streams have drifted by {drift}"
+                               " line(s) here")
+            out.append("; ".join(reasons) if reasons else None)
+    return out
+
+
+def print_pool_findings(name, findings, reliability=None, counts=None):
+    """Print the suppressed pool rows. Returns the CONFIRMED loud-row count.
+
+    `reliability` is `pool_row_reliability`'s list for the same two line
+    lists. Without it every row is treated as anchored, which is the
+    behaviour of every caller that has no alignment to offer. A row whose
+    pairing the matcher chose is still PRINTED — in full, with its values —
+    under a CANDIDATE banner that says the pairing is the doubtful part;
+    silencing it would hide a real defect just as badly as asserting one.
+    `counts` is an optional (target, ours) instruction count, printed as
+    context when the two disagree.
+    """
+    loud = [(index, row) for index, row in enumerate(findings)
+            if row[0] in LOUD_POOL_CLASSES]
+    if reliability is not None and len(reliability) != len(findings):
+        raise ValueError("pool reliability list does not match the findings"
+                         f" it describes ({len(reliability)} vs"
+                         f" {len(findings)})")
+
+    def render(kind, at, t_sym, o_sym, t_val, o_val):
+        if kind == "WRONG-POOL-DATUM":
+            t_at = resolve_reloc_symbol_positional(t_sym)
+            o_at = resolve_reloc_symbol_positional(o_sym)
+            return (f"    pool@0x{at:x}  target {t_sym} (0x{t_at:08X})"
+                    f"   ours {o_sym} (0x{o_at:08X})   ADDRESSES DIFFER")
+        first = next((i for i in range(min(len(t_val), len(o_val)))
+                      if t_val[i] != o_val[i]), 0)
+        return (f"    pool@0x{at:x}  target {t_sym}"
+                f" = {_render_value(t_val, first)}"
+                f"   ours {o_sym} = {_render_value(o_val, first)}"
+                f"   VALUES DIFFER (first at +0x{first:x})")
+
+    def reason_for(index):
+        return None if reliability is None else reliability[index]
+
+    confirmed = [(index, row) for index, row in loud if not reason_for(index)]
+    candidates = [(index, row) for index, row in loud if reason_for(index)]
+    if confirmed:
+        print(f"POOL-DEFECT {name}  ({len(confirmed)} relocation row(s) that"
               " --clean normalizes to nothing read a DIFFERENT pool datum —"
               " no score in this tool sees them)")
-        for kind, at, t_sym, o_sym, t_val, o_val in loud:
-            if kind == "WRONG-POOL-DATUM":
-                t_at = resolve_reloc_symbol_positional(t_sym)
-                o_at = resolve_reloc_symbol_positional(o_sym)
-                print(f"    pool@0x{at:x}  target {t_sym} (0x{t_at:08X})"
-                      f"   ours {o_sym} (0x{o_at:08X})   ADDRESSES DIFFER")
-            else:
-                first = next((i for i in range(min(len(t_val), len(o_val)))
-                              if t_val[i] != o_val[i]), 0)
-                print(f"    pool@0x{at:x}  target {t_sym}"
-                      f" = {_render_value(t_val, first)}"
-                      f"   ours {o_sym} = {_render_value(o_val, first)}"
-                      f"   VALUES DIFFER (first at +0x{first:x})")
-    return len(loud)
+        for _index, row in confirmed:
+            print(render(*row))
+    if candidates:
+        print(f"POOL-DEFECT CANDIDATE {name}  ({len(candidates)} suppressed"
+              " row(s) read a different pool datum, but the matcher CHOSE"
+              " the pairing that says so — this is a queue entry, not a"
+              " verdict)")
+        if counts and counts[0] != counts[1]:
+            print(f"    the streams are COUNT-ASYMMETRIC (target {counts[0]},"
+                  f" ours {counts[1]} instructions), so positional pairing"
+                  " has no anchor here at all")
+        for index, row in candidates:
+            print(render(*row))
+            print(f"        PAIRING UNRELIABLE: {reason_for(index)}")
+        print("    confirm each against the ALIGNED view before believing"
+              " it: `fnasm.py <unit> <fn> --raw --diff` for the stream and"
+              " `fndiff.py <unit> <fn> --relocs` for the binding; close the"
+              " neighbouring unpaired cluster first.")
+    return len(confirmed)
+
+
+def pool_candidate_count(findings, reliability):
+    """How many loud rows are queue entries rather than verdicts."""
+    if reliability is None:
+        return 0
+    return sum(1 for index, row in enumerate(findings)
+               if row[0] in LOUD_POOL_CLASSES and reliability[index])
+
+
+def list_row(name, t, b, ours_object=None):
+    """One `-l` line, scored the way `--clean` scores the same function.
+
+    RUN-62 ITEM 3b. `-l` decided on raw line equality alone, so the moment a
+    literal was recovered -- our anonymous `@37` becoming the target's
+    `lbl_80346490`, or two spellings of ONE address such as critter's
+    `gControllerButtons+0x4` and the target's `sFlags` -- the function
+    changed from `OK` to `DIFF` while `--clean` still printed
+    `MATCH (pool-name noise only), 0 real diff lines`. A lane reading the
+    list saw its literal recovery as a batch of regressions.
+
+    CENSUSED at f08e8640d over 255 configured units
+    (build/c62_listmode_census.py): 3001 paired functions -- 2051 byte
+    identical, 442 with a real residual, and 508 (17%) that `-l` called DIFF
+    and `--clean` scored at 0 real diff lines, spread over 98 units
+    (enemy 38, player 31, sfx 28, critter 27, sounds_evt 27). Not one of the
+    508 carried a confirmed POOL-DEFECT row, so the whole class was noise.
+
+    The line now says which of the three states it is, and a pool row that
+    IS a defect keeps its own word so this can never bury one:
+
+        OK   <fn>                     identical lines
+        POOL <fn>  ...                0 real diff lines after normalization
+        POOL-DEFECT <fn> ...          ...but a suppressed row reads a
+                                      DIFFERENT datum (`--clean` prints it)
+        DIFF <fn>                     a real residual
+
+    Item 3a's unaligned-CANDIDATE class cannot occur here: it needs an
+    unpaired block, and an unpaired block is real diff lines, which is DIFF.
+
+    Pure over the two line lists (plus the object path the datum reader
+    needs); no build, no printing.
+    """
+    if t == b:
+        return f"OK   {name}"
+    tn, bn = normalized_reloc_lines(t), normalized_reloc_lines(b)
+    real = sum(1 for line in difflib.unified_diff(tn, bn, lineterm="", n=0)
+               if line[:1] in "+-" and line[:3] not in ("+++", "---"))
+    if real:
+        return f"DIFF {name}"
+    # At real 0 the two normalized streams are IDENTICAL, so the sequence
+    # matcher yields one equal block over the whole function and no pool row
+    # here can be a matcher's guess (item 3a's candidate class is empty by
+    # construction in this branch). Every loud row is therefore a verdict.
+    findings = pool_row_findings(t, b, ours_object)
+    loud = sum(1 for row in findings if row[0] in LOUD_POOL_CLASSES)
+    if loud:
+        return (f"POOL-DEFECT {name}  ({loud} suppressed row(s) read a"
+                " DIFFERENT datum; run --clean)")
+    return f"POOL {name}  (0 real diff lines after pool-name normalization)"
 
 
 def pool_findings_note(findings):
@@ -2365,13 +2544,23 @@ def clean_diff(name, t, b, ours_object=None):
             print(line)
 
     findings = pool_row_findings(t, b, ours_object)
-    loud = print_pool_findings(name, findings)
+    reliability = pool_row_reliability(t, b)
+    t_insns, b_insns = len(instruction_lines(t)), len(instruction_lines(b))
+    loud = print_pool_findings(name, findings, reliability,
+                               counts=(t_insns, b_insns))
+    candidates = pool_candidate_count(findings, reliability)
 
     hints = []
     if loud:
         hints.append(f"{loud} suppressed pool row(s) name DIFFERENT data"
                      " (printed above) — this view's `real` cannot see them;"
                      " confirm with `--relocs`")
+    if candidates:
+        hints.append(f"{candidates} further suppressed pool row(s) are"
+                     " CANDIDATES only: the matcher chose their pairing, so"
+                     " the differing value may belong to another instruction"
+                     " — confirm against the aligned view before believing"
+                     " one")
     note = pool_findings_note(findings)
     if note:
         hints.append(f"suppressed pool rows: {note}")
@@ -2743,7 +2932,7 @@ def main():
             print(f"{category:<19} {name}  insns {ti}/{bi}")
             continue
         if list_only:
-            print(f"DIFF {name}")
+            print(list_row(name, t, b, base_o))
             continue
         if count_only:
             diff = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)

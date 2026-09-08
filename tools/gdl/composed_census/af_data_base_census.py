@@ -23,11 +23,33 @@ Usage (from the repository root):
   python tools/gdl/composed_census/af_data_base_census.py game/mb/mb_camera \
       --out build/GUNE5D/af_data_base_census.json
 
+THE DOL NOW DECIDES BETWEEN DISAGREEING BASES (run 61 item 8).  Measured at
+20c0d7ea1, this tool printed THREE bases for game/game/controls `.sdata2` --
+0x803463E8 (one row, @1531), 0x803463F8 (six rows) and 0x80346408 (one row,
+@1528) -- for a section whose shipped, verified claim is 0x803463F8 and
+whose bytes are 100% equal there.  Two of the three were artefacts of
+pairing .text relocations BY OFFSET across two instruction streams that do
+not agree, which is exactly what a NonMatching TU has.  Row counts cannot
+settle that (the same run printed six mutually disagreeing `.sbss` bases),
+so every candidate is now scored against the DOL bytes at it, skipping the
+words our object relocates, and a base is only ever promoted to a PASTE
+line when it is the single fully byte-equal one.  The measured scores for
+those three: 13.3%, 100.0%, 16.7%.
+
+Everything else is demoted to CANDIDATE and carries the DOL comparison it
+scored in the same line, so no lane has to guess which number to believe.
+BSS-class sections occupy no DOL bytes and can never be scored this way;
+they stay on relocation consensus and say so.
+
 Verify every base with the DOL bytes before committing a claim -- this tool
 proves WHERE a section goes, never that its CONTENT is right.  Follow it
 with `datadiff.py <unit>` once the claim is written, and read
 claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-some-claim-slack-
 is-structural.20260903.v1 before choosing the claim's END address.
+
+For the image-wide version of this question -- which units have unclaimed
+sections, how many bytes are claimable today, and what blocks the rest --
+use `tools/gdl/claimable_sections.py`, whose scoring core this shares.
 """
 
 import argparse
@@ -41,9 +63,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 
+import claimable_sections  # noqa: E402
 import fndiff  # noqa: E402
 
 DATA_SECTIONS = (".rodata", ".data", ".bss", ".sbss", ".sdata", ".sdata2")
+BSS_SECTIONS = (".bss", ".sbss", ".sbss2")
 
 
 def _dump(path, args):
@@ -229,17 +253,68 @@ def census(unit):
         bases.setdefault(sec, {}).setdefault(taddr + tadd - add - val,
                                              []).append(sym)
 
+    relocated = claimable_sections.relocated_offsets(ours)
     out = {"unit": unit, "unpaired_relocations": unpaired,
            "offset_shifted_pairs": shifted, "sections": {}}
     for sec in DATA_SECTIONS:
         if sec not in sizes and sec not in bases:
             continue
         cands = bases.get(sec, {})
-        row = {"object_size": sizes.get(sec),
+        bss = sec in BSS_SECTIONS
+        size = sizes.get(sec)
+        payload = claimable_sections.section_bytes(ours, sec) \
+            if size and not bss else b""
+        scores = {}
+        for b in cands:
+            if bss or not size:
+                scores[b] = None
+                continue
+            scores[b] = claimable_sections.score_base(
+                payload, relocated.get(sec, set()), fndiff.dol_read(b, size))
+        row = {"object_size": size,
                "candidate_bases": {"0x%08X" % b: sorted(set(v))
-                                   for b, v in cands.items()}}
-        if len(cands) == 1 and sizes.get(sec):
-            base = next(iter(cands))
+                                   for b, v in cands.items()},
+               "dol_agreement": {
+                   "0x%08X" % b: (None if score is None else
+                                  {"percent": score["percent"],
+                                   "compared": score["compared"],
+                                   "skipped": score["skipped"],
+                                   "note": score["note"]})
+                   for b, score in scores.items()}}
+        # ONE candidate is not evidence, and the DOL is -- WHERE IT EXISTS.
+        # Where a comparison is possible, only a single fully byte-equal base
+        # earns a paste line. Where none is possible (bss holds no DOL bytes;
+        # a pointer table relocates every word it has) the old
+        # single-candidate rule stands, labelled for what it is. Remeasured
+        # on the native-only tree at 7ab03f3c1 over the 312 (unit, section)
+        # pairs that resolve any base (build/c62_af_rule_delta.py, 255
+        # configured units, 6 census refusals -- the Runtime.PPCEABI.H
+        # archive members whose extracted object this tool cannot address):
+        # 7 paste lines GAINED where the DOL elected one of several
+        # candidates (controls/movieplayer/enemy .sdata2, attract/auxscreen
+        # .sdata, SIBios .data, tower .data), 5 WITHDRAWN where the single
+        # candidate is measurably wrong (dcs .rodata 95.6%, bosscam .sdata2
+        # 50.0%, gauntworld .rodata 11.9%, combat .rodata 10.7%, nubinit
+        # .rodata 0.0%), 300 unchanged. Requiring byte equality even where
+        # nothing is comparable would have withdrawn 107 MORE (81 of them
+        # bss-class sections, which own no DOL bytes at all, and the rest
+        # fully relocated tables such as zlib/inflate .data) -- which is why
+        # "unmeasurable" is not treated as "failed".
+        equal = [b for b, score in scores.items()
+                 if score and score["compared"] and score["percent"] == 100.0]
+        comparable = any(score and score["compared"]
+                         for score in scores.values())
+        decided = (len(equal) == 1) if comparable else (len(cands) == 1)
+        row["dol_comparable"] = comparable
+        if decided and size:
+            base = equal[0] if comparable else next(iter(cands))
+            row["base_decided_by"] = (
+                "100%% of %d compared DOL word(s)" % scores[base]["compared"]
+                if comparable else
+                "relocation consensus ONLY -- %s, so these bytes were never"
+                " compared; confirm the claim with datadiff.py after writing"
+                " it" % ("bss holds no DOL bytes" if bss else
+                         "every word of this section is relocated"))
             end = base + sizes[sec]
             straddled = straddled_symbol(sec, end)
             if straddled:
@@ -279,12 +354,36 @@ def main():
               % (r["offset_shifted_pairs"], r["unpaired_relocations"]))
         for sec, row in r["sections"].items():
             print("  %-9s object 0x%X" % (sec, row["object_size"] or 0))
+            agreement = row.get("dol_agreement") or {}
             for b, syms in sorted(row["candidate_bases"].items()):
-                print("      base %s  from %s" % (b, ", ".join(syms[:6])))
+                score = agreement.get(b)
+                if score is None:
+                    dol = "DOL n/a (bss/empty: no bytes to compare)"
+                elif score["percent"] is None:
+                    dol = "DOL n/a (%s)" % (score["note"] or "not measured")
+                else:
+                    dol = "DOL %.1f%% of %d compared word(s)" % (
+                        score["percent"], score["compared"])
+                print("      base %s  %s  from %s"
+                      % (b, dol, ", ".join(syms[:6])))
             if "splits_line" in row:
                 if "end_note" in row:
                     print("      NOTE: %s" % row["end_note"])
+                print("      DECIDED BY: %s" % row["base_decided_by"])
                 print("      PASTE:%s" % row["splits_line"])
+            elif row["candidate_bases"]:
+                print("      CANDIDATES ONLY, no paste line: %s, so which of"
+                      " these is the section base is NOT settled. Compare"
+                      " the bytes yourself before believing one --"
+                      % ("no single base is fully byte-equal in the DOL above"
+                         if row.get("dol_comparable") else
+                         "these bases disagree and nothing here is"
+                         " byte-comparable against the DOL"))
+                print("        python tools/gdl/claimable_sections.py %s"
+                      % r["unit"])
+                print("      A base with the most relocation rows is not the"
+                      " right one: the .text pairing this derives from is"
+                      " unsound wherever the two instruction streams differ.")
             elif not row["candidate_bases"]:
                 print("      no target address resolvable from .text"
                       " relocations: the section is reached through a"

@@ -67,8 +67,19 @@ bytes advisory: measured at 96d689120 on dolphin/si/SIBios, an
 Three bytes, two labels, opposite exit codes. `size_gap_class` now decides,
 and `--strict-slack` restores the refusing behaviour for both modes at once.
 
-IMPORTABLE CORE: section_verdict, shrink_reachable, size_gap_class -- pure
-over bytes already read, no subprocess and no build.
+UNMEASURED IS `n/a`, NOT ZERO (run-61 item 7). The exception-metadata line
+used to render an absent count as 0, so a comparison that could not be made
+printed `missing=0 changed=0 extra=0` -- three confident zeros -- next to
+`target_records=unreadable`. And the extab percentages come from a
+report.json written by a full LINK while the verdict above them is measured
+from the objects on disk now; the line said "may be stale" whichever it was.
+Both are measured and stated: see `exception_counts_line` and
+`snapshot_freshness`.
+
+IMPORTABLE CORE: section_verdict, shrink_reachable, size_gap_class,
+exception_counts_line, snapshot_freshness -- pure over bytes/dicts already
+read (snapshot_freshness stats the paths it is given), no subprocess and no
+build.
 
 DEAD-STRIP SCREEN (claim.law.base-cast-reconstruction-deadstrips-sibling-statics)
 --------------------------------------------------------------------------------
@@ -598,10 +609,14 @@ GAP_BLURB = {
         "UNCLAIMED SECTION — the target side is 0x0 because the dtk split"
         " assigned no bytes of this section to this TU. Ownership and"
         " link-reachability review required: surplus may be dead-stripped;"
-        " its values are not proved correct or wrong. Use"
-        " tools/gdl/composed_census/af_data_base_census.py for CANDIDATE"
-        " bases, then verify bytes/relocations/ownership before changing"
-        " config/GUNE5D/splits.txt. Do not automatically add its claim."),
+        " its values are not proved correct or wrong. Run"
+        " tools/gdl/claimable_sections.py <unit> for the relocation-resolved"
+        " candidate extent SCORED AGAINST THE DOL BYTES (and the whole-image"
+        " ranking of every such section), or"
+        " tools/gdl/composed_census/af_data_base_census.py for the per-unit"
+        " base derivation alone; then verify bytes/relocations/ownership"
+        " before changing config/GUNE5D/splits.txt. Do not automatically add"
+        " its claim."),
     "blocker-nonzero-tail": ("the target's extra bytes are NONZERO — real"
                              " bytes are missing from ours"),
     "blocker-head-differs": ("the compared head DIFFERS, so this is not a"
@@ -610,6 +625,71 @@ GAP_BLURB = {
 
 
 REPORT = REPO / "build" / VERSION / "report.json"
+
+
+def exception_counts_line(eh):
+    """The EH comparison's counted fields, or `n/a` where none was made.
+
+    RUN-61 ITEM 7. When `exception_table` cannot read an object it returns
+    `{"status": "UNRESOLVED", "error": ...}` with no count keys at all, and
+    the caller's `len(eh.get("missing", []))` turned each absent key into a
+    confident ZERO:
+
+        [unit] exception metadata: UNRESOLVED target_records=unreadable
+               ours_records=unreadable missing=0 changed=0 extra=0
+
+    Three zeros for a comparison that did not happen, beside two fields that
+    correctly say they are unreadable. `missing=0` reads as "nothing is
+    missing", which is precisely what was NOT established. Absent counts
+    render as `n/a`; a real UNRESOLVED verdict (an `extra` record, which IS
+    measured) keeps its numbers.
+    """
+    def count(key, empty):
+        value = eh.get(key)
+        return "n/a" if value is None else str(len(value) if
+                                               isinstance(value, type(empty))
+                                               else value)
+
+    def scalar(key):
+        value = eh.get(key)
+        return "n/a" if value is None else str(value)
+
+    return ("target_records=%s ours_records=%s missing=%s changed=%s extra=%s"
+            % (scalar("target_records"), scalar("ours_records"),
+               count("missing", []), count("changed", {}),
+               count("extra", {})))
+
+
+def snapshot_freshness(report_path, *objects):
+    """(label, detail) for a report.json snapshot against the objects read.
+
+    RUN-61 ITEM 7, second half. The extab percentages come from
+    `build/<version>/report.json`, which is written by a FULL LINK; the
+    per-section verdict above is measured from the objects on disk right
+    now. During any edit loop the objects are rebuilt and the report is not,
+    so the two are routinely describing different states, and the line said
+    only "may be stale" -- a caveat that is equally true and equally useless
+    whichever state it is in. This measures it: if the snapshot predates any
+    object it is quoted beside, it IS stale.
+    """
+    try:
+        snapshot = Path(report_path).stat().st_mtime_ns
+    except OSError:
+        return "no snapshot", "build/%s/report.json does not exist" % VERSION
+    newest, newest_name = None, None
+    for path in objects:
+        try:
+            stamp = Path(path).stat().st_mtime_ns
+        except OSError:
+            continue
+        if newest is None or stamp > newest:
+            newest, newest_name = stamp, Path(path).name
+    if newest is None:
+        return "unknown", "no comparable object timestamp"
+    if snapshot < newest:
+        return "STALE", ("the snapshot predates %s, so it describes an"
+                         " earlier build" % newest_name)
+    return "current", "the snapshot postdates every object compared here"
 
 
 def report_extab_sections(base):
@@ -748,10 +828,7 @@ def section_table(unit_key, strict_slack=False, debt=None, report=None):
                   f" vs ours 0x{os_.get(name, 0):X}; compared by function identity, not record position")
         eh = exception_table(tgt_o, ours_o)
         print(f"[{unit_key}] exception metadata: {eh['status']} "
-              f"target_records={eh.get('target_records', 'unreadable')} "
-              f"ours_records={eh.get('ours_records', 'unreadable')} "
-              f"missing={len(eh.get('missing', []))} changed={len(eh.get('changed', {}))} "
-              f"extra={len(eh.get('extra', {}))}")
+              + exception_counts_line(eh))
         if "error" in eh:
             print(f"[{unit_key}] {eh['error']}")
         for kind in ("missing", "changed", "extra"):
@@ -761,10 +838,16 @@ def section_table(unit_key, strict_slack=False, debt=None, report=None):
             bad += 1
         print(f"[{unit_key}] extra EH records require link-reachability review;"
               " metadata equality is not whole-object/link equality")
-    for name, size, fuzzy in report_extab_sections(base):
-        pct = "n/a" if fuzzy is None else f"{fuzzy:.4f}%"
-        print(f"[{unit_key}] {name}: {size} bytes, {pct} matched (report.json"
-              " snapshot, may be stale; not the direct metadata verdict)")
+    extab_rows = report_extab_sections(base)
+    snapshot = None
+    if extab_rows:
+        label, detail = snapshot_freshness(REPORT, tgt_o, ours_o)
+        snapshot = {"state": label, "detail": detail}
+        for name, size, fuzzy in extab_rows:
+            pct = "n/a" if fuzzy is None else f"{fuzzy:.4f}%"
+            print(f"[{unit_key}] {name}: {size} bytes, {pct} matched"
+                  f" (report.json snapshot: {label} — {detail}; a link-time"
+                  " score, not the direct metadata verdict above)")
     print(f"[{unit_key}] --sections: {compared} object data section(s)"
           f" compared, {bad} blocker(s)"
           + ("  (NOTHING TO COMPARE: neither object carries a data-class"
@@ -777,6 +860,7 @@ def section_table(unit_key, strict_slack=False, debt=None, report=None):
         report.append({"unit": unit_key, "status": "FAIL" if "FAIL" in statuses else
                        "UNRESOLVED" if "UNRESOLVED" in statuses else "PASS",
                        "sections": rows, "exception_metadata": eh,
+                       "report_snapshot": snapshot,
                        "target_object": str(tgt_o.relative_to(REPO)),
                        "ours_object": str(ours_o.relative_to(REPO))})
     return bad
