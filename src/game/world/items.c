@@ -390,10 +390,10 @@ void AddItemSub(Item* item)
         void* linked;
         void* scene;
 
-        if ((*(s16*)&item->data.raw[4] & 0x400) == 0) {
+        if ((item->data.trigger.flags & 0x400) == 0) {
             goto done;
         }
-        linked = *(void**)&item->data.raw[0];
+        linked = item->data.trigger.target;
         if (linked == 0) {
             goto done;
         }
@@ -405,7 +405,7 @@ void AddItemSub(Item* item)
             linked != *(void**)((u8*)scene + offsetof(WorldObj, parent))) {
             goto done;
         }
-        *(s16*)&item->data.raw[4] |= 0x100;
+        item->data.trigger.flags |= 0x100;
     }
 done:
     return;
@@ -654,11 +654,11 @@ void LinkItemTriggers(void)
                  j1 < sNumItems; j1++, ot1++) {
                 if (j1 != i1 && ot1->active != -1 &&
                     ot1->info->type == 5 &&
-                    (*(s16*)&ot1->data.raw[4] & 0x40) ==
-                        (*(s16*)&it1->data.raw[4] & 0x40) &&
-                    *(s8*)&it1->data.raw[6] > 0) {
-                    if (*(s8*)&ot1->data.raw[6] == *(s8*)&it1->data.raw[6]) {
-                        *(s8*)&ot1->data.raw[6] = 0;
+                    (ot1->data.trigger.flags & 0x40) ==
+                        (it1->data.trigger.flags & 0x40) &&
+                    it1->data.trigger.id > 0) {
+                    if (ot1->data.trigger.id == it1->data.trigger.id) {
+                        ot1->data.trigger.id = 0;
                         dup1++;
                     }
                     if (*(volatile s8*)&ot1->data.raw[7] ==
@@ -668,14 +668,14 @@ void LinkItemTriggers(void)
                 }
             }
             if (dup1 > 0) {
-                if (*(s16*)&it1->data.raw[4] & 0x40) {
+                if (it1->data.trigger.flags & 0x40) {
                     ErrorPrintf(strings + 0x2EC,
                                 dup1 + 1,
-                                (s32)*(s8*)&it1->data.raw[6]);
+                                (s32)it1->data.trigger.id);
                 } else {
                     ErrorPrintf(strings + 0x310,
                                 dup1 + 1,
-                                (s32)*(s8*)&it1->data.raw[6]);
+                                (s32)it1->data.trigger.id);
                 }
             }
         }
@@ -686,41 +686,41 @@ void LinkItemTriggers(void)
     item = sItems;
     for (i = 0; i < (nitems = sNumItems); i++, item++) {
         if (item->active != -1 && item->info->type == 5) {
-            s8 next_id = *(s8*)&item->data.raw[7];
+            s8 next_id = item->data.trigger.nextid;
 
             if (next_id != 0) {
                 other = sItems;
                 for (j = 0; j < nitems; j++, other++) {
                     if (j != i && other->active != -1 &&
                         other->info->type == 5 &&
-                        (*(s16*)&other->data.raw[4] & 0x40) == 0 &&
-                        next_id == *(s8*)&other->data.raw[6]) {
+                        (other->data.trigger.flags & 0x40) == 0 &&
+                        next_id == other->data.trigger.id) {
                         Item* next;
                         s32 loop = 0;
                         Item* chain;
 
                         for (chain = other; chain != NULL;
                              chain = next) {
-                            next = *(Item**)&chain->data.raw[8];
+                            next = chain->data.trigger.next;
                             if (next == item) {
                                 ErrorPrintf(strings + 0x32C,
                                             (s32)next_id,
-                                            (s32)*(s8*)&other->data.raw[7]);
+                                            (s32)other->data.trigger.nextid);
                                 loop = 1;
                                 break;
                             }
                         }
                         if (!loop) {
-                            *(Item**)&item->data.raw[8] = other;
-                            *(s16*)&other->data.raw[4] |= 0x200;
+                            item->data.trigger.next = other;
+                            other->data.trigger.flags |= 0x200;
                         }
                         break;
                     }
                 }
                 if (j >= sNumItems) {
                     ErrorPrintf(strings + 0x350,
-                                (s32)*(s8*)&item->data.raw[6],
-                                (s32)*(s8*)&item->data.raw[7]);
+                                (s32)item->data.trigger.id,
+                                (s32)item->data.trigger.nextid);
                 }
             }
         }
@@ -737,7 +737,7 @@ void DeleteItem(Item* item, s32 flag)
 
     if (flag != 0) {
         if (item->info->type == 1 &&
-            (ei = *(Item**)&item->data.raw[0xC]) != NULL) {
+            (ei = item->data.powerup.container) != NULL) {
             e = (u8*)ei;
             if (*(u32*)ei->atree != 0) {
                 AtreeDelete(ei->atree);
@@ -754,7 +754,7 @@ void DeleteItem(Item* item, s32 flag)
             }
         }
         if (item->info->type == 2 &&
-            (ei = *(Item**)&item->data.raw[0xC]) != NULL) {
+            (ei = item->data.powerup.container) != NULL) {
             e = (u8*)ei;
             if (*(u32*)ei->atree != 0) {
                 AtreeDelete(ei->atree);
@@ -885,11 +885,11 @@ s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 
     while (i < sNumItems) {
         it = &sItems[i];
-        if (it->info->type == 10 && *(s16*)&it->data.raw[0] == 0x29) {
+        if (it->info->type == 10 && it->data.obsticle.subtype == 0x29) {
             out[count] = i;
             if (flag != 0) {
                 MBTreeSetFlags(it->objgrp.node, 1, 1);
-                *(s16*)&it->data.raw[2] = -1;
+                it->data.obsticle.strength = -1;
             }
             count++;
             if (count >= max) {
@@ -1086,12 +1086,12 @@ void LinkTriggerToCam(s32 idx, s32 type)
     p = sItems;
     for (i = 0; i < sNumItems; i++, p = (Item*)((u8*)p + 240)) {
         if (p->active != -1 && p->info->type == 5 &&
-            *(s8*)&p->data.raw[6] == type) {
-            s16 cur = *(s16*)&p->data.raw[0x12];
+            p->data.trigger.id == type) {
+            s16 cur = p->data.trigger.camid;
             if (cur >= 0) {
                 ErrorPrintf(sTriggerCameraConflictFmt, i, cur, idx);
             }
-            *(s16*)&p->data.raw[0x12] = sidx;
+            p->data.trigger.camid = sidx;
         }
     }
 }

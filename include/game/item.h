@@ -214,7 +214,9 @@ typedef struct exitdata {
 
 /* ITEM_OBSTICLE (info->type 10).  PDB obsticledata, misc.h Id=3332. */
 typedef struct obsticledata {
-    /* 0x00 */ u8  _pad00[2];   /* PDB: short subtype - unproven             */
+    /* 0x00 */ s16 subtype;    /* items.c ShowSafeRocks, guarded by
+                                * info->type == 10, compares it as an s16
+                                * against 0x29                              */
     /* 0x02 */ s16 strength;    /* fn_8005D3D8 case 10 gates on `> 0`        */
     /* 0x04 */ s16 flash;       /* case 0xA: decremented, `== 1`, cleared    */
     /* 0x06 */ s16 timer;       /* case 0xA: `+= gFrameTicks`, wrapped 0x3C  */
