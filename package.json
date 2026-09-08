@@ -5,7 +5,8 @@
   "scripts": {
     "lint:ast": "ast-grep scan --config sgconfig.yml --filter ^FM00[1256]$ src include",
     "test:lint": "ast-grep test --config sgconfig.yml --skip-snapshot-tests",
-    "lint:decomp": "python tools/gdl/fakematch_lint.py --out build/fakematch_lint.json",
+    "lint:decomp": "python tools/gdl/fakematch_lint.py --postprocessors --fail-on-findings --out build/fakematch_lint.json",
+    "lint:editor": "python tools/gdl/fakematch_lint.py --postprocessors --format problems --watch",
     "test:lint:integration": "python -m unittest tools.gdl.tests.test_fakematch_lint -b"
   },
   "devDependencies": {

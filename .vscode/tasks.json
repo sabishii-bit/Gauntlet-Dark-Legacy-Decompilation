@@ -4,6 +4,32 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "GDL: watch reconstruction debt",
+      "type": "process",
+      "command": "python",
+      "args": ["tools/gdl/fakematch_lint.py", "--postprocessors", "--format", "problems", "--watch"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 },
+      "presentation": { "reveal": "silent", "panel": "dedicated" },
+      "problemMatcher": {
+        "owner": "gdl-reconstruction",
+        "source": "GDL reconstruction",
+        "fileLocation": "absolute",
+        "applyTo": "allDocuments",
+        "severity": "error",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): (error|warning) (FM\\d{3}): (.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "code": 5, "message": 6
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^GDL_LINT_BEGIN$",
+          "endsPattern": "^GDL_LINT_END"
+        }
+      }
+    },
+    {
       "label": "ninja",
       "type": "shell",
       "command": "ninja",

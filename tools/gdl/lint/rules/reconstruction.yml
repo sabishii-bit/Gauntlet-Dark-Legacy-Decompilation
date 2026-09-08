@@ -160,6 +160,23 @@ rule:
             kind: pointer_declarator
             field: declarator
 ---
+id: decomp-local-write
+language: Cpp
+severity: hint
+message: Standalone local assignment/update destination; write-only counter review helper.
+rule:
+  kind: identifier
+  any:
+    - inside:
+        kind: assignment_expression
+        field: left
+        inside:
+          kind: expression_statement
+    - inside:
+        kind: update_expression
+        inside:
+          kind: expression_statement
+---
 id: decomp-mask
 language: Cpp
 severity: hint

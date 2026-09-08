@@ -104,6 +104,10 @@ supports `--help`.
 Agents should read [AGENTS.md](AGENTS.md). Investigate directly from the source,
 headers, target disassembly, Git history and tests; coordinate exclusive file/TU
 ownership before editing and include reproducible measurements in the handoff.
+The [source-structure screen](AGENTS.md#source-structure-screen-before-declaring-compiler-variance)
+adapts SMS's program-reconstruction and MWCC guidance into GDL-specific checks.
+Use it before diagnosing a postprocessor residual as compiler variance; it does
+not authorize foreign flags, artificial helpers or unverified layout changes.
 
 Before submitting a change, rebuild the project, inspect the affected object in
 objdiff, and make sure the linked DOL still passes the configured hash check.
@@ -343,28 +347,56 @@ pnpm run test:lint
 pnpm run test:lint:integration
 pnpm run lint:decomp
 # Focus on an owned TU; output must stay under ignored build/.
-python tools/gdl/fakematch_lint.py src/game/movie/movieplayer.c --out build/movie-lint.json
+python tools/gdl/fakematch_lint.py src/game/movie/movieplayer.cpp --out build/movie-lint.json
 ```
 
 | Rule | Review candidate |
 | --- | --- |
 | FM001 | Pointer-cast offset accesses and indexed cast views, including decimal/symbolic offsets |
 | FM002 | Nested dereference-through-cast expressions beyond depth one |
-| FM003 | Lexically unused local arrays, volatile locals and trash/padding-family declarations |
+| FM003 | Lexically unused local arrays, volatile/trash/padding declarations, and write-only updated locals |
 | FM004 | Numeric byte arrays with big-endian float or aligned GameCube-address shapes |
 | FM005 | GNU/MWCC assembly, except exact reviewed macro definitions |
 | FM006 | Pragmas and recognized function optimization attributes against a per-file/scope allowlist |
 | FM007 | Hex expression literals outside named constants/enums and direct bitwise-mask operands |
+| FM008 | Configured WebFrank/P6Frank dependencies requiring native retirement |
 
 The push/PR workflow runs rule tests and a complete `src/` + `include/` scan in
 the independent **Reconstruction source lint** job, publishing
 `reconstruction_source_lint` with all findings, source hashes and parser-recovery
-regions. Existing candidates do **not** fail CI; broken tools/rules/tests do.
-Exit 0 means scan completed, not clean source; `--fail-on-findings` opts into
-exit 1 for unsuppressed findings, and invalid inputs/scanner failures return 2.
-Do not consume an older report after a failed run. `--limit` caps only console
+regions. **Outstanding candidates now fail CI**, including existing debt and
+configured postprocessor dependencies. This intentionally keeps the cleanup
+job red until debt is resolved or a legitimate source use is explicitly reviewed;
+it does not change the independent DOL build or authorize deleting needed rules.
+`pnpm run lint:decomp` includes `--fail-on-findings --postprocessors`. The underlying
+Python command remains usable for reporting-only scans without those flags.
+Exit 1 means outstanding findings; invalid inputs/scanner failures return 2.
+Exit 1 still produces a complete report; do not consume an older report after
+an exit-2 scanner failure. `--limit` caps only human/GitHub console
 output; `--rule FM001` narrows the report deliberately. `pnpm run lint:ast` is
-a lower-level four-family diagnostic, **not** the full seven-family report.
+a lower-level four-family diagnostic, **not** the full reconstruction report.
+
+#### VS Code / Cursor errors
+
+After installing the pinned dependencies, run **Tasks: Run Task → GDL: watch
+reconstruction debt**. It populates the Problems panel with error diagnostics
+and refreshes on **saved** source/config changes; unchanged source snapshots are
+cached. It is also configured to start on folder open if you allow automatic
+tasks in this trusted workspace. Stop it with **Tasks: Terminate Task**.
+No additional editor extension is required. The existing Ninja build task is
+unchanged. This is a task-based watcher, not an unsaved-buffer language server.
+Restart the task after changing the scanner itself or installing dependencies.
+
+FM008 points to the configured rule and names its TU/function in the error.
+It means **configured dependency**, not proof the rule fired in a particular
+build or that the compiler cannot produce native output. Those errors cannot
+be hidden by the source-exception allowlist. Preserve the guards while retiring
+each rule through source/data recovery and whole-TU validation.
+
+FM003 also screens Fable's dead-but-incremented local pattern: a local such as
+`timeOffset` whose only uses are standalone assignments/increments. This caught
+a real induction-variable reconstruction issue in Critter; it is not a general
+dead-store proof, especially with macros, aliasing or unrecovered declarations.
 
 For example, `!(mp->flags & 0x1000)` in `enemy.c` is a legitimate direct mask
 and is exempt from FM007. The same literal in `p + 0x1000` or `call(0x1000)`
@@ -388,6 +420,12 @@ Rules and fixtures live in `tools/gdl/lint/`. Review approvals live in
 `count` and `reason`. Changed assembly macro bodies invalidate their approval;
 direct assembly cannot be exempted by a fingerprint. Reviewed rows stay visible
 with their reasons. No existing debt is blanket-approved.
+
+The user-approved temporary exception for existing `#pragma dont_inline on/off`
+is recorded per file/scope/directive/count. These preserve standalone-function
+emission during reconstruction and remain visible as reviewed compatibility
+debt, not recovered original structure. New occurrences or changed scopes are
+not automatically exempt, and this does not exempt other optimization pragmas.
 
 ### Matching work queues
 

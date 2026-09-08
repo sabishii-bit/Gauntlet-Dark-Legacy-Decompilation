@@ -248,6 +248,56 @@ Iteration rules:
   expected results. A comparison gate must print the values it compared and
   reject missing inputs; two empty inventories are not a certificate.
 
+### Source-structure screen before declaring compiler variance
+
+Adapted from the SMS project's
+[agent contract](https://github.com/doldecomp/sms/blob/main/AGENTS.md),
+reviewed 2026-09-07: recover credible source before pursuing final register
+placement. SMS also documents GC MWCC 1.2.5, but its libraries, compiler
+settings and target evidence are not GDL's. Do not import its flags, section
+thresholds, symbol-order prescriptions or absolute scheduler claims as laws.
+Our actual Ninja edge and target/raw comparison arbitrate every hypothesis.
+Foreign debugging shortcuts do not override the prohibitions above.
+
+**Close the surrounding program structure first.** Following SMS's
+[structure-reconstruction guide](https://github.com/doldecomp/sms/blob/main/docs/PROGRAM_STRUCTURE_REVVING.md),
+inventory more than the emitted function body: declarations, inline and
+discarded helpers, linkage, constructors/destructors, vtables, static
+initializers and the owning data objects. Missing helper definitions can
+affect callers even without a standalone linked copy. Reconstruct a helper
+from repeated caller evidence and validate all affected callers; do not add
+an unused definition solely to change output order. Distinguish ordinary
+functions, members and compiler-generated symbols before changing prototypes.
+For GDL, Xbox PDB names and source neighbors are corroboration, not an SMS-style
+GameCube linker map of discarded function sizes. Derive binding, extent and
+ownership from the GC target and actual link; never manufacture missing map
+evidence. Inspect whole-TU code/data/EH after changes to shared declarations.
+
+**Select a source-backed control from the residual.** SMS's
+[matching tips](https://github.com/doldecomp/sms/blob/main/docs/AGENT_MATCHING_TIPS.md)
+suggest these experiments, not unique diagnoses:
+
+| Observed target/raw difference | Source reconstruction to investigate |
+|---|---|
+| Repeated lookup, reused base or unusual branch joins | Existing wrapper inlines versus direct calls; a real subobject pointer/reference only where accesses support it. |
+| Frame-only drift or unexpected memory round trips | Inline argument temporaries, call-chain depth, by-value parameters, initialization versus assignment, and real object lifetimes. |
+| Copy uses `lwz/stw` versus `lfs/stfs`, or load/store grouping differs | Aggregate assignment versus component operations and constructor/helper bodies. |
+| Local arrays disappear into registers | A plausible small indexed loop instead of straight-line assignments; never artificial address-taking. |
+| Extra boolean merge, arithmetic or constant loads | Compound predicates, expression grouping, float operand types and inlined math rather than hand-scheduled instructions. |
+| Wrong section or first-call initialization shape | Array declaration/bounds, storage duration and constructor guards; verify actual compiler settings and target datum ownership. |
+
+These are bounded observations from another codebase. Never invent a destructor,
+accessor, cast or local solely for its compiler side effect. Require independent
+source/type/caller evidence, isolate one change, and test complete same-basename
+TUs under GDL's real edge, including affected inline callers and metadata.
+
+For each investigation, state the observed words/relocations, missing source
+structure hypothesized, evidence supporting it, held-fixed inputs and the
+result that would refute it. Only then reconsider allocation. Data recovery is
+one axis, not a universal explanation: Fable's Critter retirement also exposed
+an artificial write-only induction local. Neither a low diff nor a failed
+finite matrix proves that postprocessing is necessary.
+
 ## Types, names and de-fakematching
 
 Before source-debt cleanup, run `pnpm install --frozen-lockfile` once, then
@@ -258,8 +308,18 @@ and absent type/liveness analysis limit coverage. Never mechanically rewrite
 findings to improve the lint count or weaken matching gates. Review exceptions
 in `config/GUNE5D/fakematch_lint.json` require exact fingerprints or scoped,
 count-bound pragma entries and a reason; suppressed rows remain in the report.
+The user's temporary `dont_inline on/off` exception is recorded for existing
+occurrences only. Keep it visible as compatibility debt; added occurrences,
+changed scopes and other pragmas still require review.
 Test rule changes with `pnpm run test:lint` and `pnpm run test:lint:integration`.
-CI runs the complete scan as reporting-only; scanner/test failures block it.
+CI now fails on outstanding source-debt findings and configured WebFrank/P6Frank
+dependencies (FM008), as well as scanner/test failures. This deliberate red
+cleanup gate is separate from DOL verification; never remove a needed rule just
+to silence lint. Native retirement still requires all matching acceptance checks.
+VS Code/Cursor: run the `GDL: watch reconstruction debt` task (or allow its
+folder-open task). It refreshes Problems errors on saved changes using the same
+filters/policy as CI. Write-only, incremented locals are review candidates too,
+following Fable's Critter induction-variable retirement; no autofix is allowed.
 
 Before adding a raw-offset access or inventing a type, search existing project
 headers, the TU's own structs, sibling consumers and Xbox declarations. Verify

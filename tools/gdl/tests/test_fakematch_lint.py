@@ -68,6 +68,19 @@ class SourceRules(unittest.TestCase):
         rows=self.hits('void f(){ int * volatile home = p; }','FM003')
         self.assertEqual([r['variable'] for r in rows],['home'])
 
+    def test_fable_dead_but_incremented_counter(self):
+        rows=self.hits('void f(){ int timeOffset; int i; timeOffset=0; i=0; while(i<4){ use(i); i++; timeOffset+=4; } }','FM003')
+        self.assertEqual([r['variable'] for r in rows if r.get('pattern')=='write-only-local'],['timeOffset'])
+
+    def test_observed_updates_and_volatile_are_not_dead_counter_claims(self):
+        for source in ('int f(){int i=0; i++; return i;}',
+                       'void f(){int i=0; use(i++);}',
+                       'void f(){volatile int i=0; i++;}',
+                       'void f(){static int i=0; i++;}',
+                       'void f(){int i=0; i++; {int i=2; use(i);} }'):
+            with self.subTest(source=source):
+                self.assertFalse([r for r in self.hits(source,'FM003') if r.get('pattern')=='write-only-local'])
+
     def test_float_and_pointer_shaped_byte_arrays(self):
         for items in ('0x3f,0x80,0,0,0x40,0,0,0',
                       '0x80,0,0,4,0x80,0,0,8,0x80,0,0,12'):
@@ -246,6 +259,69 @@ class PolicyAndCli(unittest.TestCase):
             (root/'policy.json').write_text(json.dumps(self.policy()))
             with patch.object(lint,'ast_binary',side_effect=FileNotFoundError('node unavailable')),contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(lint.main(['--root',td,'--policy','policy.json','a.c']),2)
+
+    def test_editor_diagnostics_cover_every_row_even_at_limit_zero(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);(root/'a.c').write_text('void f(){use(0x40); use(0x80);}')
+            (root/'policy.json').write_text(json.dumps(self.policy()))
+            output=io.StringIO()
+            with contextlib.redirect_stdout(output):
+                result=lint.main(['--root',td,'--policy','policy.json','a.c','--format','problems','--limit','0','--fail-on-findings'])
+            self.assertEqual(result,1)
+            self.assertEqual(output.getvalue().count(': error FM007:'),2)
+
+    def test_github_annotation_escapes_untrusted_text(self):
+        row=dict(path='src/a,b.c',line=3,column=2,rule='FM001',scope='f',message='bad%\n::warning::injection')
+        line=lint.diagnostic(row,Path('.'),'github')
+        self.assertIn('file=src/a%2Cb.c',line)
+        self.assertIn('bad%25%0A::warning::injection',line)
+        self.assertNotIn('\n',line)
+
+    def test_postprocessor_inventory_is_scoped_and_not_suppressed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);folder=root/'config/GUNE5D';folder.mkdir(parents=True)
+            for engine,path in lint.POSTPROCESSORS:
+                rule=dict(function='f',before_sha256='x')
+                units={'game/test':[rule]} if engine=='WebFrank' else {}
+                (root/path).write_text(json.dumps(dict(version=1,units=units),indent=2))
+            rows,hashes=lint.postprocessor_findings(root,{'src/game/test.c'})
+            self.assertEqual(len(rows),1);self.assertEqual(rows[0]['rule'],'FM008')
+            self.assertEqual(rows[0]['postprocessor'],'WebFrank')
+            source=(folder/'webfrank.json').read_text().splitlines()
+            self.assertIn('"function": "f"',source[rows[0]['line']-1])
+            self.assertEqual(len(hashes),2)
+            self.assertEqual(lint.postprocessor_findings(root,{'src/other.c'})[0],[])
+            policy=self.policy()
+            policy['exceptions']=[dict(fingerprint=rows[0]['fingerprint'],reason='Cannot waive a dependency.')]
+            self.assertFalse(lint.apply_policy(rows,policy)[0]['suppressed'])
+            self.assertEqual(len(lint.postprocessor_findings(root,{'src/other.c'},include_all=True)[0]),1)
+
+    def test_missing_postprocessor_inventory_refuses(self):
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(OSError):lint.postprocessor_findings(Path(td),{'src/a.c'})
+
+    def test_editor_problem_pattern_captures_windows_path(self):
+        import re
+        tasks=(lint.ROOT/'.vscode/tasks.json').read_text()
+        # Read only the actual regexp JSON string, since tasks.json permits comments.
+        encoded=re.search(r'"regexp":\s*("(?:[^"\\]|\\.)*")',tasks).group(1)
+        pattern=json.loads(encoded)
+        match=re.match(pattern,'W:/My Project/a.c:12:3: error FM008: native retirement required')
+        self.assertEqual(match.groups(),('W:/My Project/a.c','12','3','error','FM008','native retirement required'))
+
+    def test_watch_cache_reuses_only_unchanged_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);source=root/'a.c';source.write_text('void f(){use(0x40);}')
+            (root/'policy.json').write_text(json.dumps(self.policy()))
+            args=['--root',td,'--policy','policy.json','a.c','--limit','0']
+            cache={}
+            with patch.object(lint,'scan_source',wraps=lint.scan_source) as scanner,contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(lint.main(args,_cache=cache),0)
+                self.assertEqual(lint.main(args,_cache=cache),0)
+                self.assertEqual(scanner.call_count,1)
+                source.write_text('void f(){use(0x80);}')
+                self.assertEqual(lint.main(args,_cache=cache),0)
+                self.assertEqual(scanner.call_count,2)
 
 
 if __name__=='__main__':

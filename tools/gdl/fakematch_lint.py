@@ -23,6 +23,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[2]
 RULES = {
@@ -33,7 +34,9 @@ RULES = {
     'FM005': 'Assembly outside a reviewed macro',
     'FM006': 'Source-level compilation override',
     'FM007': 'Unnamed hexadecimal expression constant',
+    'FM008': 'Configured postprocessor dependency requiring native retirement',
 }
+POSTPROCESSORS = [('WebFrank','config/GUNE5D/webfrank.json'),('P6Frank','config/GUNE5D/p6frank.json')]
 EXTENSIONS = {'.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hh', '.hxx'}
 TOKEN = re.compile(
     r'(?P<comment>//(?:\\\r?\n|[^\n])*|/\*.*?\*/)'
@@ -150,10 +153,12 @@ def scan_source(text, path='<input>', diagnostics=None):
         findings.append(dict(rule=rule,path=path,line=line,column=a-lines[line-1]+1,scope=owner(a),
                              message=message,confidence=confidence,excerpt=normalized[:240],
                              fingerprint=hashlib.sha256(identity.encode()).hexdigest(),suppressed=False,**details))
-    masks=[];local_names=[]
+    masks=[];local_names=[];local_writes=[]
     for row in rows:
         if row['ruleId']=='decomp-local-name' and Path(row['file']).name=='source.cpp':
             a,b=span(row);local_names.append((a,b,row['text']))
+        if row['ruleId']=='decomp-local-write' and Path(row['file']).name=='source.cpp':
+            a,b=span(row);local_writes.append((a,b,row['text']))
         if row['ruleId'].startswith('decomp-mask'):
             match=row['metaVariables']['single']['MASK']
             a,b=span(dict(file=row['file'],range=match['range']))
@@ -214,6 +219,21 @@ def scan_source(text, path='<input>', diagnostics=None):
             pass  # Unified token fallback below covers GNU + MWCC + opaque macro bodies once.
         else:
             raise ValueError('unhandled ast-grep rule '+rid)
+    # Fable's Critter retirement exposed locals updated solely to steer MWCC's
+    # induction-variable rank. This is a lexical candidate, not dead-store proof:
+    # macro expansion, aliasing and original-source authenticity remain unproved.
+    for begin,end,name in functions:
+        declared=[(a,b,n) for a,b,n in local_names if begin<=a<end]
+        for a,b,variable in declared:
+            if sum(n==variable for _,_,n in declared)!=1: continue  # shadowing ambiguous
+            declaration_start=max(clean.rfind(';',begin,a),clean.rfind('{',begin,a))+1
+            if re.search(r'\b(?:volatile|static)\b',clean[declaration_start:a]): continue
+            writes={x for x,y,n in local_writes if begin<=x<end and n==variable}
+            if not writes: continue
+            uses={m.start() for m in tokens if begin<=m.start()<end and m.lastgroup=='id' and m.group()==variable}
+            if uses==writes|{a}:
+                emit('FM003',a,b,'Local is only declared and assigned/incremented, never otherwise read; investigate an artificial induction-variable carrier.',
+                     'heuristic',variable=variable,pattern='write-only-local')
     for token in tokens:
         if token.lastgroup!='id' or token.group() not in ('asm','__asm','__asm__','ASM'): continue
         a,b=token.span()
@@ -253,6 +273,7 @@ def apply_policy(findings, policy):
     used=Counter()
     for row in result:
         reason=exceptions.get(row['fingerprint'])
+        if row['rule']=='FM008': reason=None  # Inventory is not a source-policy exception.
         if row['rule']=='FM005' and not row.get('macro'): reason=None
         if not reason and row['rule']=='FM006':
             for i,e in enumerate(policy['pragma_allowlist']):
@@ -262,7 +283,82 @@ def apply_policy(findings, policy):
     return result
 
 
-def main(argv=None):
+def postprocessor_findings(root, source_names, include_all=False):
+    """Configured dependencies, NOT a claim that a rule executed in this build."""
+    findings=[];hashes={}
+    for engine,relative in POSTPROCESSORS:
+        raw=(root/relative).read_bytes();hashes[relative]=hashlib.sha256(raw).hexdigest()
+        text=raw.decode('utf-8');config=json.loads(text)
+        if config.get('version')!=1 or not isinstance(config.get('units'),dict):
+            raise ValueError('invalid postprocessor inventory: '+relative)
+        locations={}
+        for match in re.finditer(r'(?m)^[ \t]*"function"\s*:\s*("(?:[^"\\]|\\.)*")',text):
+            name=json.loads(match.group(1))
+            locations.setdefault(name,[]).append(text.count('\n',0,match.start())+1)
+        for unit,rules in config['units'].items():
+            if not isinstance(unit,str) or '..' in Path(unit).parts or ':' in unit or '\\' in unit:
+                raise ValueError('invalid postprocessor unit path')
+            rules=[rules] if isinstance(rules,dict) else rules
+            if not isinstance(rules,list): raise ValueError('invalid postprocessor rule list')
+            candidates=['src/'+unit+extension for extension in ('.c','.cpp','.cc')]
+            selected=next((p for p in candidates if p in source_names),None)
+            for rule in rules:
+                name=rule.get('function') if isinstance(rule,dict) else None
+                if not isinstance(name,str) or not name or not locations.get(name):
+                    raise ValueError('missing function/location in '+relative)
+                line=locations[name].pop(0)
+                if selected is None and not include_all: continue
+                identity=engine+'\0'+unit+'\0'+name
+                findings.append(dict(rule='FM008',path=relative,line=line,column=1,scope=name,
+                    message=f'{engine} dependency: {unit}::{name}. Reconstruct native output and prove whole-TU preservation before retiring; do not disable the guard.',
+                    confidence='configured-dependency',excerpt=name,
+                    fingerprint=hashlib.sha256(identity.encode()).hexdigest(),suppressed=False,
+                    unit=unit,function=name,source_path=selected,postprocessor=engine))
+    return findings,hashes
+
+
+def diagnostic(row,root,style):
+    message=f"{row['rule']} [{row['scope']}] {row['message']}"
+    if style=='github':
+        def escape(value,property=False):
+            value=str(value).replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+            return value.replace(':','%3A').replace(',','%2C') if property else value
+        return (f"::error file={escape(row['path'],True)},line={row['line']},col={row['column']},"
+                f"title={row['rule']}::{escape(message)}")
+    if style=='problems':
+        message=re.sub(r'[\r\n]+',' ',f"[{row['scope']}] {row['message']}")
+        return f"{(root/row['path']).as_posix()}:{row['line']}:{row['column']}: error {row['rule']}: {message}"
+    return f"{row['path']}:{row['line']}:{row['column']}: {message}"
+
+
+def watch(argv):
+    """VS Code task owns process lifetime; cache unchanged snapshots between saves."""
+    cache={};args=[value for value in argv if value!='--watch']
+    try:
+        previous=None
+        while True:
+            watched=[p for base in ('src','include') for p in (ROOT/base).rglob('*')
+                     if p.is_file() and p.suffix.lower() in EXTENSIONS]
+            watched += [ROOT/p for p in ('config/GUNE5D/fakematch_lint.json','sgconfig.yml',
+                       'tools/gdl/lint/rules/reconstruction.yml',*[p for _,p in POSTPROCESSORS])]
+            state=tuple((str(p),p.stat().st_mtime_ns,p.stat().st_size) if p.exists() else (str(p),None,None)
+                        for p in sorted(watched))
+            if state!=previous:
+                print('GDL_LINT_BEGIN',flush=True)
+                result=main(args,_cache=cache)
+                print(f'GDL_LINT_END status={result}',flush=True)
+                previous=state
+            time.sleep(1)
+    except KeyboardInterrupt:
+        return 0
+
+
+def main(argv=None, _cache=None):
+    argv=list(sys.argv[1:] if argv is None else argv)
+    if '--watch' in argv:
+        if '--root' in argv or any(a.startswith('--root=') for a in argv):
+            print('UNRESOLVED: watch uses the current project root',file=sys.stderr);return 2
+        return watch(argv)
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('paths',nargs='*',help='repository-relative files/directories; default src and include')
     p.add_argument('--root',type=Path,default=ROOT)
@@ -270,6 +366,9 @@ def main(argv=None):
     p.add_argument('--out',type=Path,help='JSON report under build/')
     p.add_argument('--limit',type=int,default=40,help='console rows only; JSON retains every finding')
     p.add_argument('--fail-on-findings',action='store_true')
+    p.add_argument('--format',choices=('human','github','problems'),default='human')
+    p.add_argument('--postprocessors',action='store_true',help='include configured WebFrank/P6Frank dependencies (FM008)')
+    p.add_argument('--watch',action='store_true',help='editor task: rescan saved changes, reuse unchanged source snapshots')
     p.add_argument('--rule',choices=sorted(RULES),action='append')
     args=p.parse_args(argv)
     try:
@@ -289,34 +388,58 @@ def main(argv=None):
         if not files: raise ValueError('no C/C++ source files selected')
         policy_bytes=(root/args.policy).read_bytes();policy=load_policy(root/args.policy)
         rows=[];hashes={};diagnostics=[]
+        engine_hash=hashlib.sha256((ROOT/'sgconfig.yml').read_bytes()+(ROOT/'tools/gdl/lint/rules/reconstruction.yml').read_bytes()).hexdigest()
         for f in sorted(files):
             data=f.read_bytes();name=f.relative_to(root).as_posix();hashes[name]=hashlib.sha256(data).hexdigest()
             try: text=data.decode('utf-8')
             except UnicodeDecodeError: text=data.decode('latin-1')
-            try: rows.extend(scan_source(text,name,diagnostics))
+            try:
+                key=(hashes[name],engine_hash)
+                saved=_cache.get(name) if _cache is not None else None
+                if saved and saved[0]==key:
+                    found,recovery=saved[1],saved[2]
+                else:
+                    recovery=[];found=scan_source(text,name,recovery)
+                    if _cache is not None: _cache[name]=(key,found,recovery)
+                rows.extend(found);diagnostics.extend(recovery)
             except ValueError as e: raise ValueError(name+': '+str(e)) from e
         if any(hashlib.sha256((root/name).read_bytes()).hexdigest()!=sha for name,sha in hashes.items()):
             raise ValueError('source changed during scan; rerun on stable inputs')
         if (root/args.policy).read_bytes()!=policy_bytes: raise ValueError('policy changed during scan')
-        rows=apply_policy(rows,policy);selected=sorted(set(args.rule or RULES))
+        rows=apply_policy(rows,policy);post_hashes={}
+        if args.postprocessors:
+            dependencies,post_hashes=postprocessor_findings(root,set(hashes),include_all=not args.paths)
+            pinned={(r['source_path'],r['function']):r for r in dependencies if r['source_path']}
+            for row in rows:
+                dependency=pinned.get((row['path'],row['scope']))
+                if dependency:
+                    row['postprocessor_dependency']={k:dependency[k] for k in ('postprocessor','unit','function')}
+            rows=dependencies+rows  # Native-retirement obligations lead the CI/editor report.
+        elif args.rule and 'FM008' in args.rule:
+            raise ValueError('FM008 requires --postprocessors')
+        selected=sorted(set(args.rule or [r for r in RULES if r!='FM008' or args.postprocessors]))
         rows=[r for r in rows if r['rule'] in selected];active=[r for r in rows if not r['suppressed']]
         report=dict(schema_version=1,status='SCAN_COMPLETE',engine='ast-grep 0.45.3 + review filters',
                     interpretation='Review candidates, not proven fakematches. Parse recovery limits coverage; macros are not expanded.',
                     source_sha256=hashes,files_scanned=len(files),findings=rows,unsuppressed=len(active),suppressed=len(rows)-len(active),
                     by_rule=dict(sorted(Counter(r['rule'] for r in active).items())),by_file=dict(Counter(r['path'] for r in active).most_common()),
                     rules_selected=selected,parse_recovery=diagnostics,policy_sha256=hashlib.sha256(policy_bytes).hexdigest(),
+                    postprocessor_config_sha256=post_hashes,
                     rules_sha256=hashlib.sha256((ROOT/'tools/gdl/lint/rules/reconstruction.yml').read_bytes()).hexdigest(),
                     config_sha256=hashlib.sha256((ROOT/'sgconfig.yml').read_bytes()).hexdigest())
         if out:
             out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
-        for r in active[:args.limit]: print(f"{r['path']}:{r['line']}:{r['column']}: {r['rule']} [{r['scope']}] {r['message']}")
+        for r in active if args.format=='problems' else active[:args.limit]: print(diagnostic(r,root,args.format))
         print(f"SCAN_COMPLETE: {len(files)} files; {len(active)} review candidates; {len(rows)-len(active)} reviewed exceptions.")
         print('By rule: '+json.dumps(report['by_rule'],sort_keys=True))
         print(f'Parser recovery regions: {len(diagnostics)} (includes macro projection; not a clean-code certificate).')
-        if len(active)>args.limit: print(f'Console limited to {args.limit}; use --out for all findings.')
+        if len(active)>args.limit and args.format!='problems': print(f'Console limited to {args.limit}; use --out for all findings.')
         if out: print('Report: '+str(args.out))
         return 1 if args.fail_on_findings and active else 0
     except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError) as e:
+        if args.format!='human':
+            print(diagnostic(dict(path='sgconfig.yml',line=1,column=1,rule='FM000',scope='scanner',
+                                  message='Scan incomplete: '+str(e)),args.root.resolve(),args.format))
         print('UNRESOLVED: '+str(e),file=sys.stderr);return 2
 
 

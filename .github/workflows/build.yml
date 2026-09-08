@@ -25,11 +25,12 @@ jobs:
       run: |
         pnpm run test:lint
         pnpm run test:lint:integration
-    # Existing candidates are review debt, not established fakematches. Scanner
-    # failures fail this step; findings remain visible in the complete artifact.
+    # Outstanding review debt deliberately fails this job. Keep this distinct
+    # from the DOL build: do not weaken matching guards to make lint green.
     - name: Scan all reconstructed source and headers
-      run: pnpm run lint:decomp
+      run: pnpm run lint:decomp --format github --limit 50
     - name: Upload reconstruction lint findings
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: reconstruction_source_lint
