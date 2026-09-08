@@ -2355,8 +2355,12 @@ extern char* lbl_8012006C[];  /* per-class dir names */
 extern char* lbl_80120184[];  /* per-class R_WRIST node names */
 extern char* lbl_80120144[];  /* per-class L_WRIST node names */
 extern s32 lbl_80120598[];    /* per-class weapon-variant flag */
-extern u8 lbl_80113AE0[];     /* .rodata fmt block base (fmts at +1464..+1520) */
-extern char lbl_80114098[];   /* "players\%s\sfx%s" */
+extern u8 lbl_80113AE0[];     /* this TU's own .rodata literal-pool base: the
+                               * target materialises 0x80113AE0 as the base for
+                               * every literal player.c emits, so the offsets
+                               * added to it below name unrecovered literals of
+                               * this file, not another object's data */
+extern char lbl_80114098[];   /* "players/%s/sfx%s" */
 extern char lbl_80347A38[3];  /* "rb" (sdata2) */
 extern char* lbl_80347734;
 extern char* lbl_80347738;
