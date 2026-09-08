@@ -364,7 +364,17 @@ extern s32   gBossType;
 extern f32   lbl_8011AEAC[];
 extern s32   gFrameTicks;
 extern u32   lbl_80344BF8;
-extern u8    lbl_802411B0[0x540];
+/* -- CritterSubnode (0x54): one auxiliary animation tree attached to a
+ *    critter instance.  The record opens with a whole atree, which is why
+ *    AtreeInit/AtreeDelete/AnimateATree are handed the record base. -- */
+typedef struct CritterSubnode {
+    /* 0x00 */ atree atree;
+    /* 0x48 */ struct MBObject *mbnode;
+    /* 0x4C */ u8 _pad4C[4];
+    /* 0x50 */ struct CritterSubnode *next;
+} CritterSubnode;              /* size 0x54 */
+
+extern CritterSubnode lbl_802411B0[16];
 extern s32   lbl_80344668;
 extern void *crit_load_desc;
 extern s32  *lbl_80344640;
@@ -5262,7 +5272,7 @@ void CritterAnimate(Critter *c)
 {
     CritterMove *current;
     CritterMove *next;
-    u8 *subnode;
+    CritterSubnode *subnode;
     s32 currentIndex;
     s32 nextIndex;
     s32 selectedSequence;
@@ -5346,12 +5356,12 @@ void CritterAnimate(Critter *c)
     if (current != NULL && current == next && current->type == 0) {
         done = 0;
     }
-    for (subnode = (u8 *)c->subnodes; subnode != NULL;
-         subnode = *(u8 **)(subnode + 0x50)) {
-        if (sequence >= *(s16 *)(subnode + 0x10)) {
+    for (subnode = c->subnodes; subnode != NULL;
+         subnode = subnode->next) {
+        if (sequence >= subnode->atree.animinfo.numseqs) {
             sequence = 0;
         }
-        AnimateATree(subnode, sequence, transition);
+        AnimateATree(&subnode->atree, sequence, transition);
     }
 
     done &= 3;
@@ -6607,14 +6617,6 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
 }
 /* 0x8003EA4C -- tear down a critter instance: detach scene nodes, kill sfx,
  * recurse into linked children, free colnode list, then clear the slot. */
-typedef struct CritterSubnode {
-    void *atree;
-    u8 _pad04[68];
-    struct MBObject *mbnode;
-    u8 _pad4C[4];
-    struct CritterSubnode *next;
-} CritterSubnode;
-
 void CritterDelInst(Critter *c)
 {
     CritterSubnode *node;
@@ -6647,8 +6649,8 @@ void CritterDelInst(Critter *c)
     }
     c->anim = NULL;
     while ((node = c->subnodes) != NULL) {
-        if (node->atree != NULL) {
-            AtreeDelete(node);
+        if (node->atree.root != NULL) {
+            AtreeDelete(&node->atree);
         }
         if (node->mbnode != NULL) {
             MBRemoveNode(node->mbnode, 1);
@@ -6913,7 +6915,7 @@ static CritterSubnode *CritterNewAnimInst(void)
     s32 total = lbl_80344668;
 
     for (i = 0; i < total; i++) {
-        if (((CritterSubnode *)(lbl_802411B0 + i * 0x54))->mbnode == NULL) {
+        if (lbl_802411B0[i].mbnode == NULL) {
             break;
         }
     }
@@ -6924,7 +6926,7 @@ static CritterSubnode *CritterNewAnimInst(void)
     if (i == total) {
         lbl_80344668 = lbl_80344668 + 1;
     }
-    return (CritterSubnode *)(lbl_802411B0 + i * 0x54);
+    return &lbl_802411B0[i];
 }
 
 void CritterAddAnimInsts(Critter *c, f32 *matrix)
@@ -6964,9 +6966,9 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix)
                 *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][0])) = *(f32 *)(node + offsetof(CritterAddAnim, offset));
                 *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][1])) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 4));
                 *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][2])) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 8));
-                record->atree =
-                    AtreeInit(*(void **)(node + offsetof(CritterAddAnim, atree)), record, 0, 0x800);
-                MBNodeSetParent(*(void **)record->atree, record->mbnode);
+                record->atree.root =
+                    AtreeInit(*(void **)(node + offsetof(CritterAddAnim, atree)), &record->atree, 0, 0x800);
+                MBNodeSetParent(record->atree.root->obj, record->mbnode);
             } else {
                 ErrorPrintf("Bad critter anim inst: %s", (char *)(node + offsetof(CritterAddAnim, name)));
             }
