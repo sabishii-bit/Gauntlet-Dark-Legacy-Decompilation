@@ -31,6 +31,7 @@ typedef struct CritterBigState {
     f32 scratch[4];
     f32 safeRockTimers[16];
     s32 safeRockIndices[16];
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad090[0x1A4];
     Critter pool[16];
 } CritterBigState;
@@ -45,12 +46,16 @@ typedef struct CritterBigState {
  *    minoff@0xCD). -- */
 typedef struct CritterItemView {
     void *info;          /* 0x00 iteminfo* */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad04[0x30];
     f32 pos[3];           /* 0x34 objgrp.worldmat[3][0..2] (translation row) */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad40[0x24];
     void *node;            /* 0x64 objgrp.node */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad68[0x65];
     s8 minoff;               /* 0xCD */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _padCE[0x22];
 } CritterItemView;             /* size 0xF0 */
 
@@ -131,6 +136,7 @@ typedef struct CritterDamageDef {
  *    against CritterInitColnodes, CritterCollideWorld and CritterCollideItems
  *    (flags@0x10 bit 8, radius@0x2C used identically in both). -- */
 typedef struct CritterColDescriptor {
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char nodeName[0x10];   /* 0x00 the node's model-object name, NUL-terminated.
                             * FILE EVIDENCE: DRAGON.WAD NODE records 1 and 2 hold
                             * "NODE#00" and "NODE#06" here (build/a_lane/a_dump.py
@@ -149,6 +155,7 @@ typedef struct CritterColDescriptor {
     f32 position[3];           /* 0x20 dmg-fx circle add position/offset            */
     f32 radius;                 /* 0x2C wall/item collide radius (DRAGON NODE#00
                                  * carries 4.0 next to its own " rad 4.0" note)     */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char name[0x10];             /* 0x30 attach spec: an atree node name, or '+'/'-'
                                   * plus a digit meaning "walk N child/parent links"
                                   * (shipped "-1", "-3")                             */
@@ -172,7 +179,9 @@ typedef struct CritterSfxRecord {
     s32 textureId;            /* 0x08 cached texmod/texture id (<0 == unresolved); also
                                 * read as an effect id by CritterDoSfxSub               */
     s32 audioId;                /* 0x0C cached audio sound id (<0 == unresolved)         */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char name[0x10];              /* 0x10 texmod/effect name                               */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char levelFmt[0x10];            /* 0x20 sprintf format string keyed by level (CORRECTED
                                       * from 0x24: swap evidence puts real floats at 0x30) */
     f32 color[3];                     /* 0x30 CritterDoSfx: RGB scaled by node scale        */
@@ -187,6 +196,7 @@ typedef struct CritterSfxRecord {
 } CritterSfxRecord;                      /* size 0x50 */
 
 typedef struct CritterPattern {
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad00[0x10];
     s16 flags;
     s16 unk12;              /* 0x12 swapped s16, no consumer found in this TU */
@@ -216,6 +226,7 @@ typedef struct CritterPattern {
 
 extern CritterBigState gBig;
 extern void *lbl_80241060[4];         /* 0x80241060 loaded-file handle table    */
+/* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
 extern u8    lbl_80241070[4][0x50];   /* 0x80241070 per-type header buffers      */
 extern Player gPlayers[4];        /* 0x80275AE0 player records (gPlayerRecords) */
 
@@ -363,6 +374,7 @@ extern s32   gBossType;
 extern f32   lbl_8011AEAC[];
 extern s32   gFrameTicks;
 extern u32   lbl_80344BF8;
+/* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
 extern u8    lbl_802411B0[0x540];
 extern s32   lbl_80344668;
 extern void *crit_load_desc;
@@ -381,7 +393,9 @@ extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
 /* 0x30 == Xbox PDB crit_desc (name/prefix/etype/model/loaded/didcount/
  * atreelist/dummy1); GC behavioral names kept for the already-adopted tail. */
 typedef struct CritterDescriptor {
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char name[0x10];    /* 0x00 crit_desc.name                                */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char prefix[0x10];  /* 0x10 crit_desc.prefix -- ErrorPrintf id string     */
     s16 type;
     s16 modelIndex;
@@ -395,12 +409,17 @@ typedef struct CritterDescriptor {
  * Critter.hdr points at, so this completes the header's `struct
  * CritterHeader` tag rather than declaring a separate type. */
 typedef struct CritterHeader {
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char suffix[0x10];      /* 0x00 crit_type.suffix -- appended to the descriptor
                              * prefix to build the atree name (CritterLoadFinish
                              * passes this address straight to sprintf "%s%s")  */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char rootnode[0x10];    /* 0x10 crit_type.rootnode                          */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char nodeName0[0x10];   /* 0x20 attach-node name (CritterLoadFinish -> 0x56 idx) */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char nodeName1[0x10];   /* 0x30 attach-node name (CritterLoadFinish -> 0x58 idx) */
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     char nodeName2[0x10];   /* 0x40 attach-node name (CritterLoadFinish -> 0x5A idx) */
     s16 descriptorIndex;
     s16 subtype;
@@ -888,6 +907,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     center[2] = cpos[2] + delta[2];
     StartEnemyGrid(center, radius);
     while ((index = NextGridEnemy()) >= 0) {
+        /* lint-allow-next-line FM007: unrecovered: the referenced record has no recovered layout in this tree */
         item = sItems + index * 0xF0;
         type = fn_8005D5C8(c, item);
         if (type == 0) {
@@ -984,31 +1004,46 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
         if (player->state != 1 && player->state != 4) {
             continue;
         }
+        /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
         if ((*(s16 *)((u8 *)player + offsetof(Player, hud_flags)) & 0x20) != 0) {
             continue;
         }
+        /* lint-end FM001 */
+        /* lint-allow-next-line FM001: measured: typing these player reads holds 604 B but moves 50 words */
         combined = radiusX + *(f32 *)((u8 *)player + offsetof(Player, col_radius));
+        /* lint-allow-next-line FM001: measured: typing these player reads holds 604 B but moves 50 words */
         combinedZ = radiusZ + *(f32 *)((u8 *)player + offsetof(Player, col_height));
         if ((c->hdr->typeFlags & 0x100) != 0) {
+            /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
             result = CritterMoveNodeColSub(
                 c, *(f32 *)((u8 *)player + offsetof(Player, col_radius)),
                 *(f32 *)((u8 *)player + offsetof(Player, col_height)), delta,
                 (f32 *)((u8 *)player + offsetof(Player, effectpos)), contact, 0);
+            /* lint-end FM001 */
             if (result != 0) {
+                /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
                 sep[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos)) -
                          c->hitnodes[result - 1].position[0];
+                /* lint-end FM001 */
+                /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
                 sep[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4) -
                          c->hitnodes[result - 1].position[1];
+                /* lint-end FM001 */
+                /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
                 sep[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8) -
                          c->hitnodes[result - 1].position[2];
+                /* lint-end FM001 */
             }
         } else {
             result = LineCylinderCollide(
                 (f32 *)((u8 *)player + offsetof(Player, effectpos)), combined,
                 combinedZ, &c->pos[0], dest, contact, 1);
             if (result != 0) {
+                /* lint-allow-next-line FM001: measured: typing these player reads holds 604 B but moves 50 words */
                 sep[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos)) - dest[0];
+                /* lint-allow-next-line FM001: measured: typing these player reads holds 604 B but moves 50 words */
                 sep[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4) - dest[1];
+                /* lint-allow-next-line FM001: measured: typing these player reads holds 604 B but moves 50 words */
                 sep[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8) - dest[2];
             }
         }
@@ -1025,12 +1060,18 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
             sep[0] = sep[0] * scale;
             sep[1] = sep[1] * scale;
             sep[2] = sep[2] * scale;
+            /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
             *(f32 *)((u8 *)player + offsetof(Player, vel[0])) =
                 (f32)(pushScale * sep[0] + *(f32 *)((u8 *)player + offsetof(Player, vel[0])));
+            /* lint-end FM001 */
+            /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
             *(f32 *)((u8 *)player + offsetof(Player, vel[1])) =
                 (f32)(pushScale * sep[1] + *(f32 *)((u8 *)player + offsetof(Player, vel[1])));
+            /* lint-end FM001 */
+            /* lint-begin FM001: measured: typing these player reads holds 604 B but moves 50 words */
             *(f32 *)((u8 *)player + offsetof(Player, vel[2])) =
                 (f32)(pushScale * sep[2] + *(f32 *)((u8 *)player + offsetof(Player, vel[2])));
+            /* lint-end FM001 */
         }
     }
     if (result != 0) {
@@ -1118,8 +1159,10 @@ f32 *delta;
         CritterWorldDamage(c, wallSurface, cpos, contact);
         if (((u32)((WorldObj *)wallSurface)->flags & 0x38) != 0) {
             result = 0;
+        /* lint-begin FM009: unrecovered: the referenced list record has no recovered layout in this tree */
         } else if (SlideAlongWall(wallRadius, from, delta, contact,
                                   lbl_8023CA98 + 4) < 0) {
+        /* lint-end FM009 */
             delta[0] = delta[2] = 0.0f;
             result = 2;
         } else {
@@ -1142,6 +1185,7 @@ f32 *delta;
     if ((surface = FloorCollide(probe, (s32)floorResult, 0, 2,
                                 1.0f, radius, bottom)) != NULL) {
         grounded = 1;
+        /* lint-allow-next-line FM009: unrecovered: the world surface record has no type in this tree */
         CritterWorldDamage(c, surface, cpos, floorResult + 12);
         baseY = c->vel[1] - c->hdr->floorOffset;
         c->floorContact[0] = floorResult[12];
@@ -1194,8 +1238,10 @@ f32 *delta;
         result |= 0x10;
         delta[0] = delta[2] = 0.0f;
     }
+    /* lint-allow-next-line FM001, FM007: numeric constant whose meaning is not recovered yet */
     *(u32 *)((u8 *)c + 0x448) = result;
     if (surface != NULL) {
+        /* lint-begin FM001: unrecovered: the world surface record has no type in this tree */
         if (*(void **)((u8 *)surface + offsetof(WorldObj, nodeptr)) != NULL &&
             ((u32)((WorldObj *)surface)->flags & 0x1000) !=
                 0) {
@@ -1205,6 +1251,7 @@ f32 *delta;
         } else {
             MBNodeSetParent(c->mbnode, lbl_8034473C);
         }
+        /* lint-end FM001 */
         if (c->shadow != NULL) {
             CopyMat3(floorResult, (f32 *)c->shadow);
             ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
@@ -1242,6 +1289,7 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
     direction[2] = origin[2] - contact[2];
     NormalVector2D(direction);
     material = allFlags & 0xF0000;
+    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     switch (material) {
     case 0x10000:
         damage = 5.0f;
@@ -1259,6 +1307,7 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
     case 0x60000:
         break;
     }
+    /* lint-end FM007 */
     if (damage > lbl_80346488) {
         CritterDamage(damage, c, -1, flags, contact, direction, 1);
     }
@@ -1623,8 +1672,10 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     ((Player *)hit)->bossdamage = zero;
     ((Player *)hit)->fxhittime =
         (f32)(hitTimeBase + (f64)sMusicFadeBase);
+    /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
     counter = (u8 *)c + playerIndex * 0x10;
     ((Critter *)counter)->playerDamage[0].received += damage;
+    /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
     *(f32 *)(counter + (offsetof(Critter, playerDamage[0].receivedTime))) = sMusicFadeBase;
 }
 
@@ -1660,8 +1711,10 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
     ((Player *)hit)->bossdamage = zero;
     ((Player *)hit)->fxhittime =
         (f32)(hitTimeBase + (f64)sMusicFadeBase);
+    /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
     counter = (u8 *)c + playerIndex * 0x10;
     ((Critter *)counter)->playerDamage[0].received += *damage;
+    /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
     *(f32 *)(counter + (offsetof(Critter, playerDamage[0].receivedTime))) = sMusicFadeBase;
 }
 
@@ -1917,6 +1970,7 @@ void CritterDamagePlayer(Player *player, Critter *c,
         u8 *counter;
         hit = &gPlayers[playerIndex];
         hit->bossdamage = lbl_80346470;
+        /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         counter = (u8 *)c + playerIndex * 0x10;
         hit->fxhittime = (f32)(lbl_80346500 + (f64)sMusicFadeBase);
         ((Critter *)counter)->playerDamage[0].received += damage;
@@ -2038,6 +2092,7 @@ done:
         best = -1;
     }
     if (best >= 0) {
+        /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         u32 address = (u32)c + best * 0x24;
         best = ((Critter *)address)->targets[0].pidx;
     } else if (mode != 0 && c->parent != NULL) {
@@ -2075,6 +2130,7 @@ f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
         if (moveTarget[1] > lbl_80346488 && range > moveTarget[1]) {
             return lbl_80346520;
         }
+        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget[2]);
         forward[1] = lbl_80346470;
         SlowNormalVector(forward);
@@ -2156,6 +2212,7 @@ void CritterResolveMultipleTargets(Critter *c)
     }
     decrement = 1.0f;
     outerOffset = 0;
+    /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
     for (i = 0; i < c->targetCount; i++, outerOffset += 0x24) {
         CritterTargetInfo *record = (CritterTargetInfo *)
             ((u8 *)c + offsetof(Critter, targets[0].pidx) + outerOffset);
@@ -2205,6 +2262,7 @@ void CritterResolveMultipleTargets(Critter *c)
         }
         record++;
     }
+    /* lint-end FM007 */
 }
 
 /* 0x80036FBC -- collect and distance-sort all eligible player targets. */
@@ -2246,9 +2304,11 @@ void CritterGetTargetPlayers(Critter *c)
             continue;
         }
         if ((player->flags & 4) && c->state != 0) {
+            /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
             if (*(s16 *)((u8 *)c->hdr->descriptor + offsetof(CritterDescriptor, type)) != 4) {
                 continue;
             }
+            /* lint-end FM001 */
         }
         targetpos[0] = player->effectpos[0];
         targetpos[1] = player->effectpos[1];
@@ -2383,6 +2443,7 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
             vertical > moveTarget[7]) {
             return lbl_80346548;
         }
+        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget[2]);
         forward[1] = lbl_80346470;
         SlowNormalVector(forward);
@@ -2548,7 +2609,9 @@ s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
         nodeDef = *(CritterColDescriptor **)node;
         nodeRadius = nodeDef->radius;
         nodePosition[0] = *(f32 *)(node += offsetof(CritterHitNode, position)) + offsetVec[0];
+        /* lint-allow-next-line FM009: unrecovered: the referenced list record has no recovered layout in this tree */
         nodePosition[1] = *(f32 *)(node + 4) + offsetVec[1];
+        /* lint-allow-next-line FM009: unrecovered: the referenced list record has no recovered layout in this tree */
         nodePosition[2] = *(f32 *)(node + 8) + offsetVec[2];
         if (LineCylinderCollide(lineStart, radius + nodeRadius,
                                 height + nodeRadius, (f32 *)node,
@@ -2571,6 +2634,7 @@ s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
         }
 next:
         i++;
+        /* lint-allow-next-line FM007: measured: cursor advanced in place for the target's lfsu; typed forms 408/400/408 B */
         byteOffset += 0x5C;
     }
     /* lint-end FM001 */
@@ -3000,6 +3064,7 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
 {
     typedef struct CritterDamageMove {
         s32 type;
+        /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
         u8 unused04[0x54];
         s16 sfx;
         s16 sfxFrame;
@@ -3142,6 +3207,7 @@ credited_damage_done:
           * spelling is held back, so the residual is a separate matching
           * obligation on this function's register web. */
         /* lint-begin FM001, FM002: measured load-bearing spelling, delta above */
+        /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         hitNode = (u8 *)c + offsetof(Critter, hitnodes) + c->unkAB8 * 0x5C;
         if (*(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom)) >= *(f32 *)(hitNode + offsetof(CritterHitNode, activeUntil))) {
             damage = lbl_80346470;
@@ -3182,11 +3248,14 @@ credited_damage_done:
                         for (i = 0; i < c->anodeCount; i++) {
                             u8 *anode;
 
+                            /* lint-allow-next-line FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
                             anode = (u8 *)c->anodes + i * 0x28;
                             if (*(void **)anode == activeNode) {
                                 s32 j;
 
+                                /* lint-allow-next-line FM007, FM009: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
                                 *(s32 *)(anode + 0x20) = 0;
+                                /* lint-allow-next-line FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
                                 *(void **)((u8 *)c->anodes + i * 0x28) = NULL;
                                 for (j = 0;
                                      j < c->hdr->moveCount;
@@ -3263,8 +3332,11 @@ credited_damage_done:
         }
         if (player >= 0) {
             playerData = &gPlayers[player];
+            /* lint-begin FM007: unrecovered: the per-character stats block inside Player is not laid out yet */
             playerData = (Player *)((u8 *)playerData +
                                     playerData->character * 0x1C);
+            /* lint-end FM007 */
+            /* lint-allow-next-line FM001, FM007: unrecovered: the per-character stats block inside Player is not laid out yet */
             (*(s32 *)((u8 *)playerData + 0xC10))++;
         }
         return 1;
@@ -3424,6 +3496,7 @@ s32 ProcessCritter(Critter *c)
     c->movevec[0] = c->vel[0];
     c->movevec[1] = c->vel[1] + c->hdr->vertDrift;
     c->movevec[2] = c->vel[2];
+    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos, &c->mtx[0][0]);
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
@@ -3586,17 +3659,21 @@ animate_ai:
         collided = 0;
     }
     if (collided) {
+        /* lint-begin FM001, FM007, FM009: unrecovered: FloorCollide's result record has no type in this tree */
         c->vel[1] =
             *(f32 *)(gFloorCollisionResult + 0x34) +
             c->hdr->floorOffset;
+        /* lint-end FM001, FM007, FM009 */
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
             ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
             ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
             ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
+            /* lint-begin FM007, FM009: unrecovered: FloorCollide's result record has no type in this tree */
             ((MBObject *)c->shadow)->mat[3][1] =
                 (f32)(lbl_803464B0 +
                       (f64)*(f32 *)(gFloorCollisionResult + 0x34));
+            /* lint-end FM007, FM009 */
         }
     }
 
@@ -3606,9 +3683,11 @@ ai_done:
     move += c->curmove;
     if ((move->flags & 8) != 0) {
         if ((c->anim->flags & 0x40) == 0) {
+            /* lint-allow-next-line FM007: effect/scene-graph API bit or colour; no enum for it exists in this tree */
             MBTreeSetFlags(c->anim, 0x40, 1);
         }
     } else if ((c->anim->flags & 0x40) != 0) {
+        /* lint-allow-next-line FM007: effect/scene-graph API bit or colour; no enum for it exists in this tree */
         MBTreeClearFlags(c->anim, 0x40, 1);
     }
     CritterUpdateSkinfx(c);
@@ -3631,8 +3710,10 @@ ai_done:
     c->movevec[0] = c->vel[0];
     c->movevec[1] = c->vel[1] + c->hdr->vertDrift;
     c->movevec[2] = c->vel[2];
+    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos,
                 &c->mtx[0][0]);
+    /* lint-end FM007 */
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
@@ -3707,6 +3788,7 @@ void CritterUpdateCounters(Critter *c)
     f32 current;
 
     moveType = c->hdr->movesPtr[c->curmove].type;
+    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     if ((((f64)c->counterTime > 0.0) &&
          ((f64)(sMusicFadeBase - c->counterTime) > 3.0)) ||
         moveType == 0x22 || (moveType >= 0x40 && moveType < 0x7F)) {
@@ -3714,11 +3796,13 @@ void CritterUpdateCounters(Critter *c)
         c->counterState = 0;
         c->counterTime = 0.0f;
     }
+    /* lint-end FM007 */
 
     zero = 0.0;
     timeout = 15.0;
     clear = 0.0f;
     for (i = 0; i < 4; i++) {
+        /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         base = (u8 *)c + i * 0x10;
         counterTime = (f32 *)(base + (offsetof(Critter, playerDamage[0].receivedTime)));
         current = *counterTime;
@@ -3730,6 +3814,7 @@ void CritterUpdateCounters(Critter *c)
         current = *(counterTime = (f32 *)(base + (offsetof(Critter, playerDamage[0].dealtTime))));
         if ((f64)current > zero &&
             (f64)(sMusicFadeBase - current) > timeout) {
+            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             *(f32 *)(base + (offsetof(Critter, playerDamage[0].dealt))) = clear;
             *counterTime = clear;
         }
@@ -3827,6 +3912,7 @@ s32 CritterGolemAI(Critter *c)
     if (c->curmove < 0) {
         c->curmove = 0;
     }
+    /* lint-allow-next-line FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
     anim32 = (s32)*(f32 *)((u8 *)c + 0x90);
     move = c->hdr->movesPtr;
     move += c->curmove;
@@ -3841,6 +3927,7 @@ s32 CritterGolemAI(Critter *c)
             s32 dur = move->frameStart;
             if (dur > 0) {
                 s32 elapsed = anim32 - dur;
+                /* lint-allow-next-line FM001, FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
                 s32 total = *(s16 *)((u8 *)c + 0x88) - dur;
                 if (elapsed > 0 && total > 0) {
                     MBTreeSetAlpha(c->anim, 255 - elapsed * 255 / total, 1);
@@ -4051,11 +4138,13 @@ s32 CritterBossAI(Critter *c)
                    (child->curmove >= 0 || child->nextmove >= 0)) {
             CritterAnimate(child);
         } else {
+            /* lint-begin FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
             DoAnimateTreeFrame(
                 (u8 *)child + 0x74, *(s16 *)&c->sound[0x0E],
                 (s32)(frameHalf +
                       (f64)*(f32 *)&c->sound[0x18]),
                 1);
+            /* lint-end FM007 */
             child->movedone = c->movedone;
             child->curmove = -1;
             child->unk11C = -1;
@@ -4066,6 +4155,7 @@ s32 CritterBossAI(Critter *c)
         }
     }
 
+    /* lint-allow-next-line FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
     frame = (s32)*(f32 *)&c->sound[0x18];
     duration = move->holdDuration;
     done = AnimDone(c->sound);
@@ -4113,6 +4203,7 @@ s32 CritterBossAI(Critter *c)
     }
     if (lbl_8034489C < 4) {
         if (lbl_8034489C >= 2) {
+            /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             c->unkABE = 0xFF;
         }
     }
@@ -4126,6 +4217,7 @@ s32 CritterBossAI(Critter *c)
     for (child = c->next; child != NULL; child = child->next) {
         childMove = NULL;
         if (child->curmove >= 0) {
+            /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
             childFrame = (s32)*(f32 *)((u8 *)child + 0x90);
             childMove = (CritterMove *)(
                 (u8 *)&child->hdr->movesPtr[child->curmove]);
@@ -4142,17 +4234,23 @@ s32 CritterBossAI(Critter *c)
                    ? 1
                    : 0;
     if (floorHit != 0) {
+        /* lint-begin FM001, FM007, FM009: unrecovered: FloorCollide's result record has no type in this tree */
         c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
                     c->hdr->floorOffset;
+        /* lint-end FM001, FM007, FM009 */
         if (c->state == 0 && (f64)lbl_8034464C == 0.0 &&
             (c->hdr->typeFlags & 0x80) != 0) {
             s32 surfaceFlags = 0;
+            /* lint-allow-next-line FM001, FM007, FM009: unrecovered: FloorCollide's result record has no type in this tree */
             surface = *(u8 **)(gFloorCollisionResult + 0x44);
             if (surface != NULL) {
+                /* lint-allow-next-line FM007: unrecovered: the world surface record has no type in this tree */
                 surfaceFlags = (s8)surface[0x16];
+                /* lint-begin FM001, FM007, FM009: unrecovered: the world surface record has no type in this tree */
                 if (*(u8 **)(surface + 0x18) != NULL) {
                     surfaceFlags |= (s8)(*(u8 **)(surface + 0x18))[0x16];
                 }
+                /* lint-end FM001, FM007, FM009 */
             }
             if ((surfaceFlags & 0x10) != 0) {
                 lbl_8034464C = (f32)(2.0 + (f64)sMusicFadeBase);
@@ -4164,9 +4262,11 @@ s32 CritterBossAI(Critter *c)
             ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
             ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
             ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
+            /* lint-begin FM007, FM009: unrecovered: FloorCollide's result record has no type in this tree */
             ((MBObject *)c->shadow)->mat[3][1] =
                 (f32)(0.1 +
                       (f64)*(f32 *)(gFloorCollisionResult + 0x34));
+            /* lint-end FM007, FM009 */
         }
     }
 
@@ -4193,12 +4293,14 @@ s32 CritterBossAI(Critter *c)
         } else {
             strcpy(moveName, lbl_803465E4);
         }
+        /* lint-begin FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
         DrawText(8, 214, 0, 0xFFFFFF, lbl_80112104, moveName,
                  (u8 *)move + 0x10, (s32)c->health,
                  (s32)(10.0f * c->rateScale),
                  (s32)(0.5 + *(f32 *)&c->sound[0x18]),
                  c->unk124, (s32)(0.5 + angle),
                  (s32)(0.5 + distance));
+        /* lint-end FM007 */
 
         c = c->next;
         one = 1.0;
@@ -4235,8 +4337,10 @@ s32 CritterBossAI(Critter *c)
             }
             childFrame = -1;
             if (c->curmove >= 0) {
+                /* lint-allow-next-line FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
                 childFrame = (s32)*(f32 *)&c->sound[0x18];
             }
+            /* lint-begin FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             DrawText(8, y, 0, 0xFFFFFF, lbl_8011213C, i,
                      moveName,
                      c->curmove >= 0
@@ -4246,6 +4350,7 @@ s32 CritterBossAI(Critter *c)
                      (s32)(displayScale * c->rateScale), childFrame,
                      c->unk124, (s32)(half + angle),
                      (s32)(half + distance));
+            /* lint-end FM007 */
         }
     }
     return 1;
@@ -4293,6 +4398,7 @@ void CritterDropItem(Critter *c)
 
     item = NULL;
     type = 0;
+    /* lint-begin FM001, FM007: measured: typing the dropped-item cursor is 396 -> 392 B, 94 words */
     if (*(void **)((u8 *)c + offsetof(Critter, _blkACC)) != NULL) {
         item = *(void **)((u8 *)c + offsetof(Critter, _blkACC));
         *(void **)c->_blkACC = NULL;
@@ -4314,14 +4420,17 @@ void CritterDropItem(Critter *c)
         }
         }
     }
+    /* lint-end FM001, FM007 */
     if (item == NULL) {
         return;
     }
     switch (c->hdr->descriptor->type) {
     case 8:
+        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         msgPost(0x86, -1, 0);
         break;
     case 7:
+        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         msgPost(0x8A, -1, 0);
         break;
     }
@@ -4333,11 +4442,15 @@ void CritterDropItem(Critter *c)
     }
 
     ((CritterItemView *)item)->minoff = 0;
+    /* lint-begin FM001: measured: typing the dropped-item cursor is 396 -> 392 B, 94 words */
     MBTreeClearFlags(*(void **)((u8 *)item + offsetof(CritterItemView, node)),
                       2, 0);
+    /* lint-end FM001 */
+    /* lint-begin FM001, FM007: measured: typing the dropped-item cursor is 396 -> 392 B, 94 words */
     if (**(s32 **)((u8 *)item + offsetof(CritterItemView, info)) == 1) {
         *(s16 *)((u8 *)item + 0xEC) = 60;
     }
+    /* lint-end FM001, FM007 */
     ((CritterItemView *)item)->pos[0] =
         c->floorContact[0];
     ((CritterItemView *)item)->pos[1] =
@@ -4411,8 +4524,8 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         dz = tz * spd;
     } else {
         if ((c->hdr->typeFlags & 0x40) != 0) {
-            ax = *(f32 *)((u8 *)c + 1016);
-            az = *(f32 *)((u8 *)c + 1024);
+            ax = c->initmat[2][0];
+            az = c->initmat[2][2];
             dist = fqdist(ax, az);
             if (dist > lbl_80346488) {
                 scale = lbl_80346490 / dist;
@@ -4642,6 +4755,7 @@ void CritterRotate(Critter *c, CritterMove *move)
         c->curyaw =
             c->curyaw + delta;
         CopyMat3((f32 *)gIdentityMatrix, &c->mtx[0][0]);
+        /* lint-allow-next-line FM001, FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
         YawMat3(*(f32 *)((u32)c + 0xFC), &c->mtx[0][0]);
     }
 }
@@ -4658,6 +4772,7 @@ static inline void *sCritterMoveNode(Critter *c, s32 nodeIndex)
         return node;
     }
     {
+        /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
         void *candidate = ((void **)((u8 *)c->anodes + nodeIndex * 0x28))[0];
 
         if (candidate == NULL) {
@@ -4676,8 +4791,10 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
     target = NULL;
     currentMove = c->curmove;
     if (currentMove >= 0) {
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         target = (f32 *)((u8 *)c->hdr->movesPtr +
                          currentMove * sizeof(CritterMove) + 0x60);
+        /* lint-end FM007 */
     }
 
     if (c->unk124 < 0 || c->movedone != 0) {
@@ -4820,10 +4937,12 @@ void CritterGetNextMove(Critter *c)
     for (child = c->next; child != NULL; child = child->next) {
         child->nextmove = -1;
     }
+    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     if (c->curmove >= 0 && moves[c->curmove].type == 0x11) {
         MBTreeClearFlags(c->anim, 1, 0);
         MBTreeClearFlags(c->anim->child, 2, 2);
     }
+    /* lint-end FM007 */
 }
 /* 0x8003B67C -- choose the closest ready move in the 0x30..0x39 family. */
 void CritterLookForReady(Critter *c)
@@ -4861,12 +4980,16 @@ void CritterLookForReady(Critter *c)
     while (i < moveCount) {
         move = (CritterMove *)((u8 *)moves + moveOffset);
         type = move->type;
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         if (type < 0x30 || type > 0x39) {
             goto next;
         }
+        /* lint-end FM007 */
+        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
         if (type == 0x38 && c->unk124 < 0) {
             goto next;
         }
+        /* lint-end FM007 */
         if ((move->flags & 4) != 0) {
             goto next;
         }
@@ -4879,14 +5002,16 @@ void CritterLookForReady(Critter *c)
             }
         }
 
+        /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
         if ((f64)move->cooldown > zeroDouble &&
             sMusicFadeBase <
                 *(f32 *)((u8 *)c + offsetof(Critter, moveTimes) + timeOffset) +
                     move->cooldown) {
             goto next;
         }
+        /* lint-end FM001 */
 
-        distance = CritterCalcTarget(c, (f32 *)((u8 *)move + 0x60),
+        distance = CritterCalcTarget(c, (f32 *)&move->target,
                                      c->targetPos, 0);
         if (distance < best) {
             result = i;
@@ -4954,6 +5079,7 @@ void CritterChildCriticalMove(Critter *c)
         if (sMusicFadeBase < *time + pattern->cooldown) {
             goto next_pattern;
         }
+        /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         player = CritterGetTargetSub(c, (f32 *)((u8 *)pattern + 0x30), 0);
         if (player >= 0 && *time < best) {
             patternChoice = i;
@@ -4974,9 +5100,11 @@ void CritterChildCriticalMove(Critter *c)
         }
         move = &moves[i];
         type = move->type;
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         if (type < 0x7F || type >= 0xF0) {
             goto next_move;
         }
+        /* lint-end FM007 */
         flags = move->flags;
         if ((flags & 4) != 0) {
             goto next_move;
@@ -4994,7 +5122,7 @@ void CritterChildCriticalMove(Critter *c)
             }
         }
 
-        if (c->unk128 >= 0 && type == 0x81) {
+        if (c->unk128 >= 0 && type == MOVE_GRAB) {
             patternChoice = -1;
             moveChoice = i;
             playerChoice = c->unk128;
@@ -5005,7 +5133,7 @@ void CritterChildCriticalMove(Critter *c)
             sMusicFadeBase < c->moveTimes[i] + move->cooldown) {
             goto next_move;
         }
-        player = CritterGetTargetSub(c, (f32 *)((u8 *)move + 0x60), 0);
+        player = CritterGetTargetSub(c, (f32 *)&move->target, 0);
         if (player >= 0) {
             time = &c->moveTimes[i];
             if (*time < best) {
@@ -5076,7 +5204,7 @@ void CritterLookForCriticalMove(Critter *c)
             sMusicFadeBase < c->moveTimes[i] + move->cooldown) {
             goto next;
         }
-        player = CritterGetTargetSub(c, (f32 *)((u8 *)move + 0x60), 0);
+        player = CritterGetTargetSub(c, (f32 *)&move->target, 0);
         if (player < 0 || PlayerAttacking(player, 1) == 0) {
             goto next;
         }
@@ -5145,7 +5273,9 @@ void CritterGetDoAction(Critter *c)
         c->nextmove = (s16)CritterFindMoveType(c, MOVE_READY, 1);
     } else if (lbl_8034489C == 3 && move->type != MOVE_ROAR) {
         c->nextmove = (s16)CritterFindMoveType(c, MOVE_ROAR, 1);
+    /* lint-begin FM007: controller/option bit tested by number; no enum for it exists in this tree */
     } else if (lbl_8034489C >= 3 && lbl_8034489C <= 5 && gBossType == 0x23) {
+    /* lint-end FM007 */
         c->nextmove = (s16)CritterFindMoveType(c, MOVE_READY, 0);
     } else if (move->type == MOVE_START && aiType == 4) {
         c->nextmove = (s16)CritterFindMoveType(c, MOVE_READY, 0);
@@ -5342,6 +5472,7 @@ void CritterAnimate(Critter *c)
         transition = 0;
     } else {
         controllerFlag = gControllerButtons & 0x80;
+        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
         if (controllerFlag == 0 && next != current && next->priority >= 0xF00 &&
             (current == NULL || current->interrupt != 0)) {
             sequence = next->seqidx;
@@ -5373,9 +5504,11 @@ void CritterAnimate(Critter *c)
                 }
             }
         }
+        /* lint-end FM007 */
     }
 
     if (sequence < 0) {
+        /* lint-allow-next-line FM007: FatalError status code, passed through verbatim */
         FatalError(lbl_80112174, 0x800000);
     }
     if (current != next && transition == 0 && sMusicFadeBase > c->rate &&
@@ -5392,6 +5525,7 @@ void CritterAnimate(Critter *c)
     if (current != NULL && current == next && current->type == 0) {
         done = 0;
     }
+    /* lint-begin FM001, FM007, FM009: unrecovered: the referenced list record has no recovered layout in this tree */
     for (subnode = (u8 *)c->subnodes; subnode != NULL;
          subnode = *(u8 **)(subnode + 0x50)) {
         if (sequence >= *(s16 *)(subnode + 0x10)) {
@@ -5399,6 +5533,7 @@ void CritterAnimate(Critter *c)
         }
         AnimateATree(subnode, sequence, transition);
     }
+    /* lint-end FM001, FM007, FM009 */
 
     done &= 3;
     doneResult = (s16)done;
@@ -5468,9 +5603,11 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
             c->unk11C = c->unk11E;
             c->unk120 = 0;
         } else {
+            /* lint-begin FM001, FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
             c->moveTimes[moveIndex] =
                 (f32)(lbl_80346608 * (f32)(*(s16 *)((u8 *)c + 0x88) - 2) +
                       sMusicFadeBase);
+            /* lint-end FM001, FM007 */
         }
     }
 
@@ -5548,8 +5685,10 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
 
     for (; i < ((CritterPackedType *)hdr)->moveCount;
          i++, timeOffset += 4, moveOffset += sizeof(CritterMove)) {
+        /* lint-begin FM001: measured: typing `hdr` is 272 -> 276 B, 60 words */
         move = (CritterMove *)(*(u8 **)(hdr + offsetof(CritterPackedType,
                                 movesPtr)) + moveOffset);
+        /* lint-end FM001 */
         if ((move->flags & 4) == 0 && move->type == type) {
             if ((f64)move->cooldown > lbl_80346488) {
                 remaining = c->moveTimes[i] + move->cooldown - sMusicFadeBase;
@@ -5618,8 +5757,10 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                 node = CritterDoTexmodNode(c, action, 0, lbl_80127D00);
                 if (node >= 0) {
                     u8 *row = (u8 *)big + i * 4;
+                    /* lint-begin FM001, FM007, FM009: unrecovered: the referenced list record has no recovered layout in this tree */
                     MBNodeSetParent(SfxGetNode(node),
                                     ItemGetNode((void *)*(u32 *)(row + 0x50)));
+                    /* lint-end FM001, FM007, FM009 */
                 }
             }
         }
@@ -5638,6 +5779,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                                 (void *)big->safeRockIndices[lbl_80344654]));
                         frames = -1;
                         if (node >= 0) {
+                            /* lint-allow-next-line FM007: effect/scene-graph API bit or colour; no enum for it exists in this tree */
                             frames = *(s16 *)&Effects[node].atree[0x14];
                         }
                         frames = frames - 1;
@@ -5699,9 +5841,11 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                     PlayerSetParent(pp, c->obj_d0, desc->offset);
                     c->unk128 = (s16)node;
                     if (desc->sfx >= 0) {
+                        /* lint-begin FM001, FM007: numeric constant whose meaning is not recovered yet */
                         SfxSetParent(
                             CritterDoSfx(c, desc->sfx, NULL, 0, -1),
                             *(void **)((u8 *)pp + 0x74));
+                        /* lint-end FM001, FM007 */
                     }
                 }
             }
@@ -5732,9 +5876,9 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
     case 9:
         if (active) {
             f32 angle = acosf(desc->mindp);
-            v[0] = *(f32 *)((u8 *)c + 0x3F8);
-            v[1] = *(f32 *)((u8 *)c + 0x3FC);
-            v[2] = *(f32 *)((u8 *)c + 0x400);
+            v[0] = c->initmat[2][0];
+            v[1] = c->initmat[2][1];
+            v[2] = c->initmat[2][2];
             YawVec3(v, v, desc->yaw);
             PitchVec3(v, v, desc->pitch);
             v[0] = v[0] * desc->minSpeed;
@@ -5822,6 +5966,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         goto done;
     }
 
+    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     flags = 0x801;
     sfxDesc = &container->sfx[desc->sfxIndex];
     radius = desc->damage;
@@ -5901,12 +6046,16 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 
         if (desc->morphTargetIndex >= 0) {
             morphDesc = (u8 *)container->sfx + 8;
+            /* lint-begin FM001, FM007: measured: indexing morphDesc as CritterSfxRecord is 1852 -> 1856 B, 216 words */
             morphTarget = *(s32 *)(morphDesc +
                                     desc->morphTargetIndex * 0x50);
+            /* lint-end FM001, FM007 */
             morph = 0;
             if (desc->morphIndex >= 0) {
+                /* lint-begin FM001, FM007: measured: indexing morphDesc as CritterSfxRecord is 1852 -> 1856 B, 216 words */
                 morph = *(s32 *)(morphDesc +
                                   desc->morphIndex * 0x50);
+                /* lint-end FM001, FM007 */
             }
             speed = desc->morphSpeed;
             if ((f64)speed <= lbl_80346488) {
@@ -5940,8 +6089,11 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                 velocity[2] = c->mtx[2][2];
             } else if ((desc->behaviorFlags & 1) != 0 && c->unk124 >= 0) {
                 GetPlayerColPos(c->unk124, velocity);
+                /* lint-allow-next-line FM001: effect/scene-graph API bit or colour; no enum for it exists in this tree */
                 velocity[0] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][0]));
+                /* lint-allow-next-line FM001: effect/scene-graph API bit or colour; no enum for it exists in this tree */
                 velocity[1] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][1]));
+                /* lint-allow-next-line FM001: effect/scene-graph API bit or colour; no enum for it exists in this tree */
                 velocity[2] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][2]));
             } else {
                 velocity[0] = c->mtx[2][0];
@@ -6107,14 +6259,20 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
                 world[2] = c->vel[2];
             }
             if (parent != NULL) {
+                /* lint-allow-next-line FM001: unrecovered: `parent` is an untyped scene node here; MBObject is proven only for the handles Critter stores */
                 world[0] = ((f32 *)parent)[0] + world[0];
+                /* lint-allow-next-line FM001: unrecovered: `parent` is an untyped scene node here; MBObject is proven only for the handles Critter stores */
                 world[1] = ((f32 *)parent)[1] + world[1];
+                /* lint-allow-next-line FM001: unrecovered: `parent` is an untyped scene node here; MBObject is proven only for the handles Critter stores */
                 world[2] = ((f32 *)parent)[2] + world[2];
             }
             arg3 = 0;
         } else if (parent != NULL) {
+            /* lint-allow-next-line FM001: unrecovered: `parent` is an untyped scene node here; MBObject is proven only for the handles Critter stores */
             world[0] = ((f32 *)parent)[0] + color[0];
+            /* lint-allow-next-line FM001: unrecovered: `parent` is an untyped scene node here; MBObject is proven only for the handles Critter stores */
             world[1] = ((f32 *)parent)[1] + color[1];
+            /* lint-allow-next-line FM001: unrecovered: `parent` is an untyped scene node here; MBObject is proven only for the handles Critter stores */
             world[2] = ((f32 *)parent)[2] + color[2];
         } else {
             world[0] = color[0];
@@ -6171,6 +6329,7 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
 
     effect = ((CritterSfxRecord *)sfx)->textureId;
     if (effect < 0) goto fail;
+    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     treeFlags = 0x800;
     effectFlags = 0;
     if ((flags & 4) != 0) treeFlags |= 0x80080;
@@ -6181,6 +6340,7 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
     if (useSceneRoot != 0) treeFlags &= ~0x800;
     if ((flags & 0x10) != 0) effectFlags |= 0x200000;
     if ((flags & 0x8000) != 0) {
+        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         effectFlags |= sMusicTrackHi == 8 ? 0x08000000 : 0x10000;
     }
     if ((flags & 0x10000) != 0) effectFlags |= 0x400000;
@@ -6206,12 +6366,14 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
         SfxSetParent(result, parent);
     }
     color = ((CritterSfxRecord *)sfx)->tintColor;
+    /* lint-begin FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
     if (color != 0xFFFFFFFF) {
         effectData = (u8 *)Effects;
         effectData += result * sizeof(Effect);
         MBTreeSetColor(**(void ***)(effectData += offsetof(Effect, atree)),
                        color, 1);
     }
+    /* lint-end FM007 */
     scale = ((CritterSfxRecord *)sfx)->scale;
     if (c->mbnode != NULL &&
         (((MBObject *)c->mbnode)->flags & 8) != 0) {
@@ -6254,6 +6416,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     } else {
         parent = c->mbnode;
     }
+    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     switch (kind) {
     case 0x02000000:
         psys = MBNewPsysDefault(gIdentityMatrix, parent, 0, 1);
@@ -6270,11 +6433,15 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
         MBPsysSetEVolume(psys, lbl_803464E8, lbl_803464E8);
         break;
     }
+    /* lint-end FM007 */
     if (psys == NULL) {
         ErrorPrintf(lbl_801121D4);
     } else {
+        /* lint-allow-next-line FM001, FM007: unrecovered: the particle-system record has no type in this tree */
         *(f32 *)((u8 *)psys + 0x30) = ((CritterSfxRecord *)s)->color[0];
+        /* lint-allow-next-line FM001, FM007: unrecovered: the particle-system record has no type in this tree */
         *(f32 *)((u8 *)psys + 0x34) = *(f32 *)(s + (offsetof(CritterSfxRecord, color) + 4));
+        /* lint-allow-next-line FM001, FM007: unrecovered: the particle-system record has no type in this tree */
         *(f32 *)((u8 *)psys + 0x38) = *(f32 *)(s + (offsetof(CritterSfxRecord, color) + 8));
         MBPsysSetPTex(psys, tex);
         MBPsysSetERate4(rate, rate, rate, rate, psys);
@@ -6332,9 +6499,12 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         *(CritterChildLinks *)&child->colhandle =
             *(CritterChildLinks *)&root->colhandle;
 
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         nodeIndex = AtreeFindNodeIdx(((struct atreeheader *)geo)->nodeinfo,
                                      ((struct atreeheader *)geo)->numnodes,
                                      (char *)child->hdr + 0x10, 0x10);
+        /* lint-end FM007 */
+        /* lint-allow-next-line FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
         child->colhandle = (u8 *)root->anodes + nodeIndex * 0x28;
         AtreeNodeSetParent(child->colhandle, NULL, NULL, 0);
         child->anim = *(void **)child->colhandle;
@@ -6343,22 +6513,26 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         if (nodeIndex < 0) {
             node = NULL;
         } else {
+            /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
             node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
             if (node == NULL) {
                 node = NULL;
             }
         }
         child->hitnode0 = node;
+        /* lint-begin FM001, FM007: numeric constant whose meaning is not recovered yet */
         if ((((CritterPackedType *)childDef)->typeFlags & 0x10) != 0 &&
             child->hitnode0 != NULL &&
             *(void **)((u8 *)child->hitnode0 + 0x74) != NULL) {
             child->hitnode0 = *(void **)((u8 *)child->hitnode0 + 0x74);
         }
+        /* lint-end FM001, FM007 */
 
         nodeIndex = ((CritterPackedType *)childDef)->node1Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
+            /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
             node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
             if (node == NULL) {
                 node = NULL;
@@ -6370,6 +6544,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         if (nodeIndex < 0) {
             node = NULL;
         } else {
+            /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
             node = *(void **)((u8 *)child->anodes + nodeIndex * 0x28);
             if (node == NULL) {
                 node = NULL;
@@ -6388,8 +6563,10 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     }
     switch (root->hdr->descriptor->type) {
     case 8:
+        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
         root->particle = FindClosestWaypoint(lbl_80346594,
                                              (f32 *)((u8 *)root + 0x3C), 0);
+        /* lint-end FM007 */
         break;
     default:
         break;
@@ -6417,9 +6594,11 @@ Critter *CritterEmptyInst(void)
     for (i = 0, scan_offset = 0; i < count;
          i++, scan_offset += sizeof(Critter)) {
         scan = (u8 *)big + scan_offset;
+        /* lint-begin FM001: unrecovered: the referenced record has no recovered layout in this tree */
         if (*(void **)(scan + (offsetof(CritterBigState, pool) + offsetof(Critter, hdr))) == NULL) {
             break;
         }
+        /* lint-end FM001 */
     }
     if (i >= 16) {
         ErrorPrintf(lbl_8011221C, i, count);
@@ -6437,6 +6616,7 @@ Critter *CritterEmptyInst(void)
     memset(c, 0, sizeof(Critter));
     *(s16 *)c = (s16)i;
     scan = (u8 *)big + byte_offset;
+    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     *(s16 *)(scan + (offsetof(CritterBigState, pool) + offsetof(Critter, id))) = gCritterNextID;
     if ((u16)(gCritterNextID = gCritterNextID + 1) > 4095) {
         gCritterNextID = 1;
@@ -6465,23 +6645,31 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     atreeFlags = 0;
     header = (u8 *)c->hdr;
     c->mbnode = MBNewNode(lbl_8034473C, gid, 1);
+    /* lint-allow-next-line FM001, FM007: unrecovered: the referenced object has no type in this tree */
     atanX = *(f32 *)((u8 *)object + 0x28);
+    /* lint-allow-next-line FM001, FM007: unrecovered: the referenced object has no type in this tree */
     c->inityaw = atan2(*(f32 *)((u8 *)object + 0x20), atanX);
     c->curyaw = c->inityaw;
     CopyMat3(gid, &c->mtx[0][0]);
+    /* lint-allow-next-line FM001, FM007: unrecovered: the referenced object has no type in this tree */
     c->vel[0] = *(f32 *)((u8 *)object + 0x30);
+    /* lint-allow-next-line FM001, FM007: unrecovered: the referenced object has no type in this tree */
     c->vel[1] = *(f32 *)((u8 *)object + 0x34);
+    /* lint-allow-next-line FM001, FM007: unrecovered: the referenced object has no type in this tree */
     c->vel[2] = *(f32 *)((u8 *)object + 0x38);
     YawMat3(c->curyaw, &c->mtx[0][0]);
 
+    /* lint-begin FM001: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x1000) == 0) {
         atreeFlags |= 0x800;
     }
+    /* lint-end FM001 */
     c->colhandle = AtreeInit(((CritterPackedType *)header)->atree, &c->colhandle, 0,
                              atreeFlags);
     c->anim = *(void **)c->colhandle;
     MBNodeSetParent(*(void **)c->colhandle, c->mbnode);
 
+    /* lint-begin FM001, FM007: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 1) != 0) {
         s16 shadowType = c->hdr->descriptor->modelIndex;
         s32 shadowIdx = subtype > 2 ? 1 : subtype;
@@ -6494,11 +6682,14 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         c->shadow->zsort_add = lbl_80346640;
         c->shadow->zmod = -32;
     }
+    /* lint-end FM001, FM007 */
 
+    /* lint-allow-next-line FM001: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
     idx = *(s16 *)(header + offsetof(CritterPackedType, node0Index));
     if (idx < 0) {
         node = NULL;
     } else {
+        /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
         n = *(void **)((u8 *)c->anodes + idx * 0x28);
         node = n;
         if (node == NULL) {
@@ -6506,14 +6697,18 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         }
     }
     c->hitnode0 = node;
+    /* lint-begin FM001: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x10) != 0 && c->hitnode0 != NULL &&
         c->hitnode0->parent != NULL) {
         c->hitnode0 = c->hitnode0->parent;
     }
+    /* lint-end FM001 */
+    /* lint-allow-next-line FM001: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
     idx = *(s16 *)(header + offsetof(CritterPackedType, node1Index));
     if (idx < 0) {
         node = NULL;
     } else {
+        /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
         n = *(void **)((u8 *)c->anodes + idx * 0x28);
         node = n;
         if (node == NULL) {
@@ -6521,10 +6716,12 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         }
     }
     c->hitnode1 = node;
+    /* lint-allow-next-line FM001: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
     idx = *(s16 *)(header + offsetof(CritterPackedType, node2Index));
     if (idx < 0) {
         node = NULL;
     } else {
+        /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
         n = *(void **)((u8 *)c->anodes + idx * 0x28);
         node = n;
         if (node == NULL) {
@@ -6538,17 +6735,22 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                    ? 1
                    : 0;
     if (floorHit != 0) {
+        /* lint-begin FM001, FM007, FM009: unrecovered: FloorCollide's result record has no type in this tree */
         c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
                     *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
+        /* lint-end FM001, FM007, FM009 */
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
             c->shadow->mat[3][0] = c->vel[0];
             c->shadow->mat[3][1] = c->vel[1];
             c->shadow->mat[3][2] = c->vel[2];
+            /* lint-begin FM001, FM007, FM009: unrecovered: FloorCollide's result record has no type in this tree */
             c->shadow->mat[3][1] =
                 *(f32 *)(gFloorCollisionResult + 0x34);
+            /* lint-end FM001, FM007, FM009 */
         }
     } else {
+        /* lint-allow-next-line FM001: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
         c->vel[1] = c->vel[1] + *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
     }
 
@@ -6563,6 +6765,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
     c->movevec[0] = c->vel[0];
+    /* lint-allow-next-line FM001: measured: typing `header` rebuilds CritterInitGeo at 1008 B, 231 words */
     c->movevec[1] = c->vel[1] + *(f32 *)(header + offsetof(CritterPackedType, vertDrift));
     c->movevec[2] = c->vel[2];
     c->obj_d0 = c->anim;
@@ -6608,21 +6811,28 @@ void CritterAddHealthMeter(Critter *c)
             c->hdr->descriptor->model,
             lbl_80346644, 1);
         if (match != NULL) {
+            /* lint-begin FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
             *(void **)&c->healthbar[0] =
                 AtreeInit(match, &c->healthbar[0], 0, 0x800);
+            /* lint-end FM007 */
             MBNodeSetParent(**(void ***)&c->healthbar[0], c->mbnode);
+            /* lint-allow-next-line FM007: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
             MBTreeSetFlags(**(void ***)&c->healthbar[0], 0x02000000, 0);
 
             root = **(void ***)&c->healthbar[0];
             ((MBObject *)root)->mat[3][0] =
                 ((MBObject *)root)->mat[3][0] +
                 c->hdr->healthbarOffset[0];
+            /* lint-begin FM001, FM002: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
             *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
                      offsetof(MBObject, mat[3][1])) +=
                 c->hdr->healthbarOffset[1];
+            /* lint-end FM001, FM002 */
+            /* lint-begin FM001, FM002: unrecovered: crit_inst's embedded atree.animinfo (0x38) is declared but never defined in the PDB dump */
             *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
                      offsetof(MBObject, mat[3][2])) +=
                 c->hdr->healthbarOffset[2];
+            /* lint-end FM001, FM002 */
 
             c->damageflash =
                 AtreeFindNode(&c->healthbar[0], lbl_80112238, 9);
@@ -6743,6 +6953,7 @@ void CritterUpdateSkinfx(Critter *c)
                   c->hitnode2);
     if (c->hitnode2 != NULL) {
         u32 *flags = (u32 *)c->hitnode2;
+        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         savedFlags = *(flags += 0x18);
         *flags = savedFlags | 0x10;
     }
@@ -6751,10 +6962,13 @@ void CritterUpdateSkinfx(Critter *c)
         s32 counter = c->hitnodes[i].state;
         node = &c->hitnodes[i];
         if (counter > 0) {
+            /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             MBTreeSetAltTex(node->boundNode, 0xFFFFFFFC, lbl_80344BF8, 1);
+            /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             MBTreeSetAmbientAdd(node->boundNode, 0xFF, 1);
             node->state--;
         } else if (node->state == 0) {
+            /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             MBTreeSetAltTex(node->boundNode, 0xFFFFFFFF, 0, 1);
             MBTreeSetAmbientAdd(node->boundNode, 0, 1);
             node->state = -1;
@@ -6762,10 +6976,13 @@ void CritterUpdateSkinfx(Critter *c)
     }
 
     if (c->unkABC > 0) {
+        /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
         MBTreeSetAltTex(c->anim, 0xFFFFFFFC, lbl_80344BF8, 1);
+        /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
         MBTreeSetAmbientAdd(c->anim, 0xFF, 1);
         c->unkABC--;
     } else if (c->unkABC == 0) {
+        /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
         MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
         MBTreeSetAmbientAdd(c->anim, 0, 1);
         c->unkABC = -1;
@@ -6773,11 +6990,14 @@ void CritterUpdateSkinfx(Critter *c)
     if (c->pausecnt > 0) {
         c->pausecnt -= gFrameTicks;
         if (c->pausecnt <= 0) {
+            /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
             c->pausecnt = 0;
         } else if (c->pausecnt < 180 && (c->pausecnt & 8) != 0) {
+            /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
         } else {
+            /* lint-allow-next-line FM007: scene-graph mask/colour sentinel; no enum for these bits exists in this tree */
             MBTreeSetAltTex(c->anim, 0xFFFFFFFC, (u32)c->unkAC0, 1);
         }
     }
@@ -6795,6 +7015,7 @@ void CritterUpdateSkinfx(Critter *c)
     }
 }
 typedef struct CritterColnode {
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad00[0x78];
     struct CritterColnode *child;
     struct CritterColnode *next;
@@ -6802,6 +7023,7 @@ typedef struct CritterColnode {
 
 typedef struct CritterAnimNode {
     CritterColnode *node;
+    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad04[0x1C];
     void *attachment;
     u8 _pad24[4];
@@ -6827,6 +7049,7 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
 
         for (i = 0, animOffset = 0; i < c->anodeCount;
              i++, animOffset += sizeof(CritterAnimNode)) {
+            /* lint-begin FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
             if (*(CritterColnode **)((u8 *)c->anodes + animOffset) == node) {
                 j = 0;
                 *(void **)((u8 *)c->anodes + animOffset + 0x20) = NULL;
@@ -6842,8 +7065,10 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
                     moveOffset += sizeof(CritterMove);
                 }
             }
+            /* lint-end FM001, FM007 */
         }
 
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         for (i = 0, hitOffset = 0;
              i < c->hdr->colCount;
              i++, hitOffset += 0x5C) {
@@ -6852,6 +7077,7 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
                 ((CritterHitNode *)(hitRecord + offsetof(Critter, hitnodes)))->active = NULL;
             }
         }
+        /* lint-end FM007 */
 
         if (mode != 2) {
             break;
@@ -6867,6 +7093,7 @@ static inline void *CritterColnodeAnimNode(Critter *c, s32 index)
     if (index < 0) {
         return node;
     }
+    /* lint-allow-next-line FM001, FM007: unrecovered: atree anode (0x28); struct anode is declared but never defined in the PDB dump */
     candidate = *(void **)((u8 *)c->anodes + index * 0x28);
     if (candidate == NULL) {
         candidate = node;
@@ -6927,14 +7154,18 @@ void CritterInitColnodes(Critter *c)
                     }
                 } else {
                     s32 idx = -1;
+                    /* lint-begin FM001: unrecovered: the referenced object has no type in this tree */
                     void *atc = *(void **)((u8 *)c->hdr +
                                 offsetof(CritterPackedType, atree));
+                    /* lint-end FM001 */
                     if (atc != NULL && name != NULL && ch != 0 &&
                         name[1] != 0) {
+                        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
                         idx = AtreeFindNodeIdx(
                             ((struct atreeheader *)atc)->nodeinfo,
                             ((struct atreeheader *)atc)->numnodes,
                             name, 0x10);
+                        /* lint-end FM007 */
                     }
                     record->boundNode = CritterColnodeAnimNode(c, idx);
                 }
@@ -6978,9 +7209,11 @@ static CritterSubnode *CritterNewAnimInst(void)
     s32 total = lbl_80344668;
 
     for (i = 0; i < total; i++) {
+        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
         if (((CritterSubnode *)(lbl_802411B0 + i * 0x54))->mbnode == NULL) {
             break;
         }
+        /* lint-end FM007 */
     }
     if (i >= 1) {
         ErrorPrintf("Too many Critter Anim Insts: %d", i);
@@ -6989,6 +7222,7 @@ static CritterSubnode *CritterNewAnimInst(void)
     if (i == total) {
         lbl_80344668 = lbl_80344668 + 1;
     }
+    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     return (CritterSubnode *)(lbl_802411B0 + i * 0x54);
 }
 
@@ -7012,6 +7246,7 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix)
             } else {
                 c->subnodes = record;
             }
+            /* lint-begin FM001, FM007: measured: typing `node` to CritterAddAnim* is 444 -> 440 B, 51 words */
             if (*(void **)(node + offsetof(CritterAddAnim, atree)) != NULL) {
                 parent = lbl_8034473C;
                 if ((*(s16 *)(node + offsetof(CritterAddAnim, flags)) & 1) != 0) {
@@ -7035,7 +7270,9 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix)
             } else {
                 ErrorPrintf("Bad critter anim inst: %s", (char *)(node + offsetof(CritterAddAnim, name)));
             }
+            /* lint-end FM001, FM007 */
         }
+        /* lint-allow-next-line FM001: measured: typing `node` to CritterAddAnim* is 444 -> 440 B, 51 words */
         node = *(u8 **)(node + offsetof(CritterAddAnim, next));
     }
 }
@@ -7075,6 +7312,7 @@ s32 CritterLoadDone(s32 maxBytes)
                 break;
             case 7:
                 for (i = 0; i < 32; i += 4) {
+                    /* lint-allow-next-line FM001: unrecovered: the referenced object has no type in this tree */
                     s32 *entry = *(s32 **)((u8 *)lbl_8025776C + i);
                     if (*entry == 32) {
                         sprintf(buf, &fmtbase[432], desc, (u8 *)entry + 16);
@@ -7159,8 +7397,10 @@ s32 CritterLoadStartNext(void)
                     break;
                 case 7:
                     for (offset = 0; offset < 32; offset += 4) {
+                        /* lint-begin FM001: unrecovered: the referenced object has no type in this tree */
                         s32 *e2 =
                             *(s32 **)((u8 *)lbl_8025776C + offset);
+                        /* lint-end FM001 */
                         if (*e2 == 32) {
                             sprintf(buf, (char *)&fmtbase[432], desc,
                                     (u8 *)e2 + 16);
@@ -7206,9 +7446,11 @@ void CritterLoadAllTypes(s32 arg)
         hdr = (CritterFileHeader *)lbl_80241070[type];
         if (hdr->state != 0) {
             for (sub = 0; sub < hdr->typeCount; sub++) {
+                /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
                 CritterAllocType(hdr,
                                  &((CritterPackedType *)hdr->types)[sub],
                                  arg);
+                /* lint-end FM001 */
             }
         }
     }
@@ -7232,8 +7474,10 @@ void CritterAllocType(void *hdr, void *move, s32 arg)
 
     M->file = (CritterFileHeader *)hdr;
     fmtbase = (u8 *)lbl_801120E0;
+    /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
     desc = &((CritterDescriptor *)((CritterFileHeader *)hdr)->descriptors)
         [M->descriptorIndex];
+    /* lint-end FM001 */
     M->descriptor = desc;
     if (desc->modelIndex < 0) {
         switch (desc->type) {
@@ -7305,6 +7549,7 @@ void CritterLoadFinish(CritterPackedType *header)
         parent = &header->file->types[header->parentIndex];
         header->atree = parent->atree;
         if (parent->atree == NULL) {
+            /* lint-allow-next-line FM007: unrecovered: `parent` is an untyped scene node here; MBObject is proven only for the handles Critter stores */
             FatalError("Child critter defined before parent", 0x800000);
         }
     }
@@ -7319,27 +7564,33 @@ void CritterLoadFinish(CritterPackedType *header)
     index = -1;
     if (atree != NULL && header->nodeName0 != NULL &&
         header->nodeName0[0] != '\0' && header->nodeName0[1] != '\0') {
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         index = AtreeFindNodeIdx(((struct atreeheader *)atree)->nodeinfo,
                                  ((struct atreeheader *)atree)->numnodes,
                                  header->nodeName0, 0x10);
+        /* lint-end FM007 */
     }
     header->node0Index = (s16)index;
     index = -1;
     atree = header->atree;
     if (atree != NULL && header->nodeName1 != NULL &&
         header->nodeName1[0] != '\0' && header->nodeName1[1] != '\0') {
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         index = AtreeFindNodeIdx(((struct atreeheader *)atree)->nodeinfo,
                                  ((struct atreeheader *)atree)->numnodes,
                                  header->nodeName1, 0x10);
+        /* lint-end FM007 */
     }
     header->node1Index = (s16)index;
     index = -1;
     atree = header->atree;
     if (atree != NULL && header->nodeName2 != NULL &&
         header->nodeName2[0] != '\0' && header->nodeName2[1] != '\0') {
+        /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         index = AtreeFindNodeIdx(((struct atreeheader *)atree)->nodeinfo,
                                  ((struct atreeheader *)atree)->numnodes,
                                  header->nodeName2, 0x10);
+        /* lint-end FM007 */
     }
     header->node2Index = (s16)index;
 }
@@ -7414,9 +7665,11 @@ void CritterInitMoves(CritterPackedType *header)
         if (lookupAtree != NULL && entry->colnode != NULL &&
             entry->colnode[0] != '\0' &&
             entry->colnode[1] != '\0') {
+            /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
             index = AtreeFindNodeIdx(((struct atreeheader *)lookupAtree)->nodeinfo,
                                      ((struct atreeheader *)lookupAtree)->numnodes,
                                      entry->colnode, 0x10);
+            /* lint-end FM007 */
         }
         }
         entry->nodeidx = (s16)index;
@@ -7471,9 +7724,11 @@ next_move:
         lookupAtree = header->atree;
         if (lookupAtree != NULL && colnode != NULL &&
             colnode->nodeName[0] != '\0' && colnode->nodeName[1] != '\0') {
+            /* lint-begin FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
             index = AtreeFindNodeIdx(((struct atreeheader *)lookupAtree)->nodeinfo,
                                      ((struct atreeheader *)lookupAtree)->numnodes,
                                      colnode->nodeName, 0x10);
+            /* lint-end FM007 */
         }
         colnode->nodeIndex = (s16)index;
         colIndex++;
@@ -7630,6 +7885,7 @@ void CritterInitHeader(void *hdr, void *file)
                                               CritterWadTag(lbl_80346694),
                                               &header->addAnimCount);
         if (header->types == NULL) {
+            /* lint-allow-next-line FM007: FatalError status code, passed through verbatim */
             FatalError("Critter Header has no types", 0x800000);
         }
         header->state = 1;
