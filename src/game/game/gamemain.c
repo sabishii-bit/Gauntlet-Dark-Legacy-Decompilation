@@ -95,15 +95,10 @@
 /*   0x80057E6C  NextWorldLevel     -- next level matching a wave mask,    */
 /*                                      wrapping to the next world.        */
 /*                                                                      */
-/* Parked giants (documented, not yet decompiled):                      */
-/*   0x80054230  game_main          0xAAC  top state machine.            */
-/*   0x800522E8  do_stats_display   0x10FC FINAL STATS (tally/disp        */
-/*                                         helpers inlined here).          */
-/*   0x8005351C  fn_8005351C        0x4F4  world/level entry orchestrator */
-/*                                         (only caller: game_main).       */
-/*   0x80057024  fn_80057024        0x5A8  world initializer (enemies/    */
-/*                                         effects/critters; attract +     */
-/*                                         level start).                   */
+/* Native reconstruction is still incomplete: level entry, game_main  */
+/* and the wave-timer HUD retain instruction residuals. The statistics */
+/* helpers reproduce the target instructions and recovered data        */
+/* prefixes, but complete TU data ownership/linkage remains unverified. */
 /* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
@@ -637,6 +632,371 @@ void default_options(void)
     init_prefs();
 }
 
+extern void* lbl_80344EA8;
+
+/* Xbox exposes StartCompass as a standalone function; GC embeds this
+ * same creation sequence in game_main. */
+void StartCompass(void)
+{
+    if (lbl_8034479C == 0) {
+        lbl_8034479C = MBOX_NewObject("COMPASS", 0, lbl_80344EA8, 8);
+    }
+}
+
+
+/* 0x800521E8 -- animate the loading-timer HUD, arm attract on timeout. */
+void fn_800521E8(void)
+{
+    s32 idx;
+    s32 flag = gGameBusy;
+    s32 oldTimer = lbl_80344774;
+    s32 newTimer;
+    MBTextMsg* txt;
+    char* textData;
+    u8 unused[8];
+
+    lbl_80344774 = oldTimer + gFrameTicks;
+    newTimer = lbl_80344774;
+    idx = (newTimer - 60) >> 3;
+    if (oldTimer < 60 && newTimer >= 60) {
+        fn_8009FB00();
+    }
+    if (idx < 0) {
+        idx = 0;
+    } else if (idx > 9) {
+        idx = 9;
+    }
+    SetDrawStringScale(2.0f);
+    txt = (MBTextMsg*)DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
+    RestoreDrawStringScale();
+    textData = txt->text;
+    textData[idx] = 0;
+    if (flag != 0) {
+        return;
+    }
+    {
+        s32 remaining = lbl_80344778 - gFrameTicks;
+        lbl_80344778 = remaining;
+        if (remaining > 0) {
+            return;
+        }
+    }
+    lbl_80343C10 = -1;
+    lbl_80343DD4 = -1;
+    lbl_80343B38 = -1;
+    AudioStopSelect();
+    lbl_803448AC = -1;
+    lbl_803448A8 = -1;
+    lbl_803441F8 = 1;
+    init_attract_mode(0x8002);
+}
+
+/* 0x800522E8 -- "FINAL STATS" end-of-level tally and display. */
+extern s32  lbl_8011C300[];        /* per-class stats screen layout table */
+/* Shared controller record, as reconstructed by controls.c (0x3C stride).
+ * The tally helpers read held buttons, not a character descriptor. */
+typedef struct CTL {
+    u32 ctl;
+    u32 levels;
+    u32 edges;
+    u32 repedges;
+    s32 spTimer;
+    s32 spResult;
+    s32 spLast;
+    f32 lx;
+    f32 ly;
+    f32 rx;
+    f32 ry;
+    s32 scheme;
+    s32 hasActuator;
+    s32 unk34;
+    s32 unk38;
+} CTL;
+extern CTL lbl_80240E30[4];
+
+extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 flags, s32 color,
+                              const char* fmt);
+extern s32  DrawNormalText(f32 scale, char* s, s32 flags);
+extern void WritePlayerInfo(s32 player);
+extern void fn_8009FCA8(s32 arg0);
+extern void AudioStopMusicA(void);
+extern s32  strcmp(const char* a, const char* b);
+struct MBBLIT;
+extern int MBRemoveBlit(struct MBBLIT* blit);
+
+/* Independent GAMEMAIN statics: GC references establish the element widths
+ * and layout; Xbox GAMEMAIN.OBJ corroborates these names and array bounds. */
+static int screenblitxy[4][2] = {{0, 359}, {256, 359}, {0, 103}, {256, 103}};
+static void* stats_bg_blit[4];
+static int tbuf_treasures[4];
+static int tbuf_enemies[4];
+static int tbuf_generators[4];
+static int tbuf_playtime[4];
+static int tbuf_timer[4];
+static int tbuf_step[4];
+static int stat_lx[4] = {0, 0, 256, 256};
+static int stat_cx[4] = {128, 128, 384, 384};
+static int stat_rx[4] = {245, 245, 501, 501};
+static int stat_ty[4] = {33, 177, 33, 177};
+static int stat_yoff[7] = {4, 26, 46, 66, 86, 106, 126};
+
+#define CHAR_STAT(p) ((p)->char_stats[(p)->character])
+
+static inline int tally_treasures(Player* pp)
+{
+    int amount = tbuf_step[pp->index];
+
+    if (gGameBusy != 0) {
+        return 0;
+    }
+    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+        amount *= 6;
+    }
+    tbuf_treasures[pp->index] += amount;
+    if (tbuf_treasures[pp->index] < CHAR_STAT(pp).gold_found) {
+        return 0;
+    }
+    tbuf_treasures[pp->index] = CHAR_STAT(pp).gold_found;
+    return 1;
+}
+
+static inline int tally_enemies(Player* pp)
+{
+    int amount = tbuf_step[pp->index];
+
+    if (gGameBusy != 0) {
+        return 0;
+    }
+    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+        amount *= 6;
+    }
+    tbuf_enemies[pp->index] += amount;
+    if (tbuf_enemies[pp->index] < CHAR_STAT(pp).enemies_killed) {
+        return 0;
+    }
+    tbuf_enemies[pp->index] = CHAR_STAT(pp).enemies_killed;
+    return 1;
+}
+
+static inline int tally_generators(Player* pp)
+{
+    int amount = tbuf_step[pp->index];
+
+    if (gGameBusy != 0) {
+        return 0;
+    }
+    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+        amount *= 6;
+    }
+    tbuf_generators[pp->index] += amount;
+    if (tbuf_generators[pp->index] < CHAR_STAT(pp).generators_destroyed) {
+        return 0;
+    }
+    tbuf_generators[pp->index] = CHAR_STAT(pp).generators_destroyed;
+    return 1;
+}
+
+static inline int tally_playtime(Player* pp)
+{
+    int amount = tbuf_step[pp->index];
+
+    if (gGameBusy != 0) {
+        return 0;
+    }
+    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+        amount *= 6;
+    }
+    tbuf_playtime[pp->index] += amount;
+    if (tbuf_playtime[pp->index] < CHAR_STAT(pp).total_playtime) {
+        return 0;
+    }
+    tbuf_playtime[pp->index] = CHAR_STAT(pp).total_playtime;
+    return 1;
+}
+
+static inline void disp_pname(Player* pp)
+{
+    char buf[16];
+
+    sprintf(buf, "%s", pp->name);
+    if (strcmp(buf, "___") == 0) {
+        strcpy(buf, "NO NAME");
+    }
+    DrawTextKeepScale(0.6f, -stat_cx[pp->index],
+                      stat_yoff[0] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+}
+
+static inline void disp_enemies(Player* pp)
+{
+    char buf[16];
+    int width;
+
+    DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
+                      stat_yoff[1] + stat_ty[pp->index], 7, 0xFFFFFF, "ENEMIES");
+    sprintf(buf, "%d", tbuf_enemies[pp->index]);
+    width = DrawNormalText(0.5f, buf, 7);
+    DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
+                      stat_yoff[1] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+}
+
+static inline void disp_generators(Player* pp)
+{
+    char buf[16];
+    int width;
+
+    DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
+                      stat_yoff[2] + stat_ty[pp->index], 7, 0xFFFFFF, "GENERATORS");
+    sprintf(buf, "%d", tbuf_generators[pp->index]);
+    width = DrawNormalText(0.5f, buf, 7);
+    DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
+                      stat_yoff[2] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+}
+
+static inline void disp_treasures(Player* pp)
+{
+    char buf[16];
+    int width;
+
+    DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
+                      stat_yoff[3] + stat_ty[pp->index], 7, 0xFFFFFF, "TREASURES");
+    sprintf(buf, "%d", tbuf_treasures[pp->index]);
+    width = DrawNormalText(0.5f, buf, 7);
+    DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
+                      stat_yoff[3] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+}
+
+static inline void disp_playtime(Player* pp)
+{
+    char buf[16];
+    int width;
+    int time = tbuf_playtime[pp->index] / 60;
+    int seconds = time % 60;
+    int minutes;
+    time /= 60;
+    minutes = time % 60;
+    time /= 60;
+
+    DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
+                      stat_yoff[5] + stat_ty[pp->index], 7, 0xFFFFFF, "PLAYTIME");
+    sprintf(buf, "%3d:%02d:%02d", time, minutes, seconds);
+    width = DrawNormalText(0.5f, buf, 7);
+    DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
+                      stat_yoff[5] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+}
+
+s32 do_stats_display(void)
+{
+    Player* p;
+    int i;
+    int stalled = 0;
+    int done = 1;
+
+    DrawTextKeepScale(0.75f, -256, 0, 7, 0xFFFFFF, "FINAL STATS");
+    for (i = 0, p = gPlayers; i < 4; i++, p++) {
+        if (p->state != 1 && p->state != 5 && p->state != 4) {
+            continue;
+        }
+        disp_pname(p);
+
+        switch (p->field_A64) {
+        case 0:
+            tbuf_enemies[i] = tbuf_generators[i] = tbuf_treasures[i] =
+                (tbuf_playtime[i] == 0);
+            tbuf_timer[i] = 480;
+            p->field_A64++;
+            tbuf_step[i] = CHAR_STAT(p).enemies_killed / 60;
+            if (tbuf_step[i] < 1) {
+                tbuf_step[i] = 1;
+            }
+        case 1:
+            done = 0;
+            if (tally_enemies(p)) {
+                p->field_A64++;
+                tbuf_step[i] = CHAR_STAT(p).generators_destroyed / 60;
+                if (tbuf_step[i] < 1) {
+                    tbuf_step[i] = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            disp_enemies(p);
+            break;
+        case 2:
+            done = 0;
+            disp_enemies(p);
+            if (tally_generators(p)) {
+                p->field_A64++;
+                tbuf_step[i] = CHAR_STAT(p).gold_found / 60;
+                if (tbuf_step[i] < 1) {
+                    tbuf_step[i] = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            disp_generators(p);
+            break;
+        case 3:
+            done = 0;
+            disp_enemies(p);
+            disp_generators(p);
+            if (tally_treasures(p)) {
+                p->field_A64++;
+                tbuf_step[i] = (int)(CHAR_STAT(p).total_playtime / 60.0f);
+                if (tbuf_step[i] < 60) {
+                    tbuf_step[i] = 60;
+                }
+                if (tbuf_step[i] < 1) {
+                    tbuf_step[i] = 1;
+                }
+            } else {
+                stalled = 1;
+            }
+            disp_treasures(p);
+            break;
+        case 4:
+            p->field_A64++;
+        case 5:
+            done = 0;
+            disp_enemies(p);
+            disp_generators(p);
+            disp_treasures(p);
+            if (tally_playtime(p)) {
+                p->field_A64++;
+            } else {
+                stalled = 1;
+            }
+            disp_playtime(p);
+            break;
+        case 6:
+            done = 0;
+            disp_enemies(p);
+            disp_generators(p);
+            disp_treasures(p);
+            disp_playtime(p);
+            if ((tbuf_timer[i] -= gFrameTicks) <= 0) {
+                p->field_A64++;
+            }
+            break;
+        default:
+            disp_enemies(p);
+            disp_generators(p);
+            disp_treasures(p);
+            disp_playtime(p);
+            break;
+        }
+    }
+    WritePlayerInfo(-1);
+    fn_8009FCA8(stalled);
+    if (done) {
+        for (i = 0; i < 4; i++) {
+            MBRemoveBlit(stats_bg_blit[i]);
+        }
+        AudioStopMusicA();
+    }
+    return done;
+}
+
+
 /* 0x800533E4 -- reload player data / models / weapons / world. */
 void ResetModels(void)
 {
@@ -1126,53 +1486,6 @@ void fn_80052134(void)
             MBTreeSetAlpha(lbl_8034479C, lbl_80343C20, 0);
         }
     }
-}
-
-/* 0x800521E8 -- animate the loading-timer HUD, arm attract on timeout. */
-void fn_800521E8(void)
-{
-    s32 idx;
-    s32 flag = gGameBusy;
-    s32 oldTimer = lbl_80344774;
-    s32 newTimer;
-    MBTextMsg* txt;
-    char* textData;
-    u8 unused[8];
-
-    lbl_80344774 = oldTimer + gFrameTicks;
-    newTimer = lbl_80344774;
-    idx = (newTimer - 60) >> 3;
-    if (oldTimer < 60 && newTimer >= 60) {
-        fn_8009FB00();
-    }
-    if (idx < 0) {
-        idx = 0;
-    } else if (idx > 9) {
-        idx = 9;
-    }
-    SetDrawStringScale(lbl_80346AB8);
-    txt = (MBTextMsg*)DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
-    RestoreDrawStringScale();
-    textData = txt->text;
-    textData[idx] = 0;
-    if (flag != 0) {
-        return;
-    }
-    {
-        s32 remaining = lbl_80344778 - gFrameTicks;
-        lbl_80344778 = remaining;
-        if (remaining > 0) {
-            return;
-        }
-    }
-    lbl_80343C10 = -1;
-    lbl_80343DD4 = -1;
-    lbl_80343B38 = -1;
-    AudioStopSelect();
-    lbl_803448AC = -1;
-    lbl_803448A8 = -1;
-    lbl_803441F8 = 1;
-    init_attract_mode(0x8002);
 }
 
 /* 0x8005412C -- categorise the loaded worlds and update the flow globals. */
@@ -1708,7 +2021,6 @@ extern f64  lbl_80346B30;
 extern f64  lbl_80346B40;
 extern f64  lbl_80346B48;
 extern f64  lbl_80346B50;
-extern void MBRemoveBlit(s32 blit);
 extern void AudioFootstep(s32 n);
 extern void fn_8009FA84(void);
 extern void fn_8009FCA8(s32 n);
@@ -1778,7 +2090,6 @@ extern s32  pbDiagDrawMenu(void);
 extern void fn_80054E78(void);
 
 /* 0x80054230 - top-level per-frame game mode dispatcher. */
-#pragma dont_inline on
 void game_main(void)
 {
     u8 unused[8];
@@ -2022,8 +2333,8 @@ void game_main(void)
         }
         fn_80054E78();
         fn_80055678(lbl_8025EA04, gCameras + 75);
-        if (!lbl_803447B8 && lbl_8034479C == 0) {
-            lbl_8034479C = MBOX_NewObject("COMPASS", 0, lbl_80344EA8, 8);
+        if (!lbl_803447B8) {
+            StartCompass();
         }
         if (sMusicTrackHi == 13 && !options_state && !lbl_803447B8) {
             if (check_active_players()) {
@@ -2179,7 +2490,6 @@ void game_main(void)
         break;
     }
 }
-#pragma dont_inline reset
 
 void fn_80054E78(void)
 {
@@ -2225,7 +2535,7 @@ void fn_80054E78(void)
                 q = state + i * 4;
                 v = *(u32*)(q += 112);
                 if (v != 0) {
-                    MBRemoveBlit(v);
+                    MBRemoveBlit((struct MBBLIT*)v);
                     *(u32*)q = 0;
                 }
             }
@@ -2301,265 +2611,4 @@ void fn_80054E78(void)
             }
         }
     }
-}
-
-/* 0x800522E8 -- "FINAL STATS" end-of-level tally and display. */
-extern s32  lbl_8011C300[];        /* per-class stats screen layout table */
-extern u8   lbl_80240E30[];        /* per-class 60-byte descriptor table  */
-DECL_SECT(".sdata2") extern const f32  lbl_80346ABC;
-DECL_SECT(".sdata2") extern const f32  lbl_80346AD0;
-extern f32  lbl_80346AE4;
-extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 flags, s32 color,
-                              const char* fmt);
-extern s32  DrawNormalText(f32 scale, char* s, s32 flags);
-extern void WritePlayerInfo(s32 player);
-extern void fn_8009FCA8(s32 arg0);
-extern void AudioStopMusicA(void);
-extern s32  strcmp(const char* a, const char* b);
-
-#define STAT_ROW(colp, lab, valoff)                                         \
-    {                                                                       \
-        s32 c_;                                                             \
-        u8* row_;                                                           \
-        s32 w_;                                                             \
-        char buf_[12];                                                      \
-        c_ = *(s32*)p;                                                      \
-        row_ = (u8*)layout + c_ * 4;                                        \
-        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
-                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, lab);  \
-        {                                                                               u8* v_ = state + *(s32*)p * 4;                                              sprintf(buf_, "%d", *(s32*)(v_ + (valoff)));                    }                                                                   \
-        w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
-        c_ = *(s32*)p;                                                      \
-        row_ = (u8*)layout + c_ * 4;                                        \
-        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 64) - w_,            \
-                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
-    }
-
-#define TIME_ROW(colp)                                                      \
-    {                                                                       \
-        s32 c_;                                                             \
-        u8* row_;                                                           \
-        s32 t_;                                                             \
-        s32 sec_;                                                           \
-        s32 min_;                                                           \
-        s32 w_;                                                             \
-        char buf_[12];                                                      \
-        c_ = *(s32*)p;                                                      \
-        row_ = state + c_ * 4;                                              \
-        t_ = *(s32*)(row_ + 64) / 60;                                       \
-        sec_ = t_ % 60;                                                     \
-        t_ /= 60;                                                           \
-        min_ = t_ % 60;                                                     \
-        t_ /= 60;                                                           \
-        row_ = (u8*)layout + c_ * 4;                                        \
-        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 32) + 7,             \
-                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF,        \
-                          msgs + 36);                                       \
-        sprintf(buf_, msgs + 48, t_, min_, sec_);                           \
-        w_ = DrawNormalText(lbl_80346AD4, buf_, 7);                         \
-        c_ = *(s32*)p;                                                      \
-        row_ = (u8*)layout + c_ * 4;                                        \
-        DrawTextKeepScale(lbl_80346AD4, *(s32*)(row_ + 64) - w_,            \
-                          *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
-    }
-
-/* The active character's per-character stat record.  This is the block that
- * used to be addressed here as raw `Player + 3088 + character*28` with purely
- * positional labels; it is now modelled as Player.char_stats[16] in
- * include/game/player.h (the Xbox P_SAVE_STATS analogue -- see that header for
- * the identification evidence).  `p` walks gPlayers as a u8*, so the cast is
- * what the loop shape requires, not an invented one. */
-#define CHAR_STAT(p) (((Player*)(p))->char_stats[((Player*)(p))->character])
-
-#define STAT_TALLY(accOff, tgtField, ok)                                        {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   CHAR_STAT(p).tgtField) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     CHAR_STAT(p).tgtField;                      ok = 1;                                                                 }                                                                       }                                                                       }
-
-s32 do_stats_display(void)
-{
-    char* msgs;
-    u8* state = lbl_802575C0;
-    s32* layout = lbl_8011C300;
-    u8* p;
-    s32* col1;
-    s32* col2;
-    s32* col3;
-    s32* colT;
-    s32 i;
-    s32 off;
-    s32 stalled = 0;
-    s32 done = 1;
-    f32 k60;
-
-    msgs = lbl_80112538;
-    DrawTextKeepScale(lbl_80346ABC, -256, 0, 7, 0xFFFFFF, msgs);
-    k60 = lbl_80346AE4;
-    col1 = (s32*)((u8*)layout + 100);
-    col2 = (s32*)((u8*)layout + 104);
-    col3 = (s32*)((u8*)layout + 108);
-    colT = (s32*)((u8*)layout + 116);
-
-    for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 4, p += 13148) {
-        s32 st = *(s32*)(p + offsetof(Player, state));
-        char nbuf[12];
-
-        if (st != 1 && st != 5 && st != 4) {
-            continue;
-        }
-        sprintf(nbuf, "%s", p + 2688);
-        if (strcmp(nbuf, "___") == 0) {
-            strcpy(nbuf, "NO NAME");
-        }
-        {
-            s32 c = *(s32*)p;
-            u8* row = (u8*)layout + c * 4;
-            DrawTextKeepScale(lbl_80346AD0, -*(s32*)(row + 48),
-                              layout[24] + *(s32*)(row + 80),
-                              7, 0xFFFFFF, nbuf);
-        }
-
-        switch (*(u32*)(p + offsetof(Player, field_A64))) {
-        case 0: {
-            u8* sp = state + off;
-            s32 on = (*(s32*)(sp + 64) == 0);
-            s32* t96;
-            *(s32*)(sp + 16) = on;
-            t96 = (s32*)(sp + 96);
-            *(s32*)(sp + 48) = on;
-            *(s32*)(sp + 32) = on;
-            *(s32*)(sp + 80) = 480;
-            (*(s32*)(p + offsetof(Player, field_A64)))++;
-            *t96 = CHAR_STAT(p).enemies_killed / 60;
-            if (*t96 < 1) {
-                *t96 = 1;
-            }
-        }
-        case 1: {
-            s32 ok;
-            done = 0;
-            STAT_TALLY(32, enemies_killed, ok);
-            if (ok != 0) {
-                s32* sp2 = (s32*)(state + off);
-                (*(s32*)(p + offsetof(Player, field_A64)))++;
-                sp2[24] = CHAR_STAT(p).generators_destroyed / 60;
-                if (*(sp2 += 24) < 1) {
-                    *sp2 = 1;
-                }
-            } else {
-                stalled = 1;
-            }
-            STAT_ROW(col1, "ENEMIES", 32);
-            break;
-        }
-        case 2: {
-            s32 ok;
-            done = 0;
-            STAT_ROW(col1, "ENEMIES", 32);
-            STAT_TALLY(48, generators_destroyed, ok);
-            if (ok != 0) {
-                s32* sp2 = (s32*)(state + off);
-                (*(s32*)(p + offsetof(Player, field_A64)))++;
-                sp2[24] = CHAR_STAT(p).gold_found / 60;
-                if (*(sp2 += 24) < 1) {
-                    *sp2 = 1;
-                }
-            } else {
-                stalled = 1;
-            }
-            STAT_ROW(col2, msgs + 12, 48);
-            break;
-        }
-        case 3: {
-            s32 ok;
-            done = 0;
-            STAT_ROW(col1, "ENEMIES", 32);
-            STAT_ROW(col2, msgs + 12, 48);
-            STAT_TALLY(16, gold_found, ok);
-            if (ok != 0) {
-                s32* sp2 = (s32*)(state + off);
-                (*(s32*)(p + offsetof(Player, field_A64)))++;
-                sp2[24] = (s32)(CHAR_STAT(p).total_playtime / k60);
-                if (*(sp2 += 24) < 60) {
-                    *sp2 = 60;
-                }
-                if (*sp2 < 1) {
-                    *sp2 = 1;
-                }
-            } else {
-                stalled = 1;
-            }
-            STAT_ROW(col3, msgs + 24, 16);
-            break;
-        }
-        case 4:
-            (*(s32*)(p + offsetof(Player, field_A64)))++;
-        case 5: {
-            done = 0;
-            STAT_ROW(col1, "ENEMIES", 32);
-            STAT_ROW(col2, msgs + 12, 48);
-            STAT_ROW(col3, msgs + 24, 16);
-            {
-                s32 c = *(s32*)p;
-                u8* b = state + c * 4;
-                s32 amt = *(s32*)(b + 96);
-                s32 ok;
-                if (gGameBusy != 0) {
-                    ok = 0;
-                } else {
-                    u8* a;
-                    f32 tgt;
-                    if (*(s32*)(lbl_80240E30 + c * 60 + 4) & 0x0F000000) {
-                        amt *= 6;
-                    }
-                    *(s32*)(b + 64) += amt;
-                    a = state + *(s32*)p * 4;
-                    tgt = CHAR_STAT(p).total_playtime;
-                    if ((f32)*(s32*)(a += 64) < tgt) {
-                        ok = 0;
-                    } else {
-                        *(s32*)a = (s32)tgt;
-                        ok = 1;
-                    }
-                }
-                if (ok != 0) {
-                    (*(s32*)(p + offsetof(Player, field_A64)))++;
-                } else {
-                    stalled = 1;
-                }
-            }
-            TIME_ROW(colT);
-            break;
-        }
-        case 6: {
-            u8* sp;
-            done = 0;
-            STAT_ROW(col1, "ENEMIES", 32);
-            STAT_ROW(col2, msgs + 12, 48);
-            STAT_ROW(col3, msgs + 24, 16);
-            TIME_ROW(colT);
-            sp = state + off;
-            st = *(s32*)(sp + 80) - gFrameTicks;
-            *(s32*)(sp + 80) = st;
-            if (st <= 0) {
-                (*(s32*)(p + offsetof(Player, field_A64)))++;
-            }
-            break;
-        }
-        default:
-            STAT_ROW(col1, "ENEMIES", 32);
-            STAT_ROW(col2, msgs + 12, 48);
-            STAT_ROW(col3, msgs + 24, 16);
-            TIME_ROW(colT);
-            break;
-        }
-    }
-
-    WritePlayerInfo(-1);
-    fn_8009FCA8(stalled);
-    if (done != 0) {
-        s32 j;
-        for (j = 0; j < 4; j++) {
-            MBRemoveBlit(*(s32*)(state + j * 4));
-        }
-        AudioStopMusicA();
-    }
-    return done;
 }
