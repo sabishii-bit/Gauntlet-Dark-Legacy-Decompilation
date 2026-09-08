@@ -1946,9 +1946,15 @@ void fn_8005351C(void)
                 } else if (sMusicTrackHi != 12) {
                     PlayerSaveState(i, 1);
                 }
-                if (player->exp == 0) {
-                    player->exp = 1;
-                    player->save.saved = 0;
+                {
+                    s32* experience;
+                    /* Preserve GC's field-address-before-test idiom. The
+                     * pointer names the real exp member, then updates it;
+                     * its original local spelling is not known. */
+                    if (*(experience = &player->exp) == 0) {
+                        *experience = 1;
+                        player->save.saved = 0;
+                    }
                 }
             }
         }
