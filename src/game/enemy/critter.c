@@ -395,13 +395,17 @@ typedef struct CritterDescriptor {
  * Critter.hdr points at, so this completes the header's `struct
  * CritterHeader` tag rather than declaring a separate type. */
 typedef struct CritterHeader {
-    u8 _pad000[0x20];
+    char suffix[0x10];      /* 0x00 crit_type.suffix -- appended to the descriptor
+                             * prefix to build the atree name (CritterLoadFinish
+                             * passes this address straight to sprintf "%s%s")  */
+    char rootnode[0x10];    /* 0x10 crit_type.rootnode                          */
     char nodeName0[0x10];   /* 0x20 attach-node name (CritterLoadFinish -> 0x56 idx) */
     char nodeName1[0x10];   /* 0x30 attach-node name (CritterLoadFinish -> 0x58 idx) */
     char nodeName2[0x10];   /* 0x40 attach-node name (CritterLoadFinish -> 0x5A idx) */
     s16 descriptorIndex;
     s16 subtype;
-    u8 _pad054[2];
+    s8 level;               /* 0x54 crit_type.level                             */
+    s8 ai;                  /* 0x55 crit_type.ai                                */
     s16 node0Index;         /* 0x56 resolved nodeName0 atree index                  */
     s16 node1Index;         /* 0x58 resolved nodeName1 atree index                  */
     s16 node2Index;         /* 0x5A resolved nodeName2(0x40) atree index             */
@@ -764,7 +768,7 @@ s32 CritterLoadStartNext(void);
 void CritterLoadAllTypes(s32 arg);
 struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype);
 void CritterAllocType(void *hdr, void *move, s32 arg);
-void CritterLoadFinish(u8 *header);
+void CritterLoadFinish(CritterPackedType *header);
 void CritterInitAllMoves(void);
 void CritterInitMoves(CritterPackedType *header);
 void CritterInitSfx(void *file, s32 index, void *atreeHeader);
@@ -7105,29 +7109,29 @@ s32 CritterLoadStartNext(void)
     u8 *tableBase;
     s32 i;
     s32 j;
-    u8 *entry;
-    u8 *sub;
-    u8 *desc;
+    CritterFileHeader *entry;
+    CritterPackedType *sub;
+    CritterDescriptor *desc;
     s32 offset;
 
     fmtbase = (u8 *)lbl_801120E0;
     tableBase = (u8 *)lbl_80241070;
     for (i = 0; i < lbl_80344660; i++) {
-        entry = tableBase + i * 80;
-        if (*(s32 *)entry != 1) {
+        entry = (CritterFileHeader *)(tableBase + i * 80);
+        if (entry->state != 1) {
             continue;
         }
-        for (j = 0; j < ((CritterFileHeader *)entry)->typeCount; j++) {
-            sub = *(u8 **)(entry + offsetof(CritterFileHeader, types)) + j * 320;
-            desc = *(u8 **)(sub + offsetof(CritterPackedType, descriptor));
+        for (j = 0; j < entry->typeCount; j++) {
+            sub = &entry->types[j];
+            desc = sub->descriptor;
             if (desc == NULL) {
                 continue;
             }
-            switch (((CritterDescriptor *)desc)->loadState) {
+            switch (desc->loadState) {
             case 0:
                 break;
             case 1:
-                switch (((CritterDescriptor *)desc)->type) {
+                switch (desc->type) {
                 case 3:
                 case 8:
                     sprintf(buf, (char *)&fmtbase[416], desc,
@@ -7148,7 +7152,7 @@ s32 CritterLoadStartNext(void)
                     sprintf(buf, (char *)&fmtbase[448], desc);
                     break;
                 }
-                MBOX_BGLoadModelStart(buf, ((CritterDescriptor *)desc)->modelIndex);
+                MBOX_BGLoadModelStart(buf, desc->modelIndex);
                 crit_load_desc = desc;
                 lbl_80344640 = NULL;
                 return 1;
@@ -7163,8 +7167,8 @@ s32 CritterLoadStartNext(void)
                 break;
             }
         }
-        if (j == ((CritterFileHeader *)entry)->typeCount) {
-            *(s32 *)entry = 2;
+        if (j == entry->typeCount) {
+            entry->state = 2;
         }
     }
     return 0;
@@ -7244,7 +7248,7 @@ void CritterAllocType(void *hdr, void *move, s32 arg)
         desc->loadTick = lbl_80344664;
     }
     if (arg != 0) {
-        CritterLoadFinish((u8 *)M);
+        CritterLoadFinish(M);
     } else {
         M->atree = NULL;
     }
@@ -7257,83 +7261,66 @@ void CritterAllocType(void *hdr, void *move, s32 arg)
 
 /* 0x8003F9F4 -- resolve the animation tree and named attachment nodes for a
  * type after its model resource has loaded. */
-void CritterLoadFinish(u8 *header)
+void CritterLoadFinish(CritterPackedType *header)
 {
-    u8 *parent;
-    u8 *attachment;
+    CritterPackedType *parent;
+    CritterAddAnim *attachment;
     void *atree;
     s32 index;
     f64 name[4];
     u8 unused[8];
 
-    if (*(void **)(header + offsetof(CritterPackedType, atree)) != NULL) {
+    if (header->atree != NULL) {
         return;
     }
-    if (((CritterPackedType *)header)->parentIndex < 0) {
-        sprintf((char *)name, "%s%s",
-                (char *)(*(u8 **)(header + offsetof(CritterPackedType,
-                          descriptor)) + offsetof(CritterDescriptor, prefix)), header);
-        *(void **)(header + offsetof(CritterPackedType, atree)) =
-            AtreeMatch(*(void **)(*(u8 **)(header + offsetof(CritterPackedType,
-                       descriptor)) + offsetof(CritterDescriptor, model)),
-                       (char *)name, 0);
-        if (*(void **)(header + offsetof(CritterPackedType, atree)) == NULL) {
+    if (header->parentIndex < 0) {
+        sprintf((char *)name, "%s%s", header->descriptor->prefix,
+                header->suffix);
+        header->atree = AtreeMatch(header->descriptor->model, (char *)name, 0);
+        if (header->atree == NULL) {
             ErrorPrintf("Critter can not find atree %s", (char *)name);
         }
     } else {
-        parent = *(u8 **)(*(u8 **)(header + offsetof(CritterPackedType, file)) +
-                           offsetof(CritterFileHeader, types)) +
-                 ((CritterPackedType *)header)->parentIndex *
-                 sizeof(CritterPackedType);
-        *(void **)(header + offsetof(CritterPackedType, atree)) =
-            *(void **)(parent + offsetof(CritterPackedType, atree));
-        if (*(void **)(parent + offsetof(CritterPackedType, atree)) == NULL) {
+        parent = &header->file->types[header->parentIndex];
+        header->atree = parent->atree;
+        if (parent->atree == NULL) {
             FatalError("Child critter defined before parent", 0x800000);
         }
     }
 
-    for (attachment = *(u8 **)(header + offsetof(CritterPackedType, attachments));
-         attachment != NULL;
-         attachment = *(u8 **)(attachment + offsetof(CritterAddAnim, next))) {
-        *(void **)(attachment + offsetof(CritterAddAnim, atree)) =
-            AtreeMatch(*(void **)(*(u8 **)(header + offsetof(CritterPackedType,
-                       descriptor)) + offsetof(CritterDescriptor, model)),
-                       ((CritterAddAnim *)attachment)->name, 1);
+    for (attachment = header->attachments; attachment != NULL;
+         attachment = attachment->next) {
+        attachment->atree = AtreeMatch(header->descriptor->model,
+                                       attachment->name, 1);
     }
 
-    atree = *(void **)(header + offsetof(CritterPackedType, atree));
+    atree = header->atree;
     index = -1;
-    if (atree != NULL && (header + offsetof(CritterPackedType, nodeName0)) != NULL &&
-        ((CritterPackedType *)header)->nodeName0[0] != '\0' &&
-        ((CritterPackedType *)header)->nodeName0[1] != '\0') {
-        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
-                                 *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
-                                 (char *)(header + offsetof(CritterPackedType,
-                                          nodeName0)), 0x10);
+    if (atree != NULL && header->nodeName0 != NULL &&
+        header->nodeName0[0] != '\0' && header->nodeName0[1] != '\0') {
+        index = AtreeFindNodeIdx(((struct atreeheader *)atree)->nodeinfo,
+                                 ((struct atreeheader *)atree)->numnodes,
+                                 header->nodeName0, 0x10);
     }
-    ((CritterPackedType *)header)->node0Index = (s16)index;
+    header->node0Index = (s16)index;
     index = -1;
-    atree = *(void **)(header + offsetof(CritterPackedType, atree));
-    if (atree != NULL && (header + offsetof(CritterPackedType, nodeName1)) != NULL &&
-        ((CritterPackedType *)header)->nodeName1[0] != '\0' &&
-        ((CritterPackedType *)header)->nodeName1[1] != '\0') {
-        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
-                                 *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
-                                 (char *)(header + offsetof(CritterPackedType,
-                                          nodeName1)), 0x10);
+    atree = header->atree;
+    if (atree != NULL && header->nodeName1 != NULL &&
+        header->nodeName1[0] != '\0' && header->nodeName1[1] != '\0') {
+        index = AtreeFindNodeIdx(((struct atreeheader *)atree)->nodeinfo,
+                                 ((struct atreeheader *)atree)->numnodes,
+                                 header->nodeName1, 0x10);
     }
-    ((CritterPackedType *)header)->node1Index = (s16)index;
+    header->node1Index = (s16)index;
     index = -1;
-    atree = *(void **)(header + offsetof(CritterPackedType, atree));
-    if (atree != NULL && (header + offsetof(CritterPackedType, nodeName2)) != NULL &&
-        ((CritterPackedType *)header)->nodeName2[0] != '\0' &&
-        ((CritterPackedType *)header)->nodeName2[1] != '\0') {
-        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
-                                 *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
-                                 (char *)(header + offsetof(CritterPackedType,
-                                          nodeName2)), 0x10);
+    atree = header->atree;
+    if (atree != NULL && header->nodeName2 != NULL &&
+        header->nodeName2[0] != '\0' && header->nodeName2[1] != '\0') {
+        index = AtreeFindNodeIdx(((struct atreeheader *)atree)->nodeinfo,
+                                 ((struct atreeheader *)atree)->numnodes,
+                                 header->nodeName2, 0x10);
     }
-    ((CritterPackedType *)header)->node2Index = (s16)index;
+    header->node2Index = (s16)index;
 }
 
 /* 0x8003FBD0 -- initialize the move tables of every loaded type/subtype. */
