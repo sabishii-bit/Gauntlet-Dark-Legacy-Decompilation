@@ -31,8 +31,9 @@
 /* MWCC deferred inlining emits these definitions in reverse order. The
  * reversed public definitions and deferred BSS declarations recover retail
  * text order, the ten BSS objects, and the complete 0x130-byte numeric pool.
- * Data placement, discarded-helper provenance and exception metadata remain
- * separate obligations; the extracted fallback remains selected. */
+ * The string region is reconstructed below as typed objects and literals.
+ * Two frames and game_main remain nonexact; the extracted fallback stays
+ * selected until complete source-linked code/data/EH verification succeeds. */
 
 extern level_data* gCurLevel;
 extern s32 gGameOptions[];
@@ -376,6 +377,19 @@ extern int MBRemoveBlit(struct MBBLIT* blit);
 /* Independent GAMEMAIN statics: GC references establish the element widths
  * and layout; Xbox GAMEMAIN.OBJ corroborates these names and array bounds. */
 static int screenblitxy[4][2] = {{0, 359}, {256, 359}, {0, 103}, {256, 103}};
+/* The statistics string objects occupy retail .rodata+0..0x5B. Names are
+ * descriptive, not recovered identifiers. The last two have no recovered
+ * caller; the Xbox PDB also names an unrecovered statistics initializer.
+ * Retain the known data without inventing that missing function's body.
+ * Array lengths follow the strings, with alignment left to the compiler. */
+static const char stats_title[] = "FINAL STATS";
+static const char stats_generators_label[] = "GENERATORS";
+static const char stats_treasures_label[] = "TREASURES";
+static const char stats_playtime_label[] = "PLAYTIME";
+static const char stats_playtime_format[] = "%3d:%02d:%02d";
+static const char stats_boss_texture[] = "bosstats";
+static const char stats_tally_texture_format[] = "TALBOARD%02d";
+
 static void* stats_bg_blit[4];
 static int tbuf_treasures[4];
 static int tbuf_enemies[4];
@@ -681,7 +695,7 @@ static inline void disp_generators(Player* pp)
     int width;
 
     DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
-                      stat_yoff[2] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, "GENERATORS");
+                      stat_yoff[2] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, stats_generators_label);
     sprintf(buf, "%d", tbuf_generators[pp->index]);
     width = DrawNormalText(0.5f, buf, 7);
     DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
@@ -695,7 +709,7 @@ static inline void disp_treasures(Player* pp)
     int width;
 
     DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
-                      stat_yoff[3] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, "TREASURES");
+                      stat_yoff[3] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, stats_treasures_label);
     sprintf(buf, "%d", tbuf_treasures[pp->index]);
     width = DrawNormalText(0.5f, buf, 7);
     DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
@@ -715,8 +729,8 @@ static inline void disp_playtime(Player* pp)
     time /= 60;
 
     DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
-                      stat_yoff[5] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, "PLAYTIME");
-    sprintf(buf, "%3d:%02d:%02d", time, minutes, seconds);
+                      stat_yoff[5] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, stats_playtime_label);
+    sprintf(buf, stats_playtime_format, time, minutes, seconds);
     width = DrawNormalText(0.5f, buf, 7);
     DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
                       stat_yoff[5] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, buf);
@@ -2055,7 +2069,7 @@ s32 do_stats_display(void)
     int stalled = 0;
     int done = 1;
 
-    DrawTextKeepScale(0.75f, -256, 0, 7, TEXT_RGB_WHITE, "FINAL STATS");
+    DrawTextKeepScale(0.75f, -256, 0, 7, TEXT_RGB_WHITE, stats_title);
     for (i = 0, p = gPlayers; i < 4; i++, p++) {
         if (p->state != 1 && p->state != 5 && p->state != 4) {
             continue;
