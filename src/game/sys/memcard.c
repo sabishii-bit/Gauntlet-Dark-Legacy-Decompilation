@@ -115,6 +115,7 @@ void MBBlitSetColor(void* blit, int a);
 
 /* ---- data: in-memory directory + options ----------------------------- */
 /* ---- save-cache geometry (see the lane note for the proving uses) ---- */
+#define CARD_SYSTEM_BLOCK_SIZE 8192 /* dolphin/card.h CARD_SYSTEM_BLOCK_SIZE */
 #define SAVE_CACHE_SIZE 0x310000   /* bytes; the `aramSize`/`transferSize` arg */
 #define ARAM_SAVE_CACHE_A 0x9E0000 /* first ARAM block  */
 #define ARAM_SAVE_CACHE_B 0xCF0000 /* second, immediately after A */
@@ -295,9 +296,9 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
     rec += a * 132;
     row = rec + b * 132;
     rec = row + c * 16;
-    strncpy((char*) (rec + 8), name, 8);
-    *(u32*) rec = v0;
-    *(u32*) (rec + offsetof(DirEntry, time)) = v1;
+    strncpy(((DirEntry*) rec)->name, name, 8);
+    ((DirEntry*) rec)->size = v0;
+    ((DirEntry*) rec)->time = v1;
     if ((u8) beginSaveCacheTransaction() == 1) {
         result = 1;
     } else {
@@ -434,9 +435,9 @@ int get_vmu_directory(int a, int b)
             u8* e = dir + off;
 
             if (*(s32*) e == -1 || (s8) e[8] == 0) {
-                strcpy((char*) (e + 8), lbl_803472D8);
+                strcpy(((DirEntry*) e)->name, lbl_803472D8);
             } else {
-                nm = (char*) (e + 8);
+                nm = ((DirEntry*) e)->name;
 
                 if (strcmp(nm, lbl_803472D8) == 0 ||
                     strcmp(nm, lbl_803472E0) == 0) {
@@ -680,12 +681,12 @@ void init_all_dir_info(void)
         u8* e = base + off;
 
         *(s32*) e = fill;
-        *(s32*) (e + offsetof(DirEntry, time)) = fill;
-        strcpy((char*) (e + 8), lbl_803472D8);
+        ((DirEntry*) e)->time = fill;
+        strcpy(((DirEntry*) e)->name, lbl_803472D8);
         i++;
         off += 16;
     } while (i < 8);
-    *(s32*) (base + offsetof(DirTable, count)) = zero;
+    ((DirTable*) base)->count = zero;
     lbl_803449F0 = 0x10000 - 1400;
     cardInit();
     lbl_80344A24 = 0;
@@ -716,8 +717,8 @@ int MemCardCreateGaunt(int port, int slot)
         u8* e = base + i * 16;
 
         *(s32*) e = -1;
-        *(s32*) (e + offsetof(DirEntry, time)) = -1;
-        strcpy((char*) (e + 8), lbl_803472D8);
+        ((DirEntry*) e)->time = -1;
+        strcpy(((DirEntry*) e)->name, lbl_803472D8);
         i++;
     } while (i < 8);
     if (saveMount(port, slot, 1) <= 0) {
@@ -824,7 +825,8 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x10000 - 24576);
-    cardStart(lbl_80344A00 + 8192, 8192, 18);
+    cardStart(lbl_80344A00 + CARD_SYSTEM_BLOCK_SIZE,
+              CARD_SYSTEM_BLOCK_SIZE, 18);
     cardWaitResult();
     cardMount(chan, lbl_803449FC, cardRemovedCallback);
     r = cardWaitResult();
@@ -1013,7 +1015,8 @@ int beginSaveCacheTransaction(void)
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0xA000);
-    cardStart(lbl_80344A00 + 8192, 8192, 18);
+    cardStart(lbl_80344A00 + CARD_SYSTEM_BLOCK_SIZE,
+              CARD_SYSTEM_BLOCK_SIZE, 18);
     cardWaitResult();
     lbl_80344A04 = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x2D44C0);
     return loadGauntletSave();
@@ -1605,7 +1608,8 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x10000 - 24576);
-    cardStart(lbl_80344A00 + 8192, 8192, 18);
+    cardStart(lbl_80344A00 + CARD_SYSTEM_BLOCK_SIZE,
+              CARD_SYSTEM_BLOCK_SIZE, 18);
     cardWaitResult();
     cardMount(0, lbl_803449FC, cardRemovedCallback);
     cardWaitResult();
@@ -1926,7 +1930,8 @@ void beginSaveTransaction(void)
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0xA000);
-    cardStart(lbl_80344A00 + 8192, 8192, 18);
+    cardStart(lbl_80344A00 + CARD_SYSTEM_BLOCK_SIZE,
+              CARD_SYSTEM_BLOCK_SIZE, 18);
     cardWaitResult();
 }
 
