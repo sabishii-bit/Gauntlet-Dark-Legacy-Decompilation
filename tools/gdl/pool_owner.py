@@ -86,6 +86,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tools.fix_exception_objects import Elf
 from tools.gdl import poolval
+from tools.gdl.raw_object import RawObjectError, resolve_object
 
 VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parents[2]
@@ -566,6 +567,19 @@ def predict_first_use(rows, unit, extents=None, derived_bases=None):
                      "verdict"}
 
 
+def compiler_object(unit):
+    """Resolve the active compiler edge; never prefer an abandoned body file.
+
+    Missing active output may be reported as unavailable, but a missing/stale
+    graph refuses rather than silently selecting a plausible old artifact.
+    """
+    try:
+        return resolve_object(unit, root=REPO, version=VERSION,
+                              require_exists=False).path
+    except RawObjectError as error:
+        raise Refused(f"could not select the active compiler object: {error}") from error
+
+
 def analyze(unit, symbols=None, runs=None, candidate_ranges=()):
     symbols = symbols if symbols is not None else poolval.load_symbols()
     runs = runs if runs is not None else load_splits()
@@ -580,9 +594,7 @@ def analyze(unit, symbols=None, runs=None, candidate_ranges=()):
     if not target.exists():
         raise Refused(f"missing target object {target}; run `ninja` or "
                       "`python tools/gdl/provision_worktree.py --resplit`")
-    raw = REPO / "build" / VERSION / "src" / unit
-    raw = raw.parent / ".postprocess" / "body" / (raw.name + ".o")
-    ours = raw if raw.exists() else REPO / "build" / VERSION / "src" / (unit + ".o")
+    ours = compiler_object(unit)
     source = next((REPO / f"src/{unit}{ext}" for ext in (".c", ".cpp")
                    if (REPO / f"src/{unit}{ext}").exists()), None)
     try:

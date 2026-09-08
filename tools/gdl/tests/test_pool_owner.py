@@ -8,8 +8,8 @@ tool distinguishes them rather than printing one plausible page:
     game/sys/ml_mem     owns its .rodata run and its pool order AGREES
     game/enemy/enemy    owns its .sdata2 run, references datums outside it,
                         and its pool order DISAGREES
-    game/game/gamemain  claims NO pool run at all, and every pool datum its
-                        text reads is UNCLAIMED
+    game/game/gamemain  now owns its exact .sdata2 run; its string pool remains
+                        unclaimed. Explicit run fixtures retain no-pool tests.
 
 MEASURED PREMISE CORRECTION (306e80654). The task that commissioned this
 tool described game/enemy/enemy's .sdata2 as UNCLAIMED, with a target run
@@ -28,6 +28,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 GDL = Path(__file__).resolve().parents[1]
 ROOT = GDL.parents[1]
@@ -35,6 +36,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(GDL))
 
 from tools.gdl import pool_owner as po  # noqa: E402
+from tools.gdl.tests.test_raw_object import graph_fixture
 
 RUNS = [
     ("game/sys/ml_mem", ".rodata", 0x801161B0, 0x80116450),
@@ -271,7 +273,11 @@ class LiveUnitTests(unittest.TestCase):
         self.assertTrue(prediction["first_disagreement"]["implied_missing_early_reference"])
 
     def test_a_unit_with_no_claimed_pool_says_so(self):
-        result = po.analyze("game/game/gamemain")
+        # Test the no-claim shape explicitly, not a promise that production
+        # gamemain must remain unclaimed as data reconstruction progresses.
+        runs = [r for r in po.load_splits()
+                if not (r[0] == "game/game/gamemain" and r[1] in po.POOL_SECTIONS)]
+        result = po.analyze("game/game/gamemain", runs=runs)
         self.assertTrue(result["claims_no_pool_run"])
         self.assertEqual(result["claimed_pool_extent"], [])
         self.assertEqual(result["referenced_unclaimed"], result["referenced_pool_datums"])
@@ -279,10 +285,22 @@ class LiveUnitTests(unittest.TestCase):
         self.assertFalse(result["first_use_prediction"]["applicable"])
 
     def test_the_no_pool_report_never_claims_agreement(self):
-        text = po.format_report(po.analyze("game/game/gamemain"))
+        runs = [r for r in po.load_splits()
+                if not (r[0] == "game/game/gamemain" and r[1] in po.POOL_SECTIONS)]
+        text = po.format_report(po.analyze("game/game/gamemain", runs=runs))
         self.assertIn("CLAIMED POOL EXTENT: none", text)
         self.assertIn("FIRST-USE ORDER: NOT APPLICABLE", text)
         self.assertNotIn("agrees with the address order", text)
+
+    def test_gamemain_reports_the_recovered_numeric_pool(self):
+        result = po.analyze("game/game/gamemain")
+        self.assertFalse(result["claims_no_pool_run"])
+        self.assertIn({
+            "section": ".sdata2", "start": "0x80346AB0", "end": "0x80346BE0",
+            "size": 304, "named_datums_in_symbols": 46,
+            "target_section_bytes": 304}, result["claimed_pool_extent"])
+        self.assertEqual(result["our_object"],
+                         "build/GUNE5D/src/game/game/gamemain.o")
 
     def test_the_report_distinguishes_the_three_units(self):
         pages = {unit: po.format_report(po.analyze(unit)) for unit in
@@ -295,6 +313,31 @@ class LiveUnitTests(unittest.TestCase):
         proc = run_cli("game/sys/ml_mem", "--json")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(json.loads(proc.stdout)["unit"], "game/sys/ml_mem")
+
+
+class CompilerObjectTests(unittest.TestCase):
+    def test_retired_body_never_overrides_the_active_native_edge(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            unit = "game/example/example"
+            _, _, plain = graph_fixture(root, unit=unit, native_only=True)
+            stale = root / "build/GUNE5D/src/game/example/.postprocess/body/example.o"
+            stale.parent.mkdir(parents=True)
+            stale.write_bytes(b"not the current compiler output")
+            with patch.object(po, "REPO", root):
+                self.assertEqual(po.compiler_object(unit), root / plain)
+                (root / plain).unlink()
+                self.assertEqual(po.compiler_object(unit), root / plain)
+
+    def test_unvalidated_graph_refuses_even_with_an_old_body(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            stale = root / "build/GUNE5D/src/game/example/.postprocess/body/example.o"
+            stale.parent.mkdir(parents=True)
+            stale.write_bytes(b"old body")
+            with patch.object(po, "REPO", root):
+                with self.assertRaisesRegex(po.Refused, "active compiler object"):
+                    po.compiler_object("game/example/example")
 
 
 class RefusalTests(unittest.TestCase):
