@@ -23,6 +23,7 @@
 #include "game/mbobject.h"
 #include "game/player.h"
 #include "game/worldobj.h"
+#include "game/worldcol.h"
 
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 
@@ -600,7 +601,7 @@ extern void *MBOX_ReallyFindObject(const char *name, s32 type1, s32 type2,
 extern void *MBNewObject(void *object, f32 *matrix, void *parent, u32 flags);
 extern void *FloorCollide(f32 *pos, s32 a, s32 b, s32 mode, f32 x, f32 y,
                           f32 z);
-extern u8    gFloorCollisionResult[]; /* 0x8023CAE0 world-collide result, mtx+Y   */
+extern FloorCollisionResult gFloorCollisionResult; /* 0x8023CAE0 */
 extern f32   lbl_8023CA98[];
 extern void *EnemyWallCollide(f32 radius, f32 *from, f32 *to, f32 *normal);
 extern s32   SlideAlongWall(f32 radius, f32 *pos, f32 *vel, f32 *wallpt,
@@ -3547,16 +3548,16 @@ animate_ai:
     }
     if (collided) {
         c->vel[1] =
-            *(f32 *)(gFloorCollisionResult + 0x34) +
+            gFloorCollisionResult.mtx[3][1] +
             c->hdr->floorOffset;
         if (c->shadow != NULL) {
-            CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
+            CopyMat3((f32 *)gFloorCollisionResult.mtx, (f32 *)c->shadow);
             ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
             ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
             ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
             ((MBObject *)c->shadow)->mat[3][1] =
                 (f32)(lbl_803464B0 +
-                      (f64)*(f32 *)(gFloorCollisionResult + 0x34));
+                      (f64)gFloorCollisionResult.mtx[3][1]);
         }
     }
 
@@ -3845,7 +3846,7 @@ s32 CritterBossAI(Critter *c)
     CritterMove *move;
     CritterMove *childMove;
     CritterPackedType *header;
-    u8 *surface;
+    WorldObj *surface;
     f32 best;
     f32 duration;
     f32 angle;
@@ -4099,16 +4100,16 @@ s32 CritterBossAI(Critter *c)
                    ? 1
                    : 0;
     if (floorHit != 0) {
-        c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
+        c->vel[1] = gFloorCollisionResult.mtx[3][1] +
                     c->hdr->floorOffset;
         if (c->state == 0 && (f64)lbl_8034464C == 0.0 &&
             (c->hdr->typeFlags & 0x80) != 0) {
             s32 surfaceFlags = 0;
-            surface = *(u8 **)(gFloorCollisionResult + 0x44);
+            surface = gFloorCollisionResult.obj;
             if (surface != NULL) {
-                surfaceFlags = (s8)surface[0x16];
-                if (*(u8 **)(surface + 0x18) != NULL) {
-                    surfaceFlags |= (s8)(*(u8 **)(surface + 0x18))[0x16];
+                surfaceFlags = surface->triggerstate;
+                if (surface->parent != NULL) {
+                    surfaceFlags |= surface->parent->triggerstate;
                 }
             }
             if ((surfaceFlags & 0x10) != 0) {
@@ -4117,13 +4118,13 @@ s32 CritterBossAI(Critter *c)
             }
         }
         if (c->shadow != NULL) {
-            CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
+            CopyMat3((f32 *)gFloorCollisionResult.mtx, (f32 *)c->shadow);
             ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
             ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
             ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
             ((MBObject *)c->shadow)->mat[3][1] =
                 (f32)(0.1 +
-                      (f64)*(f32 *)(gFloorCollisionResult + 0x34));
+                      (f64)gFloorCollisionResult.mtx[3][1]);
         }
     }
 
@@ -6466,15 +6467,15 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                    ? 1
                    : 0;
     if (floorHit != 0) {
-        c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
+        c->vel[1] = gFloorCollisionResult.mtx[3][1] +
                     *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
         if (c->shadow != NULL) {
-            CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
+            CopyMat3((f32 *)gFloorCollisionResult.mtx, (f32 *)c->shadow);
             c->shadow->mat[3][0] = c->vel[0];
             c->shadow->mat[3][1] = c->vel[1];
             c->shadow->mat[3][2] = c->vel[2];
             c->shadow->mat[3][1] =
-                *(f32 *)(gFloorCollisionResult + 0x34);
+                gFloorCollisionResult.mtx[3][1];
         }
     } else {
         c->vel[1] = c->vel[1] + *(f32 *)(header + offsetof(CritterPackedType, floorOffset));

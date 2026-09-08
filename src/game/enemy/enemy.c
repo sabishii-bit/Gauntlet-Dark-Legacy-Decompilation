@@ -2,6 +2,7 @@
 #include "game/item.h"
 #include "game/gamemode.h"
 #include "game/worldobj.h"
+#include "game/worldcol.h"
 #include "game/dyngrid.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
@@ -394,17 +395,6 @@ extern f32 lbl_80344880;
 extern level_data* gCurLevel;
 extern void RequestEnemyAction(Enemy* enemy, s32 action);
 
-/* file-local view of world/worldcol.c's FloorCollisionResult; only the
- * floorY field (0x34) is needed here. Layout verified against worldcol.c's
- * FloorCollisionResult typedef (_pad00[0x34]; f32 floorY; ...). Used both
- * for the scratch FloorCollide() output buffer below and (later in this
- * file) for the shared gFloorCollisionResult global -- same shape, two
- * different instances. */
-typedef struct FloorCollisionResultView {
-    u8 _pad00[0x34];
-    f32 floorY;
-} FloorCollisionResultView;
-
 
 /* ===================================================================== *
  *  AI MOVE-LOGIC STATE HANDLERS  (do_ai jumptable, 0x80046B54..0x8004C650)
@@ -592,8 +582,8 @@ typedef struct EnemyGenerator {
  * enemies (unless the overlap is the enemy's own generator).  Returns 1 when
  * the position is usable, 0 when blocked by geometry/occupant, -1 on failure. */
 extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
-/* FloorCollisionResultView is declared near do_enemy_collide above. */
-extern FloorCollisionResultView gFloorCollisionResult; /* 0x8023CAE0 */
+/* FloorCollisionResult is declared near do_enemy_collide above. */
+extern FloorCollisionResult gFloorCollisionResult; /* 0x8023CAE0 */
 extern void* fn_8005EFAC(f32 rad, f32* probe, f32* pos, s32 a, s32 b);
 extern s32 fn_8005D3D8(s32 a, void* obj);
 
@@ -1384,7 +1374,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
                            (f32)(0.5 * rad), enemy->hht,
                            (f32)(-enemy->hht - 5.0));
         if (hit != NULL) {
-            enemy->floory = ((FloorCollisionResultView*)(pool + 0x300))->floorY +
+            enemy->floory = ((FloorCollisionResult*)(pool + 0x300))->mtx[3][1] +
                             enemy->flooroffset;
             if (enemy->shadow != NULL) {
                 CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
@@ -7353,7 +7343,7 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
         return -1;
     }
     {
-        f32 floorY = gFloorCollisionResult.floorY;
+        f32 floorY = gFloorCollisionResult.mtx[3][1];
         f32 dy = floorY - start[1];
         u8 _dpad[8];
 
