@@ -1356,7 +1356,6 @@ void EnterTower(void) {
         f64 alignment;
     } world;
     s32 i;
-    s32 j;
     s32 k;
     s32 count;
     s32 pos;
@@ -1366,6 +1365,7 @@ void EnterTower(void) {
     s32 effect;
     s32 fx;
     u32 runes;
+    s32 j;
     u32 shards;
     u32 runeMask;
     u32 shardMask;
