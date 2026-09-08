@@ -32,169 +32,35 @@ extern void* memcpy(void* dst, const void* src, size_t size);
 
  */
 
-/* ------------------------------------------------------------------ */
-/* Recovered function identities (HIGH confidence, see symbols.txt).   */
-/*                                                                      */
-/*   0x80054230  game_main          -- top game-loop state machine;    */
-/*                                      jumptable @0x8011C398; dispatches*/
-/*                                      init/do_mapscreen, init/do_     */
-/*                                      gamemovie, do_stats_display,    */
-/*                                      pbDiagDrawMenu, ...             */
-/*   0x800522E8  do_stats_display   -- "FINAL STATS" end-of-level tally*/
-/*                                      (GENERATORS/TREASURES/... rows); */
-/*                                      jumptable @0x8011C37C.           */
-/*   0x80053B88  LoadTowerAndSelect -- waits for the async tower load   */
-/*                                      (FatalError "LoadTowerAndSelect */
-/*                                      Timeout" on stall), loads the   */
-/*                                      "shopatt9" font, then loads the */
-/*                                      level via init_next_level_8005638C.      */
-/*   0x8005638C  init_next_level_8005638C    -- builds the "levels/level%s" path */
-/*                                      and loads a level (calls        */
-/*                                      GetEnemyTypes).                  */
-/*   0x80055898  init_thermometer   -- creates the two HUD thermometer  */
-/*                                      display objects and binds the   */
-/*                                      "THERMBASE"/"THERMCOL" models.  */
-/*   0x8005773C  GetEnemyTypes      -- fills the per-level 6-slot enemy */
-/*                                      type table @0x80257680, printing*/
-/*                                      "Enemy type %d has bad subtype  */
-/*                                      %d" on a bad descriptor.        */
-/*                                                                      */
-/* Additional identities recovered this pass (behaviour + Xbox PDB      */
-/* GAMEMAIN.OBJ / gauntworld.obj rosters + on-target strings + call     */
-/* graph; cross-file refs retrofitted in main.c / sounds.c / attract.c  */
-/* / auxscreen.c):                                                       */
-/*                                                                      */
-/*   0x80053420  game_init_data     -- second-stage game/audio init;    */
-/*                                      main() calls game_init_once then */
-/*                                      this; prints "Initializing       */
-/*                                      Audio.../Loading Audio.../        */
-/*                                      Loading Game." around AudioInit. */
-/*   0x80054D18  next_world         -- advance to the next world; picks  */
-/*                                      the next enabled world entry and  */
-/*                                      re-resolves (NextWorldLevel +     */
-/*                                      ResolveWorldData).                */
-/*   0x8005674C  world_update       -- per-frame world update dispatched  */
-/*                                      from game_main: boss state,       */
-/*                                      DoGoodWizard, ProcessSpewItems,   */
-/*                                      world animation / effects.        */
-/*   0x800575CC  PrintWorldMemSizes -- debug dump of per-category memory  */
-/*                                      (OTHER/WORLD/WORLDNODES/ITEMS/    */
-/*                                      WEAPONS/ENEMIES/TOTAL) via         */
-/*                                      mlmMemUsed.                        */
-/*   0x80057978  GetEnemySubtype    -- switch(type) -> subtype code;      */
-/*                                      jumptable @0x8011C794; called by   */
-/*                                      GetEnemyTypes.                     */
-/*   0x800579E0  InLevel            -- compares a 4-char level tag        */
-/*                                      against the current level id;      */
-/*                                      returns bool (utility, called      */
-/*                                      widely).                           */
-/*   0x80057A6C  LevelLetter        -- returns the world/level display     */
-/*                                      letter ('T'->'G' remap); sounds.c  */
-/*                                      builds "MAP_%c"/"S_MAP_%c" banks.  */
-/*   0x80057C14  NextAttractWave    -- advance the attract-mode wave/      */
-/*                                      world (called from attract.c).     */
-/*   0x80057D94  PrevWorldLevel     -- previous level matching a wave      */
-/*                                      mask, wrapping to the prev world.  */
-/*   0x80057E6C  NextWorldLevel     -- next level matching a wave mask,    */
-/*                                      wrapping to the next world.        */
-/*                                                                      */
-/* Native matching is deferred while artificial source scaffolding is  */
-/* removed. Complete TU data ownership/linkage remains unresolved too.  */
-/* The extracted fallback remains selected; no TU promotion is implied. */
-/* ------------------------------------------------------------------ */
+/* Native matching is deferred during source reconstruction. Data placement,
+ * discarded-helper provenance and exception metadata are separate obligations;
+ * the extracted fallback remains selected. */
 
-/* ------------------------------------------------------------------ */
-/* Cross-TU externs (types chosen to reproduce the emitted access form) */
-/* ------------------------------------------------------------------ */
+extern level_data* gCurLevel;
+extern s32 gGameOptions[];
+extern s32 lbl_80257640[];
+extern void* lbl_80257630[4];
 
-/* Per-level navigation record reached through gWorldData->levels. */
-typedef struct WorldLevelNav {
-    u32 flags;
-    s16 flags2;
-    u8 _06[0x106];
-} WorldLevelNav;
-
-/* Head of the loaded world-data blob: level cursor plus the level array. */
-typedef struct WorldDataNav {
-    u8 _00[0x16];
-    s16 curLevel;
-    s16 numLevels;
-    u8 _1A[2];
-    WorldLevelNav* levels;
-} WorldDataNav;
-
-/* Fog block embedded in level_data at +0x70. include/game/leveldata.h
- * reserves exactly `u8 fog[0x1C]` there, and the Xbox PDB's fog_data
- * (misc.h) is exactly 0x1C with no pad gaps; every offset this TU reads
- * raw is a field start of the matching width. Kept file-local rather than
- * widening the shared header. */
-typedef struct FogData {
-    u8  type;         /* 0x00 fog mode                     */
-    u8  color[3];     /* 0x01 packed RGB                   */
-    f32 intensity;    /* 0x04                              */
-    f32 density;      /* 0x08                              */
-    f32 min;          /* 0x0C                              */
-    f32 max;          /* 0x10 (also reached as gCurLevel+0x80) */
-    f32 nearw;        /* 0x14                              */
-    f32 farw;         /* 0x18                              */
-} FogData;            /* 0x1C */
-
-/* Active level / world-data records (SDA-relative pointers). */
-extern level_data* gCurLevel;      /* 0x8034483C */
-extern WorldDataNav* gWorldData;   /* 0x80344838 */
-
-/* 44-byte per-realm world-data descriptor table (0x8011... via ADDR16). */
-typedef struct WorldDataType {
-    s32 type;        /* 0x00 realm type id            */
-    u8  _04[11];
-    u8  letter;      /* 0x0F display letter           */
-    s32 available;   /* 0x10 world data is loaded     */
-    s32 f20;         /* 0x14 associated world value    */
-    s32 _b[4];       /* 0x18                          */
-    s32 attractLevel;/* 0x28 attract-mode level index */
-} WorldDataType;                   /* size 0x2C (44) */
-extern WorldDataType sWorldDataTypes[];
-extern u8 sWorldLevelTable[];
-extern s32  sCurWorldIndex;        /* 0x80344844 */
-
-/* Flat views of the big module globals (avoids header coupling). */
-extern s32  lbl_80250E00[];        /* enemy/texmod pool base             */
-extern s32  lbl_802511FC[];        /* per-index sign-flip table          */
-typedef struct Row36 {
-    s32 f0;      /* 0x00 key   */
-    s32 f4;      /* 0x04       */
-    s32 _a[3];   /* 0x08       */
-    s32 f14;     /* 0x14       */
-    s32 _b[3];   /* 0x18       */
-} Row36;                           /* size 0x24 (36) */
-extern Row36 lbl_8011AF48[];       /* 44-entry, stride 36 lookup table   */
-extern s32  lbl_80257640[];        /* 4-entry threshold table            */
-extern void* lbl_80257630[4];      /* timer face, upper/lower sand, animation */
-extern s32  gGameOptions[];        /* prefs/config block                 */
-extern s32  lbl_802577CC[];        /* 8 keys                             */
-extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
+/* These names describe verified uses, not recovered original identifiers.
+ * The renderer accepts packed RGB; FatalError records its second argument as
+ * an error code. next_world adds WORLD_OVERRIDE_BASE to an explicit selection,
+ * distinguishing it from the ordinary exit-reason range below that value. */
+enum {
+    TEXT_RGB_WHITE = 0xFFFFFF,
+    WORLD_LOAD_TIMEOUT_ERROR = 0x8000,
+    WORLD_OVERRIDE_BASE = 0x10000,
+    WORLD_RANDOM_SEED = 0x12D687
+};
 
 /* SDA-relative scalars (all in .sdata/.sbss). */
 extern s32   lbl_80343C0C;
 extern u64   gControllerButtons;
-extern s32   sFlags;
 extern s32   lbl_80344A2C;
-extern s32   lbl_8034476C;
-extern s32   lbl_80344768;
-extern s32   lbl_803441B0;
-extern s32   lbl_803441B4;
-extern s32   lbl_803441B8;
-extern s32   lbl_803443BC;
-extern s32   gNumPlayers;
-extern s32   lbl_80344760;
 extern s32   lbl_80343C10;
 extern s32   lbl_80343DD4;
 extern s32   lbl_80343B38;
 extern s32   lbl_803448AC;
 extern s32   lbl_803448A8;
-extern s32   lbl_8034471C;
-extern s32   lbl_80344738;
-extern s32   lbl_80344734;
 extern void* lbl_803447B0;
 extern s32   gBossType;            /* 0x8034439C */
 
@@ -202,16 +68,6 @@ extern s32   gBossType;            /* 0x8034439C */
  * (included above) so consumer TUs can reference the names too. */
 
 extern s32   gGameMode;
-extern s32   lbl_80344740;
-extern s32   lbl_80344748;
-extern s32   lbl_80344750;
-extern s32   lbl_8034474C;
-extern s32   lbl_8034473C;
-extern s32   gSceneRoot;
-extern s32   gNumEnemies;          /* 0x80344744 */
-extern f32   lbl_80346820;
-extern f32   lbl_803468B0;
-extern f32   lbl_80346A80;
 /* Xbox MILESTONE is an OBJGRP wrapper (misc.h, size 0x68). GC confirms
  * stride 104 and node at +96 in fn_80055AFC; ShowMilestones supplies the
  * matrix to add_arrow and stores that returned node at the same offset.
@@ -223,32 +79,11 @@ extern MILESTONE sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
 extern f32   gIdentityMatrix[];       /* identity matrix */
-extern f32   lbl_80346A7C;
-extern u32   RandInt(u32 limit);
-extern void* sGoodWizObj;
-extern void* gWadAtreeHeaders[];
-extern s32   lbl_802512B0[];
-extern char* lbl_8011BFF8[];
-extern u8    lbl_80126EC0[];
 DECL_SECT(".sdata2") extern const char lbl_80346770[];
 
 
-extern s32   stricmp(const char* a, const char* b);
-extern s32   toupper(s32 c);
 extern void  AtreeAlloc(s32 a, s32 b);
-extern void  DoTexMods(void* data);
-extern s32   DoWorldAnimSub(void* track, void* animdata, void* animBase);
-extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
-extern void  SfxDeleteParented(void* node, s32 arg1, s32 player);
-extern void  AtreeDelete(void* atree);
-extern void  MBRemoveNode(void* node, s32 recursive);
-extern s32   fn_80011BBC(void* model, const char* name, void* atreeOut,
-                         const char* work, s32 workSize);
-extern void  InitActions(void* atree, void* actionList, void* actionTable);
 extern void* MBOX_NewObject(const char* name, f32* matrix, void* parent, u32 flags);
-extern void* MBOX_ReallyFindObject(const char* name, s32 type1, s32 type2, s32 exact);
-extern void* MBNewObject(void* object, f32* matrix, void* parent, u32 flags);
-extern void  MBNodeSetParent(void* node, void* parent);
 
 /* game_init_data externs. */
 extern s32   lbl_80344800;
@@ -261,8 +96,6 @@ extern s32   lbl_80344758;
 extern s32   lbl_80344B84;
 extern s32   alpha;
 extern s32   lbl_80344784;
-extern s32   lbl_80344DA4;
-extern s32   lbl_80344DA0;
 extern s32   lbl_8034481C;
 extern s32   sLastWorldLevel;
 extern s32   sFirstWorldId;
@@ -271,7 +104,6 @@ extern s32   gDemoMode;
 extern s32   opt_force_player;
 extern void* lbl_8034479C;
 extern s32   options_state;
-extern u8    optionsAudioAndPrefs[];
 extern s32   optionsAudioAndPrefs30[];
 extern s16   lbl_80343C14;
 extern f32   lbl_80343C18;
@@ -284,7 +116,25 @@ typedef struct GamemainWindowCamera {
     f32 pos[3];
 } GamemainWindowCamera;
 typedef struct GamemainWindowView {
-    u8 projection_fields[0x64];
+    f32 xscale;
+    f32 yscale;
+    f32 xcenter;
+    f32 ycenter;
+    f32 unk10;
+    f32 width;
+    f32 height;
+    f32 ang;
+    f32 hang;
+    f32 tanAng;
+    f32 tanHang;
+    f32 cotAng;
+    f32 cotHang;
+    f32 cosAng;
+    f32 cosHang;
+    f32 rect1[4];
+    f32 rect2[4];
+    f32 nearZ;
+    f32 farZ;
     GamemainWindowCamera cam;
 } GamemainWindowView;
 extern GamemainWindowView* lbl_80344EE8;
@@ -312,7 +162,7 @@ extern void  LoadItems(void);
 extern void  EndFireScroll(void);
 extern void  DeleteOptionBlits(void);
 extern void  SumnerEnd(void);
-extern void  Randomize(s32 seed);
+extern void  Randomize(u32 seed);
 extern void  ResetPlayerMissiles(void);
 extern void  ClearAllPlyrData(void);
 extern void  InitializeClockIRQ(void);
@@ -371,13 +221,6 @@ extern s32   lbl_803447F4;
 extern s32   lbl_80344810;
 extern f32   lbl_80344814;
 extern f32   lbl_80344818;
-extern f64   lbl_80346AE8;
-extern f32   lbl_80346BE0;
-extern f32   lbl_80346BE4;
-extern f32   lbl_80346BE8;
-extern f32   lbl_80346BEC;
-extern f32   lbl_80346BF0;
-extern f32   lbl_80346BF4;
 extern s32   BytesFree(void);
 extern s32   fn_80057F44(s32 code, s32 mask);
 extern void  NewWorld(s32 arg0);
@@ -397,84 +240,9 @@ extern void  mbBlitSetupVerts(void* blit, f32 a, f32 b, f32 c, f32 d);
 extern void  mbBlitCalcY(void* blit, s32 y);
 extern s32   Round(f32 value);
 extern void  MBBlitSetAlpha(void* blit, s32 a);
-extern s32   fn_80093BC0(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g, f32 h);
-extern void  SfxSetDamage(s32 a, s32 b, s32 c, f32 d, f32 e, f32 f);
-extern void  ScaleFX(s32 a, f32 b, f32 c, f32 d);
-extern void  AudioWorldExplosion(s32 a);
 
-typedef struct EffectInfoEntry {
-    void* f0;
-    s32 f4;
-    s32 f8;
-} EffectInfoEntry;                 /* size 12 */
-extern EffectInfoEntry EffectInfo[];
 
-/* PrintWorldMemSizes / GetEnemyType externs. */
-extern char  lbl_80112788[];       /* debug format-string table */
-
-/* Byte offsets of the individual string literals inside the pooled .rodata
- * constant object lbl_80112788 (0x80112788, size 0x24C).  Each entry is a
- * NUL-terminated literal padded to a 4-byte boundary; the values below are
- * read from the retail image.  Only the boss .wad names consumed by
- * init_next_level_8005638C are named here. */
-enum {
-    STR_LEVELS_LEVEL_S = 0,    /* "levels/level%s" */
-    STR_DRAGON_WAD     = 16,   /* "dragon.wad"  */
-    STR_CHIMERA_WAD    = 28,   /* "chimera.wad" */
-    STR_DJINN_WAD      = 40,   /* "djinn.wad"   */
-    STR_DRIDER_WAD     = 52,   /* "drider.wad"  */
-    STR_PBOSS_WAD      = 64,   /* "pboss.wad"   */
-    STR_YETI_WAD       = 76,   /* "yeti.wad"    */
-    STR_LICH_WAD       = 88,   /* "lich.wad"    */
-    STR_WRAITH_WAD     = 100,  /* "wraith.wad"  */
-    STR_SKORNE1_WAD    = 112,  /* "skorne1.wad" */
-    STR_SKORNE2_WAD    = 124,  /* "skorne2.wad" */
-    STR_GARM_WAD       = 136,  /* "garm.wad"    */
-    STR_GOLEMI_WAD     = 148,  /* "golemI.wad"  */
-    STR_GOLEMF_WAD     = 160,  /* "golemF.wad"  */
-    STR_GOLEM_WAD      = 172,  /* "golem.wad"   */
-    STR_GENERAL_WAD    = 184,  /* "general.wad" */
-    STR_GAR_S_WAD      = 196   /* "gar_%s.wad"  */
-};
-
-extern s32   lbl_80257680[];       /* per-level enemy type table */
-typedef struct WorldMemTable {
-    u8  _0[140];
-    s32 sizes[8];     /* 0x8C */
-    u8  _1[160];
-    s32 typeids[8];   /* 0x14C */
-} WorldMemTable;
-extern s32   lbl_8011B578[];       /* category name-string table */
-extern s32   lbl_802577AC[];
-extern char  lbl_801124EC[];
-extern s32   lbl_80344850;
-extern s32   lbl_80344854;
-extern s32   lbl_80344858;
-extern s32   lbl_8034485C;
-extern s32   lbl_80343C30;
-extern s32   lbl_80344870;
-extern u32   lbl_80344874;
-extern s32*  lbl_80344878;
-extern s32   lbl_8025778C[];
-extern s32   lbl_80344D80;
-extern s32   lbl_80344D84;
-extern s32   lbl_80344D88;
-extern s32   dbgTextEnable;
-extern s32   mlmMemUsed;
-extern void  ErrorPrintf(const char* fmt, ...);
-extern void  WorldLoadModelDone(void* world);
-extern s32   WorldLoadModelStart(void);
-extern s32   StartWorldLoad(s32 arg0);
-extern s32   StartLoadWorldAnim(void* world);
-extern s32   FinishLoadWorldAnim(void);
-extern void  MBOX_BGLoadModelStart(char* name, void* model);
-extern s32   MBOX_BGLoadModelDone(void);
-extern s32   FileSize(char* wad, const char* name);
-extern s32*  StartFileRead(char* wad, const char* name, s32 mode, s32 size,
-                           void* dest, void* callback);
-extern s32   CritterLoadStartNext(void);
-extern s32   CritterLoadDone(s32 maxBytes);
-extern void  fn_8001267C(void* header, void* object, s32 arg2);
+extern s32 MBOX_BGLoadModelDone(void);
 
 /* fn_800521E8 / SetPlayerVars externs. */
 extern s32   gGameBusy;
@@ -482,7 +250,6 @@ extern s32   lbl_80344774;
 extern s32   gFrameTicks;
 extern s32   lbl_80344778;
 extern s32   lbl_803441F8;
-extern f32   lbl_80346AB8;
 extern void  fn_8009FB00(void);
 extern void  SetDrawStringScale(f32 s);
 /* Local mirror of mb_font.c's queued message, returned through the opaque
@@ -512,11 +279,7 @@ extern f32   lbl_803447D8;
 extern s32   lbl_803447DC;
 extern s32   lbl_803447E0;
 
-/* Called helpers (signatures picked to reproduce the argument setup). */
-extern void  InitEnemyMissiles(s32 idx);
-extern s32   fn_8005A1EC(const char* name, void** outData);
-extern s32   LoadModel(const char* name, void** outData, s32 initTexMods, s32 model);
-extern void  FatalErrorf(const char* fmt, ...);
+/* Called helpers; pointer/FPR argument order follows the owning APIs. */
 extern char  lbl_80112370[];
 extern int   sprintf(char* s, const char* fmt, ...);
 extern void* fn_80057ACC(s32 key);
@@ -527,15 +290,15 @@ extern void  setup_player_models(void);
 extern void  UnloadWeaponsPowerups(void);
 extern void  LoadWeapons(void);
 extern void  LoadWorldData(void);
-extern void  MBOX_LockModels(void);
+extern void  MBOX_LockModels(s32 slot);
 extern void  AtreeListLock(s32 arg0);
 extern void  AudioStopSelect(void);
 extern void  init_prefs(void);
-extern void  InitTexMods(void* tex, s32 arg1);
 extern void  MBTreeSetFlags(void* node, s32 flags, s32 arg2);
 extern void  MBTreeClearFlags(void* node, s32 flags, s32 arg2);
 extern void  MBTreeSetAlpha(void* node, s32 alpha, s32 arg2);
-extern void  MBWindowTo3D(f32 depth, s16* screen, f32* camera, f32* out);
+extern void  MBWindowTo3D(s16* screen, GamemainWindowCamera* camera,
+                          f32* out, f32 depth);
 
 /* Forward decls for same-TU functions referenced before definition. */
 void game_main(void);
@@ -649,7 +412,7 @@ void fn_800521E8(void)
         idx = 9;
     }
     SetDrawStringScale(2.0f);
-    txt = (MBTextMsg*)DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
+    txt = (MBTextMsg*)DrawStringText(-256, 120, 6, TEXT_RGB_WHITE, 169, 0);
     RestoreDrawStringScale();
     textData = txt->text;
     textData[idx] = 0;
@@ -670,11 +433,10 @@ void fn_800521E8(void)
     lbl_803448AC = -1;
     lbl_803448A8 = -1;
     lbl_803441F8 = 1;
-    init_attract_mode(0x8002);
+    init_attract_mode(MA_MOVIE);
 }
 
 /* 0x800522E8 -- "FINAL STATS" end-of-level tally and display. */
-extern s32  lbl_8011C300[];        /* per-class stats screen layout table */
 /* Shared controller record, as reconstructed by controls.c (0x3C stride).
  * The tally helpers read held buttons, not a character descriptor. */
 typedef struct CTL {
@@ -810,7 +572,7 @@ static inline void disp_pname(Player* pp)
         strcpy(buf, "NO NAME");
     }
     DrawTextKeepScale(0.6f, -stat_cx[pp->index],
-                      stat_yoff[0] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+                      stat_yoff[0] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, buf);
 }
 
 static inline void disp_enemies(Player* pp)
@@ -819,11 +581,11 @@ static inline void disp_enemies(Player* pp)
     int width;
 
     DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
-                      stat_yoff[1] + stat_ty[pp->index], 7, 0xFFFFFF, "ENEMIES");
+                      stat_yoff[1] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, "ENEMIES");
     sprintf(buf, "%d", tbuf_enemies[pp->index]);
     width = DrawNormalText(0.5f, buf, 7);
     DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
-                      stat_yoff[1] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+                      stat_yoff[1] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, buf);
 }
 
 static inline void disp_generators(Player* pp)
@@ -832,11 +594,11 @@ static inline void disp_generators(Player* pp)
     int width;
 
     DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
-                      stat_yoff[2] + stat_ty[pp->index], 7, 0xFFFFFF, "GENERATORS");
+                      stat_yoff[2] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, "GENERATORS");
     sprintf(buf, "%d", tbuf_generators[pp->index]);
     width = DrawNormalText(0.5f, buf, 7);
     DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
-                      stat_yoff[2] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+                      stat_yoff[2] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, buf);
 }
 
 static inline void disp_treasures(Player* pp)
@@ -845,11 +607,11 @@ static inline void disp_treasures(Player* pp)
     int width;
 
     DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
-                      stat_yoff[3] + stat_ty[pp->index], 7, 0xFFFFFF, "TREASURES");
+                      stat_yoff[3] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, "TREASURES");
     sprintf(buf, "%d", tbuf_treasures[pp->index]);
     width = DrawNormalText(0.5f, buf, 7);
     DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
-                      stat_yoff[3] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+                      stat_yoff[3] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, buf);
 }
 
 static inline void disp_playtime(Player* pp)
@@ -864,11 +626,11 @@ static inline void disp_playtime(Player* pp)
     time /= 60;
 
     DrawTextKeepScale(0.5f, stat_lx[pp->index] + 7,
-                      stat_yoff[5] + stat_ty[pp->index], 7, 0xFFFFFF, "PLAYTIME");
+                      stat_yoff[5] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, "PLAYTIME");
     sprintf(buf, "%3d:%02d:%02d", time, minutes, seconds);
     width = DrawNormalText(0.5f, buf, 7);
     DrawTextKeepScale(0.5f, stat_rx[pp->index] - width,
-                      stat_yoff[5] + stat_ty[pp->index], 7, 0xFFFFFF, buf);
+                      stat_yoff[5] + stat_ty[pp->index], 7, TEXT_RGB_WHITE, buf);
 }
 
 s32 do_stats_display(void)
@@ -878,7 +640,7 @@ s32 do_stats_display(void)
     int stalled = 0;
     int done = 1;
 
-    DrawTextKeepScale(0.75f, -256, 0, 7, 0xFFFFFF, "FINAL STATS");
+    DrawTextKeepScale(0.75f, -256, 0, 7, TEXT_RGB_WHITE, "FINAL STATS");
     for (i = 0, p = gPlayers; i < 4; i++, p++) {
         if (p->state != 1 && p->state != 5 && p->state != 4) {
             continue;
@@ -1051,7 +813,7 @@ void* fn_80057ACC(s32 key);
 /* 0x8005403C -- lock the model box, then run AtreeListLock. */
 void LockModels(s32 arg0)
 {
-    MBOX_LockModels();
+    MBOX_LockModels(arg0);
     AtreeListLock(arg0);
 }
 
@@ -1126,7 +888,7 @@ void LoadTowerAndSelect(void)
         SelectLoadStart();
         while (SelectLoadDone() == 0) {
             if (pbLoad > timeout) {
-                FatalError("LoadTowerAndSelect Timeout", 0x8000);
+                FatalError("LoadTowerAndSelect Timeout", WORLD_LOAD_TIMEOUT_ERROR);
             }
         }
     }
@@ -1156,7 +918,7 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
     SumnerEnd();
     AudioStopSelect();
     good_wiz_enabled = 0;
-    Randomize(0x12D687);
+    Randomize(WORLD_RANDOM_SEED);
     good_wiz_state = 0;
     ResetPlayerMissiles();
     ClearAllPlyrData();
@@ -1234,11 +996,6 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
 }
 
 /* 0x80054D18 -- choose and resolve the next world/level selection. */
-static inline s32 load_world_option(s32* options)
-{
-    return options[9];
-}
-
 s32 next_world(void)
 {
     s32 world;
@@ -1248,7 +1005,7 @@ s32 next_world(void)
     s32 t2;
     register s32 selected;
 
-    if (state >= 13 && state < 0x10000) {
+    if (state >= 13 && state < WORLD_OVERRIDE_BASE) {
         transitioning = 1;
     }
     if (transitioning != 0) {
@@ -1264,12 +1021,12 @@ s32 next_world(void)
         world = lbl_80344B84;
         forced = 1;
     } else if (sLastWorldLevel < 0) {
-        selected = load_world_option(gGameOptions);
+        selected = gGameOptions[9];
         world = selected;
         if ((selected >> 8) >= NUMWORLDS) {
             world = sFirstWorldId;
         }
-        lbl_8034481C = world + 0x10000;
+        lbl_8034481C = world + WORLD_OVERRIDE_BASE;
         forced = 1;
     } else {
         s32 i;
@@ -1436,9 +1193,8 @@ void fn_80052134(void)
             MBTreeSetFlags(lbl_8034479C, 1, 0);
         } else {
             MBTreeClearFlags(lbl_8034479C, 1, 0);
-            MBWindowTo3D(lbl_80343C1C, &lbl_80343C14,
-                         lbl_80344EE8->cam.mat,
-                         ((MBObject*)lbl_8034479C)->mat[3]);
+            MBWindowTo3D(&lbl_80343C14, &lbl_80344EE8->cam,
+                         ((MBObject*)lbl_8034479C)->mat[3], lbl_80343C1C);
             for (i = 0; i < 3; i++) {
                 ((MBObject*)lbl_8034479C)->scale[i] = lbl_80343C18;
             }
@@ -1457,7 +1213,7 @@ void SetPlayerVars(void)
     Player* e;
     s32 i;
     s32 type;
-    s32 f292;
+    s32 playerFlags;
 
     lbl_803447D4 = lbl_803447D8;
     lbl_803447DC = 0;
@@ -1477,11 +1233,11 @@ void SetPlayerVars(void)
             count3++;
         }
         if (type == 1) {
-            f292 = e->flags;
-            if (f292 & 0x8) {
+            playerFlags = e->flags;
+            if (playerFlags & 0x8) {
                 lbl_803447DC = 1;
             }
-            if (bossType < 0 && (f292 & 0x200)) {
+            if (bossType < 0 && (playerFlags & 0x200)) {
                 lbl_803447D8 = lbl_803447D8 * 0.667;
             }
         }
@@ -1796,7 +1552,7 @@ void fn_8005351C(void)
     s32 i;
     Player* p;
 
-    if (state >= 13 && state < 0x10000) {
+    if (state >= 13 && state < WORLD_OVERRIDE_BASE) {
         t = 1;
     }
     if (t != 0) {
@@ -1909,14 +1665,9 @@ void fn_8005351C(void)
                 } else if (sMusicTrackHi != 12) {
                     PlayerSaveState(i, 1);
                 }
-                {
-                    s32* experience;
-                    /* GC takes the field address before testing exp and
-                     * uses that same address for the conditional store. */
-                    if (*(experience = &player->exp) == 0) {
-                        *experience = 1;
-                        player->saved = 0;
-                    }
+                if (player->exp == 0) {
+                    player->exp = 1;
+                    player->saved = 0;
                 }
             }
         }
@@ -1964,13 +1715,6 @@ void fn_8005351C(void)
 extern s32  lbl_803447B8;
 extern s32  gGameplayPauseTimer;
 extern f32  gClockFrameStep;
-extern f32  lbl_80346B08;
-extern f64  lbl_80346B18;
-extern f64  lbl_80346B28;
-extern f64  lbl_80346B30;
-extern f64  lbl_80346B40;
-extern f64  lbl_80346B48;
-extern f64  lbl_80346B50;
 extern void AudioFootstep(s32 n);
 extern void fn_8009FA84(void);
 extern void fn_8009FCA8(s32 n);
@@ -2137,11 +1881,11 @@ void game_main(void)
         lbl_803448A8 = -1;
         while (!MBOX_BGLoadModelDone()) {
         }
-        init_attract_mode(0x8009);
+        init_attract_mode(MA_TITLESCREEN);
     }
     cond = 0;
     c = lbl_8034481C;
-    if (c >= 13 && c < 0x10000) {
+    if (c >= 13 && c < WORLD_OVERRIDE_BASE) {
         cond = 1;
     }
     flag = cond ? 1 : 0;
@@ -2341,7 +2085,7 @@ void game_main(void)
             next = -1;
             cond = 0;
             c = lbl_8034481C;
-            if (c >= 13 && c < 0x10000) {
+            if (c >= 13 && c < WORLD_OVERRIDE_BASE) {
                 cond = 1;
             }
             flag2 = cond ? 1 : 0;
@@ -2359,12 +2103,12 @@ void game_main(void)
             } else if (opt_restart_request) {
                 next = sWorldDataConst;
             } else if (c == 0 || c == 12) {
-                if (gBossType == 0x2c) {
-                    init_gamemovie(0x2c);
+                if (gBossType == E_GARM) {
+                    init_gamemovie(E_GARM);
                     sLastWorldLevel = sWorldDataConst;
                     next = -2;
-                } else if (gBossType == 0x2b) {
-                    init_gamemovie(0x2b);
+                } else if (gBossType == E_SKORNE2) {
+                    init_gamemovie(E_SKORNE2);
                     sLastWorldLevel = sWorldDataConst;
                     next = -2;
                 } else if ((s32)lbl_803448D0 == 12) {
@@ -2419,7 +2163,7 @@ void game_main(void)
         break;
     case MG_STATS:
         if (do_stats_display()) {
-            init_gamemovie(0x2c);
+            init_gamemovie(E_GARM);
         } else {
             do_players();
         }
@@ -2513,10 +2257,10 @@ void fn_80054E78(void)
                          (f32)(60.0 * lbl_80344818));
 
             if ((gControllerButtons & 0x10) != 0) {
-                DrawText(-256, 8, 6, 0xFFFFFF, "%.1f",
+                DrawText(-256, 8, 6, TEXT_RGB_WHITE, "%.1f",
                          lbl_80344814 - lbl_80344818);
             } else if ((gControllerButtons & 0x10) != 0) {
-                DrawText(-256, 8, 6, 0xFFFFFF, "%.1f", lbl_80344818);
+                DrawText(-256, 8, 6, TEXT_RGB_WHITE, "%.1f", lbl_80344818);
             }
         }
     }
