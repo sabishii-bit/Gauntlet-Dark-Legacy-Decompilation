@@ -1081,6 +1081,7 @@ static void debug_player_pos(s32 i) {
         oldflags = MBSetFontFlags(0x40000);
         work.y = 330.0f;
         x = &lbl_80120238[i];
+        // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, name);
         work.y += 10.0f;
         sprintf((char*)base + 0x4F4, fmt + 920,
@@ -6691,6 +6692,7 @@ void mini_inventory_draw_label(s32 i) {
     switch (st) {
     case 1:
     case 3:
+        // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawTextKeepScale(0.45f, x, y, 6, 0xFFFFFF, label);
         break;
     case 2:

@@ -3024,6 +3024,7 @@ void fn_8005ACE0(f32* position)
         if ((u32)value >= 17) {
             return;
         }
+        // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawText(-screenX, screenY, 0, 0xFFFFFF, "%s:%s:%d(%d)",
                  names[displayType + 43], names[value + 57], field,
                  item->minplayers);
@@ -3053,6 +3054,7 @@ void fn_8005ACE0(f32* position)
         break;
 
     default:
+        // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawText(-screenX, screenY, 0, 0xFFFFFF, "%s(%d)",
                  names[displayType + 43], item->minplayers);
         break;
