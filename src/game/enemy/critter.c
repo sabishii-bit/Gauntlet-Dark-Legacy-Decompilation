@@ -1238,8 +1238,7 @@ f32 *delta;
         result |= 0x10;
         delta[0] = delta[2] = 0.0f;
     }
-    /* lint-allow-next-line FM001, FM007: numeric constant whose meaning is not recovered yet */
-    *(u32 *)((u8 *)c + 0x448) = result;
+    c->hitwall = result;
     if (surface != NULL) {
         /* lint-begin FM001: unrecovered: the world surface record has no type in this tree */
         if (*(void **)((u8 *)surface + offsetof(WorldObj, nodeptr)) != NULL &&
@@ -3496,8 +3495,7 @@ s32 ProcessCritter(Critter *c)
     c->movevec[0] = c->vel[0];
     c->movevec[1] = c->vel[1] + c->hdr->vertDrift;
     c->movevec[2] = c->vel[2];
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
-    MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos, &c->mtx[0][0]);
+    MulVec4Mat3(c->hdr->originOffset, c->pos, &c->mtx[0][0]);
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
@@ -3710,10 +3708,8 @@ ai_done:
     c->movevec[0] = c->vel[0];
     c->movevec[1] = c->vel[1] + c->hdr->vertDrift;
     c->movevec[2] = c->vel[2];
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
-    MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos,
+    MulVec4Mat3(c->hdr->originOffset, c->pos,
                 &c->mtx[0][0]);
-    /* lint-end FM007 */
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
@@ -6563,10 +6559,8 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     }
     switch (root->hdr->descriptor->type) {
     case 8:
-        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
         root->particle = FindClosestWaypoint(lbl_80346594,
-                                             (f32 *)((u8 *)root + 0x3C), 0);
-        /* lint-end FM007 */
+                                             root->vel, 0);
         break;
     default:
         break;
