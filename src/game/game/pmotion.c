@@ -2166,7 +2166,6 @@ store_motion_state:
             }
             if (p->quest_state >= 4 &&
                 (p->act_bits & ~1U) == 0) {
-#pragma opt_common_subs off
                 switch (gBossType) {
                 case 36:
                 case 37:
@@ -2195,7 +2194,6 @@ store_motion_state:
                 }
             }
         }
-#pragma opt_common_subs reset
 
         DoPlayerAction(p);
 
