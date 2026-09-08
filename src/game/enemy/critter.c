@@ -768,8 +768,8 @@ f32 *delta;
 
     cpos = c->pos;
     best = 0.0f;
-    radius = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
-    height = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, radius));
+    radius = ((CritterPackedType *)c->hdr)->wallRadius;
+    height = ((CritterPackedType *)c->hdr)->radius;
     center[0] = cpos[0] + delta[0];
     bestIndex = -1;
     center[1] = cpos[1] + delta[1];
@@ -787,7 +787,7 @@ f32 *delta;
         }
         combinedRadius = radius + enemy->rad;
         combinedHeight = height + enemy->hht;
-        if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x100) != 0) {
+        if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
             hit = CritterMoveNodeColSub(c, combinedRadius, combinedHeight, delta,
                     enemy->objgrp.coll_pos, contact, 1);
         } else {
@@ -823,7 +823,7 @@ f32 *delta;
             if ((f64)enemy->hht <= 2.0) {
                 damage_enemy(enemy, -1, 0,
                              ((CritterPackedType *)c->hdr)->damageScale *
-                             *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage)),
+                             ((level_data *)gCurLevel)->ene_damage,
                              bestContact, NULL, 1);
                 return 0;
             }
@@ -880,22 +880,22 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
                                      offsetof(CritterHitNode, active))) == NULL) {
                     continue;
                 }
-                if (*(f32 *)(node + offsetof(CritterHitNode, activeFrom)) >=
-                    *(f32 *)(node + offsetof(CritterHitNode, activeUntil))) {
+                if (((CritterHitNode *)node)->activeFrom >=
+                    ((CritterHitNode *)node)->activeUntil) {
                     continue;
                 }
                 desc = *(u8 **)(node + offsetof(CritterHitNode, descriptor));
-                if ((*(s16 *)(desc + offsetof(CritterColDescriptor, flags)) & 8) == 0) {
+                if ((((CritterColDescriptor *)desc)->flags & 8) == 0) {
                     continue;
                 }
-                npos = (f32 *)(node + offsetof(CritterHitNode, position));
+                npos = ((CritterHitNode *)node)->position;
                 center[0] = npos[0] + delta[0];
                 center[1] = npos[1] + delta[1];
                 center[2] = npos[2] + delta[2];
                 desc = *(u8 **)(node + offsetof(CritterHitNode, descriptor));
                 result = fn_8005F0F4(
                     item, npos,
-                    center, out, *(f32 *)(desc + offsetof(CritterColDescriptor, radius)), *(f32 *)(desc + offsetof(CritterColDescriptor, radius)));
+                    center, out, ((CritterColDescriptor *)desc)->radius, ((CritterColDescriptor *)desc)->radius);
                 if (result >= 0.0) {
                     break;
                 }
@@ -911,7 +911,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
             if (type != 2) {
                 if (type == 3) {
                     damage = ((CritterPackedType *)c->hdr)->damageScale *
-                             *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
+                             ((level_data *)gCurLevel)->ene_damage;
                     if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != 0.0f) {
                         hit = 1;
                     }
@@ -1072,15 +1072,15 @@ f32 *delta;
             if (hitNode->activeFrom >= hitNode->activeUntil) {
                 continue;
             }
-            if ((*(s16 *)((u8 *)hitNode->descriptor + offsetof(CritterColDescriptor, flags)) & 8) == 0) {
+            if ((((CritterColDescriptor *)hitNode->descriptor)->flags & 8) == 0) {
                 continue;
             }
-            from = (f32 *)((u8 *)hitNode + offsetof(CritterHitNode, position));
+            from = hitNode->position;
             probe[0] = from[0] + delta[0];
             probe[1] = from[1] + delta[1];
             probe[2] = from[2] + delta[2];
             wallSurface = EnemyWallCollide(
-                *(f32 *)((u8 *)hitNode->descriptor + offsetof(CritterColDescriptor, radius)), from, probe,
+                ((CritterColDescriptor *)hitNode->descriptor)->radius, from, probe,
                 contact);
             if (wallSurface != NULL) {
                 break;
@@ -1187,10 +1187,10 @@ f32 *delta;
         }
         if (c->shadow != NULL) {
             CopyMat3(floorResult, (f32 *)c->shadow);
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
+            ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
+            ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
+            ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
+            ((MBObject *)c->shadow)->mat[3][1] =
                 (f32)(0.1 + (f64)floorResult[13]);
         }
     }
@@ -1266,10 +1266,10 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     s32 idx;
     Enemy *e;
 
-    radius = *(f32 *)(dmg + offsetof(CritterDamageDef, damage)) * *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
-    f26v = *(f32 *)(dmg + offsetof(CritterDamageDef, maxDistance));
+    radius = ((CritterDamageDef *)dmg)->damage * ((level_data *)gCurLevel)->ene_damage;
+    f26v = ((CritterDamageDef *)dmg)->maxDistance;
     count = 0;
-    MulVecMat3((f32 *)(dmg + offsetof(CritterDamageDef, offset)), out, c->worldMoveMatrix);
+    MulVecMat3(((CritterDamageDef *)dmg)->offset, out, c->worldMoveMatrix);
     bx = c->moveMatrix[0] + out[0];
     by = c->moveMatrix[1] + out[1];
     bz = c->moveMatrix[2] + out[2];
@@ -1393,16 +1393,16 @@ void CritterLookAtPlayer(Critter *c, CritterMove *move)
     }
     if (c->hitnode0 != NULL) {
         NodeLookAtPos(c->hitnode0, targetPtr,
-                      *(f32 *)((u8 *)hdr + offsetof(CritterPackedType, lookYawRate0)), lbl_80346470,
+                      ((CritterPackedType *)hdr)->lookYawRate0, lbl_80346470,
                       (f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x20),
-                      *(f32 *)((u8 *)hdr + offsetof(CritterPackedType, lookPitchRate0)), *(f32 *)((u8 *)hdr + offsetof(CritterPackedType, lookPitchBias0)),
+                      ((CritterPackedType *)hdr)->lookPitchRate0, ((CritterPackedType *)hdr)->lookPitchBias0,
                       (f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x28));
     }
     if (c->hitnode1 != NULL) {
         NodeLookAtPos(c->hitnode1, targetPtr,
-                      *(f32 *)((u8 *)hdr + offsetof(CritterPackedType, lookYawRate1)), lbl_80346470,
+                      ((CritterPackedType *)hdr)->lookYawRate1, lbl_80346470,
                       (f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x24),
-                      *(f32 *)((u8 *)hdr + offsetof(CritterPackedType, lookPitchRate1)), *(f32 *)((u8 *)hdr + offsetof(CritterPackedType, lookPitchBias1)),
+                      ((CritterPackedType *)hdr)->lookPitchRate1, ((CritterPackedType *)hdr)->lookPitchBias1,
                       (f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x2C));
     }
 }
@@ -1537,8 +1537,8 @@ static void CritterSetDifficulty(Critter *c)
     rateBase = 0.5f;
     rateScale = 4.5f;
     ratio = c->health /
-            (1.0 + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, maxHealth)) *
-                       *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_health)));
+            (1.0 + ((CritterPackedType *)c->hdr)->maxHealth *
+                       ((level_data *)gCurLevel)->ene_health);
     speed = 1.0 - ratio;
     speed = rateBase + speed * rateScale;
     c->invRateScale = 1.0 / speed;
@@ -1556,14 +1556,14 @@ static void CritterReleasePlayer(Critter *c, u8 *damageDef, f32 *dir, s32 held)
 
     pp = &gPlayers[held];
     PlayerUnsetParent(pp);
-    dir[0] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][0]));
-    dir[1] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][1]));
-    dir[2] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][2]));
+    dir[0] = ((MBObject *)c->mbnode)->mat[2][0];
+    dir[1] = ((MBObject *)c->mbnode)->mat[2][1];
+    dir[2] = ((MBObject *)c->mbnode)->mat[2][2];
     dir[1] = -0.1f;
     NormalVector(dir);
-    dir[0] = dir[0] * *(f32 *)(damageDef + offsetof(CritterDamageDef, minSpeed));
-    dir[1] = dir[1] * *(f32 *)(damageDef + offsetof(CritterDamageDef, minSpeed));
-    dir[2] = dir[2] * *(f32 *)(damageDef + offsetof(CritterDamageDef, minSpeed));
+    dir[0] = dir[0] * ((CritterDamageDef *)damageDef)->minSpeed;
+    dir[1] = dir[1] * ((CritterDamageDef *)damageDef)->minSpeed;
+    dir[2] = dir[2] * ((CritterDamageDef *)damageDef)->minSpeed;
     CritterDamagePlayer(pp, c, (CritterDamageDef *)damageDef, 0x8050, dir, 0,
                         0.5f);
     c->unk128 = -1;
@@ -1582,16 +1582,16 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     u8 *counter;
     u8 *hit;
 
-    damageFlags = *(u32 *)(damageDef + offsetof(CritterDamageDef, flags)) | flags;
+    damageFlags = ((CritterDamageDef *)damageDef)->flags | flags;
     playerIndex = player->index;
-    damage = *(f32 *)(damageDef + offsetof(CritterDamageDef, damage)) *
-             *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
-    if (playSfx != 0 && *(s16 *)(damageDef + offsetof(CritterDamageDef, sfx)) >= 0) {
-        CritterDoSfx(c, *(s16 *)(damageDef + offsetof(CritterDamageDef, sfx)), &player->pos[0], 0, -1);
+    damage = ((CritterDamageDef *)damageDef)->damage *
+             ((level_data *)gCurLevel)->ene_damage;
+    if (playSfx != 0 && ((CritterDamageDef *)damageDef)->sfx >= 0) {
+        CritterDoSfx(c, ((CritterDamageDef *)damageDef)->sfx, &player->pos[0], 0, -1);
         damageFlags |= 0x01000000;
     }
     descriptor = *(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor));
-    if (*(s16 *)(descriptor + offsetof(CritterDescriptor, type)) != 4 &&
+    if (((CritterDescriptor *)descriptor)->type != 4 &&
         (f64)lbl_803447D8 < damageGate) {
         damage = (f32)((f64)damage * damageScale);
     }
@@ -1601,7 +1601,7 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     ((Player *)hit)->fxhittime =
         (f32)(hitTimeBase + (f64)sMusicFadeBase);
     counter = (u8 *)c + playerIndex * 0x10;
-    *(f32 *)(counter + offsetof(Critter, unk1BC)) += damage;
+    ((Critter *)counter)->unk1BC[0][0] += damage;
     *(f32 *)(counter + (offsetof(Critter, unk1BC) + 4)) = sMusicFadeBase;
 }
 
@@ -1619,16 +1619,16 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
     u8 *counter;
     u8 *hit;
 
-    damageFlags = *(u32 *)(damageDef + offsetof(CritterDamageDef, flags)) | flags;
+    damageFlags = ((CritterDamageDef *)damageDef)->flags | flags;
     playerIndex = player->index;
-    *damage = *(f32 *)(damageDef + offsetof(CritterDamageDef, damage)) *
-              *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
-    if (playSfx != 0 && *(s16 *)(damageDef + offsetof(CritterDamageDef, sfx)) >= 0) {
-        CritterDoSfx(c, *(s16 *)(damageDef + offsetof(CritterDamageDef, sfx)), &player->pos[0], 0, -1);
+    *damage = ((CritterDamageDef *)damageDef)->damage *
+              ((level_data *)gCurLevel)->ene_damage;
+    if (playSfx != 0 && ((CritterDamageDef *)damageDef)->sfx >= 0) {
+        CritterDoSfx(c, ((CritterDamageDef *)damageDef)->sfx, &player->pos[0], 0, -1);
         damageFlags |= 0x01000000;
     }
     descriptor = *(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor));
-    if (*(s16 *)(descriptor + offsetof(CritterDescriptor, type)) != 4 &&
+    if (((CritterDescriptor *)descriptor)->type != 4 &&
         (f64)lbl_803447D8 < damageGate) {
         *damage = (f32)((f64)*damage * damageScale);
     }
@@ -1638,7 +1638,7 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
     ((Player *)hit)->fxhittime =
         (f32)(hitTimeBase + (f64)sMusicFadeBase);
     counter = (u8 *)c + playerIndex * 0x10;
-    *(f32 *)(counter + offsetof(Critter, unk1BC)) += *damage;
+    ((Critter *)counter)->unk1BC[0][0] += *damage;
     *(f32 *)(counter + (offsetof(Critter, unk1BC) + 4)) = sMusicFadeBase;
 }
 
@@ -1669,16 +1669,16 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
     f64 damageGate;
     s32 i;
 
-    maxDistance = *(f32 *)(dmg + offsetof(CritterDamageDef, maxDistance));
-    radius = *(f32 *)(dmg + offsetof(CritterDamageDef, radius));
-    minDistance = *(f32 *)(dmg + offsetof(CritterDamageDef, minDistance));
+    maxDistance = ((CritterDamageDef *)dmg)->maxDistance;
+    radius = ((CritterDamageDef *)dmg)->radius;
+    minDistance = ((CritterDamageDef *)dmg)->minDistance;
     delta[0] = c->worldMoveMatrix[8];
     delta[1] = c->worldMoveMatrix[9];
     delta[2] = c->worldMoveMatrix[10];
     NormalVector(delta);
-    YawVec3(delta, delta, *(f32 *)(dmg + offsetof(CritterDamageDef, yaw)));
-    PitchVec3(delta, delta, *(f32 *)(dmg + offsetof(CritterDamageDef, pitch)));
-    MulVecMat3((f32 *)(dmg + offsetof(CritterDamageDef, offset)), transformed,
+    YawVec3(delta, delta, ((CritterDamageDef *)dmg)->yaw);
+    PitchVec3(delta, delta, ((CritterDamageDef *)dmg)->pitch);
+    MulVecMat3(((CritterDamageDef *)dmg)->offset, transformed,
                c->worldMoveMatrix);
     start[0] = c->moveOrigin[0] + transformed[0];
     start[1] = c->moveOrigin[1] + transformed[1];
@@ -1697,9 +1697,9 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
         if (player->state != 1 || sMusicFadeBase < player->fxhittime) {
             continue;
         }
-        playerPos[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos));
-        playerPos[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4);
-        playerPos[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8);
+        playerPos[0] = player->effectpos[0];
+        playerPos[1] = player->effectpos[1];
+        playerPos[2] = player->effectpos[2];
         delta[0] = playerPos[0] - start[0];
         delta[1] = playerPos[1] - start[1];
         delta[2] = playerPos[2] - start[2];
@@ -1765,12 +1765,12 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     radius = (f32)(enabled != 0
                        ? (f64)(*(f32 *)(dmg + offsetof(CritterDamageDef,
                                          damage)) *
-                               *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage)))
+                               ((level_data *)gCurLevel)->ene_damage)
                        : lbl_80346488);
-    expansion = *(f32 *)(dmg + offsetof(CritterDamageDef, maxDistance));
+    expansion = ((CritterDamageDef *)dmg)->maxDistance;
     bestDistance = lbl_80346508;
     bestPlayer = -1;
-    MulVecMat3((f32 *)(dmg + offsetof(CritterDamageDef, offset)), transformed,
+    MulVecMat3(((CritterDamageDef *)dmg)->offset, transformed,
                c->worldMoveMatrix);
     nodeX = c->moveMatrix[0] + transformed[0];
     nodeY = c->moveMatrix[1] + transformed[1];
@@ -1794,9 +1794,9 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
         if (radius > zeroRadius && sMusicFadeBase < player->fxhittime) {
             continue;
         }
-        playerPos[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos));
-        playerPos[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4);
-        playerPos[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8);
+        playerPos[0] = player->effectpos[0];
+        playerPos[1] = player->effectpos[1];
+        playerPos[2] = player->effectpos[2];
         if (!LineCylinderCollide(playerPos,
                                  *(f32 *)((u8 *)player + offsetof(Player,
                                           col_radius)) + expansion,
@@ -1925,15 +1925,15 @@ s32 CritterGetTarget(Critter *c, f32 *out)
     f64 minimum_distance;
     s32 result;
 
-    if (*(s16 *)((u8 *)c + offsetof(Critter, targetCount)) <= 0) {
+    if (c->targetCount <= 0) {
         goto init_waypoint_search;
     } else {
-        s32 player = *(s32 *)((u8 *)c + offsetof(Critter, targetPlayer));
+        s32 player = c->targetPlayer;
         u8 *record = (u8 *)&gPlayers[player];
 
-        out[0] = *(f32 *)(record + offsetof(Player, effectpos));
-        out[1] = *(f32 *)(record + offsetof(Player, effectpos) + 4);
-        out[2] = *(f32 *)(record + offsetof(Player, effectpos) + 8);
+        out[0] = ((Player *)record)->effectpos[0];
+        out[1] = ((Player *)record)->effectpos[1];
+        out[2] = ((Player *)record)->effectpos[2];
         result = 1;
         goto done;
     }
@@ -1946,11 +1946,11 @@ waypoint_body:
         f32 dz;
         f32 distance;
 
-        dy = *(f32 *)((u8 *)waypoint + offsetof(OBJGRP, worldmat[3][1])) -
+        dy = ((OBJGRP *)waypoint)->worldmat[3][1] -
              c->vel[1];
         dx = (x = *(f32 *)((u8 *)waypoint +
                            offsetof(OBJGRP, worldmat[3][0]))) - c->vel[0];
-        dz = *(f32 *)((u8 *)waypoint + offsetof(OBJGRP, worldmat[3][2])) -
+        dz = ((OBJGRP *)waypoint)->worldmat[3][2] -
              c->vel[2];
         distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
@@ -2011,7 +2011,7 @@ done:
     }
     if (best >= 0) {
         u32 address = (u32)c + best * 0x24;
-        best = *(s32 *)(address + offsetof(Critter, targetPlayer));
+        best = ((Critter *)address)->targetPlayer;
     } else if (mode != 0 && c->parent != NULL) {
         best = CritterGetTargetSub(c->parent, target, mode);
     }
@@ -2030,11 +2030,11 @@ f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
 
     entry = (f32 *)((u8 *)c + offsetof(Critter, targetPlayer) + target * 0x24);
     if (moveTarget != NULL) {
-        if (*(f32 *)((u8 *)c + offsetof(Critter, rateScale)) < moveTarget[4]) {
+        if (c->rateScale < moveTarget[4]) {
             return lbl_80346518;
         }
         if (moveTarget[5] > moveTarget[4] &&
-            *(f32 *)((u8 *)c + offsetof(Critter, rateScale)) >= moveTarget[5]) {
+            c->rateScale >= moveTarget[5]) {
             return lbl_80346518;
         }
     }
@@ -2080,12 +2080,12 @@ void CritterGetSingleTargetPlayer(Critter *c)
     zero = lbl_80346488;
     player = gPlayers;
     for (i = 0; i < 4; i++, player++) {
-        if (player->state != 1 || (*(u32 *)((u8 *)player + offsetof(Player, flags)) & 4) != 0) {
+        if (player->state != 1 || (player->flags & 4) != 0) {
             continue;
         }
-        targetpos[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[0]));
-        targetpos[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[1]));
-        targetpos[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[2]));
+        targetpos[0] = player->effectpos[0];
+        targetpos[1] = player->effectpos[1];
+        targetpos[2] = player->effectpos[2];
         score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, target)),
                                   targetpos,
                                   &candidate);
@@ -2106,7 +2106,7 @@ void CritterGetSingleTargetPlayer(Critter *c)
     }
     if (c->targetCount != 0) {
         c->particle = NULL;
-        gBig.scratch[*(s32 *)((u8 *)c + offsetof(Critter, targetPlayer))] += lbl_803464A8;
+        gBig.scratch[c->targetPlayer] += lbl_803464A8;
     }
 }
 
@@ -2220,9 +2220,9 @@ void CritterGetTargetPlayers(Critter *c)
                 continue;
             }
         }
-        targetpos[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[0]));
-        targetpos[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[1]));
-        targetpos[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[2]));
+        targetpos[0] = player->effectpos[0];
+        targetpos[1] = player->effectpos[1];
+        targetpos[2] = player->effectpos[2];
         score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, target)), targetpos,
                                   &record);
         if (c->particle != NULL) {
@@ -2321,11 +2321,11 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
     u8 unused[16];
 
     if (moveTarget != NULL) {
-        if (*(f32 *)((u8 *)c + offsetof(Critter, rateScale)) < moveTarget[4]) {
+        if (c->rateScale < moveTarget[4]) {
             return lbl_80346518;
         }
         if (moveTarget[5] > lbl_80346488 &&
-            *(f32 *)((u8 *)c + offsetof(Critter, rateScale)) >= moveTarget[5]) {
+            c->rateScale >= moveTarget[5]) {
             return lbl_80346518;
         }
     }
@@ -2432,7 +2432,7 @@ void *CritterMoveNodeCol(f32 radius, f32 height, f32 *origin,
                 continue;
             }
         }
-        if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 2) != 0) {
+        if ((((CritterPackedType *)c->hdr)->typeFlags & 2) != 0) {
             result = CritterExpNodeColSub(c, radius, horizontalSquared,
                                           verticalSquared, origin, destination,
                                           contact, mode);
@@ -2442,9 +2442,9 @@ void *CritterMoveNodeCol(f32 radius, f32 height, f32 *origin,
             f32 horizontalRadius;
             s32 collided;
 
-            horizontalRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
+            horizontalRadius = radius + ((CritterPackedType *)c->hdr)->wallRadius;
             dz = c->pos[2] - destination[2];
-            verticalRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, radius));
+            verticalRadius = radius + ((CritterPackedType *)c->hdr)->radius;
             dx = c->pos[0] - destination[0];
             if (dx * dx + dz * dz >
                 horizontalRadius * horizontalRadius + horizontalSquared) {
@@ -2491,16 +2491,16 @@ s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
     i = 0;
     byteOffset = 0;
     best = lbl_80346480;
-    while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount))) {
+    while (i < ((CritterPackedType *)c->hdr)->colCount) {
         base = (u8 *)c + byteOffset;
         node = base + offsetof(Critter, hitnodes);
         if (*(void **)(base + (offsetof(Critter, hitnodes) + offsetof(CritterHitNode, active))) == NULL ||
-            *(f32 *)(node + offsetof(CritterHitNode, activeFrom)) >= *(f32 *)(node + offsetof(CritterHitNode, activeUntil)) ||
+            ((CritterHitNode *)node)->activeFrom >= ((CritterHitNode *)node)->activeUntil ||
             (*(s16 *)(*(u8 **)node + offsetof(CritterColDescriptor, flags)) & 8) == 0) {
             goto next;
         }
         nodeDef = *(u8 **)node;
-        nodeRadius = *(f32 *)(nodeDef + offsetof(CritterColDescriptor, radius));
+        nodeRadius = ((CritterColDescriptor *)nodeDef)->radius;
         nodePosition[0] = *(f32 *)(node += offsetof(CritterHitNode, position)) + offsetVec[0];
         nodePosition[1] = *(f32 *)(node + 4) + offsetVec[1];
         nodePosition[2] = *(f32 *)(node + 8) + offsetVec[2];
@@ -2611,7 +2611,7 @@ Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
         if (CritterMoveNoHit(c, timedId)) {
             continue;
         }
-        if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 2) != 0) {
+        if ((((CritterPackedType *)c->hdr)->typeFlags & 2) != 0) {
             result = CritterLineNodeColSub(c, origin, forward, contact,
                                            radius, dot);
         }
@@ -2622,7 +2622,7 @@ Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
             contact[1] = c->pos[1] - origin[1];
             contact[2] = c->pos[2] - origin[2];
             distance = NormalVector2D(contact);
-            bodyRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
+            bodyRadius = radius + ((CritterPackedType *)c->hdr)->wallRadius;
             if (distance > bodyRadius) {
                 collided = 0;
             } else if (dot > -1.0 &&
@@ -2654,7 +2654,7 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
 
     i = 0;
     offset = 0;
-    while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount))) {
+    while (i < ((CritterPackedType *)c->hdr)->colCount) {
         record = (u8 *)c + offset;
         node = (CritterHitNode *)(record + 0x4F8);
         if (*(void **)(record + 0x4FC) == NULL) {
@@ -2668,7 +2668,7 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
         delta[1] = node->position[1] - origin[1];
         delta[2] = node->position[2] - origin[2];
         distance = NormalVector2D(delta);
-        if (distance > radius + *(f32 *)((u8 *)node->descriptor + offsetof(CritterColDescriptor, radius))) {
+        if (distance > radius + ((CritterColDescriptor *)node->descriptor)->radius) {
             goto next;
         }
         if (dotThreshold > -1.0 &&
@@ -2885,31 +2885,31 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
     if (c->state < 2) {
         return lbl_80346508;
     }
-    if ((*(u32 *)(hdr + offsetof(CritterPackedType, typeFlags)) & 2) != 0) {
+    if ((((CritterPackedType *)hdr)->typeFlags & 2) != 0) {
         eps2 = lbl_80346488;
-        for (i = 0, off = 0; i < *(s16 *)(hdr + offsetof(CritterPackedType, colCount)); i++, off += 92) {
+        for (i = 0, off = 0; i < ((CritterPackedType *)hdr)->colCount; i++, off += 92) {
             row = (u8 *)c + off;
             node = row + offsetof(Critter, hitnodes);
             if (*(void **)(row + offsetof(Critter, hitnodes) + offsetof(CritterHitNode, active)) == NULL) {
                 continue;
             }
-            if (*(f32 *)(node + offsetof(CritterHitNode, activeFrom)) >=
-                *(f32 *)(node + offsetof(CritterHitNode, activeUntil))) {
+            if (((CritterHitNode *)node)->activeFrom >=
+                ((CritterHitNode *)node)->activeUntil) {
                 continue;
             }
-            delta[0] = *(f32 *)(node + offsetof(CritterHitNode, position[0])) - origin[0];
-            delta[1] = *(f32 *)(node + offsetof(CritterHitNode, position[1])) - origin[1];
-            delta[2] = *(f32 *)(node + offsetof(CritterHitNode, position[2])) - origin[2];
+            delta[0] = ((CritterHitNode *)node)->position[0] - origin[0];
+            delta[1] = ((CritterHitNode *)node)->position[1] - origin[1];
+            delta[2] = ((CritterHitNode *)node)->position[2] - origin[2];
             dist = NormalVector(delta);
             if (limit > eps2 && dist > limit) {
                 continue;
             }
             nodeDef = *(u8 **)node;
-            nodeMax = *(f32 *)(nodeDef + offsetof(CritterColDescriptor, unk18));
+            nodeMax = ((CritterColDescriptor *)nodeDef)->unk18;
             if (nodeMax > eps2 && dist > nodeMax) {
                 continue;
             }
-            nd = dist - *(f32 *)(nodeDef + offsetof(CritterColDescriptor, radius));
+            nd = dist - ((CritterColDescriptor *)nodeDef)->radius;
             q = fqdist(delta[0], delta[2]);
             dot = delta[0] * forward[0] + delta[2] * forward[2];
             if (slope > eps2) {
@@ -2940,7 +2940,7 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
     if (limit > *(volatile f64 *)&lbl_80346488 && dist > limit) {
         return lbl_80346508;
     }
-    dr = dist - *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
+    dr = dist - ((CritterPackedType *)c->hdr)->wallRadius;
     q = fqdist(delta[0], delta[2]);
     dot = delta[0] * forward[0] + delta[2] * forward[2];
     thresh = q * (dr * slope + dotThresh);
@@ -3375,14 +3375,14 @@ s32 ProcessCritter(Critter *c)
 
     GetWorldMat(c->mbnode, &c->mtx[0][0], NULL);
     c->movevec[0] = c->vel[0];
-    c->movevec[1] = c->vel[1] + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, vertDrift));
+    c->movevec[1] = c->vel[1] + ((CritterPackedType *)c->hdr)->vertDrift;
     c->movevec[2] = c->vel[2];
     MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos, &c->mtx[0][0]);
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
 
-    for (i = 0; i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount)); i++) {
+    for (i = 0; i < ((CritterPackedType *)c->hdr)->colCount; i++) {
         nodeBase = (u8 *)c + i * 0x5C;
         node = (CritterHitNode *)(nodeBase + 0x4F8);
         if (*(void *volatile *)(nodeBase + 0x4FC) != NULL) {
@@ -3399,8 +3399,8 @@ s32 ProcessCritter(Critter *c)
     }
     if (c->damageflash != NULL) {
         scale = c->health /
-                (*(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, maxHealth)) *
-                 *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_health)));
+                (((CritterPackedType *)c->hdr)->maxHealth *
+                 ((level_data *)gCurLevel)->ene_health);
         if ((f64)c->health <= lbl_80346488) {
             AtreeDelete(&c->healthbar[0]);
             c->damageflash = NULL;
@@ -3476,7 +3476,7 @@ s32 ProcessCritter(Critter *c)
             c->state = 1;
             CritterAwardExp(
                 -1, (f32)(lbl_80346580 *
-                          (f64)*(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, expValue))));
+                          (f64)((CritterPackedType *)c->hdr)->expValue));
             if (c->parent == NULL) {
                 child = c->next;
                 scale = lbl_803464A8;
@@ -3543,13 +3543,13 @@ animate_ai:
     if (collided) {
         c->vel[1] =
             *(f32 *)(gFloorCollisionResult + 0x34) +
-            *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, floorOffset));
+            ((CritterPackedType *)c->hdr)->floorOffset;
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
+            ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
+            ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
+            ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
+            ((MBObject *)c->shadow)->mat[3][1] =
                 (f32)(lbl_803464B0 +
                       (f64)*(f32 *)(gFloorCollisionResult + 0x34));
         }
@@ -3584,7 +3584,7 @@ ai_done:
     UnparentMatrix(c->mbnode, *(f32 **)((u8 *)c->mbnode + 0x74));
 
     c->movevec[0] = c->vel[0];
-    c->movevec[1] = c->vel[1] + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, vertDrift));
+    c->movevec[1] = c->vel[1] + ((CritterPackedType *)c->hdr)->vertDrift;
     c->movevec[2] = c->vel[2];
     MulVec4Mat3((f32 *)((u8 *)c->hdr + 0xC0), c->pos,
                 &c->mtx[0][0]);
@@ -3678,7 +3678,7 @@ void CritterUpdateCounters(Critter *c)
         current = *counterTime;
         if ((f64)current > zero &&
             (f64)(sMusicFadeBase - current) > timeout) {
-            *(f32 *)(base + offsetof(Critter, unk1BC)) = clear;
+            ((Critter *)base)->unk1BC[0][0] = clear;
             *counterTime = clear;
         }
         current = *(counterTime = (f32 *)(base + (offsetof(Critter, unk1BC) + 0xC)));
@@ -3791,7 +3791,7 @@ s32 CritterGolemAI(Critter *c)
             return 0;
         }
         {
-            s32 dur = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart));
+            s32 dur = move->frameStart;
             if (dur > 0) {
                 s32 elapsed = anim32 - dur;
                 s32 total = *(s16 *)((u8 *)c + 0x88) - dur;
@@ -3879,7 +3879,7 @@ s32 CritterBossAI(Critter *c)
 
     if (c->state == 0) {
         if ((f64)lbl_8034464C == 0.0) {
-            if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x80) == 0) {
+            if ((((CritterPackedType *)c->hdr)->typeFlags & 0x80) == 0) {
                 lbl_8034464C = (f32)(2.0 + (f64)sMusicFadeBase);
             }
         } else if ((f64)sMusicFadeBase >= (f64)lbl_8034464C) {
@@ -4098,9 +4098,9 @@ s32 CritterBossAI(Critter *c)
                    : 0;
     if (floorHit != 0) {
         c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
-                    *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, floorOffset));
+                    ((CritterPackedType *)c->hdr)->floorOffset;
         if (c->state == 0 && (f64)lbl_8034464C == 0.0 &&
-            (*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x80) != 0) {
+            (((CritterPackedType *)c->hdr)->typeFlags & 0x80) != 0) {
             s32 surfaceFlags = 0;
             surface = *(u8 **)(gFloorCollisionResult + 0x44);
             if (surface != NULL) {
@@ -4116,10 +4116,10 @@ s32 CritterBossAI(Critter *c)
         }
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, c->shadow);
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
-            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
+            ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
+            ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
+            ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
+            ((MBObject *)c->shadow)->mat[3][1] =
                 (f32)(0.1 +
                       (f64)*(f32 *)(gFloorCollisionResult + 0x34));
         }
@@ -4129,7 +4129,7 @@ s32 CritterBossAI(Critter *c)
         distance = -1.0f;
         angle = distance;
         if (c->targetCount > 0) {
-            angle = *(f32 *)((u8 *)c + offsetof(Critter, targetAngle));
+            angle = c->targetAngle;
             if ((f64)angle >= 1e21) {
                 angle = distance;
             }
@@ -4169,7 +4169,7 @@ s32 CritterBossAI(Critter *c)
             distance = -1.0f;
             angle = distance;
             if (c->targetCount > 0) {
-                angle = *(f32 *)((u8 *)c + offsetof(Critter, targetAngle));
+                angle = c->targetAngle;
                 if ((f64)angle >= angleLimit) {
                     angle = distance;
                 }
@@ -4284,24 +4284,24 @@ void CritterDropItem(Critter *c)
         break;
     }
     if (type != 0) {
-        *(s8 *)((u8 *)item + offsetof(CritterItemView, minoff)) = 10;
-        StartBagFX((f32 *)((u8 *)c + offsetof(Critter, floorContact)), item,
+        ((CritterItemView *)item)->minoff = 10;
+        StartBagFX(c->floorContact, item,
                     lbl_80346470);
         return;
     }
 
-    *(s8 *)((u8 *)item + offsetof(CritterItemView, minoff)) = 0;
+    ((CritterItemView *)item)->minoff = 0;
     MBTreeClearFlags(*(void **)((u8 *)item + offsetof(CritterItemView, node)),
                       2, 0);
     if (**(s32 **)((u8 *)item + offsetof(CritterItemView, info)) == 1) {
         *(s16 *)((u8 *)item + 0xEC) = 60;
     }
-    *(f32 *)((u8 *)item + offsetof(CritterItemView, pos)) =
-        *(f32 *)((u8 *)c + offsetof(Critter, floorContact));
-    *(f32 *)((u8 *)item + offsetof(CritterItemView, pos) + 4) =
-        *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 4);
-    *(f32 *)((u8 *)item + offsetof(CritterItemView, pos) + 8) =
-        *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 8);
+    ((CritterItemView *)item)->pos[0] =
+        c->floorContact[0];
+    ((CritterItemView *)item)->pos[1] =
+        c->floorContact[1];
+    ((CritterItemView *)item)->pos[2] =
+        c->floorContact[2];
     AddItemSub(item);
 }
 
@@ -4365,7 +4365,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         dx = tx * spd;
         dz = tz * spd;
     } else {
-        if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x40) != 0) {
+        if ((((CritterPackedType *)c->hdr)->typeFlags & 0x40) != 0) {
             ax = *(f32 *)((u8 *)c + 1016);
             az = *(f32 *)((u8 *)c + 1024);
             dist = fqdist(ax, az);
@@ -4461,7 +4461,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         if (c->state != 1) {
             dist = fqdist(delta[0], delta[2]);
             c->unk4AC = dist;
-            if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x20) != 0) {
+            if ((((CritterPackedType *)c->hdr)->typeFlags & 0x20) != 0) {
                 if (delta[0] > speed) {
                     delta[0] = speed;
                 }
@@ -4493,7 +4493,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         hits = hits + tmpr;
         pr = tmpr;
         CritterCollideEnemies(c, delta, hits);
-        rad = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
+        rad = ((CritterPackedType *)c->hdr)->wallRadius;
         dest[0] = c->pos[0] + delta[0];
         dest[1] = c->pos[1] + delta[1];
         dest[2] = c->pos[2] + delta[2];
@@ -4524,10 +4524,10 @@ void CritterRotate(Critter *c, CritterMove *move)
     f32 target[3];
     u8 unused[8];
 
-    turn = *(f32 *)((u8 *)move + offsetof(CritterMove, turnRate));
-    limit = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, turnLimit));
+    turn = move->turnRate;
+    limit = ((CritterPackedType *)c->hdr)->turnLimit;
     if ((move->flags & 0x20) != 0) {
-        delta = *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x18) - *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C);
+        delta = c->skinMatrix[6] - c->skinMatrix[7];
     } else if (c->unk128 >= 0) {
         delta = lbl_80346470;
     } else {
@@ -4536,12 +4536,12 @@ void CritterRotate(Critter *c, CritterMove *move)
             target[0] -= c->vel[0];
             target[1] -= c->vel[1];
             target[2] -= c->vel[2];
-            if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x400) != 0) {
+            if ((((CritterPackedType *)c->hdr)->typeFlags & 0x400) != 0) {
                 register f32 z = target[2];
-                delta = atan2(target[0], z) - *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C);
+                delta = atan2(target[0], z) - c->skinMatrix[7];
             } else {
                 register f32 z = target[2];
-                f32 angle = atan2(target[0], z) - *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x18);
+                f32 angle = atan2(target[0], z) - c->skinMatrix[6];
                 f64 wideAngle;
                 f32 clamped;
                 if ((f64)angle > 3.141592654) {
@@ -4554,8 +4554,8 @@ void CritterRotate(Critter *c, CritterMove *move)
                 angle = (f32)wideAngle;
                 clamped = angle < -limit ? -limit :
                           angle > limit ? limit : angle;
-                delta = (*(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x18) + clamped) -
-                        *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C);
+                delta = (c->skinMatrix[6] + clamped) -
+                        c->skinMatrix[7];
             }
         } else if (c->particle != NULL && c->targetCount == 0) {
             target[0] = *(f32 *)((u8 *)c->particle +
@@ -4566,7 +4566,7 @@ void CritterRotate(Critter *c, CritterMove *move)
                                  offsetof(OBJGRP, worldmat[3][2])) - c->vel[2];
             {
                 register f32 z = target[2];
-                delta = atan2(target[0], z) - *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C);
+                delta = atan2(target[0], z) - c->skinMatrix[7];
             }
         } else {
             delta = lbl_80346470;
@@ -4595,8 +4595,8 @@ void CritterRotate(Critter *c, CritterMove *move)
             }
             delta = wrapped;
         }
-        *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C) =
-            *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C) + delta;
+        c->skinMatrix[7] =
+            c->skinMatrix[7] + delta;
         CopyMat3((f32 *)gIdentityMatrix, &c->mtx[0][0]);
         YawMat3(*(f32 *)((u32)c + 0xFC), &c->mtx[0][0]);
     }
@@ -4694,15 +4694,15 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
     if (c->emitter != NULL) {
         DmgFxNodeUpdate(c->emitter, 0, 0.0f, 0.0f, 0.0f, 0.0f);
     }
-    if (*(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) >= 0) {
+    if (move->frameStart >= 0) {
         events = CritterCopyAnim(c, move, frame);
         oldFlags = c->moveFlags;
         if ((events & 1) != 0) {
             if (move->type != 0x85) {
                 c->moveFlags = oldFlags | 1;
             }
-            if (*(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)) >= 0) {
-                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)), 1,
+            if (move->interruptAnim0 >= 0) {
+                CritterAnimInterrupt(c, move->interruptAnim0, 1,
                                      !(oldFlags & 1));
             }
         }
@@ -4710,16 +4710,16 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
             if (move->type != 0x85) {
                 c->moveFlags |= 2;
             }
-            if (*(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim1)) >= 0) {
-                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim1)), 2,
+            if (move->interruptAnim1 >= 0) {
+                CritterAnimInterrupt(c, move->interruptAnim1, 2,
                                      !(oldFlags & 2));
             }
         }
     }
-    if (*(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)) >= 0) {
+    if (move->interruptAnim0 >= 0) {
         entry = *(u8 **)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType,
                           file)) + offsetof(CritterFileHeader, damage)) +
-                *(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)) * 0x50;
+                move->interruptAnim0 * 0x50;
         if ((*(s16 *)(entry + 2) & 0x4000) && c->unkAC8 > lbl_80346488 &&
             *(s16 *)(entry + 0) != 1) {
             return;
@@ -4747,7 +4747,7 @@ void CritterGetNextMove(Critter *c)
     s32 childrenDone;
 
     moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
-    count = *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount));
+    count = ((CritterPackedType *)c->hdr)->moveCount;
     move = &moves[c->curmove];
     if (c->curmove < 0) {
         c->nextmove = 0;
@@ -4764,7 +4764,7 @@ void CritterGetNextMove(Critter *c)
         for (child = c->next; child != NULL; child = child->next) {
             if (child->curmove >= 0 || child->nextmove >= 0) {
                 child->nextmove = child->curmove + 1;
-                if (child->nextmove < *(s16 *)((u8 *)child->hdr + offsetof(CritterPackedType, moveCount))) {
+                if (child->nextmove < ((CritterPackedType *)child->hdr)->moveCount) {
                     childrenDone = 0;
                 } else {
                     child->nextmove = -1;
@@ -4821,12 +4821,12 @@ void CritterLookForReady(Critter *c)
     f32 best;
     f32 distance;
 
-    moveCount = *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount));
+    moveCount = ((CritterPackedType *)c->hdr)->moveCount;
     moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     result = -1;
     best = lbl_803464C0;
 
-    if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x10000) == 0) {
+    if ((((CritterPackedType *)c->hdr)->typeFlags & 0x10000) == 0) {
         return;
     }
     if (CritterGetTarget(c, c->targetPos) == 0) {
@@ -4949,7 +4949,7 @@ void CritterChildCriticalMove(Critter *c)
     moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     i = 0;
     zero = lbl_80346488;
-    while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
+    while (i < ((CritterPackedType *)c->hdr)->moveCount) {
         if (i == c->curmove) {
             goto next_move;
         }
@@ -5033,7 +5033,7 @@ void CritterLookForCriticalMove(Critter *c)
     i = 0;
     moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
 
-    while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
+    while (i < ((CritterPackedType *)c->hdr)->moveCount) {
         move = &moves[i];
         if (move->type != 0x23) {
             goto next;
@@ -5186,24 +5186,24 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
     case 0x83:
     case 0x86: {
         s32 second;
-        if (frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) &&
-            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd))) {
+        if (frame >= move->frameStart &&
+            frame <= move->frameEnd) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
+        second = move->frameStart2;
         if (second >= 0 && frame >= second &&
-            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd2))) {
+            frame <= move->frameEnd2) {
             result |= 2;
         }
         break;
     }
     case 0x81: {
         s32 second;
-        if (frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) &&
-            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd))) {
+        if (frame >= move->frameStart &&
+            frame <= move->frameEnd) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
+        second = move->frameStart2;
         if (second >= 0 && (c->moveFlags & 2) == 0 && frame >= second) {
             result |= 2;
         }
@@ -5212,30 +5212,30 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
     case 0x84: {
         s16 flags = c->moveFlags;
         s32 second;
-        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart))) {
+        if ((flags & 1) == 0 && frame >= move->frameStart) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
+        second = move->frameStart2;
         if (second >= 0 && (flags & 2) == 0 && frame >= second) {
             result |= 2;
         }
         break;
     }
     case 0x85: {
-        s32 first = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart));
+        s32 first = move->frameStart;
         s32 second;
         f32 period;
-        if (frame >= first && frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd))) {
-            period = *(f32 *)((u8 *)move + offsetof(CritterMove, framePeriod));
+        if (frame >= first && frame <= move->frameEnd) {
+            period = move->framePeriod;
             if (period <= lbl_80346488 ||
                 (s32)CritterAnimMod(frame - first, period) == 0) {
                 result |= 1;
             }
         }
-        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
+        second = move->frameStart2;
         if (second >= 0 && frame >= second &&
-            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd2))) {
-            period = *(f32 *)((u8 *)move + offsetof(CritterMove, framePeriod));
+            frame <= move->frameEnd2) {
+            period = move->framePeriod;
             if (period <= lbl_80346488 ||
                 (s32)CritterAnimMod(frame - second, period) == 0) {
                 result |= 2;
@@ -5247,12 +5247,12 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
         s16 idx;
         s16 flags;
         s32 second;
-        if ((c->moveFlags & 1) == 0 && frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) &&
+        if ((c->moveFlags & 1) == 0 && frame >= move->frameStart &&
             (idx = c->unk124) >= 0) {
             GetPlayerColPos(idx, c->targetPos);
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
+        second = move->frameStart2;
         if (second >= 0 && ((flags = c->moveFlags) & 1) != 0 &&
             (flags & 2) == 0 && frame >= second) {
             result |= 2;
@@ -5262,10 +5262,10 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
     default: {
         s16 flags = c->moveFlags;
         s32 second;
-        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart))) {
+        if ((flags & 1) == 0 && frame >= move->frameStart) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
+        second = move->frameStart2;
         if (second >= 0 && (flags & 2) == 0 && frame >= second) {
             result |= 2;
         }
@@ -5524,7 +5524,7 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     result = -1;
     best = 0.0f;
 
-    for (; i < *(s16 *)(hdr + offsetof(CritterPackedType, moveCount));
+    for (; i < ((CritterPackedType *)hdr)->moveCount;
          i++, timeOffset += 4, moveOffset += sizeof(CritterMove)) {
         move = (CritterMove *)(*(u8 **)(hdr + offsetof(CritterPackedType,
                                 movesPtr)) + moveOffset);
@@ -5585,7 +5585,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 
     desc = *(u8 **)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, file)) +
                     offsetof(CritterFileHeader, damage)) + action * 0x50;
-    type = *(s16 *)(desc + offsetof(CritterDamageDef, type));
+    type = ((CritterDamageDef *)desc)->type;
     switch (type) {
     case 5:
         if (active) {
@@ -5635,12 +5635,12 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             CritterDoTexmodNode(c, action, 1, NULL);
         }
         if (c->emitter != NULL) {
-            DmgFxCircleUpdate(c->emitter, *(f32 *)(desc + offsetof(CritterDamageDef, maxDistance)), 1);
+            DmgFxCircleUpdate(c->emitter, ((CritterDamageDef *)desc)->maxDistance, 1);
         } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
-            c->emitter = DmgFxCircleAdd(c->obj_d0, *(f32 *)(desc + offsetof(CritterDamageDef, maxDistance)),
-                                        *(f32 *)(desc + offsetof(CritterDamageDef, pitch)),
-                                        *(f32 *)(desc + offsetof(CritterDamageDef, yaw)),
-                                        (f32 *)(desc + offsetof(CritterDamageDef, offset)), 0);
+            c->emitter = DmgFxCircleAdd(c->obj_d0, ((CritterDamageDef *)desc)->maxDistance,
+                                        ((CritterDamageDef *)desc)->pitch,
+                                        ((CritterDamageDef *)desc)->yaw,
+                                        ((CritterDamageDef *)desc)->offset, 0);
         }
         break;
     case 4:
@@ -5649,15 +5649,15 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             CritterDoTexmodNode(c, action, 1, NULL);
         }
         if (c->emitter != NULL) {
-            DmgFxConeUpdate(c->emitter, *(f32 *)(desc + offsetof(CritterDamageDef, radius)),
-                            *(f32 *)(desc + offsetof(CritterDamageDef, maxDistance)), *(f32 *)(desc + offsetof(CritterDamageDef, pitch)),
-                            *(f32 *)(desc + offsetof(CritterDamageDef, yaw)), 1);
+            DmgFxConeUpdate(c->emitter, ((CritterDamageDef *)desc)->radius,
+                            ((CritterDamageDef *)desc)->maxDistance, ((CritterDamageDef *)desc)->pitch,
+                            ((CritterDamageDef *)desc)->yaw, 1);
         } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
-            c->emitter = DmgFxConeAdd(c->obj_d0, *(f32 *)(desc + offsetof(CritterDamageDef, radius)),
-                                      *(f32 *)(desc + offsetof(CritterDamageDef, maxDistance)),
-                                      *(f32 *)(desc + offsetof(CritterDamageDef, pitch)),
-                                      *(f32 *)(desc + offsetof(CritterDamageDef, yaw)),
-                                      (f32 *)(desc + offsetof(CritterDamageDef, offset)), 0);
+            c->emitter = DmgFxConeAdd(c->obj_d0, ((CritterDamageDef *)desc)->radius,
+                                      ((CritterDamageDef *)desc)->maxDistance,
+                                      ((CritterDamageDef *)desc)->pitch,
+                                      ((CritterDamageDef *)desc)->yaw,
+                                      ((CritterDamageDef *)desc)->offset, 0);
         }
         break;
     case 1:
@@ -5671,11 +5671,11 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                 node = CritterNodePlayerCollide(c, (CritterDamageDef *)desc, 0);
                 if (node >= 0) {
                     pp = &gPlayers[node];
-                    PlayerSetParent(pp, c->obj_d0, (f32 *)(desc + offsetof(CritterDamageDef, offset)));
+                    PlayerSetParent(pp, c->obj_d0, ((CritterDamageDef *)desc)->offset);
                     c->unk128 = (s16)node;
-                    if (*(s16 *)(desc + offsetof(CritterDamageDef, sfx)) >= 0) {
+                    if (((CritterDamageDef *)desc)->sfx >= 0) {
                         SfxSetParent(
-                            CritterDoSfx(c, *(s16 *)(desc + offsetof(CritterDamageDef, sfx)), NULL, 0, -1),
+                            CritterDoSfx(c, ((CritterDamageDef *)desc)->sfx, NULL, 0, -1),
                             *(void **)((u8 *)pp + 0x74));
                     }
                 }
@@ -5684,12 +5684,12 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                 CritterDoTexmodNode(c, action, 0, c->moveOrigin);
             }
             if (c->emitter != NULL) {
-                DmgFxCircleUpdate(c->emitter, *(f32 *)(desc + offsetof(CritterDamageDef, maxDistance)), 1);
+                DmgFxCircleUpdate(c->emitter, ((CritterDamageDef *)desc)->maxDistance, 1);
             } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
-                c->emitter = DmgFxCircleAdd(c->obj_d0, *(f32 *)(desc + offsetof(CritterDamageDef, maxDistance)),
-                                            *(f32 *)(desc + offsetof(CritterDamageDef, pitch)),
-                                            *(f32 *)(desc + offsetof(CritterDamageDef, yaw)),
-                                            (f32 *)(desc + offsetof(CritterDamageDef, offset)), 0);
+                c->emitter = DmgFxCircleAdd(c->obj_d0, ((CritterDamageDef *)desc)->maxDistance,
+                                            ((CritterDamageDef *)desc)->pitch,
+                                            ((CritterDamageDef *)desc)->yaw,
+                                            ((CritterDamageDef *)desc)->offset, 0);
             }
         } else if (phase == 2) {
             node = c->unk128;
@@ -5706,15 +5706,15 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
         break;
     case 9:
         if (active) {
-            f32 angle = acosf(*(f32 *)(desc + offsetof(CritterDamageDef, mindp)));
+            f32 angle = acosf(((CritterDamageDef *)desc)->mindp);
             v[0] = *(f32 *)((u8 *)c + 0x3F8);
             v[1] = *(f32 *)((u8 *)c + 0x3FC);
             v[2] = *(f32 *)((u8 *)c + 0x400);
-            YawVec3(v, v, *(f32 *)(desc + offsetof(CritterDamageDef, yaw)));
-            PitchVec3(v, v, *(f32 *)(desc + offsetof(CritterDamageDef, pitch)));
-            v[0] = v[0] * *(f32 *)(desc + offsetof(CritterDamageDef, minSpeed));
-            v[1] = v[1] * *(f32 *)(desc + offsetof(CritterDamageDef, minSpeed));
-            v[2] = v[2] * *(f32 *)(desc + offsetof(CritterDamageDef, minSpeed));
+            YawVec3(v, v, ((CritterDamageDef *)desc)->yaw);
+            PitchVec3(v, v, ((CritterDamageDef *)desc)->pitch);
+            v[0] = v[0] * ((CritterDamageDef *)desc)->minSpeed;
+            v[1] = v[1] * ((CritterDamageDef *)desc)->minSpeed;
+            v[2] = v[2] * ((CritterDamageDef *)desc)->minSpeed;
             BossSpewCoins(c->moveOrigin, v, angle);
         }
         break;
@@ -5999,7 +5999,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     }
     entry = *(u8 **)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, file)) +
                      offsetof(CritterFileHeader, sfx)) + sfx * 0x50;
-    flags = *(u32 *)(entry + offsetof(CritterSfxRecord, flags));
+    flags = ((CritterSfxRecord *)entry)->flags;
 
     if ((flags & 0x400) != 0) {
         if ((gControllerButtons & 0x80) != 0) {
@@ -6010,23 +6010,23 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     }
 
     if (c->mbnode != NULL &&
-        (*(u32 *)((u8 *)c->mbnode + offsetof(MBObject, flags)) & 8) != 0) {
-        scale = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, scale[1]));
+        (((MBObject *)c->mbnode)->flags & 8) != 0) {
+        scale = ((MBObject *)c->mbnode)->scale[1];
     } else {
         scale = lbl_803464A8;
     }
-    color[0] = *(f32 *)(entry + offsetof(CritterSfxRecord, color)) * scale;
+    color[0] = ((CritterSfxRecord *)entry)->color[0] * scale;
     color[1] = *(f32 *)(entry + (offsetof(CritterSfxRecord, color) + 4)) * scale;
     color[2] = *(f32 *)(entry + (offsetof(CritterSfxRecord, color) + 8)) * scale;
 
     if ((flags & 0x0F000000) != 0) {
         CritterDoParticle(c, entry, arg4);
     } else if ((flags & 0x100) != 0) {
-        skinValue = *(f32 *)(entry + offsetof(CritterSfxRecord, rate));
-        nodeCount = (s32)(lbl_80346630 * *(f32 *)(entry + offsetof(CritterSfxRecord, life)));
-        skinParam = *(s16 *)(entry + offsetof(CritterSfxRecord, custom0));
-        if (*(s32 *)(entry + offsetof(CritterSfxRecord, textureId)) >= 0) {
-            SetSkinFX((u8 *)c + offsetof(Critter, skinMatrix), *(s32 *)(entry + offsetof(CritterSfxRecord, textureId)),
+        skinValue = ((CritterSfxRecord *)entry)->rate;
+        nodeCount = (s32)(lbl_80346630 * ((CritterSfxRecord *)entry)->life);
+        skinParam = ((CritterSfxRecord *)entry)->custom0;
+        if (((CritterSfxRecord *)entry)->textureId >= 0) {
+            SetSkinFX((u8 *)c + offsetof(Critter, skinMatrix), ((CritterSfxRecord *)entry)->textureId,
                       nodeCount, skinParam, skinValue);
         } else {
             SetSkinFX((u8 *)c + offsetof(Critter, skinMatrix), lbl_802897B8[c->counterState & 0xF], 10,
@@ -6035,17 +6035,17 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     } else if ((flags & 0x200) != 0) {
         nodeCount = 0;
         arg4 = 0;
-        for (; nodeCount < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount));
+        for (; nodeCount < ((CritterPackedType *)c->hdr)->colCount;
              nodeCount++, arg4 += sizeof(CritterHitNode)) {
             u8 *node = (u8 *)c + offsetof(Critter, hitnodes) + arg4;
             if ((*(s16 *)(*(u8 **)(node + offsetof(CritterHitNode, descriptor)) + offsetof(CritterColDescriptor, flags)) & 1) == 0) {
-                world[0] = *(f32 *)(node + offsetof(CritterHitNode, position)) + color[0];
+                world[0] = ((CritterHitNode *)node)->position[0] + color[0];
                 world[1] = *(f32 *)(node + (offsetof(CritterHitNode, position) + 4)) + color[1];
                 world[2] = *(f32 *)(node + (offsetof(CritterHitNode, position) + 8)) + color[2];
                 result = CritterDoSfxSub(c, entry, world, 0, flags);
             }
         }
-    } else if (*(s32 *)(entry + offsetof(CritterSfxRecord, textureId)) >= 0) {
+    } else if (((CritterSfxRecord *)entry)->textureId >= 0) {
         if ((flags & 0x801) != 0) {
             arg3 = 1;
             world[0] = color[0];
@@ -6053,9 +6053,9 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
             world[2] = color[2];
         } else if ((flags & 0x80) != 0) {
             arg3 = 0;
-            world[0] = *(f32 *)((u8 *)c + offsetof(Critter, prevMovePathPos[0])) + color[0];
-            world[1] = *(f32 *)((u8 *)c + offsetof(Critter, prevMovePathPos[1])) + color[1];
-            world[2] = *(f32 *)((u8 *)c + offsetof(Critter, prevMovePathPos[2])) + color[2];
+            world[0] = c->prevMovePathPos[0] + color[0];
+            world[1] = c->prevMovePathPos[1] + color[1];
+            world[2] = c->prevMovePathPos[2] + color[2];
         } else if ((flags & 0x40) != 0) {
             if (c->obj_d0 != NULL) {
                 GetWorldMat(c->obj_d0, mtxTmp, color);
@@ -6087,7 +6087,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         result = -1;
     }
 
-    audio = *(s32 *)(entry + offsetof(CritterSfxRecord, audioId));
+    audio = ((CritterSfxRecord *)entry)->audioId;
     if (audio >= 0) {
         if (c->curmove >= 0 &&
             (*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[c->curmove].type == 17) {
@@ -6102,15 +6102,15 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     if ((flags & 0x20) != 0) {
         SafeRockSetup();
     }
-    if ((*(u32 *)(entry + offsetof(CritterSfxRecord, flags)) & 0x40000) != 0) {
+    if ((((CritterSfxRecord *)entry)->flags & 0x40000) != 0) {
         if (c->unkABA >= 0) {
             ErrorPrintf(lbl_801121C0);
         } else {
             c->unkABA = (s16)result;
         }
     }
-    if (*(s32 *)(entry + offsetof(CritterSfxRecord, linkIndex)) >= 0) {
-        CritterDoSfx(c, *(s32 *)(entry + offsetof(CritterSfxRecord, linkIndex)), parent, arg3, result);
+    if (((CritterSfxRecord *)entry)->linkIndex >= 0) {
+        CritterDoSfx(c, ((CritterSfxRecord *)entry)->linkIndex, parent, arg3, result);
     }
     return result;
 }
@@ -6130,7 +6130,7 @@ s32 CritterDoSfxSub(Critter *c, u8 *sfx, f32 *position,
     u8 *effectData;
     f32 scale;
 
-    effect = *(s32 *)(sfx + offsetof(CritterSfxRecord, textureId));
+    effect = ((CritterSfxRecord *)sfx)->textureId;
     if (effect < 0) goto fail;
     treeFlags = 0x800;
     effectFlags = 0;
@@ -6150,7 +6150,7 @@ s32 CritterDoSfxSub(Critter *c, u8 *sfx, f32 *position,
     if ((flags & 0x800000) != 0) effectFlags |= 0x20000000;
 
     result = StartFXSub(effect, position, effectFlags, treeFlags,
-                        *(f32 *)(sfx + offsetof(CritterSfxRecord, life)));
+                        ((CritterSfxRecord *)sfx)->life);
     SfxSetOwner(result, c->id | 0x1000);
     if (useSceneRoot != 0) {
         SfxSetParent(result, lbl_80344EB4);
@@ -6166,17 +6166,17 @@ s32 CritterDoSfxSub(Critter *c, u8 *sfx, f32 *position,
         }
         SfxSetParent(result, parent);
     }
-    color = *(u32 *)(sfx + offsetof(CritterSfxRecord, tintColor));
+    color = ((CritterSfxRecord *)sfx)->tintColor;
     if (color != 0xFFFFFFFF) {
         effectData = (u8 *)Effects;
         effectData += result * sizeof(Effect);
         MBTreeSetColor(**(void ***)(effectData += offsetof(Effect, atree)),
                        color, 1);
     }
-    scale = *(f32 *)(sfx + offsetof(CritterSfxRecord, scale));
+    scale = ((CritterSfxRecord *)sfx)->scale;
     if (c->mbnode != NULL &&
-        (*(u32 *)((u8 *)c->mbnode + offsetof(MBObject, flags)) & 8) != 0) {
-        scale *= *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, scale[1]));
+        (((MBObject *)c->mbnode)->flags & 8) != 0) {
+        scale *= ((MBObject *)c->mbnode)->scale[1];
     }
     if (scale != 1.0) {
         MBTreeSetScale(scale, scale, scale, Effects[result].node);
@@ -6202,11 +6202,11 @@ void CritterDoParticle(Critter *c, void *sfx, s32 node)
     void *parent;
     void *psys;
 
-    rate = (f32)(lbl_80346630 * *(f32 *)(s + offsetof(CritterSfxRecord, rate)));
-    flags = *(u32 *)(s + offsetof(CritterSfxRecord, flags));
-    tex = *(s32 *)(s + offsetof(CritterSfxRecord, textureId));
-    etime = *(f32 *)(s + offsetof(CritterSfxRecord, life));
-    speed = (f32)(lbl_80346540 * (f64)*(s16 *)(s + offsetof(CritterSfxRecord, custom1)));
+    rate = (f32)(lbl_80346630 * ((CritterSfxRecord *)s)->rate);
+    flags = ((CritterSfxRecord *)s)->flags;
+    tex = ((CritterSfxRecord *)s)->textureId;
+    etime = ((CritterSfxRecord *)s)->life;
+    speed = (f32)(lbl_80346540 * (f64)((CritterSfxRecord *)s)->custom1);
     kind = flags & 0x0F000000;
     if ((flags & 0x4000) && node >= 0) {
         parent = Effects[node].node;
@@ -6234,7 +6234,7 @@ void CritterDoParticle(Critter *c, void *sfx, s32 node)
     if (psys == NULL) {
         ErrorPrintf(lbl_801121D4);
     } else {
-        *(f32 *)((u8 *)psys + 0x30) = *(f32 *)(s + offsetof(CritterSfxRecord, color));
+        *(f32 *)((u8 *)psys + 0x30) = ((CritterSfxRecord *)s)->color[0];
         *(f32 *)((u8 *)psys + 0x34) = *(f32 *)(s + (offsetof(CritterSfxRecord, color) + 4));
         *(f32 *)((u8 *)psys + 0x38) = *(f32 *)(s + (offsetof(CritterSfxRecord, color) + 8));
         MBPsysSetPTex(psys, tex);
@@ -6281,7 +6281,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     CritterInitColnodes(root);
     CritterAddHealthMeter(root);
 
-    childIndex = *(s16 *)(header + offsetof(CritterPackedType, childIndex));
+    childIndex = ((CritterPackedType *)header)->childIndex;
     root->childcnt = 0;
     tail = root;
     while (childIndex >= 0) {
@@ -6301,7 +6301,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         AtreeNodeSetParent(child->colhandle, NULL, NULL, 0);
         child->anim = *(void **)child->colhandle;
 
-        nodeIndex = *(s16 *)(childDef + offsetof(CritterPackedType, node0Index));
+        nodeIndex = ((CritterPackedType *)childDef)->node0Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
@@ -6311,13 +6311,13 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
             }
         }
         child->hitnode0 = node;
-        if ((*(u32 *)(childDef + offsetof(CritterPackedType, typeFlags)) & 0x10) != 0 &&
+        if ((((CritterPackedType *)childDef)->typeFlags & 0x10) != 0 &&
             child->hitnode0 != NULL &&
             *(void **)((u8 *)child->hitnode0 + 0x74) != NULL) {
             child->hitnode0 = *(void **)((u8 *)child->hitnode0 + 0x74);
         }
 
-        nodeIndex = *(s16 *)(childDef + offsetof(CritterPackedType, node1Index));
+        nodeIndex = ((CritterPackedType *)childDef)->node1Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
@@ -6328,7 +6328,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         }
         child->hitnode1 = node;
 
-        nodeIndex = *(s16 *)(childDef + offsetof(CritterPackedType, node2Index));
+        nodeIndex = ((CritterPackedType *)childDef)->node2Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
@@ -6345,7 +6345,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         tail->next = child;
         tail = child;
         child->parent = root;
-        childIndex = *(s16 *)(childHeader + offsetof(CritterPackedType, childIndex));
+        childIndex = ((CritterPackedType *)childHeader)->childIndex;
         root->childcnt++;
     }
     switch (*(s16 *)((u8 *)*(CritterDescriptor **)((u8 *)root->hdr +
@@ -6556,19 +6556,19 @@ void CritterAddHealthMeter(Critter *c)
 
     header = (u8 *)c->hdr;
     meter = -1;
-    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 4) != 0) {
-        style = (*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 8)
+    if ((((CritterPackedType *)header)->typeFlags & 4) != 0) {
+        style = (((CritterPackedType *)header)->typeFlags & 8)
                 != 0 ? 1 : 0;
         meter = HealthMeterStart(
-            header, *(s16 *)(header + offsetof(CritterPackedType, meterX)),
-            *(s16 *)(header + offsetof(CritterPackedType, meterY)),
-            *(s16 *)(header + offsetof(CritterPackedType, meterW)),
-            *(s16 *)(header + offsetof(CritterPackedType, meterH)),
+            header, ((CritterPackedType *)header)->meterX,
+            ((CritterPackedType *)header)->meterY,
+            ((CritterPackedType *)header)->meterW,
+            ((CritterPackedType *)header)->meterH,
             style, c->health);
     }
     c->healthmtr = (s16)meter;
 
-    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x800)
+    if ((((CritterPackedType *)header)->typeFlags & 0x800)
         != 0) {
         match = AtreeMatch(
             *(void **)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType,
@@ -6581,8 +6581,8 @@ void CritterAddHealthMeter(Critter *c)
             MBTreeSetFlags(**(void ***)&c->healthbar[0], 0x02000000, 0);
 
             root = **(void ***)&c->healthbar[0];
-            *(f32 *)((u8 *)root + offsetof(MBObject, mat[3][0])) =
-                *(f32 *)((u8 *)root + offsetof(MBObject, mat[3][0])) +
+            ((MBObject *)root)->mat[3][0] =
+                ((MBObject *)root)->mat[3][0] +
                 *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
                           healthbarOffset));
             *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
@@ -6626,7 +6626,7 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
     c->unkAC6 = 0;
     c->unkAC8 = 0.0f;
     c->unk4AC = 0.0f;
-    c->health = *(f32 *)(h + offsetof(CritterPackedType, maxHealth)) * *(f32 *)((u8 *)gCurLevel + 172);
+    c->health = ((CritterPackedType *)h)->maxHealth * *(f32 *)((u8 *)gCurLevel + 172);
     for (i = 0; i < 4; i++) {
         c->unk1BC[i][0] = 0.0f;
         c->unk1BC[i][1] = 0.0f;
@@ -6636,14 +6636,14 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
     for (i = 0; i < 4; i++) {
         c->unk4E0[i] = -1;
     }
-    if ((s16)*(s16 *)(h + offsetof(CritterPackedType, moveCount)) > 0) {
-        memset(c->moveTimes, 0, *(s16 *)(h + offsetof(CritterPackedType, moveCount)) * 4);
+    if ((s16)((CritterPackedType *)h)->moveCount > 0) {
+        memset(c->moveTimes, 0, ((CritterPackedType *)h)->moveCount * 4);
     }
-    if ((s16)*(s16 *)(h + offsetof(CritterPackedType, auxMoveCount)) > 0) {
-        memset(c->patternTimes, 0, *(s16 *)(h + offsetof(CritterPackedType, auxMoveCount)) * 4);
+    if ((s16)((CritterPackedType *)h)->auxMoveCount > 0) {
+        memset(c->patternTimes, 0, ((CritterPackedType *)h)->auxMoveCount * 4);
     }
-    if ((s16)*(s16 *)(h + offsetof(CritterPackedType, colCount)) > 0) {
-        memset(c->hitnodes, 0, *(s16 *)(h + offsetof(CritterPackedType, colCount)) * 92);
+    if ((s16)((CritterPackedType *)h)->colCount > 0) {
+        memset(c->hitnodes, 0, ((CritterPackedType *)h)->colCount * 92);
     }
 }
 /* 0x8003EA4C -- tear down a critter instance: detach scene nodes, kill sfx,
@@ -6811,7 +6811,7 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
                 *(void **)((u8 *)c->anodes + animOffset + 0x20) = NULL;
                 *(CritterColnode **)((u8 *)c->anodes + animOffset) = NULL;
                 moveOffset = j;
-                while (j < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
+                while (j < ((CritterPackedType *)c->hdr)->moveCount) {
                     if (*(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
                                  moveOffset + 0x0E) == i) {
                         *(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
@@ -6824,7 +6824,7 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
         }
 
         for (i = 0, hitOffset = 0;
-             i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount));
+             i < ((CritterPackedType *)c->hdr)->colCount;
              i++, hitOffset += 0x5C) {
             u8 *hitRecord = (u8 *)c + hitOffset;
             if (*(void **)(hitRecord + 0x4FC) == node) {
@@ -6868,15 +6868,15 @@ void CritterInitColnodes(Critter *c)
     u8 unused[8];
 
     header = (u8 *)c->hdr;
-    if (*(s16 *)(header + offsetof(CritterPackedType, colCount)) <= 0) {
+    if (((CritterPackedType *)header)->colCount <= 0) {
         return;
     }
     descriptorBase = *(u8 **)(*(u8 **)(header + offsetof(CritterPackedType, file)) +
                                offsetof(CritterFileHeader, nodes)) +
-                      *(s16 *)(header + offsetof(CritterPackedType, colBase)) * 0x50;
+                      ((CritterPackedType *)header)->colBase * 0x50;
     c->unkAB8 = -1;
     zerof = lbl_80346470;
-    for (i = 0; i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, colCount));
+    for (i = 0; i < ((CritterPackedType *)c->hdr)->colCount;
          i++) {
         record = (u8 *)c + offsetof(Critter, hitnodes) + i * sizeof(CritterHitNode);
         *(u8 **)(record + offsetof(CritterHitNode, descriptor)) =
@@ -6938,9 +6938,9 @@ void CritterInitColnodes(Critter *c)
             *(void **)(record + offsetof(CritterHitNode, active)),
             *(s16 *)(*(u8 **)(record + offsetof(CritterHitNode, descriptor)) +
                       offsetof(CritterColDescriptor, zsortParam)), 1);
-        *(s32 *)(record + offsetof(CritterHitNode, state)) = -1;
-        *(f32 *)(record + offsetof(CritterHitNode, activeFrom)) = zerof;
-        *(f32 *)(record + offsetof(CritterHitNode, activeUntil)) =
+        ((CritterHitNode *)record)->state = -1;
+        ((CritterHitNode *)record)->activeFrom = zerof;
+        ((CritterHitNode *)record)->activeUntil =
             *(f32 *)(*(u8 **)(record + offsetof(CritterHitNode, descriptor)) +
                       offsetof(CritterColDescriptor, healthScale)) * c->health;
         {
@@ -6957,11 +6957,11 @@ void CritterInitColnodes(Critter *c)
             if (sfxidx >= 0) {
                 psys = *(u8 **)((u8 *)hdr130 + offsetof(CritterFileHeader, damage)) +
                        sfxidx * 0x50;
-                CritterInitSfx(hdr130, *(s16 *)(psys + offsetof(CritterDamageDef, sfxIndex)), sfxparam);
-                CritterInitSfx(hdr130, *(s16 *)(psys + offsetof(CritterDamageDef, morphTargetIndex)), sfxparam);
-                CritterInitSfx(hdr130, *(s16 *)(psys + offsetof(CritterDamageDef, morphIndex)), sfxparam);
-                CritterInitSfx(hdr130, *(s16 *)(psys + offsetof(CritterDamageDef, sfx)), sfxparam);
-                if (*(s16 *)(psys + offsetof(CritterDamageDef, type)) == 6) {
+                CritterInitSfx(hdr130, ((CritterDamageDef *)psys)->sfxIndex, sfxparam);
+                CritterInitSfx(hdr130, ((CritterDamageDef *)psys)->morphTargetIndex, sfxparam);
+                CritterInitSfx(hdr130, ((CritterDamageDef *)psys)->morphIndex, sfxparam);
+                CritterInitSfx(hdr130, ((CritterDamageDef *)psys)->sfx, sfxparam);
+                if (((CritterDamageDef *)psys)->type == 6) {
                     lbl_80344650 = 1;
                 }
             }
@@ -7151,17 +7151,17 @@ s32 CritterLoadStartNext(void)
         if (*(s32 *)entry != 1) {
             continue;
         }
-        for (j = 0; j < *(s32 *)(entry + offsetof(CritterFileHeader, typeCount)); j++) {
+        for (j = 0; j < ((CritterFileHeader *)entry)->typeCount; j++) {
             sub = *(u8 **)(entry + offsetof(CritterFileHeader, types)) + j * 320;
             desc = *(u8 **)(sub + offsetof(CritterPackedType, descriptor));
             if (desc == NULL) {
                 continue;
             }
-            switch (*(s16 *)(desc + offsetof(CritterDescriptor, loadState))) {
+            switch (((CritterDescriptor *)desc)->loadState) {
             case 0:
                 break;
             case 1:
-                switch (*(s16 *)(desc + offsetof(CritterDescriptor, type))) {
+                switch (((CritterDescriptor *)desc)->type) {
                 case 3:
                 case 8:
                     sprintf(buf, (char *)&fmtbase[416], desc,
@@ -7182,7 +7182,7 @@ s32 CritterLoadStartNext(void)
                     sprintf(buf, (char *)&fmtbase[448], desc);
                     break;
                 }
-                MBOX_BGLoadModelStart(buf, *(s16 *)(desc + offsetof(CritterDescriptor, modelIndex)));
+                MBOX_BGLoadModelStart(buf, ((CritterDescriptor *)desc)->modelIndex);
                 crit_load_desc = desc;
                 lbl_80344640 = NULL;
                 return 1;
@@ -7197,7 +7197,7 @@ s32 CritterLoadStartNext(void)
                 break;
             }
         }
-        if (j == *(s32 *)(entry + offsetof(CritterFileHeader, typeCount))) {
+        if (j == ((CritterFileHeader *)entry)->typeCount) {
             *(s32 *)entry = 2;
         }
     }
@@ -7303,7 +7303,7 @@ void CritterLoadFinish(u8 *header)
     if (*(void **)(header + offsetof(CritterPackedType, atree)) != NULL) {
         return;
     }
-    if (*(s16 *)(header + offsetof(CritterPackedType, parentIndex)) < 0) {
+    if (((CritterPackedType *)header)->parentIndex < 0) {
         sprintf((char *)name, "%s%s",
                 (char *)(*(u8 **)(header + offsetof(CritterPackedType,
                           descriptor)) + offsetof(CritterDescriptor, prefix)), header);
@@ -7317,7 +7317,7 @@ void CritterLoadFinish(u8 *header)
     } else {
         parent = *(u8 **)(*(u8 **)(header + offsetof(CritterPackedType, file)) +
                            offsetof(CritterFileHeader, types)) +
-                 *(s16 *)(header + offsetof(CritterPackedType, parentIndex)) *
+                 ((CritterPackedType *)header)->parentIndex *
                  sizeof(CritterPackedType);
         *(void **)(header + offsetof(CritterPackedType, atree)) =
             *(void **)(parent + offsetof(CritterPackedType, atree));
@@ -7332,42 +7332,42 @@ void CritterLoadFinish(u8 *header)
         *(void **)(attachment + offsetof(CritterAddAnim, atree)) =
             AtreeMatch(*(void **)(*(u8 **)(header + offsetof(CritterPackedType,
                        descriptor)) + offsetof(CritterDescriptor, model)),
-                       (char *)(attachment + offsetof(CritterAddAnim, name)), 1);
+                       ((CritterAddAnim *)attachment)->name, 1);
     }
 
     atree = *(void **)(header + offsetof(CritterPackedType, atree));
     index = -1;
     if (atree != NULL && (header + offsetof(CritterPackedType, nodeName0)) != NULL &&
-        *(char *)(header + offsetof(CritterPackedType, nodeName0)) != '\0' &&
-        *(char *)(header + offsetof(CritterPackedType, nodeName0) + 1) != '\0') {
+        ((CritterPackedType *)header)->nodeName0[0] != '\0' &&
+        ((CritterPackedType *)header)->nodeName0[1] != '\0') {
         index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
                                  *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
                                  (char *)(header + offsetof(CritterPackedType,
                                           nodeName0)), 0x10);
     }
-    *(s16 *)(header + offsetof(CritterPackedType, node0Index)) = (s16)index;
+    ((CritterPackedType *)header)->node0Index = (s16)index;
     index = -1;
     atree = *(void **)(header + offsetof(CritterPackedType, atree));
     if (atree != NULL && (header + offsetof(CritterPackedType, nodeName1)) != NULL &&
-        *(char *)(header + offsetof(CritterPackedType, nodeName1)) != '\0' &&
-        *(char *)(header + offsetof(CritterPackedType, nodeName1) + 1) != '\0') {
+        ((CritterPackedType *)header)->nodeName1[0] != '\0' &&
+        ((CritterPackedType *)header)->nodeName1[1] != '\0') {
         index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
                                  *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
                                  (char *)(header + offsetof(CritterPackedType,
                                           nodeName1)), 0x10);
     }
-    *(s16 *)(header + offsetof(CritterPackedType, node1Index)) = (s16)index;
+    ((CritterPackedType *)header)->node1Index = (s16)index;
     index = -1;
     atree = *(void **)(header + offsetof(CritterPackedType, atree));
     if (atree != NULL && (header + offsetof(CritterPackedType, nodeName2)) != NULL &&
-        *(char *)(header + offsetof(CritterPackedType, nodeName2)) != '\0' &&
-        *(char *)(header + offsetof(CritterPackedType, nodeName2) + 1) != '\0') {
+        ((CritterPackedType *)header)->nodeName2[0] != '\0' &&
+        ((CritterPackedType *)header)->nodeName2[1] != '\0') {
         index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
                                  *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
                                  (char *)(header + offsetof(CritterPackedType,
                                           nodeName2)), 0x10);
     }
-    *(s16 *)(header + offsetof(CritterPackedType, node2Index)) = (s16)index;
+    ((CritterPackedType *)header)->node2Index = (s16)index;
 }
 
 /* 0x8003FBD0 -- initialize the move tables of every loaded type/subtype. */
