@@ -642,13 +642,12 @@ void ResetModels(void)
 /* 0x80053A10 -- clear two per-enemy fields for all 25 enemy records. */
 void init_moving_objects(void)
 {
-    s32* e = (s32*)gEnemies;
+    Enemy* e = gEnemies;
     s32 i;
 
-    for (i = 0; i < 25; i++) {
-        e[45] = 0;   /* +0xB4 */
-        e[25] = 0;   /* +0x64 */
-        e += 229;    /* stride 0x394 */
+    for (i = 0; i < 25; i++, e++) {
+        e->state = INACTIVE;
+        e->objgrp.node = 0;
     }
 }
 
@@ -1438,7 +1437,7 @@ void init_thermometer(void)
             }
             if (sMusicTrackHi == BATTLE) {
                 s32 charIdx = ((Player*)playerData)->character;
-                if ((*(u8*)(playerData + 7384 + charIdx * 14) & 4) != 0) {
+                if ((((Player*)playerData)->waves[charIdx][BATTLE] & 4) != 0) {
                     enabled = 0;
                 }
             } else if (PlayerHasRune(player, GetWorldOrder(5)) != 0) {
@@ -1507,7 +1506,7 @@ extern void load_player(s32 player);
 extern void add_target(void* mat);
 extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
 extern void CopyMat3(f32* src, f32* dst);
-extern f32  lbl_80257650[];
+extern f32  lbl_80257650[4][3];
 extern void UpdatePlayerWorldMat(void* player, s32 force);
 extern void setup_player_display(s32 player);
 extern void PlayerSaveState(s32 player, s32 mode);
@@ -1629,7 +1628,7 @@ void fn_8005351C(void)
                 if (isSelect != 0) {
                     f32* v;
                     CopyMat3(gIdentityMatrix, player->mat);
-                    v = &lbl_80257650[i * 3];
+                    v = lbl_80257650[i];
                     player->pos[0] = v[0];
                     player->pos[1] = v[1];
                     player->pos[2] = v[2];
@@ -1653,7 +1652,7 @@ void fn_8005351C(void)
                 }
                 if (player->exp == 0) {
                     player->exp = 1;
-                    *(s8*)(q + 2699) = 0;
+                    player->saved = 0;
                 }
             }
         }
