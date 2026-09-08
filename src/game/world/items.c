@@ -1040,9 +1040,9 @@ s32 did_generate(void* owner, s32 checkEnemies)
 void LinkTriggerToCam(s32 idx, s32 type)
 {
     u8*  base = (u8*)&sItemRuntime;
-    Item* p;
     s32  i;
     s16  sidx;
+    Item* p;
 
     if (sMusicTrackHi == 13) {
         if (type > 200) {
