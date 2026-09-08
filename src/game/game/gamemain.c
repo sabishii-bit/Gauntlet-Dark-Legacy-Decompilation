@@ -1216,8 +1216,7 @@ void SetPlayerVars(void)
     lbl_803447D8 = 1.0f;
     lbl_803447E0 = 0;
     for (i = 0; i < 4; i++) {
-        e = &gPlayers[i];
-        type = e->state;
+        type = (e = &gPlayers[i])->state;
         if (type != 0) {
             count1++;
             if (type != 2 && type != 3) {
@@ -1234,7 +1233,7 @@ void SetPlayerVars(void)
                 lbl_803447DC = 1;
             }
             if (bossType < 0 && (playerFlags & 0x200)) {
-                lbl_803447D8 = lbl_803447D8 * 0.667;
+                lbl_803447D8 *= 0.667;
             }
         }
         e->hud_flags2 = 0;
