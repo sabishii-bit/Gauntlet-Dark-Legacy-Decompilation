@@ -874,9 +874,11 @@ f32 *delta;
  * the item grid. */
 s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterCollideItems by 7 words at unchanged size; original local unrecovered */
     u8 unusedHigh[12];
     f32 center[3];
     f32 out[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterCollideItems by 21 words at unchanged size; original local unrecovered */
     u8 unusedLow[4];
     s32 hit;
     s32 j;
@@ -1279,11 +1281,14 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
 /* 0x800359F0 -- damage swarm enemies intersecting an active critter node. */
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodeEnemyCollide by 7 words at unchanged size; original local unrecovered */
     u8 unusedHigh[8];
     u8 *dmg = (u8 *)damageDef;
     f32 pos[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodeEnemyCollide by 15 words at unchanged size; original local unrecovered */
     u8 unusedMid[20];
     f32 out[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodeEnemyCollide by 21 words at unchanged size; original local unrecovered */
     u8 unusedLow[4];
     f32 delta[3];
     f64 zero;
@@ -1343,6 +1348,7 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
 s32 SafeRockNearestTarget(s32 player)
 {
     f32 matrix[16];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves SafeRockNearestTarget by 10 words at unchanged size; original local unrecovered */
     u8 unused[40];
     f32 playerX;
     f32 playerZ;
@@ -1676,16 +1682,22 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
 {
     u8 *dmg = (u8 *)damage;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterFirePlayerCollide by 7 words at unchanged size; original local unrecovered */
     u8 framePad[8];
     f32 start[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterFirePlayerCollide by 14 words at unchanged size; original local unrecovered */
     u8 startPad[4];
     f32 end[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterFirePlayerCollide by 21 words at unchanged size; original local unrecovered */
     u8 endPad[4];
     f32 delta[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterFirePlayerCollide by 40 words at unchanged size; original local unrecovered */
     u8 deltaPad[4];
     f32 transformed[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterFirePlayerCollide by 45 words at unchanged size; original local unrecovered */
     u8 transformedPad[4];
     f32 playerPos[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterFirePlayerCollide by 60 words at unchanged size; original local unrecovered */
     u8 unused[16];
     Player *player;
     f32 maxDistance;
@@ -1760,16 +1772,22 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled)
 {
     u8 *dmg = (u8 *)damage;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodePlayerCollide by 7 words at unchanged size; original local unrecovered */
     u8 framePad[16];
     f32 start[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodePlayerCollide by 14 words at unchanged size; original local unrecovered */
     u8 startGap[20];
     f32 transformed[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodePlayerCollide by 22 words at unchanged size; original local unrecovered */
     u8 transformedPad[4];
     f32 deltaFromNode[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodePlayerCollide by 29 words at unchanged size; original local unrecovered */
     u8 nodePad[4];
     f32 deltaFromCritter[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodePlayerCollide by 37 words at unchanged size; original local unrecovered */
     u8 critterPad[4];
     f32 playerPos[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterNodePlayerCollide by 51 words at unchanged size; original local unrecovered */
     u8 unused[12];
     Player *player;
     f64 hitTimeBase;
@@ -1945,6 +1963,7 @@ void CritterSetFxHitTime(s32 slot, s32 id, f32 amount)
  * player or the current waypoint chain. */
 s32 CritterGetTarget(Critter *c, f32 *out)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterGetTarget by 7 words at unchanged size; original local unrecovered */
     u8 unused[16];
     void *waypoint;
     f64 minimum_distance;
@@ -2204,9 +2223,11 @@ void CritterResolveMultipleTargets(Critter *c)
 /* 0x80036FBC -- collect and distance-sort all eligible player targets. */
 void CritterGetTargetPlayers(Critter *c)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterGetTargetPlayers by 7 words at unchanged size; original local unrecovered */
     u8 unused2[4];
     f32 targetpos[3];
     CritterTargetRecord record;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterGetTargetPlayers by 20 words at unchanged size; original local unrecovered */
     u8 unused[4];
     Player *player;
     s32 i;
@@ -2332,6 +2353,7 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
                       CritterTargetRecord *record)
 {
     f32 forward[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterCalcTarget by 18 words at unchanged size; original local unrecovered */
     u8 vectorGap[4];
     f32 delta[3];
     f32 distance;
@@ -2340,6 +2362,7 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
     f32 score;
     f32 absdot;
     f32 absdot2;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterCalcTarget by 39 words at unchanged size; original local unrecovered */
     u8 unused[16];
 
     if (moveTarget != NULL) {
@@ -2435,6 +2458,7 @@ void *CritterMoveNodeCol(f32 radius, f32 height, f32 *origin,
     f32 dy;
     f32 horizontalSquared;
     f32 verticalSquared;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterMoveNodeCol by 7 words at unchanged size; original local unrecovered */
     u8 unused[8];
     s32 result;
 
@@ -2497,6 +2521,7 @@ s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
                           s32 first)
 {
     f32 nodePosition[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterMoveNodeColSub by 13 words at unchanged size; original local unrecovered */
     u8 positionPad[20];
     f32 hit[3];
     f32 best;
@@ -2622,8 +2647,10 @@ Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
                            f32 dot, f32 *contact, s32 timedId)
 {
     Critter *c;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterExpCollide by 7 words at unchanged size; original local unrecovered */
     u8 unused2[8];
     f32 delta[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterExpCollide by 8 words at unchanged size; original local unrecovered */
     u8 unused[16];
     f32 bodyRadius;
     f32 distance;
@@ -2678,6 +2705,7 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
     s32 i;
     CritterHitNode *node;
     f32 distance;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterLineNodeColSub by 7 words at unchanged size; original local unrecovered */
     u8 unused[16];
 
     i = 0;
@@ -2808,6 +2836,7 @@ void fn_80037ED0(f32 add, Critter *c, s32 id)
 Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
                             f32 *forward, f32 *out, f32 *score)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterLineCollide by 7 words at unchanged size; original local unrecovered */
     u8 unused[8];
     f32 contact[3];
     Critter *pool;
@@ -2820,6 +2849,7 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
     f32 cz;
     f32 best;
     f32 d;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterLineCollide by 11 words at unchanged size; original local unrecovered */
     u8 pad24[20];
 
     best = lbl_80346508;
@@ -3386,6 +3416,7 @@ s32 ProcessCritter(Critter *c)
     f32 scale;
     f32 childHealth;
     f64 zero;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves ProcessCritter by 7 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     if (c->parent != NULL) {
@@ -3726,6 +3757,7 @@ s32 CritterGolemAI(Critter *c)
     f32 ratio;
     f32 best;
     s32 anim32;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterGolemAI by 7 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     CritterGetSingleTargetPlayer(c);
@@ -3859,6 +3891,7 @@ s32 CritterGolemAI(Critter *c)
 s32 CritterBossAI(Critter *c)
 {
     char moveName[12];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterBossAI by 41 words at unchanged size; original local unrecovered */
     u8 unused[40];
     Critter *child;
     CritterMove *move;
@@ -4331,11 +4364,13 @@ void CritterDropItem(Critter *c)
  * result through world and critter collision. */
 s32 CritterTranslate(Critter *c, CritterMove *move)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterTranslate by 7 words at unchanged size; original local unrecovered */
     u8 pad16[16];
     f32 delta[3];
     f32 t0;
     f32 t1;
     f32 t2;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterTranslate by 71 words at unchanged size; original local unrecovered */
     u8 pad4[4];
     f32 contact[3];
     f32 dest[3];
@@ -4364,6 +4399,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
     s32 pr;
     s32 tmpr;
     f32 rad;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterTranslate by 76 words at unchanged size; original local unrecovered */
     u8 pad24[24];
 
     speed = *(f32 *)((u8 *)c->hdr + 0xAC);
@@ -4542,8 +4578,10 @@ void CritterRotate(Critter *c, CritterMove *move)
     f32 delta;
     f32 turn;
     f32 limit;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterRotate by 7 words at unchanged size; original local unrecovered */
     volatile f64 highPad;
     f32 target[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterRotate by 23 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     turn = move->turnRate;
@@ -5174,6 +5212,7 @@ static f32 CritterAnimMod(s32 delta, f32 period)
 u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 {
     u32 result;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterCopyAnim by 17 words at unchanged size; original local unrecovered */
     u8 unused[16];
 
     result = 0;
@@ -5572,10 +5611,13 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
     s16 type;
     s32 i;
     s32 node;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterAnimInterrupt by 10 words at unchanged size; original local unrecovered */
     u8 unused0[4];
     f32 v[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterAnimInterrupt by 22 words at unchanged size; original local unrecovered */
     u8 unused1[8];
     f32 dir[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterAnimInterrupt by 34 words at unchanged size; original local unrecovered */
     u8 unused2[4];
 
     desc = *(u8 **)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, file)) +
@@ -5726,10 +5768,13 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 #pragma opt_lifetimes off
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterDoTexmodNode by 7 words at unchanged size; original local unrecovered */
     u8 unused[8];
     f32 world[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterDoTexmodNode by 18 words at unchanged size; original local unrecovered */
     u8 worldPad[4];
     f32 velocity[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterDoTexmodNode by 44 words at unchanged size; original local unrecovered */
     u8 velocityPad[4];
     f32 offset[3];
     f32 angularVelocity[3];
@@ -5978,8 +6023,10 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     s32 result;
     u32 flags;
     f32 mtxTmp[16];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterDoSfx by 11 words at unchanged size; original local unrecovered */
     u32 unusedHigh;
     f32 world[3];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterDoSfx by 40 words at unchanged size; original local unrecovered */
     u32 unusedLow;
     f32 color[3];
     f32 scale;
@@ -6431,6 +6478,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     s32 idx;
     s32 floorHit;
     f32 atanX;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterInitGeo by 5 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     atreeFlags = 0;
@@ -6858,6 +6906,7 @@ void CritterInitColnodes(Critter *c)
     s8 ch;
     s32 nodeIndex;
     f32 zerof;
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterInitColnodes by 7 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     header = (u8 *)c->hdr;
@@ -7268,6 +7317,7 @@ void CritterLoadFinish(CritterPackedType *header)
     void *atree;
     s32 index;
     f64 name[4];
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterLoadFinish by 8 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     if (header->atree != NULL) {
@@ -7342,6 +7392,7 @@ void CritterInitAllMoves(void)
  * dependency referenced by a loaded type's move and collision tables. */
 void CritterInitMoves(CritterPackedType *header)
 {
+    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves CritterInitMoves by 5 words at unchanged size; original local unrecovered */
     volatile u8 unused[8];
     CritterFileHeader *container;
     void *atree;

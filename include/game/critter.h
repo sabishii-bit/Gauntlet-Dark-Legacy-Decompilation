@@ -7,14 +7,23 @@
  * struct).  Critters are the large, scripted, multi-part creatures (golems,
  * bosses, generals, ...) distinct from the swarm-style Enemy record.
  *
- * The Xbox debug PDB (research/xbox_symbols/shell3D.pdb, module CRITTER.obj)
- * exports every CRITTER.OBJ *function* but retains NO named CRITTER instance
- * struct in its type stream (grep of game.h / misc.h / type_index.txt /
- * xbox_structs.tsv finds only PBMEM_CRITTER).  This layout is therefore
- * reconstructed directly from the GameCube (GUNE5D) DOL asm - the field
- * boundaries below are byte-exact against the target objects, with behavioural
- * names.  Offsets that could not be pinned to a use are left as reserved
- * (_blkXXX / _resXXX) padding so the struct stays offset-exact (0xAE0).
+ * CORRECTION (2026-09-11): the earlier banner claimed the Xbox debug PDB has no
+ * CRITTER instance struct.  It does -- research/xbox_symbols/misc.h carries the
+ * whole CRITTER family: crit_inst (Size=0xae0), crit_type (0x140), crit_move
+ * (0x90), crit_pattern (0x50), crit_damage (0x50), crit_desc (0x30) and
+ * crit_header (0x50).  crit_inst's first fields line up with this record
+ * exactly (index@0, id@2, `struct crit_type *type`@4, state@8, OBJGRP objgrp@0xc
+ * size 0x68, atree@0x74 size 0x48, addaniminst@0xbc, root@0xc0, shadow@0xc4,
+ * headnode@0xc8, eyenode@0xcc, movenode@0xd0, dmgdbgnode@0xd4, coldbgnode@0xd8,
+ * noskinfxnode@0xdc, skinfx@0xe0 size 0x18, then inityaw/curyaw/headyaw/eyeyaw/
+ * headpitch/eyepitch, difficulty@0x110, invdifficulty@0x114), so the names below
+ * can be corrected against it field by field.  One correction is already known
+ * and NOT yet applied: `skinMatrix[12]` at 0x0E0 is crit_inst.skinfx (0x18)
+ * followed by six separate f32 yaw/pitch fields, not one 3x4 matrix.
+ * The layout itself is still reconstructed from the GameCube (GUNE5D) DOL asm -
+ * the field boundaries below are byte-exact against the target objects, with
+ * behavioural names.  Offsets that could not be pinned to a use are left as
+ * reserved (_blkXXX / _resXXX) padding so the struct stays offset-exact (0xAE0).
  *
  * GameCube (GUNE5D) anchors (config/GUNE5D/symbols.txt):
  *   Critter instance size  0xAE0  (2784 bytes)
@@ -48,10 +57,11 @@
  *   health     0x4B0  lfs   (current hp; hdr->maxhp * gCurLevel->0xAC on init)
  *   next       0xAD8  lwz   (sibling in active critter list)
  *   parent     0xADC  lwz   (parent critter; NULL for a root critter)
- * GC-vs-Xbox delta: the Xbox PDB has no CRITTER struct to compare, so no field
- * delta can be stated; the Xbox and GC share the CRITTER.OBJ function roster
- * 1:1 (see research/xbox_symbols/functions_by_module.txt), so the record is
- * expected to be the same Midway source struct.
+ * GC-vs-Xbox delta: crit_inst is 0xae0 on both, and every offset checked above
+ * agrees; the Xbox and GC also share the CRITTER.OBJ function roster 1:1 (see
+ * research/xbox_symbols/functions_by_module.txt).  Xbox names remain
+ * corroboration, not proof of GC layout: each one still has to be confirmed
+ * against a GC access before it is adopted.
  */
 
 struct Critter;
