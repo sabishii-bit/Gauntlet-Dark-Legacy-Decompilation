@@ -869,7 +869,6 @@ void init_thermometer(void)
 void fn_80055678(f32* a, f32* b)
 {
     f32 d;
-    f64 t;
     f32 dx;
     f32 dy;
     f32 dz;
@@ -884,14 +883,10 @@ void fn_80055678(f32* a, f32* b)
         d = sqrtf_accurate(dx * dx + dy * dy + dz * dz);
         d = (f32)(d - 8.0);
         d = d * lbl_80343C08;
-        if (d < 0.0f) {
-            t = 0.0;
-        } else if (d > 1.0) {
-            t = 1.0;
-        } else {
-            t = d;
+        {
+            f64 clamped = d < 0.0f ? 0.0 : d > 1.0 ? 1.0 : d;
+            d = (f32)clamped;
         }
-        d = (f32)t;
         d = (f32)(1.0 - (1.0 - d) * (1.0 - d));
         if (lbl_80344790 == 0 && d < 0.25) {
             lbl_80344790 = 1;
