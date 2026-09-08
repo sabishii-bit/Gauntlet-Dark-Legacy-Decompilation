@@ -559,7 +559,7 @@ extern const char lbl_80112238[];
 extern char  lbl_801122F0[];
 extern f32   gIdentityMatrix[12];
 DECL_SECT(".sdata2") extern const char lbl_80346644[];
-extern void *gCurLevel;               /* current level record (->0xAC hp scale)   */
+extern level_data *gCurLevel;         /* current level record (game/leveldata.h)  */
 extern char  lbl_8011219C[];          /* move-type lookup failure message          */
 extern void *MBOX_ReallyFindObject(const char *name, s32 type1, s32 type2,
                                     s32 exact);
@@ -823,7 +823,7 @@ f32 *delta;
             if ((f64)enemy->hht <= 2.0) {
                 damage_enemy(enemy, -1, 0,
                              ((CritterPackedType *)c->hdr)->damageScale *
-                             ((level_data *)gCurLevel)->ene_damage,
+                             gCurLevel->ene_damage,
                              bestContact, NULL, 1);
                 return 0;
             }
@@ -911,7 +911,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
             if (type != 2) {
                 if (type == 3) {
                     damage = ((CritterPackedType *)c->hdr)->damageScale *
-                             ((level_data *)gCurLevel)->ene_damage;
+                             gCurLevel->ene_damage;
                     if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != 0.0f) {
                         hit = 1;
                     }
@@ -1265,7 +1265,7 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     s32 idx;
     Enemy *e;
 
-    radius = ((CritterDamageDef *)dmg)->damage * ((level_data *)gCurLevel)->ene_damage;
+    radius = ((CritterDamageDef *)dmg)->damage * gCurLevel->ene_damage;
     f26v = ((CritterDamageDef *)dmg)->maxDistance;
     count = 0;
     MulVecMat3(((CritterDamageDef *)dmg)->offset, out, c->worldMoveMatrix);
@@ -1536,7 +1536,7 @@ static void CritterSetDifficulty(Critter *c)
     rateScale = 4.5f;
     ratio = c->health /
             (1.0 + ((CritterPackedType *)c->hdr)->maxHealth *
-                       ((level_data *)gCurLevel)->ene_health);
+                       gCurLevel->ene_health);
     speed = 1.0 - ratio;
     speed = rateBase + speed * rateScale;
     c->invRateScale = 1.0 / speed;
@@ -1583,7 +1583,7 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     damageFlags = ((CritterDamageDef *)damageDef)->flags | flags;
     playerIndex = player->index;
     damage = ((CritterDamageDef *)damageDef)->damage *
-             ((level_data *)gCurLevel)->ene_damage;
+             gCurLevel->ene_damage;
     if (playSfx != 0 && ((CritterDamageDef *)damageDef)->sfx >= 0) {
         CritterDoSfx(c, ((CritterDamageDef *)damageDef)->sfx, &player->pos[0], 0, -1);
         damageFlags |= 0x01000000;
@@ -1620,7 +1620,7 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
     damageFlags = ((CritterDamageDef *)damageDef)->flags | flags;
     playerIndex = player->index;
     *damage = ((CritterDamageDef *)damageDef)->damage *
-              ((level_data *)gCurLevel)->ene_damage;
+              gCurLevel->ene_damage;
     if (playSfx != 0 && ((CritterDamageDef *)damageDef)->sfx >= 0) {
         CritterDoSfx(c, ((CritterDamageDef *)damageDef)->sfx, &player->pos[0], 0, -1);
         damageFlags |= 0x01000000;
@@ -1763,7 +1763,7 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     radius = (f32)(enabled != 0
                        ? (f64)(*(f32 *)(dmg + offsetof(CritterDamageDef,
                                          damage)) *
-                               ((level_data *)gCurLevel)->ene_damage)
+                               gCurLevel->ene_damage)
                        : lbl_80346488);
     expansion = ((CritterDamageDef *)dmg)->maxDistance;
     bestDistance = lbl_80346508;
@@ -1865,7 +1865,7 @@ void CritterDamagePlayer(Player *player, Critter *c,
 
     damageFlags = damageDef->flags | flags;
     playerIndex = player->index;
-    damage = damageDef->damage * *(f32 *)((u8 *)gCurLevel + 0xBC);
+    damage = damageDef->damage * gCurLevel->ene_damage;
 
     if (playSfx != 0 && damageDef->sfx >= 0) {
         CritterDoSfx(c, damageDef->sfx, &player->pos[0], 0, -1);
@@ -3398,7 +3398,7 @@ s32 ProcessCritter(Critter *c)
     if (c->damageflash != NULL) {
         scale = c->health /
                 (((CritterPackedType *)c->hdr)->maxHealth *
-                 ((level_data *)gCurLevel)->ene_health);
+                 gCurLevel->ene_health);
         if ((f64)c->health <= lbl_80346488) {
             AtreeDelete(&c->healthbar[0]);
             c->damageflash = NULL;
@@ -3444,7 +3444,7 @@ s32 ProcessCritter(Critter *c)
             if (current->damageflash != NULL) {
                 scale = current->health /
                         (*(f32 *)((u8 *)current->hdr + 0xE4) *
-                         *(f32 *)((u8 *)gCurLevel + 0xAC));
+                         gCurLevel->ene_health);
                 if ((f64)current->health <= zero) {
                     AtreeDelete(&current->healthbar[0]);
                     current->damageflash = NULL;
@@ -4343,7 +4343,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
     u8 pad24[24];
 
     speed = *(f32 *)((u8 *)c->hdr + 0xAC);
-    spd = *(f32 *)((u8 *)gCurLevel + 0xB0) *
+    spd = gCurLevel->ene_speed *
           (move->readyDistance * gClockFrameStep);
     if (speed <= 0.0f) {
         return 0;
@@ -6623,7 +6623,7 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
     c->unkAC6 = 0;
     c->unkAC8 = 0.0f;
     c->unk4AC = 0.0f;
-    c->health = ((CritterPackedType *)h)->maxHealth * *(f32 *)((u8 *)gCurLevel + 172);
+    c->health = ((CritterPackedType *)h)->maxHealth * gCurLevel->ene_health;
     for (i = 0; i < 4; i++) {
         c->unk1BC[i][0] = 0.0f;
         c->unk1BC[i][1] = 0.0f;
@@ -7574,7 +7574,7 @@ void CritterInitSfx(void *file, s32 index, void *atreeHeader)
     if (*(s32 *)(entry + offsetof(CritterSfxRecord, audioId)) < 0) {
         if (*(char *)(entry + offsetof(CritterSfxRecord, levelFmt)) != '\0') {
             sprintf(name, (char *)(entry + offsetof(CritterSfxRecord, levelFmt)),
-                    *(s8 *)((u8 *)gCurLevel + 8));
+                    gCurLevel->name[0]);
             *(s32 *)(entry + offsetof(CritterSfxRecord, audioId)) =
                 AudioFindSound(name, 0, 1);
         } else {
