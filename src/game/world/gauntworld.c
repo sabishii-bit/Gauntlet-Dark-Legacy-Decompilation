@@ -1421,19 +1421,21 @@ void world_update(void)
     if (cond && gGameMode == MG_PLAY && gBossObj != NULL &&
         gBossObj->state != 0) {
         {
-            u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
+            WorldObj* w = FindWORLDOBJ(strs + 0xd0);
 
-            if (w != 0 && *(u32*)(w + 0x28) != 0) {
-                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            if (w != 0 && w->nodeptr != 0) {
+                // lint-allow-next-line FM001, FM007: 0x60 off WorldObj.nodeptr is mbnode.flags (Xbox misc.h struct mbnode Id=3249: unsigned int flags at 0x60); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
+                *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
             } else {
                 ErrorPrintf(strs + 0xdc);
             }
         }
         {
-            u32 w = (u32)FindWORLDOBJ(strs + 0xfc);
+            WorldObj* w = FindWORLDOBJ(strs + 0xfc);
 
-            if (w != 0 && *(u32*)(w + 0x28) != 0) {
-                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            if (w != 0 && w->nodeptr != 0) {
+                // lint-allow-next-line FM001, FM007: 0x60 off WorldObj.nodeptr is mbnode.flags (Xbox misc.h struct mbnode Id=3249: unsigned int flags at 0x60); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
+                *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
             } else {
                 ErrorPrintf(strs + 0x108);
             }
@@ -1563,8 +1565,10 @@ void world_update(void)
                 void* found = MBOX_FindObject(strs + 0x128);
                 u32 o = (u32)gBossObj->hitnode1;
 
+                // lint-begin FM001, FM007: 0x78 off this node is mbnode.child (Xbox misc.h struct mbnode Id=3249: struct mbnode *child at 0x78); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 if (o != 0 && *(u32*)(o + 0x78) != 0) {
                     MBSetObject((void*)*(s32*)(o + 0x78), found);
+                    // lint-end FM001, FM007
                 }
                 gBossObj->unkAC6 = 0;
                 lbl_8034489C = 6;
@@ -1639,13 +1643,13 @@ void fn_80057024(void)
             s32 st = *(s32*)(q + offsetof(Player, state));
             if (st == 1 || st == 5 || st == 3) {
                 if (lbl_8034489C != 0) {
-                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
+                    ((Player*)q)->quest_state = 0;
                 } else if (towerGetRuneNearStat(i, sMusicTrackHi) != 0) {
-                    *(s32*)(q + offsetof(Player, quest_state)) = 1;
+                    ((Player*)q)->quest_state = 1;
                     lbl_8034489C = 1;
                     lbl_80344898 = z;
                 } else {
-                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
+                    ((Player*)q)->quest_state = 0;
                 }
             }
         }
@@ -5135,6 +5139,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
         if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
             StartFXMat(0x20, &item->objgrp);
             StartFXMat(0x21, &item->objgrp);
+            // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
             MBOX_NewObject(&objects[0x14C], item->objgrp.node,
                            *(s32*)((u8*)item->objgrp.node + 0x74), 0x80800);
             if (item->info->type == 1 && *(Item**)&item->data[0xC] != 0) {
@@ -5227,10 +5232,12 @@ found_gen:
                 StartFXMat(0x1F, &item->objgrp);
                 StartFXMat(0x21, &item->objgrp);
                 if (*sub == 0x30) {
+                    // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                     MBOX_NewObject(&objects[0x164], item->objgrp.node,
                                    *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
                 } else {
+                    // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                     MBOX_NewObject(&objects[0x170], item->objgrp.node,
                                    *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
@@ -5863,7 +5870,7 @@ process_item:
         }
         fn_8009CFA8(a->index, *(s32*)&b->data[4]);
         add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
-        *(s16*)((u8*)a + 0x95C) = 1;
+        a->speak_kind = 1;
         if (sMusicTrackHi == 12) {
             if (towerAwardWorldRunes() != 0) {
                 s32 h = fn_8009FB30();
@@ -5895,7 +5902,7 @@ process_item:
                 fn_8009F748(op, a->index);
             fn_8009CDF8(a->index);
             add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
             ret = 1;
         } else if (a->item_body_lo < lbl_803448A4) {
             s32 room = lbl_803448A4 - a->item_body_lo;
@@ -5907,7 +5914,7 @@ process_item:
             *(s32*)&b->data[4] -= room;
             fn_8009CDF8(a->index);
             add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
         } else {
             msgPost(4, a->index, (char*)a->col_pos);
         }
@@ -5935,7 +5942,7 @@ process_item:
                 fn_8009F748(op, a->index);
             fn_8009D038(a->index);
             add_got_it(a->index, it->subtype, 0);
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
             ret = 1;
         } else {
             msgPost(3, a->index, (char*)a->col_pos);
@@ -5966,11 +5973,11 @@ process_item:
             fn_8009F748(op, a->index);
         add_got_it(a->index, it->subtype, (s32)amt);
         if (amt < sZeroDouble) {
-            *(s16*)((u8*)a + 0x95C) = 3;
+            a->speak_kind = 3;
             AudioPlayerSeverePain(a->index);
         } else {
             s32 kind = 0;
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
             if (strcmp(it->desc, lbl_80112C5C) == 0)
                 kind = 3;
             else if (strcmp(it->desc, lbl_80346F18) == 0)
@@ -6091,7 +6098,7 @@ process_item:
             msgPost(snd, a->index, (char*)a->col_pos);
         fn_8009CEE0(a->index, it->subtype, flags220);
         add_got_it(a->index, it->subtype, 0);
-        *(s16*)((u8*)a + 0x95C) = 1;
+        a->speak_kind = 1;
         ret = 1;
         break;
     }
@@ -8412,6 +8419,7 @@ void fn_80062A00(void)
                 goto tail;
             }
             if (*(u32*)((u8*)node + 96) & 0x200) {
+                // lint-allow-next-line FM001: 83 off this node is mbnode.alpha (Xbox misc.h struct mbnode Id=3249, unsigned char alpha at 0x53); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 a = 255 - *(u8*)((u8*)node + 83);
             } else {
                 a = 0;
@@ -8483,6 +8491,7 @@ void fn_80062A00(void)
             }
         } else {
             if (!(flags8 & 8) && gen >= 2) {
+                // lint-allow-next-line FM001: 52 off WorldObj.nodeptr is mbnode.mat[3][1] (Xbox misc.h struct mbnode Id=3249); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 *(f32*)((u8*)w->nodeptr + 52) =
                     *(f32*)(row + 600) + *(f32*)row;
                 goto next;
@@ -8515,6 +8524,7 @@ void fn_80062A00(void)
             } else {
                 w->flags &= ~0x08000000;
             }
+            // lint-allow-next-line FM001: 52 off WorldObj.nodeptr is mbnode.mat[3][1] (Xbox misc.h struct mbnode Id=3249); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
             *(f32*)((u8*)w->nodeptr + 52) = *(f32*)(row + 600) + *(f32*)row;
         }
     tail:
