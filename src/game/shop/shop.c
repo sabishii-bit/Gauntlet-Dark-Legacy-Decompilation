@@ -568,10 +568,10 @@ s32 do_shop(void)
  * while the pile is still sinking (drives the count-down loop). */
 s32 show_piles(s32 col)
 {
-    ShopPage* tbl = (ShopPage*)(u8*)&lbl_802897D0;
     u8* blit;
     s32 result = 1;
     u8* pl = (u8*)gPlayers + col * 13148;
+    ShopPage* tbl = (ShopPage*)(u8*)&lbl_802897D0;
     s32 adj = gFrameTicks + (gFrameTicks >> 1);
     s32* counts = tbl->pile_count[col];
     s32 range = lbl_80343E10 - lbl_80343E0C - lbl_80343E14;
