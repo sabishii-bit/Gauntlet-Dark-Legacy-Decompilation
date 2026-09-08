@@ -95,9 +95,9 @@
 /*   0x80057E6C  NextWorldLevel     -- next level matching a wave mask,    */
 /*                                      wrapping to the next world.        */
 /*                                                                      */
-/* game_main retains an instruction residual. Other functions reproduce */
-/* target instructions, but several source scaffolds and complete TU    */
-/* data ownership/linkage remain unresolved. No TU promotion is implied. */
+/* Native matching is deferred while artificial source scaffolding is  */
+/* removed. Complete TU data ownership/linkage remains unresolved too.  */
+/* The extracted fallback remains selected; no TU promotion is implied. */
 /* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
@@ -249,7 +249,6 @@ extern void* MBNewObject(void* object, f32* matrix, void* parent, u32 flags);
 extern void  MBNodeSetParent(void* node, void* parent);
 
 /* game_init_data externs. */
-extern char  lbl_80112538[];       /* audio/init message string table */
 extern s32   lbl_80344800;
 extern s32   lbl_803447C0;
 extern s32   gLanguageId;
@@ -367,31 +366,16 @@ extern s32   lbl_803447E4;
 extern s32   lbl_803447EC;
 extern s32   lbl_803447F0;
 extern s32   lbl_803447F4;
-extern f32   lbl_80346AF4;
-extern f32   lbl_80346AF8;
-extern f32   lbl_80346AFC;
 extern s32   lbl_80344810;
 extern f32   lbl_80344814;
 extern f32   lbl_80344818;
-extern f32   lbl_80346B60;
-extern f64   lbl_80346B68;
-extern f32   lbl_80346B20;
-extern f32   lbl_80346B70;
-extern f32   lbl_80346B74;
-extern f32   lbl_80346B78;
-extern f32   lbl_80346B84;
-extern f32   lbl_80346B88;
 extern f64   lbl_80346AE8;
-extern f32   lbl_80346AD4;
 extern f32   lbl_80346BE0;
 extern f32   lbl_80346BE4;
 extern f32   lbl_80346BE8;
 extern f32   lbl_80346BEC;
 extern f32   lbl_80346BF0;
 extern f32   lbl_80346BF4;
-extern char  lbl_801125D0[];
-extern char  lbl_801125E4[];
-extern char  lbl_80112600[];
 extern s32   BytesFree(void);
 extern s32   fn_80057F44(s32 code, s32 mask);
 extern void  NewWorld(s32 arg0);
@@ -525,8 +509,6 @@ extern f32   lbl_803447D4;
 extern f32   lbl_803447D8;
 extern s32   lbl_803447DC;
 extern s32   lbl_803447E0;
-extern f32   lbl_80346AF0;
-extern f64   lbl_80346B00;
 
 /* Called helpers (signatures picked to reproduce the argument setup). */
 extern void  InitEnemyMissiles(s32 idx);
@@ -652,7 +634,6 @@ void fn_800521E8(void)
     s32 newTimer;
     MBTextMsg* txt;
     char* textData;
-    u8 unused[8];
 
     lbl_80344774 = oldTimer + gFrameTicks;
     newTimer = lbl_80344774;
@@ -1066,19 +1047,15 @@ int sprintf(char* s, const char* fmt, ...);
 void* fn_80057ACC(s32 key);
 
 /* 0x8005403C -- lock the model box, then run AtreeListLock. */
-#pragma dont_inline on
 void LockModels(s32 arg0)
 {
     MBOX_LockModels();
     AtreeListLock(arg0);
 }
-#pragma dont_inline off
 
 /* 0x80053420 -- second-stage game/audio init (main() calls this). */
 void game_init_data(void)
 {
-    char* msgs = lbl_80112538;
-    u8 unused[8];
 
     InitPlayerControls();
     ControlsUpdate();
@@ -1103,13 +1080,13 @@ void game_init_data(void)
     alpha = 0;
     reset_attract_mode();
     ControlsUpdate();
-    bulletproof_printf(msgs + 92);   /* "Initializing Audio..." */
+    bulletproof_printf("Initializing Audio...\n");   /* "Initializing Audio..." */
     AudioInit();
-    bulletproof_printf(msgs + 116);  /* "Loading Audio..."      */
+    bulletproof_printf("Loading Audio...\n");  /* "Loading Audio..."      */
     while (AudioSysUpdate(1) != 0) {
         serve_busy(-1);
     }
-    bulletproof_printf(msgs + 136);  /* "Loading Game."         */
+    bulletproof_printf("Loading Game.\n");  /* "Loading Game."         */
     ControlsUpdate();
     lbl_80344784 = 0;
 }
@@ -1121,14 +1098,14 @@ void TransitionBlitShow(s32 arg0)
     s32 sz;
 
     if (arg0 != 0) {
-        coord = lbl_80346AF4;
+        coord = 100.0f;
         sz = 384;
     } else {
         sz = 320;
-        coord = lbl_80346AF8;
+        coord = 64100.0f;
     }
     if (lbl_803447B0 == 0) {
-        void* tex = MBOX_FindTexture(lbl_801125D0, 0);
+        void* tex = MBOX_FindTexture("TRANSITION_SCREEN", 0);
         lbl_803447B0 = MBCreateBlit(0, tex, 0, 0, 512, sz);
     }
     mbBlitProject(lbl_803447B0, 0, sz);
@@ -1147,13 +1124,13 @@ void LoadTowerAndSelect(void)
         SelectLoadStart();
         while (SelectLoadDone() == 0) {
             if (pbLoad > timeout) {
-                FatalError(lbl_801125E4, 0x8000);
+                FatalError("LoadTowerAndSelect Timeout", 0x8000);
             }
         }
     }
     if (lbl_80343C10 < 0) {
         fn_80053D08(sWorldDataConst, 1, -1);
-        FontInitSpecial(lbl_80112600, 8);
+        FontInitSpecial("shopatt9", 8);
         ShopLoadData();
         LoadItems();
         lbl_80343C10 = init_next_level_8005638C(sWorldDataConst);
@@ -1166,10 +1143,8 @@ void LoadTowerAndSelect(void)
 }
 
 /* 0x80053D08 -- tear down the current front-end/world state and load a wave. */
-#pragma opt_lifetimes off
 s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
 {
-    char* strings = lbl_80112538;
     s32 result;
     f32 zero;
 
@@ -1197,7 +1172,7 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
         ResetTexmods();
         result = fn_80054070(wave, mode, loadResult);
     } else if (loadResult < 0) {
-        bulletproof_printf(strings + 212, wave, BytesFree());
+        bulletproof_printf("Starting wave %d... MEM=%d\n", wave, BytesFree());
         if (wave >= 0 && wave != sWorldDataConst) {
             result = -1;
             lbl_80343C10 = result;
@@ -1217,48 +1192,46 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
             AtreeInitLists(1);
         }
 
-        zero = lbl_80346AFC;
+        zero = 0.0f;
         MBCompVertScaleAddUV(0, 0, zero, zero, zero, zero, zero);
         ResetTexmods();
-        bulletproof_printf(strings + 240, BytesFree());
+        bulletproof_printf("  Worlds... MEM=%d\n", BytesFree());
         ResetWorlds();
-        bulletproof_printf(strings + 260, BytesFree());
+        bulletproof_printf("  Enemies... MEM=%d\n", BytesFree());
         fn_80051164();
-        bulletproof_printf(strings + 284, BytesFree());
+        bulletproof_printf("  Items... MEM=%d\n", BytesFree());
         InitItems();
-        bulletproof_printf(strings + 304, BytesFree());
+        bulletproof_printf("  Critters... MEM=%d\n", BytesFree());
         sndSysInit();
-        bulletproof_printf(strings + 328, BytesFree());
+        bulletproof_printf("  Game... MEM=%d\n", BytesFree());
         result = fn_80054070(wave, mode, -1);
-        bulletproof_printf(strings + 348, BytesFree());
+        bulletproof_printf("  Done. MEM=%d\n", BytesFree());
     } else {
         MBOX_ResetUnlockedModels(2);
         AtreeInitLists(2);
-        zero = lbl_80346AFC;
+        zero = 0.0f;
         MBCompVertScaleAddUV(0, 0, zero, zero, zero, zero, zero);
         ResetTexmods();
         result = fn_80054070(wave, mode, loadResult);
     }
 
     lbl_803447B0 = 0;
-    lbl_803447A0 = MBOX_FindTexture(strings + 364, 0);
-    lbl_803443E4 = MBOX_FindTexture(strings + 376, 0);
-    lbl_80344E48 = MBOX_FindTexture(strings + 388, 0);
-    lbl_80344E44 = MBOX_FindTexture(strings + 400, 0);
-    lbl_80344E40 = MBOX_FindTexture(strings + 412, 0);
-    lbl_80344E3C = MBOX_FindTexture(strings + 424, 0);
-    lbl_80344E38 = MBOX_FindTexture(strings + 436, 0);
-    lbl_80344E34 = MBOX_FindTexture(strings + 448, 0);
-    lbl_80344E30 = MBOX_FindTexture(strings + 460, 0);
-    lbl_80344E2C = MBOX_FindTexture(strings + 472, 0);
+    lbl_803447A0 = MBOX_FindTexture("AAAWHITE", 0);
+    lbl_803443E4 = MBOX_FindTexture("FONT32_GLOW", 0);
+    lbl_80344E48 = MBOX_FindTexture("BUTTON_X", 0);
+    lbl_80344E44 = MBOX_FindTexture("BUTTON_TRI", 0);
+    lbl_80344E40 = MBOX_FindTexture("BUTTON_SQ", 0);
+    lbl_80344E3C = MBOX_FindTexture("BUTTON_O", 0);
+    lbl_80344E38 = MBOX_FindTexture("BUTTON_L", 0);
+    lbl_80344E34 = MBOX_FindTexture("BUTTON_R", 0);
+    lbl_80344E30 = MBOX_FindTexture("BUTTON_U", 0);
+    lbl_80344E2C = MBOX_FindTexture("BUTTON_D", 0);
     AudioRegisterMenu();
     InitLighting(0);
     return result;
 }
-#pragma opt_lifetimes reset
 
 /* 0x80054D18 -- choose and resolve the next world/level selection. */
-#pragma opt_propagation off
 static inline s32 load_world_option(s32* options)
 {
     return options[9];
@@ -1266,7 +1239,6 @@ static inline s32 load_world_option(s32* options)
 
 s32 next_world(void)
 {
-    u8 unused[8];
     s32 world;
     s32 forced;
     s32 transitioning = 0;
@@ -1325,12 +1297,10 @@ s32 next_world(void)
     }
     return world;
 }
-#pragma opt_propagation reset
 
 /* 0x800552A4 -- animate the two halves of the loading thermometer. */
 void fn_800552A4(f32 total, f32 current)
 {
-    u8 unused[8];
     f64 offset;
     f64 vertex;
     f32 progress = (total - current) / total;
@@ -1368,7 +1338,6 @@ s32 fn_80054CDC(void)
 /* 0x800553B4 -- initialize the four timer/thermometer HUD blits. */
 void fn_800553B4(void)
 {
-    char* strings = lbl_80112538;
     u8* state = lbl_802575C0;
     void** blit1;
     void** blit2;
@@ -1380,10 +1349,10 @@ void fn_800553B4(void)
 
     if ((gCurLevel->flags & 4) != 0) {
         if ((gControllerButtons & 0x10) != 0) {
-            lbl_80344814 = lbl_80346B60;
+            lbl_80344814 = 100.99f;
         } else {
             lbl_80344814 =
-                (f32)(lbl_80346B68 + (f64)gCurLevel->wavetime);
+                (f32)(0.99 + (f64)gCurLevel->wavetime);
         }
         lbl_80344818 = lbl_80344814;
     }
@@ -1394,10 +1363,10 @@ void fn_800553B4(void)
     *(blit2 = (void**)(state + 120)) = MBCreateBlit(0, 0, 1, 106, -1, -1);
     *(blit3 = (void**)(state + 124)) = MBCreateBlit(0, 0, 63, 58, -1, -1);
 
-    mbBlitCvtCoord(*(void**)(state + 112), lbl_80346B70);
-    mbBlitCvtCoord(*blit1, lbl_80346B74);
-    mbBlitCvtCoord(*blit2, lbl_80346B74);
-    mbBlitCvtCoord(*blit3, lbl_80346B78);
+    mbBlitCvtCoord(*(void**)(state + 112), 63913.0f);
+    mbBlitCvtCoord(*blit1, 63911.0f);
+    mbBlitCvtCoord(*blit2, 63911.0f);
+    mbBlitCvtCoord(*blit3, 63912.0f);
 
     if ((gControllerButtons & 0x10) == 0) {
         if ((gCurLevel->flags & 4) != 0) {
@@ -1417,17 +1386,17 @@ void fn_800553B4(void)
     texture = MBOX_FindTexture_Err("TIMER", 0, 1);
     mbInitBlitEntry(*(void**)(state + 112), texture, 0);
     mbInitBlitEntry(*blit1,
-                    MBOX_FindTexture_Err(strings + 544, 0, 1), 0);
+                    MBOX_FindTexture_Err("TIMER_SAND", 0, 1), 0);
     mbInitBlitEntry(*blit2,
-                    MBOX_FindTexture_Err(strings + 544, 0, 1), 0);
+                    MBOX_FindTexture_Err("TIMER_SAND", 0, 1), 0);
     mbInitBlitEntry(*blit3,
-                    MBOX_FindTexture_Err(strings + 556, 0, 1), 0);
+                    MBOX_FindTexture_Err("SAND_ANIM", 0, 1), 0);
 
-    mbBlitSetupVerts(*blit1, lbl_80346B20, lbl_80346B20,
-                     lbl_80346B84, lbl_80346AD4);
+    mbBlitSetupVerts(*blit1, -1.0f, -1.0f,
+                     0.1796875f, 0.5f);
     mbBlitProject(*blit1, 0, 41);
-    mbBlitSetupVerts(*blit2, lbl_80346B20, lbl_80346B20,
-                     lbl_80346B88, lbl_80346AF0);
+    mbBlitSetupVerts(*blit2, -1.0f, -1.0f,
+                     0.8203125f, 1.0f);
     mbBlitProject(*blit2, 0, 23);
 }
 
@@ -1483,7 +1452,6 @@ void fn_80052134(void)
 }
 
 /* 0x8005412C -- categorise the loaded worlds and update the flow globals. */
-#pragma opt_propagation off
 void SetPlayerVars(void)
 {
     u8* base = (u8*)gPlayers;
@@ -1499,7 +1467,7 @@ void SetPlayerVars(void)
 
     lbl_803447D4 = lbl_803447D8;
     lbl_803447DC = offset;
-    lbl_803447D8 = lbl_80346AF0;
+    lbl_803447D8 = 1.0f;
     lbl_803447E0 = offset;
     for (i = 0; i < 4; i++, offset += 13148) {
         e = (Player*)(base + offset);
@@ -1520,14 +1488,13 @@ void SetPlayerVars(void)
                 lbl_803447DC = 1;
             }
             if (bossType < 0 && (f292 & 0x200)) {
-                lbl_803447D8 = lbl_803447D8 * lbl_80346B00;
+                lbl_803447D8 = lbl_803447D8 * 0.667;
             }
         }
         e->hud_flags2 = 0;
     }
     fn_8005207C(count1, count2, count3);
 }
-#pragma opt_propagation reset
 
 /* 0x80053C70 -- pick Atree list sizes from the current game-mode id. */
 void fn_80053C70(void)
@@ -1562,7 +1529,6 @@ void fn_80055AFC(void)
     MILESTONE* ms;
     s32 n;
     s32 limit;
-    u8 _spare[32];
 
     if (ShowMilestones(-1) != 0) {
         return;
@@ -1633,23 +1599,7 @@ extern s32 lbl_803447A8[2];        /* meter blit handles */
 extern Item* sSpecialItem10;
 extern s32 lbl_80344790;
 extern s32 lbl_8034478C;
-extern f32 lbl_80346AFC;           /* 0.0f */
-extern f64 lbl_80346B90;           /* 0.5 */
-extern f64 lbl_80346B98;           /* 3.0 */
-extern f64 lbl_80346BA0;
 extern f32 lbl_80343C08;
-extern f64 lbl_80346B10;
-extern f64 lbl_80346BA8;
-extern f64 lbl_80346BB0;
-extern f64 lbl_80346BB8;
-extern f32 lbl_80346B20;
-extern f64 lbl_80346BC8;
-extern f64 lbl_80346BC0;
-extern f64 lbl_80346B38;
-extern f32 lbl_80346BD0;
-extern f64 lbl_80346BD8;
-extern char lbl_80112770[];
-extern char lbl_8011277C[];
 extern s32 mbBlitReset33F8(void* blit);
 extern s32 PlayerHasShard(s32 player, s32 shard);
 extern s32 PlayerHasRune(s32 player, s32 rune);
@@ -1659,7 +1609,6 @@ extern void fn_8009FFA4(f32* pos);
 
 /* 0x80055678 -- update the special-item proximity meter blits from the
  * distance between the two given points. */
-#pragma opt_propagation off
 void fn_80055678(f32* a, f32* b)
 {
     f32 d;
@@ -1683,48 +1632,46 @@ void fn_80055678(f32* a, f32* b)
         dy = a[1] - b[1];
         dz = a[2] - b[2];
         d = dx * dx + dy * dy + dz * dz;
-        if (d > lbl_80346AFC) {
+        if (d > 0.0f) {
             volatile f32 tmp[3];
             f64 y = __frsqrte(d);
-            y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
-            y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
-            y = lbl_80346B90 * y * (lbl_80346B98 - y * y * d);
-            d = (f32)(d * (lbl_80346B90 * y * (lbl_80346B98 - y * y * d)));
+            y = 0.5 * y * (3.0 - y * y * d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            y = 0.5 * y * (3.0 - y * y * d);
+            d = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
             tmp[0] = d;
             d = tmp[0];
         }
-        v = (f32)(d - lbl_80346BA0);
+        v = (f32)(d - 8.0);
         v = v * lbl_80343C08;
-        if (v < lbl_80346AFC) {
-            t = lbl_80346B10;
-        } else if (v > lbl_80346BA8) {
-            t = lbl_80346BA8;
+        if (v < 0.0f) {
+            t = 0.0;
+        } else if (v > 1.0) {
+            t = 1.0;
         } else {
             t = v;
         }
         x = (f32)t;
-        lvl = (f32)(lbl_80346BA8 - (lbl_80346BA8 - x) * (lbl_80346BA8 - x));
-        if (lbl_80344790 == 0 && lvl < lbl_80346BB0) {
+        lvl = (f32)(1.0 - (1.0 - x) * (1.0 - x));
+        if (lbl_80344790 == 0 && lvl < 0.25) {
             lbl_80344790 = 1;
             fn_8009FF54(b);
-        } else if (lbl_8034478C == 0 && lvl < lbl_80346BB8) {
+        } else if (lbl_8034478C == 0 && lvl < 0.025) {
             lbl_8034478C = 1;
             fn_8009FFA4(b);
         }
-        scale = lbl_80346BC8;
-        base = lbl_80346BC0;
-        lvl2 = scale * (f64)(f6 = (f32)(lbl_80346BA8 - lvl));
+        scale = 73.0;
+        base = 101.0;
+        lvl2 = scale * (f64)(f6 = (f32)(1.0 - lvl));
         t = base - lvl2;
-        mbBlitSetupVerts((void*)lbl_803447A8[1], lbl_80346B20, lbl_80346B20,
-                         (f32)(t * lbl_80346B38),
-                         lbl_80346B20);
+        mbBlitSetupVerts((void*)lbl_803447A8[1], -1.0f, -1.0f,
+                         (f32)(t * 0.0078125),
+                         -1.0f);
         mbBlitProject((void*)lbl_803447A8[1], 0, Round((f32)lvl2) + 27);
         mbBlitCalcY((void*)lbl_803447A8[1], 102 - Round((f32)lvl2));
     }
 }
-#pragma opt_propagation on
 
-#pragma opt_propagation off
 void init_thermometer(void)
 {
     s32 playerOffset;
@@ -1767,33 +1714,32 @@ void init_thermometer(void)
 
     lbl_803447A8[0] = (s32)MBCreateBlit(0, 0, 392, -1, -1, -1);
     *(blits = &lbl_803447A8[1]) = (s32)MBCreateBlit(0, 0, 392, -1, -1, -1);
-    mbBlitCvtCoord((void*)lbl_803447A8[0], lbl_80346B78);
-    mbBlitCvtCoord((void*)*blits, lbl_80346B74);
+    mbBlitCvtCoord((void*)lbl_803447A8[0], 63912.0f);
+    mbBlitCvtCoord((void*)*blits, 63911.0f);
     mbBlitInit3414((void*)lbl_803447A8[0], enabled);
     mbBlitInit3414((void*)*blits, enabled);
-    texture = MBOX_FindTexture_Err(lbl_80112770, 0, 1);
+    texture = MBOX_FindTexture_Err("THERMBASE", 0, 1);
     mbInitBlitEntry((void*)lbl_803447A8[0], texture, 0);
-    mbInitBlitEntry((void*)*blits, MBOX_FindTexture_Err(lbl_8011277C, 0, 1), 0);
-    mbBlitSetupVerts((void*)*blits, lbl_80346B20, lbl_80346B20,
-                     lbl_80346BD0, lbl_80346AF0);
+    mbInitBlitEntry((void*)*blits, MBOX_FindTexture_Err("THERMCOL", 0, 1), 0);
+    mbBlitSetupVerts((void*)*blits, -1.0f, -1.0f,
+                     0.7890625f, 1.0f);
     mbBlitProject((void*)*blits, 0, 27);
 
     x = gWorldInfo.worldsize[0];
     yCoord = gWorldInfo.worldsize[1];
     z = gWorldInfo.worldsize[2];
     length = x * x + yCoord * yCoord + z * z;
-    if (length > lbl_80346AFC) {
+    if (length > 0.0f) {
         f64 y = __frsqrte(length);
-        y = lbl_80346B90 * y * (lbl_80346B98 - y * y * length);
-        y = lbl_80346B90 * y * (lbl_80346B98 - y * y * length);
-        y = lbl_80346B90 * y * (lbl_80346B98 - y * y * length);
-        length = (f32)(length * (lbl_80346B90 * y * (lbl_80346B98 - y * y * length)));
+        y = 0.5 * y * (3.0 - y * y * length);
+        y = 0.5 * y * (3.0 - y * y * length);
+        y = 0.5 * y * (3.0 - y * y * length);
+        length = (f32)(length * (0.5 * y * (3.0 - y * y * length)));
         tmp[0] = length;
         length = tmp[0];
     }
-    lbl_80343C08 = (f32)(lbl_80346BA8 / (lbl_80346BD8 * length));
+    lbl_80343C08 = (f32)(1.0 / (0.7 * length));
 }
-#pragma opt_propagation on
 
 /* 0x8005351C -- world/level entry orchestrator (only caller: game_main). */
 extern s32  opt_restart_request;
@@ -1844,7 +1790,6 @@ typedef struct PlayerSaveBlk {
 
 void fn_8005351C(void)
 {
-    u8 unused[8];
     s32 t = 0;
     s32 state = lbl_8034481C;
     s32 inTower;
@@ -1876,8 +1821,8 @@ void fn_8005351C(void)
     lbl_80344804 = 0;
     lbl_803447E8 = 0;
     lbl_80344780 = 0;
-    lbl_803447D4 = lbl_80346AF0;
-    lbl_803447D8 = lbl_80346AF0;
+    lbl_803447D4 = 1.0f;
+    lbl_803447D8 = 1.0f;
     lbl_803447C8 = 0;
     lbl_803447C4 = 0;
 
@@ -2091,8 +2036,6 @@ extern void fn_80054E78(void);
 /* 0x80054230 - top-level per-frame game mode dispatcher. */
 void game_main(void)
 {
-    u8 unused[8];
-    u8 unused2[8];
     s32 i;
     s32 reset_player;
     s32 cond;
@@ -2103,7 +2046,6 @@ void game_main(void)
     s32 all;
     s32 v;
     s32 c;
-    char* strs = lbl_80112538;
 
     lbl_80344800++;
     if (gGameMode & MODE_GROUP_GAME) {
@@ -2162,10 +2104,10 @@ void game_main(void)
         while (FileSystemBusy()) {
             serve_busy(-1);
         }
-        bulletproof_printf(strs + 0x1e4);
+        bulletproof_printf("Audio Stop\n");
         AudioStopSelect();
         AudioSelectReset();
-        bulletproof_printf(strs + 0x1f0);
+        bulletproof_printf("Reinit stuff\n");
         alpha = 0;
         fn_800520C8();
         AudioClearInputFlag();
@@ -2179,9 +2121,9 @@ void game_main(void)
         for (reset_player = 0; reset_player < 4; reset_player++) {
             abort_player(reset_player);
         }
-        bulletproof_printf(strs + 0x200);
+        bulletproof_printf("Reset Models\n");
         fn_80053D08(-1, 0, -1);
-        bulletproof_printf(strs + 0x210);
+        bulletproof_printf("Init attract\n");
         lbl_80343C10 = -1;
         lbl_80343DD4 = -1;
         lbl_80343B38 = -1;
@@ -2285,12 +2227,9 @@ void game_main(void)
         if (AudioSysUpdate(100000)) {
             break;
         }
-        {
-            u32 player_mask = *(volatile u32*)&lbl_80344824;
-            for (i = 0; i < 4; i++) {
-                !!(player_mask & (1 << i));
-            }
-        }
+        /* GC retains an unused four-player mask calculation here.
+         * It has no stores or calls. Do not manufacture a volatile read
+         * to preserve that dead computation; its source origin is unknown. */
         fn_8005351C();
         break;
     case MG_MAPSCREEN:
