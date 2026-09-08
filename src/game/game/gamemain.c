@@ -1253,11 +1253,7 @@ void game_main(void)
         }
         init_attract_mode(MA_TITLESCREEN);
     }
-    cond = 0;
-    c = lbl_8034481C;
-    if (c >= 13 && c < WORLD_OVERRIDE_BASE) {
-        cond = 1;
-    }
+    cond = is_level_transition(c = lbl_8034481C);
     flag = cond ? 1 : 0;
     SetPlayerVars();
     if (lbl_803447D8 > lbl_803447D4 && gGameMode == MG_PLAY) {
@@ -1453,11 +1449,7 @@ void game_main(void)
                 break;
             }
             next = -1;
-            cond = 0;
-            c = lbl_8034481C;
-            if (c >= 13 && c < WORLD_OVERRIDE_BASE) {
-                cond = 1;
-            }
+            cond = is_level_transition(c = lbl_8034481C);
             flag2 = cond ? 1 : 0;
             all = 1;
             for (i = 0; i < 4; i++) {
