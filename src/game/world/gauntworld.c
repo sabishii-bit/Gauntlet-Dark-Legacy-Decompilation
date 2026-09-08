@@ -8180,34 +8180,35 @@ typedef struct ItemWobjRuntime {
 void ActivateSpecialTrigger(s32 type, s32 flag)
 {
     s32 i;
-    u8* it;
-    u8* w;
-    u8* obj;
+    Item* it;
+    Item* w;
+    WorldObj* obj;
     u8* entry;
     s32 n;
     s32 j;
     ItemWobjRuntime* rt;
 
-    it = (u8*)sItems;
+    it = sItems;
     rt = (ItemWobjRuntime*)sItemRuntime;
-    for (i = 0; i < sNumItems; i++, it += 240) {
-        if (*(s16*)(it + 196) != -1 && (*(s16*)(it + 196) & 0x8100) == 0 &&
-            *(s32*)*(u32**)it == 5 && *(u8*)(it + 226) == type) {
+    for (i = 0; i < sNumItems; i++, it++) {
+        if (it->active != -1 && (it->active & 0x8100) == 0 &&
+            it->info->type == 5 &&
+            (u8)((triggerdata*)it->data)->id == type) {
             w = it;
             while (w != 0) {
-                *(s16*)(w + 196) |= 0x400;
-                *(s8*)(w + 200) = 2;
-                *(s8*)(w + 202) = 2;
-                obj = *(u8**)(w + 220);
+                w->active |= 0x400;
+                w->action = 2;
+                w->daction = 2;
+                obj = ((triggerdata*)w->data)->target;
                 if (obj != 0) {
-                    *(s8*)(obj + 22) = 47;
-                    if (*(u32*)(obj + 16) & 0x2000000) {
+                    obj->triggerstate = 47;
+                    if (obj->flags & 0x2000000) {
                         s16* wa = FindWobjWanim(obj);
-                        *(s8*)(obj + 23) = 47;
-                        *(s8*)(obj + 22) = 47;
-                        *(u32*)(obj + 16) |= 0x200000;
+                        obj->ptriggerstate = 47;
+                        obj->triggerstate = 47;
+                        obj->flags |= 0x200000;
                         if (flag != 0) {
-                            *(u32*)(obj + 16) |= 0x800000;
+                            obj->flags |= 0x800000;
                             if (wa != 0) {
                                 *(f32*)(wa + 4) = wa[1] - 1;
                             }
@@ -8218,7 +8219,7 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
                             for (j = 0; j < n; j++) {
                                 entry = (u8*)rt;
                                 entry += j * 4;
-                                if (*(u32*)(entry + 29216) == (u32)obj) {
+                                if (*(WorldObj**)(entry + 29216) == obj) {
                                     break;
                                 }
                             }
@@ -8229,14 +8230,14 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
                                 entry += j * 4;
                                 v = *(f32*)(entry + 1800);
                                 rt->y[j] = v;
-                                *(f32*)(*(u32*)(obj + 40) + 52) = v;
+                                *(f32*)((u8*)obj->nodeptr + 52) = v;
                             }
                         }
                     }
                 } else {
                     ErrorPrintf(lbl_80112C84);
                 }
-                w = *(u8**)(w + 228);
+                w = ((triggerdata*)w->data)->next;
             }
         }
     }
@@ -8293,8 +8294,8 @@ void fn_80062A00(void)
 {
     u8* rt;
     u8* row;
-    u8* w;
-    u8* node;
+    WorldObj* w;
+    void* node;
     s32 heard;
     s32 i;
     s32 off;
@@ -8329,18 +8330,23 @@ void fn_80062A00(void)
     heard = 0;
     i = 0;
     off = 0;
+    // lint-begin FM009: `row` walks the sItemRuntime parallel columns declared above as ItemWobjRuntime (y +0, initialY +600, openY +1200, closedY +1800, dist +2400, object +29216). Replacing the byte cursor with rt->y[i]/rt->object[i] indexing is NOT byte-neutral: 57 differing words at unchanged function size. The target really does keep one base register plus these fixed displacements - a single base relocation, not six separate array symbols - so the raw cursor is the faithful form and the recovered column names stay in the ItemWobjRuntime declaration.
     for (; i < sNumItemWobjs; i++, off += 4) {
         row = rt + off;
-        w = *(u8**)(row + 29216);
-        st = (s8)*(u8*)(w + 22);
-        prev = (s8)*(u8*)(w + 23);
+        w = *(WorldObj**)(row + 29216);
+        // lint-end FM009
+        st = w->triggerstate;
+        prev = w->ptriggerstate;
         gen = did_generate(w, 1);
-        pos[0] = *(f32*)(*(u8**)(w + 40) + 48);
-        pos[1] = *(f32*)(*(u8**)(w + 40) + 52);
-        pos[2] = *(f32*)(*(u8**)(w + 40) + 56);
+        // lint-begin FM001: 48/52/56 off WorldObj.nodeptr are mbnode.mat[3][0..2], the node's world translation row (Xbox misc.h struct mbnode Id=3249: float mat[4][4] at 0x00); no shared header declares mbnode's body (only a file-local view in src/game/sfx/sfx.c:122) and this run makes no header edits.
+        pos[0] = *(f32*)((u8*)w->nodeptr + 48);
+        pos[1] = *(f32*)((u8*)w->nodeptr + 52);
+        pos[2] = *(f32*)((u8*)w->nodeptr + 56);
+        // lint-end FM001
+        // lint-begin FM009: `row` walks the sItemRuntime parallel columns declared above as ItemWobjRuntime (y +0, initialY +600, openY +1200, closedY +1800, dist +2400, object +29216). Replacing the byte cursor with rt->y[i]/rt->object[i] indexing is NOT byte-neutral: 57 differing words at unchanged function size. The target really does keep one base register plus these fixed displacements - a single base relocation, not six separate array symbols - so the raw cursor is the faithful form and the recovered column names stay in the ItemWobjRuntime declaration.
         dcur = *(f32*)(row + 2400);
-        kind = *(s16*)(w + 20) & 0xFF;
-        flags8 = (*(s16*)(w + 20) >> 8) & 0xFF;
+        kind = w->triggertype & 0xFF;
+        flags8 = (w->triggertype >> 8) & 0xFF;
         if (dcur >= zero && lbl_80344A28 == 0 && lbl_803447B8 == 0) {
             if (kind == 20 || kind == 22) {
                 if ((st ^ prev) & 0x20) {
@@ -8353,7 +8359,7 @@ void fn_80062A00(void)
             } else if (dcur >= dist) {
                 if (kMoving == dcur) {
                     if ((st & 0x20) && !(prev & 0x20) &&
-                        (*(u32*)(w + 16) & 0x00C00000)) {
+                        (w->flags & 0x00C00000)) {
                         AudioWorldObjectMotion(pos, (s32)(dcur - dist));
                     }
                 } else if ((st ^ prev) & 0x10) {
@@ -8369,9 +8375,9 @@ void fn_80062A00(void)
                 }
             }
         }
-        *(u8*)(w + 23) = st;
-        *(u8*)(w + 53) = 0;
-        fl16 = *(u32*)(w + 16);
+        w->ptriggerstate = st;
+        w->nocol = 0;
+        fl16 = w->flags;
         if (fl16 & 0x800) {
             act = 0;
             if (st & 0x20) {
@@ -8389,14 +8395,14 @@ void fn_80062A00(void)
                     on = 1;
                 }
             }
-            *(s8*)(w + 53) = (s8)(on != 0 ? 255 : 0);
+            w->nocol = (s8)(on != 0 ? 255 : 0);
             act = 0;
-            node = *(void**)(w + 40);
+            node = w->nodeptr;
             if (node == NULL) {
                 goto tail;
             }
-            if (*(u32*)(node + 96) & 0x200) {
-                a = 255 - *(u8*)(node + 83);
+            if (*(u32*)((u8*)node + 96) & 0x200) {
+                a = 255 - *(u8*)((u8*)node + 83);
             } else {
                 a = 0;
             }
@@ -8411,10 +8417,10 @@ void fn_80062A00(void)
                 }
                 if (a >= 248) {
                     MBTreeSetFlags(node, 2, 0);
-                    MBTreeSetAlpha(*(void**)(w + 40), 255, 1);
+                    MBTreeSetAlpha(w->nodeptr, 255, 1);
                 } else {
                     MBTreeClearFlags(node, 2, 0);
-                    MBTreeSetAlpha(*(void**)(w + 40), a, 1);
+                    MBTreeSetAlpha(w->nodeptr, a, 1);
                     act = 1;
                 }
             } else {
@@ -8433,33 +8439,33 @@ void fn_80062A00(void)
                 } else {
                     act = 1;
                 }
-                MBTreeSetAlpha(*(void**)(w + 40), a, 1);
+                MBTreeSetAlpha(w->nodeptr, a, 1);
             }
         } else if (fl16 & 0x02000000) {
             if (!(flags8 & 8) && gen >= 2) {
-                *(u32*)(w + 16) = fl16 | 0x00300000;
-                *(u8*)(w + 22) = *(u8*)(w + 22) & ~0x10;
+                w->flags = fl16 | 0x00300000;
+                w->triggerstate = w->triggerstate & ~0x10;
                 goto next;
             }
             act = 1;
             if (flags8 & 0x20) {
                 if (st & 0xF) {
-                    *(u32*)(w + 16) &= ~0x00300000;
+                    w->flags &= ~0x00300000;
                     st |= 48;
                 } else if (fl16 & 0x00800000) {
-                    *(u32*)(w + 16) |= 0x00300000;
+                    w->flags |= 0x00300000;
                     st &= ~0x30;
                     act = 0;
                 }
             } else {
                 if (st & 0x20) {
-                    *(u32*)(w + 16) |= 0x00200000;
-                    *(u32*)(w + 16) &= ~0x00100000;
+                    w->flags |= 0x00200000;
+                    w->flags &= ~0x00100000;
                 } else {
-                    *(u32*)(w + 16) |= 0x00100000;
-                    *(u32*)(w + 16) &= ~0x00200000;
+                    w->flags |= 0x00100000;
+                    w->flags &= ~0x00200000;
                 }
-                fl = *(u32*)(w + 16);
+                fl = w->flags;
                 if (((fl & 0x00100000) && (fl & 0x00400000)) ||
                     ((fl & 0x00200000) && (fl & 0x00800000))) {
                     act = 0;
@@ -8467,7 +8473,7 @@ void fn_80062A00(void)
             }
         } else {
             if (!(flags8 & 8) && gen >= 2) {
-                *(f32*)(*(u8**)(w + 40) + 52) =
+                *(f32*)((u8*)w->nodeptr + 52) =
                     *(f32*)(row + 600) + *(f32*)row;
                 goto next;
             }
@@ -8495,24 +8501,24 @@ void fn_80062A00(void)
             }
             if (act != 0) {
                 *(f32*)row = *(f32*)row + delta;
-                *(u32*)(w + 16) |= 0x08000000;
+                w->flags |= 0x08000000;
             } else {
-                *(u32*)(w + 16) &= ~0x08000000;
+                w->flags &= ~0x08000000;
             }
-            *(f32*)(*(u8**)(w + 40) + 52) = *(f32*)(row + 600) + *(f32*)row;
+            *(f32*)((u8*)w->nodeptr + 52) = *(f32*)(row + 600) + *(f32*)row;
         }
     tail:
         if (act != 0) {
             if (!(flags8 & 8)) {
-                *(u8*)(w + 53) = 1;
+                w->nocol = 1;
             }
             if (!(st & 0x10)) {
                 st |= 0x10;
             }
-            *(u32*)(w + 16) |= 0x20000000;
+            w->flags |= 0x20000000;
         } else {
             st &= ~0x30;
-            *(u32*)(w + 16) &= ~0x20000000;
+            w->flags &= ~0x20000000;
         }
         if (!(flags8 & 71)) {
             if (flags8 & 0x10) {
@@ -8523,9 +8529,10 @@ void fn_80062A00(void)
                 st = 0;
             }
         }
-        *(s8*)(w + 22) = (s8)st;
+        w->triggerstate = (s8)st;
     next:;
     }
+    // lint-end FM009
     if (heard == 0) {
         fn_8009D694(-1, 0, 0);
     }
