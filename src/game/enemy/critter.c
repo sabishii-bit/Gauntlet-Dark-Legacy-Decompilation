@@ -1096,7 +1096,7 @@ f32 *delta;
 
     if (wallSurface != NULL) {
         CritterWorldDamage(c, wallSurface, cpos, contact);
-        if ((*(u32 *)((u8 *)wallSurface + offsetof(WorldObj, flags)) & 0x38) != 0) {
+        if (((u32)((WorldObj *)wallSurface)->flags & 0x38) != 0) {
             result = 0;
         } else if (SlideAlongWall(wallRadius, from, delta, contact,
                                   lbl_8023CA98 + 4) < 0) {
@@ -1177,7 +1177,7 @@ f32 *delta;
     *(u32 *)((u8 *)c + 0x448) = result;
     if (surface != NULL) {
         if (*(void **)((u8 *)surface + offsetof(WorldObj, nodeptr)) != NULL &&
-            (*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x1000) !=
+            ((u32)((WorldObj *)surface)->flags & 0x1000) !=
                 0) {
             MBNodeSetParent(c->mbnode,
                             *(void **)((u8 *)surface +
@@ -1706,10 +1706,8 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
             continue;
         }
         if (!LineCylinderCollide(playerPos,
-                                 *(f32 *)((u8 *)player + offsetof(Player,
-                                          col_radius)) + radius,
-                                 *(f32 *)((u8 *)player + offsetof(Player,
-                                          col_height)) + radius,
+                                 player->col_radius + radius,
+                                 player->col_height + radius,
                                  start, end, transformed, 0)) {
             continue;
         }
@@ -1761,8 +1759,7 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     s32 bestPlayer;
 
     radius = (f32)(enabled != 0
-                       ? (f64)(*(f32 *)(dmg + offsetof(CritterDamageDef,
-                                         damage)) *
+                       ? (f64)(((CritterDamageDef *)dmg)->damage *
                                gCurLevel->ene_damage)
                        : lbl_80346488);
     expansion = ((CritterDamageDef *)dmg)->maxDistance;
@@ -1796,10 +1793,8 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
         playerPos[1] = player->effectpos[1];
         playerPos[2] = player->effectpos[2];
         if (!LineCylinderCollide(playerPos,
-                                 *(f32 *)((u8 *)player + offsetof(Player,
-                                          col_radius)) + expansion,
-                                 *(f32 *)((u8 *)player + offsetof(Player,
-                                          col_height)) + expansion,
+                                 player->col_radius + expansion,
+                                 player->col_height + expansion,
                                  start, start, transformed, 0)) {
             continue;
         }
@@ -1946,8 +1941,7 @@ waypoint_body:
 
         dy = ((OBJGRP *)waypoint)->worldmat[3][1] -
              c->vel[1];
-        dx = (x = *(f32 *)((u8 *)waypoint +
-                           offsetof(OBJGRP, worldmat[3][0]))) - c->vel[0];
+        dx = (x = ((OBJGRP *)waypoint)->worldmat[3][0]) - c->vel[0];
         dz = ((OBJGRP *)waypoint)->worldmat[3][2] -
              c->vel[2];
         distance = dx * dx + dy * dy;
@@ -1958,10 +1952,8 @@ waypoint_body:
             goto waypoint_test;
         } else {
             out[0] = x;
-            out[1] = *(f32 *)((u8 *)c->particle +
-                              offsetof(OBJGRP, worldmat[3][1]));
-            out[2] = *(f32 *)((u8 *)c->particle +
-                              offsetof(OBJGRP, worldmat[3][2]));
+            out[1] = ((OBJGRP *)c->particle)->worldmat[3][1];
+            out[2] = ((OBJGRP *)c->particle)->worldmat[3][2];
             result = 1;
             goto done;
         }
@@ -2084,7 +2076,7 @@ void CritterGetSingleTargetPlayer(Critter *c)
         targetpos[0] = player->effectpos[0];
         targetpos[1] = player->effectpos[1];
         targetpos[2] = player->effectpos[2];
-        score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, target)),
+        score = CritterCalcTarget(c, (f32 *)&((CritterPackedType *)c->hdr)->target,
                                   targetpos,
                                   &candidate);
         if (c->particle != NULL && c->unkAD0 > zero && score > c->unkAD0) {
@@ -2221,7 +2213,7 @@ void CritterGetTargetPlayers(Critter *c)
         targetpos[0] = player->effectpos[0];
         targetpos[1] = player->effectpos[1];
         targetpos[2] = player->effectpos[2];
-        score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, target)), targetpos,
+        score = CritterCalcTarget(c, (f32 *)&((CritterPackedType *)c->hdr)->target, targetpos,
                                   &record);
         if (c->particle != NULL) {
             thr = c->unkAD0;
@@ -4020,7 +4012,7 @@ s32 CritterBossAI(Critter *c)
     }
 
     frame = (s32)*(f32 *)&c->sound[0x18];
-    duration = *(f32 *)((u8 *)move + 0x8C);
+    duration = move->holdDuration;
     done = AnimDone(c->sound);
     if ((f64)duration > 0.0) {
         switch (move->type) {
@@ -4556,12 +4548,9 @@ void CritterRotate(Critter *c, CritterMove *move)
                         c->skinMatrix[7];
             }
         } else if (c->particle != NULL && c->targetCount == 0) {
-            target[0] = *(f32 *)((u8 *)c->particle +
-                                 offsetof(OBJGRP, worldmat[3][0])) - c->vel[0];
-            target[1] = *(f32 *)((u8 *)c->particle +
-                                 offsetof(OBJGRP, worldmat[3][1])) - c->vel[1];
-            target[2] = *(f32 *)((u8 *)c->particle +
-                                 offsetof(OBJGRP, worldmat[3][2])) - c->vel[2];
+            target[0] = ((OBJGRP *)c->particle)->worldmat[3][0] - c->vel[0];
+            target[1] = ((OBJGRP *)c->particle)->worldmat[3][1] - c->vel[1];
+            target[2] = ((OBJGRP *)c->particle)->worldmat[3][2] - c->vel[2];
             {
                 register f32 z = target[2];
                 delta = atan2(target[0], z) - c->skinMatrix[7];
@@ -6580,16 +6569,13 @@ void CritterAddHealthMeter(Critter *c)
             root = **(void ***)&c->healthbar[0];
             ((MBObject *)root)->mat[3][0] =
                 ((MBObject *)root)->mat[3][0] +
-                *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
-                          healthbarOffset));
+                ((CritterPackedType *)c->hdr)->healthbarOffset[0];
             *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
                      offsetof(MBObject, mat[3][1])) +=
-                *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
-                          healthbarOffset) + 4);
+                ((CritterPackedType *)c->hdr)->healthbarOffset[1];
             *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
                      offsetof(MBObject, mat[3][2])) +=
-                *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
-                          healthbarOffset) + 8);
+                ((CritterPackedType *)c->hdr)->healthbarOffset[2];
 
             c->damageflash =
                 AtreeFindNode(&c->healthbar[0], lbl_80112238, 9);
