@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
+import cc_artifact  # noqa: E402
 import cliscreen  # noqa: E402
 cliscreen.help_only(__doc__)
 import webfrank as wf  # noqa: E402
@@ -137,10 +138,12 @@ def main():
               f"{c.get('fwd_rc',0):4} {c.get('inv_rc',0):4} "
               f"{c.get('fwd',0):3} {c.get('inv',0):3}")
 
-    out = os.path.join(HERE, "ch_census26.json")
-    with open(out, "w") as fh:
-        json.dump({"paired": paired, "totals": totals, "rows": rows}, fh, indent=1)
-    print(f"\nwrote {out}")
+    # Run-61 item 6: generated data goes under build/, never beside the
+    # source, so running a census does not dirty the checkout.
+    out = cc_artifact.write_artifact(
+        "ch_census26.json", {"paired": paired, "totals": totals, "rows": rows},
+        cc_artifact.out_override(sys.argv))
+    print(f"\nwrote {cc_artifact.artifact_label(out)}")
 
 
 if __name__ == "__main__":

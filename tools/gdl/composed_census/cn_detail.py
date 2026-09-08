@@ -10,9 +10,10 @@ import cliscreen  # noqa: E402
 cliscreen.help_only(__doc__)      # run-59 item 9: help must not dump
 import webfrank as wf  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
+import cc_artifact  # noqa: E402
 from cn_analyze import our_object, target_object, load, decode  # noqa: E402
 
-found = json.load(open(os.path.join(os.path.dirname(__file__), "cn_found.json")))
+found = cc_artifact.load_artifact("cn_found.json", "cn_detail.py")
 
 for key, rule in found.items():
     unit, fn = key.split("::")
