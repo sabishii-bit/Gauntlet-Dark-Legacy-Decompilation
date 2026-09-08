@@ -190,6 +190,8 @@ game/ui/options.c:
 	extab       start:0x80006840 end:0x80006900
 	extabindex  start:0x8000A4B0 end:0x8000A5D0
 	.text       start:0x80070A60 end:0x800745D0
+	.data       start:0x8011FB40 end:0x8011FC44
+	.bss        start:0x80274E00 end:0x80274EA0
 
 game/game/player.c:
 	extab       start:0x80006900 end:0x80006B30
