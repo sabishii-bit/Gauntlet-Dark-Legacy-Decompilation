@@ -2177,7 +2177,6 @@ void fn_80054E78(void)
 {
     u8* state = (u8*)lbl_802575C0;
     s32 active;
-    s32 off;
     u8* q;
     s32 i;
     void** b;
@@ -2212,10 +2211,10 @@ void fn_80054E78(void)
         lbl_80344818 = t - gClockFrameStep;
         nt = lbl_80344818;
         if (nt <= lbl_80346B10) {
-            for (i = 0, off = 0; i < 4; i++, off += 4) {
+            for (i = 0; i < 4; i++) {
                 u32 v;
 
-                q = state + off;
+                q = state + i * 4;
                 v = *(u32*)(q += 112);
                 if (v != 0) {
                     MBRemoveBlit(v);
@@ -2264,11 +2263,13 @@ void fn_80054E78(void)
             f32 frac = (total - curv) / total;
             f64 v1;
             f64 v2;
+            f64 vertex;
 
             b = (void**)(state + 116);
+            vertex = lbl_80346B30 * frac + lbl_80346B28;
+            vertex *= lbl_80346B38;
             mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
-                             (f32)((lbl_80346B30 * frac + lbl_80346B28) *
-                                   lbl_80346B38),
+                             (f32)vertex,
                              lbl_80346B20);
             v1 = lbl_80346B40 * frac;
             mbBlitProject(*b, 0, 41 - Round((f32)v1));
@@ -2276,8 +2277,10 @@ void fn_80054E78(void)
 
             b = (void**)(state + 120);
             v2 = lbl_80346B50 * frac;
+            vertex = lbl_80346B48 - v2;
+            vertex *= lbl_80346B38;
             mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
-                             (f32)((lbl_80346B48 - v2) * lbl_80346B38),
+                             (f32)vertex,
                              lbl_80346B20);
             mbBlitProject(*b, 0, Round((f32)v2) + 23);
             mbBlitCalcY(*b, 106 - Round((f32)v2));
