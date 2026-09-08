@@ -71,7 +71,7 @@ enum PlayerCharType {
 };
 
 /*
- * Per-character progression slot.  Player.char_save is an array of 16 of these
+ * Per-character progression slot.  Player.save.stuff is an array of 16 of these
  * (one per enum PlayerCharType); Player.character selects the active one.
  * Size 0xF0 (240) -- the stride proven by `mulli type,240` in hide_rune_stones.
  * Xbox analogue: P_SAVE_STUFF (larger 0x254 layout). The GC base is 0xDD0,
@@ -102,17 +102,17 @@ typedef struct PlayerCharSave {
 } PlayerCharSave;                    /* size 0xF0 */
 
 /*
- * Per-character run/session stat tally.  Player.char_stats is an array of 16 of
+ * Per-character run/session stat tally.  Player.save.stats is an array of 16 of
  * these (one per enum PlayerCharType); Player.character selects the active one,
- * exactly like char_save[].
+ * exactly like save.stuff[].
  *
  * Xbox analogue: struct P_SAVE_STATS (Id=3351), size 0x1c -- IDENTICAL size
  * here, unlike its sibling P_SAVE_STUFF/PlayerCharSave which GC compacted from
- * 0x254 to 0xF0.  The pairing is structural, not just nominal: the Xbox `player`
+ * 0x254 to 0xF0.  The pairing is structural, not just nominal: the Xbox `P_SAVE`
  * record carries `P_SAVE_STATS stats[16]` at 0x190 immediately followed by
  * `P_SAVE_STUFF stuff[16]` at 0x350, and GC reproduces exactly that adjacency --
  * this block[16] spans 0xC10..0xDD0 (0x1C0, the same array size Xbox reports)
- * and terminates at the corrected char_save[16] base, 0xDD0.
+ * and terminates at the corrected save.stuff[16] base, 0xDD0.
  *
  * GC offset verification (gamemain.c do_stats_display, the stats-screen tally):
  *   +0x00 enemies_killed        VERIFIED  read as s32, animated /60 per frame
@@ -317,6 +317,41 @@ typedef enum player_action_type {
     P_GRABBED = 148,
     P_NACTIONS = 149,
 } player_action_type;
+
+/* Persistent player image: Xbox P_SAVE names corroborated by GC whole-image
+ * copies. GC uses 0xF0-byte character inventory records instead of Xbox's
+ * 0x254 bytes, so this image is 0x1434 bytes, not the Xbox 0x2A74.
+ * The live health/experience fields are outside this image.
+ *
+ * Attribute records have the P_SAVE_ATTS 0x18-byte stride: exp and health
+ * are written by player_store_in_save. The four addend names follow the
+ * Xbox declaration; their individual GC consumers need separate verification. */
+typedef struct PlayerSaveAttributes {
+    s32 exp;
+    f32 health;
+    f32 fight_add;
+    f32 armor_add;
+    f32 magic_add;
+    f32 speed_add;
+} PlayerSaveAttributes;
+
+typedef struct PlayerSave {
+    /* 0x0000 */ char name[8];
+    /* 0x0008 */ s16 last_alttype;
+    /* 0x000A */ u8 last_color;
+    /* 0x000B */ u8 saved;
+    /* 0x000C */ u16 class_unlock;
+    /* 0x000E */ u16 leveltot;
+    /* 0x0010 */ PlayerSaveAttributes atts[16];
+    /* 0x0190 */ PlayerCharStats stats[16];
+    /* 0x0350 */ PlayerCharSave stuff[16];
+    /* 0x1250 */ u8 waves[16][14];
+    /* 0x1330 */ u8 control_scheme;
+    /* 0x1331 */ u8 control_rumble;
+    /* 0x1332 */ u8 control_autoattack;
+    /* 0x1333 */ u8 control_autoaim;
+    /* 0x1334 */ u8 help_disp[256];
+} PlayerSave;
 
 typedef struct Player {
     /* 0x0000 */ s32 index;          /* player index (Xbox: player.index@0) */
@@ -596,25 +631,7 @@ typedef struct Player {
     /* 0x0A74 */ f32 field_A74;      /* shop displayed-att-armor snapshot [shop.c] */
     /* 0x0A78 */ f32 field_A78;      /* shop displayed-att-magic snapshot [shop.c] */
     /* 0x0A7C */ f32 field_A7C;      /* shop displayed-att-speed snapshot [shop.c] */
-    /* 0x0A80 */ char name[8];       /* player name, underscore shown as space [player.c] */
-    /* Persistent-save header and character attributes. GC player/select
-     * consumers corroborate the header bytes; P_SAVE supplies the names.
-     * The 16 attribute records remain unmodelled here, each 0x18 bytes. */
-    /* 0x0A88 */ s16 last_alttype;
-    /* 0x0A8A */ u8 last_color;
-    /* 0x0A8B */ u8 saved;
-    /* 0x0A8C */ u16 class_unlock;
-    /* 0x0A8E */ u16 leveltot;
-    /* 0x0A90 */ u8 pad_0A90[0x180];
-    /* 0x0C10 */ PlayerCharStats char_stats[16]; /* per-character stat tally
-                                        * (VERIFIED base 3088 + character*28) */
-    /* 0x0DD0 */ PlayerCharSave char_save[16]; /* 16 * 0xF0, ends at 0x1CD0 */
-    /* 0x1CD0 */ u8 waves[16][14];
-    /* 0x1DB0 */ u8 control_scheme;
-    /* 0x1DB1 */ u8 control_rumble;
-    /* 0x1DB2 */ u8 control_autoattack;
-    /* 0x1DB3 */ u8 control_autoaim;
-    /* 0x1DB4 */ u8 help_disp[256];
+    /* 0x0A80 */ PlayerSave save;    /* persistent character progress */
     /* 0x1EB4 */ f32 health;         /* hit points, 9999 display cap [player.c] */
     /* 0x1EB8 */ s32 item_body_lo;   /* body-armor item flag (VERIFIED shopquery @7864) */
     /* 0x1EBC */ s32 item_body_hi;   /* body-armor item flag (VERIFIED shopquery @7868) */
@@ -622,18 +639,7 @@ typedef struct Player {
     /* 0x1EC4 */ s32 gold;           /* gold, 99999 cap [player.c PlayerGiveGold] */
     /* 0x1EC8 */ u16 runes;          /* active-character rune count (documented) */
     /* 0x1ECA */ u16 shards;         /* active-character shard count (documented) */
-    /* Checkpoint shadow: [0x1ECC,0x3300) mirrors [0xA80,0x1EB4)
-     * at delta +0x144C. The corrected record bases are 0xDD0/0x221C;
-     * the first named rune fields remain 0xDD4/0x2220. Whole-image
-     * copies in player/select/gamemain establish the 0x1434-byte extent. */
-    /* 0x1ECC */ u8  pad_1ECC[0x350]; /* shadow of save header, atts and stats */
-    /* 0x221C */ PlayerCharSave char_save_ckpt[16]; /* 16 * 0xF0, ends at 0x311C */
-    /* 0x311C */ u8 waves_ckpt[16][14];
-    /* 0x31FC */ u8 control_scheme_ckpt;
-    /* 0x31FD */ u8 control_rumble_ckpt;
-    /* 0x31FE */ u8 control_autoattack_ckpt;
-    /* 0x31FF */ u8 control_autoaim_ckpt;
-    /* 0x3200 */ u8 help_disp_ckpt[256];
+    /* 0x1ECC */ PlayerSave save_backup; /* checkpoint copy of save */
     /* 0x3300 */ u8  pad_3300[0x24];   /* non-shadow bytes before level */
     /* 0x3324 */ s32 level;          /* character level 1..99 [player.c] */
     /* 0x3328 */ s32 intower;        /* set while active in tower [player.c] */

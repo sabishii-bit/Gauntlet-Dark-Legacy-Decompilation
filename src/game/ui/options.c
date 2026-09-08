@@ -2617,7 +2617,7 @@ static void next_rune_hint(s32 advance)
         rune_hint_index = i;
 have_index:
         /* per-player: mask lives in the active character's save slot
-         * (Player.char_save[Player.character], stride 0xF0 kept as a bare
+         * (Player.save.stuff[Player.character], stride 0xF0 kept as a bare
          * literal per claim.law.sizeof-defeats-loop-stride-induction) */
         base = gPlayers;
         bit = 1 << (rune_idx_table[rune_hint_index] - 1);
@@ -2625,12 +2625,12 @@ have_index:
             u8* rec = base + p * PREC_STRIDE;
             if (pass == 0 &&
                 (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                               offsetof(Player, char_save) +
+                               offsetof(Player, save.stuff) +
                                offsetof(PlayerCharSave, level_masks[0]))) != 0) {
                 pass = 1;
             }
             if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                               offsetof(Player, char_save) +
+                               offsetof(Player, save.stuff) +
                                offsetof(PlayerCharSave, level_masks[1]))) != 0) {
                 pass = 2;
             }
@@ -2695,12 +2695,12 @@ have_index:
         u8* rec = &gPlayers[p * PREC_STRIDE];
         if (pass == 0 &&
             (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                           offsetof(Player, char_save) +
+                           offsetof(Player, save.stuff) +
                            offsetof(PlayerCharSave, level_masks[2]))) != 0) {
             pass = 1;
         }
         if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                           offsetof(Player, char_save) +
+                           offsetof(Player, save.stuff) +
                            offsetof(PlayerCharSave, level_masks[3]))) != 0) {
             pass = 2;
         }
@@ -2764,12 +2764,12 @@ have_index:
         u8* rec = &gPlayers[p * PREC_STRIDE];
         if (pass == 0 &&
             (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                           offsetof(Player, char_save) +
+                           offsetof(Player, save.stuff) +
                            offsetof(PlayerCharSave, boss_attempt1))) != 0) {
             pass = 1;
         }
         if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                           offsetof(Player, char_save) +
+                           offsetof(Player, save.stuff) +
                            offsetof(PlayerCharSave, boss_attempt2))) != 0) {
             pass = 2;
         }

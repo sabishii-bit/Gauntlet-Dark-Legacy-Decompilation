@@ -10,10 +10,6 @@
 #include "game/player.h"
 #include "game/camera.h"
 
-#define offsetof(type, member) ((size_t)&((type*)0)->member)
-
-extern void* memcpy(void* dst, const void* src, size_t size);
-
 /*
  * game/game/gamemain.c -- the top-level game-flow TU (a slice of it).
  *
@@ -489,7 +485,7 @@ static int stat_rx[4] = {245, 245, 501, 501};
 static int stat_ty[4] = {33, 177, 33, 177};
 static int stat_yoff[7] = {4, 26, 46, 66, 86, 106, 126};
 
-#define CHAR_STAT(p) ((p)->char_stats[(p)->character])
+#define CHAR_STAT(p) ((p)->save.stats[(p)->character])
 
 static inline int tally_treasures(Player* pp)
 {
@@ -567,7 +563,7 @@ static inline void disp_pname(Player* pp)
 {
     char buf[16];
 
-    sprintf(buf, "%s", pp->name);
+    sprintf(buf, "%s", pp->save.name);
     if (strcmp(buf, "___") == 0) {
         strcpy(buf, "NO NAME");
     }
@@ -1448,7 +1444,7 @@ void init_thermometer(void)
             }
             if (sMusicTrackHi == BATTLE) {
                 s32 charIdx = playerData->character;
-                if ((playerData->waves[charIdx][BATTLE] & 4) != 0) {
+                if ((playerData->save.waves[charIdx][BATTLE] & 4) != 0) {
                     enabled = 0;
                 }
             } else if (PlayerHasRune(player, GetWorldOrder(5)) != 0) {
@@ -1529,19 +1525,6 @@ extern void fn_8005B988(void);
 extern void do_enemies(void);
 extern void AudioMusicVolUpdate(void);
 extern s32  welcome_timer;
-
-/* Both persistent-image regions contain the same fields and reserved bytes.
- * These checks deliberately follow the header boundaries, not a word count
- * chosen to make MWCC emit its old aggregate-copy loop. */
-typedef char SaveShadowExtentCheck[
-    (offsetof(Player, pad_3300) - offsetof(Player, pad_1ECC) ==
-     offsetof(Player, health) - offsetof(Player, name)) ? 1 : -1];
-typedef char SaveShadowCharOffsetCheck[
-    (offsetof(Player, char_save_ckpt) - offsetof(Player, pad_1ECC) ==
-     offsetof(Player, char_save) - offsetof(Player, name)) ? 1 : -1];
-typedef char SaveShadowHelpOffsetCheck[
-    (offsetof(Player, help_disp_ckpt) - offsetof(Player, pad_1ECC) ==
-     offsetof(Player, help_disp) - offsetof(Player, name)) ? 1 : -1];
 
 void fn_8005351C(void)
 {
@@ -1667,7 +1650,7 @@ void fn_8005351C(void)
                 }
                 if (player->exp == 0) {
                     player->exp = 1;
-                    player->saved = 0;
+                    player->save.saved = 0;
                 }
             }
         }
@@ -1695,16 +1678,7 @@ void fn_8005351C(void)
         if (mt == 13) {
             for (i = 0, p = gPlayers; i < 4; i++, p++) {
                 if (p->state == ACTIVE) {
-                    /* GC copies the complete persistent image: 646 pairs
-                     * of words plus one word, from +0xA80 to +0x1ECC.
-                     * Player still flattens this image into fields. Copy
-                     * its object representation, including reserved bytes,
-                     * without pretending those fields are an s32 array.
-                     * The image ends before live health; its shadow ends
-                     * immediately after help_disp_ckpt. */
-                    memcpy((u8*)p + offsetof(Player, pad_1ECC),
-                           (const u8*)p + offsetof(Player, name),
-                           offsetof(Player, health) - offsetof(Player, name));
+                    p->save_backup = p->save;
                 }
             }
         }

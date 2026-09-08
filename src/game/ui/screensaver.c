@@ -1055,31 +1055,31 @@ int draw_inventory_panel(int player)
         yshift = (s32)(lbl_803473F4 * prog);
         break;
     }
-    /* row = &pl->char_save[pl->character], addressed with a -0xDD4 shifted
+    /* row = &pl->save.stuff[pl->character], addressed with a -0xDD4 shifted
      * base: row+3560/3562/3564 are completion1[0]/[1]/[2], and the loop below
      * walks completion2[1..8].  The `+ 2*N` spellings are offsetof RENAMES of
      * the former pad_16 / pad_16+2 / pad_1C constants (0x16/0x18/0x1C), kept in
      * additive form because MWCC's C89 offsetof does not take a subscript. */
     row = pl + *(s32*)(pl + offsetof(Player, character)) * 240;
     print_n_of_m(1,
-                 *(s16*)(row + offsetof(Player, char_save) +
+                 *(s16*)(row + offsetof(Player, save.stuff) +
                          offsetof(PlayerCharSave, completion1)),
                  12, xoff, yshift);
     row = pl + *(s32*)(pl + offsetof(Player, character)) * 240;
     print_n_of_m(2,
-                 *(s16*)(row + offsetof(Player, char_save) +
+                 *(s16*)(row + offsetof(Player, save.stuff) +
                          offsetof(PlayerCharSave, completion1) + 2),
                  20, xoff, yshift);
     row = pl + *(s32*)(pl + offsetof(Player, character)) * 240;
     print_n_of_m(3,
-                 *(s16*)(row + offsetof(Player, char_save) +
+                 *(s16*)(row + offsetof(Player, save.stuff) +
                          offsetof(PlayerCharSave, completion1) + 4),
                  28, xoff, yshift);
     for (i = 0, boff = 0, off = 0; i < 8; i++, boff += 4, off += 2) {
         print_n_of_m(i + 4,
                      *(s16*)(pl + *(s32*)(pl + offsetof(Player, character)) *
                                       240 +
-                             off + offsetof(Player, char_save) +
+                             off + offsetof(Player, save.stuff) +
                              offsetof(PlayerCharSave, completion2) + 2),
                      *(s32*)((u8*)lbl_80124C70 + boff + sizeof(s32)), xoff,
                      yshift);

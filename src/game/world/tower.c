@@ -239,15 +239,15 @@ extern char lbl_803485D8;
 #define PLAYER_AT(player, offset, type) \
     (*(type*)((u8*)&gPlayers[(player)] + (offset)))
 #define TOWER_SAVE(player) \
-    (&gPlayers[(player)].char_save[gPlayers[(player)].character])
+    (&gPlayers[(player)].save.stuff[gPlayers[(player)].character])
 /* char_save[]-relative field offsets, spelled via offsetof so raw walked-
  * pointer arithmetic (`record + record->character * CHAR_SAVE_STRIDE +
  * COMPLETIONx_OFF`) documents itself without introducing a typed
  * intermediate pointer (see claim.law.offsetof-rename-preserves-protected-web /
  * claim.law.multifield-alias-defeats-indexed-addressing). */
 #define CHAR_SAVE_STRIDE sizeof(PlayerCharSave)
-#define COMPLETION1_OFF (offsetof(Player, char_save) + offsetof(PlayerCharSave, completion1))
-#define COMPLETION2_OFF (offsetof(Player, char_save) + offsetof(PlayerCharSave, completion2))
+#define COMPLETION1_OFF (offsetof(Player, save.stuff) + offsetof(PlayerCharSave, completion1))
+#define COMPLETION2_OFF (offsetof(Player, save.stuff) + offsetof(PlayerCharSave, completion2))
 /* Per-level status byte array, index = character * 14 + level (see the
  * "0x1CD0" note in the field-offset comment above). Not part of PlayerCharSave
  * proper - char_save[16] runs 0xDD4-0x1CD4 so this falls in char_save[15]'s
@@ -263,7 +263,7 @@ extern char lbl_803485D8;
  * per claim.law.offsetof-rename-preserves-protected-web - no typed
  * intermediate is introduced. */
 #define CKPT_OFF(memb) \
-    (offsetof(Player, char_save_ckpt) + offsetof(PlayerCharSave, memb))
+    (offsetof(Player, save_backup.stuff) + offsetof(PlayerCharSave, memb))
 #define CHAR_BANKED_RUNES_OFF    CKPT_OFF(rune_stones)   /* 8736: last-seen rune bitmask (TowerCheckMessages/EnterTower) */
 #define CHAR_BANKED_SHARDS_OFF   CKPT_OFF(rune_stones2)  /* 8738: last-seen shard bitmask */
 #define CHAR_LEVEL_EXTRA_OFF     CKPT_OFF(completion1)   /* 8756: record-A overflow counter (towerAdvanceLevelRecord) */
@@ -355,7 +355,7 @@ void towerRuneNearAudio(void) {
                 Player* rec = &gPlayers[i];
 
                 if (rec->state != 0 &&
-                    (rec->char_save[rec->character].rune_near & (1 << rune)) != 0) {
+                    (rec->save.stuff[rec->character].rune_near & (1 << rune)) != 0) {
                     found = 1;
                     goto checkRune;
                 }
@@ -513,10 +513,10 @@ void towerRecordLevelBeaten(int level, int world) {
                 int bit = lvl - 1;
                 int mask = 1 << bit;
 
-                if ((rec->char_save[rec->character].level_masks[0] & mask) != 0) {
-                    rec->char_save[rec->character].level_masks[1] |= mask;
+                if ((rec->save.stuff[rec->character].level_masks[0] & mask) != 0) {
+                    rec->save.stuff[rec->character].level_masks[1] |= mask;
                 } else {
-                    rec->char_save[rec->character].level_masks[0] |= mask;
+                    rec->save.stuff[rec->character].level_masks[0] |= mask;
                 }
             }
         }
@@ -526,10 +526,10 @@ void towerRecordLevelBeaten(int level, int world) {
             if (boss > 0) {
                 int mask = 1 << boss;
 
-                if ((rec->char_save[rec->character].level_masks[2] & mask) != 0) {
-                    rec->char_save[rec->character].level_masks[3] |= mask;
+                if ((rec->save.stuff[rec->character].level_masks[2] & mask) != 0) {
+                    rec->save.stuff[rec->character].level_masks[3] |= mask;
                 } else {
-                    rec->char_save[rec->character].level_masks[2] |= mask;
+                    rec->save.stuff[rec->character].level_masks[2] |= mask;
                 }
             }
         }
@@ -573,7 +573,7 @@ static inline int towerLevelStatusA(int player, int level) {
         return 2;
     }
     record = &gPlayers[player];
-    value = record->char_save[record->character].completion1[level];
+    value = record->save.stuff[record->character].completion1[level];
     if (value < 0) {
         return 2;
     }
@@ -601,7 +601,7 @@ int towerAllPlayersMetLevelReq(int level) {
                 return 1;
             }
             record = &gPlayers[player];
-            value = record->char_save[record->character].completion1[level];
+            value = record->save.stuff[record->character].completion1[level];
             if (best > value) {
                 value = best;
             }
@@ -676,7 +676,7 @@ static inline int towerLevelStatusB(int player, int level) {
         return 2;
     }
     record = &gPlayers[player];
-    value = record->char_save[record->character].completion2[level];
+    value = record->save.stuff[record->character].completion2[level];
     if (value < 0) {
         return 2;
     }
@@ -700,7 +700,7 @@ int towerAllPlayersMetBossReq(int level) {
                 return 1;
             }
             record = &gPlayers[player];
-            value = record->char_save[record->character].completion2[level];
+            value = record->save.stuff[record->character].completion2[level];
             if (best > value) {
                 value = best;
             }
@@ -725,7 +725,7 @@ int towerLevelStatus(int player, int level) {
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    value = gPlayers[player].char_save[gPlayers[player].character].completion2[level];
+    value = gPlayers[player].save.stuff[gPlayers[player].character].completion2[level];
     if (value < 0) {
         return 2;
     }
@@ -1190,8 +1190,8 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
                     runeGot |= p->runes;
-                    runeBanked |= p->char_save_ckpt[p->character].rune_stones;
-                    p->char_save[p->character].rune_stones |= p->runes;
+                    runeBanked |= p->save_backup.stuff[p->character].rune_stones;
+                    p->save.stuff[p->character].rune_stones |= p->runes;
                     /* Re-derived from p, NOT shared with the reads above: the
                      * target reloads character and recomputes the stride here
                      * (lhzx/sthx off p), per
@@ -1217,8 +1217,8 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
                     shardGot |= p->shards;
-                    shardBanked |= p->char_save_ckpt[p->character].rune_stones2;
-                    p->char_save[p->character].rune_stones2 |= p->shards;
+                    shardBanked |= p->save_backup.stuff[p->character].rune_stones2;
+                    p->save.stuff[p->character].rune_stones2 |= p->shards;
                     /* Re-derived from p, NOT shared with the reads above (see
                      * the rune loop above for the same target shape). */
                     *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_SHARDS_OFF) |= p->shards;
@@ -1280,7 +1280,7 @@ void TowerCheckMessages(s32 mode) {
 
                     if (p->state != 0 &&
                         (u32)p->hidden_code != (u32)lbl_80343D6C) {
-                        s32 val = p->char_save[p->character].completion1[j];
+                        s32 val = p->save.stuff[p->character].completion1[j];
 
                         if (levels[j] >= 0 && (val < 0 || val > levels[j])) {
                             levels[j] = val;
@@ -1313,7 +1313,7 @@ void TowerCheckMessages(s32 mode) {
 
                         if (p->state != 0 &&
                             (u32)p->hidden_code != (u32)lbl_80343D6C) {
-                            s32 val = p->char_save[p->character].completion2[j];
+                            s32 val = p->save.stuff[p->character].completion2[j];
 
                             if (bosses[j] >= 0 && (val < 0 || val > bosses[j])) {
                                 bosses[j] = val;

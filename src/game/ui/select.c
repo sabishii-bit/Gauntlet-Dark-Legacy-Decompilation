@@ -244,7 +244,7 @@ typedef struct P_SAVE_ATTS {
  * last_color/leveltot are carried to keep the offsets honest; this TU never
  * dereferences them, so those two names remain PDB-only. */
 typedef struct P_SAVE_HEAD {
-    char name[8];        /* +0x00 == offsetof(Player, name) */
+    char name[8];        /* +0x00 == offsetof(Player, save.name) */
     s16  last_alttype;   /* +0x08 -> Player + 0x0A88 */
     u8   last_color;     /* +0x0A PDB name only -- not read in this TU */
     u8   saved;          /* +0x0B -> Player + 0x0A8B; GC-corroborated: the
@@ -386,7 +386,7 @@ static s32 LimitSeltype(u8* player, s32 idx, s32 step)
             }
             flag = 1;
             if (idx == 16 &&
-                (*(u16*)(player + offsetof(Player, name) +
+                (*(u16*)(player + offsetof(Player, save.name) +
                          offsetof(P_SAVE_HEAD, class_unlock)) & 0x100) == 0) {
                 idx += step;
                 flag = 0;
@@ -444,16 +444,6 @@ void setup_vmu_entries(void);
 s32 serve_blits(s32 player);
 void update_class_attr(s32 player);
 void update_class_spec(s32 player);
-
-/* Select-time snapshot of the persistent player block (0xA80..0x1EB4),
- * struct-assigned into the save shadow at +0x1ECC.  Same 5172-byte record
- * game/game/gamemain.c already spells PlayerSaveBlk (identical struct
- * assignment p+7884 = p+2688) and game/game/player.c clears with
- * memset(p + 0x1ECC, 0, 0x1434) -- one name for one record, per AGENTS.md's
- * "grep for an existing view before inventing a second spelling". */
-typedef struct PlayerSaveBlk {
-    s32 w[0x50D];                    /* 5172 bytes */
-} PlayerSaveBlk;
 
 #pragma dont_inline on
 /* Top-level select state machine (invoked from gamemain / attract).
@@ -559,7 +549,7 @@ s32 do_player_select(void)
                 *(s32*)(pl + offsetof(Player, motion_state_save)) = *(s32*)(pl + offsetof(Player, motion_state));
                 if (gControllerButtons & 4) {
                     *(s32*)(pl + offsetof(Player, state)) = 3;
-                    strcpy((char*)(pl + offsetof(Player, name)), lbl_80347F40);
+                    strcpy((char*)(pl + offsetof(Player, save.name)), lbl_80347F40);
                 } else {
                     slot = page + moff;
                     act = *(s32*)(slot + (712 + offsetof(OptMenuLayout, active)));
@@ -706,7 +696,7 @@ s32 do_player_select(void)
                     break;
                 case 1001:
                     remove_optmenu(menu);
-                    if (*(s8*)(pl + offsetof(Player, name) +
+                    if (*(s8*)(pl + offsetof(Player, save.name) +
                               offsetof(P_SAVE_HEAD, saved)) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
@@ -741,7 +731,7 @@ s32 do_player_select(void)
                     break;
                 case 1004: /* change character */
                     remove_optmenu(menu);
-                    if (*(s8*)(pl + offsetof(Player, name) +
+                    if (*(s8*)(pl + offsetof(Player, save.name) +
                               offsetof(P_SAVE_HEAD, saved)) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
@@ -1273,7 +1263,7 @@ s32 do_player_select(void)
                         add_vmu_file(*(s32*)(pl + offsetof(Player, sel_card_chan)),
                                      *(s32*)(pl + offsetof(Player, sel_card_slot)),
                                      *(s32*)(pl + offsetof(Player, sel_save_file)),
-                                     (char*)(pl + offsetof(Player, name)),
+                                     (char*)(pl + offsetof(Player, save.name)),
                                      *(u16*)(pl + 0xA8E), *(s32*)(pl + offsetof(Player, character)));
                     } else {
                         *(s32*)(pl + offsetof(Player, sel_step)) = -1;
@@ -1358,8 +1348,7 @@ s32 do_player_select(void)
                             LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
                         *(s32*)(pl + offsetof(Player, motion_state)) = 4;
                     }
-                    *(PlayerSaveBlk*)(pl + 0x1ECC) =
-                        *(PlayerSaveBlk*)(pl + offsetof(Player, name));
+                    ((Player*)pl)->save_backup = ((Player*)pl)->save;
                 }
                 choice = do_optmenu(menu, 0);
                 do_sel_menu_8008E4F4(i, 2);
@@ -1421,7 +1410,7 @@ s32 do_player_select(void)
                     if (moved != 0 || sel != *(s32*)(pl + offsetof(Player, respawn_char))) {
                         if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
                             known = 1;
-                        } else if (*(u16*)(pl + offsetof(Player, name) +
+                        } else if (*(u16*)(pl + offsetof(Player, save.name) +
                                            offsetof(P_SAVE_HEAD, class_unlock)) &
                                    (1 << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
                             known = 1;
@@ -1453,7 +1442,7 @@ s32 do_player_select(void)
                 if (new_menu_accept(i, 0) != 0) {
                     if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
                         known = 1;
-                    } else if (*(u16*)(pl + offsetof(Player, name) +
+                    } else if (*(u16*)(pl + offsetof(Player, save.name) +
                                        offsetof(P_SAVE_HEAD, class_unlock)) &
                                (1 << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
                         known = 1;
@@ -1750,7 +1739,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
             t = 1;
         } else {
             t = 1;
-            switch (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (t << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
+            switch (*(u16*)(pl + offsetof(Player, save.name) + offsetof(P_SAVE_HEAD, class_unlock)) & (t << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
             case 0:
                 t = 0;
                 break;
@@ -2558,7 +2547,7 @@ void update_class_attr(s32 player)
         f32 kScale;
         if (sel < 8) {
             avail = 1;
-        } else if (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (1 << (sel - 8))) {
+        } else if (*(u16*)(pl + offsetof(Player, save.name) + offsetof(P_SAVE_HEAD, class_unlock)) & (1 << (sel - 8))) {
             avail = 1;
         } else {
             avail = 0;
@@ -2574,7 +2563,7 @@ void update_class_attr(s32 player)
             lvl = 99;
             best = -1;
         } else {
-            expslot = pl + offsetof(Player, name) + sizeof(P_SAVE_HEAD) +
+            expslot = pl + offsetof(Player, save.name) + sizeof(P_SAVE_HEAD) +
                       sel * sizeof(P_SAVE_ATTS);
             lvl = ExpToLevel(*(s32*)expslot);
             LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
@@ -2742,7 +2731,7 @@ substate:
             known = 1;
         } else {
             known = 1;
-            switch (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) {
+            switch (*(u16*)(pl + offsetof(Player, save.name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) {
             case 0:
                 known = 0;
                 break;

@@ -2947,15 +2947,15 @@ void fn_8005AC10(s32 player)
     record->world_text_active = 0;
     record->world_name_len = 0;
     for (i = 0; i < 7; i++) {
-        if (record->name[i] != 0) {
+        if (record->save.name[i] != 0) {
             record->world_name_len++;
         }
     }
 
     if (record->world_name_len >= 5) {
         record->world_name_len = 5;
-        record->world_name_tail = (s8)record->name[record->world_name_len];
-        record->name[record->world_name_len] = 0;
+        record->world_name_tail = (s8)record->save.name[record->world_name_len];
+        record->save.name[record->world_name_len] = 0;
     } else {
         record->world_name_tail = 0x40;
     }
@@ -7705,8 +7705,8 @@ s32 fn_8005A868(s32 player)
     if ((new_down(player) != 0 || new_menu_back(player) != 0) &&
         p->world_name_len > 0) {
         p->world_name_len--;
-        p->world_name_tail = (s8)p->name[p->world_name_len];
-        p->name[p->world_name_len] = 0;
+        p->world_name_tail = (s8)p->save.name[p->world_name_len];
+        p->save.name[p->world_name_len] = 0;
         AudioCursorH();
     }
 
@@ -7721,12 +7721,12 @@ s32 fn_8005A868(s32 player)
         } else if (p->world_name_tail == '<') {
             if (p->world_name_len > 0) {
                 p->world_name_len--;
-                p->name[p->world_name_len] = 0;
+                p->save.name[p->world_name_len] = 0;
             }
         } else {
             if (p->world_name_len + 1 < 7) {
-                p->name[p->world_name_len] = (s8)p->world_name_tail;
-                p->name[p->world_name_len + 1] = 0;
+                p->save.name[p->world_name_len] = (s8)p->world_name_tail;
+                p->save.name[p->world_name_len + 1] = 0;
             }
             p->world_name_len++;
         }
@@ -7740,7 +7740,7 @@ s32 fn_8005A868(s32 player)
     x = lbl_80343C38[player] - 30;
     text[1] = 0;
     for (i = 0; i < p->world_name_len; i++, x += 18) {
-        text[0] = p->name[i];
+        text[0] = p->save.name[i];
         DrawTextKeepScale(lbl_80346DB4, (u16)x - 4, 340, 7,
                           lbl_8011C898[player], (u8*)text);
     }
