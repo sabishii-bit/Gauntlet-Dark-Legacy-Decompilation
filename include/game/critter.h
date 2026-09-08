@@ -67,7 +67,7 @@
 struct Critter;
 struct MBObject;   /* include/game/mbobject.h; every handle
                     * below is Xbox crit_inst's `struct mbnode *` */
-struct item;       /* include/game/item.h */
+struct Item;       /* include/game/item.h: the shipped tag is `Item` */
 struct CritterColDescriptor;  /* one stride-0x50 NODE record of a loaded
                                * CRITTER wad; completed in critter.c, the only
                                * TU that dereferences it */
@@ -375,7 +375,7 @@ typedef struct Critter {
     s16 pausecnt;             /* 0xAC4 anim pause counter (CritterAnimate)     */
     s16 unkAC6;               /* 0xAC6 (init 0)                              */
     f32 unkAC8;               /* 0xAC8 (init 0)                              */
-    struct item *gotitem;     /* 0xACC crit_inst.gotitem -- the item this
+    struct Item *gotitem;     /* 0xACC crit_inst.gotitem -- the item this
                                * critter is carrying/will drop; gauntworld's
                                * spawn path stores &sItems[enemy.pickup] here */
     f32 visrad;               /* 0xAD0 crit_inst.visrad -- spawn writes
