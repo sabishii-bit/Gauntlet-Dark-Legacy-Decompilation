@@ -11,6 +11,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Rule-17 promotion damage; see the note in wf_detail.py (run-43 item 9).
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.dirname(HERE))       # tools/gdl
+sys.path.insert(0, HERE)
+import cliscreen  # noqa: E402
+cliscreen.help_only(__doc__)  # the probe below runs a live analysis; --help must not
 import webfrank as wf  # noqa: E402
 from wf_detail import load  # noqa: E402
 
