@@ -838,9 +838,7 @@ f32 *delta;
         }
     }
     if (bestIndex >= 0) {
-        if (*(s16 *)((u8 *)*(CritterDescriptor **)((u8 *)c->hdr +
-                     offsetof(CritterPackedType, descriptor)) +
-                     offsetof(CritterDescriptor, type)) == 3) {
+        if (c->hdr->descriptor->type == 3) {
             enemy = &gEnemies[bestIndex];
             if ((f64)enemy->hht <= 2.0) {
                 damage_enemy(enemy, -1, 0,
@@ -1588,7 +1586,8 @@ static void CritterReleasePlayer(Critter *c, CritterDamageDef *damageDef, f32 *d
     dir[0] = dir[0] * damageDef->minSpeed;
     dir[1] = dir[1] * damageDef->minSpeed;
     dir[2] = dir[2] * damageDef->minSpeed;
-    CritterDamagePlayer(pp, c, damageDef, 0x8050, dir, 0,
+    CritterDamagePlayer(pp, c, damageDef,
+                        DMG_THROWN | DMG_BLOWNAWAY | DMG_KNOCKBACK, dir, 0,
                         0.5f);
     c->unk128 = -1;
 }
@@ -1612,7 +1611,7 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
              gCurLevel->ene_damage;
     if (playSfx != 0 && ((CritterDamageDef *)damageDef)->sfx >= 0) {
         CritterDoSfx(c, ((CritterDamageDef *)damageDef)->sfx, &player->pos[0], 0, -1);
-        damageFlags |= 0x01000000;
+        damageFlags |= DMG_NOHITFX;
     }
     descriptor = c->hdr->descriptor;
     if (descriptor->type != 4 &&
@@ -1649,7 +1648,7 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
               gCurLevel->ene_damage;
     if (playSfx != 0 && ((CritterDamageDef *)damageDef)->sfx >= 0) {
         CritterDoSfx(c, ((CritterDamageDef *)damageDef)->sfx, &player->pos[0], 0, -1);
-        damageFlags |= 0x01000000;
+        damageFlags |= DMG_NOHITFX;
     }
     descriptor = c->hdr->descriptor;
     if (descriptor->type != 4 &&
@@ -1902,7 +1901,7 @@ void CritterDamagePlayer(Player *player, Critter *c,
 
     if (playSfx != 0 && ((CritterDamageDef *)damageDef)->sfx >= 0) {
         CritterDoSfx(c, ((CritterDamageDef *)damageDef)->sfx, &player->pos[0], 0, -1);
-        damageFlags |= 0x01000000;
+        damageFlags |= DMG_NOHITFX;
     }
 
     descriptor = c->hdr->descriptor;
@@ -3130,7 +3129,8 @@ credited_damage_done:
         }
     }
 
-    if ((flags & 0x00100320) == 0 && c->unkAB8 >= 0) {
+    if ((flags & (DMG_SUPER | DMG_MAGIC | DMG_KNOCKOVER | DMG_KNOCKDOWN)) == 0 &&
+        c->unkAB8 >= 0) {
         /* Measured load-bearing (banked-object comparison, this lane):
           * retyping `hitNode` to `CritterHitNode *` and spelling these as
           * members rebuilds CritterDamage at 2424 bytes (target 604 insns vs
@@ -3330,7 +3330,7 @@ credited_damage_done:
 
 #undef CRITTER_DIE
 
-    if ((flags & 0x01000000) == 0) {
+    if ((flags & DMG_NOHITFX) == 0) {
         CritterPackedType *damageHeader;
 
         damageHeader = c->hdr;
@@ -3347,7 +3347,7 @@ credited_damage_done:
                         critterClass, damageHeader->radius);
         }
 
-        if (flags & 0x00100320) {
+        if (flags & (DMG_SUPER | DMG_MAGIC | DMG_KNOCKOVER | DMG_KNOCKDOWN)) {
             c->unkABC = 2;
         } else if (c->unkAB8 >= 0) {
             c->hitnodes[c->unkAB8].state = 2;
@@ -5855,8 +5855,8 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         break;
     }
 
-    if ((desc->flags & 0x00020000) != 0) {
-        flags |= 0x00020000;
+    if ((desc->flags & DMG_ARROW) != 0) {
+        flags |= DMG_ARROW;
     }
     if ((desc->behaviorFlags & 0x40) != 0) {
         flags &= ~6;
@@ -5916,7 +5916,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
             if ((desc->behaviorFlags & 0x800) != 0) {
                 Effects[result].flags |= 0x8000;
             }
-            if ((desc->flags & 0x04000000) != 0) {
+            if ((desc->flags & DMG_STICKY) != 0) {
                 Effects[result].webtime = speed;
                 Effects[result].flags &= ~0x20;
             }
@@ -6386,9 +6386,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         childIndex = childHeader->childIndex;
         root->childcnt++;
     }
-    switch (*(s16 *)((u8 *)*(CritterDescriptor **)((u8 *)root->hdr +
-                     offsetof(CritterPackedType, descriptor)) +
-                     offsetof(CritterDescriptor, type))) {
+    switch (root->hdr->descriptor->type) {
     case 8:
         root->particle = FindClosestWaypoint(lbl_80346594,
                                              (f32 *)((u8 *)root + 0x3C), 0);
@@ -6479,7 +6477,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x1000) == 0) {
         atreeFlags |= 0x800;
     }
-    c->colhandle = AtreeInit(*(void **)(header + offsetof(CritterPackedType, atree)), &c->colhandle, 0,
+    c->colhandle = AtreeInit(((CritterPackedType *)header)->atree, &c->colhandle, 0,
                              atreeFlags);
     c->anim = *(void **)c->colhandle;
     MBNodeSetParent(*(void **)c->colhandle, c->mbnode);
@@ -6850,8 +6848,8 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
              i < c->hdr->colCount;
              i++, hitOffset += 0x5C) {
             u8 *hitRecord = (u8 *)c + hitOffset;
-            if (*(void **)(hitRecord + 0x4FC) == node) {
-                *(void **)(hitRecord + 0x4FC) = NULL;
+            if (((CritterHitNode *)(hitRecord + offsetof(Critter, hitnodes)))->active == node) {
+                ((CritterHitNode *)(hitRecord + offsetof(Critter, hitnodes)))->active = NULL;
             }
         }
 
