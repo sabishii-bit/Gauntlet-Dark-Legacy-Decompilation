@@ -1,13 +1,17 @@
 """Two-sided source-debt classification and CLI safety; no compiler required."""
 import contextlib
 import io
+import importlib.util
 import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from tools.gdl import fakematch_lint as lint
+LINT_DIR = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location('gdl_fakematch_lint', LINT_DIR / 'fakematch_lint.py')
+lint = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(lint)
 
 
 class SourceRules(unittest.TestCase):

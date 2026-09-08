@@ -3,11 +3,11 @@
   "private": true,
   "packageManager": "pnpm@10.25.0",
   "scripts": {
-    "lint:ast": "ast-grep scan --config sgconfig.yml --filter ^FM00[1256]$ src include",
-    "test:lint": "ast-grep test --config sgconfig.yml --skip-snapshot-tests",
-    "lint:decomp": "python tools/gdl/fakematch_lint.py --postprocessors --fail-on-findings --out build/fakematch_lint.json",
-    "lint:editor": "python tools/gdl/fakematch_lint.py --postprocessors --format problems --watch",
-    "test:lint:integration": "python -m unittest tools.gdl.tests.test_fakematch_lint -b"
+    "lint:ast": "ast-grep scan --config .vscode/lint/sgconfig.yml --filter ^FM00[1256]$ src include",
+    "test:lint": "ast-grep test --config .vscode/lint/sgconfig.yml --skip-snapshot-tests",
+    "lint:decomp": "python .vscode/lint/fakematch_lint.py --postprocessors --fail-on-findings --out build/fakematch_lint.json",
+    "lint:editor": "python .vscode/lint/fakematch_lint.py --postprocessors --format problems --watch",
+    "test:lint:integration": "python -m unittest discover -s .vscode/lint/tests -p test_*.py -b"
   },
   "devDependencies": {
     "@ast-grep/cli": "0.45.3"

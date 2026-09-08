@@ -300,12 +300,12 @@ finite matrix proves that postprocessing is necessary.
 ## Types, names and de-fakematching
 
 Before source-debt cleanup, run `pnpm install --frozen-lockfile` once, then
-`python tools/gdl/fakematch_lint.py <owned-source-path> --out build/lint.json`.
+`python .vscode/lint/fakematch_lint.py <owned-source-path> --out build/lint.json`.
 The ast-grep-backed report covers source reconstruction-debt families. Findings
 are review candidates, not proven fakematches; parser recovery, macro expansion
 and absent type/liveness analysis limit coverage. Never mechanically rewrite
 findings to improve the lint count or weaken matching gates. Review exceptions
-in `config/GUNE5D/fakematch_lint.toml` require exact fingerprints or scoped,
+in `.vscode/lint/fakematch_lint.toml` require exact fingerprints or scoped,
 count-bound pragma entries and a reason; suppressed rows remain in the report.
 `dont_inline on/off` statements are visible warnings, not suppressed findings
 or recovered-source claims. `--warnings-as-errors` makes them build-breaking.

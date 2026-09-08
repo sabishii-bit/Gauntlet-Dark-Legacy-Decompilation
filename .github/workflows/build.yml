@@ -127,7 +127,9 @@ jobs:
       run: pnpm install --frozen-lockfile
 
     - name: Analysis tool tests
-      run: python -m unittest discover tools/gdl/tests -b
+      run: |
+        python -m unittest discover tools/gdl/tests -b
+        pnpm run test:lint:integration
 
     - name: Reconstruction diagnostics
       env:

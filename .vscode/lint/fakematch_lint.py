@@ -54,7 +54,7 @@ TRASH = re.compile(r'^(?:trash\w*|unused\w*|(?:stack|frame)_?pad\w*|pad(?:ding)?
 
 @lru_cache(maxsize=1)
 def ast_binary():
-    resolved = subprocess.run(['node', str(ROOT/'tools/gdl/lint/resolve_ast_grep.cjs')],
+    resolved = subprocess.run(['node', str(ROOT/'.vscode/lint/resolve_ast_grep.cjs')],
                               capture_output=True, text=True, timeout=30, cwd=ROOT)
     if resolved.returncode or not Path(resolved.stdout.strip()).is_file():
         raise ValueError('ast-grep unavailable; run pnpm install --frozen-lockfile. '+resolved.stderr.strip())
@@ -73,7 +73,7 @@ def ast_rows(text, projection):
         if projection.strip():
             paths.append(Path(td)/'macros.cpp')
             paths[-1].write_text(projection, encoding='utf-8', newline='')
-        result = subprocess.run([ast_binary(), 'scan', '--config', str(ROOT/'sgconfig.yml'),
+        result = subprocess.run([ast_binary(), 'scan', '--config', str(ROOT/'.vscode/lint/sgconfig.yml'),
                                  '--json=compact', *map(str, paths)],
                                 capture_output=True, encoding='utf-8', timeout=120, cwd=ROOT)
         if result.returncode:
@@ -388,8 +388,8 @@ def watch(argv):
         while True:
             watched=[p for base in ('src','include') for p in (ROOT/base).rglob('*')
                      if p.is_file() and p.suffix.lower() in EXTENSIONS]
-            watched += [ROOT/p for p in ('config/GUNE5D/fakematch_lint.toml','sgconfig.yml',
-                       'tools/gdl/lint/rules/reconstruction.yml',*[p for _,p in POSTPROCESSORS])]
+            watched += [ROOT/p for p in ('.vscode/lint/fakematch_lint.toml','.vscode/lint/sgconfig.yml',
+                       '.vscode/lint/rules/reconstruction.yml',*[p for _,p in POSTPROCESSORS])]
             state=tuple((str(p),p.stat().st_mtime_ns,p.stat().st_size) if p.exists() else (str(p),None,None)
                         for p in sorted(watched))
             if state!=previous:
@@ -411,7 +411,7 @@ def main(argv=None, _cache=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('paths',nargs='*',help='repository-relative files/directories; default src and include')
     p.add_argument('--root',type=Path,default=ROOT)
-    p.add_argument('--policy',type=Path,default=Path('config/GUNE5D/fakematch_lint.toml'))
+    p.add_argument('--policy',type=Path,default=Path('.vscode/lint/fakematch_lint.toml'))
     p.add_argument('--out',type=Path,help='JSON report under build/')
     p.add_argument('--limit',type=int,default=40,help='console rows only; JSON retains every finding')
     p.add_argument('--fail-on-findings',action='store_true')
@@ -438,7 +438,7 @@ def main(argv=None, _cache=None):
         if not files: raise ValueError('no C/C++ source files selected')
         policy_bytes=(root/args.policy).read_bytes();policy=load_policy(root/args.policy)
         rows=[];hashes={};diagnostics=[]
-        engine_hash=hashlib.sha256((ROOT/'sgconfig.yml').read_bytes()+(ROOT/'tools/gdl/lint/rules/reconstruction.yml').read_bytes()).hexdigest()
+        engine_hash=hashlib.sha256((ROOT/'.vscode/lint/sgconfig.yml').read_bytes()+(ROOT/'.vscode/lint/rules/reconstruction.yml').read_bytes()).hexdigest()
         for f in sorted(files):
             data=f.read_bytes();name=f.relative_to(root).as_posix();hashes[name]=hashlib.sha256(data).hexdigest()
             try: text=data.decode('utf-8')
@@ -478,8 +478,8 @@ def main(argv=None, _cache=None):
                     by_rule=dict(sorted(Counter(r['rule'] for r in active).items())),by_file=dict(Counter(r['path'] for r in active).most_common()),
                     rules_selected=selected,parse_recovery=diagnostics,policy_sha256=hashlib.sha256(policy_bytes).hexdigest(),
                     postprocessor_config_sha256=post_hashes,
-                    rules_sha256=hashlib.sha256((ROOT/'tools/gdl/lint/rules/reconstruction.yml').read_bytes()).hexdigest(),
-                    config_sha256=hashlib.sha256((ROOT/'sgconfig.yml').read_bytes()).hexdigest())
+                    rules_sha256=hashlib.sha256((ROOT/'.vscode/lint/rules/reconstruction.yml').read_bytes()).hexdigest(),
+                    config_sha256=hashlib.sha256((ROOT/'.vscode/lint/sgconfig.yml').read_bytes()).hexdigest())
         if out:
             out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
         for r in active if args.format=='problems' else active[:args.limit]: print(diagnostic(r,root,args.format))
@@ -492,7 +492,7 @@ def main(argv=None, _cache=None):
         return 1 if (args.fail_on_findings and errors) or (args.warnings_as_errors and warnings) else 0
     except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError) as e:
         if args.format!='human':
-            print(diagnostic(dict(path='sgconfig.yml',line=1,column=1,rule='FM000',scope='scanner',
+            print(diagnostic(dict(path='.vscode/lint/sgconfig.yml',line=1,column=1,rule='FM000',scope='scanner',
                                   message='Scan incomplete: '+str(e)),args.root.resolve(),args.format))
         print('UNRESOLVED: '+str(e),file=sys.stderr);return 2
 

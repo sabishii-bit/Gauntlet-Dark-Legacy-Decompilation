@@ -57,7 +57,7 @@ class OwnedUnitsAudit(unittest.TestCase):
         # 12 of 112 historical entries were files reported as `prefix`, both
         # distinct paths belonging to the postprocessor lane's scope.
         claim = {"owner": "t21", "id": "work_claim.fake.v4",
-                 "owned_units": ["config/GUNE5D/fakematch_lint.toml",
+                 "owned_units": [".vscode/lint/fakematch_lint.toml",
                                  "tools/gdl/webfrank.py"],
                  "declared": True}
         rows = claimscope.audit_owned_units([claim], repo=REPO)
@@ -66,7 +66,7 @@ class OwnedUnitsAudit(unittest.TestCase):
     def test_the_row_list_accounts_for_every_entry(self):
         claim = {"owner": "t21", "id": "work_claim.fake.v5",
                  "owned_units": ["game/sys/ml_mem", "tools/gdl",
-                                 "config/GUNE5D/fakematch_lint.toml",
+                                 ".vscode/lint/fakematch_lint.toml",
                                  "game/ps2/ml_mem"],
                  "declared": True}
         rows = claimscope.audit_owned_units([claim], repo=REPO)

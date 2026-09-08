@@ -8,7 +8,7 @@
       "detail": "Saved-file diagnostics for the whole repository. First scan can take a short while; this task must be running to show inline Problems markers.",
       "type": "process",
       "command": "python",
-      "args": ["-u", "tools/gdl/fakematch_lint.py", "--postprocessors", "--format", "problems", "--watch"],
+      "args": ["-u", ".vscode/lint/fakematch_lint.py", "--postprocessors", "--format", "problems", "--watch"],
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 },
@@ -35,7 +35,7 @@
       "detail": "Quick saved-file check with inline diagnostics; no watcher or build required.",
       "type": "process",
       "command": "python",
-      "args": ["-u", "tools/gdl/fakematch_lint.py", "${file}", "--postprocessors", "--format", "problems"],
+      "args": ["-u", ".vscode/lint/fakematch_lint.py", "${file}", "--postprocessors", "--format", "problems"],
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "silent", "revealProblems": "onProblem", "panel": "dedicated" },
       "problemMatcher": {

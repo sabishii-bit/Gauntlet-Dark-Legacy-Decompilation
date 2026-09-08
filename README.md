@@ -274,7 +274,7 @@ pnpm run test:lint
 pnpm run test:lint:integration
 pnpm run lint:decomp
 # Focus on an owned TU; output must stay under ignored build/.
-python tools/gdl/fakematch_lint.py src/game/movie/movieplayer.cpp --out build/movie-lint.json
+python .vscode/lint/fakematch_lint.py src/game/movie/movieplayer.cpp --out build/movie-lint.json
 ```
 
 | Rule | Review candidate |
@@ -346,8 +346,8 @@ separate syntax scan, but macros/includes are not expanded or type-checked.
 Optimization flags in build configuration still require the existing compiler-
 provenance audit; this scanner covers source pragmas/attributes, not Ninja flags.
 
-Rules and fixtures live in `tools/gdl/lint/`. Review approvals live in
-`config/GUNE5D/fakematch_lint.toml`: `exceptions` entries require an exact report
+Rules and fixtures live in `.vscode/lint/`. Review approvals live in
+`.vscode/lint/fakematch_lint.toml`: `exceptions` entries require an exact report
 `fingerprint` plus `reason`; `pragma_allowlist` entries require exact relative
 `path`, `scope` (function or `before:function`), normalized `directive`, positive
 `count` and `reason`. Changed assembly macro bodies invalidate their approval;
