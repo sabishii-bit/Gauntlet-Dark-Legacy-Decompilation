@@ -724,7 +724,7 @@ extern f32  lbl_80346C80;
 extern f32  lbl_80346C84;
 extern s32  lbl_803447B4;
 extern void* lbl_803447B0;
-extern u8*  gBossObj;
+extern Critter* gBossObj;
 extern s32  gBossDead;
 extern f32  gClockTime;
 extern Effect Effects[]; /* live fx pool, stride 0xF0 (game/effect.h) */
@@ -1356,11 +1356,13 @@ void world_update(void)
                                      lbl_80346BF0, lbl_80346BF0);
             } else {
                 if (!lbl_80344868) {
+                    // lint-begin FM001, FM007, FM009: 0x70 is level_data.fog (game/leveldata.h) and 0x80 is that block's fog_data.max, but this pair is load-bearing in world_update at unchanged 2264-byte size: level_data* lv + lv->fog + hdr+offsetof(FogData,max) moves 18 words, keeping u8* lv and converting only the 0x80 read moves 18, level_data* lv with lv->fog+0x10 moves 14, and u8* lv with ((level_data*)lv)->fog moves 18. The target keeps a raw gCurLevel byte cursor here, so both offsets stay raw.
                     u8* lv = (u8*)gCurLevel;
                     u8* hdr = lv + 0x70;
                     s32 col = 0;
 
                     if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                        // lint-end FM001, FM007, FM009
                         col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                     }
                     MBCompVertScaleAddUV(
@@ -1386,11 +1388,13 @@ void world_update(void)
             }
         } else {
             if (!lbl_80344868) {
+                // lint-begin FM001, FM007, FM009: 0x70 is level_data.fog (game/leveldata.h) and 0x80 is that block's fog_data.max, but this pair is load-bearing in world_update at unchanged 2264-byte size: level_data* lv + lv->fog + hdr+offsetof(FogData,max) moves 18 words, keeping u8* lv and converting only the 0x80 read moves 18, level_data* lv with lv->fog+0x10 moves 14, and u8* lv with ((level_data*)lv)->fog moves 18. The target keeps a raw gCurLevel byte cursor here, so both offsets stay raw.
                 u8* lv = (u8*)gCurLevel;
                 u8* hdr = lv + 0x70;
                 s32 col = 0;
 
                 if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                    // lint-end FM001, FM007, FM009
                     col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                 }
                 MBCompVertScaleAddUV(
@@ -1415,7 +1419,7 @@ void world_update(void)
         }
     }
     if (cond && gGameMode == MG_PLAY && gBossObj != NULL &&
-        *(s32*)(gBossObj + offsetof(Critter, state)) != 0) {
+        gBossObj->state != 0) {
         {
             u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
 
@@ -1441,14 +1445,14 @@ void world_update(void)
 
         for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
             u8* row = tbl + off;
-            u8* wo = *(u8**)(row + 0x4c);
+            WorldObj* wo = *(WorldObj**)(row + 0x4c);
             u8* node;
             f32* timer;
 
             if (wo == 0) {
                 continue;
             }
-            node = *(u8**)(wo + 0x28);
+            node = (u8*)wo->nodeptr;
             if (node == 0) {
                 continue;
             }
@@ -1456,7 +1460,7 @@ void world_update(void)
                 timer = (f32*)(row + 0x5c);
                 if (sMusicFadeBase >= *timer) {
                     fn_80067AE0(lbl_80346C4C, lbl_80346C50);
-                    MBTreeClearFlags(*(void**)(wo + 0x28), 2, 0);
+                    MBTreeClearFlags(wo->nodeptr, 2, 0);
                     *timer = (f32)(k1 + sMusicFadeBase);
                 }
             } else {
@@ -1540,13 +1544,13 @@ void world_update(void)
         case 0x28:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
+                gBossObj->unkAC8 = lbl_80346BF0;
             }
             break;
         case 0x2a:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
+                gBossObj->unkAC8 = lbl_80346BF0;
             }
             break;
         case 0x24:
@@ -1557,12 +1561,12 @@ void world_update(void)
         case 0x26:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 void* found = MBOX_FindObject(strs + 0x128);
-                u32 o = *(u32*)(gBossObj + offsetof(Critter, hitnode1));
+                u32 o = (u32)gBossObj->hitnode1;
 
                 if (o != 0 && *(u32*)(o + 0x78) != 0) {
                     MBSetObject((void*)*(s32*)(o + 0x78), found);
                 }
-                *(u16*)(gBossObj + offsetof(Critter, unkAC6)) = 0;
+                gBossObj->unkAC6 = 0;
                 lbl_8034489C = 6;
             }
             break;
@@ -1570,8 +1574,8 @@ void world_update(void)
         if (kill) {
             if (lbl_80344894 >= 0) {
                 lbl_80344894 = DeleteEffect(lbl_80344894, 1);
-                fn_8009C9DC(3, gBossObj + offsetof(Critter, movevec));
-                fn_8009C9DC(4, gBossObj + offsetof(Critter, movevec));
+                fn_8009C9DC(3, gBossObj->movevec);
+                fn_8009C9DC(4, gBossObj->movevec);
             }
             lbl_8034489C = 6;
         }
@@ -2634,7 +2638,7 @@ extern char lbl_80112788[];            /* string block (+716/+748/+776)     */
 static void ResolveWorldDataPointers(void)
 {
     char* strs = lbl_80112788;
-    u8* lvl;
+    level_data* lvl;
     WorldLevel* level;
     s32 i;
     f32 one;
@@ -2655,7 +2659,7 @@ static void ResolveWorldDataPointers(void)
     one = lbl_80346BE0;
 
     for (i = 0; i < gWorldData->numLevels; i++) {
-        lvl = (u8*)&gWorldData->levels[i];
+        lvl = (level_data*)&gWorldData->levels[i];
         level = (WorldLevel*)lvl;
 
         if (level->cameraIdx < 0) {
@@ -2705,72 +2709,72 @@ static void ResolveWorldDataPointers(void)
             /* per-level float tuning block, level_data 0xA8..0xDC
              * (difficulty..trap_damage) - stride/order confirmed by this
              * loop's exact offsets against every field in that span. */
-            if (sent == *(f32*)(lvl + offsetof(level_data, difficulty))) {
-                *(f32*)(lvl + offsetof(level_data, difficulty)) = one;
+            if (sent == lvl->difficulty) {
+                lvl->difficulty = one;
             }
-            d = *(f32*)(lvl + offsetof(level_data, difficulty));
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_health))) {
-                *(f32*)(lvl + offsetof(level_data, ene_health)) = d;
+            d = lvl->difficulty;
+            if (sent == lvl->ene_health) {
+                lvl->ene_health = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_speed))) {
-                *(f32*)(lvl + offsetof(level_data, ene_speed)) = d;
+            if (sent == lvl->ene_speed) {
+                lvl->ene_speed = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_visrad))) {
-                *(f32*)(lvl + offsetof(level_data, ene_visrad)) = d;
+            if (sent == lvl->ene_visrad) {
+                lvl->ene_visrad = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_attack))) {
-                *(f32*)(lvl + offsetof(level_data, ene_attack)) = d;
+            if (sent == lvl->ene_attack) {
+                lvl->ene_attack = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_damage))) {
-                *(f32*)(lvl + offsetof(level_data, ene_damage)) = d;
+            if (sent == lvl->ene_damage) {
+                lvl->ene_damage = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_mrate))) {
-                *(f32*)(lvl + offsetof(level_data, ene_mrate)) = d;
+            if (sent == lvl->ene_mrate) {
+                lvl->ene_mrate = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_mspeed))) {
-                *(f32*)(lvl + offsetof(level_data, ene_mspeed)) = one;
+            if (sent == lvl->ene_mspeed) {
+                lvl->ene_mspeed = one;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_macc))) {
-                *(f32*)(lvl + offsetof(level_data, ene_macc)) = d;
+            if (sent == lvl->ene_macc) {
+                lvl->ene_macc = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, gen_health))) {
-                *(f32*)(lvl + offsetof(level_data, gen_health)) = d;
+            if (sent == lvl->gen_health) {
+                lvl->gen_health = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, gen_rate))) {
-                *(f32*)(lvl + offsetof(level_data, gen_rate)) = d;
+            if (sent == lvl->gen_rate) {
+                lvl->gen_rate = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, gen_max))) {
-                *(f32*)(lvl + offsetof(level_data, gen_max)) = d;
+            if (sent == lvl->gen_max) {
+                lvl->gen_max = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, trap_rate))) {
-                *(f32*)(lvl + offsetof(level_data, trap_rate)) = d;
+            if (sent == lvl->trap_rate) {
+                lvl->trap_rate = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, trap_damage))) {
-                *(f32*)(lvl + offsetof(level_data, trap_damage)) = d;
+            if (sent == lvl->trap_damage) {
+                lvl->trap_damage = d;
             }
             {
                 gp = (f32*)((u8*)lbl_8011C748 +
                             ((OptsView*)optionsAudioAndPrefs30)->vol * 4);
                 gain = *gp;
-                *(f32*)(lvl + offsetof(level_data, difficulty)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_speed)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_visrad)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_attack)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_mrate)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_macc)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, gen_rate)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, gen_max)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, trap_rate)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, trap_damage)) *= gain;
+                lvl->difficulty *= gain;
+                lvl->ene_speed *= gain;
+                lvl->ene_visrad *= gain;
+                lvl->ene_attack *= gain;
+                lvl->ene_mrate *= gain;
+                lvl->ene_macc *= gain;
+                lvl->gen_rate *= gain;
+                lvl->gen_max *= gain;
+                lvl->trap_rate *= gain;
+                lvl->trap_damage *= gain;
             }
-            *(f32*)(lvl + offsetof(level_data, ene_attack)) =
-                one / *(f32*)(lvl + offsetof(level_data, ene_attack));
-            *(f32*)(lvl + offsetof(level_data, ene_macc)) =
-                one / *(f32*)(lvl + offsetof(level_data, ene_macc));
-            *(f32*)(lvl + offsetof(level_data, ene_mrate)) =
-                one / *(f32*)(lvl + offsetof(level_data, ene_mrate));
-            *(f32*)(lvl + offsetof(level_data, trap_rate)) =
-                one / *(f32*)(lvl + offsetof(level_data, trap_rate));
+            lvl->ene_attack =
+                one / lvl->ene_attack;
+            lvl->ene_macc =
+                one / lvl->ene_macc;
+            lvl->ene_mrate =
+                one / lvl->ene_mrate;
+            lvl->trap_rate =
+                one / lvl->trap_rate;
         }
     }
 
