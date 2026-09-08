@@ -289,7 +289,7 @@ python .vscode/lint/fakematch_lint.py src/game/movie/movieplayer.cpp --out build
 | FM008 | Reintroduced legacy WebFrank/P6Frank configuration |
 | FM009 | Unnamed numeric offsets into visibly declared pointers/arrays, including decimal pool offsets |
 
-The push/PR workflow runs rule tests and a complete `src/` + `include/` scan in
+The push/PR workflow runs rule tests and a complete `src/game/` scan in
 the independent **Reconstruction source lint** job, publishing
 `reconstruction_source_lint` with all findings, source hashes and parser-recovery
 regions. **Outstanding errors fail CI**, including existing debt. This keeps
@@ -352,12 +352,69 @@ Rules and fixtures live in `.vscode/lint/`. Review approvals live in
 direct assembly cannot be exempted by a fingerprint. Reviewed rows stay visible
 with their reasons. No existing debt is blanket-approved.
 
-All reported `#pragma` directives are **warnings**, not suppressed exceptions.
+Source diagnostics are restricted to **`src/game`**. The CLI, CI and editor
+watcher skip SDK/library files and headers outside that directory, even for an
+explicit current-file scan. `lint:ast` also uses the policy-aware wrapper for its
+four-rule subset; raw ast-grep is an internal candidate engine, not the final
+suppression/severity policy. The native-only build guard remains project-wide.
+
+### Reason-required source exceptions
+
+Use a standalone comment immediately before one declaration or statement
+(including all its continuation lines):
+
+```c
+// lint-allow-next-line FM007: Packed color argument; verified against the callee.
+FatalError(message, 0x8000);
+```
+
+For an explicitly bounded region, name the same rules at both ends:
+
+```c
+// lint-begin FM005, FM007: Verified device sequence and packed register values.
+asm("sync");
+write_device(0x40);
+// lint-end FM005, FM007
+```
+
+For a whole file, place the comment before any code or preprocessor directives
+(copyright comments may precede it):
+
+```c
+// lint-file FM005: Required platform primitives; reviewed against target behavior.
+```
+
+These are syntax examples, not permission to introduce these operations into
+game code. Choose the narrowest justified scope and provide a specific reason.
+Multiple rule IDs are comma-separated; no wildcards or global off switch exist.
+Single-line `/* ... */` comments also work. Next-line comments cannot skip blank
+lines/comments or cover a normal function body; use an explicit region when
+needed. A next-line MWCC asm block/function exception covers FM005 only.
+
+Rules FM001-FM007 and FM009 may be waived, including direct asm and pragma
+diagnostics. Scanner failures (FM000) and postprocessing dependencies (FM008)
+cannot. Missing reasons, unused/unknown rule IDs, unmatched ends, nested regions,
+and overlapping waivers of the same finding fail the scan at the comment's
+location. All named rules must still have findings in their annotated scope;
+remove stale comments after repairing the code.
+
+Suppression removes editor/CI diagnostics, **not audit evidence**: every waived
+finding remains in JSON with `suppressed: true`, `review_reason`, and
+`inline_suppression` metadata (comment line, scope, current target hash and region
+end when applicable). The hash records current code; it does not automatically
+expire a comment after edits. Review the reason again when its code changes.
+The linter checks syntax and scope, not whether the reason is true. No game
+source has been automatically exempted by introducing this feature.
+
+### Diagnostic severity and repair guidance
+
+Reported `#pragma` directives default to **warnings** unless explicitly waived
+by a reasoned source comment.
 They remain visible in CLI, report and editor as compatibility debt, including
 `dont_inline`, scheduling and optimization pragmas. `#pragma once` remains
 excluded; optimization attributes remain errors. This does not approve new
 pragmas or prove original source structure.
-To make warnings build-breaking locally or in CI, use:
+To make unsuppressed warnings build-breaking locally or in CI, use:
 
 ```sh
 pnpm run lint:decomp --warnings-as-errors

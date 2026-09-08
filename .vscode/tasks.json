@@ -5,7 +5,7 @@
   "tasks": [
     {
       "label": "GDL: watch reconstruction debt",
-      "detail": "Saved-file diagnostics for the whole repository. First scan can take a short while; this task must be running to show inline Problems markers.",
+      "detail": "Saved-file diagnostics for src/game only. First scan can take a short while; this task must be running to show inline Problems markers.",
       "type": "process",
       "command": "python",
       "args": ["-u", ".vscode/lint/fakematch_lint.py", "--postprocessors", "--format", "problems", "--watch"],
@@ -32,7 +32,7 @@
     },
     {
       "label": "GDL: lint current file",
-      "detail": "Quick saved-file check with inline diagnostics; no watcher or build required.",
+      "detail": "Quick saved-file check for src/game; other source files are skipped. No watcher or build required.",
       "type": "process",
       "command": "python",
       "args": ["-u", ".vscode/lint/fakematch_lint.py", "${file}", "--postprocessors", "--format", "problems"],

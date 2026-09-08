@@ -90,7 +90,7 @@ rule:
 id: FM005
 language: Cpp
 severity: warning
-message: Assembly requires review; the wrapper also checks MWCC assembly and exact sanctioned macros.
+message: Assembly requires review; the wrapper also checks MWCC assembly and reason-required exceptions.
 rule:
   kind: gnu_asm_expression
 ---
@@ -151,6 +151,27 @@ constraints:
     regex: '^[A-Za-z_][A-Za-z_0-9]*$'
   OFFSET:
     regex: '^\(*\s*(?:0[xX][0-9a-fA-F]+|[0-9]+)[uUlL]*\s*\)*$'
+---
+id: decomp-suppression-target
+language: Cpp
+severity: hint
+message: Bounded source unit for explicit reason-required inline review exceptions, not a diagnostic.
+rule:
+  any:
+    - kind: declaration
+    - kind: field_declaration
+    - kind: expression_statement
+    - kind: return_statement
+    - kind: gnu_asm_expression
+  not:
+    has:
+      any:
+        - kind: compound_statement
+        - kind: struct_specifier
+        - kind: class_specifier
+        - kind: union_specifier
+        - kind: enum_specifier
+      stopBy: end
 ---
 id: decomp-binding-name
 language: Cpp

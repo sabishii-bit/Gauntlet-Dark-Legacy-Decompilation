@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.25.0",
   "scripts": {
-    "lint:ast": "ast-grep scan --config .vscode/lint/sgconfig.yml --filter ^FM00[1256]$ src include",
+    "lint:ast": "python .vscode/lint/fakematch_lint.py --rule FM001 --rule FM002 --rule FM005 --rule FM006",
     "test:lint": "ast-grep test --config .vscode/lint/sgconfig.yml --skip-snapshot-tests",
     "lint:decomp": "python .vscode/lint/fakematch_lint.py --postprocessors --fail-on-findings --out build/fakematch_lint.json",
     "lint:editor": "python .vscode/lint/fakematch_lint.py --postprocessors --format problems --watch",

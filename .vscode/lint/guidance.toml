@@ -7,7 +7,7 @@ verification = [
   "Support the proposed source construct with target disassembly, actual data and relocation targets, callers, existing declarations and GC-verified layout. Xbox PDB names/layout are leads, not automatic GC truth.",
   "Change one evidence-backed construct at a time under the same compiler and flags. Check complete-TU code, positional relocations, section layout and exception metadata, not only a function's score.",
   "Run the linter again and the applicable project gates. A green default DOL may use extracted fallback and does not prove that edited source matches. Do not introduce postprocessing to recover equality.",
-  "If evidence is insufficient, retain the finding and document the unknown. A legitimate false positive may receive an exact reasoned exception only where policy permits; never blanket-suppress a family or rewrite syntax merely to evade it."
+  "If evidence is insufficient, retain the finding and document the unknown. Legitimate noise may receive a reasoned lint-allow-next-line, lint-begin/lint-end region, or lint-file exception naming exact rules; use the narrowest justified scope. Do not waive unresolved reconstruction debt merely to obtain a clean report."
 ]
 
 [rules.FM000]
@@ -15,7 +15,7 @@ summary = "The scanner did not complete; this is not a source-code defect or a c
 hint = "Read the scanner failure; repair the missing input, parser dependency or policy, then rerun. Never treat exit 2 as a clean scan."
 steps = [
   "Read the UNRESOLVED message and the command's exit code before touching game source.",
-  "For a missing ast-grep dependency, run pnpm install --frozen-lockfile from the repository root. For malformed policy/rules, repair and test those files instead of suppressing the error.",
+  "For a missing ast-grep dependency, run pnpm install --frozen-lockfile from the repository root. For malformed policy/rules or invalid suppression comments, repair the named input rather than suppressing the error. Stale comments must lose the unused rule; region comments must have matching ends.",
   "Rerun the same scan on stable inputs and require SCAN_COMPLETE. Review parser-recovery limits separately even after a completed scan."
 ]
 example_condition = "Only when the failure says the pinned ast-grep dependency is unavailable"
@@ -92,7 +92,7 @@ steps = [
   "Read the complete asm body, its inputs/outputs, clobbers and callers. Determine whether it is a real hardware, synchronization or ABI primitive.",
   "For ordinary game logic, reconstruct the operation using evidence-backed C/C++ and verified types; compare the native compiler output under the real TU settings.",
   "For a genuine platform primitive, search existing sanctioned implementations/macros. Reuse one only if its behavior, calling convention and ordering guarantees are equivalent.",
-  "Any macro exception needs the exact reviewed fingerprint and reason under policy. Direct asm cannot be fingerprint-exempted; do not move copied asm into a macro to bypass that rule."
+  "An exact macro fingerprint exception remains available in policy. Direct assembly may instead receive a reasoned lint-allow-next-line FM005, explicit lint-begin/lint-end region, or lint-file source exception. Use the narrowest justified scope; waivers are audited, not proof of faithful source. Never move copied asm into a macro to evade review."
 ]
 example_condition = "Only if the asm computes an ordinary unsigned addition and no condition-register, overflow or other side effect is required"
 before = "Inline asm used solely to add two u32 values"

@@ -201,13 +201,13 @@ class SourceRules(unittest.TestCase):
 
     def test_parse_recovery_is_reported(self):
         diagnostics=[]
-        lint.scan_source('void f(){ @@@ return *(int*)(p+8); }','a.c',diagnostics)
+        lint.scan_source('void f(){ @@@ return *(int*)(p+8); }','src/game/a.c',diagnostics)
         self.assertTrue(diagnostics)
-        self.assertEqual(diagnostics[0]['path'],'a.c')
+        self.assertEqual(diagnostics[0]['path'],'src/game/a.c')
 
     def test_whole_file_mwcc_asm_error_root_is_not_silently_skipped(self):
         diagnostics=[]
-        rows=lint.scan_source('#include "types.h"\nasm void f(){ nofralloc\n psq_l f0,0(src),0,qr0\n blr\n }','a.c',diagnostics)
+        rows=lint.scan_source('#include "types.h"\nasm void f(){ nofralloc\n psq_l f0,0(src),0,qr0\n blr\n }','src/game/a.c',diagnostics)
         self.assertTrue(diagnostics)
         self.assertTrue(any(r['rule']=='FM005' for r in rows))
 
@@ -227,27 +227,27 @@ class PolicyAndCli(unittest.TestCase):
         return dict(schema_version=1,exceptions=[],pragma_allowlist=[])
 
     def test_reviewed_findings_remain_visible(self):
-        rows=lint.scan_source('int f(){return *(int*)(p+8);}','a.c')
+        rows=lint.scan_source('int f(){return *(int*)(p+8);}','src/game/a.c')
         policy=self.policy();policy['exceptions']=[dict(fingerprint=rows[0]['fingerprint'],reason='Verified partial view; target offset 8.')]
         result=lint.apply_policy(rows,policy)
         self.assertTrue(result[0]['suppressed'])
         self.assertIn('review_reason',result[0])
-        changed=lint.apply_policy(lint.scan_source('int f(){return *(int*)(p+12);}','a.c'),policy)
+        changed=lint.apply_policy(lint.scan_source('int f(){return *(int*)(p+12);}','src/game/a.c'),policy)
         self.assertFalse(changed[0]['suppressed'])
 
     def test_legacy_pragma_approval_cannot_hide_warnings(self):
-        rows=lint.scan_source('void f(){\n#pragma scheduling off\n#pragma scheduling off\n}\nvoid g(){\n#pragma scheduling off\n}','a.c')
-        policy=self.policy();policy['pragma_allowlist']=[dict(path='a.c',scope='f',directive='#pragma scheduling off',count=1,reason='Explicitly reviewed.')]
+        rows=lint.scan_source('void f(){\n#pragma scheduling off\n#pragma scheduling off\n}\nvoid g(){\n#pragma scheduling off\n}','src/game/a.c')
+        policy=self.policy();policy['pragma_allowlist']=[dict(path='src/game/a.c',scope='f',directive='#pragma scheduling off',count=1,reason='Explicitly reviewed.')]
         result=lint.apply_policy(rows,policy)
         self.assertEqual(len(result),3)
         self.assertTrue(all(r['severity']=='warning' and not r['suppressed'] for r in result))
 
     def test_all_pragmas_are_visible_warnings_and_optional_build_failure(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td)
-            (root/'a.c').write_text('#pragma dont_inline on\nvoid f(){}\n#pragma dont_inline off\n#pragma scheduling off\n# pragma opt_propagation off\n#pragma unknown_setting on\n')
+            root=Path(td);(root/'src/game').mkdir(parents=True)
+            (root/'src/game/a.c').write_text('#pragma dont_inline on\nvoid f(){}\n#pragma dont_inline off\n#pragma scheduling off\n# pragma opt_propagation off\n#pragma unknown_setting on\n')
             (root/'policy.toml').write_text('schema_version=1\nexceptions=[]\npragma_allowlist=[]\n')
-            args=['--root',td,'--policy','policy.toml','a.c','--format','problems','--fail-on-findings','--out','build/report.json']
+            args=['--root',td,'--policy','policy.toml','src/game/a.c','--format','problems','--fail-on-findings','--out','build/report.json']
             output=io.StringIO()
             with contextlib.redirect_stdout(output):
                 self.assertEqual(lint.main(args),0)
@@ -256,7 +256,7 @@ class PolicyAndCli(unittest.TestCase):
             self.assertEqual((report['errors'],report['warnings'],report['suppressed']),(0,5,0))
             self.assertIn(': warning FM006:',output.getvalue())
             self.assertTrue(lint.diagnostic(report['findings'][0],root,'github').startswith('::warning '))
-            (root/'a.c').write_text('void __attribute__((optimize("O0"))) f(){}')
+            (root/'src/game/a.c').write_text('void __attribute__((optimize("O0"))) f(){}')
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(lint.main(args),1)
             report=json.loads((root/'build/report.json').read_text())
@@ -265,7 +265,7 @@ class PolicyAndCli(unittest.TestCase):
 
     def test_legacy_warning_selector_and_exceptions_do_not_hide_pragmas(self):
         source='#pragma dont_inline on\n#pragma scheduling off\nvoid f(){}'
-        rows=lint.scan_source(source,'a.c');policy=self.policy()
+        rows=lint.scan_source(source,'src/game/a.c');policy=self.policy()
         policy['warning_pragmas']=['#pragma dont_inline on']
         policy['exceptions']=[dict(fingerprint=rows[0]['fingerprint'],reason='Old exemption')]
         result=lint.apply_policy(rows,policy)
@@ -277,7 +277,7 @@ class PolicyAndCli(unittest.TestCase):
 
     def test_no_legacy_configs_requires_explicit_native_policy(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);policy=root/'tools/gdl/native_build.py'
+            root=Path(td);(root/'src/game').mkdir(parents=True);policy=root/'tools/gdl/native_build.py'
             policy.parent.mkdir(parents=True);policy.write_text('native policy fixture')
             rows,hashes=lint.postprocessor_findings(root,set(),include_all=True)
             self.assertEqual(rows,[])
@@ -290,15 +290,15 @@ class PolicyAndCli(unittest.TestCase):
         self.assertTrue(lint.apply_policy(rows,p)[0]['suppressed'])
         changed=lint.scan_source(source.replace('nop','blr'),'a.h')
         self.assertFalse(lint.apply_policy(changed,p)[0]['suppressed'])
-        direct=lint.scan_source('asm("nop");','a.c')
+        direct=lint.scan_source('asm("nop");','src/game/a.c')
         p['exceptions']=[dict(fingerprint=direct[0]['fingerprint'],reason='Not a permitted macro.')]
         self.assertFalse(lint.apply_policy(direct,p)[0]['suppressed'])
 
     def test_cli_reports_all_rows_even_with_zero_console_limit(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);(root/'a.c').write_text('int f(){return *(int*)(p+0x8);}')
+            root=Path(td);(root/'src/game').mkdir(parents=True);(root/'src/game/a.c').write_text('int f(){return *(int*)(p+0x8);}')
             (root/'policy.json').write_text(json.dumps(self.policy()))
-            args=['--root',td,'--policy','policy.json','a.c','--out','build/report.json','--limit','0']
+            args=['--root',td,'--policy','policy.json','src/game/a.c','--out','build/report.json','--limit','0']
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(lint.main(args),0)
                 self.assertEqual(lint.main(args+['--fail-on-findings']),1)
@@ -309,10 +309,10 @@ class PolicyAndCli(unittest.TestCase):
 
     def test_bad_inputs_and_protected_output_refuse(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);(root/'a.c').write_text('void f() {}')
+            root=Path(td);(root/'src/game').mkdir(parents=True);(root/'src/game/a.c').write_text('void f() {}')
             (root/'policy.json').write_text(json.dumps(self.policy()))
             common=['--root',td,'--policy','policy.json']
-            for tail in (['missing.c'],['a.c','--out','policy.json'],['a.c','--out','../escape.json']):
+            for tail in (['missing.c'],['src/game/a.c','--out','policy.json'],['src/game/a.c','--out','../escape.json']):
                 with self.subTest(tail=tail),contextlib.redirect_stderr(io.StringIO()):
                     self.assertEqual(lint.main(common+tail),2)
             self.assertEqual(json.loads((root/'policy.json').read_text()),self.policy())
@@ -321,7 +321,7 @@ class PolicyAndCli(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td)/'policy.json'
             for row in (dict(path='src/*',scope='f',directive='#pragma optimize off',count=1,reason='review'),
-                        dict(path='a.c',scope='f',directive='#pragma optimize off',count=1,reason='')):
+                        dict(path='src/game/a.c',scope='f',directive='#pragma optimize off',count=1,reason='')):
                 policy=self.policy();policy['pragma_allowlist']=[row];path.write_text(json.dumps(policy))
                 with self.assertRaises(ValueError):lint.load_policy(path)
 
@@ -331,29 +331,29 @@ class PolicyAndCli(unittest.TestCase):
             for stdout in ('[]','{}','not json'):
                 result=subprocess.CompletedProcess([],0,stdout,'')
                 with self.subTest(stdout=stdout),patch.object(lint.subprocess,'run',return_value=result):
-                    with self.assertRaises(ValueError):lint.scan_source('void f(){}','a.c')
+                    with self.assertRaises(ValueError):lint.scan_source('void f(){}','src/game/a.c')
 
     def test_failed_scanner_is_not_a_clean_result(self):
         import subprocess
         with patch.object(lint,'ast_binary',return_value='not-executed'):
             result=subprocess.CompletedProcess([],6,'[]','broken rule')
             with patch.object(lint.subprocess,'run',return_value=result):
-                with self.assertRaisesRegex(ValueError,'scan failed'):lint.scan_source('void f(){}','a.c')
+                with self.assertRaisesRegex(ValueError,'scan failed'):lint.scan_source('void f(){}','src/game/a.c')
 
     def test_cli_dependency_failure_is_exit_two(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);(root/'a.c').write_text('void f(){}')
+            root=Path(td);(root/'src/game').mkdir(parents=True);(root/'src/game/a.c').write_text('void f(){}')
             (root/'policy.json').write_text(json.dumps(self.policy()))
             with patch.object(lint,'ast_binary',side_effect=FileNotFoundError('node unavailable')),contextlib.redirect_stderr(io.StringIO()):
-                self.assertEqual(lint.main(['--root',td,'--policy','policy.json','a.c']),2)
+                self.assertEqual(lint.main(['--root',td,'--policy','policy.json','src/game/a.c']),2)
 
     def test_editor_diagnostics_cover_every_row_even_at_limit_zero(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);(root/'a.c').write_text('void f(){use(0x40); use(0x80);}')
+            root=Path(td);(root/'src/game').mkdir(parents=True);(root/'src/game/a.c').write_text('void f(){use(0x40); use(0x80);}')
             (root/'policy.json').write_text(json.dumps(self.policy()))
             output=io.StringIO()
             with contextlib.redirect_stdout(output):
-                result=lint.main(['--root',td,'--policy','policy.json','a.c','--format','problems','--limit','0','--fail-on-findings'])
+                result=lint.main(['--root',td,'--policy','policy.json','src/game/a.c','--format','problems','--limit','0','--fail-on-findings'])
             self.assertEqual(result,1)
             self.assertEqual(output.getvalue().count(': error FM007:'),2)
 
@@ -366,7 +366,7 @@ class PolicyAndCli(unittest.TestCase):
 
     def test_postprocessor_inventory_is_scoped_and_not_suppressed(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);folder=root/'config/GUNE5D';folder.mkdir(parents=True)
+            root=Path(td);(root/'src/game').mkdir(parents=True);folder=root/'config/GUNE5D';folder.mkdir(parents=True)
             for engine,path in lint.POSTPROCESSORS:
                 rule=dict(function='f',before_sha256='x')
                 units={'game/test':[rule]} if engine=='WebFrank' else {}
@@ -412,9 +412,9 @@ class PolicyAndCli(unittest.TestCase):
 
     def test_watch_cache_reuses_only_unchanged_source(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);source=root/'a.c';source.write_text('void f(){use(0x40);}')
+            root=Path(td);(root/'src/game').mkdir(parents=True);source=root/'src/game/a.c';source.write_text('void f(){use(0x40);}')
             (root/'policy.json').write_text(json.dumps(self.policy()))
-            args=['--root',td,'--policy','policy.json','a.c','--limit','0']
+            args=['--root',td,'--policy','policy.json','src/game/a.c','--limit','0']
             cache={}
             with patch.object(lint,'scan_source',wraps=lint.scan_source) as scanner,contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(lint.main(args,_cache=cache),0)
@@ -423,6 +423,190 @@ class PolicyAndCli(unittest.TestCase):
                 source.write_text('void f(){use(0x80);}')
                 self.assertEqual(lint.main(args,_cache=cache),0)
                 self.assertEqual(scanner.call_count,2)
+
+
+class InlineSuppressions(unittest.TestCase):
+    def reviewed(self,source):
+        rows=lint.scan_source(source,'src/game/test.c')
+        return lint.apply_policy(rows,dict(schema_version=1,exceptions=[],pragma_allowlist=[]))
+
+    def test_reasoned_game_statement_is_audited_not_deleted(self):
+        source='void f(){\n// lint-allow-next-line FM007: Packed color; checked the callee.\nFatalError(message, 0x8000); use(0x40);\n}'
+        rows=self.reviewed(source)
+        self.assertEqual(len(rows),2)
+        self.assertEqual([r['suppressed'] for r in rows],[True,False])
+        self.assertEqual(rows[0]['review_reason'],'Packed color; checked the callee.')
+        self.assertEqual(rows[0]['suppression_source'],'source-comment')
+        self.assertEqual(rows[0]['inline_suppression']['comment_line'],2)
+        self.assertEqual(rows[0]['inline_suppression']['target_end_line'],3)
+        self.assertRegex(rows[0]['inline_suppression']['target_sha256'],r'^[0-9a-f]{64}$')
+
+    def test_multiline_declaration_is_one_unit_not_neighboring_code(self):
+        source='void f(){\n// lint-allow-next-line FM003: Device-observed state; verified volatility.\nvolatile int state =\n  0;\nvolatile int other=0;\n}'
+        rows=self.reviewed(source)
+        self.assertEqual([r['suppressed'] for r in rows],[True,False])
+        self.assertEqual(rows[0]['inline_suppression']['target_end_line'],4)
+
+    def test_specific_rules_only_and_multiple_rules(self):
+        source='int f(){\n// lint-allow-next-line FM001: Verified packed buffer alignment.\nreturn *(int*)(p+0x8);\n}'
+        rows=self.reviewed(source)
+        self.assertTrue(next(r for r in rows if r['rule']=='FM001')['suppressed'])
+        self.assertFalse(next(r for r in rows if r['rule']=='FM007')['suppressed'])
+        rows=self.reviewed(source.replace('FM001:', 'FM001, FM007:'))
+        self.assertTrue(all(r['suppressed'] for r in rows))
+
+    def test_direct_gnu_and_mwcc_assembly_are_explicitly_waivable(self):
+        for body in ('void f(){\n// lint-allow-next-line FM005: Required device ordering barrier.\nasm("sync");\nasm("isync");\n}',
+                     '// lint-allow-next-line FM005: Required platform register access.\nasm void f(void) {\n  sync\n  blr\n}\nasm void g(void) { blr }',
+                     'void f(){\n// lint-allow-next-line FM005: Required platform register access.\nasm { sync }\nasm { isync }\n}'):
+            with self.subTest(body=body):
+                rows=[r for r in self.reviewed(body) if r['rule']=='FM005']
+                self.assertEqual([r['suppressed'] for r in rows],[True,False])
+
+    def test_macro_and_pragma_comments_remain_narrow(self):
+        source='// lint-allow-next-line FM005: Verified synchronization macro.\n#define BARRIER() asm("sync")\n#define OTHER() asm("isync")\n'
+        self.assertEqual([r['suppressed'] for r in self.reviewed(source)],[True,False])
+        source='// lint-allow-next-line FM006: Verified platform packing directive.\n#pragma pack(4)\n#pragma pack()\n'
+        rows=self.reviewed(source)
+        self.assertEqual([r['suppressed'] for r in rows],[True,False])
+        self.assertEqual([r['severity'] for r in rows],['warning','warning'])
+
+    def test_single_line_block_comment_is_supported(self):
+        source='void f(){\n/* lint-allow-next-line FM007: Verified packed API value. */\nuse(0x40);\n}'
+        self.assertTrue(self.reviewed(source)[0]['suppressed'])
+
+    def test_comment_text_in_strings_does_not_waive_findings(self):
+        source='void f(){use("// lint-allow-next-line FM007: pretend");use(0x40);}'
+        rows=self.reviewed(source)
+        self.assertTrue(rows)
+        self.assertFalse(any(r['suppressed'] for r in rows))
+
+    def test_malformed_stale_and_overbroad_comments_refuse(self):
+        invalid=[
+            '// lint-allow-next-line FM007:\nuse(0x40);',
+            '// lint-allow-next-line FM007:   \nuse(0x40);',
+            '// lint-allow-next-line FM999: unknown\nuse(0x40);',
+            '// lint-allow-next-line FM000: waive scanner\nuse(0x40);',
+            '// lint-allow-next-line FM008: waive patcher\nuse(0x40);',
+            '// lint-allow-next-line FM007,FM007: repeated\nuse(0x40);',
+            '// lint-disable FM007: blanket\nuse(0x40);',
+            '// lint-allow-next-line *: blanket\nuse(0x40);',
+            '// gdl-lint-allow-next-line FM007: old prefix\nuse(0x40);',
+            '// lint-allow-next-line FM007: stale\nuse(1);',
+            '// lint-allow-next-line FM001,FM007: partly stale\nuse(0x40);',
+            '// lint-allow-next-line FM007: gap\n\nuse(0x40);',
+            '// lint-allow-next-line FM007: gap\n// another comment\nuse(0x40);',
+            'use(1); // lint-allow-next-line FM007: not standalone\nuse(0x40);',
+            '// lint-allow-next-line FM007: block-wide\n{use(0x40);use(0x80);}',
+            '// lint-allow-next-line FM007: whole function\nvoid nested(){use(0x40);}',
+            '// lint-allow-next-line FM007: hidden function\nauto fn=[](){use(0x40);};',
+            '// lint-allow-next-line FM005,FM007: asm body\nasm { sync }',
+        ]
+        for body in invalid:
+            with self.subTest(body=body),self.assertRaises(lint.SuppressionError):
+                self.reviewed('void f(){\n'+body+'\n}')
+        with self.assertRaises(lint.SuppressionError):
+            self.reviewed('// lint-allow-next-line FM005: unclosed\nasm { sync')
+
+    def test_region_is_explicit_bounded_reasoned_and_rule_specific(self):
+        source='void f(){\nuse(0x10);\n// lint-begin FM007: Verified packed values in this sequence.\nuse(0x20);\nasm("sync");\nuse(0x30);\n// lint-end FM007\nuse(0x40);\n}'
+        rows=self.reviewed(source)
+        self.assertEqual([r['suppressed'] for r in rows],[False,True,False,True,False])
+        self.assertEqual(rows[1]['inline_suppression']['target_kind'],'region')
+        self.assertEqual(rows[1]['inline_suppression']['comment_line'],3)
+        self.assertEqual(rows[1]['inline_suppression']['end_comment_line'],7)
+        source=source.replace('lint-begin FM007:', 'lint-begin FM005, FM007:').replace('lint-end FM007', 'lint-end FM007, FM005')
+        self.assertEqual([r['suppressed'] for r in self.reviewed(source)],[False,True,True,True,False])
+        self.assertEqual([r['suppressed'] for r in self.reviewed(source.replace('\n','\r\n'))],[False,True,True,True,False])
+
+    def test_bad_region_pairs_and_overlapping_waivers_refuse(self):
+        bad=[
+            '// lint-begin FM007: reason\nuse(0x40);',
+            '// lint-end FM007\nuse(0x40);',
+            '// lint-begin FM007: reason\nuse(0x40);\n// lint-end FM005',
+            '// lint-begin FM007:\nuse(0x40);\n// lint-end FM007',
+            '// lint-begin FM007: reason\nuse(0x40);\n// lint-end FM007: extra',
+            '// lint-begin FM007: reason\nuse(1);\n// lint-end FM007',
+            '// lint-begin FM007: reason\n// lint-begin FM005: nested\nasm("sync");\n// lint-end FM005\n// lint-end FM007',
+            '// lint-begin FM007: reason\n// lint-allow-next-line FM007: overlapping\nuse(0x40);\n// lint-end FM007',
+            '// lint-begin FM008: patcher\nuse(0x40);\n// lint-end FM008',
+        ]
+        for body in bad:
+            with self.subTest(body=body),self.assertRaises(lint.SuppressionError):
+                self.reviewed('void f(){\n'+body+'\n}')
+
+    def test_stale_comment_failure_points_to_source_in_editor(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);(root/'src/game').mkdir(parents=True)
+            (root/'src/game/a.c').write_text('void f(){\n// lint-allow-next-line FM007: stale reason\nuse(1);\n}')
+            (root/'policy.json').write_text(json.dumps(dict(schema_version=1,exceptions=[],pragma_allowlist=[])))
+            out=io.StringIO()
+            with contextlib.redirect_stdout(out),contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(lint.main(['--root',td,'--policy','policy.json','--format','problems']),2)
+            self.assertIn('/src/game/a.c:2:1: error FM000:',out.getvalue())
+            self.assertIn('unused rule',out.getvalue())
+
+    def test_file_waiver_is_rule_specific_reasoned_and_file_local(self):
+        source='/* Copyright notice */\n// lint-file FM005: Verified platform primitives, not copied game logic.\nvoid f(){asm("sync");use(0x40);}\nvoid g(){asm("isync");}'
+        rows=self.reviewed(source)
+        self.assertEqual([r['suppressed'] for r in rows if r['rule']=='FM005'],[True,True])
+        self.assertFalse(next(r for r in rows if r['rule']=='FM007')['suppressed'])
+        self.assertEqual(rows[0]['inline_suppression']['target_kind'],'file')
+        self.assertEqual(rows[0]['inline_suppression']['comment_line'],2)
+        self.assertFalse(self.reviewed('void f(){asm("sync");}')[0]['suppressed'])
+
+    def test_file_waiver_rejects_late_blank_unknown_and_overlapping_entries(self):
+        bad=[
+            '// lint-file FM005:\nvoid f(){asm("sync");}',
+            '#include "a.h"\n// lint-file FM005: too late\nvoid f(){asm("sync");}',
+            '// lint-file FM008: forbidden\nvoid f(){asm("sync");}',
+            '// lint-file *: all\nvoid f(){asm("sync");}',
+            '// lint-file FM005: stale\nvoid f(){}',
+            '// lint-file FM005: first\n// lint-file FM005: redundant\nvoid f(){asm("sync");}',
+            '// lint-file FM005: first\nvoid f(){\n// lint-begin FM005: redundant\nasm("sync");\n// lint-end FM005\n}',
+        ]
+        for source in bad:
+            with self.subTest(source=source),self.assertRaises(lint.SuppressionError):self.reviewed(source)
+
+    def test_suppressed_findings_survive_json_but_do_not_fail_ci(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);(root/'src/game').mkdir(parents=True)
+            (root/'src/game/a.c').write_text('void f(){\n// lint-allow-next-line FM007: Callee interprets a packed color.\nuse(0x40);\n}')
+            (root/'policy.json').write_text(json.dumps(dict(schema_version=1,exceptions=[],pragma_allowlist=[])))
+            args=['--root',td,'--policy','policy.json','--out','build/report.json','--format','problems',
+                  '--fail-on-findings','--warnings-as-errors']
+            out=io.StringIO()
+            with contextlib.redirect_stdout(out):self.assertEqual(lint.main(args),0)
+            report=json.loads((root/'build/report.json').read_text())
+            self.assertEqual((report['errors'],report['warnings'],report['suppressed']),(0,0,1))
+            self.assertEqual(report['findings'][0]['inline_suppression']['comment_line'],2)
+            self.assertNotIn(': error FM007:',out.getvalue())
+
+
+class GameOnlyScope(unittest.TestCase):
+    def test_defaults_explicit_inputs_and_editor_skip_sdk_and_headers(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            for relative in ('src/game/a.c','src/dolphin/os.c','include/game/a.h'):
+                path=root/relative;path.parent.mkdir(parents=True,exist_ok=True)
+                path.write_text('void f(){use(0x40);asm("sync");}')
+            (root/'policy.json').write_text(json.dumps(dict(schema_version=1,exceptions=[],pragma_allowlist=[])))
+            args=['--root',td,'--policy','policy.json','--out','build/report.json','--format','problems','--fail-on-findings']
+            for inputs,expected in (([],1),(['src','include'],1),(['src/dolphin/os.c'],0),(['include/game/a.h'],0)):
+                with self.subTest(inputs=inputs),contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(lint.main(args+inputs),expected)
+                    report=json.loads((root/'build/report.json').read_text())
+                    self.assertEqual(report['files_scanned'],expected)
+                    self.assertEqual(report['source_scope'],'src/game')
+                    self.assertTrue(all(r['path'].startswith('src/game/') for r in report['findings']))
+
+    def test_postprocessor_source_inventory_is_game_only(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);(root/'config/GUNE5D').mkdir(parents=True)
+            config=dict(version=1,units={'game/test':[dict(function='f')],'dolphin/os':[dict(function='g')]})
+            (root/'config/GUNE5D/webfrank.json').write_text(json.dumps(config,indent=2))
+            rows,_=lint.postprocessor_findings(root,set(),include_all=True)
+            self.assertEqual([r['unit'] for r in rows],['game/test'])
 
 
 class RemediationGuidance(unittest.TestCase):
@@ -483,10 +667,10 @@ class RemediationGuidance(unittest.TestCase):
 
     def test_report_guidance_is_shared_and_cannot_change_cached_findings(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td);(root/'a.c').write_text('#pragma scheduling off\nint f(){return *(int*)(p+0x8);}')
+            root=Path(td);(root/'src/game').mkdir(parents=True);(root/'src/game/a.c').write_text('#pragma scheduling off\nint f(){return *(int*)(p+0x8);}')
             (root/'policy.json').write_text(json.dumps(dict(schema_version=1,exceptions=[],pragma_allowlist=[])))
             local_guide=root/'guidance.toml';local_guide.write_bytes(lint.GUIDANCE_PATH.read_bytes())
-            args=['--root',td,'--policy','policy.json','a.c','--out','build/report.json','--limit','0']
+            args=['--root',td,'--policy','policy.json','src/game/a.c','--out','build/report.json','--limit','0']
             cache={}
             with patch.object(lint,'GUIDANCE_PATH',local_guide),patch.object(lint,'scan_source',wraps=lint.scan_source) as scanner,contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(lint.main(args,_cache=cache),0)
@@ -501,7 +685,7 @@ class RemediationGuidance(unittest.TestCase):
             for row in after['findings']:
                 self.assertEqual(row['guidance_id'],row['rule'])
                 self.assertIn(row['guidance_id'],after['remediation_guidance']['rules'])
-            self.assertTrue(all('guidance_id' not in row for row in cache['a.c'][1]))
+            self.assertTrue(all('guidance_id' not in row for row in cache['src/game/a.c'][1]))
 
 
 if __name__=='__main__':

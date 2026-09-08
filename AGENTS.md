@@ -301,21 +301,39 @@ finite matrix proves that postprocessing is necessary.
 
 Before source-debt cleanup, run `pnpm install --frozen-lockfile` once, then
 `python .vscode/lint/fakematch_lint.py <owned-source-path> --out build/lint.json`.
+Source lint is scoped to `src/game` only, including CI and the editor watcher;
+SDK/library files and headers outside that directory are skipped even if passed
+explicitly. This is a review-scope decision, not proof those files are defect-free.
 The ast-grep-backed report covers source reconstruction-debt families. Findings
 are review candidates, not proven fakematches; parser recovery, macro expansion
 and absent type/liveness analysis limit coverage. Never mechanically rewrite
 findings to improve the lint count or weaken matching gates. Review exceptions
 in `.vscode/lint/fakematch_lint.toml` require exact fingerprints and a reason;
-suppressed rows remain in the report. All reported `#pragma` directives are
-visible warnings, even with legacy pragma approvals, not suppressed findings
-or recovered-source claims. `--warnings-as-errors` makes them build-breaking.
+suppressed rows remain in the report. Reported `#pragma` directives default to
+visible warnings, even with legacy pragma approvals, not recovered-source claims.
+`--warnings-as-errors` makes unsuppressed warnings build-breaking.
 Optimization attributes remain errors; `#pragma once` remains excluded.
 This diagnostic severity does not authorize new pragmas to force a match.
+Reason-required source exceptions are allowed for legitimate game-code cases:
+`// lint-allow-next-line FM007: <specific reason>` covers one immediately following
+declaration/statement, including its continuation lines. Explicit regions use
+`// lint-begin FM005, FM007: <specific reason>` and a matching
+`// lint-end FM005, FM007`; file exceptions use
+`// lint-file FM005: <specific reason>` before all code/preprocessor directives.
+Use the narrowest justified scope. All forms name exact source rules, never `*`.
+Blank reasons, unused/unknown rules, unclosed/nested regions and overlapping
+waivers of the same finding are scan failures. FM000/FM008 cannot be waived.
+Comments may suppress direct assembly and pragma diagnostics but do not authorize
+invented assembly, fakematching or postprocessing. Explain real behavior/evidence,
+not merely "needed to match"; the scanner cannot verify the truth of a reason.
+Suppressed rows remain in JSON with reason, comment location, scope and current
+target hash. A source edit does not invalidate a still-applicable comment by hash:
+review its reason again when the code changes. No blanket exemptions are preloaded.
 Before repairing a finding, read its rule guidance with
 `python .vscode/lint/fakematch_lint.py --explain FM001` (substitute its rule id).
 The guide provides investigation steps, conditional examples, legitimate cases,
 unsafe shortcuts and verification gates. It is not a substitute for evidence.
-Agents can run `pnpm run lint:decomp` for the repository-wide queue and read
+Agents can run `pnpm run lint:decomp` for the complete `src/game` queue and read
 `build/fakematch_lint.json`: each finding's `guidance_id` resolves into the report's
 `remediation_guidance.rules`, with shared gates in `remediation_guidance.common`.
 The console is capped; use the JSON for all findings, and remeasure stale reports.

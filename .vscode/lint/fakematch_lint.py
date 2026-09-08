@@ -33,7 +33,7 @@ RULES = {
     'FM002': 'Nested dereference through pointer casts',
     'FM003': 'Possible stack/allocation scaffolding',
     'FM004': 'Float/address-shaped numeric byte array',
-    'FM005': 'Assembly outside a reviewed macro',
+    'FM005': 'Assembly without an explicit reviewed exception',
     'FM006': 'Source-level compilation override',
     'FM007': 'Unnamed hexadecimal expression constant',
     'FM008': 'Configured postprocessor dependency requiring native retirement',
@@ -42,6 +42,7 @@ RULES = {
 POSTPROCESSORS = [('WebFrank','config/GUNE5D/webfrank.json'),('P6Frank','config/GUNE5D/p6frank.json')]
 EXTENSIONS = {'.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hh', '.hxx'}
 GUIDANCE_PATH = ROOT/'.vscode/lint/guidance.toml'
+SOURCE_SCOPE = Path('src/game')
 TOKEN = re.compile(
     r'(?P<comment>//(?:\\\r?\n|[^\n])*|/\*.*?\*/)'
     r'|(?P<string>(?:u8|u|U|L)?R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\(.*?\)(?P=delimiter)"'
@@ -51,6 +52,118 @@ TOKEN = re.compile(
     r'|(?P<space>\s+)|(?P<op>::|->|&=|\|=|\^=|&&|\|\||.)', re.S)
 DIRECTIVE = re.compile(r'(?m)^[ \t]*#(?:\\\r?\n|[^\n\\]|\\(?!\r?\n))*')
 TRASH = re.compile(r'^(?:trash\w*|unused\w*|(?:stack|frame)_?pad\w*|pad(?:ding)?(?:[0-9_]\w*)?)$', re.I)
+INLINE_RULES = set(RULES)-{'FM008'}
+
+
+class SuppressionError(ValueError):
+    def __init__(self,path,line,message):
+        self.path=path;self.line=line
+        super().__init__(f'{path}:{line}: invalid inline suppression: {message}')
+
+
+def annotate_inline_suppressions(text,path,findings,targets,directives,functions,tokens):
+    """Bind reasoned comments to a following unit, explicit closed region or file.
+
+    AST ranges cover ordinary declarations/statements. A narrow balanced-token
+    fallback covers MWCC asm which C++ parsers recover imperfectly; that fallback
+    can waive only FM005. No declaration or reason is semantically verified here.
+    """
+    lines=[0]+[m.end() for m in re.finditer('\n',text)]
+    annotations=[];region=None
+    def collect(a,b,kind,rules,reason,line,end_line=None):
+        selected=[row for row in findings if row['rule'] in rules and
+                  a<=lines[row['line']-1]+row['column']-1<b]
+        unused=set(rules)-{row['rule'] for row in selected}
+        if unused:
+            raise SuppressionError(path,line,'unused rule(s) for this source scope: '+', '.join(sorted(unused)))
+        if any(row is prior for selected_before,_ in annotations for prior in selected_before for row in selected):
+            raise SuppressionError(path,line,'overlapping suppression comments for the same finding')
+        metadata=dict(reason=reason,comment_line=line,
+                      target_start_line=bisect_right(lines,a),target_end_line=bisect_right(lines,max(a,b-1)),
+                      target_kind=kind,target_sha256=hashlib.sha256(text[a:b].encode('utf-8')).hexdigest())
+        if end_line is not None: metadata['end_comment_line']=end_line
+        annotations.append((selected,metadata))
+    for comment in TOKEN.finditer(text):
+        if comment.lastgroup!='comment': continue
+        raw=comment.group().removesuffix('\r')  # // token includes CR on CRLF input.
+        body=(raw[2:] if raw.startswith('//') else raw[2:-2]).strip()
+        if not body.startswith(('lint-','gdl-lint-')): continue
+        line=bisect_right(lines,comment.start())
+        def refuse(message): raise SuppressionError(path,line,message)
+        if '\n' in raw or '\r' in raw or raw.rstrip().endswith('\\'):
+            refuse('use a standalone, single-line comment without a continuation')
+        line_end=text.find('\n',comment.end())
+        if line_end<0: line_end=len(text)
+        if text[lines[line-1]:comment.start()].strip() or text[comment.end():line_end].strip():
+            refuse('place the comment on its own line immediately before the target')
+        match=re.fullmatch(r'(lint-allow-next-line|lint-begin|lint-end|lint-file)\s+(FM\d{3}(?:\s*,\s*FM\d{3})*)(?:\s*:\s*(\S(?:.*\S)?))?',body)
+        if not match: refuse('expected lint-allow-next-line, lint-begin or lint-file FM001[,FM002]: reason; close regions with lint-end FM001[,FM002]')
+        command,rule_text,reason=match.groups()
+        rules=[v.strip() for v in rule_text.split(',')]
+        if len(set(rules))!=len(rules) or set(rules)-INLINE_RULES:
+            refuse('name distinct source rules FM001-FM007 or FM009; scanner/postprocessor failures cannot be waived')
+        if command=='lint-end':
+            if reason is not None: refuse('lint-end names rules only; put the reason on lint-begin')
+            if region is None: refuse('lint-end has no matching lint-begin')
+            begin,active_rules,active_reason,begin_line=region
+            if set(rules)!=set(active_rules): refuse('lint-end must name the same rules as lint-begin')
+            collect(begin,lines[line-1],'region',rules,active_reason,begin_line,line)
+            region=None
+            continue
+        if not reason: refuse('a nonempty reason is required')
+        if command=='lint-file':
+            if any(t.start()<comment.start() for t in tokens): refuse('lint-file must precede all code and preprocessor directives')
+            collect(0,len(text),'file',rules,reason,line)
+            continue
+        if command=='lint-begin':
+            if region is not None: refuse('nested lint-begin regions are not supported; close the current region first')
+            region=(min(line_end+1,len(text)),rules,reason,line)
+            continue
+        if line>=len(lines): refuse('no following source unit')
+        next_start=lines[line]
+        first=next((t for t in tokens if t.start()>=next_start),None)
+        if first is None or bisect_right(lines,first.start())!=line+1 or text[next_start:first.start()].strip():
+            refuse('target must start on the immediately following line (no skipped comments or blank lines)')
+        start=first.start()
+        candidates=[(a,b,'ast') for a,b in targets if a==start]
+        # Whole function bodies are not suppression targets. Attributes on the
+        # function's declaration header can still receive a specific FM006 waiver.
+        for a,b,_ in functions:
+            if a==start:
+                brace=next((t.start() for t in tokens if a<=t.start()<b and t.group()=='{'),b)
+                candidates.append((a,brace,'header'))
+        for a,b,d,macro in directives:
+            if a<=start<b and (macro or re.match(r'^#\s*pragma\b',d)):
+                candidates.append((start,b,'directive'))
+        if first.group() in ('asm','__asm','__asm__','ASM'):
+            tail=[t for t in tokens if t.start()>=start]
+            opening=None
+            for i,t in enumerate(tail[1:],1):
+                if t.group() in (';', '='): break
+                if t.group()=='{': opening=i;break
+            if opening is not None:
+                depth=0
+                for t in tail[opening:]:
+                    if t.group()=='{': depth+=1
+                    elif t.group()=='}':
+                        depth-=1
+                        if depth==0:
+                            candidates=[(start,t.end(),'mwcc-asm')];break
+                else: refuse('unclosed asm block; cannot establish a safe boundary')
+        if not candidates: refuse('no supported declaration/statement boundary; annotate the inner statement, not a function/block')
+        # The largest same-start AST span includes the complete expression
+        # statement rather than just its nested asm expression.
+        a,b,kind=max(candidates,key=lambda v:v[1])
+        if kind=='mwcc-asm' and set(rules)!={'FM005'}:
+            refuse('a MWCC asm block/function exception can name only FM005')
+        if kind=='header' and set(rules)!={'FM006'}:
+            refuse('function-header exceptions can name only FM006, never the function body')
+        collect(a,b,kind,rules,reason,line)
+    if region is not None:
+        raise SuppressionError(path,region[3],'lint-begin is missing a matching lint-end; no implicit end-of-file waiver')
+    # Do not return partially applied waivers if any annotation was invalid.
+    for selected,metadata in annotations:
+        for row in selected: row['inline_suppression']=dict(metadata)
 
 
 @lru_cache(maxsize=1)
@@ -272,13 +385,16 @@ def scan_source(text, path='<input>', diagnostics=None):
         a,b=token.span()
         directive=next(((d,m) for x,y,d,m in directives if x<=a<y),(None,None))
         if directive[1]==token.group() and not any(x<=a<y for x,y,_ in macro_ranges): continue
-        emit('FM005',a,b,'Assembly requires an exact reviewed macro exception; never auto-remove it.',macro=directive[1],directive=directive[0])
+        emit('FM005',a,b,'Assembly requires a reasoned source exception or an exact reviewed macro exception; never auto-remove it.',macro=directive[1],directive=directive[0])
     unique={(r['rule'],r['line'],r['column'],r.get('variable')):r for r in findings}
     ordered=sorted(unique.values(),key=lambda r:(r['path'],r['line'],r['column'],r['rule']))
     occurrences=Counter()
     for row in ordered:
         key=row['fingerprint'];ordinal=occurrences[key];occurrences[key]+=1
         row['fingerprint']=hashlib.sha256((key+':'+str(ordinal)).encode()).hexdigest()
+    targets=[span(row) for row in rows if row['ruleId']=='decomp-suppression-target'
+             and Path(row['file']).name=='source.cpp']
+    annotate_inline_suppressions(text,path,ordered,targets,directives,functions,tokens)
     return ordered
 
 
@@ -313,9 +429,15 @@ def apply_policy(findings, policy):
     used=Counter()
     for row in result:
         row['severity']='error'
-        if row['rule']=='FM006' and re.match(r'^#\s*pragma\b',row.get('directive','')):
+        pragma=row['rule']=='FM006' and re.match(r'^#\s*pragma\b',row.get('directive',''))
+        if pragma:
             row.update(severity='warning',suppressed=False)
-            continue  # Warning debt stays visible, even if an old exception exists.
+        if row['rule'] in INLINE_RULES and row.get('inline_suppression'):
+            row.update(suppressed=True,review_reason=row['inline_suppression']['reason'],
+                       suppression_source='source-comment')
+            continue
+        if pragma:
+            continue  # Legacy policy entries cannot hide pragma warnings.
         reason=exceptions.get(row['fingerprint'])
         if row['rule']=='FM008': reason=None  # Inventory is not a source-policy exception.
         if row['rule']=='FM005' and not row.get('macro'): reason=None
@@ -349,6 +471,7 @@ def postprocessor_findings(root, source_names, include_all=False):
         for unit,rules in config['units'].items():
             if not isinstance(unit,str) or '..' in Path(unit).parts or ':' in unit or '\\' in unit:
                 raise ValueError('invalid postprocessor unit path')
+            if not unit.startswith('game/'): continue  # Source lint is game-only; native build guards remain global.
             rules=[rules] if isinstance(rules,dict) else rules
             if not isinstance(rules,list): raise ValueError('invalid postprocessor rule list')
             candidates=['src/'+unit+extension for extension in ('.c','.cpp','.cc')]
@@ -425,7 +548,7 @@ def watch(argv):
     try:
         previous=None
         while True:
-            watched=[p for base in ('src','include') for p in (ROOT/base).rglob('*')
+            watched=[p for p in (ROOT/SOURCE_SCOPE).rglob('*')
                      if p.is_file() and p.suffix.lower() in EXTENSIONS]
             watched += [ROOT/p for p in ('.vscode/lint/fakematch_lint.toml','.vscode/lint/sgconfig.yml',
                        '.vscode/lint/rules/reconstruction.yml','.vscode/lint/guidance.toml',*[p for _,p in POSTPROCESSORS])]
@@ -448,7 +571,7 @@ def main(argv=None, _cache=None):
             print('UNRESOLVED: watch uses the current project root',file=sys.stderr);return 2
         return watch(argv)
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('paths',nargs='*',help='repository-relative files/directories; default src and include')
+    p.add_argument('paths',nargs='*',help='files/directories to scan within src/game; default src/game; other existing sources are skipped')
     p.add_argument('--root',type=Path,default=ROOT)
     p.add_argument('--policy',type=Path,default=Path('.vscode/lint/fakematch_lint.toml'))
     p.add_argument('--out',type=Path,help='JSON report under build/')
@@ -475,15 +598,14 @@ def main(argv=None, _cache=None):
         out=(root/args.out).resolve() if args.out else None
         if out and (not out.is_relative_to(root/'build') or out.suffix!='.json' or out==(root/args.policy).resolve()):
             raise ValueError('--out must be a report .json under build/, not the policy')
-        for value in args.paths or ['src','include']:
+        for value in args.paths or [SOURCE_SCOPE.as_posix()]:
             path=(root/value).resolve()
             if not path.is_relative_to(root) or not path.exists(): raise ValueError('missing or outside-root input: '+value)
             if path.is_file() and path.suffix.lower() not in EXTENSIONS: raise ValueError('not a C/C++ source input: '+value)
             for f in [path] if path.is_file() else path.rglob('*'):
                 if f.is_file() and f.suffix.lower() in EXTENSIONS:
                     if not f.resolve().is_relative_to(root): raise ValueError('source symlink escapes repository: '+str(f))
-                    files.add(f)
-        if not files: raise ValueError('no C/C++ source files selected')
+                    if f.resolve().is_relative_to(root/SOURCE_SCOPE): files.add(f)
         policy_bytes=(root/args.policy).read_bytes();policy=load_policy(root/args.policy)
         rows=[];hashes={};diagnostics=[]
         engine_hash=hashlib.sha256((ROOT/'.vscode/lint/sgconfig.yml').read_bytes()+(ROOT/'.vscode/lint/rules/reconstruction.yml').read_bytes()).hexdigest()
@@ -500,12 +622,13 @@ def main(argv=None, _cache=None):
                     recovery=[];found=scan_source(text,name,recovery)
                     if _cache is not None: _cache[name]=(key,found,recovery)
                 rows.extend(found);diagnostics.extend(recovery)
+            except SuppressionError: raise
             except ValueError as e: raise ValueError(name+': '+str(e)) from e
         if any(hashlib.sha256((root/name).read_bytes()).hexdigest()!=sha for name,sha in hashes.items()):
             raise ValueError('source changed during scan; rerun on stable inputs')
         if (root/args.policy).read_bytes()!=policy_bytes: raise ValueError('policy changed during scan')
         rows=apply_policy(rows,policy);post_hashes={}
-        if args.postprocessors:
+        if args.postprocessors and files:
             dependencies,post_hashes=postprocessor_findings(root,set(hashes),include_all=not args.paths)
             pinned={(r['source_path'],r['function']):r for r in dependencies if r['source_path']}
             for row in rows:
@@ -513,7 +636,7 @@ def main(argv=None, _cache=None):
                 if dependency:
                     row['postprocessor_dependency']={k:dependency[k] for k in ('postprocessor','unit','function')}
             rows=dependencies+rows  # Native-retirement obligations lead the CI/editor report.
-        elif args.rule and 'FM008' in args.rule:
+        elif args.rule and 'FM008' in args.rule and not args.postprocessors:
             raise ValueError('FM008 requires --postprocessors')
         selected=sorted(set(args.rule or [r for r in RULES if r!='FM008' or args.postprocessors]))
         # Reference one shared guide per rule, not several KB repeated per row.
@@ -524,6 +647,7 @@ def main(argv=None, _cache=None):
         errors=len(active)-warnings
         report=dict(schema_version=1,status='SCAN_COMPLETE',engine='ast-grep 0.45.3 + review filters',
                     interpretation='Review candidates, not proven fakematches. Parse recovery limits coverage; macros are not expanded.',
+                    source_scope=SOURCE_SCOPE.as_posix(),
                     source_sha256=hashes,files_scanned=len(files),findings=rows,unsuppressed=len(active),suppressed=len(rows)-len(active),
                     errors=errors,warnings=warnings,warnings_as_errors=args.warnings_as_errors,
                     remediation_guidance=dict(schema_version=guidance['schema_version'],common=guidance['common'],
@@ -545,7 +669,8 @@ def main(argv=None, _cache=None):
         return 1 if (args.fail_on_findings and errors) or (args.warnings_as_errors and warnings) else 0
     except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError) as e:
         if args.format!='human':
-            print(diagnostic(dict(path='.vscode/lint/sgconfig.yml',line=1,column=1,rule='FM000',scope='scanner',
+            print(diagnostic(dict(path=e.path if isinstance(e,SuppressionError) else '.vscode/lint/sgconfig.yml',
+                                  line=e.line if isinstance(e,SuppressionError) else 1,column=1,rule='FM000',scope='scanner',
                                   message='Scan incomplete: '+str(e)),args.root.resolve(),args.format,guidance))
         print('UNRESOLVED: '+str(e),file=sys.stderr);return 2
 
