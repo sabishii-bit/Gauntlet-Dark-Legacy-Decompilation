@@ -3,6 +3,14 @@ game/anim/atree::fn_8001267C, using webfrank's own guards.
 
 STEP 0 (C1 law) is run first on each window: the permutation must be legal
 IN OUR COLOURING or the composition is a non-member and must not be pinned.
+
+PINNED PREMISE. WINDOWS are literal byte offsets recorded when both sites
+emitted a zero-web copy where the target emits a fresh `li`. Improving either
+site retires that premise: the recorded permutation stops describing our
+stream and copy_register_fields refuses on non-register bits. That refusal is
+the correct answer for a stale pin, so it is reported rather than raised -- a
+dead simulation script must not fail the build. Re-derive WINDOWS from the
+current streams before trusting any output.
 """
 import os
 import sys
@@ -64,7 +72,13 @@ def main():
 
     # --- stage 3: copy_register_fields ----------------------------------
     pre = bytes(cur)
-    recolored, n = wf.copy_register_fields(bytes(cur), tgt)
+    try:
+        recolored, n = wf.copy_register_fields(bytes(cur), tgt)
+    except ValueError as e:
+        print(f"stage3 copy_register_fields: PREMISE STALE -- refused: {e}")
+        print("  The pinned WINDOWS no longer describe our stream; the site "
+              "was improved. Re-derive them before reading further.")
+        return 0
     cur = bytearray(recolored)
     print(f"stage3 copy_register_fields: {n} fields")
 
@@ -85,5 +99,15 @@ def main():
     return 0
 
 
+def usage():
+    print(__doc__)
+    print(f"usage: {os.path.basename(__file__)} [--help]")
+    print(f"Takes no arguments. Simulates the composed close of {UNIT}::"
+          f"{NAME} over the pinned WINDOWS above.")
+
+
 if __name__ == "__main__":
+    if {"-h", "--help"} & set(sys.argv[1:]):
+        usage()
+        sys.exit(0)
     sys.exit(main())

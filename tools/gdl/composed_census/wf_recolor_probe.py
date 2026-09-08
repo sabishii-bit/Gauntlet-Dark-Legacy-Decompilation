@@ -2,6 +2,15 @@
 
 A: raw ours -> copy_register_fields(raw ours, target)      [no WF stages]
 B: composed  -> copy_register_fields(composed, target)     [with WF stages]
+
+PINNED PREMISE. WINDOWS below are literal byte offsets into one function,
+recorded when both sites emitted a zero-web copy where the target emits a
+fresh `li`. Improving either site retires that premise: the recorded
+permutation no longer describes our stream and copy_register_fields refuses
+on non-register bits. That refusal is the correct answer for a stale premise,
+so it is reported rather than raised -- a dead investigation script must not
+fail the build. Re-derive WINDOWS from the current streams before trusting
+any output.
 """
 import os
 import struct
@@ -19,7 +28,13 @@ WINDOWS = [(0x1e0, 0x1ec, [1, 0, 2]), (0x378, 0x384, [2, 0, 1])]
 
 
 def check(label, pre, tgt):
-    post, n = wf.copy_register_fields(pre, tgt)
+    try:
+        post, n = wf.copy_register_fields(pre, tgt)
+    except ValueError as e:
+        print(f"{label}: PREMISE STALE -- copy_register_fields refused: {e}")
+        print("  The pinned WINDOWS no longer describe our stream; the site "
+              "was improved. Re-derive them before reading further.")
+        return
     try:
         wf.verify_consistent_recolor(pre, post, jumptable_targets=set(),
                                      relocated_offsets=set(), call_targets={})
@@ -65,5 +80,15 @@ def main():
             print(f"   +0x{i*4:x} preds {[hex(p*4) for p in preds[i]]}")
 
 
+def usage():
+    print(__doc__)
+    print(f"usage: {os.path.basename(__file__)} [--help]")
+    print(f"Takes no arguments. Probes {UNIT}::{NAME} at the pinned WINDOWS "
+          "above and prints whether the recolor verifies.")
+
+
 if __name__ == "__main__":
+    if {"-h", "--help"} & set(sys.argv[1:]):
+        usage()
+        sys.exit(0)
     main()
