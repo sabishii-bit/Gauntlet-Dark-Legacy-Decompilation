@@ -126,18 +126,14 @@ char* lbl_8011BFF8[3] = { lbl_80112410, lbl_8011241C, lbl_80112428 };
 /* force_active keeps these otherwise unreferenced tables in the image: without
  * it mwld dead-strips them and the DOL shrinks below the target size. It leaves
  * no trace in .text/.data/.symtab, only in .comment. */
-/* lint-begin FM006: measured -- removing it changes only .comment, and the full link stays green here; kept as source fidelity, not proven necessity */
 #pragma force_active on
 s32 lbl_8011C004[16] = { 16, 23, 14, 13, 7, 7, 7, 7, 2, 24, 20, 25, 30, 30, 7, 7 };
-/* lint-end FM006 */
 f32 lbl_8011C044[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
 f32 lbl_8011C064[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
 f32 lbl_8011C084[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
 f32 lbl_8011C0A4[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
-/* lint-begin FM006: measured -- removing it changes only .comment, and the full link stays green here; kept as source fidelity, not proven necessity */
 #pragma force_active reset
 f32 lbl_8011C0C4[10] = { 0.0f, 0.392699093f, 0.392699093f, 0.392699093f, 0.392699093f, 0.392699093f, 0.392699093f, 0.392699093f, 0.392699093f, 0.392699093f };
-/* lint-end FM006 */
 
 /* forward decls for the cross-referenced enemy entry points */
 s32 find_enemy_slot(s32 type, s32 level);
@@ -218,44 +214,32 @@ extern s32 default_gen_count;
 extern s32 lbl_8034471C;
 typedef struct EnemyPlayerCharacterStats {
     s32 kills;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _004[0x01C - 0x004];
 } EnemyPlayerCharacterStats;
 
 typedef struct EnemyPlayerView {
     s32 index;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _004[0x00C - 0x004];
     s32 character;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _010[0x054 - 0x010];
     f32 position[3];
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _060[0x064 - 0x060];
     f32 damage_position[3];
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _070[0x0E8 - 0x070];
     s32 state;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _0EC[0x120 - 0x0EC];
     u32 flags;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _124[0x954 - 0x124];
     s16 it_enemy;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _956[0xA1E - 0x956];
     s16 attack_reflect;
     s16 attack_heal;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _A22[0xC10 - 0xA22];
     EnemyPlayerCharacterStats character_stats[16];
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _DD0[0x1EB4 - 0xDD0];
     f32 health;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _1EB8[0x3324 - 0x1EB8];
     s32 level;
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     u8 _3328[0x335C - 0x3328];
 } EnemyPlayerView;
 typedef union EnemyPlayerArray {
@@ -291,35 +275,27 @@ extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-sl
  * address order so lbl_80250E00 lands at section offset 0 (the pool anchor)
  * and gEnemies at +0xE18, matching the target's base+displacement addressing. */
 Enemy gEnemies[25];            /* 0x80251C18 */
-/* lint-allow-next-line FM007: unrecovered: the referenced rodata table has no record type in this tree */
 u32 gWadAtreeHeaders[0x8B4 / 4];   /* 0x80251364 */
 s32 lbl_802512B0[45];          /* 0x802512B0 per-type spawn-allowed */
 s32 lbl_802511FC[45];          /* 0x802511FC per-type min-level class */
 s32 lbl_80251148[45];          /* 0x80251148 per-type generator-fx enable */
-/* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
 u32 lbl_80251100[0x48 / 4];    /* 0x80251100 */
 f32 lbl_802510F4[3];           /* 0x802510F4 world-probe hit normal */
 typedef union EnemyRuntimePool {
-    /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
     u32 words[0x2B4 / 4];
     struct {
-        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         u32 prefix[0xB4 / 4];
-        /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
         s32 milestoneIds[(0x2B4 - 0xB4) / 4];
     } view;
 } EnemyRuntimePool;
 typedef union EnemyRuntimeOwner {
-    /* lint-allow-next-line FM007: record stride/extent of a recovered type, kept as the literal the cursor steps by */
     u32 words[(0x40 + 0x2B4) / 4];
     struct {
-        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         u32 prefix[0x40 / 4];
         EnemyRuntimePool pool;
     } view;
 } EnemyRuntimeOwner;
 EnemyRuntimePool lbl_80250E40;  /* 0x80250E40 */
-/* lint-allow-next-line FM007: unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
 s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
 
 /* .bss first-use-order referencer.  MWCC allocates a bss object at the first
@@ -425,7 +401,6 @@ extern void RequestEnemyAction(Enemy* enemy, s32 action);
  * file) for the shared gFloorCollisionResult global -- same shape, two
  * different instances. */
 typedef struct FloorCollisionResultView {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad00[0x34];
     f32 floorY;
 } FloorCollisionResultView;
@@ -602,7 +577,6 @@ typedef struct EnemyGeneratorInfo {
 
 typedef struct EnemyGenerator {
     EnemyGeneratorInfo* info;
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _pad004[0xDA];
     s8 live_count;
     u8 _pad0DF[2];
@@ -771,10 +745,8 @@ f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
                   f32* offset, s32* enemy_index, s32 flags)
 {
     s32 best_index;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves closest_enemy by 7 words at unchanged size; original local unrecovered */
     u8 unused_before[4];
     f32 delta[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves closest_enemy by 17 words at unchanged size; original local unrecovered */
     u8 unused_after[4];
     f32 best_x;
     f32 best_y;
@@ -858,21 +830,16 @@ void do_enemy_move(s32 index)
     s32 n;
     Enemy* other;
     f32 mat[16];
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     u8 matrixGap[8]; /* Unrecovered local space above the movement vectors. */
     f32 oldpos[3];
     f32 rad2;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves do_enemy_move by 23 words at unchanged size; original local unrecovered */
     u8 unused1[4];
     f32 oldc[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves do_enemy_move by 33 words at unchanged size; original local unrecovered */
     u8 unused2[4];
     f32 newc[3];
     s32 hitWorld;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves do_enemy_move by 48 words at unchanged size; original local unrecovered */
     u8 unused3[4];
     f32 half[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves do_enemy_move by 59 words at unchanged size; original local unrecovered */
     u8 unused4[12];
 
     e = (Enemy*)((u8*)lbl_80250E00 + index * sizeof(Enemy));
@@ -960,12 +927,10 @@ void do_enemy_move(s32 index)
             e->coll_ip = 0;
             other = 0;
             n = e->coll_enenum;
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (n < 0x10000) {
                 other = &gEnemies[n];
                 other->coll_enenum = index;
             }
-            /* lint-end FM007 */
             if (hitWorld != 0) {
                 /* the probe clipped the move against the world: retry the
                  * clipped translation against world objects */
@@ -980,11 +945,9 @@ void do_enemy_move(s32 index)
                 lbl_80344730 = EnemyWallCollide(rad2, oldpos, half, lbl_802510F4);
                 if (lbl_80344730 != 0) {
                     EnemyWorldDamage(e, lbl_80344730, oldpos, lbl_802510F4);
-                    /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
                     if (*(u32*)((u8*)lbl_80344730 + 16) & 0x38) {
                         result = 0;
                     } else if (!(e->ai_flags & 1)
-                    /* lint-end FM001 */
                                && SlideAlongWall(rad2, oldpos, e->trans,
                                               lbl_802510F4, lbl_8023CA98[1]) < 0) {
                         result = 2;
@@ -1134,12 +1097,10 @@ void do_enemy_move(s32 index)
             e->trans[2] = 0.0f;
             fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
             if (alg == 0) {
-                /* lint-begin FM001: measured: typing the item cursor moves do_enemy_move by 4 words at unchanged size */
                 if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
                     e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
                                            (f32*)((u8*)e->coll_ip + 52));
                 }
-                /* lint-end FM001 */
                 if (e->dead_end <= 0) {
                     e->dead_end = 60;
                     if (e->daction == 3 || e->daction == 4) {
@@ -1148,7 +1109,6 @@ void do_enemy_move(s32 index)
                 }
             } else if (alg == 7 || alg == 8 || alg == 10 || alg == 20) {
                 const Enemy* contactOwner = e;
-                /* lint-begin FM001: measured: typing the item cursor moves do_enemy_move by 4 words at unchanged size */
                 if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
                     if (e->route == 0 || ABS_REVERSED(e->route) > 2) {
                         e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
@@ -1231,7 +1191,6 @@ void do_enemy_move(s32 index)
                         e->dead_end = 20;
                     }
                 }
-                /* lint-end FM001 */
             } else {
                 if (e->dead_end <= 0) {
                     e->dead_end = 20;
@@ -1300,11 +1259,9 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     s32 result = 0;
     f32 slideRad;
     WorldObj* hit = NULL;
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     u8 framePad[4];
     f32 oldpos[3];
     f32 dh;
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     u8 unused[4];
 
     (void)framePad;
@@ -1318,11 +1275,9 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     dt = (f32)((-16.0) * gClockFrameStep);
     behavior = enemy->algorithm;
 
-    /* lint-begin FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
     if (type == 0x1F || enemy->dead_end <= 0) {
         enemy->area = 0;
     }
-    /* lint-end FM007 */
     if (enemy->moved == 0) {
         WorldObj* mp = enemy->floor_wobj;
         if (mp != NULL && !(mp->flags & 0x1000)) {
@@ -1337,7 +1292,6 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     oldpos[1] += 2.0 - enemy->flooroffset;
 
     if (enemy->moved != 0) {
-        /* lint-begin FM001, FM007, FM009: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (enemy->type == 0x1D) {
             f32 np[3];
             u8 npPad[4];
@@ -1407,7 +1361,6 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
             }
             result = wallResult;
         }
-        /* lint-end FM001, FM007, FM009 */
     }
 
     hit = fn_80045C30(enemy, rad, retryThreshold, oldpos, tr, result);
@@ -1427,18 +1380,13 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
         }
         tr[2] = 0.0f;
         tr[0] = 0.0f;
-        /* lint-begin FM007, FM009: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         hit = FloorCollide(oldpos, (s32)(pool + 0x300), 0, 2,
                            (f32)(0.5 * rad), enemy->hht,
                            (f32)(-enemy->hht - 5.0));
-        /* lint-end FM007, FM009 */
         if (hit != NULL) {
-            /* lint-begin FM007, FM009: measured: spelling these as members is 1960 -> 2016 B, 234 words */
             enemy->floory = ((FloorCollisionResultView*)(pool + 0x300))->floorY +
                             enemy->flooroffset;
-            /* lint-end FM007, FM009 */
             if (enemy->shadow != NULL) {
-                /* lint-allow-next-line FM007, FM009: measured: spelling these as members is 1960 -> 2016 B, 234 words */
                 CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
             }
         }
@@ -1460,7 +1408,6 @@ reparent:
     }
 
     if (behavior == 0) {
-        /* lint-begin FM001, FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
             (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 5);
@@ -1468,8 +1415,6 @@ reparent:
             (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 0x3C);
         }
-        /* lint-end FM001, FM007 */
-        /* lint-begin FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (*(s16*)(e + offsetof(Enemy, collided)) >= 9) {
             *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
@@ -1478,9 +1423,7 @@ reparent:
                 *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
             }
         }
-        /* lint-end FM001 */
     } else if (behavior == 7) {
-        /* lint-begin FM001, FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
             (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 0xA);
@@ -1491,15 +1434,11 @@ reparent:
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
             *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        /* lint-end FM001, FM007 */
-        /* lint-begin FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
             *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
-        /* lint-end FM001 */
     } else if (behavior == 8) {
-        /* lint-begin FM001, FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
             (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 5);
@@ -1510,17 +1449,11 @@ reparent:
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
             *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        /* lint-end FM001, FM007 */
-        /* lint-begin FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
             *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
-        /* lint-end FM001 */
-    /* lint-begin FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
     } else if (behavior == 0xA) {
-    /* lint-end FM007 */
-        /* lint-begin FM001, FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
             (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 0xA);
@@ -1531,17 +1464,11 @@ reparent:
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
             *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        /* lint-end FM001, FM007 */
-        /* lint-begin FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
             *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
-        /* lint-end FM001 */
-    /* lint-begin FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
     } else if (behavior == 0x14) {
-    /* lint-end FM007 */
-        /* lint-begin FM001, FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
             (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 3);
@@ -1563,25 +1490,18 @@ reparent:
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
             *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        /* lint-end FM001, FM007 */
-        /* lint-begin FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
             *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
             *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
-        /* lint-end FM001 */
     } else {
-        /* lint-begin FM001, FM007: measured: spelling these as members is 1960 -> 2016 B, 234 words */
         if (*(s32*)(e + offsetof(Enemy, dead_end)) <= 0) {
             *(s32*)(e + offsetof(Enemy, dead_end)) = 0x14;
         }
-        /* lint-end FM001, FM007 */
     }
-    /* lint-allow-next-line FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
     *(s16*)(e + offsetof(Enemy, area)) = 1;
 
 gravity:
-    /* lint-allow-next-line FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
     dh = *(f32*)(e + offsetof(Enemy, floory)) - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1]));
     if ((f64)dh < (-5.0)) {
         damage_enemy(enemy, 99999.0f, -1, 0, 0, 0, 0);
@@ -1590,7 +1510,6 @@ gravity:
         dh = dt;
     }
     tr[1] += dh;
-    /* lint-allow-next-line FM001: measured: spelling these as members is 1960 -> 2016 B, 234 words */
     *(f32*)(e + offsetof(Enemy, floory)) = *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1])) + dh;
     return result;
 }
@@ -1625,7 +1544,6 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
     f32 distance;
     f32 probe[3];
     f32 step[3];
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     u8 unused[8];
     f32 baseY;
     f64 halfRadius;
@@ -1654,16 +1572,12 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
     probe[2] = oldPosition[2] + step[2];
 
     halfRadius = 0.5 * radius;
-    /* lint-begin FM007, FM009: unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
     floorObject = (void*)FloorCollide(
         probe, (s32)(pool + 0x300), 0, 2, (f32)halfRadius, enemy->hht,
         (f32)(-enemy->hht - 5.0));
-    /* lint-end FM007, FM009 */
     if (floorObject != 0) {
-        /* lint-begin FM007, FM009: unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
         EnemyWorldDamage(enemy, floorObject, oldPosition,
                          (f32*)(pool + 0x330));
-        /* lint-end FM007, FM009 */
     } else {
         if ((f64)enemy->pushmag2 < 0.01) {
             translation[0] = translation[2] = 0.0f;
@@ -1673,7 +1587,6 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
         return 0;
     }
 
-    /* lint-allow-next-line FM007, FM009: unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
     floorYAddress = (f32*)(pool + 0x334);
     baseY = enemy->floory - enemy->flooroffset;
     floorY = *floorYAddress;
@@ -1697,11 +1610,9 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
             probe[0] = oldPosition[0] + translation[0];
             probe[1] = oldPosition[1] + translation[1];
             probe[2] = oldPosition[2] + translation[2];
-            /* lint-begin FM007, FM009: unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
             floorObject = (void*)FloorCollide(
                 probe, (s32)(pool + 0x300), 0, 2, (f32)halfRadius,
                 enemy->hht, (f32)(-enemy->hht - 5.0));
-            /* lint-end FM007, FM009 */
             if (floorObject == 0) {
                 translation[0] = translation[2] = 0.0f;
                 return 0;
@@ -1718,7 +1629,6 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
         if ((enemy->ai_flags & 1) != 0) {
             goto collision_blocked;
         }
-        /* lint-begin FM007, FM009: unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
         if (SlideAlongWall(radius, oldPosition, translation,
                            (f32*)(pool + 0x2F4), lbl_8023CA98[1]) < 0) {
             f32 zero = 0.0f;
@@ -1726,7 +1636,6 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
             translation[0] = zero;
             return 0;
         }
-        /* lint-end FM007, FM009 */
         enemy->floory = floorY + enemy->flooroffset;
         goto collision_done;
     collision_blocked:
@@ -1740,13 +1649,11 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
 collision_done:
     enemy->floory = floorY + enemy->flooroffset;
     if (enemy->shadow != 0) {
-        /* lint-allow-next-line FM007, FM009: unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
         CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
     }
     return floorObject;
 }
 
-/* lint-begin FM006, FM007: measured -- removing it moves EnemyWorldDamage by 75 words at 348 -> 340 B | numeric constant whose meaning is not recovered yet */
 #pragma opt_common_subs off
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
 {
@@ -1787,8 +1694,6 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
         break;
     }
 }
-/* lint-end FM006, FM007 */
-/* lint-begin FM006, FM007, FM009: measured -- removing it moves AllocEnemy by 31 words at unchanged size | record stride/extent of a recovered type, kept as the literal the cursor steps by | numeric constant whose meaning is not recovered yet | unrecovered: the TU's own .bss pool block has no record type; its layout is the declaration-order comment above lbl_80250E00 */
 #pragma opt_common_subs reset
 
 void fn_80046140(s32 index)
@@ -1878,7 +1783,6 @@ void fn_80046140(s32 index)
         }
     }
 }
-/* lint-end FM006, FM007, FM009 */
 
 extern s32 NextGridItem(void);
 
@@ -1894,20 +1798,15 @@ s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
     void* nodeCol;
     s32 node;
     Enemy* self;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_8004646C by 7 words at unchanged size; original local unrecovered */
     u8 stack_top[8];
     f32 scratch[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_8004646C by 9 words at unchanged size; original local unrecovered */
     u8 stack_gap[12];
     f32 delta[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_8004646C by 13 words at unchanged size; original local unrecovered */
     u8 stack_bottom[28];
 
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     if (hitWorld == NULL && startNode < 0x10000) {
         hint = startNode;
     }
-    /* lint-end FM007 */
     CritterCollideStart(rad, newc, 0);
     nodeCol = CritterMoveNodeCol(rad, 0.0f, oldc, newc, scratch, -1, 2);
     if (nodeCol != NULL) {
@@ -2005,7 +1904,6 @@ linked_enemy_done:
  * declaration above instead. Graph record:
  * attempt.R62_enemy-literal-pool-and-initialized-tables-exact-link.20260905.v1 */
 #ifdef __MWERKS__
-/* lint-begin FM003, FM006: measured -- removing it moves GetEnemyType by 30 words at 244 -> 208 B | unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
 #pragma dont_inline on
 __declspec(weak) f32 fn_80034C88(f32 x)
 {
@@ -2022,9 +1920,7 @@ __declspec(weak) f32 fn_80034C88(f32 x)
     }
     return x;
 }
-/* lint-end FM003, FM006 */
 
-/* lint-begin FM006: measured -- removing it moves GetEnemyType by 30 words at 244 -> 208 B */
 #pragma dont_inline reset
 #endif
 
@@ -2067,7 +1963,6 @@ static inline void enemy_nearest_live_player(u8* e, f32 best1, u8* p, s32* neare
         }
     }
 }
-/* lint-end FM006 */
 
 /* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
  * b==0 restricts the sweep to the nearest live player. */
@@ -2081,10 +1976,8 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     s32 start;
     f32 best = 100000.0f;
     f32 hit[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_80046680 by 10 words at unchanged size; original local unrecovered */
     u8 _pad4[8];
     f32 d;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_80046680 by 10 words at unchanged size; original local unrecovered */
     u8 _spare[36];
 
     if (b != 0) {
@@ -2123,7 +2016,6 @@ s32 do_ai(s32 index)
 {
     Enemy* e = &gEnemies[index];
     f32 mat[16];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves do_ai by 10 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     e->trans[0] = 0.0f;
@@ -2282,14 +2174,12 @@ void move_logic00(s32 index)
     f32 base;
     u8* t;
     f32 probe[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic00 by 17 words at unchanged size; original local unrecovered */
     u8 unused[24];
 
     type = *(s32*)(e0 += 3608);
     e = (Enemy*)(u8*)e0;
     t = basep;
     t += type * 4;
-    /* lint-allow-next-line FM001, FM009: unrecovered: the referenced record has no recovered layout in this tree */
     speed = *(f32*)(t + 64);
     if (it < 0) {
         flee = 0;
@@ -2352,10 +2242,8 @@ void move_logic00(s32 index)
             do {
                 f32 d;
                 if (e->route > 0) {
-                    /* lint-allow-next-line FM001: unrecovered: the referenced rodata table has no record type in this tree */
                     cand = cand + *(f32*)((u8*)lbl_8011C0C4 + off);
                 } else {
-                    /* lint-allow-next-line FM001: unrecovered: the referenced rodata table has no record type in this tree */
                     cand = cand - *(f32*)((u8*)lbl_8011C0C4 + off);
                 }
                 {
@@ -2424,12 +2312,10 @@ void move_logic01(s32 index)
     s32 dead0;
     s32 flee;
     f32 a;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic01 by 5 words at unchanged size; original local unrecovered */
     u8 unused[24];
 
     row01 = base + index * 916;
     dead0 = ((Enemy *)(row01 + ENEMY_POOL_OFF))->dead_end;
-    /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
     e0 = row01 + 3608;
     e = (Enemy*)(u8*)e0;
     if (dead0 > 0) {
@@ -2489,7 +2375,6 @@ void move_logic01(s32 index)
     }
     {
         f32 d;
-        /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic01 by 9 words at unchanged size; original local unrecovered */
         u8 _blk01[8];
         if (e->dead_end <= 0
             || ((d = e->ang - e->anghit), (*(u32*)&d &= 0x7FFFFFFF),
@@ -2516,7 +2401,6 @@ void move_logic02(s32 index)
     Enemy* e;
     s32 it;
     s32 flee;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic02 by 5 words at unchanged size; original local unrecovered */
     u8 unused[16];
 
     e0 = base + index * 916 + 3608;
@@ -2663,7 +2547,6 @@ void move_logic04(s32 index)
     Enemy* e;
     s32 it;
     s32 flee;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic04 by 5 words at unchanged size; original local unrecovered */
     u8 unused[16];
 
     e0 = base + index * 916 + 3608;
@@ -2732,7 +2615,6 @@ void move_logic04(s32 index)
     do_enemy_move(index);
 }
 
-/* lint-begin FM003, FM006: measured -- removing it moves move_logic05 by 222 words at 940 -> 944 B | measured frame slot -- deleting it moves move_logic05 by 35 words at unchanged size; original local unrecovered */
 #pragma opt_propagation off
 void move_logic05(s32 index)
 {
@@ -2851,8 +2733,6 @@ void move_logic05(s32 index)
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
-/* lint-end FM003, FM006 */
-/* lint-begin FM003, FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured -- removing it moves move_logic06 by 222 words at 940 -> 944 B | measured frame slot -- deleting it moves move_logic06 by 35 words at unchanged size; original local unrecovered */
 #pragma opt_propagation reset
 
 /* move_logic06 @0x80047BF0 (state 6, mirror of move_logic05).  Same IT-flee and
@@ -2976,8 +2856,6 @@ void move_logic06(s32 index)
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
-/* lint-end FM003, FM006 */
-/* lint-begin FM003, FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured -- removing it moves move_logic07 by 268 words at 1132 -> 1128 B | measured frame slot -- deleting it moves move_logic07 by 17 words at unchanged size; original local unrecovered | measured frame slot -- deleting it moves move_logic07 by 25 words at unchanged size; original local unrecovered */
 #pragma opt_propagation reset
 
 /* move_logic07 @0x80047F9C (state 7, rat-style corner-hugging chase).  IT-flee /
@@ -3141,8 +3019,6 @@ void move_logic07(s32 index)
         RequestEnemyAction(e, 3);
     }
 }
-/* lint-end FM003, FM006 */
-/* lint-begin FM003, FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured -- removing it moves move_logic08 by 313 words at 1312 -> 1308 B | measured frame slot -- deleting it moves move_logic08 by 17 words at unchanged size; original local unrecovered | measured frame slot -- deleting it moves move_logic08 by 25 words at unchanged size; original local unrecovered */
 #pragma opt_propagation reset
 
 /* move_logic08 @0x80048408 (state 8, guard/warlock corner-hug chase).  Sibling of
@@ -3333,8 +3209,6 @@ void move_logic08(s32 index)
     }
     do_enemy_move(index);
 }
-/* lint-end FM003, FM006 */
-/* lint-begin FM001, FM003, FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured -- removing it moves move_logic10 by 719 words at 4340 -> 4356 B | measured: spelling these as members is 4340 -> 4348 B, 972 words | measured frame slot -- deleting it moves move_logic10 by 37 words at unchanged size; original local unrecovered | measured frame slot -- deleting it moves move_logic10 by 49 words at unchanged size; original local unrecovered | unrecovered: the per-character stats block inside Player is not laid out yet | measured frame slot -- deleting it moves move_logic10 by 64 words at unchanged size; original local unrecovered | measured frame slot -- deleting it moves move_logic10 by 75 words at unchanged size; original local unrecovered */
 #pragma opt_propagation reset
 
 #pragma opt_propagation off
@@ -3960,8 +3834,6 @@ void move_logic10(s32 index)
     }
     }
 }
-/* lint-end FM001, FM003, FM006 */
-/* lint-begin FM003, FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured -- removing it moves move_logic12 by 136 words at 596 -> 592 B | measured frame slot -- deleting it moves move_logic12 by 5 words at unchanged size; original local unrecovered */
 #pragma opt_propagation reset
 
 /* move_logic12 @0x80049A1C (state 12, maggot-egg tether).  Shares the IT-flee /
@@ -4061,8 +3933,6 @@ void move_logic12(s32 index)
         break;
     }
 }
-/* lint-end FM003, FM006 */
-/* lint-begin FM003, FM006, FM009: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured -- removing it moves move_logic13 by 160 words at unchanged size | measured frame slot -- deleting it moves move_logic13 by 5 words at unchanged size; original local unrecovered | unrecovered: the referenced record has no recovered layout in this tree | numeric constant whose meaning is not recovered yet | unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
 #pragma opt_propagation reset
 
 /* move_logic13 @0x80049C70 (state 13, zombie chain-follower).  Follows its
@@ -4193,8 +4063,6 @@ void move_logic13(s32 index)
         }
     }
 }
-/* lint-end FM003, FM006, FM009 */
-/* lint-begin FM003, FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured frame slot -- deleting it moves move_logic14 by 10 words at unchanged size; original local unrecovered */
 #pragma opt_propagation reset
 
 /* move_logic14 @0x80049FD4 (state 14, plague zig-zag skirmisher).  If a player is
@@ -4336,14 +4204,12 @@ void move_logic14(s32 index)
         e->counter1 -= gFrameTicks;
     }
 }
-/* lint-end FM003, FM006 */
 
 /* move_logic15 @0x8004A430 (state 15, wolf prowl patrol).  When it loses the
  * player it walks a linked prowl-node path: on entry (mode1==0) it scans the node
  * table for the nearest active node, then each frame faces the current node and
  * advances to the node's link when it arrives.  A player inside 0.8*sight (and its
  * milestone likewise) snaps it back to the chase algorithm. */
-/* lint-begin FM003, FM006: measured -- removing it moves move_logic15 by 205 words at 860 -> 856 B | measured frame slot -- deleting it moves move_logic15 by 5 words at unchanged size; original local unrecovered | unrecovered: live local the padding heuristic flagged by name; deleting it does not compile | measured frame slot -- deleting it moves move_logic15 by 11 words at unchanged size; original local unrecovered */
 #pragma opt_propagation off
 void move_logic15(s32 index)
 {
@@ -4459,8 +4325,6 @@ move:
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
-/* lint-end FM003, FM006 */
-/* lint-begin FM003, FM006, FM009: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B | measured frame slot -- deleting it moves move_logic16 by 7 words at unchanged size; original local unrecovered | numeric constant whose meaning is not recovered yet */
 #pragma opt_propagation reset
 
 /* move_logic16 @0x8004A78C (state 16, ice leap-attacker).  Faces the target, and
@@ -4594,7 +4458,6 @@ void move_logic16(s32 index)
         e->counter1 = 0;
     }
 }
-/* lint-end FM003, FM006, FM009 */
 
 /* move_logic18 @0x8004AB20 (state 18, dog stalk-and-pounce).  Creeps to a crouch
  * (mode1 1) inside sight, holds a ready pose (RequestEnemyAction 9) until the run
@@ -4790,7 +4653,6 @@ move:
  * but it always heads 180deg away from the target (pi + the facing bearing) and
  * corner-hugs that flee heading, counting stuck frames and snapping back to the
  * straight flee bearing after 10. */
-/* lint-begin FM001, FM003, FM006: measured -- removing it moves move_logic20 by 62 words at 1040 -> 1044 B | unrecovered: the referenced rodata table has no record type in this tree | measured frame slot -- deleting it moves move_logic20 by 25 words at unchanged size; original local unrecovered */
 #pragma opt_propagation off
 void move_logic20(s32 index)
 {
@@ -4923,8 +4785,6 @@ void move_logic20(s32 index)
 skip20:
     do_enemy_move(index);
 }
-/* lint-end FM001, FM003, FM006 */
-/* lint-begin FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B */
 #pragma opt_propagation reset
 
 /* move_logic21 @0x8004B5AC (state 21, acid-splat flee-and-face).  If it hasn't
@@ -4988,7 +4848,6 @@ void move_logic21(s32 index)
         e->counter1 = 0;
     }
 }
-/* lint-end FM006 */
 
 /* move_logic22 @0x8004B788 (state 22, hand milestone-crawler).  On entry (mode1 0)
  * it scans the milestone-node network for the nearest node, then walks the linked
@@ -5002,13 +4861,10 @@ void move_logic22(s32 index)
     Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic22 by 5 words at unchanged size; original local unrecovered */
     u8 _pad22_hi[60];
     f32 buf1[3];
     f32 buf2[3];
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     volatile f32 tmp;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic22 by 11 words at unchanged size; original local unrecovered */
     u8 _pad22_lo[12];
 
     e0 = (row22 = base + index * 916) + 3608;
@@ -5057,11 +4913,8 @@ void move_logic22(s32 index)
 
         for (node = sMilestones, i = 0; i < sNumMilestones;
              i++, node += 104) {
-            /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
             f32 dx = e->objgrp.worldmat[3][0] - *(f32*)(node + MILESTONE_POS_X);
-            /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
             f32 dy = e->objgrp.worldmat[3][1] - *(f32*)(node + MILESTONE_POS_Y);
-            /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
             f32 dz = e->objgrp.worldmat[3][2] - *(f32*)(node + MILESTONE_POS_Z);
             f32 d;
             if ((d = dx * dx + dy * dy + dz * dz) > 0.0f) {
@@ -5084,10 +4937,8 @@ void move_logic22(s32 index)
     }
     default: {
         u8* node = sMilestones + e->flag1 * 104;
-        /* lint-begin FM001: unrecovered: the milestone table record has no type in this tree */
         f32 dist = fqdist(*(f32*)(node + MILESTONE_POS_X) - e->objgrp.worldmat[3][0],
                           *(f32*)(node + MILESTONE_POS_Z) - e->objgrp.worldmat[3][2]);
-        /* lint-end FM001 */
         if (dist <= 1.5) {
             s32 old = e->flag1;
             e->flag1 = fn_800511D0(old, 0.17453292f);
@@ -5219,7 +5070,6 @@ void move_logic28(s32 index)
 {
     Enemy* e = &gEnemies[index];
     f32 a;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic28 by 5 words at unchanged size; original local unrecovered */
     u8 unused[8];
 
     if (e->closest >= 0 && e->actual_dist <= 6.0) {
@@ -5279,12 +5129,10 @@ void move_logic29(s32 index)
     f32 leapspeed = 0.0f;
     s32 flee;
     f32 a;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic29 by 7 words at unchanged size; original local unrecovered */
     u8 _pad29[32];
 
     row29 = base + index * 916;
     dend = ((Enemy *)(row29 + ENEMY_POOL_OFF))->dead_end;
-    /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
     e0 = row29 + 3608;
     e = (Enemy*)(u8*)e0;
     if (dend > 0) {
@@ -5429,7 +5277,6 @@ void move_logic30(s32 index)
     Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
     s32 it = lbl_80344748;
     s32 flee;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic30 by 7 words at unchanged size; original local unrecovered */
     u8 unused[24];
 
     if (it < 0) {
@@ -5512,7 +5359,6 @@ static inline void update_vel(Enemy* e, f32 k)
         e->zspd = cos(ang);
         e->prev_dir = ang;
     }
-    /* lint-allow-next-line FM001: unrecovered: the referenced rodata table has no record type in this tree */
     spd = ((f32*)lbl_80250E40.words)[e->type];
     vx = k * (e->xspd * spd);
     vz = k * (e->zspd * spd);
@@ -5527,7 +5373,6 @@ void move_logic31(s32 index)
 {
     Enemy* e = &gEnemies[index];
     f32 a;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves move_logic31 by 7 words at unchanged size; original local unrecovered */
     u8 unused[16];
 
     if (e->algorithm != e->prev_ai) {
@@ -5630,15 +5475,12 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
     s32 lo;
     s32 hi;
     s32 i;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves find_neighbor_milestone by 2 words at unchanged size; original local unrecovered */
     u8 unused[24];
 
     for (i = 0; i < count; i++) {
-        /* lint-begin FM001, FM007: numeric constant whose meaning is not recovered yet */
         if (ms == *(s32*)((u8*)(scanWord = &milestoneOwner->words[i]) + 0xF4)) {
             break;
         }
-        /* lint-end FM001, FM007 */
         idx++;
     }
     if (idx >= count) {
@@ -5668,26 +5510,18 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
 
         m_lo = milestoneOwner->view.pool.view.milestoneIds[lo];
         milestoneBase = sMilestones;
-        /* lint-allow-next-line FM007: unrecovered: the milestone table record has no type in this tree */
         milestoneOffset = m_lo * 0x68;
-        /* lint-allow-next-line FM007, FM009: unrecovered: the milestone table record has no type in this tree */
         milestoneY = milestoneBase + 0x34;
-        /* lint-allow-next-line FM007, FM009: unrecovered: the milestone table record has no type in this tree */
         milestoneX = milestoneBase + 0x30;
-        /* lint-allow-next-line FM007, FM009: unrecovered: the milestone table record has no type in this tree */
         milestoneZ = milestoneBase + 0x38;
-        /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
         y = *(f32*)(milestoneY + milestoneOffset);
-        /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
         x = *(f32*)(milestoneX + milestoneOffset);
-        /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
         z = *(f32*)(milestoneZ + milestoneOffset);
         dlo = y * y;
         dlo = x * x + dlo;
         dlo = z * z + dlo;
 
         if (dlo > 0.0f) {
-            /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
             volatile f32 tmp;
             f64 y = __frsqrte(dlo);
             y = 0.5 * y * (3.0 - y * y * dlo);
@@ -5697,19 +5531,14 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
             dlo = tmp;
         }
         m_hi = milestoneOwner->view.pool.view.milestoneIds[hi];
-        /* lint-allow-next-line FM007: unrecovered: the milestone table record has no type in this tree */
         milestoneOffset = m_hi * 0x68;
-        /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
         y = *(f32*)(milestoneY + milestoneOffset);
-        /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
         x = *(f32*)(milestoneX + milestoneOffset);
-        /* lint-allow-next-line FM001: unrecovered: the milestone table record has no type in this tree */
         z = *(f32*)(milestoneZ + milestoneOffset);
         dhi = y * y;
         dhi = x * x + dhi;
         dhi = z * z + dhi;
         if (dhi > 0.0f) {
-            /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
             volatile f32 tmp;
             f64 y = __frsqrte(dhi);
             y = 0.5 * y * (3.0 - y * y * dhi);
@@ -5816,7 +5645,6 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
                 enemy->zspd = cos(angle);
                 enemy->prev_dir = angle;
             }
-            /* lint-allow-next-line FM001: unrecovered: the referenced rodata table has no record type in this tree */
             typeSpeed = ((f32*)lbl_80250E40.words)[enemy->type];
             dx = speed * (enemy->xspd * typeSpeed);
             dz = speed * (enemy->zspd * typeSpeed);
@@ -5854,7 +5682,6 @@ s32 fn_8004CE38(Enemy* e)
         dz = ((Enemy *)e)->objgrp.worldmat[3][2] -
              ((Player *)p)->pos[2];
     }
-    /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
     a = (f32)(0.5235987756666667 + *(f32*)((u32)e + offsetof(Enemy, pyr[1])));
     if (a > 3.141592654) {
         t = a - 6.283185308;
@@ -5886,7 +5713,6 @@ s32 fn_8004CE38(Enemy* e)
 /* Choose the turn direction on the axis with the larger separation. */
 s32 fn_8004CFAC(f32* pos, f32* target)
 {
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_8004CFAC by 2 words at unchanged size; original local unrecovered */
     u8 framePad[8];
     f32 x = pos[0];
     f32 targetX = target[0];
@@ -5894,7 +5720,6 @@ s32 fn_8004CFAC(f32* pos, f32* target)
     f32 z;
     f32 targetZ;
     f32 dz;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_8004CFAC by 10 words at unchanged size; original local unrecovered */
     u8 unused[12];
 
     *(u32*)&dx &= 0x7FFFFFFF;
@@ -5937,18 +5762,15 @@ void do_enemies(void)
     u8* pool = (u8*)lbl_80250E00;
     s32 shown = 0;
     s32 i;
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     u8 unused[8];
 
     (void)unused;
 
     ProcessCritterList();
-/* lint-begin FM006: measured -- removing it moves do_enemies by 51 words at unchanged size */
 #pragma opt_propagation off
     if (gBoss398 >= 0) {
         gEnemies[gBoss398].state = ACTIVE;
     }
-/* lint-end FM006 */
     if ((gGameBusy | gGameplayPauseTimer) != 0) {
         return;
     }
@@ -5970,7 +5792,6 @@ void do_enemies(void)
             if (type == gBossType) {
                 continue;
             }
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (type == 0x1D) {
                 e->daction = 1;
             } else if (type == 0) {
@@ -5978,7 +5799,6 @@ void do_enemies(void)
             } else {
                 e->daction = 0;
             }
-            /* lint-end FM007 */
             if (e->atree.root != 0) {
                 e->action = DoEnemyAction(e);
             }
@@ -5989,14 +5809,12 @@ void do_enemies(void)
     {
         u8* pl = (u8*)gPlayerWords;
 
-        /* lint-begin FM001, FM007: numeric constant whose meaning is not recovered yet */
         for (i = 0; i < 4; i++, pl += 0x335C) {
             if (((EnemyPlayerView*)pl)->state == 1) {
                 *(s32*)(pl + offsetof(EnemyPlayerView, _A22) + 2) = 0;
                 *(f32*)(pl + offsetof(EnemyPlayerView, _A22) + 6) = 0.0f;
             }
         }
-        /* lint-end FM001, FM007 */
     }
 
     lbl_80344718 = 0;
@@ -6015,7 +5833,6 @@ void do_enemies(void)
         Enemy* e = gEnemies;
 
         for (i = 0; i < gNumEnemies; i++, e++) {
-            /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
             if (e->state == ACTIVE && e->algorithm == 0x12 &&
                 e->visactive != 0) {
                 if (e->action == 4 || e->daction == 4) {
@@ -6023,7 +5840,6 @@ void do_enemies(void)
                     break;
                 }
             }
-            /* lint-end FM007 */
         }
     }
 
@@ -6121,7 +5937,6 @@ void do_enemies(void)
                 if (e->type == gBossType) {
                     goto sync;
                 }
-                /* lint-begin FM007: enemy type id; e_e_tpye in game/enemy.h covers only the named subset | numeric constant whose meaning is not recovered yet */
                 if (e->type == 0x1E) {
                     s32 eff = e->specialfx;
                     s32 alpha = e->alpha;
@@ -6196,7 +6011,6 @@ void do_enemies(void)
                     UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
                     goto sync;
                 }
-                /* lint-end FM007 */
             sync:
                 if (e->shadow != 0) {
                     ((MBObject *)e->shadow)->mat[3][0] = e->objgrp.worldmat[3][0];
@@ -6240,7 +6054,6 @@ void do_enemies(void)
                 }
             }
             {
-                /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
                 u8 unused2[24];
                 (void)unused2;
             }
@@ -6290,14 +6103,11 @@ void do_enemies(void)
         (gControllerButtons & 1) != 0) {
         s32* blit;
         sprintf(gTextFormatBuf, "%d", shown);
-        /* lint-begin FM007: scene-graph API bit or colour; no enum for it exists in this tree */
         blit = DrawTextKeepScale(1.2f, -0x100, 0x144, 0, 0xFF0000,
                                  gTextFormatBuf);
-        /* lint-end FM007 */
         *blit |= 0x40000;
     }
 }
-/* lint-begin FM006: measured -- removing it moves damage_enemy by 383 words at 2284 -> 2260 B */
 #pragma opt_propagation reset
 
 s32 fn_8004D958(s32 index)
@@ -6369,7 +6179,6 @@ stop:
     }
     return index;
 }
-/* lint-end FM006 */
 
 /* Fade an enemy and its shadow, hiding both when fully opaque. */
 void fn_8004DB3C(Enemy* enemy, s32 delta)
@@ -6514,7 +6323,6 @@ void fn_8004DF58(Enemy* enemy)
     f32 missilePosition[3];
     f32 healedPosition[3];
     f32 reflectedPosition[3];
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     u8 unused[16];
     s32 hitKind;
 
@@ -6577,14 +6385,11 @@ void fn_8004DF58(Enemy* enemy)
                     healedPosition[1] - healedPosition[1];
                 player->damage_position[2] =
                     healedPosition[2] - healedPosition[2];
-                /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                 damage_enemy(enemy, amount, -1, 0x200,
                              (s32)player->damage_position,
                              (s32)healedPosition, 1);
-                /* lint-end FM007 */
                 heal_player(player, amount);
                 amount = 0.0f;
-                /* lint-allow-next-line FM007: sentinel/sign-bit constant; no enum for it exists in this tree */
                 playerFlags = 0x40000000;
                 StartGemFX(player->position, 1);
             } else if (player->attack_reflect != 0) {
@@ -6601,7 +6406,6 @@ void fn_8004DF58(Enemy* enemy)
                              (s32)player->damage_position,
                              (s32)reflectedPosition, 1);
                 amount = 0.0f;
-                /* lint-allow-next-line FM007: sentinel/sign-bit constant; no enum for it exists in this tree */
                 playerFlags = 0x40000000;
                 StartGemFX(player->position, 1);
             }
@@ -6701,11 +6505,9 @@ void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
 /* Advance an enemy after it reaches its assigned milestone. */
 void update_enemy_milestone(Enemy* enemy)
 {
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves update_enemy_milestone by 5 words at unchanged size; original local unrecovered */
     u8 frame_pad[12];
     f32 milestone[3];
     f32 vertical;
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves update_enemy_milestone by 13 words at unchanged size; original local unrecovered */
     u8 local_pad[12];
     f32 dx;
     f32 dz;
@@ -6792,13 +6594,10 @@ void enemy_update(void)
     if ((gGameBusy | gGameplayPauseTimer) == 0) {
         for (i = 0; i < lbl_8034471C; i++) {
             cursor = resources + i * sizeof(s32);
-            /* lint-allow-next-line FM001, FM007, FM009: unrecovered: the enemy resource/loader record has no type in this tree */
             cursor = resources + *(s32*)(cursor + 0x20) * sizeof(void*);
-            /* lint-begin FM001, FM007, FM009: unrecovered: the enemy resource/loader record has no type in this tree */
             if (*(void**)(cursor + 0x564) != 0) {
                 DoTexMods(*(void**)(cursor + 0x564));
             }
-            /* lint-end FM001, FM007, FM009 */
         }
     }
 }
@@ -6835,7 +6634,6 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     f32* hit_direction = (f32*)hit_direction_arg;
     f32 old_health = e->health;
     f32 effect_pos[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves damage_enemy by 8 words at unchanged size; original local unrecovered */
     u8 unused1[4];
     f32 saved_matrix[16];
     s32 enemy_index;
@@ -7012,12 +6810,9 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     }
 
     if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
-        /* lint-allow-next-line FM001, FM007: numeric constant whose meaning is not recovered yet */
         ((u8*)e->generator)[0xE6] = 7;
-        /* lint-allow-next-line FM001, FM007: numeric constant whose meaning is not recovered yet */
         ((u8*)e->generator)[0xE0] = 3;
     } else if (e->algorithm == 15 && e->generator != NULL) {
-        /* lint-allow-next-line FM001, FM007: numeric constant whose meaning is not recovered yet */
         ((u8*)e->generator)[0xE3] = 0;
     }
 
@@ -7082,11 +6877,8 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     }
     if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
         if (effect_position != NULL && (f64)e->hht >= 4.0) {
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             effect_pos[0] = *(f32*)((u8*)effect_position + 0);
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             effect_pos[1] = *(f32*)((u8*)effect_position + 4);
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             effect_pos[2] = *(f32*)((u8*)effect_position + 8);
         }
         fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
@@ -7127,18 +6919,12 @@ void kill_enemy(s32 index)
             StartBagFX(e->objgrp.attn_pos, item, 0.0f);
         } else {
             *((u8*)item + 205) = 0;
-            /* lint-begin FM001: scene-graph API bit or colour; no enum for it exists in this tree */
             MBTreeClearFlags(*(struct mbnode**)((u8*)item + 100), 2, 0);
-            /* lint-end FM001 */
             if (**(s32**)item == 1) {
-                /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
                 *(s16*)((u8*)item + 236) = 60;
             }
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             *(f32*)((u8*)item + 52) = e->objgrp.worldmat[3][0];
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             *(f32*)((u8*)item + 56) = e->objgrp.worldmat[3][1];
-            /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
             *(f32*)((u8*)item + 60) = e->objgrp.worldmat[3][2];
             AddItemSub(item);
         }
@@ -7170,7 +6956,6 @@ void kill_enemy(s32 index)
 /* Point the Garm death effect toward its target (or the first active player). */
 void fn_8004F1DC(Enemy* enemy)
 {
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     volatile f32 enemyPos[3];
     f32 matrix[12];
     f32 direction[3];
@@ -7181,11 +6966,9 @@ void fn_8004F1DC(Enemy* enemy)
         player = gPlayerWords[enemy->closest];
     } else {
         for (i = 0; i < 4; i++) {
-            /* lint-begin FM001: unrecovered: the per-character stats block inside Player is not laid out yet */
             if (((s32*)gPlayerWords[i])[PW(state)] == 1) {
                 break;
             }
-            /* lint-end FM001 */
         }
         if (i < 4) {
             player = gPlayerWords[i];
@@ -7273,12 +7056,10 @@ s32 check_vacancy(s32 index, f32* pos)
  * +0x3FC, +0x4B0, +0x564 and +0xE18 respectively. Keeping the actual pool
  * owner explicit avoids a second compiler-created base for the spawn path. */
 typedef struct EnemySpawnPoolView {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _000[0x348];
     s32 lbl_80251148[45];
     s32 lbl_802511FC[45];
     s32 lbl_802512B0[45];
-    /* lint-allow-next-line FM007: unrecovered: the referenced rodata table has no record type in this tree */
     u32 gWadAtreeHeaders[0x8B4 / 4];
     Enemy gEnemies[25];
 } EnemySpawnPoolView;
@@ -7323,18 +7104,14 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         level = 2;
         i = lbl_8034472C;
         lbl_8034472C = i + 1;
-        /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
         type = *(s32*)(tbl + ((i & 3) << 2) + 4284);
-        /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
         spew = *(s32*)(tbl + ((i & 3) << 2) + 4300);
     } else if (type == -3) {
         RandInt(4);
         level = 3;
         i = lbl_8034472C;
         lbl_8034472C = i + 1;
-        /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
         type = *(s32*)(tbl + ((i & 3) << 2) + 4316);
-        /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
         spew = *(s32*)(tbl + ((i & 3) << 2) + 4332);
     } else if (type < 0) {
         return -6;
@@ -7371,7 +7148,6 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         case 19:
         case 24:
         case 25:
-            /* lint-allow-next-line FM007: sentinel/sign-bit constant; no enum for it exists in this tree */
             mask = 0xFFCE;
             ndirs = 8;
             break;
@@ -7547,7 +7323,6 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     f32 rad = e->rad;
     f32 hht = e->hht;
     f32 pos[3];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves check_enemy_pos by 14 words at unchanged size; original local unrecovered */
     u8 _ppad[4];
     f64 half;
     void* obj;
@@ -7580,7 +7355,6 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
     {
         f32 floorY = gFloorCollisionResult.floorY;
         f32 dy = floorY - start[1];
-        /* lint-allow-next-line FM003: measured frame slot -- deleting it moves check_enemy_pos by 25 words at unchanged size; original local unrecovered */
         u8 _dpad[8];
 
         *(u32*)&dy &= 0x7FFFFFFF;
@@ -7732,7 +7506,6 @@ extern void SetEnemyObj(Enemy* e, s32 type, s32 level);
  * the `#pragma opt_propagation off` that do_enemies' body opens (its bare
  * `#pragma reset` does not close it).  The reorder moves init_enemy out of that
  * region, so the bracket is now explicit here. */
-/* lint-begin FM001, FM006: measured -- removing it moves init_enemy by 10 words at unchanged size | unrecovered: the referenced record has no recovered layout in this tree | numeric constant whose meaning is not recovered yet */
 #pragma opt_propagation off
 void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
@@ -7813,8 +7586,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree(&e->atree, 0, 2);
     }
 }
-/* lint-end FM001, FM006 */
-/* lint-begin FM006: measured -- removing it moves fn_800516F8 by 78 words at unchanged size */
 #pragma opt_propagation reset
 
 /* Enemy loading, targeting and milestone tail: recovered TU ownership. */
@@ -7825,7 +7596,6 @@ typedef struct Row36 {
     s32 f14;     /* 0x14       */
     s32 _b[3];   /* 0x18       */
 } Row36;
-/* lint-end FM006 */
 typedef struct MilestoneParam {
     f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
     f32 pos[3];       /* 0x40 */
@@ -7836,7 +7606,6 @@ typedef struct MilestoneParam {
     s32 active;       /* 0x64 */
 } MilestoneParam;
 typedef struct MilestonePool {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _000[0xF4];
     s32 slots[128];
 } MilestonePool;
@@ -7917,7 +7686,6 @@ static char* findWorldName(s32 world)
     return 0;
 }
 
-/* lint-begin FM006: measured -- removing it moves init_enemy_vars by 82 words at 832 -> 840 B */
 #pragma opt_propagation off
 static inline s32 enemy_health_tier(f32 scale, f32 hi, f32 lo, f32 z2)
 {
@@ -7932,7 +7700,6 @@ static inline s32 enemy_health_tier(f32 scale, f32 hi, f32 lo, f32 z2)
     }
     return tier;
 }
-/* lint-end FM006 */
 
 /* The inlined early return preserves the retail branch pair at +0x2c8.
  * The surrounding caller guard still handles the highest-health tier. */
@@ -7953,7 +7720,6 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
 {
     /* Retail reserves eight more bytes below its save area. Their original
      * local identities are unrecovered; this is a frame reservation only. */
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves init_enemy_vars by 5 words at unchanged size; original local unrecovered */
     u8 unrecovered_locals[8];
     u8* e;
     Enemy* enemy;
@@ -7992,10 +7758,8 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->close_dist = fv;
     enemy->actual_dist = fv;
     row = tbl + *(s32*)e * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     enemy->hht = (f32)(0.5 * ((f32*)row)[452]);
     row = tbl + *(s32*)e * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     enemy->rad = ((f32*)row)[486];
     enemy->area = 0;
     enemy->coll_pnum = -1;
@@ -8029,7 +7793,6 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->idle_frac = z2;
     enemy->damage_count = 0;
     row = tbl + *(s32*)e * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     t = gCurLevel->ene_health * ((f32*)row)[690];
     hi = (f32)(0.667 * t);
     lo = (f32)(0.333 * t);
@@ -8070,33 +7833,26 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     /* Retail keeps the incoming slot in r3 through this call (+0x254). */
     format_brain(slot);
     row = tbl + *(s32*)e * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     enemy->atts.invspeed = (f32)(1.0 / ((f32*)row)[588]);
     ty = *(s32*)e;
     row = tbl + ty * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     t2 = gCurLevel->ene_health * ((f32*)row)[690];
     ht = enemy->health;
     hi2 = (f32)(0.667 * t2);
     lo2 = (f32)(0.333 * t2);
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     spd = gCurLevel->ene_damage * ((f32*)row)[622];
     if (!(ht > hi2)) {
         spd = enemy_tier_damage(ty, ht, lo2, spd);
     }
     enemy->atts.fight = spd;
     row = tbl + *(s32*)e * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     enemy->atts.armor = ((f32*)row)[656];
     row = tbl + *(s32*)e * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     enemy->atts.damagetype = ((s32*)row)[928];
     row = tbl + *(s32*)e * 4;
-    /* lint-allow-next-line FM001: unrecovered: the referenced record has no recovered layout in this tree */
     enemy->atts.armortype = ((s32*)row)[962];
 }
 
-/* lint-begin FM006: measured -- removing it moves fn_800516F8 by 78 words at unchanged size */
 #pragma opt_propagation reset
 
 void format_brain(s32 index)
@@ -8222,7 +7978,6 @@ void format_brain(s32 index)
     enemy->operation_speed = 8;
     enemy->operation_count = RandInt(enemy->operation_speed);
 }
-/* lint-end FM006 */
 
 void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
 {
@@ -8249,14 +8004,10 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
         enemy->atree.root = (void*)fn_80011BBC(
             sGoodWizObj, lbl_80346770, &enemy->atree.root, lbl_80346770, 2048);
         enemy->flooroffset = 3.0f;
-    /* lint-begin FM001: unrecovered: the referenced rodata table has no record type in this tree */
     } else if (((void**)gWadAtreeHeaders)[type] != 0) {
-    /* lint-end FM001 */
         char* name = fn_80051E1C(type, level, 0);
-        /* lint-begin FM001: unrecovered: the referenced rodata table has no record type in this tree */
         enemy->atree.root = (void*)fn_80011BBC(
             ((void**)gWadAtreeHeaders)[type], name, &enemy->atree.root, name, 2048);
-        /* lint-end FM001 */
     }
 
     if (enemy->atree.root != 0) {
@@ -8300,7 +8051,6 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
 }
 
 /* Keep the per-index resource base shared by the two table reads. */
-/* lint-begin FM003, FM006: measured -- removing it moves fn_800508A0 by 7 words at unchanged size | measured frame slot -- deleting it moves fn_800508A0 by 5 words at unchanged size; original local unrecovered */
 #pragma opt_propagation off
 void fn_800508A0(void)
 {
@@ -8319,8 +8069,6 @@ void fn_800508A0(void)
         }
     }
 }
-/* lint-end FM003, FM006 */
-/* lint-begin FM006: measured -- removing it moves fn_800516F8 by 78 words at unchanged size */
 #pragma opt_propagation reset
 
 void fn_80050910(s32 arg0)
@@ -8328,12 +8076,10 @@ void fn_80050910(s32 arg0)
     lbl_802511FC[arg0] = -lbl_802511FC[arg0];
     InitEnemyMissiles(arg0);
 }
-/* lint-end FM006 */
 
 void AllocEnemy(s32 id, s32 model)
 {
     char buf[68];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves AllocEnemy by 6 words at unchanged size; original local unrecovered */
     u8 unused[4];
     char* fmt = ((char*)lbl_80112370);
     Row36* tbl = ((Row36*)lbl_8011AF48);
@@ -8343,7 +8089,6 @@ void AllocEnemy(s32 id, s32 model)
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         FatalErrorf(fmt + 284, lbl_8034471C, 8);
     }
     pool[7 + lbl_8034471C] = id;
@@ -8357,7 +8102,6 @@ void AllocEnemy(s32 id, s32 model)
         }
         name = 0;
 alloc_fmt1:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
@@ -8368,7 +8112,6 @@ alloc_fmt1:
         }
         name = 0;
 alloc_fmt2:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 320, name, fn_80057ACC(id));
     } else if (model == 4) {
         for (i = 0; i < 44; i++) {
@@ -8379,7 +8122,6 @@ alloc_fmt2:
         }
         name = 0;
 alloc_fmt3:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 336, name);
     } else if (model > 10) {
         for (i = 0; i < 44; i++) {
@@ -8390,7 +8132,6 @@ alloc_fmt3:
         }
         name = 0;
 alloc_fmt4:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 352, name, model - 10);
     } else {
         for (i = 0; i < 44; i++) {
@@ -8401,23 +8142,18 @@ alloc_fmt4:
         }
         name = 0;
 alloc_fmt5:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 368, name);
     }
 
     id <<= 2;
-    /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
     *(s32*)((u8*)&pool[300] + id) =
         fn_8005A1EC(buf, (void**)((u8*)&pool[345] + id));
-    /* lint-end FM001 */
-    /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
     *(s32*)((u8*)&pool[255] + id) = -model;
 }
 
 void LoadEnemy(s32 id, s32 model)
 {
     char buf[68];
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves LoadEnemy by 6 words at unchanged size; original local unrecovered */
     u8 unused[4];
     char* fmt = ((char*)lbl_80112370);
     Row36* tbl = ((Row36*)lbl_8011AF48);
@@ -8428,7 +8164,6 @@ void LoadEnemy(s32 id, s32 model)
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         FatalErrorf(fmt + 284, lbl_8034471C, 8);
     }
     pool[7 + lbl_8034471C] = id;
@@ -8442,7 +8177,6 @@ void LoadEnemy(s32 id, s32 model)
         }
         name = 0;
 load_fmt1:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
@@ -8453,7 +8187,6 @@ load_fmt1:
         }
         name = 0;
 load_fmt2:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 320, name, fn_80057ACC(id));
     } else if (model == 4) {
         for (i = 0; i < 44; i++) {
@@ -8464,7 +8197,6 @@ load_fmt2:
         }
         name = 0;
 load_fmt3:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 336, name);
     } else if (model > 10) {
         for (i = 0; i < 44; i++) {
@@ -8475,7 +8207,6 @@ load_fmt3:
         }
         name = 0;
 load_fmt4:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 352, name, model - 10);
     } else {
         for (i = 0; i < 44; i++) {
@@ -8486,16 +8217,12 @@ load_fmt4:
         }
         name = 0;
 load_fmt5:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 368, name);
     }
 
     offset = id << 2;
-    /* lint-begin FM001: numeric constant whose meaning is not recovered yet */
     *(s32*)((u8*)&pool[300] + offset) =
         LoadModel(buf, ((void**)&pool[345]) + id, 0, -1);
-    /* lint-end FM001 */
-    /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
     *(s32*)((u8*)&pool[255] + offset) = model;
     InitEnemyMissiles(id);
 }
@@ -8516,7 +8243,6 @@ void fn_80050DD8(char* buf, s32 id, s32 qty)
         }
         name = 0;
 f1:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
@@ -8527,7 +8253,6 @@ f1:
         }
         name = 0;
 f2:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 320, name, fn_80057ACC(id));
     } else if (qty == 4) {
         for (i = 0; i < 44; i++) {
@@ -8538,7 +8263,6 @@ f2:
         }
         name = 0;
 f3:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 336, name);
     } else if (qty > 10) {
         for (i = 0; i < 44; i++) {
@@ -8549,7 +8273,6 @@ f3:
         }
         name = 0;
 f4:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 352, name, qty - 10);
     } else {
         for (i = 0; i < 44; i++) {
@@ -8560,7 +8283,6 @@ f4:
         }
         name = 0;
 f5:
-        /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
         sprintf(buf, fmt + 368, name);
     }
 }
@@ -8617,7 +8339,6 @@ void fn_800510A4(void)
 /* Keep the element address explicit across propagation, as in fn_800508A0.
  * This controls the address form; the remaining register allocation is
  * separately checked by the matching build's strict recolor rule. */
-/* lint-begin FM006: measured -- removing it moves fn_80051164 by 3 words at unchanged size */
 #pragma opt_propagation off
 void fn_80051164(void)
 {
@@ -8636,8 +8357,6 @@ void fn_80051164(void)
     lbl_8034471C = 0;
     lbl_80344738 = -1;
 }
-/* lint-end FM006 */
-/* lint-begin FM003, FM006, FM009: measured -- removing it moves fn_800516F8 by 78 words at unchanged size | measured -- removing it moves fn_800511D0 by 153 words at 688 -> 692 B | measured frame slot -- deleting it moves fn_800511D0 by 7 words at unchanged size; original local unrecovered | unrecovered: live local the padding heuristic flagged by name; deleting it does not compile | measured frame slot -- deleting it moves fn_800511D0 by 28 words at unchanged size; original local unrecovered | unrecovered: the referenced record has no recovered layout in this tree */
 #pragma opt_propagation reset
 
 #pragma opt_propagation off
@@ -8771,8 +8490,6 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     }
     return best;
 }
-/* lint-end FM003, FM006, FM009 */
-/* lint-begin FM003, FM006: measured -- removing it moves fn_800516F8 by 78 words at unchanged size | measured frame slot -- deleting it moves fn_80051480 by 2 words at unchanged size; original local unrecovered | unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
 #pragma opt_propagation reset
 
 s32 fn_80051480(f32* pos)
@@ -8811,9 +8528,7 @@ s32 fn_80051480(f32* pos)
     }
     return best_idx;
 }
-/* lint-end FM003, FM006 */
 
-/* lint-begin FM001, FM003, FM006: measured -- removing it moves fn_80051568 by 19 words at unchanged size | measured frame slot -- deleting it moves fn_80051568 by 7 words at unchanged size; original local unrecovered | measured: spelling these as members is 400 -> 408 B, 85 words | unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
 #pragma opt_propagation off
 void fn_80051568(s32 index)
 {
@@ -8878,8 +8593,6 @@ void fn_80051568(s32 index)
         }
     }
 }
-/* lint-end FM001, FM003, FM006 */
-/* lint-begin FM006: measured -- removing it moves fn_800516F8 by 78 words at unchanged size */
 #pragma opt_propagation reset
 
 /* Same distance/rounding operation as DIST3, with the four real truncation
@@ -8900,11 +8613,9 @@ void fn_80051568(s32 index)
             (dst) = (rounding); \
         } \
     }
-/* lint-end FM006 */
 
 void fn_800516F8(s32 slot)
 {
-    /* lint-allow-next-line FM003: measured frame slot -- deleting it moves fn_800516F8 by 7 words at unchanged size; original local unrecovered */
     u8 unused[4];
     u8* p;
     u8* e;
@@ -8919,7 +8630,6 @@ void fn_800516F8(s32 slot)
     f32 range;
     f32 bestSpecial;
     f32 ad;
-    /* lint-allow-next-line FM003: unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
     volatile f32 distanceScratch0, distanceScratch1, distanceScratch2, distanceScratch3;
 
     e = (u8*)gEnemies + slot * 916;
@@ -8931,7 +8641,6 @@ void fn_800516F8(s32 slot)
         }
     }
     if (i >= 4) {
-        /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
         *(s16*)(e + offsetof(Enemy, recognized)) = 0;
     }
 
@@ -8940,9 +8649,7 @@ void fn_800516F8(s32 slot)
         !(gPlayers.players[t].flags & 4) &&
         !(*(s32*)e == 30 && (gPlayers.players[t].shield_flags & 0x80000))) {
         u8* q;
-        /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
         *(s16*)(e + offsetof(Enemy, prev_closest)) = *(s16*)(e + offsetof(Enemy, closest));
-        /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
         *(s16*)(e + offsetof(Enemy, closest)) = (s16)lbl_80344B24;
         q = (u8*)gPlayers.players + lbl_80344B24 * 13148;
         {
@@ -8954,38 +8661,27 @@ void fn_800516F8(s32 slot)
                 ENEMY_DISTANCE3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
                                 0.0f, 0.5, 3.0, distanceScratch1);
             }
-            /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
             *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
         }
-        /* lint-begin FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words | unrecovered: the per-character stats block inside Player is not laid out yet */
         *(f32*)(e + offsetof(Enemy, close_dist)) = *(f32*)(e + offsetof(Enemy, actual_dist)) +
                            *(f32*)((u8*)gPlayers.players + lbl_80344B24 * 13148 + 2600);
-        /* lint-end FM001 */
     } else {
         s32 go = 1;
         s32 cur;
-        /* lint-begin FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
         if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + offsetof(Enemy, closest)) >= 0) {
             go = 0;
         }
-        /* lint-end FM001 */
-        /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
         cur = *(s16*)(e + offsetof(Enemy, closest));
         if ((s16)cur >= 0 &&
             gPlayers.players[cur].state != ACTIVE) {
             go = -1;
         }
         if (go != 0) {
-            /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
             *(s16*)(e + offsetof(Enemy, prev_closest)) = (s16)cur;
-            /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
             *(s16*)(e + offsetof(Enemy, closest)) = -1;
-            /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
             *(f32*)(e + offsetof(Enemy, close_dist)) = 100000.0f;
-            /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
             *(f32*)(e + offsetof(Enemy, actual_dist)) = 100000.0f;
             if (*(s32*)e == 30) {
-                /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                 *(s32*)(e + offsetof(Enemy, counter2)) = -1;
             }
             kPi = 3.141592654;
@@ -9012,30 +8708,22 @@ void fn_800516F8(s32 slot)
                         }
                         range = dist = measuredDistance;
                     }
-                    /* lint-begin FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                     if (range > *(f32*)(e + offsetof(Enemy, sight))) {
                         continue;
                     }
-                    /* lint-end FM001 */
                     if (*(s32*)e == 30 && (((Player *)p)->shield_flags & 0x80000)) {
                         if (range < bestSpecial) {
                             bestSpecial = range;
-                            /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                             *(s32*)(e + offsetof(Enemy, counter2)) = i;
                         }
                         continue;
                     }
-                    /* lint-begin FM001, FM009: measured: spelling these as members is 1408 -> 1428 B, 199 words | numeric constant whose meaning is not recovered yet */
                     if (range > kK * *(f32*)(e + offsetof(Enemy, rad))) {
                         range += *(f32*)(p + 2600);
                     }
-                    /* lint-end FM001, FM009 */
-                    /* lint-begin FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                     if (!(range < *(f32*)(e + offsetof(Enemy, close_dist)))) {
                         continue;
                     }
-                    /* lint-end FM001 */
-                    /* lint-begin FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                     if (*(f32*)(e + offsetof(Enemy, view)) < kPi) {
                         ad = get_yaw((f32*)(p + offsetof(Player, effectpos)), (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos))) -
                              *(f32*)(e + offsetof(Enemy, pyr) + 4);
@@ -9044,19 +8732,14 @@ void fn_800516F8(s32 slot)
                             continue;
                         }
                     }
-                    /* lint-end FM001 */
-                    /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                     *(f32*)(e + offsetof(Enemy, close_dist)) = range;
-                    /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                     *(f32*)(e + offsetof(Enemy, actual_dist)) = dist;
-                    /* lint-allow-next-line FM001: measured: spelling these as members is 1408 -> 1428 B, 199 words */
                     *(s16*)(e + offsetof(Enemy, closest)) = (s16)i;
                 }
             }
         }
     }
 
-    /* lint-begin FM001, FM002, FM009: measured: spelling these as members is 1408 -> 1428 B, 199 words | numeric constant whose meaning is not recovered yet */
     if (*(s16*)(e + offsetof(Enemy, closest)) >= 0) {
         if (*(f32*)(e + offsetof(Enemy, actual_dist)) <= *(f32*)(e + offsetof(Enemy, sight))) {
             Player* base;
@@ -9072,13 +8755,11 @@ void fn_800516F8(s32 slot)
         *(f32*)(e + offsetof(Enemy, actual_dist)) = 100000.0f;
         *(f32*)(e + offsetof(Enemy, close_dist)) = 100000.0f;
     }
-    /* lint-end FM001, FM002, FM009 */
 }
 
 #undef ENEMY_DISTANCE3
 
 /* Preserve the cached-pool element addresses through propagation. */
-/* lint-begin FM003, FM006, FM007: measured -- removing it moves fn_80051C78 by 71 words at 420 -> 424 B | measured frame slot -- deleting it moves fn_80051C78 by 5 words at unchanged size; original local unrecovered | numeric constant whose meaning is not recovered yet | unrecovered: live local the padding heuristic flagged by name; deleting it does not compile */
 #pragma opt_propagation off
 void fn_80051C78(void)
 {
@@ -9146,8 +8827,6 @@ void fn_80051C78(void)
         }
     }
 }
-/* lint-end FM003, FM006, FM007 */
-/* lint-begin FM006: measured -- removing it moves fn_80051E1C by 28 words at 328 -> 332 B | measured -- removing it moves fn_80051E1C by 43 words at 328 -> 236 B */
 #pragma opt_propagation reset
 
 /* Keep the nested name lookup inline with the level formatter. Numbered
@@ -9176,7 +8855,6 @@ static inline char* enemy_format_world_level(s32 world, s32 lvl)
     }
     return buf;
 }
-/* lint-end FM006 */
 
 char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
 {
@@ -9200,11 +8878,9 @@ void* EnemyTypePrefix(s32 id)
     s32 i;
 
     for (i = 0; i < 44; i++) {
-        /* lint-begin FM001: unrecovered: the referenced rodata table has no record type in this tree */
         if (((Row36*)lbl_8011AF48)[i].f0 == id) {
             return &((Row36*)lbl_8011AF48)[i].f14;
         }
-        /* lint-end FM001 */
     }
     return 0;
 }
@@ -9214,11 +8890,9 @@ void* EnemyTypeDesc(s32 id)
     s32 i;
 
     for (i = 0; i < 44; i++) {
-        /* lint-begin FM001: unrecovered: the referenced rodata table has no record type in this tree */
         if (((Row36*)lbl_8011AF48)[i].f0 == id) {
             return &((Row36*)lbl_8011AF48)[i].f4;
         }
-        /* lint-end FM001 */
     }
     return 0;
 }
@@ -9235,11 +8909,9 @@ s32 EnemyDescType(const char* name)
         return -1;
     }
     for (i = 0; i < 44; i++) {
-        /* lint-begin FM001: unrecovered: the referenced rodata table has no record type in this tree */
         if (stricmp(name, (char*)&((Row36*)lbl_8011AF48)[i].f4) == 0) {
             return ((Row36*)lbl_8011AF48)[i].f0;
         }
-        /* lint-end FM001 */
     }
     return -1;
 }

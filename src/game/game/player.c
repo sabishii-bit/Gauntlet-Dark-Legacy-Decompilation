@@ -629,7 +629,6 @@ void PlayerUnsetParent(Player* p) {
 
 /* Release a grabbed player; restore != 0 restores the saved position. */
 void PlayerUnsetGrabbed(Player* p, s32 restore) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 132-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[64];
 
     if (restore == 1) {
@@ -646,7 +645,6 @@ void PlayerUnsetGrabbed(Player* p, s32 restore) {
 
 /* Attach the player under a carrier node at offset pos (critter.c). */
 void PlayerSetParent(Player* p, void* parent, f32* pos) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: dropping the volatile moves 54 words and shrinks the function 228 -> 220 bytes. Which original local it represents is a source-recovery question, not a deletion question.
     volatile f32 d[3];
 
     if (pos == NULL) {
@@ -715,7 +713,6 @@ void WritePlayerInfo(s32 pnum) {
     s32 i;
     s32 first;
     s32 end;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 412-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     if ((!(gGameMode & MODE_GROUP_ATTRACT) || lbl_80344298 == 0) &&
@@ -818,7 +815,6 @@ static void show_crystals(Player* p) {
 }
 
 /* Rune-stone / crystal collection icons; live while welcome_timer runs. */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 111 words and shrinks ShowRuneStones 532 -> 528 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void ShowRuneStones(void) {
     s32 i;
@@ -829,7 +825,6 @@ void ShowRuneStones(void) {
     s32 hide;
     s32 result;
     s32 result2;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 532-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 _spare[8];
 
     if (welcome_timer > 0 && options_state == 0) {
@@ -890,7 +885,6 @@ void ShowRuneStones(void) {
         }
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 111 words and shrinks ShowRuneStones 532 -> 528 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Name/level/health/keys/potions writer for one player's HUD row. */
@@ -904,7 +898,6 @@ static void write_health_and_items(s32 i) {
     f32 oldz;
     char buf2[44];
     char buf[16];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 18 words at unchanged 1612-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[32];
     void* blit;
 
@@ -1047,9 +1040,7 @@ typedef struct PlayerControlState {
     s32 unk38;
 } PlayerControlState;
 extern PlayerControlState lbl_80240E30[4];
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 96 words and grows debug_player_pos 468 -> 476 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 2 words in debug_player_pos at unchanged 468-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_lifetimes off
 static void debug_player_pos(s32 i) {
     Player* p;
@@ -1100,9 +1091,7 @@ static void debug_player_pos(s32 i) {
         MBSetFontFlags(oldflags);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 2 words in debug_player_pos at unchanged 468-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_lifetimes reset
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 96 words and grows debug_player_pos 468 -> 476 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Gold counter, right-aligned, 99999 cap. */
@@ -1144,7 +1133,6 @@ static void draw_power_meter(s32 i) {
     u32 rgb2;
     u16* tex;
     s32 w;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 26 words at unchanged 1156-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[0x30];
 
     for (j = 0; j < 7; j++) {
@@ -1281,7 +1269,6 @@ void setup_player_display(s32 i) {
     s32 chr;
     u32 frames;
     char buf[40];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 9 words at unchanged 964-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     mode = get_display_mode(i);
@@ -1491,7 +1478,6 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
 static s32 ModifyExp(Player* p, s32 delta) {
     s32 res = 0;
     s32 need;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 376-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     p->exp = p->exp + delta;
@@ -2549,9 +2535,7 @@ static inline f64 PlayerScaleMultiply(f32 value, const f64* factor)
 }
 
 /* Decay the shrink/grow potion scale back toward 1 and clamp tiny.    */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 34 words and grows PlayerProcessScale 276 -> 280 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 53 words and shrinks PlayerProcessScale 276 -> 272 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void PlayerProcessScale(void* vp) {
     Player* p = vp;
@@ -2559,7 +2543,6 @@ void PlayerProcessScale(void* vp) {
     f32 ambientScale;
     f32 zero;
     f32 av;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 11 words at unchanged 276-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     s = p->pulse_7FC;
@@ -2586,9 +2569,7 @@ void PlayerProcessScale(void* vp) {
         MBTreeSetAmbientAdd(p->node, 0, 1);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 53 words and shrinks PlayerProcessScale 276 -> 272 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 34 words and grows PlayerProcessScale 276 -> 280 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Is player i on the character-select overlay?                        */
@@ -2670,7 +2651,6 @@ static void do_exit(void* vp, s32 dest) {
         f32 move_y = -0.12f;
         f32 move_z = 0.0f;
         u32 ticks = gFrameTicks;
-        // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 14 words at unchanged 644-byte size. Which original local it represents is a source-recovery question, not a deletion question.
         u8 unused[8];
         move_x *= (f32)ticks;
         p->pos[0] += move_x;
@@ -2744,7 +2724,6 @@ static s32 all_players_go_to_same_level(void) {
 }
 
 /* Player index+1 if someone is riding a moving lift/platform.         */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 11 words in PlayerOnMovingObject at unchanged 160-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 s32 PlayerOnMovingObject(void) {
     u8* obj;
@@ -2771,7 +2750,6 @@ s32 PlayerOnMovingObject(void) {
     }
     return 0;
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 11 words in PlayerOnMovingObject at unchanged 160-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Another player (not i / not obj) currently riding something?        */
@@ -2800,7 +2778,6 @@ void do_heal_players(void* vp, f32* mat, f32 amount) {
     f32 d;
     s32 i;
     s32 typ;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 16 words at unchanged 520-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
 
     typ = -1;
@@ -2912,7 +2889,6 @@ extern u8 lbl_801201C4[];     /* weakening default period */
  * and got-it entries, and parks state 8 (dying).
  */
 s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 13 words at unchanged 2108-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
     Player* p = P(i);
     s32 result = 0;
@@ -3257,7 +3233,6 @@ static inline void restore_inactive_player(s32 i) {
 /* slot just goes back to selecting with saved-health restore.         */
 void inactivate_player(s32 i) {
     Player* p = PT(i);
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 8 words at unchanged 900-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     if (sMusicTrackHi == 0xD) {
@@ -3416,7 +3391,6 @@ void remove_player_geo(s32 i) {
 
 /* Swap player i to character type; 0x10 = the active hidden char.     */
 void change_player(s32 i, s32 type) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 204-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
     Player* p = P(i);
 
@@ -3459,7 +3433,6 @@ void clear_player(s32 i, s32 full) {
     s32 player_index;
     s32 cls;
     s32 j;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 7 words at unchanged 500-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     p->item_body_hi = 0;
@@ -3826,7 +3799,6 @@ void PlayersRestoreHealth(void) {
     Player* p = P(0);
     f32 cap;
     s32 i;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 180-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     for (i = 0; i < 4; i++, p++) {
@@ -3883,7 +3855,6 @@ void PlayerSaveState(s32 player, s32 full) {
 /* Unpack the per-character slots into the live fields.  type < 0      */
 /* re-reads the character stamped in the image.  The active hidden     */
 /* character instead gets the fixed lv99 loadout.                      */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 85 words and grows player_get_from_save 676 -> 716 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma dont_inline on
 void player_get_from_save(void* vp, s32 type) {
     s32 player;
@@ -3894,7 +3865,6 @@ void player_get_from_save(void* vp, s32 type) {
     f32 cap;
     s32 t;
     s32 lv;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 8 words at unchanged 676-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
 
     p = vp;
@@ -3977,11 +3947,9 @@ void player_get_from_save(void* vp, s32 type) {
     lbl_80240E30[player].unk38 = PF(p, 0x1DB2, u8);
     lbl_80240E30[player].unk34 = PF(p, 0x1DB3, u8);
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 85 words and grows player_get_from_save 676 -> 716 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma dont_inline off
 
 /* Pack the live fields into the per-character slots + image header.   */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 71 words and shrinks player_store_in_save 524 -> 520 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
 void player_store_in_save(void* vp) {
     s32 chartype;
@@ -4036,7 +4004,6 @@ void player_store_in_save(void* vp) {
         player_get_from_save(p, -1);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 71 words and shrinks player_store_in_save 524 -> 520 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Copy the live pad config into both control-save byte sets.          */
@@ -4059,11 +4026,9 @@ static inline f32 player_scale_att(f32* att, f32* range)
     return 0.001 * *att * (range[1] - range[0]) + range[0];
 }
 
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 46 words in PlayerUpdateAtts at unchanged 416-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void PlayerUpdateAtts(void* vp) {
     Player* p = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 416-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[96];
     s32 character;
 
@@ -4085,7 +4050,6 @@ void PlayerUpdateAtts(void* vp) {
         p->stat_missile_spd = player_scale_att(&p->att_fight, lbl_80343DA4);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 46 words in PlayerUpdateAtts at unchanged 416-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Zero the per-character bonus stats for all 16 characters.           */
@@ -4115,7 +4079,6 @@ void set_player_default_atts(void* p) {
 void load_player_geo(s32 i, void* vp) {
     Player* p = vp;
     char name[20];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 9 words at unchanged 1640-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[12];
     u8* rodata = lbl_80113AE0;
     u8* tab = (u8*)lbl_8011FC48;
@@ -4616,7 +4579,6 @@ s32 set_hidden_player(void* vp) {
 }
 
 /* Load the class model + sfx model set into player slot i.            */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 43 words across two functions and grows load_player_model 320 -> 324 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
 s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     Player* p = vp;
@@ -4726,7 +4688,6 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     slot->anim_remap = fn_8001267C((u16*) slot->model_buf, arena, slot->anim_remap);
     return arena;
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 43 words across two functions and grows load_player_model 320 -> 324 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Re-register the model texmods after a video mode change.            */
@@ -4898,7 +4859,6 @@ void setup_player_models(void) {
     PlayerModelSlot* s;
     s32 i;
     s32 free0;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 244-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     GetMaxPlayerModelSize();
@@ -4928,7 +4888,6 @@ void setup_player_models(void) {
 static void GetMaxPlayerModelSize(void) {
     PlayerModelSlot* s;
     s32 i;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 4 words at unchanged 420-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
 
     if (got_max_player_sizes != 0) {
@@ -5031,11 +4990,9 @@ typedef struct TierColor {
         }                                                                      \
     } while (0)
 
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 141 words in PlayerProcessPowerups at unchanged 6392-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void PlayerProcessPowerups(void* vp) {
     Player* p = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 24 words at unchanged 6392-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[112];
     u32 old_flags;
     s32 index = p->index;
@@ -5644,7 +5601,6 @@ void PlayerProcessPowerups(void* vp) {
 
     (void)shield_time;
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 141 words in PlayerProcessPowerups at unchanged 6392-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Struct view over the familiar/halo atree state at Player+0x748.  A    */
@@ -5759,7 +5715,6 @@ static inline s32 PlayerFindMikeyPUP(Player* p)
 void PlayerProcessMikeyPUP(void* vp) {
     Player* p = vp;
     PlayerMikeyState* mp = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 724-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
     s32 t = mp->state;
     void* atree;
@@ -5845,7 +5800,6 @@ live:
 
 /* Drop the big-ape unlock powerups into the level.                    */
 void AppendBigapePowerupsToScene(void) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 140-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
     s32 i;
 
@@ -5862,7 +5816,6 @@ void AppendBigapePowerupsToScene(void) {
 
 /* Instantiate a named pickup item at x/y/z via the item template.     */
 void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 7 words at unchanged 312-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[24];
     char* itemName = appended_item_template.name;
     s32* item;
@@ -5907,7 +5860,6 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
  */
 static void do_see_thru(void* vp) {
     Player* p = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 1348-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
     Item* chest = NULL;
     s32 i = p->index;
@@ -5932,7 +5884,6 @@ static void do_see_thru(void* vp) {
         floor_id = chest->data.container.index;
         fl = &gWorldInfo.iteminfo[floor_id];
         while (fl->type == -1) {
-            // lint-allow-next-line FM001: the random-pick table is packed into the iteminfodata prefix (absolute byte 8 = iteminfodata.coltype) and read as an s16 array; no evidence names those halfwords, so the row stays a byte cursor here while its type, subtype and atreeheader are named.
             s16 next_floor = *(s16*)((u8*)fl + RandItemIdx(closest, fl->item.subtype, 0) * 2 + 8);
             floor_id = next_floor;
             fl = &gWorldInfo.iteminfo[floor_id];
@@ -6035,11 +5986,8 @@ static s32 ClosestChest(void* vp) {
     f32 zero;
     f32 best;
     f64 three;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 7 words at unchanged 380-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[36];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: dropping the volatile moves 24 words and shrinks the function 380 -> 372 bytes. Which original local it represents is a source-recovery question, not a deletion question.
     volatile f32 root;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 2 words at unchanged 380-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 rootPad[4];
 
     best = lbl_803477B4;
@@ -6338,7 +6286,6 @@ void SetPlayerWindows(s32 on) {
 static void do_got_it_8007FC80(void) {
     s32 y;
     char buf[36];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 27 words at unchanged 1240-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[4];
     GotIt* g;
     s32 i;
@@ -6585,7 +6532,6 @@ void mini_inventory_update(s32 i) {
     TbInfo* tb;
     u32* held;
     u8 moved;
-    // lint-begin FM001, FM007, FM009: `selected_pup` is a Player-based cursor biased by -0x130, so +0x134 and +0x13C are p->powerup[tb->sel].type and .specialflags (PlayerPowerup, include/game/player.h: timeleft@0, type@4, attributeadd@8, specialflags@0xC, stride 0x10, array at Player+0x130). Writing it as &p->powerup[tb->sel] with named members is NOT byte-neutral: 129 differing words and 980 -> 988 bytes in mini_inventory_update, because the target keeps the biased base.
     u8* selected_pup;
     u8* entry;
     s32 sel;
@@ -6593,7 +6539,6 @@ void mini_inventory_update(s32 i) {
     s32 count;
     s32 offset;
     s32 state;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 980-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[32];
 
     label_table = lbl_8011FC48;
@@ -6705,7 +6650,6 @@ void mini_inventory_update(s32 i) {
                         (*(s32*)(entry + 4) &
                          *(s32*)(selected_pup + 0x13C)) &&
                     *(s32*)(selected_pup + 0x134) == *(s32*)entry) {
-                    // lint-end FM001, FM007, FM009
                     break;
                 }
             }

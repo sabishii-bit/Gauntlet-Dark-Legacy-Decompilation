@@ -30,7 +30,6 @@
 /* ------------------------------------------------------------------ */
 
 extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
-/* lint-begin FM001: numeric constant whose meaning is not recovered yet */
 #define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
@@ -38,7 +37,6 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 #endif
 typedef struct PMotionCtx PMotionCtx;
-/* lint-end FM001 */
 
 /* Offset-only layout of Enemy fields read off an index-computed base (grid
  * scan, closest-target probes) throughout this TU (verified against
@@ -52,16 +50,12 @@ typedef struct PMotionCtx PMotionCtx;
  * that hit this exact pattern. */
 typedef struct PCollideEnemyLayout {
     s32 type;                /* 0x000 */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _004[0x50];
     f32 coll_pos[3];         /* 0x054 objgrp.coll_pos */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _060[0x54];
     s32 state;                /* 0x0B4 */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _0B8[0x148];
     f32 health;               /* 0x200 */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _204[0x34];
     f32 rad;                  /* 0x238 */
     f32 hht;                  /* 0x23C */
@@ -73,7 +67,6 @@ typedef struct PCollideEnemyLayout {
 typedef struct PCollideCritterLayout {
     u8   _000[4];
     void* hdr;                /* 0x004 */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8   _008[0x54];
     f32  pos[3];               /* 0x05C */
 } PCollideCritterLayout;
@@ -82,7 +75,6 @@ typedef struct PCollideCritterLayout {
  * against include/game/item.h's Item struct: active@0xC4, action@0xC8).
  * Never cast a live pointer to this type. */
 typedef struct PCollideItemLayout {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _000[0xC4];
     s16 active;                /* 0x0C4 */
     s16 activetime;             /* 0x0C6 */
@@ -131,11 +123,9 @@ typedef union ControlState {
     } control;
 } ControlState;
 typedef struct PlayerActionMotionView {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 pad_000[0x8F4];
     s32 heldHistory;
     s32 edgeHistory;
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 pad_8FC[0x5A];
     s16 actionFlags;
     s16 actionTicks;
@@ -458,10 +448,8 @@ extern f32 lbl_80347CF8;
 /* Player-motion transform context (arg to PlayerNewFloor / collision fns):
  * a 3x3-ish orient block at 0x10 and the current floor WorldObj* at 0x44. */
 struct PMotionCtx {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8         _p00[0x10];
     f32        fwd[3];    /* 0x10, 0x14, 0x18 */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8         _p1c[0x28];
     WorldObj*  floor;     /* 0x44 */
 };
@@ -495,16 +483,13 @@ static inline f32 PlayerKnockbackFabs(f32 x) {
 /* get_player_pos spawn view: kills the PF() address-CSE on the rotation
  * triple and the floor-object word (L7 -- struct-displacement view). */
 typedef struct PSpawnView {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _000[0xC4];
     f32 rot[3];          /* 0xC4 euler rotation */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _0D0[0x7E4];
     f32 floor_y;         /* 0x8B4 last floor height */
     u8  _8B8[8];
     u32 floor_flags;     /* 0x8C0 */
     u32 floor_obj;       /* 0x8C4 */
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8  _8C8[0x38];
     u32 act_bits;        /* 0x900 melee/effect pending bits */
 } PSpawnView;
@@ -524,11 +509,9 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     f32 pos2[3];
     f32 pos[3];
     f32 resultPos[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves get_player_pos by 60 words at unchanged size; original local unrecovered */
     u8 unused_74[12];
     f32 mat[16];
     s32 resultItem = -1;
-    /* lint-allow-next-line FM003: measured -- deleting it moves get_player_pos by 76 words at unchanged size; original local unrecovered */
     u8 unused_8[8];
     s32 partner = -1;
     s32 found = -1;
@@ -592,11 +575,9 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             pos[0] = other->effectpos[0];
             pos[1] = other->effectpos[1];
             pos[2] = other->effectpos[2];
-            /* lint-allow-next-line FM009: numeric constant whose meaning is not recovered yet */
             spreadz = spread + 9;
             sx = r * (spread[8 + playerIdx * 2] - spread[8 + i * 2]);
             sz = r * (spreadz[playerIdx * 2] - spreadz[i * 2]);
-            /* lint-allow-next-line FM001, FM009: float-math tuning constant; no enum or define exists for it in this tree */
             ang = CurTransmitter != NULL ? *(f32*)(CurTransmitter + 24) : 0.0;
             s = sin(ang);
             c = cos(ang);
@@ -638,16 +619,11 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 pos2[1] = other->pos[1];
                 pos2[2] = other->pos[2];
             }
-            /* lint-begin FM009: unrecovered: the motion context block has no record type in this tree */
             osv->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
                 lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
-            /* lint-end FM009 */
-            /* lint-begin FM001, FM009: unrecovered: the motion context block has no record type in this tree */
             SV(other)->floor_flags = (*(void**)(ctx + 92) != NULL)
                                          ? ((WorldObj*)*(void**)(ctx + 92))->flags
                                          : 0;
-            /* lint-end FM001, FM009 */
-            /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
             other->floor_base = *(f32*)(ctx + 76);
             CopyMat3(other->mat, p->mat);
             p->pos[0] = pos2[0];
@@ -671,7 +647,6 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 k++;
             } while (k < 16);
             if (found >= 0) {
-                /* lint-allow-next-line FM001, FM007: numeric constant whose meaning is not recovered yet */
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
                 sv->floor_obj = osv->floor_obj;
                 break;
@@ -691,7 +666,6 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 p->pos[0] = resultPos[0];
                 p->pos[1] = resultPos[1];
                 p->pos[2] = resultPos[2];
-                /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                 if (resultItem >= 0x10000) {
                     CritterDamage((u8*)gCritterPool + (resultItem & 0xFFFF) * 2784,
                                   -2, 0, 0, NULL, 1, lbl_80347B1C);
@@ -699,11 +673,9 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                     damage_enemy((u8*)gEnemies + resultItem * 916,
                                  -2, 0, 0, NULL, 1, lbl_80347B20);
                 }
-                /* lint-end FM007 */
             } else {
                 p->floor_base = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
                 p->pos[1] = p->floor_base;
-                /* lint-allow-next-line FM001, FM007: numeric constant whose meaning is not recovered yet */
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
                 sv->floor_obj = osv->floor_obj;
                 ErrorPrintf(lbl_80114220);
@@ -718,7 +690,6 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             pos[2] = gDefaultPlayerPosition[2];
             halfR = 0.5 * r;
             y = FloorPos(lbl_80344880, halfR, pos, 1);
-            /* lint-begin FM001, FM007: unrecovered: FloorCollide's result record has no type in this tree */
             if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
                 ok = 0;
             } else {
@@ -731,12 +702,10 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                     ok = 1;
                 }
             }
-            /* lint-end FM001, FM007 */
             i = 0;
             thresh = lbl_80347B28;
             do {
                 f32 d;
-                /* lint-allow-next-line FM003: measured -- deleting it moves get_player_pos by 84 words at unchanged size; original local unrecovered */
                 u8 unused_i[16];
                 if (ok != 0) {
                     break;
@@ -747,7 +716,6 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 pos[0] += r * spread[16 + i * 2];
                 pos[2] += r * spread[17 + i * 2];
                 y = FloorPos(lbl_80344880, halfR, pos, 1);
-                /* lint-begin FM001, FM007: unrecovered: FloorCollide's result record has no type in this tree */
                 if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
                     ok = 0;
                 } else {
@@ -760,7 +728,6 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                         ok = 1;
                     }
                 }
-                /* lint-end FM001, FM007 */
                 i++;
             } while (i < 16);
             if (ok == 0) {
@@ -800,12 +767,10 @@ s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
 s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
                  s32* resultItem, s32 findFloor) {
     f32 screen[2];
-    /* lint-allow-next-line FM003: measured -- deleting it moves try_location by 26 words at unchanged size; original local unrecovered */
     u8 unused[8];
     f32 collidePosition[3];
     f32 hitPosition[3];
     f32 delta;
-    /* lint-allow-next-line FM003: measured -- deleting it moves try_location by 18 words at unchanged size; original local unrecovered */
     u8 unusedTail[4];
     Player* pm = (Player*)motion;
     f32 radius = p->col_radius;
@@ -818,18 +783,14 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
 
     if (findFloor != 0) {
         screen[0] = FloorPos(lbl_80344880, (f32)(lbl_80347B00 * radius), position, 1);
-        /* lint-begin FM001, FM007: unrecovered: FloorCollide's result record has no type in this tree */
         if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
             return 0;
         }
-        /* lint-end FM001, FM007 */
-        /* lint-begin FM001, FM007: unrecovered: FloorCollide's result record has no type in this tree */
         if ((WorldObj*)SV(motion)->floor_obj != NULL &&
             ((((WorldObj*)SV(motion)->floor_obj)->flags & 0x1000) != 0) &&
             (WorldObj*)SV(motion)->floor_obj != *(void**)((u8*)gFloorCollisionResult + 0x44)) {
             return 0;
         }
-        /* lint-end FM001, FM007 */
         delta = screen[0] - SV(motion)->floor_y;
         *(u32*)&delta &= 0x7FFFFFFF;
         if (delta > lbl_80347B38 ||
@@ -880,20 +841,16 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
     return 1;
 }
 void PlayerMotion_SetAnimState(Player* p) {
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerMotion_SetAnimState by 5 words at unchanged size; original local unrecovered */
     u8 unused[32];
     if (lbl_803447B8 >= 2) {
         MBTreeClearFlags(p->node, 2, 0);
         if (p->mbnode != NULL) {
             MBTreeClearFlags(p->mbnode, 2, 0);
         }
-        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
         if (p->anim_208 == 0x7C) {
             p->hud_flags |= 0x1000;
         }
-        /* lint-end FM007 */
         if ((p->hud_flags & 0x1000) == 0) {
-            /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
             p->anim_20C = 0x7C;
         } else {
             p->anim_20C = 0;
@@ -941,7 +898,6 @@ static s32 PlayerMotion_FpClassify(f32 value) {
     const s32 expMask = 0x7F800000;
     const s32 mantissaMask = 0x007FFFFF;
 
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     switch ((*(s32*)&value) & expMask) {
     case 0x7F800000:
         return ((*(s32*)&value) & mantissaMask) != 0 ? 1 : 2;
@@ -950,7 +906,6 @@ static s32 PlayerMotion_FpClassify(f32 value) {
     default:
         return 4;
     }
-    /* lint-end FM007 */
 }
 
 static s32 PlayerMotion_SfxIndex(Player* p) {
@@ -958,7 +913,6 @@ static s32 PlayerMotion_SfxIndex(Player* p) {
     s32 sfx;
 
     if (other != NULL) {
-        /* lint-allow-next-line FM001, FM007: unrecovered: offset into a module global whose record has no type in this tree */
         sfx = *(s16*)(lbl_80282930[other->index] + 0x20);
     } else {
         sfx = -1;
@@ -971,15 +925,12 @@ void PlayerMotion(Player* p) {
     u8* ctxbase = lbl_80282850;
     ControlState* ctl = &lbl_80240E30[p->index];
     s32 index = p->index;
-    /* lint-allow-next-line FM007: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
     u8* motion = (u8*)p + 0x14;
     f32 radius = p->col_radius;
     f32 height = p->col_height;
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerMotion by 13 words at unchanged size; original local unrecovered */
     u8 unused[16];
     f32 oldpos[3];
     f32 dpos[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerMotion by 201 words at unchanged size; original local unrecovered */
     u8 padgap[12];
     f32 to[3];
     f32 hit[3];
@@ -990,7 +941,6 @@ void PlayerMotion(Player* p) {
     u8* target = NULL;
     u8* firstEnemy;
     f32 reflection[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerMotion by 430 words at unchanged size; original local unrecovered */
     f32 padvec[17];
     f32 effectVelocity[3];
     f32 bossColor[3];
@@ -1015,16 +965,13 @@ void PlayerMotion(Player* p) {
     f32 moveAmount;
 
     if (fn_8005A730((f32*)motion) == 0) {
-        /* lint-allow-next-line FM007, FM009: unrecovered: the debug string table has no record type in this tree */
         FatalError(strings + 36, 0x800000);
         get_player_pos(index, 0);
     }
 
     p->hud_flags &= ~1;
-    /* lint-begin FM001, FM007, FM009: unrecovered: offset into a module global whose record has no type in this tree */
     facing = (f32)(atan2(*(f32*)(lbl_80344EE8 + 0x84),
                          *(f32*)(lbl_80344EE8 + 0x8C)) + lbl_80347B50);
-    /* lint-end FM001, FM007, FM009 */
     motionType = fn_80088938(p, facing);
     if (motionType == 15) {
         directionKind = 1;
@@ -1034,7 +981,6 @@ void PlayerMotion(Player* p) {
         directionKind = 0;
     }
 
-    /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
     controlYaw = atan2(*(f32*)(motion + 0x20), *(f32*)(motion + 0x28));
     if (p->anim_208 == 143 && p->grab_partner != NULL &&
         lbl_80240E30[p->grab_partner->index].values[8] > 0.0f) {
@@ -1060,11 +1006,8 @@ void PlayerMotion(Player* p) {
     speedScale = movement * p->field_A50;
 
     if (lbl_8034489C == 2) {
-        /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
         dpos[0] = *(f32*)(gBossObj + 0x3C) - *(f32*)(motion + 0x30);
-        /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
         dpos[1] = *(f32*)(gBossObj + 0x40) - *(f32*)(motion + 0x34);
-        /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
         dpos[2] = *(f32*)(gBossObj + 0x44) - *(f32*)(motion + 0x38);
         heading = atan2(dpos[0], dpos[2]);
         speedScale = 0.0f;
@@ -1163,17 +1106,13 @@ void PlayerMotion(Player* p) {
                       : (dpos[2] > moveLimit ? moveLimit : dpos[2]);
     }
 
-    /* lint-begin FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
     if (*(f32*)(motion + 0x34) <= lbl_80344880) {
         get_player_pos(index, 0);
     }
-    /* lint-end FM001, FM007, FM009 */
-    /* lint-begin FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) | unrecovered: the debug string table has no record type in this tree */
     if (PlayerMotion_FpClassify(*(f32*)(motion + 0x24)) == 1) {
         FatalError(strings + 36, 0x800000);
         get_player_pos(index, 0);
     }
-    /* lint-end FM001, FM007, FM009 */
 
     p->dpos[0] = dpos[0];
     p->dpos[1] = dpos[1];
@@ -1183,10 +1122,8 @@ void PlayerMotion(Player* p) {
     oldpos[2] = p->effectpos[2];
 
     if ((p->hud_flags & 0x20) != 0) {
-        /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
         fn_8005A338(p->mat, (f32*)((u8*)p + 0x844),
                     (f32*)((u8*)p + 0x838));
-        /* lint-end FM007 */
         if (lbl_8034481C != 0 &&
             (lbl_80344804 != 0 || lbl_80344808 != 0)) {
             p->state = 4;
@@ -1207,7 +1144,6 @@ void PlayerMotion(Player* p) {
         p, (s32)oldpos, to, to, 0, (s32*)&firstEnemy, radius, height);
     if (firstEnemyHits != 0) {
         u8* object = (u8*)firstEnemy;
-        /* lint-begin FM001, FM007, FM009: unrecovered: the referenced world-object record has no recovered layout here */
         if ((s8)object[0xCF] >= 0 && *(s16*)(object + 0xD0) > 0 &&
             (directionKind != 0 || p->action != 0)) {
             dpos[0] = 0.0f;
@@ -1216,7 +1152,6 @@ void PlayerMotion(Player* p) {
             dpos[0] = to[0] - oldpos[0];
             dpos[2] = to[2] - oldpos[2];
         }
-        /* lint-end FM001, FM007, FM009 */
         if (anim == 137 || anim == 143) {
             s32 sfx;
             PlayerMotion_HitTarget(p, firstEnemy, 32,
@@ -1247,7 +1182,6 @@ void PlayerMotion(Player* p) {
         }
         if (otherIndex >= 0) {
             Player* op = &gPlayers[otherIndex];
-            /* lint-begin FM007: unrecovered: the referenced player/object record offset has no named member here */
             if (PF(op, 0x950, s16) == 0) {
                 if ((PF(op, 0x964, s16) & 4) == 0) {
                     PF(op, 0x864, f32) = 0.0f;
@@ -1259,13 +1193,11 @@ void PlayerMotion(Player* p) {
                 PF(op, 0x86C, f32) = dpos[2] + PF(op, 0x86C, f32);
                 op->hud_flags = (s16)(op->hud_flags | 4);
             }
-            /* lint-end FM007 */
             dpos[0] = to[0] - oldpos[0];
             dpos[2] = to[2] - oldpos[2];
             if (anim == 137) {
                 hitKind = 1;
             }
-            /* lint-begin FM007: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
             if (PF(p, 0x954, u16) > 60) {
                 lbl_80344B24 = otherIndex;
                 gPlayers[otherIndex].speak_timer = 1;
@@ -1274,14 +1206,11 @@ void PlayerMotion(Player* p) {
                         (u32)&gPlayers[lbl_80344B24].col_pos);
                 fn_8009DCB4((s32)&gPlayers[lbl_80344B24].col_pos);
             }
-            /* lint-end FM007 */
         }
     }
-    /* lint-begin FM007: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
     if (PF(p, 0x954, u16) != 0) {
         p->speak_timer = (u16)(PF(p, 0x954, u16) + gFrameTicks);
     }
-    /* lint-end FM007 */
 
     oldpos[1] = (f32)((f64)oldpos[1] + lbl_80347BD0);
     wallResult = fn_80088714(radius, p, oldpos, dpos);
@@ -1291,10 +1220,8 @@ void PlayerMotion(Player* p) {
                              (f32*)ctxbase);
         if (anim == 137) {
             hitKind = 2;
-            /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
             reflection[0] = *(f32*)(ctxbase + 12);
             reflection[1] = 0.0f;
-            /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
             reflection[2] = *(f32*)(ctxbase + 20);
         }
     } else {
@@ -1315,12 +1242,9 @@ void PlayerMotion(Player* p) {
         p->floor_cur = p->floor_base;
     }
     if (SV(p)->floor_obj != 0) {
-        /* lint-begin FM009: unrecovered: the motion context block has no record type in this tree */
         PlayerMotion_FloorFX(p, (WorldObj*)SV(p)->floor_obj, oldpos,
                              (f32*)(ctxbase + 72));
-        /* lint-end FM009 */
     }
-    /* lint-begin FM001, FM007, FM009: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words | measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
     if ((floorResult >= 1) ||
         (floorResult >= 0 && (PF(p, 0x8C4, WorldObj*) == NULL ||
          (PF(p, 0x8C4, WorldObj*)->flags & 0x1000) == 0)) ||
@@ -1332,7 +1256,6 @@ void PlayerMotion(Player* p) {
         }
         dpos[1] += rise;
     }
-    /* lint-end FM001, FM007, FM009 */
     if (floorResult != 1) {
         wallResult = 1;
     }
@@ -1361,10 +1284,8 @@ void PlayerMotion(Player* p) {
         }
     }
     if (floorResult > 0) {
-        /* lint-begin FM009: unrecovered: the motion context block has no record type in this tree */
         floorBlocked = PlayerNewFloor((PMotionCtx*)(ctxbase + 24),
                                       p, dpos);
-        /* lint-end FM009 */
     }
 
     if (floorBlocked == 0) {
@@ -1379,11 +1300,9 @@ void PlayerMotion(Player* p) {
         if (collision != 0) {
             collision = 1;
             if (**(s32**)firstEnemy != 7) {
-                /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 f32 dot =
                     (PF(firstEnemy, 0x5C, f32) - oldpos[2]) * dpos[2] +
                     (PF(firstEnemy, 0x54, f32) - oldpos[0]) * dpos[0];
-                /* lint-end FM007 */
                 if (dot < 0.0f) {
                     collision = 0;
                 }
@@ -1468,7 +1387,6 @@ void PlayerMotion(Player* p) {
         item = PlayerCollideItems(p, itemRadius, height, oldpos, to, hit);
         if (item >= 0) {
             specialCritter = 0;
-            /* lint-begin FM001, FM002, FM007, FM009: unrecovered: the referenced world-object record has no recovered layout here | unrecovered: the file-local collide layout view covers only the fields it names | numeric constant whose meaning is not recovered yet */
             if (item >= 0x10000) {
                 u8* critter;
                 critterIndex = item & 0xFFFF;
@@ -1480,7 +1398,6 @@ void PlayerMotion(Player* p) {
             } else {
                 critterIndex = -1;
             }
-            /* lint-end FM001, FM002, FM007, FM009 */
             if (transporter != 0) {
                 PlayerMotion_DamageTarget(p, item, 0, 0, 0,
                                           lbl_80347B20, lbl_80347B30);
@@ -1605,11 +1522,8 @@ collision_done:
         to[1] = oldpos[1] + dpos[1];
         to[2] = oldpos[2] + dpos[2];
         if (reaction >= 2) {
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             attackDir[0] = *(f32*)(motion + 0x20);
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             attackDir[1] = *(f32*)(motion + 0x24);
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             attackDir[2] = *(f32*)(motion + 0x28);
         }
 
@@ -1673,7 +1587,6 @@ collision_done:
         target = p->collision_item;
         targetDistance = PlayerGetTarget(p, to, targetDir, attackDir,
                                          &item, &target);
-        /* lint-begin FM007: unrecovered: the referenced world-object record has no recovered layout here */
         if (item >= 0x10000) {
             critterIndex = item & 0xFFFF;
             enemy = NULL;
@@ -1684,7 +1597,6 @@ collision_done:
             critterIndex = -1;
             enemy = NULL;
         }
-        /* lint-end FM007 */
 
         if ((p->hud_flags & 0xC000) != 0 ||
             (ctl->pad.levels & 0x5000) != 0 ||
@@ -1701,29 +1613,23 @@ collision_done:
         if (critterIndex >= 0) {
             u8* critter = (u8*)gCritterPool + critterIndex * 2784;
             p->coll_flags |= 0x10;
-            /* lint-begin FM001, FM002, FM007, FM009: unrecovered: the file-local collide layout view covers only the fields it names */
             if (*(s16*)(*(u8**)(*(u8**)(critter + 4) + 0x120) + 0x20) ==
                 4) {
                 specialCritter = 1;
             }
-            /* lint-end FM001, FM002, FM007, FM009 */
         } else if (enemy != NULL) {
             p->coll_flags |= 0x10;
-            /* lint-begin FM007: unrecovered: Enemy offset that hits no named member of game/enemy.h */
             if (((f64)PF(enemy, 0x23C, f32) <= lbl_80347C28 ||
                  (f64)lbl_803447D8 < lbl_80347BD0) &&
                 (f64)targetDistance < lbl_80347C28 + radius) {
                 p->coll_flags |= 2;
             }
-            /* lint-end FM007 */
         } else if (target != NULL) {
             p->coll_flags |= 0x20;
-            /* lint-begin FM007: unrecovered: offset into a module global whose record has no type in this tree */
             if ((f64)*(f32*)(*(u8**)target + 0x10) <= lbl_80347C30 &&
                 (f64)targetDistance < lbl_80347C28 + radius) {
                 p->coll_flags |= 2;
             }
-            /* lint-end FM007 */
         }
 
         if ((gControllerButtons & 0x80) != 0) {
@@ -1742,15 +1648,11 @@ collision_done:
                 fn_8009F158(index);
                 p->speak_done = 1;
             }
-            /* lint-allow-next-line FM007, FM009: numeric constant whose meaning is not recovered yet */
             AudioPlayEvt101IfIdle((s32)(enemy + 0x54));
-            /* lint-allow-next-line FM007: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
             PF(p, 0x128, u32) |= 1;
-            /* lint-begin FM007: unrecovered: Enemy offset that hits no named member of game/enemy.h | measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
             if (PF(enemy, 0x206, s16) == 2) {
                 PF(p, 0x128, u32) |= 2;
             }
-            /* lint-end FM007 */
             p->speak_kind = 2;
             goto state_selected;
         }
@@ -1779,58 +1681,35 @@ collision_done:
                     if (critterIndex >= 0) {
                         u8* critter =
                             (u8*)gCritterPool + critterIndex * 2784;
-                        /* lint-begin FM001, FM007, FM009: unrecovered: the file-local collide layout view covers only the fields it names | measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[0] = PF(critter, 0x3C, f32) -
                                  *(f32*)(motion + 0x30);
-                        /* lint-end FM001, FM007, FM009 */
-                        /* lint-begin FM001, FM007, FM009: unrecovered: the file-local collide layout view covers only the fields it names | measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[1] = PF(critter, 0x40, f32) -
                                  *(f32*)(motion + 0x34);
-                        /* lint-end FM001, FM007, FM009 */
-                        /* lint-begin FM001, FM007, FM009: unrecovered: the file-local collide layout view covers only the fields it names | measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[2] = PF(critter, 0x44, f32) -
                                  *(f32*)(motion + 0x38);
-                        /* lint-end FM001, FM007, FM009 */
                     } else if (enemy != NULL) {
-                        /* lint-begin FM001, FM007, FM009: unrecovered: Enemy offset that hits no named member of game/enemy.h | measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[0] = PF(enemy, 0x34, f32) -
                                  *(f32*)(motion + 0x30);
-                        /* lint-end FM001, FM007, FM009 */
-                        /* lint-begin FM001, FM007, FM009: unrecovered: Enemy offset that hits no named member of game/enemy.h | measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[1] = PF(enemy, 0x38, f32) -
                                  *(f32*)(motion + 0x34);
-                        /* lint-end FM001, FM007, FM009 */
-                        /* lint-begin FM001, FM007, FM009: unrecovered: Enemy offset that hits no named member of game/enemy.h | measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[2] = PF(enemy, 0x3C, f32) -
                                  *(f32*)(motion + 0x38);
-                        /* lint-end FM001, FM007, FM009 */
                     } else {
-                        /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[0] = to[0] - *(f32*)(motion + 0x30);
-                        /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[1] = to[1] - *(f32*)(motion + 0x34);
-                        /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                         hit[2] = to[2] - *(f32*)(motion + 0x38);
                     }
                     effectRecord = (u8*)Effects + effect * 240;
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     CreateDirMatrix(
                         (f32*)*(void**)(effectRecord += 0x14),
                         hit, NULL);
-                    /* lint-end FM007 */
                     GetWorldMat(p->mbnode2, effectMatrix, NULL);
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(*(void**)effectRecord, 0x30, f32) =
                         effectMatrix[12];
-                    /* lint-end FM007 */
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(*(void**)effectRecord, 0x34, f32) =
                         effectMatrix[13];
-                    /* lint-end FM007 */
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(*(void**)effectRecord, 0x38, f32) =
                         effectMatrix[14];
-                    /* lint-end FM007 */
                     goto state_selected;
                 }
             }
@@ -1845,7 +1724,6 @@ collision_done:
             if ((motionState == 8 || motionState == 13) &&
                 p->field_8F8 == 0 &&
                 (anim < 39 || anim > 114) && ctl->control.flag != 0) {
-                /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                 if ((item >= 0 &&
                      (specialCritter == 0 || gBossType == 37 ||
                       gBossType == 41)) ||
@@ -1856,7 +1734,6 @@ collision_done:
                     motionState = 15;
                     forceState = 1;
                 }
-                /* lint-end FM007 */
             }
         }
 
@@ -2240,24 +2117,18 @@ store_motion_state:
                 case 37:
                 case 38:
                 case 39:
-                    /* lint-begin FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     lbl_80344894 = StartFXSub(92, NULL, 0, 0x800,
                                               lbl_80347C10);
-                    /* lint-end FM007 */
                     if (!(lbl_80344894 < 0)) {
-                        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                         MBTreeSetAmbientAdd(
                             *((void**)((u8*)Effects + 0x14) +
                               lbl_80344894 * 60),
                             0x1FF, 1);
-                        /* lint-end FM007 */
                         SfxSetParent(lbl_80344894,
                                      p->hand_node);
-                        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                         p->shield_object =
                             *((void**)((u8*)Effects + 0x14) +
                               lbl_80344894 * 60);
-                        /* lint-end FM007 */
                     }
                     break;
                 default: {
@@ -2265,16 +2136,12 @@ store_motion_state:
                     bossFxPos[0] = 0.0f;
                     bossFxPos[1] = lbl_80347C5C;
                     bossFxPos[2] = 0.0f;
-                    /* lint-begin FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     lbl_80344894 = StartFXSub(92, bossFxPos, 0, 0x880,
                                               lbl_80347C10);
-                    /* lint-end FM007 */
                     if (!(lbl_80344894 < 0)) {
-                        /* lint-begin FM001, FM007: unrecovered: offset into a module global whose record has no type in this tree | numeric constant whose meaning is not recovered yet */
                         MBTreeSetAmbientAdd(
                             *(void**)((u8*)Effects + lbl_80344894 * 240 + 0x14),
                             0x1FF, 1);
-                        /* lint-end FM001, FM007 */
                         SfxSetParent(lbl_80344894,
                                      p->node);
                     }
@@ -2287,10 +2154,8 @@ store_motion_state:
                 s32 combo = StartComboFX(p->col_pos,
                                          PF(p, 4, s32), PF(p, 4, s32));
                 if (combo >= 0) {
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF((u8*)Effects + combo * 240, 0x44, f32) =
                         lbl_80347C60;
-                    /* lint-end FM007 */
                 }
                 p->quest_state = 3;
                 p->timer_1FA = 60;
@@ -2336,30 +2201,20 @@ store_motion_state:
         /* Target +0x2870: completed-boss effects and damage table. */
         if (p->quest_state >= 4) {
             if (p->floor_cur > p->floor_base) {
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
-                /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + p->floor_cur);
-                /* lint-end FM007 */
                 MBTreeSetAltTex(p->mbnode, -2,
                                 lbl_80344BE8, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
             } else {
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
-                /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + p->floor_base);
-                /* lint-end FM007 */
                 MBTreeSetAltTex(p->mbnode, -1, 0, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
             }
@@ -2400,9 +2255,7 @@ store_motion_state:
 
                 switch (gBossType) {
                 case 35: {
-                    /* lint-allow-next-line FM007: unrecovered: boss-chain node offset that hits no member of the recovered Critter/MBObject records (the members that do hit were converted) */
                     u8* chain1 = PF(gBossObj, 0xAD8, u8*);
-                    /* lint-allow-next-line FM007: unrecovered: boss-chain node offset that hits no member of the recovered Critter/MBObject records (the members that do hit were converted) */
                     u8* chain2 = PF(chain1, 0xAD8, u8*);
                     hitNode = ((Critter *)chain2)->hitnode0;
                     while (((MBObject *)hitNode)->child != NULL) {
@@ -2414,23 +2267,18 @@ store_motion_state:
                     bossDamage = lbl_80347C40;
                     damageScale =
                         (f32)(lbl_80347B88 * ((Critter *)chain2)->health);
-                    /* lint-begin FM009: unrecovered: the debug string table has no record type in this tree */
                     particleTexture =
                         MBOX_FindTexture(strings + 56, NULL);
-                    /* lint-end FM009 */
                     break;
                 }
                 case 38:
                     hitNode = ((Critter *)gBossObj)->hitnode1;
-                    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                     effectFlags = 0x20000;
                     bossDamage = lbl_80347C40;
                     damageScale =
                         (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
-                    /* lint-begin FM009: unrecovered: the debug string table has no record type in this tree */
                     particleTexture =
                         MBOX_FindTexture(strings + 72, NULL);
-                    /* lint-end FM009 */
                     break;
                 case 34:
                     hitNode = ((Critter *)gBossObj)->anim;
@@ -2440,17 +2288,13 @@ store_motion_state:
                     bossDamage = lbl_80347C40;
                     damageScale =
                         (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
-                    /* lint-begin FM009: unrecovered: the debug string table has no record type in this tree */
                     particleTexture =
                         MBOX_FindTexture(strings + 72, NULL);
-                    /* lint-end FM009 */
                     break;
                 case 36:
                     weight = 5.0f;
-                    /* lint-allow-next-line FM007: unrecovered: boss-chain node offset that hits no member of the recovered Critter/MBObject records (the members that do hit were converted) */
                     hit[0] = PF(gBossObj, 0x4C, f32);
                     effectRadius = weight;
-                    /* lint-allow-next-line FM007: unrecovered: boss-chain node offset that hits no member of the recovered Critter/MBObject records (the members that do hit were converted) */
                     hit[1] = PF(gBossObj, 0x50, f32);
                     bossDamage = lbl_80347C40;
                     damageScale =
@@ -2460,10 +2304,8 @@ store_motion_state:
                     hit[0] = ((Critter *)gBossObj)->prevMovePathPos[0];
                     hit[1] = ((Critter *)gBossObj)->prevMovePathPos[1];
                     hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
-                    /* lint-begin FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     effect = StartFXSub(93, hit, 0, 0x1000000,
                                         0.0f);
-                    /* lint-end FM007 */
                     if (effect >= 0) {
                         SfxSetMorph(5.0f, effect, 90, 0);
                     }
@@ -2479,17 +2321,13 @@ store_motion_state:
                     hit[2] = (f32)(hit[2] + lbl_80347C70);
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
                     hit[0] = (f32)(hit[0] - lbl_80347C80);
-                    /* lint-begin FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     effect = StartFXSub(90, hit, 0, 0x80000,
                                         0.0f);
-                    /* lint-end FM007 */
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 91, 0);
-                        /* lint-begin FM001, FM007: numeric constant whose meaning is not recovered yet */
                         MBTreeSetAmbientAdd(
                             *(void**)((u8*)Effects + effect * 240 + 0x14),
                             0x1FF, 1);
-                        /* lint-end FM001, FM007 */
                         lbl_80344890 = effect;
                     }
                     damageScale =
@@ -2510,10 +2348,8 @@ store_motion_state:
                     hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
                     hit[2] = (f32)(hit[2] + lbl_80347BC0);
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
-                    /* lint-begin FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     effect = StartFXSub(93, hit, 0, 0x880,
                                         0.0f);
-                    /* lint-end FM007 */
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 90, 0);
                         lbl_80344890 = effect;
@@ -2530,10 +2366,8 @@ store_motion_state:
                     hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
                     hit[2] = (f32)(hit[2] + lbl_80347B28);
                     hit[1] = (f32)(hit[1] + lbl_80347C98);
-                    /* lint-begin FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     effect = StartFXSub(93, hit, 0, 0x880,
                                         0.0f);
-                    /* lint-end FM007 */
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 90, 0);
                         lbl_80344890 = effect;
@@ -2548,29 +2382,20 @@ store_motion_state:
                     hit[0] = 0.0f;
                     hit[1] = 0.0f;
                     hit[2] = 5.0f;
-                    /* lint-begin FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     effect = StartFXSub(93, hit, 0, 0x8000880,
                                         0.0f);
-                    /* lint-end FM007 */
                     if (effect >= 0) {
                         SfxSetParent(effect, p->node);
                         SfxSetMorph(lbl_80347BF8, effect, 90, 0);
                     }
-                    /* lint-allow-next-line FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                     MBTreeSetColor(((Critter *)gBossObj)->mbnode, 0xFF40FF40, 1);
                     MBTreeSetFlags(((Critter *)gBossObj)->mbnode, 8, 1);
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(((Critter *)gBossObj)->mbnode, 0x40, f32) =
                         0.800000011920929f;
-                    /* lint-end FM007 */
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(((Critter *)gBossObj)->mbnode, 0x44, f32) =
                         0.800000011920929f;
-                    /* lint-end FM007 */
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(((Critter *)gBossObj)->mbnode, 0x48, f32) =
                         0.800000011920929f;
-                    /* lint-end FM007 */
                     damageScale =
                         (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
@@ -2613,16 +2438,13 @@ store_motion_state:
 
                 if (effect >= 0) {
                     u8* fxRecord = (u8*)Effects + effect * 240;
-                    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                     MBTreeSetAmbientAdd(
                         *(void**)(fxRecord += 0x14), 0x1FF, 1);
-                    /* lint-end FM007 */
                     if (particleTexture >= 0) {
                         void* psys = MBNewPsysDefault(
                             (f32*)gIdentityMatrix,
                             *(void**)fxRecord, 0, 1);
                         if (psys != NULL) {
-                            /* lint-allow-next-line FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                             MBTreeSetFlags(psys, 0x880, 1);
                             MBPsysSetEVolume(1.0f, 1.0f, psys);
                             MBPsysSetPParm(1.0f, 1.0f, 1.0f, 0.0f,
@@ -2645,12 +2467,9 @@ store_motion_state:
             }
 
             p->move_yaw = heading;
-            /* lint-allow-next-line FM007: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
             PF(p, 0xC8, f32) = heading;
-            /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree | measured: the target shares one p+0xC4 base between the store and the CreateYPRMatrix argument; any member form is +45 insns (player.h) */
             CreateYPRMatrix((f32*)((u8*)p + 0x14),
                             (f32*)((u8*)p + 0xC4));
-            /* lint-end FM007 */
             p->hud_flags |= 1;
             goto player_motion_phase_exit;
         }
@@ -2658,30 +2477,20 @@ store_motion_state:
         /* Target +0x31D4: normal floor marker and powerup phases. */
         if ((p->hud_flags & 0x20) != 0) {
             if (p->floor_cur > p->floor_base) {
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
-                /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + p->floor_cur);
-                /* lint-end FM007 */
                 MBTreeSetAltTex(p->mbnode, -2,
                                 lbl_80344BE8, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
             } else {
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
-                /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                 PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
-                /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 PF(p->mbnode, 0x34, f32) =
                     (f32)(lbl_80347BE0 + p->floor_base);
-                /* lint-end FM007 */
                 MBTreeSetAltTex(p->mbnode, -1, 0, 1);
                 MBTreeClearFlags(p->mbnode, 2, 0);
             }
@@ -2701,13 +2510,11 @@ store_motion_state:
         to[2] = oldpos[2] + dpos[2];
 
         if ((p->act_bits & 0x02000000) != 0) {
-            /* lint-allow-next-line FM007: scene-graph or damage API bit; no enum for it exists in this tree */
             s32 effect = StartFXSub(28, NULL, 42, 0x880, 0.0f);
             SfxSetParent(effect, p->node);
             SfxSetDamage(lbl_80347C50, lbl_80347CB0,
                          lbl_80347CA0, effect, 32, index + 1);
             SV(p)->act_bits = p->act_bits & ~0x02000000;
-            /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
             player_get_powerup_state(1.0f, p, 5, 0x10000000);
             ShakeCamera(0, 0, 30, lbl_80347CB4, 200);
             fn_8009D4B0(p->index);
@@ -2716,7 +2523,6 @@ store_motion_state:
         if ((p->act_bits & 0x01000000) != 0) {
             s32 effect = -1;
             if ((p->flags & 0x3000) != 0) {
-                /* lint-allow-next-line FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                 effect = StartFXSub(56, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C54, lbl_80347C40, 0.0f,
                              effect, 33, index + 1);
@@ -2726,19 +2532,16 @@ store_motion_state:
                     fn_8009F450(index);
                 }
             } else if ((p->flags & 0x410) != 0) {
-                /* lint-allow-next-line FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                 effect = StartFXSub(52, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
                              effect, 33, index + 1);
                 AudioTurboDefense(index);
             } else if ((p->flags & 0x20) != 0) {
-                /* lint-allow-next-line FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                 effect = StartFXSub(53, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
                              effect, 36, index + 1);
                 AudioTurboDefense(index);
             } else if ((p->flags & 0x40) != 0) {
-                /* lint-allow-next-line FM007: scene-graph or damage API bit; no enum for it exists in this tree */
                 effect = StartFXSub(54, NULL, 42, 0x800, 0.0f);
                 SfxSetDamage(lbl_80347C58, lbl_80347C40, 0.0f,
                              effect, 34, index + 1);
@@ -2748,11 +2551,9 @@ store_motion_state:
             if (effect >= 0) {
                 if ((p->flags & 0x400) != 0 &&
                     p->atree != NULL) {
-                    /* lint-begin FM009: unrecovered: the debug string table has no record type in this tree */
                     s32 object = MBOX_ReallyFindObject(
                         strings + 84, sPowerupsHandle,
                         sPowerupsHandle, 1);
-                    /* lint-end FM009 */
                     s32* found;
                     if ((found = AtreeFindMbidxNode(p->atree,
                                                     object)) != NULL) {
@@ -2764,11 +2565,8 @@ store_motion_state:
                 } else {
                     SfxSetParent(effect, p->weapon_node);
                 }
-                /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 PF((u8*)Effects + effect * 240, 0x9C, f32) =
                     lbl_80347CB8;
-                /* lint-end FM007 */
-                /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                 player_get_powerup_state(1.0f, p, 9, 0x70);
             }
             SV(p)->act_bits = p->act_bits & ~0x01000000;
@@ -2780,7 +2578,6 @@ store_motion_state:
 
         /* Target +0x3600: weapon-node vector and one-shot projectile. */
         if ((p->act_bits & 0x10000000) != 0) {
-            /* lint-begin FM007: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words | float-math tuning constant; no enum or define exists for it in this tree | unrecovered: offset into a module global whose record has no type in this tree */
             if ((p->flags & 0x80) != 0 ||
                 PF(p, 0x748, void*) != NULL) {
                 f32 projectileHeight;
@@ -2836,7 +2633,6 @@ store_motion_state:
                                 shotSpeed, projectileHeight);
                 }
             }
-            /* lint-end FM007 */
             SV(p)->act_bits = p->act_bits & ~0x10000000;
         }
 
@@ -2863,7 +2659,6 @@ store_motion_state:
 
                 targetDistance = PlayerGetTarget(
                     p, to, targetDir, attackDir, &item, &target);
-                /* lint-begin FM007: unrecovered: the referenced world-object record has no recovered layout here */
                 if (item >= 0x10000) {
                     critterIndex = item & 0xFFFF;
                     enemy = NULL;
@@ -2874,7 +2669,6 @@ store_motion_state:
                     critterIndex = -1;
                     enemy = NULL;
                 }
-                /* lint-end FM007 */
 
                 if ((p->act_bits & 0xF0) != 0) {
                     damage = (f32)(damage * lbl_80347B28);
@@ -2884,11 +2678,9 @@ store_motion_state:
                 } else if ((p->act_bits & 4) != 0) {
                     damageFlags |= 0x10;
                     damage = (f32)(damage * lbl_80347C28);
-                /* lint-begin FM007: unrecovered: Enemy offset that hits no named member of game/enemy.h */
                 } else if ((p->act_bits & 8) != 0 &&
                            enemy != NULL &&
                            (f64)PF(enemy, 0x23C, f32) <= lbl_80347C28) {
-                /* lint-end FM007 */
                     damageFlags |= 0x20;
                 }
 
@@ -2910,25 +2702,18 @@ store_motion_state:
                         if (critterIndex >= 0) {
                             u8* critter =
                                 (u8*)gCritterPool + critterIndex * 2784;
-                            /* lint-allow-next-line FM007: unrecovered: the file-local collide layout view covers only the fields it names */
                             hit[0] = PF(critter, 0x5C, f32);
-                            /* lint-allow-next-line FM007: unrecovered: the file-local collide layout view covers only the fields it names */
                             hit[1] = PF(critter, 0x60, f32);
-                            /* lint-allow-next-line FM007: unrecovered: the file-local collide layout view covers only the fields it names */
                             hit[2] = PF(critter, 0x64, f32);
                         } else {
-                            /* lint-allow-next-line FM007: unrecovered: Enemy offset that hits no named member of game/enemy.h */
                             hit[0] = PF(enemy, 0x54, f32);
-                            /* lint-allow-next-line FM007: unrecovered: Enemy offset that hits no named member of game/enemy.h */
                             hit[1] = PF(enemy, 0x58, f32);
-                            /* lint-allow-next-line FM007: unrecovered: Enemy offset that hits no named member of game/enemy.h */
                             hit[2] = PF(enemy, 0x5C, f32);
                         }
                         if (FastWallCollide(oldpos, hit, NULL, 0) == 0) {
                             s32 damaged = PlayerMotion_DamageTarget(
                                 p, item, damageFlags, (s32)to, 1,
                                 damage, 0.0f);
-                            /* lint-begin FM007: unrecovered: Enemy offset that hits no named member of game/enemy.h */
                             if (enemy == NULL ||
                                 (f64)PF(enemy, 0x23C, f32) >
                                     lbl_80347C28) {
@@ -2936,7 +2721,6 @@ store_motion_state:
                                     damaged != 0 ? 3 : 1;
                                 p->fall_time = sMusicFadeBase;
                             }
-                            /* lint-end FM007 */
                         }
                     } else if (target != NULL) {
                         PlayerMotion_HitTarget(p, target, damageFlags,
@@ -2976,7 +2760,6 @@ store_motion_state:
                 missileMode = 2;
             } else if ((p->act_bits & 0x800) != 0) {
                 missileDamage = 0.0f;
-                /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                 if (player_get_powerup_state(1.0f, p, 5,
                                              0x00100000) != 0) {
                     missileScale = gBossType >= 0
@@ -2986,7 +2769,6 @@ store_motion_state:
                 } else {
                     missileScale = 1.0f;
                 }
-                /* lint-end FM007 */
                 missileMode = 0;
             } else {
                 missileDamage =
@@ -3024,16 +2806,12 @@ store_motion_state:
             s32 effect;
             if ((effect = StartMagicPlayerFX(lbl_80127D00)) >= 0) {
                 if (p->mbnode2 != NULL) {
-                    /* lint-begin FM001, FM007: numeric constant whose meaning is not recovered yet */
                     MBNodeSetParent(
                         *(void**)((u8*)Effects + effect * 240 + 0x14),
                         p->mbnode2);
-                    /* lint-end FM001, FM007 */
                 }
-                /* lint-begin FM001, FM007: scene-graph or damage API bit; no enum for it exists in this tree | numeric constant whose meaning is not recovered yet */
                 MBTreeSetFlags(*(void**)((u8*)Effects + effect * 240 + 0x14),
                                0x04000000, 0);
-                /* lint-end FM001, FM007 */
             }
             SV(p)->act_bits = p->act_bits & ~0x10000U;
         }
@@ -3053,17 +2831,13 @@ store_motion_state:
 
                 if (p->item_body_hi > 0) {
                     p->item_body_hi--;
-                    /* lint-begin FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) | measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
                     start_magic(index, (f32*)(motion + 0x30),
                                 PF(p, 0x3300 +
                                       p->item_body_hi * 4, u32),
                                 magicMode, 1.0f);
-                    /* lint-end FM007, FM009 */
                 } else {
-                    /* lint-begin FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                     start_magic(index, (f32*)(motion + 0x30),
                                 0, magicMode, 1.0f);
-                    /* lint-end FM007, FM009 */
                 }
                 p->field_956 = 128;
             }
@@ -3078,17 +2852,11 @@ player_motion_phase_exit:
             f32 comboTime;
             s32 grabKind;
 
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             p->prev_pos[0] = *(f32*)(motion + 0x30);
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             p->prev_pos[1] = *(f32*)(motion + 0x34);
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             p->prev_pos[2] = *(f32*)(motion + 0x38);
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             *(f32*)(motion + 0x30) += dpos[0];
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             *(f32*)(motion + 0x34) += dpos[1];
-            /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
             *(f32*)(motion + 0x38) += dpos[2];
 
             if ((f64)(dpos[0] * dpos[0] + dpos[1] * dpos[1] +
@@ -3099,7 +2867,6 @@ player_motion_phase_exit:
             if (hitKind != 0 && p->timer_1FC <= 0) {
                 if (hitKind == 2) {
                     NormalVector2D(reflection);
-                    /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     ReflectVector2D((f32*)((u8*)p + 0x34), reflection, hit);
                     newYaw = atan2(hit[0], hit[2]);
                 } else {
@@ -3127,46 +2894,32 @@ player_motion_phase_exit:
             }
 
             {
-                /* lint-allow-next-line FM007: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
                 f32 yawDiff = PF(p, 0xC8, f32) - newYaw;
                 yawDiff = fabsf_param(yawDiff);
                 if ((f64)yawDiff > lbl_80347CE0) {
                     p->hud_flags |= 1;
                 }
             }
-            /* lint-allow-next-line FM007: measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words */
             PF(p, 0xC8, f32) = newYaw;
-            /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree | measured: the target shares one p+0xC4 base between the store and the CreateYPRMatrix argument; any member form is +45 insns (player.h) */
             CreateYPRMatrix((f32*)((u8*)p + 0x14),
                             (f32*)((u8*)p + 0xC4));
-            /* lint-end FM007 */
 
             {
                 if (p->floor_cur > p->floor_base) {
-                    /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                     PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
-                    /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                     PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
-                    /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                     PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(p->mbnode, 0x34, f32) =
                         (f32)(lbl_80347BE0 + p->floor_cur);
-                    /* lint-end FM007 */
                     MBTreeSetAltTex(p->mbnode, -2,
                                     lbl_80344BE8, 1);
                     MBTreeClearFlags(p->mbnode, 2, 0);
                 } else {
-                    /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                     PF(p->mbnode, 0x30, f32) = *(f32*)(motion + 0x30);
-                    /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                     PF(p->mbnode, 0x34, f32) = *(f32*)(motion + 0x34);
-                    /* lint-allow-next-line FM001, FM007, FM009: measured: naming the p+0x14 motion cursor's fields holds PlayerMotion at 19068 B but moves 271 words (6 for the mat[8..10] subset alone) */
                     PF(p->mbnode, 0x38, f32) = *(f32*)(motion + 0x38);
-                    /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                     PF(p->mbnode, 0x34, f32) =
                         (f32)(lbl_80347BE0 + p->floor_base);
-                    /* lint-end FM007 */
                     MBTreeSetAltTex(p->mbnode, -1, 0, 1);
                     MBTreeClearFlags(p->mbnode, 2, 0);
                 }
@@ -3174,16 +2927,12 @@ player_motion_phase_exit:
 
             if ((p->flags & 1) != 0) {
                 u8* root = (u8*)p->platform;
-                /* lint-begin FM007: unrecovered: boss-chain node offset that hits no member of the recovered Critter/MBObject records (the members that do hit were converted) */
                 PF(PF(root, 0, void*), 0x34, f32) =
                     (f32)(lbl_80347B88 + PF(PF(root, 0x1C, u8*), 0x64, f32));
-                /* lint-end FM007 */
             } else {
                 u8* root = (u8*)p->platform;
-                /* lint-begin FM007: unrecovered: boss-chain node offset that hits no member of the recovered Critter/MBObject records (the members that do hit were converted) */
                 PF(PF(root, 0, void*), 0x34, f32) =
                     PF(PF(root, 0x1C, u8*), 0x64, f32);
-                /* lint-end FM007 */
             }
 
             if ((p->grab_flags & 3) != 0) {
@@ -3218,7 +2967,6 @@ player_motion_phase_exit:
             case 89:
                 if (p->grab_pending != NULL) {
                     p->grab_partner = p->grab_pending;
-                    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                     PF(p->grab_partner, 0x964, s16) |= 0x10;
                     p->grab_partner->grab_partner = p;
                     p->grab_pending = NULL;
@@ -3239,14 +2987,12 @@ player_motion_phase_exit:
                 switch (p->anim_208) {
                 case 88:
                 case 89:
-                    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                     if (p->grab_partner != NULL &&
                         (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
                         PlayerSetGrabbed(p->grab_partner,
                                          p->grab_node, NULL);
                         goto player_motion_grab_done;
                     }
-                    /* lint-end FM007 */
                     if (grabKind != 7) {
                         goto player_motion_grab_done;
                     }
@@ -3254,7 +3000,6 @@ player_motion_phase_exit:
                 default:
                     break;
                 }
-                /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                 if (p->grab_partner != NULL &&
                     (PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
                     if ((PF(p->grab_partner, 0x964, s16) & 0x20) != 0) {
@@ -3264,7 +3009,6 @@ player_motion_phase_exit:
                     PF(p->grab_partner, 0x6B8, Player*) = NULL;
                     p->grab_partner = NULL;
                 }
-                /* lint-end FM007 */
                 break;
 
             case 1:
@@ -3277,26 +3021,18 @@ player_motion_phase_exit:
                         f32 grabDir[3];
                         f32 partnerYaw;
                         f32 partnerFacing;
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         grabDir[0] = p->pos[0] - PF(partner, 0x44, f32);
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         grabDir[1] = p->pos[1] - PF(partner, 0x48, f32);
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         grabDir[2] = p->pos[2] - PF(partner, 0x4C, f32);
                         SlowNormalVector(grabDir);
                         partnerYaw = PlayerMotion_WrapAngle(
                             atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
-                        /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         partnerFacing =
                             atan2(PF(partner, 0x34, f32),
                                   PF(partner, 0x3C, f32));
-                        /* lint-end FM007 */
-                        /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         YawMat3((f32*)((u8*)partner + 0x14),
                                 PlayerMotion_WrapAngle(partnerYaw -
                                                        partnerFacing));
-                        /* lint-end FM007 */
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         PF(partner, 0x894, f32) = partnerYaw;
                         PlayerSetGrabbed(p, p->grab_partner->grab_node,
                                          NULL);
@@ -3304,7 +3040,6 @@ player_motion_phase_exit:
                     break;
                 }
                 default:
-                    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                     if (p->grab_partner != NULL &&
                         (PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
                         if ((p->hud_flags & 0x20) != 0) {
@@ -3314,7 +3049,6 @@ player_motion_phase_exit:
                         PF(p->grab_partner, 0x6B8, Player*) = NULL;
                         p->grab_partner = NULL;
                     }
-                    /* lint-end FM007 */
                     break;
                 }
                 break;
@@ -3323,21 +3057,18 @@ player_motion_phase_exit:
                 switch (p->anim_208) {
                 case 88:
                     if (comboTime < lbl_80347C88) {
-                        /* lint-begin FM007: numeric constant whose meaning is not recovered yet | float-math tuning constant; no enum or define exists for it in this tree */
                         if (p->grab_partner != NULL &&
                             (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
                             PlayerSetGrabbed(p->grab_partner,
                                              p->grab_node, NULL);
                             PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
                         }
-                        /* lint-end FM007 */
                         break;
                     }
                     /* fall through */
                 case 89:
                 default:
                     if (p->grab_partner != NULL) {
-                        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                         if ((PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
                             if ((PF(p->grab_partner, 0x964, s16) & 0x20) != 0) {
                                 PlayerUnsetGrabbed(p->grab_partner, 0);
@@ -3346,8 +3077,6 @@ player_motion_phase_exit:
                             PF(p->grab_partner, 0x964, s16) |= 0x40;
                             p->timer_1FA = 240;
                         }
-                        /* lint-end FM007 */
-                        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                         if ((PF(p->grab_partner, 0x964, s16) & 0x40) != 0 &&
                             p->timer_1FA <= 0) {
                             PF(p->grab_partner, 0x964, s16) &= ~0x40;
@@ -3355,7 +3084,6 @@ player_motion_phase_exit:
                             p->grab_partner = NULL;
                             p->hud_flags &= ~0x80;
                         }
-                        /* lint-end FM007 */
                     }
                     break;
                 }
@@ -3369,31 +3097,22 @@ player_motion_phase_exit:
                         f32 grabDir[3];
                         f32 partnerYaw;
                         f32 partnerFacing;
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         grabDir[0] = p->pos[0] - PF(partner, 0x44, f32);
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         grabDir[1] = p->pos[1] - PF(partner, 0x48, f32);
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         grabDir[2] = p->pos[2] - PF(partner, 0x4C, f32);
                         SlowNormalVector(grabDir);
                         partnerYaw = PlayerMotion_WrapAngle(
                             atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
-                        /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         partnerFacing =
                             atan2(PF(partner, 0x34, f32),
                                   PF(partner, 0x3C, f32));
-                        /* lint-end FM007 */
-                        /* lint-begin FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         YawMat3((f32*)((u8*)partner + 0x14),
                                 PlayerMotion_WrapAngle(partnerYaw -
                                                        partnerFacing));
-                        /* lint-end FM007 */
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         PF(partner, 0x894, f32) = partnerYaw;
                         PlayerSetGrabbed(p, p->grab_partner->grab_node,
                                          NULL);
                         p->hud_flags |= 0x80;
-                        /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                         PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
                     }
                     p->timer_1FA = 240;
@@ -3401,20 +3120,16 @@ player_motion_phase_exit:
                 }
                 default:
                     if (p->grab_partner != NULL) {
-                        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                         if ((PF(p->grab_partner, 0x964, s16) & 0x10) != 0) {
                             PF(p->grab_partner, 0x964, s16) &= ~0x10;
                             PF(p->grab_partner, 0x964, s16) |= 0x40;
                         } else if ((PF(p->grab_partner, 0x964, s16) & 0x40) != 0 &&
-                        /* lint-end FM007 */
                                    p->timer_1FA <= 0) {
                             if ((p->hud_flags & 0x20) != 0) {
                                 PlayerUnsetGrabbed(p, 0);
                             }
-                            /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                             PF(p->grab_partner, 0x964, s16) &= ~0x40;
                             p->hud_flags &= ~0x80;
-                            /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                             PF(p->grab_partner, 0x6B8, Player*) = NULL;
                             p->grab_partner = NULL;
                         }
@@ -3435,46 +3150,35 @@ player_motion_grab_done:
 
                 switch (p->anim_208) {
                 case 60:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 18);
                     break;
                 case 35:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 12);
                     break;
                 case 37:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 16);
                     break;
                 case 99:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 20);
                     break;
                 case 84:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 14);
                     break;
                 case 86:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 22);
                     break;
                 case 87:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 24);
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx2 = *(s16*)(lbl_80282930[index] + 26);
                     break;
                 case 88:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 28);
                     comboMode = 1;
                     break;
                 case 90:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 30);
                     break;
                 case 123:
-                    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
                     sfx1 = *(s16*)(lbl_80282930[index] + 34);
                     break;
                 }
@@ -3498,7 +3202,6 @@ player_motion_grab_done:
                         (f32)(lbl_80347BD0 + (f32)(comboMode - 2));
                     s32 effect = StartComboFX(p->col_pos, -1,
                                               PF(p, 4, s32));
-                    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
                     PF((u8*)Effects + effect * 240, 0x64, u32) = 552;
                     SfxSetDamage(p->stat_damage * scale,
                                  (f32)(lbl_80347C28 * scale), 0.0f,
@@ -3620,7 +3323,6 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
 
 static inline void PlayerMotion_FloorFXDamage(Player* p, u32 flags, f32* dv)
 {
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     switch (((flags >> 16) & 0xF) << 16) {
     case 0x10000:
     case 0x60000:
@@ -3640,7 +3342,6 @@ static inline void PlayerMotion_FloorFXDamage(Player* p, u32 flags, f32* dv)
         AudioWorldHitPlyr((u8*)p + 0x64);
         break;
     }
-    /* lint-end FM007 */
 }
 
 void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
@@ -3672,7 +3373,6 @@ void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
  * flag bits to a reaction code + velocity impulse, retarget the facing angle
  * for the strong reactions, spawn the skin FX, then clear the queue.  Returns
  * the reaction code the motion driver acts on. */
-/* lint-begin FM006, FM007: measured -- this directive's removal moved the object in the exhaustive pragma drive | unrecovered: offset into a module global whose record has no type in this tree */
 #pragma opt_propagation off
 #pragma opt_common_subs off
 u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
@@ -3809,8 +3509,6 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
     p->obj_flags = 0;
     return result;
 }
-/* lint-end FM006, FM007 */
-/* lint-begin FM003, FM006: measured -- this directive's removal moved the object in the exhaustive pragma drive | measured -- deleting it moves PlayerMotion_FindClosestPlayer by 7 words at unchanged size; original local unrecovered */
 #pragma opt_common_subs reset
 #pragma opt_propagation reset
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
@@ -3848,7 +3546,6 @@ void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
         damage_player(closest, dmg, 2, flags, dvec);
     }
 }
-/* lint-end FM003, FM006 */
 /* 0x80086924 - resolve a melee hit against `target`: run the hit test, and on
  * a connect apply damage and raise the hit-something flag (type 3 = solid,
  * type 10 = openable, which also posts a "hit chest" message). */
@@ -3862,11 +3559,8 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
     if (target == NULL) {
         return;
     }
-    /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
     hitpos[0] = PF(target, 0x44, f32);
-    /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
     hitpos[1] = PF(target, 0x48, f32);
-    /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
     hitpos[2] = PF(target, 0x4C, f32);
     hitpos[1] = (f32)(hitpos[1] + lbl_80347B28);
 
@@ -3880,18 +3574,15 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
             if (type == 3) {
                 lbl_803447E4 = 1;
             } else if (type == 10) {
-                /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
                 if ((s8)(*(u8**)target)[0x28] == 0) {
                     msgPost(20, p->index, (u32)hitpos);
                 }
-                /* lint-end FM007 */
                 lbl_803447E4 = 1;
             }
         }
     }
 }
 typedef struct EnemyDamageView {
-    /* lint-allow-next-line FM007: recovered record extent, stated in hex to match the offset column */
     u8 _000[0x2B8];
     f32 hitCooldown[4];
 } EnemyDamageView;
@@ -3903,14 +3594,12 @@ typedef struct EnemyDamageView {
  * hit result code, or -1. */
 s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
                               f32 dmg, f32 priority) {
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerMotion_DamageTarget by 7 words at unchanged size; original local unrecovered */
     u8 unused[8];
     f32 dir[3];
     u8* critter;
     EnemyDamageView* enemy;
     s32 result = -1;
 
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     if (targetId >= 0x10000) {
         critter = (u8*)gCritterPool + (targetId & 0xFFFF) * 2784;
         enemy = NULL;
@@ -3920,7 +3609,6 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
     } else {
         return -1;
     }
-    /* lint-end FM007 */
 
     if (priority > lbl_80347B08) {
         if (enemy != NULL) {
@@ -3976,7 +3664,6 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
  * If nothing survived, fall back to the lunge-direction vector.  Returns the
  * winning distance (limit when no target).  The `flag` local is 0 on every
  * retail path; the boss-id block under it is dead but shipped. */
-/* lint-begin FM001, FM003, FM006, FM007, FM009: measured -- this directive's removal moved the object in the exhaustive pragma drive | measured -- deleting it moves PlayerGetTarget by 20 words at unchanged size; original local unrecovered | measured -- deleting it moves PlayerGetTarget by 57 words at unchanged size; original local unrecovered | numeric constant whose meaning is not recovered yet | unrecovered: the file-local collide layout view covers only the fields it names | unrecovered: Enemy offset that hits no named member of game/enemy.h | unrecovered: the referenced world-object record has no recovered layout here | measured: mapping these PF offsets onto their named Player members is 19068 -> 19064 B, 3186 words in the shared PlayerMotion body | FatalError status code, passed through verbatim | unrecovered: the referenced player/object record offset has no named member here */
 #pragma opt_lifetimes off
 #pragma opt_common_subs off
 f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
@@ -4162,8 +3849,6 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     }
     return best;
 }
-/* lint-end FM001, FM003, FM006, FM007, FM009 */
-/* lint-begin FM006, FM007: measured -- this directive's removal moved the object in the exhaustive pragma drive | recovered record extent, stated in hex to match the offset column */
 #pragma opt_common_subs reset
 #pragma opt_lifetimes reset
 /* NOTE: correct body; not yet byte-exact (far-field PF address-CSE parks an
@@ -4173,13 +3858,11 @@ typedef struct {
     s32 counter; /* 0x93C */
     s32 timer;   /* 0x940 */
 } TransView;
-/* lint-end FM006, FM007 */
 
 s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
     TransView* tv = (TransView*)p;
     s32 timer = tv->timer;
     f32 local[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves DoTransporter by 22 words at unchanged size; original local unrecovered */
     f32 _pad[2];
 
     if (timer > 0) {
@@ -4211,11 +3894,8 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
         u8* tp = (u8*)fn_8005B8B0(p);
         if (tp != NULL) {
             if (tv->counter <= 0) {
-                /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 local[0] = PF(tp, 0x34, f32);
-                /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 local[1] = PF(tp, 0x38, f32);
-                /* lint-allow-next-line FM007: float-math tuning constant; no enum or define exists for it in this tree */
                 local[2] = PF(tp, 0x3C, f32);
                 p->transport_pos[0] = local[0];
                 p->transport_pos[1] = local[1];
@@ -4307,21 +3987,16 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
             s32 skip = 0;
             switch (**(s32**)item) {
             case 1:
-                /* lint-begin FM007: unrecovered: the referenced world-object record has no recovered layout here */
                 if (PF(item, 0xE8, u32) != 0) {
                     skip = 1;
                 }
-                /* lint-end FM007 */
                 break;
             case 8: {
-                /* lint-allow-next-line FM001: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 s8 sub = *(s8*)(item + offsetof(PCollideItemLayout, action));
-                /* lint-begin FM001: unrecovered: the referenced world-object record has no recovered layout here */
                 if ((sub != 2 && sub != 4) ||
                     (*(s16*)(item + offsetof(PCollideItemLayout, active)) & 1) == 0) {
                     skip = 1;
                 }
-                /* lint-end FM001 */
                 break;
             }
             }
@@ -4378,10 +4053,8 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
  * push `out` back out of it.  Returns the collided player index or -1. */
 s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
                          f32* out, s32 stopFirst) {
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerCollidePlayers by 7 words at unchanged size; original local unrecovered */
     u8 unusedA[12];
     f32 hit[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerCollidePlayers by 10 words at unchanged size; original local unrecovered */
     u8 unusedB[52];
     s32 i;
     s32 closest = -1;
@@ -4447,7 +4120,6 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
 s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
                        f32* hit) {
     f32 localHit[12];
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerCollideItems by 26 words at unchanged size; original local unrecovered */
     volatile u8 unused[12];
     f32 best = lbl_80347B30;
     s32 closest = -1;
@@ -4470,31 +4142,21 @@ item_body:
         f32 dz;
         f32 distance;
 
-        /* lint-allow-next-line FM007: unrecovered: the referenced world-object record has no recovered layout here */
         item = object + index * 0x394;
-        /* lint-allow-next-line FM001: unrecovered: the referenced world-object record has no recovered layout here */
         state = *(s32*)(item + offsetof(PCollideEnemyLayout, state));
         if (state != 1 && state != 6 &&
             (state != 8 || lbl_803447DC == 0)) {
             goto item_test;
         }
-        /* lint-begin FM001, FM007: unrecovered: the referenced world-object record has no recovered layout here */
         if (*(s32*)(item + offsetof(PCollideEnemyLayout, type)) == 0x1F) {
             goto item_test;
         }
-        /* lint-end FM001, FM007 */
 
-        /* lint-allow-next-line FM001: unrecovered: the referenced world-object record has no recovered layout here */
         collisionRange = range + *(f32*)(item + offsetof(PCollideEnemyLayout, rad));
-        /* lint-allow-next-line FM001: unrecovered: the referenced world-object record has no recovered layout here */
         collisionHeight = height + *(f32*)(item + offsetof(PCollideEnemyLayout, hht));
-        /* lint-allow-next-line FM001: unrecovered: the referenced world-object record has no recovered layout here */
         dx = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[0])) - to[0];
-        /* lint-allow-next-line FM001: unrecovered: the referenced world-object record has no recovered layout here */
         dy = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[1])) - to[1];
-        /* lint-allow-next-line FM001: unrecovered: the referenced world-object record has no recovered layout here */
         dz = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[2])) - to[2];
-        /* lint-begin FM001: unrecovered: the referenced world-object record has no recovered layout here */
         if (dx * dx + dz * dz < collisionRange * collisionRange &&
             fabsf_(dy) < *(f32*)(item + offsetof(PCollideEnemyLayout, hht)) &&
             LineCylinderCollide((f32*)(item + offsetof(PCollideEnemyLayout, coll_pos)), collisionRange,
@@ -4510,7 +4172,6 @@ item_body:
                 }
                 count++;
         }
-        /* lint-end FM001 */
     }
 item_test:
     if ((index = NextGridItem()) >= 0) {
@@ -4519,7 +4180,6 @@ item_test:
     }
 
     if (closest >= 0) {
-        /* lint-allow-next-line FM007: unrecovered: the referenced world-object record has no recovered layout here */
         u8* item = (u8*)gEnemies + closest * 0x394;
         if (FastWallCollide(from, (f32*)(item + offsetof(PCollideEnemyLayout, coll_pos)), 0, 0) != 0) {
             closest = -1;
@@ -4530,13 +4190,11 @@ item_test:
     {
         object = CritterMoveNodeCol(range, lbl_80347B30, from, to,
                                     localHit, -1, 2);
-        /* lint-begin FM001, FM002, FM007, FM009: unrecovered: the referenced world-object record has no recovered layout here */
         if (object != 0 &&
             *(s16*)(*(u8**)(*(u8**)(object + 4) + 0x120) + 0x20) == 4 &&
             (p->obj_flags & 0x8000) != 0) {
             object = 0;
         }
-        /* lint-end FM001, FM002, FM007, FM009 */
         if (object != 0) {
             f32 distance = fqdist(localHit[0] - to[0], localHit[2] - to[2]);
             if (closest < 0 || distance < best) {
@@ -4561,7 +4219,6 @@ item_test:
             f32 zero;
             s32 radius;
 
-            /* lint-begin FM001, FM007: numeric constant whose meaning is not recovered yet | unrecovered: the file-local collide layout view covers only the fields it names | unrecovered: the referenced world-object record has no recovered layout here */
             if (closest >= 0x10000) {
                 u8* critter = (u8*)gCritterPool + (closest & 0xFFFF) * 0xAE0;
                 zero = lbl_80347B30;
@@ -4575,7 +4232,6 @@ item_test:
                 dz = to[2] - *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[2]));
                 radius = (s32)*(f32*)(item + offsetof(PCollideEnemyLayout, rad));
             }
-            /* lint-end FM001, FM007 */
             distance = fqdist(dx, dz);
             if (distance > lbl_80347D68) {
                 f32 scale = (range + radius - distance) / distance;
@@ -4683,7 +4339,6 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
 {
     f32 end[3];
     f32 nrm[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves PlayerCollideFloor by 47 words at unchanged size; original local unrecovered */
     u8 padend[16];
     f32 ts;
     f32 ts2;
@@ -4709,11 +4364,8 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     zoff = (f32)-(lbl_80347B28 + height);
     end[1] = pos[1] + dpos[1];
     end[2] = pos[2] + dpos[2];
-    /* lint-allow-next-line FM009: unrecovered: the motion context block has no record type in this tree */
     hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 1, 1);
-    /* lint-allow-next-line FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree */
     lbl_80344B38 = *(s32*)(lbl_8023CB28 + 68);
-    /* lint-allow-next-line FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree */
     lbl_80344B34 = *(f32*)(lbl_8023CB28 + 52);
     dq = fqdist(dpos[0], dpos[2]);
     {
@@ -4743,9 +4395,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         pd->floor_base = lbl_80344880;
         return -2;
     }
-    /* lint-allow-next-line FM009: unrecovered: the motion context block has no record type in this tree */
     fhp = ctx + 76;
-    /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
     fh = *(f32*)(ctx + 76);
     ts = fh - pd->floor_base;
     *(u32*)&ts &= 0x7FFFFFFF;
@@ -4758,22 +4408,18 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         }
     }
     if ((f64)dq < lbl_80347D68 && pd->prev_state == 1) {
-        /* lint-begin FM001: unrecovered: offset into a module global whose record has no type in this tree */
         if ((f64)tsa > lbl_80347B28 || (*(u32*)(hit + 16) & 0x1000)) {
             pd->floor_base = fh;
         }
-        /* lint-end FM001 */
         if ((f64)tsa > lbl_80347D68) {
             return 1;
         }
         return 0;
     }
     lim = lbl_80347BF8;
-    /* lint-begin FM001, FM009: unrecovered: the motion context block has no record type in this tree */
     if (*(u32*)(ctx + 92) == sv->floor_obj) {
         lim = (f32)(lim + lbl_80347BD0);
     }
-    /* lint-end FM001, FM009 */
     if (tsa > lim) {
         pd->floor_base = pd->pos[1];
         zv = lbl_80347B30;
@@ -4782,15 +4428,12 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         return 0;
     }
     if (mode == 2 && hit != (u32)lbl_80344B30) {
-        /* lint-allow-next-line FM009: unrecovered: the motion context block has no record type in this tree */
         SlideAlongWall(pos, dpos, ctx, (f32*)(lbl_8023CA98 + 16), rad);
         end[0] = pos[0] + dpos[0];
         end[1] = pos[1] + dpos[1];
         end[2] = pos[2] + dpos[2];
-        /* lint-begin FM009: unrecovered: the motion context block has no record type in this tree */
         hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0,
                            1);
-        /* lint-end FM009 */
         if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
             zv = lbl_80347B30;
             dpos[0] = zv;
@@ -4807,9 +4450,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         dpos[2] = zv;
         return 0;
     }
-    /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
     dx = end[0] - *(f32*)(ctx + 72);
-    /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
     dz = end[2] - *(f32*)(ctx + 80);
     dq = dpos[1] * (end[1] - *(f32*)fhp) + dpos[0] * dx + dpos[2] * dz;
     d = fqdist(dx, dz);
@@ -4833,11 +4474,9 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             return -1;
         }
         if (hit != 0) {
-            /* lint-allow-next-line FM003: measured -- deleting it moves PlayerCollideFloor by 55 words at unchanged size; original local unrecovered */
             u8 padend2[12];
             ts2 = gFloorCollisionResult[13] - fh;
             *(u32*)&ts2 &= 0x7FFFFFFF;
-            /* lint-begin FM001, FM002: unrecovered: FloorCollide's result record has no type in this tree */
             if ((*(u32*)(*(u32*)((u8*)gFloorCollisionResult + 68) + 16) & 8)
                 && (f64)ts2 < lbl_80347BA8) {
                 d = lbl_80347B30;
@@ -4849,7 +4488,6 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
                      dpos[0] * dx + dpos[2] * dz;
                 d = fqdist(dx, dz);
             }
-            /* lint-end FM001, FM002 */
         } else {
             d = rad;
             dx = nrm[0];
@@ -4869,7 +4507,6 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     end[0] = pos[0] + dpos[0];
     end[1] = pos[1] + dpos[1];
     end[2] = pos[2] + dpos[2];
-    /* lint-allow-next-line FM009: unrecovered: the motion context block has no record type in this tree */
     hit = FloorCollide(rad, zv, zoff, end, (f32*)(ctx + 24), 0, 1);
     if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
         zv = lbl_80347B30;
@@ -4907,7 +4544,6 @@ int PlayerCheckMovingFloor_80088688(Player* p) {
  * Returns 0 (no wall), 1 (slid / exit wall on the right anim), or 2. */
 s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     f32 to[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves fn_80088714 by 15 words at unchanged size; original local unrecovered */
     u8 unused[16];
     WorldObj* wall;
     u8* ctx = lbl_80282850;
@@ -4925,57 +4561,45 @@ s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     lbl_80344B30 = PlayerWallCollide(pos, to, ctx, range);
     wall = (WorldObj*)lbl_80344B30;
     if (wall != NULL) {
-        /* lint-allow-next-line FM007: unrecovered: offset into a module global whose record has no type in this tree */
         wn = (f32*)&lbl_8023CA98[0x10];
         wnX = &wn[0];
         wnY = &wn[1];
         wnZ = &wn[2];
-        /* lint-allow-next-line FM009: unrecovered: the motion context block has no record type in this tree */
         ctxY = (f32*)(ctx + 16);
-        /* lint-allow-next-line FM009: unrecovered: the motion context block has no record type in this tree */
         ctxZ = (f32*)(ctx + 20);
-        /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
         *(f32*)(ctx + 12) = *wnX;
         result = 1;
         *ctxY = *wnY;
         *ctxZ = *wnZ;
 
         if ((wall->flags & 0x38) != 0) {
-            /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
             return p->anim_208 == 0x8F ? 1 : 2;
         } else {
             if ((wall->flags & 0x1000) != 0) {
-                /* lint-begin FM001, FM009: unrecovered: the motion context block has no record type in this tree */
                 f32 d = -(dpos[1] * *ctxY +
                           dpos[0] * *(f32*)(ctx + 12) +
                           dpos[2] * *ctxZ);
-                /* lint-end FM001, FM009 */
-                /* lint-allow-next-line FM001, FM009: unrecovered: the motion context block has no record type in this tree */
                 dpos[0] = *(f32*)(ctx + 12) * d + dpos[0];
                 dpos[1] = *ctxY * d + dpos[1];
                 dpos[2] = *ctxZ * d + dpos[2];
             } else {
-                /* lint-allow-next-line FM009: unrecovered: the motion context block has no record type in this tree */
                 SlideAlongWall(pos, dpos, ctx, (f32*)(ctx + 12), range);
             }
 
             to[0] = pos[0] + dpos[0];
             to[1] = pos[1] + dpos[1];
             to[2] = pos[2] + dpos[2];
-            /* lint-allow-next-line FM001, FM007: unrecovered: offset into a module global whose record has no type in this tree */
             (*(u8**)((u8*)&gWorldInfo + 0x5C))[lbl_80344180]++;
             wall = (WorldObj*)PlayerWallCollide(
                 pos, to, ctx, (f32)(lbl_80347D78 * range));
             if (wall != NULL) {
                 lbl_80344B30 = wall;
-                /* lint-begin FM001, FM009: unrecovered: the motion context block has no record type in this tree */
                 if (*wnY * *ctxY + *wnX * *(f32*)(ctx + 12) +
                         *wnZ * *ctxZ < lbl_80347B00) {
                     dpos[0] = 0.0f;
                     dpos[1] = 0.0f;
                     dpos[2] = 0.0f;
                 }
-                /* lint-end FM001, FM009 */
             }
         }
     }
@@ -5018,17 +4642,13 @@ s32 fn_80088938(Player* p, f32 angle) {
 
     action = 0;
     if ((p->hud_flags & 0x40) != 0) {
-        /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
         action = 0x27;
     } else if ((p->hud_flags & 0x10) != 0) {
-        /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
         action = 0x26;
     } else if ((p->hud_flags & 0x80) != 0) {
-        /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
         action = 0x17;
     } else if (((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) &&
                (ctl->pad.levels & 0x08000000) != 0) {
-        /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
         action = 0x1D;
     }
 
@@ -5037,22 +4657,17 @@ s32 fn_80088938(Player* p, f32 angle) {
     }
     if ((ctl->pad.levels & 0x10000) != 0) {
             if ((motion->actionFlags & 0x80) == 0) {
-            /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
             action = 0x19;
         }
     } else if ((ctl->pad.levels & 0x8000) != 0) {
         if ((motion->actionFlags & 0x80) == 0) {
-            /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
             action = 0x1A;
         }
     } else if ((ctl->pad.levels & 0x100) != 0) {
         if ((motion->actionFlags & 0x80) == 0) {
-            /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
             action = 0x18;
         }
-    /* lint-begin FM007: measured: naming the p+0x14 motion cursor's fields moves PlayerMotion by 271 words at unchanged size */
     } else if (motion->actionFlags == 0x80) {
-    /* lint-end FM007 */
         motion->actionFlags = 0;
     }
     if (action > 0) {
@@ -5063,7 +4678,6 @@ s32 fn_80088938(Player* p, f32 angle) {
         s32 target = fn_80088EF4(p, lbl_80347C6C, lbl_80347D08);
         if (target >= 0) {
             p->grab_pending = &gPlayerRecords[target];
-            /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
             action = 0x16;
             goto final_action;
         }
@@ -5072,7 +4686,6 @@ s32 fn_80088938(Player* p, f32 angle) {
     if ((ctl->pad.levels & 0x800) != 0 &&
         (ctl->pad.edges & 0x200) != 0 &&
         (f64)p->power_target >= lbl_80347B08) {
-        /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
         action = 0x15;
         goto final_action;
     }
@@ -5091,23 +4704,17 @@ s32 fn_80088938(Player* p, f32 angle) {
             }
             dir = (f32)delta;
             if ((f64)dir > lbl_80347CE8 || (f64)dir < lbl_80347D80) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x12;
             } else if ((f64)dir > lbl_80347D88) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x14;
             } else if ((f64)dir < lbl_80347D90) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x13;
             } else {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x11;
             }
         } else if ((ctl->pad.levels & 0x400) != 0) {
-            /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
             action = 0x10;
         } else {
-            /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
             action = 0x0F;
         }
         goto selected;
@@ -5115,27 +4722,20 @@ s32 fn_80088938(Player* p, f32 angle) {
                (f64)ctl->pad.ly > lbl_80347B08) {
         if ((ctl->pad.levels & 0x600) != 0) {
             if ((f64)facing > lbl_80347CE8 || (f64)facing < lbl_80347D80) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x12;
             } else if ((f64)facing > lbl_80347D88) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x14;
             } else if ((f64)facing < lbl_80347D90) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x13;
             } else {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x11;
             }
         } else {
             if ((f64)facing > lbl_80347CE8 || (f64)facing < lbl_80347D80) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x0A;
             } else if ((f64)facing > lbl_80347D88) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x0C;
             } else if ((f64)facing < lbl_80347D90) {
-                /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
                 action = 0x0B;
             } else {
                 action = 9;
@@ -5147,18 +4747,15 @@ s32 fn_80088938(Player* p, f32 angle) {
         action = 7;
         goto selected;
     } else if ((ctl->pad.levels & 0x200) != 0) {
-        /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
         action = 0x0F;
         goto selected;
     } else if ((ctl->pad.levels & 0x400) != 0) {
-        /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
         action = 0x10;
     }
 
 selected:
     if (action <= 0) {
         if ((f64)ctl->pad.ly > lbl_80347C00) {
-            /* lint-allow-next-line FM007: unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
             action = 0x0D;
         } else if ((f64)ctl->pad.ly > *(volatile f64*)&lbl_80347B08) {
             action = 8;
@@ -5167,7 +4764,6 @@ selected:
         }
     }
 final_action:
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet | unproven: the Xbox PDB has enum player_action_type, but no GameCube access in this tree proves the GC action numbering equals it */
     switch (p->anim_208) {
     case 0x73:
         if (action == 0x18) {
@@ -5190,7 +4786,6 @@ final_action:
         }
         break;
     }
-    /* lint-end FM007 */
 
     if ((ctl->pad.levels & 0x600) != 0) {
         motion->edgeHistory |= ctl->pad.levels ^ motion->heldHistory;
@@ -5206,7 +4801,6 @@ final_action:
 s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
     f32 diff[3];
     f32 face[3];
-    /* lint-allow-next-line FM003: measured -- deleting it moves fn_80088EF4 by 20 words at unchanged size; original local unrecovered */
     u8 unused[4];
     f32 maxDist = range;
     s32 i;
@@ -5254,11 +4848,9 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
             continue;
         }
         anim = op->anim_208;
-        /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
         if ((anim >= 0x54 && anim < 0x5B) || anim >= 0x6B) {
             continue;
         }
-        /* lint-end FM007 */
         if ((op->flags & 0x400) != 0) {
             continue;
         }
