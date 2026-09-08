@@ -350,7 +350,7 @@ zlib/inftrees.c:
 	.rodata     start:0x80115BC8 end:0x80115C58
 	.data       start:0x80127948 end:0x80127B60
 	.bss        start:0x802953C0 end:0x80296450
-	.sbss       start:0x80344DC0 end:0x80344DD8
+	.sbss       start:0x80344DC0 end:0x80344DD4
 
 zlib/infutil.c:
 	extab       start:0x800076A0 end:0x800076A8
@@ -502,8 +502,8 @@ game/pb/pb_tree.cpp:
 	.rodata     start:0x80116AE0 end:0x80116B28
 	.data       start:0x80128428 end:0x801284A8
 	.bss        start:0x802C7CF8 end:0x802C93F8
-	.sdata      start:0x80343F90 end:0x80343FB0
-	.sbss       start:0x80345120 end:0x80345138
+	.sdata      start:0x80343F90 end:0x80343FAC
+	.sbss       start:0x80345120 end:0x80345134
 	.sdata2     start:0x80348FE8 end:0x80349018
 
 game/pb/pbutils.c:
@@ -549,7 +549,7 @@ dolphin/demo/DEMOInit.c:
 	extabindex  start:0x8000C544 end:0x8000C580
 	.text       start:0x800CB600 end:0x800CBC4C
 	.rodata     start:0x80116BD8 end:0x80116D70
-	.bss        start:0x802C9C08 end:0x802C9C48
+	.bss        start:0x802C9C08 end:0x802C9C44
 	.sdata      start:0x80343FC0 end:0x80343FC8
 	.sbss       start:0x80345168 end:0x80345188
 	.sdata2     start:0x80349100 end:0x80349120
@@ -1154,7 +1154,7 @@ dolphin/os/OSAlarm.c:
 dolphin/os/OSAlloc.c:
 	.text       start:0x80104E0C end:0x80105818
 	.data       start:0x8023BCF0 end:0x8023C088
-	.sdata      start:0x80344110 end:0x80344118
+	.sdata      start:0x80344110 end:0x80344114
 	.sbss       start:0x803455F8 end:0x80345608
 
 dolphin/os/OSArena.c:
@@ -1202,7 +1202,7 @@ dolphin/os/OSMutex.c:
 dolphin/os/OSReboot.c:
 	.text       start:0x80107A78 end:0x80107C90
 	.bss        start:0x80342D80 end:0x80342DA0
-	.sbss       start:0x80345628 end:0x80345638
+	.sbss       start:0x80345628 end:0x80345634
 
 dolphin/os/OSReset.c:
 	.text       start:0x80107C90 end:0x80108064
