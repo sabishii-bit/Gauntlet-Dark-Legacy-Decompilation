@@ -19,11 +19,28 @@ WebFrank candidacy.
     python tools/gdl/composed_census/wf_word_diff.py game/movie/movieplayer fn_800D8BCC --by-region
     python tools/gdl/composed_census/wf_word_diff.py <unit> <fn> --range 0x1c4:0x250 --list
 
-EXIT CODE (run 42, narrowed run 51): 0 whenever the MEASUREMENT succeeded,
-whether or not words differ.  It used to return 1 on any residual — which is
-what a normal call looks like — so every `&&` chain and CI step around it
-stopped at the first function that had one.  Nonzero now means the
-measurement did not happen: a MISSING OBJECT, and nothing else.
+EXIT CODE (run 42, narrowed run 51, completed run 62b):
+
+    0   the measurement COMPLETED.  A residual is data, not a failure.
+    1   ONLY with --fail-on-residual, and only for a nonzero word count.
+    2   REFUSAL: the measurement did not happen (missing object, unknown
+        function, unusable --range, bad arguments).
+
+It used to return 1 on any residual — which is what a normal call looks like
+— so every `&&` chain and CI step around it stopped at the first function
+that had one.  Run 42 fixed that.  What run 42 left behind was the other
+half: every refusal ALSO exited 1, and one of them (an unknown function name)
+exited 1 by way of an uncaught `KeyError` traceback out of
+`webfrank._find_symbol`.  A `$LASTEXITCODE` gate therefore could not tell
+"there is a residual" from "the object is missing" from "you typed the
+function name wrong", and the historical residual meaning of 1 was still
+occupying the code a refusal needed.  Refusals now exit 2 with a
+`WF_WORD_DIFF REFUSED:` line, and 1 is reserved for the OPT-IN residual gate.
+
+A gate that genuinely wants to stop on a residual asks for it:
+`--fail-on-residual` exits 1 when the count is nonzero (whole-TU mode uses
+the OPEN word total, excluding pinned rows).  A COUNT-ASYMMETRIC function has
+no word residual to find, so it stays 0 even under that flag.
 
 A COUNT-ASYMMETRIC function exits 0 (run-51 item 4).  It was grouped with
 the missing object under "did not happen", and it is the opposite: it is a
@@ -161,6 +178,7 @@ sys.path.insert(0, HERE)
 import fndiff                                            # noqa: E402
 import webfrank as wf                                    # noqa: E402
 from cn_analyze import our_object, target_object, load    # noqa: E402
+from raw_object import RawObjectError                     # noqa: E402
 from unabsorbed import opcode_key, rule_served_functions  # noqa: E402
 
 
@@ -1064,7 +1082,48 @@ def rows_in_range(rows, window):
     return [row for row in rows if lo <= row[0] < hi]
 
 
-def main():
+#: Exit codes. One meaning each; see the module docstring.
+OK = 0            #: the measurement completed (a residual is data)
+RESIDUAL = 1      #: --fail-on-residual only
+REFUSED = 2       #: the measurement did not happen
+
+
+def refuse(message):
+    """Print a refusal on stdout and return the refusal code.
+
+    stdout, not stderr: the failure this closes is a sweep that captured
+    stdout, saw an empty measurement and read it as "no residual".
+    """
+    print("WF_WORD_DIFF REFUSED: %s" % message)
+    return REFUSED
+
+
+def main(argv=None):
+    """Route refusals to exit 2; a completed measurement is never a failure.
+
+    The wrapper converts the two refusal shapes this tool already had --
+    `SystemExit("missing object ...")` and an uncaught `KeyError` out of the
+    symbol lookup -- into one code and one message, and leaves an argparse
+    `SystemExit(int)` (usage error 2, `--help` 0) exactly as argparse set it.
+    A genuinely unexpected exception is NOT caught here: swallowing it would
+    turn a tool defect into a tidy refusal line.
+    """
+    try:
+        return _measure(argv)
+    except CountAsymmetric:
+        raise                       # _measure handles it; never a refusal
+    except SystemExit as stop:
+        if isinstance(stop.code, int) or stop.code is None:
+            return OK if stop.code is None else stop.code
+        return refuse(stop.code)
+    except RawObjectError as error:
+        # An unresolvable unit: the build graph does not own it, or ninja has
+        # not produced it. A refusal about the INPUT, not a measurement.
+        return refuse("%s (run configure.py and ninja, and check the unit"
+                      " key against configure.py)" % error)
+
+
+def _measure(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("unit", nargs="?")
     ap.add_argument("function", nargs="?",
@@ -1092,7 +1151,13 @@ def main():
                          " fnasm print). The whole-function count is always"
                          " printed too and is the only one that decides"
                          " postprocessor candidacy")
-    args = ap.parse_args()
+    ap.add_argument("--fail-on-residual", dest="fail_on_residual",
+                    action="store_true",
+                    help="OPT-IN gate: exit 1 when the measurement found any"
+                         " differing word (whole-TU mode uses the OPEN word"
+                         " total). Without it a residual exits 0, because a"
+                         " residual is the tool's ANSWER, not its failure")
+    args = ap.parse_args(argv)
     window = parse_range(args.window)
     # `--unit U` and a bare positional `U` mean the same thing; giving both
     # is ambiguous about which is the unit, so it is refused rather than
@@ -1109,19 +1174,32 @@ def main():
         if unit.endswith(suffix):
             unit = unit[:-len(suffix)]
     if function is None:
-        rows, kind = unit_rows(unit)
+        try:
+            rows, kind = unit_rows(unit)
+        except KeyError as missing:
+            return refuse("%s: %s" % (unit, missing))
+        totals = unit_totals(rows)
         if args.as_json:
             print(json.dumps({"unit": unit, "object": kind,
-                              "totals": unit_totals(rows), "rows": rows},
-                             indent=1))
+                              "totals": totals, "rows": rows}, indent=1))
         else:
             print_unit(unit, rows, kind)
-        return 0
+        if args.fail_on_residual and totals["open_differing_words"]:
+            return RESIDUAL
+        return OK
     if args.as_json:
         ap.error("--json is the whole-TU output; drop the function name")
     args.function = function
     try:
         kind, ours, tgt = word_streams(unit, args.function)
+    except KeyError as missing:
+        # webfrank._find_symbol raises this for a name that is not in the
+        # object. It reached the terminal as a traceback and exit 1 -- the
+        # same code a residual used to mean.
+        return refuse("no symbol %r in %s's object (%s); list the names with"
+                      " `python tools/gdl/fnasm.py %s`"
+                      % (args.function, unit, missing.args[0]
+                         if missing.args else missing, unit))
     except CountAsymmetric as gap:
         # EXIT 0, because the measurement SUCCEEDED and its answer is "no
         # word residual exists here" (run-51 item 4). Exit 1 was the run-42
@@ -1130,9 +1208,10 @@ def main():
         # PowerShell every such row renders as a NativeCommandError block,
         # and 10 of 13 rows of one run-50 census came back that way. The
         # verdict line is machine-readable — `COUNT-ASYMMETRIC` — so a sweep
-        # can still partition its rows.
+        # can still partition its rows. --fail-on-residual does not change
+        # this: there is no word residual here to fail on.
         print(gap.report())
-        return 0
+        return OK
     rows = [(o, wf._u32(ours, o), wf._u32(tgt, o))
             for o in range(0, len(ours), 4)
             if wf._u32(ours, o) != wf._u32(tgt, o)]
@@ -1315,10 +1394,12 @@ def main():
     # a normal call to a residual-measuring tool looks like: every ordinary
     # invocation read as a failure, so a `&&` chain or a CI step around it
     # stopped after the first function that had a residual — the thing the
-    # tool exists to find. Failure means the measurement did not happen,
-    # and word_streams already exits nonzero with a message for a missing
-    # object or a count-asymmetric function.
-    return 0
+    # tool exists to find. A gate that wants that behaviour now ASKS for it
+    # with --fail-on-residual, and every refusal is exit 2 (run 62b), so the
+    # three states a caller cares about no longer share one code.
+    if args.fail_on_residual and rows:
+        return RESIDUAL
+    return OK
 
 
 if __name__ == "__main__":
