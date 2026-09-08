@@ -335,7 +335,29 @@ extern void* lbl_80344E2C;
 
 /* World-load / blit / fx externs. */
 extern s32   sWorldDataConst;      /* 0x80344848 */
-extern s32   sMusicTrackHi;        /* 0x803448D8 */
+/* World IDs from WAVETYPE in the Xbox symbols, independently confirmed by
+ * the little-endian WRLD.type in all 14 Gauntlet/WDATA/*.WAD files. The
+ * GC ResolveWorldData path stores worldlevel >> 8 in sMusicTrackHi: despite
+ * that provisional symbol name, these comparisons select a world, not music.
+ * MOUNT.WAD is MOUNTAIN; TEMPLE.WAD is BOSSWAVE. */
+enum WAVETYPE {
+    TESTWAVE = 0,
+    CASTLE = 1,
+    MOUNTAIN = 2,
+    DESERT = 3,
+    FOREST = 4,
+    BOSSWAVE = 5,
+    HELL = 6,
+    TOWN = 7,
+    BATTLE = 8,
+    ICE = 9,
+    DREAM = 10,
+    SKY = 11,
+    SECRET = 12,
+    TOWER = 13,
+    NUMWORLDS = 14
+};
+extern s32   sMusicTrackHi;        /* 0x803448D8: current WAVETYPE, or -1 */
 extern s32   lbl_803447A4;
 extern s32   lbl_803447E4;
 extern s32   lbl_803447EC;
@@ -902,7 +924,7 @@ s32 next_world(void)
     } else if (sLastWorldLevel < 0) {
         selected = load_world_option(gGameOptions);
         world = selected;
-        if ((selected >> 8) >= 14) {
+        if ((selected >> 8) >= NUMWORLDS) {
             world = sFirstWorldId;
         }
         lbl_8034481C = world + 0x10000;
@@ -924,7 +946,7 @@ s32 next_world(void)
         if (world < 0) {
             world = sWorldDataConst;
         }
-        if ((world >> 8) >= 14) {
+        if ((world >> 8) >= NUMWORLDS) {
             world = sFirstWorldId;
         }
     }
@@ -1396,7 +1418,7 @@ void init_thermometer(void)
                 enabled = 1;
                 break;
             }
-            if (sMusicTrackHi == 8) {
+            if (sMusicTrackHi == BATTLE) {
                 s32 charIdx = ((Player*)playerData)->character;
                 if ((*(u8*)(playerData + 7384 + charIdx * 14) & 4) != 0) {
                     enabled = 0;
