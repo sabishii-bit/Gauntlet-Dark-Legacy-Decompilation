@@ -1,6 +1,8 @@
-import json, os
+import json, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
-d = json.load(open(os.path.join(HERE, "ch_census26.json")))
+sys.path.insert(0, HERE)
+import cc_artifact  # noqa: E402
+d = cc_artifact.load_artifact("ch_census26.json", "ch_zero.py")
 print("totals:", d["totals"])
 t = d["totals"]
 print("positional combined =", t.get("fwd_rc",0)+t.get("inv_rc",0))

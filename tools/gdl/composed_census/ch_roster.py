@@ -33,6 +33,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
 sys.path.insert(0, HERE)
+import cc_artifact  # noqa: E402
 import cliscreen  # noqa: E402
 cliscreen.help_only(__doc__)
 import webfrank as wf  # noqa: E402
@@ -124,8 +125,8 @@ def derive_relaxed(ours, tgt, orel, trel, lo, hi, limit=200000):
 
 
 def main():
-    census = json.load(open(os.path.join(HERE, "ch_census26.json")))
-    shipped = set(json.load(open(os.path.join(HERE, "ch_shipped.json"))))
+    census = cc_artifact.load_artifact("ch_census26.json", "ch_roster.py")
+    shipped = set(cc_artifact.load_artifact("ch_shipped.json", "ch_roster.py"))
     carriers = [r for r in census["rows"]
                 if {"fwd_rc", "inv_rc"} & set(r["counts"])]
     print(f"COMBINED-SITE CARRIERS: {len(carriers)}\n")
@@ -179,8 +180,9 @@ def main():
     for t in ("A", "B", "C-ctrl", "C"):
         n = len([r for r in rows if r["tier"] == t])
         print(f"  TIER {t}: {n}")
-    json.dump(rows, open(os.path.join(HERE, "ch_roster.json"), "w"), indent=1)
-    print(f"\nwrote {os.path.join(HERE, 'ch_roster.json')}")
+    written = cc_artifact.write_artifact("ch_roster.json", rows,
+                                         cc_artifact.out_override(sys.argv))
+    print(f"\nwrote {cc_artifact.artifact_label(written)}")
 
 
 if __name__ == "__main__":
