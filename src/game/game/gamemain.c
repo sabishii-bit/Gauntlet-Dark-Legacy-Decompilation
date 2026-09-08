@@ -1419,6 +1419,25 @@ void fn_80055678(f32* a, f32* b)
     }
 }
 
+/* SDK-style four-step square root (MSL math_ppc.h, sqrtf_accurate).
+ * Positive inputs round through float storage; other inputs pass through.
+ * GC init_thermometer embeds this computation; no standalone copy is needed. */
+static inline f32 sqrtf_accurate(f32 value)
+{
+    // lint-allow-next-line FM003: Four Newton steps end with the GC-observed float store/reload, as in MSL math_ppc.h; rounded is used, not padding.
+    volatile f32 rounded;
+    if (value > 0.0f) {
+        f64 guess = __frsqrte(value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        guess = 0.5 * guess * (3.0 - guess * guess * value);
+        rounded = (f32)(value * guess);
+        value = rounded;
+    }
+    return value;
+}
+
 void init_thermometer(void)
 {
     void** blits;
@@ -1429,8 +1448,6 @@ void init_thermometer(void)
     f32 x;
     f32 yCoord;
     f32 z;
-    // lint-allow-next-line FM003: The GC square-root path rounds through a single-precision store/reload, as in MSL math_ppc.h; this scalar is not padding.
-    volatile f32 rounded;
 
     enabled = 1;
     lbl_8034478C = lbl_80344790 = 0;
@@ -1470,16 +1487,7 @@ void init_thermometer(void)
     x = gWorldInfo.worldsize[0];
     yCoord = gWorldInfo.worldsize[1];
     z = gWorldInfo.worldsize[2];
-    length = x * x + yCoord * yCoord + z * z;
-    if (length > 0.0f) {
-        f64 y = __frsqrte(length);
-        y = 0.5 * y * (3.0 - y * y * length);
-        y = 0.5 * y * (3.0 - y * y * length);
-        y = 0.5 * y * (3.0 - y * y * length);
-        length = (f32)(length * (0.5 * y * (3.0 - y * y * length)));
-        rounded = length;
-        length = rounded;
-    }
+    length = sqrtf_accurate(x * x + yCoord * yCoord + z * z);
     lbl_80343C08 = (f32)(1.0 / (0.7 * length));
 }
 
