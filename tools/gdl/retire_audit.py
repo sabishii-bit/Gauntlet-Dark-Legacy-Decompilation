@@ -37,6 +37,12 @@ WHAT IS CERTIFIED
                         by composed_census/ch_reloc_probe.py; @lo/@ha sit at
                         +2 on BOTH sides and are NOT normalized). An
                         unmodelled relocation type is a refusal, not a pass.
+                        A row whose datum lives in a section splits.txt does
+                        not claim has no address to compare with the target;
+                        that row is UNRESOLVED, not different, and is
+                        certified only as UNCHANGED against the before image
+                        (run-61 item 2). An unresolvable row that MOVED, or
+                        one with no before-image row, still FAILS.
   sibling_bodies        Every OTHER function in the TU is byte-equal to its
                         previous state, bodies and positional relocations
                         both. A sibling named by --allow-changed-sibling may
@@ -118,8 +124,9 @@ not the absence of other units' drift.
 
 IMPORTABLE CORE: classify_word, classify_stream, object_image,
 normalize_relocations, section_bases, relocation_addresses,
-resolve_relocation_symbol, resolve_relocations -- pure over words/parsed
-objects and the read-only config; no build and no printing.
+resolve_relocation_symbol, resolve_relocations, compare_relocation_tables --
+pure over words/parsed objects and the read-only config; no build and no
+printing.
 """
 from __future__ import annotations
 
@@ -329,6 +336,103 @@ def resolve_relocations(rows, bases, addresses):
                     ["address", address] if address is not None else name,
                     addend))
     return out
+
+
+def _bound(name):
+    """Did this row resolve to a linked ADDRESS (as opposed to a name)?"""
+    return isinstance(name, (list, tuple)) and len(name) == 2 \
+        and name[0] == "address"
+
+
+def compare_relocation_tables(ours, target, previous=None):
+    """Positional relocation verdict, with unresolvable rows measured honestly.
+
+    RUN-61 ITEM 2. Run-59 item 11 resolved both toolchains' spellings to the
+    ADDRESS they denote and left an unresolvable name compared verbatim, so
+    a datum in an UNCLAIMED section could not silently equal anything. That
+    is right, and it also made the check unusable for the units the campaign
+    is actually working in: game/enemy/critter claims no `.sdata2` run, so
+    its anonymous pool entries resolve to nothing, our object spells one
+    `('@', '.sdata2', 24, 8, 1, 0)` and dtk spells the same datum
+    `lbl_...`, and the row is reported as a DIFFERENCE. Reproduced at
+    20c0d7ea1 on game/enemy/critter::CritterLookForCriticalMove (retired at
+    e758f3d16): `unresolved_ours: [["@", ".sdata2", 24, 8, 1, 0]]`,
+    our_count 4, target_count 4, verdict FAIL -- for a binding that is
+    IDENTICAL before and after the retirement.
+
+    An unresolvable row cannot be compared to the target. That is an
+    UNMEASURED obligation, not a failed one, and this reports it the way
+    `datadiff` does: UNRESOLVED, named, and never counted as PASS. What CAN
+    be measured about it is whether THIS RETIREMENT changed it, so it is
+    compared to the same position in the BEFORE image instead:
+
+      * both sides bound to an address, and equal      -> certified
+      * both sides bound, and different                -> FAIL (mis-binding)
+      * either side unresolvable, row equals the
+        before image's row at the same position        -> UNRESOLVED, carried
+      * either side unresolvable, and the row MOVED    -> FAIL, by name
+      * no before-image row to compare against         -> FAIL, by name
+
+    This is NOT a value-equality relaxation. The row's offset, type and
+    addend still have to match the target verbatim, `native_body` still
+    requires the raw instruction bytes to equal the target's, and
+    `nontext_sections` still compares the pool BYTES. What is conceded is
+    only that a datum whose section splits.txt does not claim has no
+    address to compare -- and the cure for that is a splits claim
+    (tools/gdl/claimable_sections.py), not a weaker audit.
+
+    Returns a dict; `status` is PASS, UNRESOLVED or FAIL.
+    """
+    result = {"our_count": len(ours), "target_count": len(target),
+              "certified": 0, "unresolved": [], "mismatches": []}
+    if len(ours) != len(target):
+        result["status"] = "FAIL"
+        result["reason"] = ("relocation COUNT differs: ours %d, target %d"
+                            % (len(ours), len(target)))
+        return result
+    usable_previous = previous is not None and len(previous) == len(ours)
+    for index, (mine, theirs) in enumerate(zip(ours, target)):
+        if mine == theirs and _bound(mine[2]):
+            result["certified"] += 1
+            continue
+        if _bound(mine[2]) and _bound(theirs[2]):
+            result["mismatches"].append(
+                {"index": index, "reason": "bound to different addresses",
+                 "ours": list(mine), "target": list(theirs)})
+            continue
+        # At least one side names a datum no claim resolves to an address.
+        if mine[:2] != theirs[:2] or mine[3] != theirs[3]:
+            result["mismatches"].append(
+                {"index": index,
+                 "reason": "offset, type or addend differs, which is a real"
+                           " positional difference independent of naming",
+                 "ours": list(mine), "target": list(theirs)})
+            continue
+        if not usable_previous:
+            result["mismatches"].append(
+                {"index": index,
+                 "reason": "unresolvable binding with NO comparable before"
+                           "-image row, so neither target equality nor"
+                           " before/after identity could be measured",
+                 "ours": list(mine), "target": list(theirs)})
+            continue
+        if previous[index] == mine:
+            result["unresolved"].append(
+                {"index": index, "ours": list(mine), "target": list(theirs),
+                 "status": "UNRESOLVED",
+                 "reason": "the datum's section is not claimed in splits.txt,"
+                           " so this binding has no address to compare with"
+                           " the target; it is BYTE-IDENTICAL to the before"
+                           " image, so this retirement did not change it"})
+            continue
+        result["mismatches"].append(
+            {"index": index, "ours": list(mine), "target": list(theirs),
+             "before": list(previous[index]),
+             "reason": "an unresolvable binding MOVED between the before"
+                       " image and this object"})
+    result["status"] = ("FAIL" if result["mismatches"] else
+                        "UNRESOLVED" if result["unresolved"] else "PASS")
+    return result
 
 
 def _reloc_types_by_index(*reloc_lists):
@@ -1014,26 +1118,49 @@ class Audit:
         # their name and still have to match verbatim.
         a = resolve_relocations(a, bases, addresses)
         b = resolve_relocations(b, bases, addresses)
+        # Run-61 item 2: an unresolvable binding cannot be compared to the
+        # target, but it CAN be compared to the same position in the before
+        # image, which is the question a retirement actually asks.
+        previous_rows, previous_error = None, None
+        previous = self.before_image["functions"].get(self.function)
+        if previous is None:
+            previous_error = "the function is absent from the before image"
+        else:
+            try:
+                previous_rows = resolve_relocations(
+                    normalize_relocations(previous["relocations"], "ours"),
+                    bases, addresses)
+            except Refused as error:
+                previous_error = str(error)
+        verdict = compare_relocation_tables(a, b, previous_rows)
 
         def rows(table):
             return [[o, RELOC_TYPE_NAMES[k], n, add] for o, k, n, add in table]
 
         def unresolved(table):
             return sorted({n if isinstance(n, str) else tuple(n)
-                           for _o, _k, n, _a in table
-                           if not (isinstance(n, list) and n and
-                                   n[0] == "address")}, key=repr)
+                           for _o, _k, n, _a in table if not _bound(n)},
+                          key=repr)
 
-        return self.record("positional_relocations", "PASS" if a == b else "FAIL",
+        return self.record("positional_relocations", verdict["status"],
                            our_count=len(a), target_count=len(b),
+                           certified_bindings=verdict["certified"],
                            ours=rows(a), target=rows(b),
-                           differences=[[x, y] for x, y in
-                                        zip(rows(a) + [None] * len(b), rows(b) + [None] * len(a))
-                                        if x != y][:20],
+                           differences=verdict["mismatches"][:20],
+                           unresolved_bindings=verdict["unresolved"],
+                           before_image_rows=(None if previous_rows is None
+                                              else len(previous_rows)),
+                           before_image_error=previous_error,
                            section_bases={s: f"0x{b_:08x}"
                                           for s, b_ in sorted(bases.items())},
                            unresolved_ours=unresolved(a),
                            unresolved_target=unresolved(b),
+                           scope="UNRESOLVED rows are NOT certified against the"
+                                 " target: their section is unclaimed, so the"
+                                 " binding has no address. They are certified"
+                                 " only as UNCHANGED by this retirement. Claim"
+                                 " the section (tools/gdl/claimable_sections.py)"
+                                 " to turn them into a real comparison.",
                            normalization="R_PPC_EMB_SDA21 offsets moved from "
                                          "instruction+2 (MWCC) to instruction+0 (dtk);"
                                          " symbols resolved to linked addresses"
@@ -1324,6 +1451,11 @@ class Audit:
         failing = [c["name"] for c in self.checks if c["status"] == "FAIL"]
         refused = [c["name"] for c in self.checks if c["status"] == "REFUSED"]
         skipped = [c["name"] for c in self.checks if c["status"] == "SKIPPED"]
+        # An UNRESOLVED check held every obligation it could measure and
+        # names the ones it could not. It does not fail the certificate, and
+        # it is never allowed to disappear into a bare PASS either.
+        unresolved = [c["name"] for c in self.checks
+                      if c["status"] == "UNRESOLVED"]
         if refused:
             status = "REFUSED"
         elif failing:
@@ -1335,6 +1467,7 @@ class Audit:
             "allowed_changed_siblings": self.allow_changed,
             "allowed_rederived_rules": self.allow_rederived,
             "failing_checks": failing, "refused_checks": refused,
+            "unresolved_checks": unresolved,
             "skipped_checks": skipped, "checks": self.checks,
             "artifacts": (str(self.folder.relative_to(REPO)).replace("\\", "/")
                           if self.folder and self.keep else None),
@@ -1370,6 +1503,9 @@ def format_report(result):
         out.append("  FAILING CHECK(S): " + ", ".join(result["failing_checks"]))
     if result["refused_checks"]:
         out.append("  REFUSED: " + ", ".join(result["refused_checks"]))
+    if result.get("unresolved_checks"):
+        out.append("  UNRESOLVED (measured, but NOT certified): "
+                   + ", ".join(result["unresolved_checks"]))
     out.append("  LIMITS: " + " ".join(result["limitations"]))
     return "\n".join(out)
 
