@@ -1361,75 +1361,9 @@ extern s32 GetWorldOrder(s32 world);
 extern void fn_8009FF54(f32* pos);
 extern void fn_8009FFA4(f32* pos);
 
-/* 0x80055678 -- update the special-item proximity meter blits from the
- * distance between the two given points. */
-void fn_80055678(f32* a, f32* b)
-{
-    f32 d;
-    f32 v;
-    f64 lvl2;
-    f32 lvl;
-    f64 scale;
-    f64 base;
-    f32 f6;
-    f32 x;
-    f64 t;
-    f32 dx;
-    f32 dy;
-    f32 dz;
-
-    if (mbBlitReset33F8(lbl_803447A8[0]) != 0 || sSpecialItem10 == 0) {
-        mbBlitInit3414(lbl_803447A8[0], 1);
-        mbBlitInit3414(lbl_803447A8[1], 1);
-    } else {
-        dx = a[0] - b[0];
-        dy = a[1] - b[1];
-        dz = a[2] - b[2];
-        d = dx * dx + dy * dy + dz * dz;
-        if (d > 0.0f) {
-            // lint-allow-next-line FM003: The GC square-root path rounds through a single-precision store/reload, as in MSL math_ppc.h; this scalar is not padding.
-            volatile f32 rounded;
-            f64 y = __frsqrte(d);
-            y = 0.5 * y * (3.0 - y * y * d);
-            y = 0.5 * y * (3.0 - y * y * d);
-            y = 0.5 * y * (3.0 - y * y * d);
-            d = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
-            rounded = d;
-            d = rounded;
-        }
-        v = (f32)(d - 8.0);
-        v = v * lbl_80343C08;
-        if (v < 0.0f) {
-            t = 0.0;
-        } else if (v > 1.0) {
-            t = 1.0;
-        } else {
-            t = v;
-        }
-        x = (f32)t;
-        lvl = (f32)(1.0 - (1.0 - x) * (1.0 - x));
-        if (lbl_80344790 == 0 && lvl < 0.25) {
-            lbl_80344790 = 1;
-            fn_8009FF54(b);
-        } else if (lbl_8034478C == 0 && lvl < 0.025) {
-            lbl_8034478C = 1;
-            fn_8009FFA4(b);
-        }
-        scale = 73.0;
-        base = 101.0;
-        lvl2 = scale * (f64)(f6 = (f32)(1.0 - lvl));
-        t = base - lvl2;
-        mbBlitSetupVerts(lbl_803447A8[1], -1.0f, -1.0f,
-                         (f32)(t * 0.0078125),
-                         -1.0f);
-        mbBlitProject(lbl_803447A8[1], 0, Round((f32)lvl2) + 27);
-        mbBlitCalcY(lbl_803447A8[1], 102 - Round((f32)lvl2));
-    }
-}
-
 /* SDK-style four-step square root (MSL math_ppc.h, sqrtf_accurate).
  * Positive inputs round through float storage; other inputs pass through.
- * GC init_thermometer embeds this computation; no standalone copy is needed. */
+ * Both GC proximity-meter routines embed it; no standalone copy is needed. */
 static inline f32 sqrtf_accurate(f32 value)
 {
     // lint-allow-next-line FM003: Four Newton steps end with the GC-observed float store/reload, as in MSL math_ppc.h; rounded is used, not padding.
@@ -1444,6 +1378,51 @@ static inline f32 sqrtf_accurate(f32 value)
         value = rounded;
     }
     return value;
+}
+
+/* 0x80055678 -- update the special-item proximity meter blits from the
+ * distance between the two given points. */
+void fn_80055678(f32* a, f32* b)
+{
+    f32 d;
+    f64 t;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    if (mbBlitReset33F8(lbl_803447A8[0]) != 0 || sSpecialItem10 == 0) {
+        mbBlitInit3414(lbl_803447A8[0], 1);
+        mbBlitInit3414(lbl_803447A8[1], 1);
+    } else {
+        dx = a[0] - b[0];
+        dy = a[1] - b[1];
+        dz = a[2] - b[2];
+        d = sqrtf_accurate(dx * dx + dy * dy + dz * dz);
+        d = (f32)(d - 8.0);
+        d = d * lbl_80343C08;
+        if (d < 0.0f) {
+            t = 0.0;
+        } else if (d > 1.0) {
+            t = 1.0;
+        } else {
+            t = d;
+        }
+        d = (f32)t;
+        d = (f32)(1.0 - (1.0 - d) * (1.0 - d));
+        if (lbl_80344790 == 0 && d < 0.25) {
+            lbl_80344790 = 1;
+            fn_8009FF54(b);
+        } else if (lbl_8034478C == 0 && d < 0.025) {
+            lbl_8034478C = 1;
+            fn_8009FFA4(b);
+        }
+        d = (f32)(1.0 - d);
+        mbBlitSetupVerts(lbl_803447A8[1], -1.0f, -1.0f,
+                         (f32)((101.0 - 73.0 * d) / 128.0),
+                         -1.0f);
+        mbBlitProject(lbl_803447A8[1], 0, Round((f32)(73.0 * d)) + 27);
+        mbBlitCalcY(lbl_803447A8[1], 102 - Round((f32)(73.0 * d)));
+    }
 }
 
 void init_thermometer(void)
