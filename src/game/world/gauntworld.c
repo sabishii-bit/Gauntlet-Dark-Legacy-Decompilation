@@ -1580,7 +1580,7 @@ void world_update(void)
             lbl_8034489C = 6;
         }
         if (lbl_80344890 >= 0) {
-            u8* e = (u8*)Effects + lbl_80344890 * 0xf0;
+            u8* e = (u8*)&Effects[lbl_80344890];
             f32 dt = *(f32*)(e + 0x68) - gClockTime;
 
             if (dt < lbl_80346C40) {
@@ -3719,7 +3719,7 @@ void fn_8005E90C(Item* item, s32* inst)
     while (row->type == -1) {
         s32 n = row->item.subtype;
         s32 r;
-        t = ((u8*)item - (u8*)sItems) / 240;
+        t = item - sItems;
         if (n != 0) {
             r = ((sItemRandSeed >> 5) + t) % (u32)n;
         } else {
@@ -4124,13 +4124,13 @@ void fn_8005BA1C(Item* item, u8* player)
     s32 msg = -1;                                 /* r24: message code     */
     iteminfo* info = item->info;
     s32* sub = (s32*)((u8*)info + 4);
-    s32 rank = *(s32*)(player + 0x3324);          /* accumulated gold rank */
-    s32 mode = *(u32*)(player + 8) & 3;
+    s32 rank = ((Player*)player)->level;          /* character level 1..99 */
+    s32 mode = (u32)((Player*)player)->char_type & 3;
     void* hdr;
     s32 k;
-    u8* world;
-    u8** records;
-    u8* rec;
+    WorldInfo* world;
+    iteminfo** records;
+    iteminfo* rec;
     s32* rsub;
     u8 unused[32];
 
@@ -4209,13 +4209,13 @@ void fn_8005BA1C(Item* item, u8* player)
         if (*(s16*)&item->data[0] < 0) {
             break;
         }
-        world = (u8*)&gWorldInfo;
-        records = (u8**)(world + 0x68);
-        rec = *records + *(s16*)&item->data[0] * 0x50;
-        if (*(s32*)rec != 1) {
+        world = &gWorldInfo;
+        records = &world->iteminfo;
+        rec = &(*records)[*(s16*)&item->data[0]];
+        if (rec->type != 1) {
             break;
         }
-        switch (*(s32*)(rec + 4)) {
+        switch (rec->item.subtype) {
         case 2:
             break;
         case 3:
@@ -4225,15 +4225,15 @@ void fn_8005BA1C(Item* item, u8* player)
             if (mode != 2) {
                 break;
             }
-            if (*(s16*)(rec + 0x40) <= -100) {
+            if (rec->item.value <= -100) {
                 if (rank < 0x32) {
                     break;
                 }
                 rec = *records;
-                for (k = 0; k < *(s32*)(world + 0x74); k++, rec += 0x50) {
-                    rsub = (s32*)(rec + 4);
+                for (k = 0; k < world->niteminfos; k++, rec++) {
+                    rsub = &rec->item.subtype;
                     if (strcmp(lbl_80346F10, (char*)rsub + 0x24) == 0 &&
-                        *(s32*)rec == 1 && *rsub == 3) {
+                        rec->type == 1 && *rsub == 3) {
                         goto found_chicken;
                     }
                 }
@@ -4242,15 +4242,15 @@ found_chicken:
                 *(s16*)&item->data[0] = (s16)k;
                 evt = 0x2F;
                 msg = 0x90;
-            } else if (*(s16*)(rec + 0x40) < 0) {
+            } else if (rec->item.value < 0) {
                 if (rank < 0x19) {
                     break;
                 }
                 rec = *records;
-                for (k = 0; k < *(s32*)(world + 0x74); k++, rec += 0x50) {
-                    rsub = (s32*)(rec + 4);
+                for (k = 0; k < world->niteminfos; k++, rec++) {
+                    rsub = &rec->item.subtype;
                     if (strcmp(lbl_80346F18, (char*)rsub + 0x24) == 0 &&
-                        *(s32*)rec == 1 && *rsub == 3) {
+                        rec->type == 1 && *rsub == 3) {
                         goto found_apple;
                     }
                 }
@@ -4265,7 +4265,7 @@ found_apple:
             if (mode != 0) {
                 break;
             }
-            if (*(s16*)(rec + 0x40) > 10) {
+            if (rec->item.value > 10) {
                 break;
             }
             if (rank >= 0x32) {
@@ -4283,11 +4283,11 @@ found_apple:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 200;
                     rec = *records;
-                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec += 0x50) {
-                        rsub = (s32*)(rec + 4);
+                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec++) {
+                        rsub = &rec->item.subtype;
                         if (strcmp(&objects[0x130],
                                    (char*)rsub + 0x24) == 0 &&
-                            *(s32*)rec == 1 && *rsub == 1) {
+                            rec->type == 1 && *rsub == 1) {
                             goto found_gold;
                         }
                     }
@@ -4313,11 +4313,11 @@ found_gold:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 100;
                     rec = *records;
-                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec += 0x50) {
-                        rsub = (s32*)(rec + 4);
+                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec++) {
+                        rsub = &rec->item.subtype;
                         if (strcmp(&objects[0x13C],
                                    (char*)rsub + 0x24) == 0 &&
-                            *(s32*)rec == 1 && *rsub == 1) {
+                            rec->type == 1 && *rsub == 1) {
                             goto found_silver;
                         }
                     }
@@ -4383,7 +4383,7 @@ found_silver:
                     item->objgrp.node = 0;
                 }
                 item->active = -1;
-                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                k = item - sItems;
                 if (k < gNextItemIdx) {
                     gNextItemIdx = k;
                 }
@@ -5008,6 +5008,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
         gCurLevel->plevel > sItemZero) {
         f32 mult;
         f32 ramp = gCurLevel->plevel;
+        // lint-allow-next-line FM007: 0x335C is the Player stride and 0x3324 is Player.level (game/player.h, GC-verified there); gPlayers[owner].level is NOT byte-neutral here - it moves 6 words in fn_8005C1DC at unchanged 3696-byte size - so the indexed form stays raw while the field is named in this comment.
         f32 gold = (f32)*(s32*)((u8*)gPlayers + owner * 0x335C + 0x3324);
 
         if (gold < ramp) {
@@ -5083,7 +5084,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
                     item->objgrp.node = 0;
                 }
                 item->active = -1;
-                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                k = item - sItems;
                 if (k < gNextItemIdx) {
                     gNextItemIdx = k;
                 }
@@ -5151,7 +5152,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
                 item->objgrp.node = 0;
             }
             item->active = -1;
-            k = ((u8*)item - (u8*)sItems) / 0xF0;
+            k = item - sItems;
             if (k < gNextItemIdx) {
                 gNextItemIdx = k;
             }
@@ -5182,15 +5183,17 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             rec = (u8*)gWorldInfo.iteminfo + *(s16*)&item->data[0] * 0x50;
         }
         if (rec != 0 && (flags & 0x200) != 0 &&
-            EnemyDescType((char*)(rec + 0x28)) == 0x1E && *sub != 0x2B) {
+            EnemyDescType(((iteminfo*)rec)->item.desc) == 0x1E && *sub != 0x2B) {
             /* enemy chest converts to an apple generator */
             *sub = 1;
             rec = (u8*)gWorldInfo.iteminfo;
+            // lint-begin FM001: this is gWorldInfo.niteminfos; writing it as the plain member moves 549 words and shrinks fn_8005C1DC 3696 -> 3692 bytes, because the target keeps a separate base register for the count. Measured, not assumed.
             for (k = 0; k < *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, niteminfos)); k++) {
-                s32* rec_sub = (s32*)(rec + 4);
+                // lint-end FM001
+                s32* rec_sub = &((iteminfo*)rec)->item.subtype;
 
-                if (strcmp(lbl_80346F18, (char*)(rec_sub + 9)) == 0 &&
-                    *(s32*)rec == 1 && *rec_sub == 3) {
+                if (strcmp(lbl_80346F18, ((iteminfodata*)rec_sub)->desc) == 0 &&
+                    ((iteminfo*)rec)->type == 1 && *rec_sub == 3) {
                     goto found_gen;
                 }
                 rec += 0x50;
@@ -5218,7 +5221,7 @@ found_gen:
                 item->active |= 1;
                 fn_8005E90C(item, 0);
             } else {
-                if (rec != 0 && EnemyDescType((char*)(rec + 0x28)) == 0x1E) {
+                if (rec != 0 && EnemyDescType(((iteminfo*)rec)->item.desc) == 0x1E) {
                     fn_8005E90C(item, 0);
                 }
                 StartFXMat(0x1F, &item->objgrp);
@@ -5247,7 +5250,7 @@ found_gen:
                     item->objgrp.node = 0;
                 }
                 item->active = -1;
-                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                k = item - sItems;
                 if (k < gNextItemIdx) {
                     gNextItemIdx = k;
                 }
@@ -5320,7 +5323,7 @@ found_gen:
                         item->objgrp.node = 0;
                     }
                     item->active = -1;
-                    k = ((u8*)item - (u8*)sItems) / 0xF0;
+                    k = item - sItems;
                     if (k < gNextItemIdx) {
                         gNextItemIdx = k;
                     }
@@ -5344,8 +5347,8 @@ found_gen:
             AudioGeneratorDies(&v[1], *generator);
             enemy_count = gNumEnemies;
             for (k = 0; k < enemy_count; k++) {
-                if (*(Item**)((u8*)gEnemies + k * 0x394 + offsetof(Enemy, generator)) == item) {
-                    *(Item**)((u8*)gEnemies + k * 0x394 + offsetof(Enemy, generator)) = 0;
+                if (gEnemies[k].generator == (struct item*)item) {
+                    gEnemies[k].generator = 0;
                 }
             }
         } else {
@@ -5425,7 +5428,7 @@ found_gen:
                 item->objgrp.node = 0;
             }
             item->active = -1;
-            k = ((u8*)item - (u8*)sItems) / 0xF0;
+            k = item - sItems;
             if (k < gNextItemIdx) {
                 gNextItemIdx = k;
             }
@@ -5450,6 +5453,7 @@ found_gen:
     if (alive != 0) {
         k = fn_80094440(&v[1], flags, destroyed);
         if (k >= 0) {
+            // lint-allow-next-line FM001, FM007: 0xF0 is the Effect stride and the member is Effect.node; Effects[k].node moves 3 words in fn_8005C1DC at unchanged size, so the raw indexed form stays.
             MBTreeSetZsortAdd(*(void**)((u8*)Effects + k * 0xF0 + offsetof(Effect, node)),
                               (s32)(lbl_80346FA8 * info->item.radius), 1);
         }
@@ -7860,7 +7864,7 @@ s32 fn_8005D3D8(s32 index, u8* wobj)
     s32 bval;
 
     if (index >= 0) {
-        e = (u8*)gEnemies + index * 916;
+        e = (u8*)&gEnemies[index];
     } else {
         e = 0;
     }
@@ -8043,7 +8047,7 @@ extern f64 lbl_80346FB8;
 #pragma dont_inline on
 s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
 {
-    u8* e = (u8*)gEnemies + index * 916;
+    u8* e = (u8*)&gEnemies[index];
     u32 obj;
     s32 blocked;
     f32 rad;
