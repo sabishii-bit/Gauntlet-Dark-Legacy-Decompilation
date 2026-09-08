@@ -19,6 +19,7 @@
 #include "game/player.h"
 #include "game/worldobj.h"
 #include "game/critter.h"   /* Critter gCritterPool[16], stride 0xAE0 */
+#include "game/mbobject.h"  /* MBObject: the boss-chain scene nodes */
 #include "game/enemy.h"     /* Enemy gEnemies[25], stride 0x394 */
 #include "game/item.h"      /* Item* sItems, stride 0xF0 */
 #include "game/worldinfo.h" /* WorldInfo gWorldInfo */
@@ -2256,37 +2257,37 @@ store_motion_state:
                 case 35: {
                     u8* chain1 = PF(gBossObj, 0xAD8, u8*);
                     u8* chain2 = PF(chain1, 0xAD8, u8*);
-                    hitNode = PF(chain2, 0xC8, void*);
-                    while (PF(hitNode, 0x78, void*) != NULL) {
-                        hitNode = PF(hitNode, 0x78, void*);
+                    hitNode = ((Critter *)chain2)->hitnode0;
+                    while (((MBObject *)hitNode)->child != NULL) {
+                        hitNode = ((MBObject *)hitNode)->child;
                     }
                     bossColor[0] = lbl_80347C64;
                     bossColor[1] = 0.0f;
                     bossColor[2] = lbl_80347C68;
                     bossDamage = lbl_80347C40;
                     damageScale =
-                        (f32)(lbl_80347B88 * PF(chain2, 0x4B0, f32));
+                        (f32)(lbl_80347B88 * ((Critter *)chain2)->health);
                     particleTexture =
                         MBOX_FindTexture(strings + 56, NULL);
                     break;
                 }
                 case 38:
-                    hitNode = PF(gBossObj, 0xCC, void*);
+                    hitNode = ((Critter *)gBossObj)->hitnode1;
                     effectFlags = 0x20000;
                     bossDamage = lbl_80347C40;
                     damageScale =
-                        (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     particleTexture =
                         MBOX_FindTexture(strings + 72, NULL);
                     break;
                 case 34:
-                    hitNode = PF(gBossObj, 0xC0, void*);
+                    hitNode = ((Critter *)gBossObj)->anim;
                     bossColor[0] = lbl_80347C64;
                     bossColor[1] = 0.0f;
                     bossColor[2] = lbl_80347C68;
                     bossDamage = lbl_80347C40;
                     damageScale =
-                        (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     particleTexture =
                         MBOX_FindTexture(strings + 72, NULL);
                     break;
@@ -2297,26 +2298,26 @@ store_motion_state:
                     hit[1] = PF(gBossObj, 0x50, f32);
                     bossDamage = lbl_80347C40;
                     damageScale =
-                        (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     break;
                 case 41:
-                    hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = PF(gBossObj, 0x41C, f32);
-                    hit[2] = PF(gBossObj, 0x420, f32);
+                    hit[0] = ((Critter *)gBossObj)->prevMovePathPos[0];
+                    hit[1] = ((Critter *)gBossObj)->prevMovePathPos[1];
+                    hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
                     effect = StartFXSub(93, hit, 0, 0x1000000,
                                         0.0f);
                     if (effect >= 0) {
                         SfxSetMorph(5.0f, effect, 90, 0);
                     }
                     damageScale =
-                        (f32)(lbl_80347B58 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347B58 * ((Critter *)gBossObj)->health);
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
                     break;
                 case 39:
-                    hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = PF(gBossObj, 0x41C, f32);
-                    hit[2] = PF(gBossObj, 0x420, f32);
+                    hit[0] = ((Critter *)gBossObj)->prevMovePathPos[0];
+                    hit[1] = ((Critter *)gBossObj)->prevMovePathPos[1];
+                    hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
                     hit[2] = (f32)(hit[2] + lbl_80347C70);
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
                     hit[0] = (f32)(hit[0] - lbl_80347C80);
@@ -2330,21 +2331,21 @@ store_motion_state:
                         lbl_80344890 = effect;
                     }
                     damageScale =
-                        (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
-                    PF(gBossObj, 0xAC8, f32) = lbl_80347B10;
-                    hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = PF(gBossObj, 0x41C, f32);
-                    hit[2] = PF(gBossObj, 0x420, f32);
+                    ((Critter *)gBossObj)->unkAC8 = lbl_80347B10;
+                    hit[0] = ((Critter *)gBossObj)->prevMovePathPos[0];
+                    hit[1] = ((Critter *)gBossObj)->prevMovePathPos[1];
+                    hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
                     hit[1] = (f32)(hit[1] + lbl_80347BC0);
                     bossDamage = lbl_80347C40;
                     weight = lbl_80347C8C;
                     break;
                 case 40:
-                    hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = PF(gBossObj, 0x41C, f32);
-                    hit[2] = PF(gBossObj, 0x420, f32);
+                    hit[0] = ((Critter *)gBossObj)->prevMovePathPos[0];
+                    hit[1] = ((Critter *)gBossObj)->prevMovePathPos[1];
+                    hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
                     hit[2] = (f32)(hit[2] + lbl_80347BC0);
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
                     effect = StartFXSub(93, hit, 0, 0x880,
@@ -2354,15 +2355,15 @@ store_motion_state:
                         lbl_80344890 = effect;
                     }
                     damageScale =
-                        (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   lbl_80347C90);
-                    PF(gBossObj, 0xAC8, f32) = lbl_80347C94;
+                    ((Critter *)gBossObj)->unkAC8 = lbl_80347C94;
                     break;
                 case 42:
-                    hit[0] = PF(gBossObj, 0x418, f32);
-                    hit[1] = PF(gBossObj, 0x41C, f32);
-                    hit[2] = PF(gBossObj, 0x420, f32);
+                    hit[0] = ((Critter *)gBossObj)->prevMovePathPos[0];
+                    hit[1] = ((Critter *)gBossObj)->prevMovePathPos[1];
+                    hit[2] = ((Critter *)gBossObj)->prevMovePathPos[2];
                     hit[2] = (f32)(hit[2] + lbl_80347B28);
                     hit[1] = (f32)(hit[1] + lbl_80347C98);
                     effect = StartFXSub(93, hit, 0, 0x880,
@@ -2372,10 +2373,10 @@ store_motion_state:
                         lbl_80344890 = effect;
                     }
                     damageScale =
-                        (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
-                    PF(gBossObj, 0xAC8, f32) = lbl_80347CA0;
+                    ((Critter *)gBossObj)->unkAC8 = lbl_80347CA0;
                     break;
                 case 37:
                     hit[0] = 0.0f;
@@ -2387,19 +2388,19 @@ store_motion_state:
                         SfxSetParent(effect, p->node);
                         SfxSetMorph(lbl_80347BF8, effect, 90, 0);
                     }
-                    MBTreeSetColor(PF(gBossObj, 0x6C, void*), 0xFF40FF40, 1);
-                    MBTreeSetFlags(PF(gBossObj, 0x6C, void*), 8, 1);
-                    PF(PF(gBossObj, 0x6C, void*), 0x40, f32) =
+                    MBTreeSetColor(((Critter *)gBossObj)->mbnode, 0xFF40FF40, 1);
+                    MBTreeSetFlags(((Critter *)gBossObj)->mbnode, 8, 1);
+                    PF(((Critter *)gBossObj)->mbnode, 0x40, f32) =
                         0.800000011920929f;
-                    PF(PF(gBossObj, 0x6C, void*), 0x44, f32) =
+                    PF(((Critter *)gBossObj)->mbnode, 0x44, f32) =
                         0.800000011920929f;
-                    PF(PF(gBossObj, 0x6C, void*), 0x48, f32) =
+                    PF(((Critter *)gBossObj)->mbnode, 0x48, f32) =
                         0.800000011920929f;
                     damageScale =
-                        (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
+                        (f32)(lbl_80347BE0 * ((Critter *)gBossObj)->health);
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
                                   damageScale);
-                    PF(gBossObj, 0xAC8, f32) = lbl_80347B10;
+                    ((Critter *)gBossObj)->unkAC8 = lbl_80347B10;
                     break;
                 }
 
