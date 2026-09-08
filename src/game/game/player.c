@@ -194,11 +194,9 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define P(i)          (&gPlayerRecords[i])
-// lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
 #define PT(i)         ((Player*)((u8*)potionicon_tab + (i) * PREC_STRIDE + 0xC40))
 #define PTA(i)        (&((Player*)((u8*)potionicon_tab + 0xC40))[i])
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
-// lint-end FM001, FM007
 
 /* ------------------------------------------------------------------ */
 /* extern data                                                         */
@@ -214,13 +212,11 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
  * (mini-inventory tables, got_it state, tb_info) -- refine when wired.
  * NonMatching TU: these never link; the DOL keeps the original .bss.
  */
-// lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
 static void* potionicon_tab[5];    /* 0x000 (0x80274EA0) potion type -> texture */
 static void* hod_blit[4];          /* 0x014 hand-of-death icons */
 static void* quest_blit[4];        /* 0x024 QUEST_ICON blits */
 static u8 hud_pad_034[0x4C0];      /* 0x034 (0x80274ED4, unmapped scratch) */
 static char tbuf[0x20];            /* 0x4F4 (0x80275394) sprintf/path scratch */
-// lint-end FM007
 
 /* per-player model arena slot (0x802753B4, stride 0x4C).  Xbox analogue:
  * the player_multiple_models/got_max_player_sizes machinery. */
@@ -248,10 +244,8 @@ typedef struct PlayerModelSlot {
 static PlayerModelSlot player_multiple_models[4]; /* 0x514 (0x802753B4) */
 
 typedef struct PlayerGeoBssView {
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 _pad000[0x4F4];
     char scratch[0x20];
-    // lint-end FM007
     PlayerModelSlot models[4];
 } PlayerGeoBssView;
 
@@ -265,9 +259,7 @@ typedef struct AppendedItemTemplate {
     f32 radius;
     f32 pos[3];
     f32 rot[2];
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     char name[0x14];
-    // lint-end FM007
     u32 flags;
     s16 field40;
     s16 field42;
@@ -640,7 +632,6 @@ void PlayerUnsetParent(Player* p) {
 
 /* Release a grabbed player; restore != 0 restores the saved position. */
 void PlayerUnsetGrabbed(Player* p, s32 restore) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 132-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[64];
 
     if (restore == 1) {
@@ -657,7 +648,6 @@ void PlayerUnsetGrabbed(Player* p, s32 restore) {
 
 /* Attach the player under a carrier node at offset pos (critter.c). */
 void PlayerSetParent(Player* p, void* parent, f32* pos) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: dropping the volatile moves 54 words and shrinks the function 228 -> 220 bytes. Which original local it represents is a source-recovery question, not a deletion question.
     volatile f32 d[3];
 
     if (pos == NULL) {
@@ -726,7 +716,6 @@ void WritePlayerInfo(s32 pnum) {
     s32 i;
     s32 first;
     s32 end;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 412-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     if ((!(gGameMode & MODE_GROUP_ATTRACT) || lbl_80344298 == 0) &&
@@ -767,10 +756,8 @@ void WritePlayerInfo(s32 pnum) {
                 it_blit = NULL;
             }
             if (lbl_80344B24 >= 0 && (lbl_80344824 & (1 << lbl_80344B24))) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 it_blit = MBNewBlit("IT", lbl_80120238[lbl_80344B24] + 0x22, -349);
                 mbBlitProject(it_blit, 0x20, 0x20);
-                // lint-end FM007
                 mbBlitCvtCoord(it_blit, 64000.0f);
             }
         }
@@ -802,7 +789,6 @@ static void show_crystals(Player* p) {
         i = p->index;
         p->got_timer = p->got_timer - gClockFrameStep;
         type = p->got_type;
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (type >= 0x200) {
             cnt = p->got_count;
             total = sVisibleSumCoinCount;
@@ -813,11 +799,8 @@ static void show_crystals(Player* p) {
             }
         } else if (type >= 0x100) {
             cnt = towerGetLevelRecord(i, type -= 0x100);
-        // lint-end FM007
             total = lbl_80124CDC[type];
-            // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
             sprintf(tbuf, "SM_%s", &lbl_80124CE8[type * 0xE]);
-            // lint-end FM007
         } else {
             cnt = towerBossStatus(i, type);
             total = lbl_80124C70[type];
@@ -825,19 +808,16 @@ static void show_crystals(Player* p) {
         }
         tbuf[14] = 0;
         tex = MBOX_FindTexture(tbuf, NULL);
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         MBNewTempBlit(tex, lbl_80120238[i] + 0x1C, 0x120, 0x10, 0x10);
         if (cnt < 0) {
             cnt = total;
         }
         sprintf(tbuf, "%d/%d", cnt, total);
         DrawTextKeepScale(1.5f, lbl_80120238[i] + 0x30, 0x124, 1, 0xFFFFFF, tbuf);
-        // lint-end FM007
     }
 }
 
 /* Rune-stone / crystal collection icons; live while welcome_timer runs. */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 111 words and shrinks ShowRuneStones 532 -> 528 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void ShowRuneStones(void) {
     s32 i;
@@ -848,7 +828,6 @@ void ShowRuneStones(void) {
     s32 hide;
     s32 result;
     s32 result2;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 532-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 _spare[8];
 
     if (welcome_timer > 0 && options_state == 0) {
@@ -859,10 +838,8 @@ void ShowRuneStones(void) {
             s16 hud_flags2;
 
             p = (u8*)potionicon_tab + i * PREC_STRIDE;
-            // lint-begin FM001, FM009: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
             hud_flags2 = *(s16*)(p + 5542);
             state = *(s32*)(p + 3368);
-            // lint-end FM001, FM009
             p += 3136;
             if (!(hud_flags2 & 2)) {
                 ((Player*)p)->hud_flags2 = hud_flags2 | 2;
@@ -911,7 +888,6 @@ void ShowRuneStones(void) {
         }
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 111 words and shrinks ShowRuneStones 532 -> 528 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Name/level/health/keys/potions writer for one player's HUD row. */
@@ -925,46 +901,35 @@ static void write_health_and_items(s32 i) {
     f32 oldz;
     char buf2[44];
     char buf[16];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 18 words at unchanged 1612-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[32];
     void* blit;
 
     hidden = 0;
     show_gold = 1;
-    // lint-begin FM001, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
     rgb = ((u32*)(tab + 1408))[PTA(i)->class_id];
-    // lint-end FM001, FM009
     p = PTA(i);
     mini_inventory_update(i);
     oldz = MBSetFontZ(63990.0f);
     if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
         hidden = 1;
     }
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (gGameMode == MG_PLAY && lbl_80344760 > 0 && p->state == 0xB &&
-    // lint-end FM007
         p->motion_state == 1) {
-        // lint-begin FM001, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         u32 x = ((u16*)(tab + 1520))[i] + 6;
-        // lint-end FM001, FM009
 
         hidden = 1;
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         MBNewTempBlit((void*)lbl_80344E48, x, 0x14C, 0xE, 0xE);
         MBNewTempBlit((void*)lbl_80344E44, x, 0x160, 0xE, 0xE);
         DrawTextKeepScale(1.2f, x + 0xE, 0x150, 1, 0xFFFFFF, "Wait In Tower");
         DrawTextKeepScale(1.2f, x + 0xE, 0x164, 1, 0xFFFFFF, "Quit Game");
-        // lint-end FM007
         show_gold = 0;
     }
-    // lint-begin FM001, FM007, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if ((p->state == 5 || p->state == 0xB) && gGameMode != MG_WORLD_SELECT &&
         gGameMode != MG_LEVEL_ADVANCE && gGameMode != MG_GWIZ_SPEECH && !hidden) {
         hidden = 1;
         setup_player_display(i);
         if (p->state == 0xB) {
             DrawTextKeepScale(1.2f, -((u16*)(tab + 1528))[i], 0x154, 1, rgb, "IN TOWER");
-    // lint-end FM001, FM007, FM009
         } else {
             hidden = 0;
         }
@@ -979,9 +944,7 @@ static void write_health_and_items(s32 i) {
             }
             sprintf(buf, "%d", (s32)p->health);
             w = DrawNormalText(1.0f, buf, 4);
-            // lint-begin FM001, FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             DrawText((((u16*)(tab + 1520))[i] + 0x74) - w, 0x167, 4, ((u32*)(tab + 1408))[p->class_id], buf);
-            // lint-end FM001, FM007, FM009
             mbBlitInit3414(frame_blit[i][5], 0);
         }
     } else {
@@ -996,7 +959,6 @@ static void write_health_and_items(s32 i) {
     switch (p->display_mode) {
     case 6:
         if (!hidden) {
-            // lint-begin FM001, FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->name);
         }
         break;
@@ -1030,22 +992,17 @@ static void write_health_and_items(s32 i) {
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_lo);
             DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x1A, 0x147, 4, rgb, buf2);
-            // lint-end FM001, FM007, FM009
         }
         if (p->item_body_hi > 0) {
-            // lint-begin FM001, FM007, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             blit = MBNewTempBlit(potionicon_tab[PF(p, 0x32FC + p->item_body_hi * 4, s32)],
                                  ((u16*)(tab + 1520))[i] + 0x66, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_hi);
             DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x5C, 0x147, 4, rgb, buf2);
-            // lint-end FM001, FM007, FM009
         }
     }
     if (p->health > 0.0f && lbl_80344A44 == 0) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (gGameMode == MG_PLAY && p->quest_state != 0 && sMusicTrackHi != 0xD) {
-        // lint-end FM007
             mbBlitInit3414(quest_blit[i], 0);
         } else {
             mbBlitInit3414(quest_blit[i], 1);
@@ -1086,9 +1043,7 @@ typedef struct PlayerControlState {
     s32 unk38;
 } PlayerControlState;
 extern PlayerControlState lbl_80240E30[4];
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 96 words and grows debug_player_pos 468 -> 476 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 2 words in debug_player_pos at unchanged 468-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_lifetimes off
 static void debug_player_pos(s32 i) {
     Player* p;
@@ -1110,12 +1065,9 @@ static void debug_player_pos(s32 i) {
 
     fmt = (char*)lbl_80113AE0;
     base = (u8*)potionicon_tab;
-    // lint-begin FM007, FM009: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
     p = (Player*)((u8*)(p = (Player*)(base + i * 0x335C)) + 0xC40);
     name = fmt + 908;
-    // lint-end FM007, FM009
     if (gGameMode == MG_PLAY) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         fn_800C02F4(0x80FF80);
         get_actual_screen_pos(0, &work.actualX, (f32*)&work.y, p->col_pos);
         dbgTextFlagA = 1;
@@ -1127,10 +1079,8 @@ static void debug_player_pos(s32 i) {
             name = (char*)p->floor_name2;
         }
         oldflags = MBSetFontFlags(0x40000);
-        // lint-end FM007
         work.y = 330.0f;
         x = &lbl_80120238[i];
-        // lint-begin FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, name);
         work.y += 10.0f;
         sprintf((char*)base + 0x4F4, fmt + 920,
@@ -1141,13 +1091,10 @@ static void debug_player_pos(s32 i) {
         sprintf((char*)base + 0x4F4, fmt + 940,
                 work.screen[0], work.screen[1]);
         DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, (char*)base + 0x4F4);
-        // lint-end FM007, FM009
         MBSetFontFlags(oldflags);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 2 words in debug_player_pos at unchanged 468-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_lifetimes reset
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 96 words and grows debug_player_pos 468 -> 476 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Gold counter, right-aligned, 99999 cap. */
@@ -1164,10 +1111,8 @@ static void write_gold(s32 i, s32 show) {
         if (show != 0) {
             sprintf(buf, "%d", p->gold);
             w = DrawNormalText(1.0f, buf, 4);
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             x = (lbl_80120238[i] + 0x3C) - w;
             DrawText(x, 0x167, 4,
-            // lint-end FM007
                      lbl_801201C8[p->class_id], buf);
             mbBlitInit3414(frame_blit[i][4], 0);
         } else {
@@ -1191,10 +1136,7 @@ static void draw_power_meter(s32 i) {
     u32 rgb2;
     u16* tex;
     s32 w;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 26 words at unchanged 1156-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[0x30];
-    // lint-end FM007
 
     for (j = 0; j < 7; j++) {
         mbBlitInit3414(pm_blit[i][j], 1);
@@ -1268,9 +1210,7 @@ static void draw_power_meter(s32 i) {
         case 2:
         case 3:
             rgb = (a & 0xFF) << 16;
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             rgb2 = 0xFFFF00;
-            // lint-end FM007
             break;
         }
         tex = (u16*)MBRomTexPtr(PF((u8*)pm_blit[i][0], 4, u32));
@@ -1279,13 +1219,11 @@ static void draw_power_meter(s32 i) {
         if (width < 1) {
             w = 1;
         }
-        // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
         mbBlitCalcWidth(pm_blit[i][0],
                         (table[2] + i * 0x80 + ((s32)tex[5] / 2)) - w,
                         table[3], (f32)table[4]);
         mbBlitProject(pm_blit[i][0], w << 1, 0);
         mbBlitCalcWidth(pm_blit[i][1], table[7] + i * 0x80, table[8],
-        // lint-end FM007
                         (f32)table[9]);
         MBBlitSetColor(pm_blit[i][0], rgb);
         MBBlitSetColor(pm_blit[i][1], rgb2);
@@ -1304,7 +1242,6 @@ static void draw_power_meter(s32 i) {
         }
         break;
     case 2: {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         s32 alpha = (p->meter_timer << 9) / 0x78;
 
         w = alpha;
@@ -1319,7 +1256,6 @@ static void draw_power_meter(s32 i) {
         }
         MBBlitSetColor(pm_blit[i][0], 0xFF0000);
         MBBlitSetColor(pm_blit[i][1], 0xFF0000);
-        // lint-end FM007
         break;
     }
     }
@@ -1336,7 +1272,6 @@ void setup_player_display(s32 i) {
     s32 chr;
     u32 frames;
     char buf[40];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 9 words at unchanged 964-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     mode = get_display_mode(i);
@@ -1361,13 +1296,11 @@ void setup_player_display(s32 i) {
     frames = (u32)MBOX_FindTexture_Err("coin", NULL, 1);
     mbInitBlitEntry(frame_blit[i][4], frames, 0);
     mbBlitInit3414(frame_blit[i][4], 0);
-    // lint-begin FM007: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
     mbBlitCalcWidth(frame_blit[i][4], x + 6, 0x165, 63990.0f);
     frames = (u32)MBOX_FindTexture_Err("heart", NULL, 1);
     mbInitBlitEntry(frame_blit[i][5], frames, 0);
     mbBlitInit3414(frame_blit[i][5], 0);
     mbBlitCalcWidth(frame_blit[i][5], x + 0x3D, 0x165, 63990.0f);
-    // lint-end FM007
     switch (mode) {
     case 0:
     case 3:
@@ -1414,13 +1347,11 @@ void setup_player_display(s32 i) {
     }
 done:
     if (gGameMode == MG_PLAYER_SELECT || gGameMode == MG_SHOP) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         mbBlitUpdateEntry(frame_blit[i][0], 0xFFFFFFFF, 0x4010);
         mbBlitUpdateEntry(frame_blit[i][2], 0xFFFFFFFF, 0x4010);
     } else {
         mbBlitUpdateEntry(frame_blit[i][0], 0xFFFFBFEF, 0);
         mbBlitUpdateEntry(frame_blit[i][2], 0xFFFFBFEF, 0);
-        // lint-end FM007
     }
 }
 
@@ -1478,9 +1409,7 @@ static inline s32 CalcLevelExp(s32 lv) {
         return (lv - 1) * (lv * 30 + 1000);
     }
     product = (lv - 60) * 4600;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     result = 0x28550;
-    // lint-end FM007
     result += product;
     return result;
 }
@@ -1500,13 +1429,9 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
         }
         lv = p->level;
         if (lv <= 60) {
-            // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
             delta = (lv - 1) * 0x3C + 1000;
-            // lint-end FM007
         } else {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             delta = 0x11F8;
-            // lint-end FM007
         }
         amount = amount * (s32)(0.01 * (f32)delta);
     } else {
@@ -1526,9 +1451,7 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
     }
     res = ModifyExp(p, amount);
     if (mode == 1) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (p->action < 0xB) {
-        // lint-end FM007
             p->power_target = (f32)(0.025 * (f32)amount + p->power_target);
         }
         if ((f64)p->power_target > 100.0) {
@@ -1541,9 +1464,7 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
         } else if (amount > 0) {
             s32 fx;
 
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             msgPost(0x22, pnum, (u32)p->col_pos);
-            // lint-end FM007
             fx = StartLevelUpFX(0, p->class_id);
             SfxSetParent(fx, p->node);
             p->health += 100.0;
@@ -1560,7 +1481,6 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
 static s32 ModifyExp(Player* p, s32 delta) {
     s32 res = 0;
     s32 need;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 376-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     p->exp = p->exp + delta;
@@ -1615,9 +1535,7 @@ s32 LevelToExp(s32 lv) {
         return (lv - 1) * (lv * 30 + 1000);
     }
     product = (lv - 60) * 4600;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     result = 0x28550;
-    // lint-end FM007
     result += product;
     return result;
 }
@@ -1657,9 +1575,7 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
             power *= 1.1;
             scale += 0.1;
         }
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (p->level >= 0x19) {
-        // lint-end FM007
             flags |= 0x800000;
         }
     } else {
@@ -1711,9 +1627,7 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
             AudioPotion(color, pos, 0);
         }
     }
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (p != NULL && p->level >= 0x4B && mode != 1) {
-    // lint-end FM007
         fx = StartMagicHealFX(NULL, power);
         SfxSetParent(fx, p->node);
     }
@@ -1763,7 +1677,6 @@ s32 do_players(void) {
     it = -1;
     best = 9999.0f;
     if (gControllerButtons & 0x10) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         opt_force_player = 0xFFFFFFFF;
     }
     if (gGameMode == MG_PLAY && (s32)opt_force_player >= 0) {
@@ -1796,7 +1709,6 @@ s32 do_players(void) {
                         }
                     }
                     opt_force_player = 0xFFFFFFFF;
-        // lint-end FM007
                 }
             }
         }
@@ -1809,7 +1721,6 @@ s32 do_players(void) {
                 s32 sel;
                 u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
                     sel = 1;
                 } else {
@@ -1820,7 +1731,6 @@ s32 do_players(void) {
                     fn_8005A338(p->mat, p->anchor_fwd, p->anchor_pos);
                     if (p->platform != NULL && *p->platform != 0) {
                         WorldVector((f32*)((u8*)*p->platform + 0x30), p->beacon_pos,
-                // lint-end FM007
                                     p->mat);
                         p->beacon_pos[1] = 0.0f;
                         p->beacon_pos[0] = p->pos[0] + p->beacon_pos[0];
@@ -1935,9 +1845,7 @@ s32 do_players(void) {
         {
             u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
-            // lint-end FM007
                 selected = 1;
             } else {
                 selected = 0;
@@ -2018,9 +1926,7 @@ s32 do_players(void) {
                 }
                 break;
             }
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             case 0xB:
-            // lint-end FM007
                 if (gGameMode == MG_PLAY && p->motion_state == 1) {
                     if (lbl_80240E30[i].edges & 0x8000000) {
                         abort_player(i);
@@ -2065,10 +1971,8 @@ s32 do_players(void) {
                     f32 light_pos[3];
 
                     p->intower = 1;
-                    // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
                     PF(p, 0xC28 + p->character * 0x1C, f32) =
                         PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)(u32)gFrameTicks;
-                    // lint-end FM007
                     if (PF(gCurLevel, offsetof(level_data, flags), u32) & 8) {
                         light_pos[0] = p->col_pos[0];
                         light_pos[1] = p->col_pos[1];
@@ -2093,9 +1997,7 @@ s32 do_players(void) {
                 {
                     s32 nt;
 
-                    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                     if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) &&
-                    // lint-end FM007
                         gTriggerCameraState == 0 && gModalRenderDepth == 0 &&
                         gMessageActive == 0 && (nt = p->name_timer) > 0 &&
                         !(gGameBusy | gGameplayPauseTimer)) {
@@ -2115,7 +2017,6 @@ s32 do_players(void) {
                         }
                         name[6] = 0;
                         MBWorldToScreen(spos, p->col_pos);
-                        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                         DrawTextKeepScale(0.5f, -(s32)spos[0], (s32)spos[1], 7,
                                           0xFFFFFF, name);
                     }
@@ -2124,7 +2025,6 @@ s32 do_players(void) {
                     MBTreeClearFlags(p->node, 2, 0);
                     if (p->mbnode != NULL) {
                         if (sMusicTrackHi == 0xC && sMusicTrackLo == 8) {
-                        // lint-end FM007
                             MBTreeSetFlags(p->mbnode, 2, 1);
                         } else {
                             MBTreeSetFlags(p->mbnode, 2, 0);
@@ -2139,11 +2039,9 @@ s32 do_players(void) {
                 }
                 PlayerMotion(p);
                 if (p->fall_time > 0.0 && sMusicFadeBase > p->fall_time + 2.0) {
-                    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                     if (p->fall_frames >= 0x2D) {
                         fn_8009FEFC(i);
                     } else if (p->fall_frames >= 0x1E) {
-                    // lint-end FM007
                         fn_8009FEA0(i);
                     }
                     p->fall_time = 0.0f;
@@ -2165,19 +2063,15 @@ s32 do_players(void) {
                         ((mbnode*)p->mbnode)->mat[3][1] = p->pos[1];
                         ((mbnode*)p->mbnode)->mat[3][2] = p->pos[2];
                         PlayerProcessSkinFX(p);
-                        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                         if (p->character == 0xC) {
-                        // lint-end FM007
                             MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
                         } else if (p->level >= 99) {
                             MBTreeSetScale(1.2f, 1.2f, 1.2f, p->node);
                         } else {
                             MBTreeClearFlags(p->node, 8, 0);
-                            // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                             *(f32*)(p->node + 0x40) = 1.0f;
                             *(f32*)(p->node + 0x44) = 1.0f;
                             *(f32*)(p->node + 0x48) = 1.0f;
-                            // lint-end FM001, FM007
                         }
                     }
                     loaded = 0;
@@ -2195,7 +2089,6 @@ s32 do_players(void) {
                 PlayerProcessPowerups(p);
                 PlayerCheckMovingFloor_80088688(p);
                 if (p->count_920 > 0) {
-                    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                     p->anim_20C = 0x7E;
                     if (p->anim_208 == 0x7E) {
                         p->count_920 = p->count_920 - 1;
@@ -2212,7 +2105,6 @@ s32 do_players(void) {
                 PlayerProcessScale(p);
                 PlayerDoWeapTrail(p);
                 if (p->count_920 <= 0 && p->anim_208 != 0x7E) {
-                    // lint-end FM007
                     inactivate_player(i);
                 }
                 loaded = 0;
@@ -2286,13 +2178,9 @@ s32 do_players(void) {
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
         u8* krec = (u8*)potionicon_tab + k * PREC_STRIDE;
-        // lint-begin FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         Player* speaker = (Player*)(krec + 0xC40);
-        // lint-end FM007, FM009
 
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (PF(krec, 0xC40 + offsetof(Player, speech_req), s32*) != NULL) {
-        // lint-end FM007
             if (speaker->state == 1 && gGameMode == MG_PLAY) {
                 fn_8005DE50(speaker, speaker->speech_req);
                 for (j = 0; j < 4; j++) {
@@ -2312,9 +2200,7 @@ s32 do_players(void) {
     if (i < 4 && gGameMode != MG_SHOP) {
         u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-        // lint-begin FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         fn_8009D610(0, ((Player*)(prec + 0xC40))->col_pos);
-        // lint-end FM007, FM009
     } else {
         fn_8009D610(2, NULL);
     }
@@ -2372,11 +2258,9 @@ extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
 extern s32 good_wiz_state;      /* cutscene/no-damage global */
 extern s32 gBoss398;      /* boss floor index */
 typedef struct PlayerEnemyView {
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 pad0[0x32C];
     s32 skip_itemcol;
     u8 pad330[0x64];
-    // lint-end FM007
 } PlayerEnemyView;
 extern PlayerEnemyView gEnemies[25]; /* Enemy[25], stride 0x394 */
 extern s32 gNumEnemies;      /* enemy count */
@@ -2397,7 +2281,6 @@ typedef struct BigapePowerupSpawn {
 extern BigapePowerupInfo lbl_80120274[3];
 extern BigapePowerupSpawn lbl_8012028C[];
 /* sItems (Item*, stride 0xF0) -- game/item.h; gWorldInfo -- game/worldinfo.h */
-// lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
 extern void* sKeyringAtree;    /* see-thru tree (low) */
 extern void* sDeathIconAtree;    /* see-thru tree (high) */
 extern s32 lbl_8025EC68[4];   /* see-thru: player tree node */
@@ -2406,7 +2289,6 @@ extern Item* lbl_8025EC88[4]; /* see-thru: chest item ptr */
 extern s32 lbl_8025EC98[4];   /* see-thru: saved parent */
 extern mbnode* lbl_8025ECA8[4]; /* see-thru: proxy node */
 extern void* lbl_8025ECB8[4][0x12]; /* see-thru: overlay handle (stride 0x48) */
-// lint-end FM007
 extern plyr_data* lbl_80282930[4]; /* PDATA PDAT record, one per player */
 extern void* FamiliarTree[4][2]; /* level-tier halo atrees */
 extern void* WeapHoldFxTree[4][5];
@@ -2617,13 +2499,11 @@ extern void SfxDeleteParented(u8* node, s32 a, s32 player);
 extern void ClearPlyrData(s32 player);
 
 /* per-char save-stat block view: p + 0xA90 + character*0x18 */
-// lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
 #define CHAR_STATS(p, t) ((s32*)((u8*)(p) + 0xA90 + (t) * 0x18))
 /* [0]=exp [1]=health [2]=fight [3]=armor [4]=magic [5]=speed (f32 bits) */
 
 /* per-char item block view: p + 0xDD0 + character*0xF0 */
 #define CHAR_ITEMS(p, t) ((u8*)(p) + 0xDD0 + (t) * 0xF0)
-// lint-end FM007
 /* +0 keys(s16) +2 potions(s16) +4 runes(u16) +6 shards(u16) +0xA pottypes +0x30 gold */
 
 /* powerup slot view: p + 0x130 + i*0x10 (11 slots) */
@@ -2658,9 +2538,7 @@ static inline f64 PlayerScaleMultiply(f32 value, const f64* factor)
 }
 
 /* Decay the shrink/grow potion scale back toward 1 and clamp tiny.    */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 34 words and grows PlayerProcessScale 276 -> 280 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 53 words and shrinks PlayerProcessScale 276 -> 272 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void PlayerProcessScale(void* vp) {
     Player* p = vp;
@@ -2668,7 +2546,6 @@ void PlayerProcessScale(void* vp) {
     f32 ambientScale;
     f32 zero;
     f32 av;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 11 words at unchanged 276-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     s = p->pulse_7FC;
@@ -2684,7 +2561,6 @@ void PlayerProcessScale(void* vp) {
         }
         MBTreeSetAmbientAdd(p->node, (s32)(255.0 * ambientScale), 1);
     }
-    // lint-begin FM001, FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     if (PF(p, 0x7DC, f32) > 0.0f) {
         PF(p, 0x95A, s16) = 1;
     } else if (PF(p, 0x95A, s16) != 0) {
@@ -2692,14 +2568,11 @@ void PlayerProcessScale(void* vp) {
     }
     if (ProcessSkinFX((f32*)((u8*)p + 0x7DC), p->node, 0) == 0 &&
         *(s16*)(p->node + 0x5C) <= -2) {
-    // lint-end FM001, FM007
         MBTreeSetAltTex(p->node, -1, 0, 1);
         MBTreeSetAmbientAdd(p->node, 0, 1);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 53 words and shrinks PlayerProcessScale 276 -> 272 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 34 words and grows PlayerProcessScale 276 -> 280 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Is player i on the character-select overlay?                        */
@@ -2711,9 +2584,7 @@ s32 PlayerSelecting(s32 i) {
 }
 
 typedef struct PlayerExitTimerView {
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 _pad000[0x1F2];
-    // lint-end FM007
     s16 exit_timer;
 } PlayerExitTimerView;
 
@@ -2727,7 +2598,6 @@ static void do_exit(void* vp, s32 dest) {
         return;
     }
     if (exitPlayer->exit_timer == 0 && dest != 0) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         exitPlayer->exit_timer = (lbl_8034481C != 0) ? 0 : 0x32;
         if (lbl_803447B4 == 0) {
             fn_8009D258(p->pos);
@@ -2740,7 +2610,6 @@ static void do_exit(void* vp, s32 dest) {
         } else if (lbl_8034481C >= 0xD) {
             p->exit_dest = lbl_80344B84;
         } else if (lbl_8034481C >= 0xC) {
-        // lint-end FM007
             p->exit_dest = sWorldDataConst;
         } else if (lbl_8034481C >= 3) {
             p->exit_dest = ((lbl_8034481C - 3) & 0xFF) | 0xC00;
@@ -2767,9 +2636,7 @@ static void do_exit(void* vp, s32 dest) {
         }
         {
             s32 skin = lbl_80344BEC;
-            // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
             f32* fx = (f32*)((u8*)p + 0x7DC);
-            // lint-end FM007
             SetSkinFX(0.4f, fx, skin, 10, 1);
         }
     }
@@ -2787,7 +2654,6 @@ static void do_exit(void* vp, s32 dest) {
         f32 move_y = -0.12f;
         f32 move_z = 0.0f;
         u32 ticks = gFrameTicks;
-        // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 14 words at unchanged 644-byte size. Which original local it represents is a source-recovery question, not a deletion question.
         u8 unused[8];
         move_x *= (f32)ticks;
         p->pos[0] += move_x;
@@ -2806,9 +2672,7 @@ static s32 do_weakening(Player* p, s32 active) {
     s16 t;
 
     if (p->weakening_period != 0) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (p->state == 1 && (gControllerButtons & 4) == 0 && sMusicTrackHi != 0xC) {
-        // lint-end FM007
             s32 elapsed = p->weakening_elapsed + gFrameTicks;
             p->weakening_elapsed = elapsed;
             if (elapsed >= p->weakening_period) {
@@ -2823,7 +2687,6 @@ static s32 do_weakening(Player* p, s32 active) {
         t = p->heartbeat_timer - gFrameTicks;
         p->heartbeat_timer = t;
         if (t <= 0) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             if (sMusicTrackHi != 0xD && (p->shield_flags & 0x110000) == 0) {
                 AudioHeartBeat(player);
             }
@@ -2833,7 +2696,6 @@ static s32 do_weakening(Player* p, s32 active) {
                 p->heartbeat_timer = 0x3C;
             } else {
                 p->heartbeat_timer = 0x1E;
-            // lint-end FM007
             }
         }
     }
@@ -2846,9 +2708,7 @@ static s32 all_players_go_to_same_level(void) {
     s32 i;
     s32 dest = 0;
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (lbl_803447D0 < 0xE && lbl_8034481C == 0) {
-    // lint-end FM007
         return 0;
     }
     for (i = 0; i < 4; i++, p++) {
@@ -2867,7 +2727,6 @@ static s32 all_players_go_to_same_level(void) {
 }
 
 /* Player index+1 if someone is riding a moving lift/platform.         */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 11 words in PlayerOnMovingObject at unchanged 160-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 s32 PlayerOnMovingObject(void) {
     u8* obj;
@@ -2880,14 +2739,12 @@ s32 PlayerOnMovingObject(void) {
     }
     for (i = 0; i < 4; i++) {
         Player* p = P(i);
-        // lint-begin FM001, FM007, FM009: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         if (p->state == 1 && (obj = PF(p, offsetof(Player, floor_name2), u8*)) != NULL &&
             *(u32*)(obj + 0x28) != 0) {
             mo = *(u8**)(obj + 0x18);
             flags = *(u32*)(obj + 0x10);
             if (mo != NULL) {
                 flags |= *(u32*)(mo + 0x10);
-        // lint-end FM001, FM007, FM009
             }
             if ((flags & 0x1000) && (flags & 0x8000000) && (flags & 0x300000)) {
                 return i + 1;
@@ -2896,7 +2753,6 @@ s32 PlayerOnMovingObject(void) {
     }
     return 0;
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 11 words in PlayerOnMovingObject at unchanged 160-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Another player (not i / not obj) currently riding something?        */
@@ -2925,7 +2781,6 @@ void do_heal_players(void* vp, f32* mat, f32 amount) {
     f32 d;
     s32 i;
     s32 typ;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 16 words at unchanged 520-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
 
     typ = -1;
@@ -2968,9 +2823,7 @@ void do_heal_players(void* vp, f32* mat, f32 amount) {
                 }
             }
         }
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         msgPost(0x93, p->index, (u32)p->pos);
-        // lint-end FM007
     }
     if (typ >= 0) {
         fn_8009190C(mat, typ);
@@ -3013,10 +2866,8 @@ f32 player_max_health(void* vp) {
 s32 player_can_be_damaged(void* vp) {
     Player* p = vp;
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if ((p->anim_208 < 0x58 || p->anim_208 > 0x5A) &&
         p->action < 0xB && (p->hud_flags & 0x10) == 0) {
-    // lint-end FM007
         if (p->grab_partner == NULL) {
             goto can_damage;
         }
@@ -3041,7 +2892,6 @@ extern u8 lbl_801201C4[];     /* weakening default period */
  * and got-it entries, and parks state 8 (dying).
  */
 s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 13 words at unchanged 2108-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
     Player* p = P(i);
     s32 result = 0;
@@ -3083,10 +2933,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         if (good_wiz_state != 0) {
             return 0;
         }
-        // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         if (gBossType >= 0 && gBoss398 >= 0 &&
             *(s32*)((u8*)gEnemies + gBoss398 * 0x394 + 0xB4) != 1) {
-        // lint-end FM001, FM007
             return 0;
         }
         if (dmg > 1.0) {
@@ -3145,9 +2993,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             /* front hit: "ouch" speech occasionally */
             if (dmg > 40.0f && (flags & 0x10160) && (hf & 0x2000) == 0 &&
                 sMusicFadeBase > 5.0) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 msgPost(0x7D, p->index, (u32)p->col_pos);
-                // lint-end FM007
             }
         }
     }
@@ -3193,13 +3039,11 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                     p->field_898 = 4.0 + sMusicFadeBase;
                 }
                 if (flags & 0x10040) {
-                    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                     do_vibe(i, 3, 0x1E);
                 } else if (flags & 0x120) {
                     do_vibe(i, 2, 0x14);
                 } else if (flags & 0x90) {
                     do_vibe(i, 1, 0xF);
-                    // lint-end FM007
                 } else {
                     do_vibe(i, 0, 10);
                 }
@@ -3228,14 +3072,10 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         hp_old = (s32)(0.25 + hp);
         hp_new = (s32)(0.25 + p->health);
         if (dmg > 0.0f) {
-            // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
             PF(p, 0x924, f32) += dmg;
-            // lint-end FM007
         }
         if (hp_old > 150 && hp_new <= 150) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             if (msgPost(0xD, i, (u32)p->col_pos) == 0) {
-            // lint-end FM007
                 fn_8009FFF4(1, i);
             }
         } else if (hp_old > 50 && hp_new <= 50) {
@@ -3249,7 +3089,6 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                 if (dmg > 0.0f) {
                     AudioPlayerPain(i);
                 }
-                // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
                 PF(p, 0x924, f32) = 0.0f;
             } else if (mode == 3) {
                 AudioPlayerPoison(i);
@@ -3263,7 +3102,6 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                     mode = 0;
                 } else if (PF(p, 0x924, f32) >= 45.0) {
                     PF(p, 0x924, f32) = PF(p, 0x924, f32) - 45.0;
-                // lint-end FM007
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
@@ -3286,9 +3124,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                 if (dmg > 0.0f) {
                     AudioPlayerHit(dmg, i, kind2);
                 }
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->timer_1F0 = 0x1E;
-                // lint-end FM007
             }
         }
     }
@@ -3335,7 +3171,6 @@ static inline void player_dies(s32 i) {
             }
         }
     }
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (p->item_body_lo > 0 && sMusicTrackHi != 0xD) {
         CopyMat4(gIdentityMatrix, m);
         m[12] = death_pos[0];
@@ -3348,7 +3183,6 @@ static inline void player_dies(s32 i) {
                                     m);
             if (chest != NULL) {
                 chest[0x38] = p->item_body_lo;
-    // lint-end FM007
             }
         }
     }
@@ -3358,9 +3192,7 @@ static inline void player_dies(s32 i) {
     for (j = 0; j < 11; j++) {
         memset(&p->powerup[j], 0, sizeof(PlayerPowerup));
     }
-    // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     PF(p, 0x1EC, s32) = 0;
-    // lint-end FM007
     p->flags = 0;
 }
 
@@ -3374,9 +3206,7 @@ void kill_player(s32 i) {
         }
         p->quest_state = 0;
         p->health = 0.0f;
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         p->state = 0xB;
-        // lint-end FM007
         p->motion_state = 1;
         setup_player_display(i);
     }
@@ -3384,9 +3214,7 @@ void kill_player(s32 i) {
 
 static inline void restore_inactive_player(s32 i) {
     typedef struct InactiveSaveImage {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         u8 bytes[0x1434];
-        // lint-end FM007
     } InactiveSaveImage;
     Player* p = PT(i);
     f32 cap;
@@ -3398,10 +3226,8 @@ static inline void restore_inactive_player(s32 i) {
         }
         p->health = cap;
     } else {
-        // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(InactiveSaveImage*)((u8*)p + offsetof(Player, name)) =
             *(InactiveSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
-        // lint-end FM001
         player_get_from_save(p, -1);
     }
 }
@@ -3410,10 +3236,8 @@ static inline void restore_inactive_player(s32 i) {
 /* slot just goes back to selecting with saved-health restore.         */
 void inactivate_player(s32 i) {
     Player* p = PT(i);
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 8 words at unchanged 900-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (sMusicTrackHi == 0xD) {
         p->state = 1;
         restore_inactive_player(i);
@@ -3421,7 +3245,6 @@ void inactivate_player(s32 i) {
     }
     playerGiveGargItem(i, sMusicTrackHi, sMusicTrackLo);
     p->state = 0xB;
-    // lint-end FM007
     p->motion_state = 1;
     setup_player_display(i);
     p->health = 0.0f;
@@ -3444,9 +3267,7 @@ void abort_player(s32 i) {
     p->motion_state = 0;
     p->motion_state_save = 0;
     controls_remove_active_player(i);
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     p->respawn_timer = 0xB4;
-    // lint-end FM007
     if (p->node != NULL) {
         player_dies(i);
     }
@@ -3463,22 +3284,18 @@ void abort_player(s32 i) {
 void GetPlayerColPos(s32 i, f32* out) {
     u8* p = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-    // lint-begin FM001, FM007, FM009: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
     out[0] = *(f32*)(p + 0xCA4);
     out[1] = *(f32*)(p + 0xCA8);
     out[2] = *(f32*)(p + 0xCAC);
-    // lint-end FM001, FM007, FM009
 }
 
 /* World position (offset 0x44).                                       */
 void GetPlayerPos(s32 i, f32* out) {
     u8* p = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-    // lint-begin FM001, FM007, FM009: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
     out[0] = *(f32*)(p + 0xC84);
     out[1] = *(f32*)(p + 0xC88);
     out[2] = *(f32*)(p + 0xC8C);
-    // lint-end FM001, FM007, FM009
 }
 
 /* Tear down the in-world player geo (nodes, weapon, mikey, atree).    */
@@ -3546,7 +3363,6 @@ void remove_player_geo(s32 i) {
         MBRemoveNode(p->field_A14, 1);
         p->field_A14 = NULL;
     }
-    // lint-begin FM001, FM007, FM009: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
     if (p->field_A14 != NULL && *(u32*)((u8*)p->field_A14 + 0x78) != 0) {
         ErrorPrintf("mikey_objgrp OBJ NODE HAS KIDS AFTER ATREEDELETE");
     }
@@ -3556,7 +3372,6 @@ void remove_player_geo(s32 i) {
         while ((node = p->node,
                 kid = *(u8**)((u8*)((mbnode*)node)->child + 0x7C)) != NULL) {
             MBNodeSetParent(kid, *(void**)(node + 0x74));
-    // lint-end FM001, FM007, FM009
         }
     }
     SfxDeleteParented(p->node, 1, i);
@@ -3579,14 +3394,11 @@ void remove_player_geo(s32 i) {
 
 /* Swap player i to character type; 0x10 = the active hidden char.     */
 void change_player(s32 i, s32 type) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 204-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
     Player* p = P(i);
 
     player_store_in_save(p);
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (type == 0x10) {
-    // lint-end FM007
         type = 2;
         HIDDEN_CODE(p) = lbl_80343D6C;
     } else {
@@ -3612,10 +3424,8 @@ void new_player(s32 i) {
     clear_player(i, 1);
     p->state = 2;
     p->motion_state = 0;
-    // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     PF(p, 0xA8B, s8) = -1;
     PF(p, 0x3358, s32) = -1;
-    // lint-end FM007
     sel_set_inactive(i);
 }
 
@@ -3626,18 +3436,15 @@ void clear_player(s32 i, s32 full) {
     s32 player_index;
     s32 cls;
     s32 j;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 7 words at unchanged 500-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     p->item_body_hi = 0;
     for (j = 0; j < 9; j++) {
-        // lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         ((s32*)p)[0xCC0 + j] = j & 3;
     }
     cls = j;
     if (gDemoMode != 0) {
         p->gold = 0x9C4;
-        // lint-end FM001, FM007
     } else {
         p->gold = 0;
     }
@@ -3652,9 +3459,7 @@ void clear_player(s32 i, s32 full) {
     for (j = 0; j < 11; j++) {
         memset(&p->powerup[j], 0, sizeof(PlayerPowerup));
     }
-    // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     PF(p, 0x1EC, s32) = 0;
-    // lint-end FM007
     p->flags = 0;
     p->level = 1;
     p->exp = 0;
@@ -3681,10 +3486,8 @@ void clear_player(s32 i, s32 full) {
     p->world_name_len = 0;
     p->intower = 0;
     if (full != 0) {
-        // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
         memset((u8*)p + 0xA80, 0, 0x1434);
         memset((u8*)p + 0x1ECC, 0, 0x1434);
-        // lint-end FM007
         p->state = 0;
         p->motion_state = 0;
         p->motion_state_save = 0;
@@ -3698,14 +3501,12 @@ void clear_player(s32 i, s32 full) {
 
         do {
             LoadPlyrData(player_index, load_class, NULL);
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             PF((u8*)p + stat_offset, 0xA98, f32) = 0.0f;
             PF((u8*)p + stat_offset, 0xA9C, f32) = 0.0f;
             PF((u8*)p + stat_offset, 0xAA0, f32) = 0.0f;
             PF((u8*)p + stat_offset, 0xAA4, f32) = 0.0f;
             load_class++;
             stat_offset += 0x18;
-            // lint-end FM007
         } while (load_class < 16);
         check_player_atts(p, cls, NULL);
     }
@@ -3718,10 +3519,8 @@ s32 activate_player(s32 i) {
     Player* p;
     s32 j;
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     PF(tab + off, 0xC40 + offsetof(Player, state), s32) = 1;
     p = (Player*)(tab + off + 0xC40);
-    // lint-end FM007
     PF(p, offsetof(Player, exit_dest), s32) = other_players_next_level(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
@@ -3737,9 +3536,7 @@ s32 activate_player(s32 i) {
     }
     if (lbl_803447B4 != 0 || lbl_803447D0 >= 10 || gGameMode == MG_STATS) {
         for (j = 0; j < 4; j++) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             Player* other = (Player*)(tab + j * PREC_STRIDE + 0xC40);
-            // lint-end FM007
             s32 state = other->state;
 
             if (lbl_803447B4 != 0 || state == 5) {
@@ -3777,7 +3574,6 @@ void load_player(s32 i) {
         f32 matrix[16];
     } scratch;
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (gDemoMode != 0 && sMusicTrackHi != 0xD) {
         /* cheat build: force the level stamped on the current level */
         if ((f32)cp->level != PF(gCurLevel, offsetof(level_data, plevel), f32)) {
@@ -3789,7 +3585,6 @@ void load_player(s32 i) {
         } else {
             product = (lvl - 60) * 4600;
             exp = 0x28550;
-    // lint-end FM007
             exp += product;
         }
         cp->exp = exp;
@@ -3803,12 +3598,10 @@ void load_player(s32 i) {
     p->field_078 = zero;
     load_player_geo(i, p);
     /* Reset the live-gameplay block in the target's store order. */
-    // lint-begin FM001, FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     PF(p, 0x800, s32) = 0;
     PF(p, 0x804, s32) = 0;
     for (j = 0; j < 8; j++) {
         ((s32*)((u8*)p + 0x808))[j] = zero;
-    // lint-end FM001, FM007
     }
     p->anim_208 = 0;
     p->anim_20C = 0;
@@ -3843,7 +3636,6 @@ void load_player(s32 i) {
     p->floor_fx_time = 0.0f;
     p->floor_hi = 256.0f;
     p->floor_lo = 192.0f;
-    // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     PF(p, 0x7DC, f32) = 0.0f;
     PF(p, 0x95A, s16) = 0;
     p->col_radius = lbl_80282930[i]->width;
@@ -3853,7 +3645,6 @@ void load_player(s32 i) {
     p->timer_1FC = 0;
     p->timer_1FE = 0;
     p->name_timer = 0xF0;
-    // lint-end FM007
     p->vibe_timer = 0;
     p->vibe_timer2 = 0;
     p->field_8F4 = 0;
@@ -3869,16 +3660,13 @@ void load_player(s32 i) {
     p->field_A4C = 1.0f;
     p->field_A50 = 1.0f;
     p->field_A54 = 1.0f;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     p->field_956 = 0x10;
-    // lint-end FM007
     p->throw_str = 0;
     p->speak_timer = 0;
     p->speak_kind = 0;
     p->idle_timer = 0;
     p->weakening_elapsed = 0;
     p->weakening_period = lbl_801201C4[0];
-    // lint-begin FM001, FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     PF(p, 0x952, s16) = 0;
     p->count_91C = p->count_920;
     p->collision_item = NULL;
@@ -3902,7 +3690,6 @@ void load_player(s32 i) {
     p->got_count = 0;
     for (j = 0; j < 5; j++) {
         ((s32*)((u8*)p + 0xA34))[j] = -1;
-    // lint-end FM001, FM007
     }
     p->field_11C = 0;
     p->shield_flags = 0;
@@ -3942,7 +3729,6 @@ void load_player(s32 i) {
 /* ------------------------------------------------------------------ */
 
 typedef struct PlayerSaveImage {
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 bytes[0x1434];
 } PlayerSaveImage;
 
@@ -3952,7 +3738,6 @@ typedef struct PlayerMemcardView {
     u8 _pad1EB4[0x18];
     PlayerSaveImage backup;
     u8 _pad3300[0x4C];
-    // lint-end FM007
     s32 cardFile;
     s32 cardDirectory;
     u8 _pad3354[4];
@@ -3965,9 +3750,7 @@ s32 PlayerLoadSaveFile(s32 i, s32 slot) {
     s32 size[2];
     s32 ok;
     s32 j;
-    // lint-begin FM001: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     PlayerMemcardView* p = &((PlayerMemcardView*)gPlayers)[player];
-    // lint-end FM001
 
     p->cardSlot = slot;
     size[0] = sizeof(p->image);
@@ -3985,13 +3768,11 @@ s32 PlayerLoadSaveFile(s32 i, s32 slot) {
         }
     }
     player_get_from_save(p, -1);
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     p->image.bytes[0xB] = 1;
     /* image -> backup */
     p->backup = p->image;
     for (j = 0; j < 0x100; j++) {
         p->image.bytes[0x1334 + j] &= 0xF0;
-    // lint-end FM007
     }
     change_player(player, ((Player*)p)->character);
     return ok;
@@ -3999,7 +3780,6 @@ s32 PlayerLoadSaveFile(s32 i, s32 slot) {
 
 /* Pack and memcard-write the save image (msg on failure).             */
 s32 PlayerWriteSaveFile(s32 i, s32 slot) {
-    // lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     PlayerMemcardView* p = &((PlayerMemcardView*)gPlayers)[i];
     s32 ok;
 
@@ -4013,7 +3793,6 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot) {
         }
     } while (ok == 0);
     p->image.bytes[0xB] = 1;
-    // lint-end FM001, FM007
     return ok;
 }
 
@@ -4023,7 +3802,6 @@ void PlayersRestoreHealth(void) {
     Player* p = P(0);
     f32 cap;
     s32 i;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 180-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     for (i = 0; i < 4; i++, p++) {
@@ -4055,10 +3833,8 @@ void PlayerRestoreState(s32 player) {
         }
         p->health = cap;
     } else {
-        // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(PlayerSaveImage*)((u8*)p + offsetof(Player, name)) =
             *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
-        // lint-end FM001
         player_get_from_save(p, -1);
     }
 }
@@ -4073,10 +3849,8 @@ void PlayerSaveState(s32 player, s32 full) {
     player_store_in_save(p);
     if (full != 0 && !(sMusicTrackHi == 5 && sMusicTrackLo == 1) &&
         !(sMusicTrackHi == 6 && sMusicTrackLo == 1)) {
-        // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
             *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
-        // lint-end FM001
     }
     p->saved = 0;
 }
@@ -4084,7 +3858,6 @@ void PlayerSaveState(s32 player, s32 full) {
 /* Unpack the per-character slots into the live fields.  type < 0      */
 /* re-reads the character stamped in the image.  The active hidden     */
 /* character instead gets the fixed lv99 loadout.                      */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 85 words and grows player_get_from_save 676 -> 716 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma dont_inline on
 void player_get_from_save(void* vp, s32 type) {
     s32 player;
@@ -4095,7 +3868,6 @@ void player_get_from_save(void* vp, s32 type) {
     f32 cap;
     s32 t;
     s32 lv;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 8 words at unchanged 676-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
 
     p = vp;
@@ -4103,10 +3875,8 @@ void player_get_from_save(void* vp, s32 type) {
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden character: fixed loadout */
-        // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
             *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
-        // lint-end FM001
         p->class_id = 0;
         ATT_FIGHT(p) = 999.0f;
         ATT_ARMOR(p) = 999.0f;
@@ -4114,7 +3884,6 @@ void player_get_from_save(void* vp, s32 type) {
         ATT_SPEED(p) = 999.0f;
         PlayerUpdateAtts(p);
         p->level = 99;
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         p->exp = 0x54218;
         cap = 100.0 * (p->level - 1) + 500.0;
         if (cap > 9999.0f) {
@@ -4126,11 +3895,9 @@ void player_get_from_save(void* vp, s32 type) {
         p->item_body_lo = 9;
         p->runes = 0x7FE;
         p->shards = 0x1FFF;
-        // lint-end FM007
         for (t = 0; t < 11; t++) {
             memset(&p->powerup[t], 0, sizeof(PlayerPowerup));
         }
-        // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
         PF(p, 0x1EC, s32) = 0;
         p->flags = 0;
         return;
@@ -4141,13 +3908,10 @@ void player_get_from_save(void* vp, s32 type) {
     }
     p->character = type;
     p->class_id = PF(p, 0xA8A, s8);
-        // lint-end FM007
     character = p->character;
     PlayerUpdateAtts(p);
-    // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
     offset = character * 0x18;
     p->exp = PF(p, offset + 0xA90, s32);
-    // lint-end FM007
     exp = p->exp;
     lv = 99;
     for (;;) {
@@ -4160,7 +3924,6 @@ void player_get_from_save(void* vp, s32 type) {
         }
     }
     p->level = lv;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     p->health = PF(p, offset + 0xA94, f32);
     offset = type * 0xF0;
     p->gold = PF(p, offset + 0xE00, s32);
@@ -4168,7 +3931,6 @@ void player_get_from_save(void* vp, s32 type) {
     p->item_body_lo = PF(p, offset + 0xDD2, s16);
     p->runes = PF(p, offset + 0xDD4, u16);
     p->shards = PF(p, offset + 0xDD6, u16);
-    // lint-end FM007
     if (*(f32*)&CHAR_STATS(p, type)[1] == 0.0f) {
         clear_player(p->index, 0);
     }
@@ -4178,7 +3940,6 @@ void player_get_from_save(void* vp, s32 type) {
         p->char_type -= 8;
     }
     check_player_atts(p, type, NULL);
-    // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     memcpy((u8*)p + 0x130, (u8*)p + offset + 0xE04, 0xB0);
     PF(p, 0x1EC, s32) = PF(p, offset + 0xDDA, s16);
     p->field_11C = 0;
@@ -4188,13 +3949,10 @@ void player_get_from_save(void* vp, s32 type) {
     lbl_80240E30[player].hasActuator = PF(p, 0x1DB1, u8);
     lbl_80240E30[player].unk38 = PF(p, 0x1DB2, u8);
     lbl_80240E30[player].unk34 = PF(p, 0x1DB3, u8);
-    // lint-end FM007
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 85 words and grows player_get_from_save 676 -> 716 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma dont_inline off
 
 /* Pack the live fields into the per-character slots + image header.   */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 71 words and shrinks player_store_in_save 524 -> 520 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
 void player_store_in_save(void* vp) {
     s32 chartype;
@@ -4211,15 +3969,12 @@ void player_store_in_save(void* vp) {
 
     if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden char: park it, restore the base character, re-flag */
-        // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(PlayerSaveImage*)((u8*)p + offsetof(Player, name)) =
             *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
-        // lint-end FM001
         HIDDEN_CODE(p) = NULL;
         player_get_from_save(p, -1);
         HIDDEN_CODE(p) = lbl_80343D6C;
     }
-    // lint-begin FM001, FM007, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     chartype *= 0xF0;
     st = (s32*)((u8*)p + p->character * 0x18);
     st[0xA90 / 4] = p->exp;
@@ -4231,7 +3986,6 @@ void player_store_in_save(void* vp) {
         *(s16*)(item + 0xDD2) = (s16)p->item_body_lo;
         *(u16*)(item + 0xDD4) |= p->runes;
         *(u16*)(item + 0xDD6) |= p->shards;
-    // lint-end FM001, FM007, FM009
     }
     p->last_alttype = (s16)p->character;
     p->last_color = (s8)p->class_id;
@@ -4240,12 +3994,10 @@ void player_store_in_save(void* vp) {
         total += ExpToLevel(CHAR_STATS(p, j)[0]);
     }
     p->leveltot = total;
-    // lint-begin FM001, FM007, FM009: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     memcpy((u8*)p + chartype + 0xE04, (u8*)p + 0x130, 0xB0);
     {
         u8* item = (u8*)p + chartype;
         *(s16*)(item + 0xDDA) = (s16)PF(p, 0x1EC, s32);
-    // lint-end FM001, FM007, FM009
     }
     p->control_scheme = (u8)lbl_80240E30[player].scheme;
     p->control_rumble = (u8)lbl_80240E30[player].hasActuator;
@@ -4255,7 +4007,6 @@ void player_store_in_save(void* vp) {
         player_get_from_save(p, -1);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 71 words and shrinks player_store_in_save 524 -> 520 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Copy the live pad config into both control-save byte sets.          */
@@ -4278,11 +4029,9 @@ static inline f32 player_scale_att(f32* att, f32* range)
     return 0.001 * *att * (range[1] - range[0]) + range[0];
 }
 
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 46 words in PlayerUpdateAtts at unchanged 416-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void PlayerUpdateAtts(void* vp) {
     Player* p = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 416-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[96];
     s32 character;
 
@@ -4304,7 +4053,6 @@ void PlayerUpdateAtts(void* vp) {
         p->stat_missile_spd = player_scale_att(&p->att_fight, lbl_80343DA4);
     }
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 46 words in PlayerUpdateAtts at unchanged 416-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Zero the per-character bonus stats for all 16 characters.           */
@@ -4315,12 +4063,10 @@ void set_player_default_atts(void* p) {
 
     for (; j < 16; j++) {
         LoadPlyrData(index, j, NULL);
-        // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(f32*)((u8*)p + j * 0x18 + 0xA98) = 0.0f;
         *(f32*)((u8*)p + j * 0x18 + 0xA9C) = 0.0f;
         *(f32*)((u8*)p + j * 0x18 + 0xAA0) = 0.0f;
         *(f32*)((u8*)p + j * 0x18 + 0xAA4) = 0.0f;
-        // lint-end FM001, FM007
     }
     check_player_atts(p, chartype, NULL);
 }
@@ -4336,7 +4082,6 @@ void set_player_default_atts(void* p) {
 void load_player_geo(s32 i, void* vp) {
     Player* p = vp;
     char name[20];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 9 words at unchanged 1640-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[12];
     u8* rodata = lbl_80113AE0;
     u8* tab = (u8*)lbl_8011FC48;
@@ -4349,9 +4094,7 @@ void load_player_geo(s32 i, void* vp) {
     s32 n;
 
     if (p->node != NULL) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         FatalError((char*)rodata + 1236, 0x800000);
-        // lint-end FM007
     }
     if (lbl_80344828 > 0) {
         set_hidden_player(p);
@@ -4386,39 +4129,29 @@ model_ready:
             *c = (char)toupper(*c);
         }
     } else {
-        // lint-begin FM001, FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         strcpy(name, ((char**)(tab + 1212))[class_idx]);
     }
     sprintf(geoBss->scratch, "%s_%s", (char*)(tab + 1128) + cls * 4, name);
     strncpy((char*)&p->pad_0210[0x4B0], geoBss->scratch, 8);
-        // lint-end FM001, FM007, FM009
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     p->field_078 = 0;
-    // lint-begin FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
     p->platform = fn_80011BBC(geoBss->models[i].model_buf,
                              (char*)(tab + 1128) + p->char_type * 4,
                              &p->platform, geoBss->scratch, 0x800);
-    // lint-end FM007, FM009
     if (p->platform == NULL) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         FatalErrorf((char*)rodata + 1280,
                     (char*)(tab + 1128) + p->char_type * 4);
-        // lint-end FM009
     }
     MBNodeSetParent(*p->platform, p->node);
-    // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
     InitActions(&p->platform, (u8*)p + 0x210, (s32)lbl_80126C68);
     if (gGameMode != MG_SHOP && gGameMode != MG_WORLD_SELECT &&
         gGameMode != MG_MAPSCREEN && gGameMode != MG_STATS) {
         LoadPlyrData(i, p->character, (void*)1);
     }
     PF(p, 0x744, s32) = 0;
-    // lint-end FM007
     /* attachment nodes */
-    // lint-begin FM001, FM007, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     sprintf(geoBss->scratch, "%s%s", (char*)&p->pad_0210[0x4B0],
             ((char**)(tab + 1340))[cls]);
-    // lint-end FM001, FM007, FM009
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
@@ -4426,10 +4159,8 @@ model_ready:
     } else {
         p->hand_node = NULL;
     }
-    // lint-begin FM001, FM007, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     sprintf(geoBss->scratch, "%s%s", (char*)&p->pad_0210[0x4B0],
             ((char**)(tab + 1276))[cls]);
-    // lint-end FM001, FM007, FM009
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
@@ -4437,7 +4168,6 @@ model_ready:
     } else {
         p->mbnode2 = NULL;
     }
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     sprintf(geoBss->scratch, (char*)rodata + 1308,
             (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, -1);
@@ -4461,19 +4191,15 @@ model_ready:
         p->weapon_node = NULL;
     }
     sprintf(geoBss->scratch, "%sDUMMY", (char*)&p->pad_0210[0x4B0]);
-    // lint-end FM007
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
-        // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
         PF(p, 0x6DC, s32) = *nd;
     } else {
         PF(p, 0x6DC, s32) = 0;
-        // lint-end FM007
     }
     /* weapon */
     if (sWeaponsBuf != 0) {
-        // lint-begin FM001, FM007, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
         if (((s32*)(tab + 2384))[p->character] != 0 ||
             p->character >= 8 || p->hidden_code != NULL) {
@@ -4481,17 +4207,12 @@ model_ready:
         } else {
             sprintf(geoBss->scratch, (char*)rodata + 1332,
                     ((char**)(tab + 1212))[class_idx], tier + 1);
-        // lint-end FM001, FM007, FM009
         }
         n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         p->weaphold_node = MBNewObject(n, NULL, p->hand_node, 0x810);
-        // lint-end FM007
         p->texmod_id = -1;
         if (p->char_type == 7) {
-            // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
             *(u32*)((u8*)p->weaphold_node + 0x60) |= 0x4000000;
-            // lint-end FM001, FM007
             p->texmod_id = AddSpecialTexmod(p->geo_handle, "BOMB",
                                             (char*)geoBss->models[i].sfx_arena,
                                             "BOMB00", 5, 1);
@@ -4516,9 +4237,7 @@ model_ready:
     /* shadow */
     n = MBOX_ReallyFindObject((char*)rodata + 1348,
                               p->geo_handle, p->geo_handle, 1);
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     p->mbnode = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
-    // lint-end FM007
     ((mbnode*)p->mbnode)->zmod = -0x24;
     p->pulse_7FC = 0.0f;
     nd = (s32*)p->hand_node;
@@ -4538,9 +4257,7 @@ model_ready:
     MBTreeSetFlags(p->node, 2, 0);
     nd = (s32*)p->mbnode;
     if (nd != NULL) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (sMusicTrackHi == 0xC && sMusicTrackLo == 8) {
-        // lint-end FM007
             MBTreeSetFlags(nd, 2, 1);
         } else {
             MBTreeSetFlags(nd, 2, 0);
@@ -4584,7 +4301,6 @@ s32 set_hidden_player(void* vp) {
     s32 k;
 
     if (strncmp(p->name, lbl_803479E0, 6) == 0) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         pick = 0x10;
         match = 1;
     }
@@ -4593,7 +4309,6 @@ s32 set_hidden_player(void* vp) {
          strncmp(p->name, lbl_803479D0, 6) == 0 ||
          strncmp(p->name, lbl_803479D8, 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-        // lint-end FM007
         access_options[0] = lbl_80347734;
         access_one[0] = lbl_80347740;
         access_options[1] = lbl_80347738;
@@ -4648,7 +4363,6 @@ s32 set_hidden_player(void* vp) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->runes = 0xFFFF;
             }
             runes_options[0] = lbl_80347734;
@@ -4682,12 +4396,9 @@ s32 set_hidden_player(void* vp) {
             if (prompt_ok != 0) {
                 while (any(0x80000000) == 0) {
                     if (any(0x40000000) != 0) {
-                // lint-end FM007
                         pick++;
                         if (pick >= 0 && (u32)pick < 27) {
-                            // lint-begin FM001, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
                             saveMenuPrompt(((HiddenChar*)(data + 2512))[pick].name,
-                            // lint-end FM001, FM009
                                            access_one, 1);
                         }
                         if ((u32)pick >= 27) {
@@ -4712,22 +4423,14 @@ s32 set_hidden_player(void* vp) {
             if (prompt_ok != 0) {
                 for (j = 0; j < 16; j++) {
                     for (k = 0; k < 14; k++) {
-                        // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
                         *((u8*)p + 0x1CD0 + p->character * 14 + k) = 0xFF;
-                        // lint-end FM007
                     }
                     for (k = 0; k < 16; k++) {
-                        // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                         *(s16*)((u8*)p + j * 240 + 3566 + k * 2) = -1;
-                        // lint-end FM001
                     }
-                    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                     p->char_save[p->character].rune_near = 0xFFFF;
-                    // lint-end FM007
                     for (k = 0; k < 3; k++) {
-                        // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                         *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
-                        // lint-end FM001
                     }
                 }
             }
@@ -4736,9 +4439,7 @@ s32 set_hidden_player(void* vp) {
         }
     }
     /* one-shot cheat names */
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-    // lint-end FM007
         if (strncmp(p->name, lbl_80347A18, 6) == 0) {
             match = 1;
             pick = (rand() & 0xFF) % 27U;
@@ -4793,7 +4494,6 @@ s32 set_hidden_player(void* vp) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->runes = 0xFFFF;
             }
             all_runes_options[0] = lbl_80347734;
@@ -4815,30 +4515,23 @@ s32 set_hidden_player(void* vp) {
             }
             if (prompt_ok != 0) {
                 pups = 0xFFFFFFFF;
-                // lint-end FM007
             }
             for (j = 0; j < 16; j++) {
                 for (k = 0; k < 14; k++) {
-                    // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
                     *((u8*)p + 0x1CD0 + p->character * 14 + k) = 0xFF;
-                    // lint-end FM007
                 }
                 for (k = 0; k < 16; k++) {
-                    // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                     *(s16*)((u8*)p + j * 240 + 3566 + k * 2) = -1;
                 }
                 for (k = 0; k < 3; k++) {
                     *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
-                    // lint-end FM001
                 }
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->char_save[p->character].rune_near = 0xFFFF;
             }
         }
         if (strncmp(p->name, lbl_80347A30, 6) == 0) {
             match = 1;
             pick = 0x17;
-                // lint-end FM007
             pups = rand();
         }
     }
@@ -4851,7 +4544,6 @@ s32 set_hidden_player(void* vp) {
         return 1;
     }
     for (j = 0; (u32)j < 27; j++) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         HiddenChar* hidden = (HiddenChar*)(data + 2512) + j;
         if ((strncmp(p->name, hidden->name, 6) == 0 &&
              (hidden->unlocked == 0 || lbl_80344828 > 1)) ||
@@ -4864,7 +4556,6 @@ s32 set_hidden_player(void* vp) {
     }
     for (j = 0; (u32)j < 27; j++) {
         PupCheat* cheat = (PupCheat*)(data + 3484) + j;
-        // lint-end FM009
         if (strncmp(p->name, cheat->name, 6) == 0 ||
             (pups & (1 << j))) {
             switch (cheat->type) {
@@ -4891,7 +4582,6 @@ s32 set_hidden_player(void* vp) {
 }
 
 /* Load the class model + sfx model set into player slot i.            */
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 43 words across two functions and grows load_player_model 320 -> 324 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs off
 s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     Player* p = vp;
@@ -4923,13 +4613,10 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     sprintf((char*) pot + 1268, lbl_80114098,
             (char*) lbl_8012006C + t * 4, lbl_801200F4[cls]);
     q = pot + prod;
-    // lint-begin FM001, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     sfx_arena = (s32*) (q + 1352);
     cls = MBOX_LoadModelFixed((char*) pot + 1268, *(u32*) (q + 1360), 0, NULL,
-    // lint-end FM001, FM009
                               *sfx_arena);
     *sfx_arena = cls;
-    // lint-begin FM001, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     sfx_buf = (char**) (q + 1372);
     MLMReadFile((char*) pot + 1268, lbl_80347A38, *(u32*) (q + 1364), *sfx_buf);
     sfx_remap = (s32*) (q + 1356);
@@ -4937,7 +4624,6 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     arena = (u32*) (q + 1316);
     InitTexMods(*(void**) (q + 1336), *arena);
     InitTexMods(*(void**) (q + 1348), *arena);
-    // lint-end FM001, FM009
     InitTexMods(*sfx_buf, *sfx_arena);
     return ret;
 }
@@ -4960,16 +4646,13 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     tier = ((Player*) vp)->level / 10;
     ct = ((Player*) vp)->character;
     q = pot + i * 13148;
-    // lint-begin FM001, FM009: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
     cls = *(s32*) (q + 3140);
-    // lint-end FM001, FM009
     ct8 = ct;
     if (ct >= 8) {
         ct8 -= 8;
     }
     if (name != NULL) {
         q = tab + ct * 4;
-        // lint-begin FM001, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060, name);
     } else {
         q = tab + ct * 4;
@@ -4981,7 +4664,6 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
             class_entry = tab + cls * 4;
             sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060,
                     *(char**) (class_entry + 1196));
-        // lint-end FM001, FM009
         }
     }
     arena = MBOX_LoadModelFixed((char*) pot + 1268, slot->model_max, 0, NULL,
@@ -4998,9 +4680,7 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     slot->cur_tier = tier;
     slot->cur_override = (s32) name;
     q = tab + ct8 * 4;
-    // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
     sprintf((char*) pot + 1268, (char*) fmt + 1520, q + 1060);
-    // lint-end FM009
     if ((s32) slot->model_buf_max > 0) {
         MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->model_buf_max,
                     slot->model_buf);
@@ -5011,7 +4691,6 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     slot->anim_remap = fn_8001267C((u16*) slot->model_buf, arena, slot->anim_remap);
     return arena;
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 43 words across two functions and grows load_player_model 320 -> 324 bytes. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_common_subs reset
 
 /* Re-register the model texmods after a video mode change.            */
@@ -5085,14 +4764,12 @@ static void create_player_blits(s32 i) {
     u32 tex;
     s32 j;
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     frame_blit[i][0] = MBCreateBlit(0, 0, *(lx += 760), 0x130, 0x80, -1);
     frame_blit[i][1] = MBCreateBlit(0, 0, *lx, 0x140, 0x80, -1);
     frame_blit[i][2] = MBCreateBlit(0, 0, *lx, 0x140, 0x80, -1);
     frame_blit[i][3] = MBCreateBlit(0, 0, *lx, 0x158, 0x94, -1);
     frame_blit[i][4] = MBCreateBlit(0, 0, *lx + 8, 0x148, 0x14, 0x14);
     frame_blit[i][5] = MBCreateBlit(0, 0, *lx, 0x148, 0x14, 0x14);
-    // lint-end FM007
     for (j = 0; j < 6; j++) {
         mbBlitInit3414(frame_blit[i][j], 1);
         mbBlitCvtCoord(frame_blit[i][j], 64000.0f);
@@ -5101,46 +4778,34 @@ static void create_player_blits(s32 i) {
         s32 rune;
 
         for (rune = 0; rune < 12; rune++) {
-            // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             sprintf(tbuf, "SM_RUNE_%s_%02d",
                     tab + 2448 + (rune / 3) * 4, rune % 3 + 1);
-            // lint-end FM009
             tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             rune_blit[i][rune] =
                 MBCreateBlit(0, tex,
                              *lx + rune * 8 + rune / 3 + 0xF, 0x132, -1,
-            // lint-end FM007
                              -1);
             mbBlitInit3414(rune_blit[i][rune], 1);
             mbBlitCvtCoord(rune_blit[i][rune], 64000.0f);
         }
     }
     for (j = 0; j < 8; j++) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         sprintf(tbuf, "SM_KEY_%s", tab + 2480 + j * 4);
-        // lint-end FM009
         tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
-        // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
         crystal_blit[i][j] = MBCreateBlit(0, tex, *lx + j * 12 + 0xC, 300, -1, -1);
-        // lint-end FM007
         mbBlitInit3414(crystal_blit[i][j], 1);
         mbBlitCvtCoord(crystal_blit[i][j], 64000.0f);
     }
     for (j = 0; j < 4; j++) {
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         key_blit[i][j] = MBCreateBlit(0, 0, *lx + 0x1A, j * 3 + 0x142, -1, -1);
-        // lint-end FM007
         mbBlitInit3414(key_blit[i][j], 1);
         mbBlitCvtCoord(key_blit[i][j], 64000.0f);
     }
     for (j = 0; j < 7; j++) {
-        // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         pm_blit[i][j] = MBNewBlit(*(char**)(tab + j * 20 + 4),
                                   i * 0x80 + *(s32*)(tab + j * 20 + 8),
                                   *(u32*)(tab + j * 20 + 12));
         *(u32*)(tab + j * 20) = MBBlitGetTex(pm_blit[i][j]);
-        // lint-end FM001, FM007
         mbBlitInit3414(pm_blit[i][j], 1);
         mbBlitCvtCoord(pm_blit[i][j],
                        (f32)*(s32*)(tab + j * 20 + 16));
@@ -5151,7 +4816,6 @@ static void create_player_blits(s32 i) {
     tb_info[i].sel = -1;
     tb_info[i].slide = -1;
     tb_info[i].state = 0;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     tb_info[i].x_right = *rx - 0x34;
     tb_info[i].y_top = 0x14F;
     tb_info[i].x_left = *rx - 0x40;
@@ -5174,7 +4838,6 @@ static void create_player_blits(s32 i) {
     mbBlitInit3414(hod_blit[i], 1);
     mbBlitCvtCoord(hod_blit[i], 64000.0f);
     quest_blit[i] = MBCreateBlit(0, 0, *lx + 0x68, 0x152, 0x10, 0x10);
-    // lint-end FM007
     mbBlitInit3414(quest_blit[i], 1);
     mbBlitCvtCoord(quest_blit[i], 64000.0f);
     player->node = NULL;
@@ -5188,9 +4851,7 @@ void reset_players(void) {
 
     for (i = 0; i < 4; i++) {
         p = P(i);
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         memset(p, 0, 0x335C);
-        // lint-end FM007
         p->class_id = i;
         p->index = i;
     }
@@ -5201,7 +4862,6 @@ void setup_player_models(void) {
     PlayerModelSlot* s;
     s32 i;
     s32 free0;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 244-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
 
     GetMaxPlayerModelSize();
@@ -5231,7 +4891,6 @@ void setup_player_models(void) {
 static void GetMaxPlayerModelSize(void) {
     PlayerModelSlot* s;
     s32 i;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 4 words at unchanged 420-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
 
     if (got_max_player_sizes != 0) {
@@ -5239,7 +4898,6 @@ static void GetMaxPlayerModelSize(void) {
     }
     for (i = 0; i < 4; i++) {
         s = &player_multiple_models[i];
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         s->model_max = 0xB800;
         s->model_buf_max = 0x4D800;
         s->arena_max = 0xB000;
@@ -5247,7 +4905,6 @@ static void GetMaxPlayerModelSize(void) {
         s->sfx_max = 0x2BC00;
         s->sfx_buf_max = 0xC000;
         s->sfx_arena_max = 0x18000;
-        // lint-end FM007
     }
     for (i = 1; i < 4; i++) {
         s = &player_multiple_models[i];
@@ -5314,7 +4971,6 @@ void* PlayerModel(s32 i) {
  * shipped PDATA values prove they are an XYZ offset and a scale triple, not
  * the colours this slice previously assumed.                                */
 
-// lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
 #define PLAYER_SET_FAMILIAR(source_, parent_)                                  \
     do {                                                                       \
         void* familiar_source;                                                 \
@@ -5333,13 +4989,10 @@ void* PlayerModel(s32 i) {
             MBTreeSetAlpha(*(void**)p->atree, 0, 1);                           \
         }                                                                      \
     } while (0)
-// lint-end FM001, FM007
 
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 141 words in PlayerProcessPowerups at unchanged 6392-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation off
 void PlayerProcessPowerups(void* vp) {
     Player* p = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 24 words at unchanged 6392-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[112];
     u32 old_flags;
     s32 index = p->index;
@@ -5379,9 +5032,7 @@ void PlayerProcessPowerups(void* vp) {
         if (timeleft == 0.0 || p->powerup_state[i] != 2) {
             continue;
         }
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (sMusicTrackHi != 0xD && gTriggerCameraState == 0 &&
-        // lint-end FM007
             lbl_803447B8 == 0 && timeleft > 0.0) {
             if (gBossType >= 0) {
                 if (gBossActive != 0 && gBossDead == 0) {
@@ -5490,9 +5141,7 @@ void PlayerProcessPowerups(void* vp) {
             lbl_8025EC88[index] = NULL;
         }
 
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (p->anim_208 == 0x92) {
-        // lint-end FM007
             MBTreeSetAlpha(p->node, (s32)lbl_80347A54, 1);
         } else if (p->flags & 4) {
             f32 player_alpha;
@@ -5515,7 +5164,6 @@ void PlayerProcessPowerups(void* vp) {
             if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
                 (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
                 s32 skin = lbl_80344BF0;
-                // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
                 SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC), skin, 1, 1);
             }
         } else if (p->shield_flags & 0x10000) {
@@ -5523,7 +5171,6 @@ void PlayerProcessPowerups(void* vp) {
                 (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
                 s32 skin = lbl_80344BF4;
                 SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC), skin, 1, 1);
-                // lint-end FM007
             }
         }
 
@@ -5538,12 +5185,9 @@ void PlayerProcessPowerups(void* vp) {
         }
 
         if (p->flags & 0x8000) {
-            // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             s32 model = MBOX_FindObject(name_base + 1628);
-            // lint-end FM009
             void* held;
             if ((held = p->pup_object) == NULL) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x9010);
             } else {
                 MBSetObject(held, model);
@@ -5569,7 +5213,6 @@ void PlayerProcessPowerups(void* vp) {
             void* held;
             if ((held = p->pup_object) == NULL) {
                 p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x810);
-                // lint-end FM007
             } else {
                 MBSetObject(held, model);
             }
@@ -5601,14 +5244,10 @@ void PlayerProcessPowerups(void* vp) {
     }
     if (p->flags & 0x200000) {
         if (p->field_A1E == 0) {
-            // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             s32 model = MBOX_FindObject(name_base + 1640);
-            // lint-end FM009
             void* held;
             if ((held = p->gem_object) == NULL) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->gem_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
-                // lint-end FM007
             } else {
                 MBSetObject(held, model);
             }
@@ -5617,14 +5256,10 @@ void PlayerProcessPowerups(void* vp) {
         }
     } else if (p->flags & 0x400000) {
         if (p->field_A20 == 0) {
-            // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             s32 model = MBOX_FindObject(name_base + 1660);
-            // lint-end FM009
             void* held;
             if ((held = p->gem_object) == NULL) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->gem_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
-                // lint-end FM007
             } else {
                 MBSetObject(held, model);
             }
@@ -5642,62 +5277,42 @@ void PlayerProcessPowerups(void* vp) {
     }
 
     if (p->flags & 0x1000) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         s32 model = MBOX_FindObject(name_base + 1676);
-        // lint-end FM009
         void* held;
         if ((held = p->wand_object) == NULL) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x9010);
-            // lint-end FM007
         } else {
             MBSetObject(held, model);
         }
     } else if (p->flags & 0x2000) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         s32 model = MBOX_FindObject(name_base + 1688);
-        // lint-end FM009
         void* held;
         if ((held = p->wand_object) == NULL) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x9010);
-            // lint-end FM007
         } else {
             MBSetObject(held, model);
         }
     } else if (p->shield_flags & 0x80000) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         s32 model = MBOX_FindObject(name_base + 1700);
-        // lint-end FM009
         void* held;
         if ((held = p->wand_object) == NULL) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
-            // lint-end FM007
         } else {
             MBSetObject(held, model);
         }
     } else if (p->shield_flags & 0x2000) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         s32 model = MBOX_FindObject(name_base + 1712);
-        // lint-end FM009
         void* held;
         if ((held = p->wand_object) == NULL) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
-            // lint-end FM007
         } else {
             MBSetObject(held, model);
         }
     } else if (p->flags & 2) {
-        // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         s32 model = MBOX_FindObject(name_base + 1724);
-        // lint-end FM009
         void* held;
         if ((held = p->wand_object) == NULL) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
-            // lint-end FM007
         } else {
             MBSetObject(held, model);
         }
@@ -5711,41 +5326,29 @@ void PlayerProcessPowerups(void* vp) {
 
     if (lbl_8034489C == 0 || p->quest_state == 0) {
         if (p->flags & 0x4000) {
-            // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             s32 model = MBOX_FindObject(name_base + 1736);
-            // lint-end FM009
             void* held;
             if ((held = p->shield_object) == NULL) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->shield_object =
                     MBNewObject(model, NULL, p->hand_node, 0x9010);
-                // lint-end FM007
             } else {
                 MBSetObject(held, model);
             }
         } else if (p->field_11C & 0x100000) {
-            // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             s32 model = MBOX_FindObject(name_base + 1748);
-            // lint-end FM009
             void* held;
             if ((held = p->shield_object) == NULL) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->shield_object =
                     MBNewObject(model, NULL, p->hand_node, 0x810);
-                // lint-end FM007
             } else {
                 MBSetObject(held, model);
             }
         } else if (p->field_11C & 0x10000000) {
-            // lint-begin FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
             s32 model = MBOX_FindObject(name_base + 1760);
-            // lint-end FM009
             void* held;
             if ((held = p->shield_object) == NULL) {
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 p->shield_object =
                     MBNewObject(model, NULL, p->hand_node, 0x10);
-                // lint-end FM007
             } else {
                 MBSetObject(held, model);
             }
@@ -5772,7 +5375,6 @@ void PlayerProcessPowerups(void* vp) {
         if (kind != 0) {
             void* source;
             void* parent;
-            // lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             s32 tree_flags = 0x81880;
 
             parent = p->hand_node;
@@ -5781,14 +5383,12 @@ void PlayerProcessPowerups(void* vp) {
             if (p->weaphold_atree != NULL &&
                 (source == NULL ||
                  p->weaphold_src_id != ((u32*)source)[1])) {
-            // lint-end FM001, FM007
                 AtreeDelete(&p->weaphold_atree);
             }
             if (p->weaphold_atree == NULL && source != NULL) {
                 p->weaphold_atree = (void*)AtreeInit(source,
                                                      &p->weaphold_atree, 0,
                                                      tree_flags);
-                // lint-begin FM001, FM002, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                 MBTreeSetFlags(*(void**)p->weaphold_atree, 0x10, 0);
                 MBNodeSetParent(*(void**)p->weaphold_atree, parent);
                 MBTreeSetAlpha(*(void**)p->weaphold_atree, 0, 1);
@@ -5807,9 +5407,7 @@ void PlayerProcessPowerups(void* vp) {
                 *(f32*)((u8*)*(void**)p->weaphold_atree + 0x38) =
                     lbl_80282930[p->index]->weapon_fx_offset[tier][2];
                 if (lbl_80282930[p->index]->weapon_fx_scale[tier][0] !=
-                // lint-end FM001, FM002, FM007
                     0.0f) {
-                    // lint-begin FM001, FM002, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                     PF(*(void**)p->weaphold_atree, 0x60, u32) |= 8;
                     *(f32*)((u8*)*(void**)p->weaphold_atree + 0x40) =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][0];
@@ -5817,7 +5415,6 @@ void PlayerProcessPowerups(void* vp) {
                         lbl_80282930[p->index]->weapon_fx_scale[tier][1];
                     *(f32*)((u8*)*(void**)p->weaphold_atree + 0x48) =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][2];
-                    // lint-end FM001, FM002, FM007
                 }
             }
         } else {
@@ -5846,9 +5443,7 @@ void PlayerProcessPowerups(void* vp) {
     } else if (p->flags & 0x40) {
         PLAYER_SET_FAMILIAR(BreatheElecTree, p->weapon_node);
     } else if (p->flags & 1) {
-        // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         void* parent = *(void**)((u8*)((mbnode*)p->node)->child + 0x78);
-        // lint-end FM001, FM007
         PLAYER_SET_FAMILIAR(WingsTree, parent);
     } else if (p->atree != NULL) {
         AtreeDelete(&p->atree);
@@ -5916,9 +5511,7 @@ void PlayerProcessPowerups(void* vp) {
     if (p->field_128 & 1) {
         s32 kind = (p->field_128 & 2) ? 2 : 1;
         if (p->death_effect < 0) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             p->death_effect = StartDeathFX(p->node, kind, 0x10);
-            // lint-end FM007
         }
         AudioPlayEvt102Follow(p->pos, index);
     } else {
@@ -5933,9 +5526,7 @@ void PlayerProcessPowerups(void* vp) {
 
     if (PF(p, offsetof(Player, speak_timer), u16) != 0 && (p->hud_flags & 2) == 0) {
         if (p->marker_object == NULL) {
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             p->marker_object = MBOX_NewObject(&lbl_80347A80, NULL, p->node, 0x10);
-            // lint-end FM007
         }
     } else {
         void* obj;
@@ -5964,7 +5555,6 @@ void PlayerProcessPowerups(void* vp) {
         f32 scale;
         MBTreeClearFlags(p->node, 8, 0);
         scale = lbl_80347790;
-        // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(f32*)((u8*)p->node + 0x40) = scale;
         *(f32*)((u8*)p->node + 0x44) = scale;
         *(f32*)((u8*)p->node + 0x48) = scale;
@@ -5982,7 +5572,6 @@ void PlayerProcessPowerups(void* vp) {
         *(f32*)((u8*)p->weapon_node + 0x40) = scale;
         *(f32*)((u8*)p->weapon_node + 0x44) = scale;
         *(f32*)((u8*)p->weapon_node + 0x48) = scale;
-        // lint-end FM001, FM007
     }
     }
 
@@ -5992,11 +5581,9 @@ void PlayerProcessPowerups(void* vp) {
         p->speak_done = 0;
     }
     if ((p->flags & 8) == 0) {
-        // lint-begin FM007: these are raw byte offsets into the Player record that land inside a pad_XXXX run in include/game/player.h, so this tree has no name for them. The Xbox PDB cannot supply one either: its `struct player` (misc.h Id=3258) is 0x6140 bytes against this target's 0x335C and the two layouts have already diverged well before here (GC mbnode@0x6C8 vs Xbox shadow@0x82C), so PDB field offsets are not transferable. Naming the offset without a record would hide the debt, not recover it.
         PF(p, 0x960, s16) = 0;
     } else {
         PF(p, 0x960, s16) = 1;
-        // lint-end FM007
     }
 
     p->stat_damage = p->stat_damage < lbl_80343D7C[0] ? lbl_80343D7C[0] :
@@ -6014,15 +5601,12 @@ void PlayerProcessPowerups(void* vp) {
 
     (void)shield_time;
 }
-// lint-allow-next-line FM006: measured through the real Ninja edge against the banked object, not assumed - removing this directive together with its partner moves 141 words in PlayerProcessPowerups at unchanged 6392-byte size. The one bracket in this file that measured inert (opt_common_subs around remove_player_geo) was deleted rather than waived.
 #pragma opt_propagation reset
 
 /* Struct view over the familiar/halo atree state at Player+0x748.  A    */
 /* typed member (displacement) read keeps &atree out of an address-CSE.  */
 typedef struct PlayerSkinView {
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 pad0[0x748];
-    // lint-end FM007
     /* 0x748 */ void* atree;   /* level-tier halo/familiar atree handle */
     u8 pad1[4];
     /* 0x750 */ u32 src_id;    /* source id, compared with atree word[1] */
@@ -6032,7 +5616,6 @@ typedef struct PlayerSkinView {
 /* tier by PlayerProcessSkinFX.  Returns 1 when a fresh tree was built.  */
 static inline int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
     if (p->atree != NULL) {
-        // lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (atree == NULL || p->src_id != ((u32*)atree)[1]) {
             AtreeDelete(&p->atree);
         }
@@ -6040,7 +5623,6 @@ static inline int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* pare
     if (p->atree == NULL && atree != NULL) {
         p->atree = (void*)AtreeInit(atree, &p->atree, 0, 0x800);
         MBTreeSetFlags(*(void**)p->atree, 0x10, 0);
-        // lint-end FM001, FM007
         MBNodeSetParent(*(void**)p->atree, parent);
         MBTreeSetAlpha(*(void**)p->atree, 0, 1);
         return 1;
@@ -6054,11 +5636,9 @@ static void PlayerProcessSkinFX(void* vp) {
     PlayerSkinView* ps = vp;
     s32 fresh = 0;
 
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (p->level >= 0x50) {
         fresh = PlayerSetupSkinTree(ps, FamiliarTree[p->index][1], p->node);
     } else if (p->level >= 0x1E) {
-    // lint-end FM007
         fresh = PlayerSetupSkinTree(ps, FamiliarTree[p->index][0], p->node);
     } else {
         if (ps->atree != NULL) {
@@ -6067,7 +5647,6 @@ static void PlayerProcessSkinFX(void* vp) {
     }
     if (fresh != 0 && ps->atree != NULL) {
         if (p->level >= 99) {
-            // lint-begin FM001, FM002, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
             *(f32*)((u8*)ps->atree + 0x10) = 1.2 * lbl_80282930[p->index]->familiar_offset[0];
             *(f32*)((u8*)ps->atree + 0x14) = 1.2 * lbl_80282930[p->index]->familiar_offset[1];
             *(f32*)((u8*)ps->atree + 0x18) = 1.2 * lbl_80282930[p->index]->familiar_offset[2];
@@ -6081,7 +5660,6 @@ static void PlayerProcessSkinFX(void* vp) {
             *(f32*)(*(u8**)ps->atree + 0x30) = lbl_80282930[p->index]->familiar_offset[0];
             *(f32*)(*(u8**)ps->atree + 0x34) = lbl_80282930[p->index]->familiar_offset[1];
             *(f32*)(*(u8**)ps->atree + 0x38) = lbl_80282930[p->index]->familiar_offset[2];
-            // lint-end FM001, FM002, FM007
         }
     }
     if (ps->atree != NULL) {
@@ -6103,13 +5681,11 @@ static void PlayerProcessSkinFX(void* vp) {
 
 /* Mikey powerup: hatch/despawn state machine + orbit anim.            */
 typedef struct PlayerMikeyState {
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 pad_000[0x96C];
     void* atree;
     u8 pad_970[0x34];
     s16 anim_state;
     u8 pad_9A6[0xE];
-    // lint-end FM007
     f32 matrix[16];
     f32 saved_pos[3];
     u8 pad_A00[4];
@@ -6128,9 +5704,7 @@ static inline s32 PlayerFindMikeyPUP(Player* p)
         if (p->powerup[i].type != 9) {
             continue;
         }
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (p->powerup[i].specialflags != 0x100000) {
-        // lint-end FM007
             continue;
         }
         return i;
@@ -6141,7 +5715,6 @@ static inline s32 PlayerFindMikeyPUP(Player* p)
 void PlayerProcessMikeyPUP(void* vp) {
     Player* p = vp;
     PlayerMikeyState* mp = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 724-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[8];
     s32 t = mp->state;
     void* atree;
@@ -6184,7 +5757,6 @@ hatch:
         f32 x = p->effectpos[0];
         f32 y = p->effectpos[1];
         f32 z = p->effectpos[2];
-        // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(f32*)((u8*)mp->node + 0x30) = x;
         *(f32*)((u8*)mp->node + 0x34) = y;
         *(f32*)((u8*)mp->node + 0x38) = z;
@@ -6193,7 +5765,6 @@ hatch:
     mp->saved_pos[0] = *(f32*)((u8*)mp->node + 0x30);
     mp->saved_pos[1] = *(f32*)((u8*)mp->node + 0x34);
     mp->saved_pos[2] = *(f32*)((u8*)mp->node + 0x38);
-        // lint-end FM001, FM007
     mp->fx_pos[0] = mp->saved_pos[0];
     mp->fx_pos[1] = mp->saved_pos[1];
     mp->fx_pos[2] = mp->saved_pos[2];
@@ -6216,9 +5787,7 @@ live:
     AnimateATree(&mp->atree, 0, 0);
     {
         s32 timer = mp->state;
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (timer < 0x3C && timer % 10 == 0) {
-        // lint-end FM007
             StartGemFX(mp->fx_pos, rand() % 4 + 1);
         }
     }
@@ -6231,7 +5800,6 @@ live:
 
 /* Drop the big-ape unlock powerups into the level.                    */
 void AppendBigapePowerupsToScene(void) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 140-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
     s32 i;
 
@@ -6248,7 +5816,6 @@ void AppendBigapePowerupsToScene(void) {
 
 /* Instantiate a named pickup item at x/y/z via the item template.     */
 void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 7 words at unchanged 312-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[24];
     char* itemName = appended_item_template.name;
     s32* item;
@@ -6270,7 +5837,6 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
     appended_item_template.field40 = 0;
     appended_item_template.field42 = -1;
     appended_item_template.field44 = 0;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     appended_item_template.field46 = 0x10;
     appended_item_template.field48 = 0;
     appended_item_template.field4A = 0x1E;
@@ -6278,15 +5844,12 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
     item = (s32*)AddItem((s32*)&appended_item_template, NULL);
     *((u8*)item + 0xCD) = 0;
     MBTreeClearFlags((void*)item[0x19], 2, 0);
-    // lint-end FM007
     if (*(s32*)item[0] == 1) {
-        // lint-begin FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         *(s16*)&item[0x3B] = 0x3C;
     }
     *(f32*)&item[0xD] = x;
     *(f32*)&item[0xE] = y;
     *(f32*)&item[0xF] = z;
-        // lint-end FM007
     AddItemSub(item);
 }
 
@@ -6297,7 +5860,6 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
  */
 static void do_see_thru(void* vp) {
     Player* p = vp;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 1348-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[16];
     Item* chest = NULL;
     s32 i = p->index;
@@ -6322,17 +5884,14 @@ static void do_see_thru(void* vp) {
         floor_id = chest->data.container.index;
         fl = &gWorldInfo.iteminfo[floor_id];
         while (fl->type == -1) {
-            // lint-allow-next-line FM001: the random-pick table is packed into the iteminfodata prefix (absolute byte 8 = iteminfodata.coltype) and read as an s16 array; no evidence names those halfwords, so the row stays a byte cursor here while its type, subtype and atreeheader are named.
             s16 next_floor = *(s16*)((u8*)fl + RandItemIdx(closest, fl->item.subtype, 0) * 2 + 8);
             floor_id = next_floor;
             fl = &gWorldInfo.iteminfo[floor_id];
         }
         if (fl->type == 4) {
             tree = sDeathIconAtree;
-        // lint-begin FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         } else if (fl->type == 1 && fl->item.subtype == 2 &&
                    *(s16*)&chest->data.raw[0x10] > 1) {
-        // lint-end FM007
             tree = sKeyringAtree;
         } else {
             tree = fl->item.atreeheader;
@@ -6353,10 +5912,8 @@ static void do_see_thru(void* vp) {
                     lbl_8025EC88[i]->objgrp.node->mat[3][1] = lbl_8025ECA8[i]->mat[3][1];
                     lbl_8025EC88[i]->objgrp.node->mat[3][2] = lbl_8025ECA8[i]->mat[3][2];
                 }
-                // lint-begin FM001, FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 MBTreeSetAlpha(chest->objgrp.node, 0xC0, 1);
                 lbl_8025EC98[i] = *(s32*)((u8*)chest->objgrp.node + 0x74);
-                // lint-end FM001, FM007
                 MBNodeSetParent(lbl_8025ECA8[i], (void*)lbl_8025EC98[i]);
                 CopyMat3((f32*)chest->objgrp.node, (f32*)lbl_8025ECA8[i]);
                 lbl_8025ECA8[i]->mat[3][0] = chest->objgrp.node->mat[3][0];
@@ -6371,15 +5928,11 @@ static void do_see_thru(void* vp) {
                 if (lbl_8025ECB8[i][0] != NULL) {
                     AtreeDelete(&lbl_8025ECB8[i][0]);
                 }
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 lbl_8025ECB8[i][0] = (void*)AtreeInit(tree, &lbl_8025ECB8[i][0], 0, 0x80);
-                // lint-end FM007
                 MBTreeSetFlags(*(void**)lbl_8025ECB8[i][0], 8, 0);
-                // lint-begin FM001, FM002, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 0.65f;
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 0.65f;
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x48) = 0.65f;
-                // lint-end FM001, FM002, FM007
                 fresh = 1;
             }
             if (fresh) {
@@ -6433,11 +5986,8 @@ static s32 ClosestChest(void* vp) {
     f32 zero;
     f32 best;
     f64 three;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 7 words at unchanged 380-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[36];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: dropping the volatile moves 24 words and shrinks the function 380 -> 372 bytes. Which original local it represents is a source-recovery question, not a deletion question.
     volatile f32 root;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 2 words at unchanged 380-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 rootPad[4];
 
     best = lbl_803477B4;
@@ -6447,11 +5997,8 @@ static s32 ClosestChest(void* vp) {
     world = (u8*)&gWorldInfo;
     three = lbl_80347A40;
     while ((j = NextGridEnemy()) >= 0) {
-        // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
         it = (u8*)sItems + j * 0xF0;
-        // lint-end FM007
         itemInfo = *(u8**)it;
-        // lint-begin FM001, FM007, FM009: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
         if (*(s16*)(it + 0xC4) == -1) {
             continue;
         }
@@ -6463,16 +6010,13 @@ static s32 ClosestChest(void* vp) {
         }
         state = *(u8**)(world + 0x68);
         state += *(s16*)(it + 0xDC) * 0x50;
-        // lint-end FM001, FM007, FM009
         st = *(s32*)state;
         if (st != -1 && st != 4 && st != 1) {
             continue;
         }
-        // lint-begin FM007, FM009: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         dx = *(volatile f32*)(it + 0x34) - p->pos[0];
         dy = *(volatile f32*)(it + 0x38) - p->pos[1];
         dz = *(volatile f32*)(it + 0x3C) - p->pos[2];
-        // lint-end FM007, FM009
         d = dz * dz + (d = dx * dx + dy * dy);
         if (d > zero) {
             f64 estimate = __frsqrte(d);
@@ -6501,9 +6045,7 @@ typedef struct PlayerPowerupState {
 } PlayerPowerupState;
 
 typedef struct PlayerPowerupOverlay {
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 pad[0x130];
-    // lint-end FM007
     PlayerPowerupState powerups[11];
     u8 dirty[11];
 } PlayerPowerupOverlay;
@@ -6514,15 +6056,11 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
     s32 r = 0;
 
     for (j = 0; j < 11; j++) {
-        // lint-begin FM007: these numbers are record strides and element sizes used in index arithmetic. They are only replaceable by sizeof once the record they step through has a type in this tree; a renamed literal is not a recovery.
         u8* entry = (u8*)p + j * 0x10;
-        // lint-end FM007
 
-        // lint-begin FM001, FM007, FM009: these are numeric offsets into a string or table base. Recovering one means resolving its relocation, the exact referenced datum and that datum's owner - the R152 class - not renaming the number; equal spacing and aligned strings do not prove an array or a struct.
         if (*(f32*)(entry + 0x130) != 0.0) {
             if (*(s32*)(entry + 0x134) == type) {
                 if (*(u32*)(entry + 0x13C) & mask) {
-        // lint-end FM001, FM007, FM009
                     break;
                 }
             }
@@ -6534,9 +6072,7 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
         r = (s32)overlay->powerups[j].attributeadd;
         if ((s32)overlay->powerups[j].attributeadd < 0) {
             r = 1;
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         } else if (sMusicTrackHi != 0xD) {
-        // lint-end FM007
             if (dt < 0.0f) {
                 overlay->powerups[j].attributeadd = 0.0f;
             } else {
@@ -6616,9 +6152,7 @@ typedef struct PlayerAttributeOverlay {
     s32 class_id;
     s32 char_type;
     s32 character;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     u8 _pad10[0xA90 - 0x10];
-    // lint-end FM007
     PlayerAttributeBonus bonuses[16];
 } PlayerAttributeOverlay;
 
@@ -6705,9 +6239,7 @@ void check_player_atts(void* vp, s32 chartype, f32* stats) {
 void SetPlayerWindows(s32 on) {
     s32 i;
     s32 j;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     s32 blit_alpha = (on != 0) ? 0xFF : 0;
-    // lint-end FM007
 
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 6; j++) {
@@ -6754,7 +6286,6 @@ void SetPlayerWindows(s32 on) {
 static void do_got_it_8007FC80(void) {
     s32 y;
     char buf[36];
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 27 words at unchanged 1240-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[4];
     GotIt* g;
     s32 i;
@@ -6792,9 +6323,7 @@ static void do_got_it_8007FC80(void) {
                         g->state = -1;
                     }
                     mbBlitCalcY(*blit, currentY);
-                    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                     mbBlitCalcY(g->blit2, y + 0x10);
-                    // lint-end FM007
                 }
             }
             break;
@@ -6810,7 +6339,6 @@ static void do_got_it_8007FC80(void) {
             if (g->blit1 != NULL) {
                 mbBlitCalcRect(g->blit1, NULL, &y, NULL);
                 y -= gFrameTicks;
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 if (y <= 0x130) {
                     y = 0x130;
                     g->state++;
@@ -6818,7 +6346,6 @@ static void do_got_it_8007FC80(void) {
                 }
                 mbBlitCalcY(*blit, y);
                 mbBlitCalcY(g->blit2, y + 0x10);
-                // lint-end FM007
             }
             break;
         case 1:
@@ -6852,9 +6379,7 @@ static void do_got_it_8007FC80(void) {
                 break;
             case 1:
                 g->blit1 = MBNewBlit(buf, x, 0);
-                // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
                 if (sMusicTrackHi == 0xC) {
-                // lint-end FM007
                     g->blit2 = MBNewBlit("COINHUD", x, 0);
                 } else if (g->count > 10) {
                     g->blit2 = MBNewBlit("GOLD", x, 0);
@@ -6874,7 +6399,6 @@ static void do_got_it_8007FC80(void) {
                 g->blit1 = MBNewBlit(buf, x, 0);
                 g->blit2 = MBNewBlit("RUNESTONE", x, 0);
                 break;
-            // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
             case 0xF:
                 g->blit1 = MBNewBlit(buf, x, 0);
                 g->blit2 = MBNewBlit("CRYSTAL", x, 0);
@@ -6899,7 +6423,6 @@ static void do_got_it_8007FC80(void) {
             blit = &g->blit2;
             if (g->blit2 != NULL) {
                 mbBlitProject(g->blit2, 0x80, 0);
-            // lint-end FM007
                 mbBlitCalcWidth(*blit, x, 400, 63979.0f);
             }
             g->state++;
@@ -6942,7 +6465,6 @@ void add_got_it(s32 player, s32 type, s32 count) {
     if (j >= 24) {
         return;
     }
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     if (type != 0xD) {
         if (type < 0xD) {
             if (type >= 0xB) {
@@ -6956,7 +6478,6 @@ void add_got_it(s32 player, s32 type, s32 count) {
                 return;
             }
             if (type < 0xF) {
-    // lint-end FM007
                 return;
             }
         }
@@ -7006,14 +6527,11 @@ void UpdatePlayerWorldMat(void* vp, s32 anchor) {
 void mini_inventory_update(s32 i) {
     s32* label_table;
     u8* base = (u8*)potionicon_tab;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
-    // lint-end FM007
     s32 tb_offset;
     TbInfo* tb;
     u32* held;
     u8 moved;
-    // lint-begin FM001, FM007, FM009: `selected_pup` is a Player-based cursor biased by -0x130, so +0x134 and +0x13C are p->powerup[tb->sel].type and .specialflags (PlayerPowerup, include/game/player.h: timeleft@0, type@4, attributeadd@8, specialflags@0xC, stride 0x10, array at Player+0x130). Writing it as &p->powerup[tb->sel] with named members is NOT byte-neutral: 129 differing words and 980 -> 988 bytes in mini_inventory_update, because the target keeps the biased base.
     u8* selected_pup;
     u8* entry;
     s32 sel;
@@ -7021,7 +6539,6 @@ void mini_inventory_update(s32 i) {
     s32 count;
     s32 offset;
     s32 state;
-    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured by deleting it through the real Ninja edge and comparing the whole object against the bank: moves 5 words at unchanged 980-byte size. Which original local it represents is a source-recovery question, not a deletion question.
     u8 unused[32];
 
     label_table = lbl_8011FC48;
@@ -7133,25 +6650,20 @@ void mini_inventory_update(s32 i) {
                         (*(s32*)(entry + 4) &
                          *(s32*)(selected_pup + 0x13C)) &&
                     *(s32*)(selected_pup + 0x134) == *(s32*)entry) {
-                    // lint-end FM001, FM007, FM009
                     break;
                 }
             }
             if (j >= lbl_80343D68) {
-                // lint-begin FM001, FM007: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
                 *(char**)(base + tb_offset + 0x964) =
-                // lint-end FM001, FM007
                     (char*)label_table[40 + (lbl_80343D68 - 1) * 3 + 2];
             }
         }
         break;
     case 3:
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         if (tb->slide < 0x80) {
             tb->slide += gFrameTicks * 4;
             if (tb->slide > 0x80) {
                 tb->slide = 0x80;
-        // lint-end FM007
             }
         } else {
             tb->state = 0;
@@ -7169,7 +6681,6 @@ void mini_inventory_draw_label(s32 i) {
     s32 y;
 
     tb = (TbInfo*) ((u8*) potionicon_tab + i * 40 + 2368);
-    // lint-begin FM001: these are raw offsets off a handle whose record has no type in this tree (the atree/animinfo interiors, the per-player geometry records at lbl_80282930, and the save/blit handles). Every one is a real member of some record; recovering it is a source-and-data question for the owning TU, and inventing a layout here would be a fabrication.
     if ((label = *(char**) ((u8*) potionicon_tab + i * 40 + 2404)) == NULL) {
         return;
     }
@@ -7177,13 +6688,10 @@ void mini_inventory_draw_label(s32 i) {
     y = *(s32*) ((u8*) potionicon_tab + i * 40 + 2388) - 25;
     y += 128 - tb->slide;
     x = *(s32*) ((u8*) potionicon_tab + i * 40 + 2380) + 12;
-    // lint-end FM001
     switch (st) {
     case 1:
     case 3:
-        // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
         DrawTextKeepScale(0.45f, x, y, 6, 0xFFFFFF, label);
-        // lint-end FM007
         break;
     case 2:
         DrawGlowText(0.45f, x, y, label);
@@ -7267,9 +6775,7 @@ void mini_inventory_setup(void) {
     s32 f;
 
     lbl_80344B28 = 0;
-    // lint-begin FM007: these are bare numeric literals with no pointer arithmetic: message ids passed to msgPost, MBNewObject flag words, packed RGB colours, realm and animation ids. include/game and the Xbox PDB carry no enum or define that a GameCube access proves any of them belongs to, and changing hex to a guessed name is not a repair.
     f = (s32)MBOX_LoadModelFixed("INVENTORY", 0, 0, NULL, 0xFFFFFFFF);
-    // lint-end FM007
     lbl_80344B28 = f;
     ShopLoadData(f);
 }
