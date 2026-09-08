@@ -95,8 +95,8 @@
 /*   0x80057E6C  NextWorldLevel     -- next level matching a wave mask,    */
 /*                                      wrapping to the next world.        */
 /*                                                                      */
-/* Native reconstruction is still incomplete: level entry, game_main  */
-/* and the wave-timer HUD retain instruction residuals. The statistics */
+/* Native reconstruction is still incomplete: level entry and         */
+/* game_main retain instruction residuals. The statistics and timer   */
 /* helpers reproduce the target instructions and recovered data        */
 /* prefixes, but complete TU data ownership/linkage remains unverified. */
 /* ------------------------------------------------------------------ */
@@ -734,6 +734,11 @@ static int tbuf_generators[4];
 static int tbuf_playtime[4];
 static int tbuf_timer[4];
 static int tbuf_step[4];
+/* SandglassBlit[4], soft_reset[4] and restore_pos[4][3] in the Xbox PDB.
+ * GC references confirm their respective 16-, 16- and 48-byte extents. */
+void* lbl_80257630[4];
+s32 lbl_80257640[4];
+f32 lbl_80257650[4][3];
 static int stat_lx[4] = {0, 0, 256, 256};
 static int stat_cx[4] = {128, 128, 384, 384};
 static int stat_rx[4] = {245, 245, 501, 501};
@@ -1046,18 +1051,7 @@ void ShowLoading(void)
     fn_80055F68(1, 0);
 }
 
-/* 0x80054CDC -- flag if any of the 4 thresholds exceeds 120. */
-s32 fn_80054CDC(void)
-{
-    s32 i;
 
-    for (i = 0; i < 4; i++) {
-        if (lbl_80257640[i] > 120) {
-            lbl_80344A2C = 1;
-        }
-    }
-    return lbl_80344A2C;
-}
 
 /* 0x80054E68 -- set-and-return the previous value of lbl_80343C0C. */
 s32 SetMaxFPS(s32 arg0)
@@ -1369,6 +1363,19 @@ void fn_800552A4(f32 total, f32 current)
                      (f32)vertex, -1.0f);
     mbBlitProject(lbl_80257630[2], 0, Round((f32)offset) + 23);
     mbBlitCalcY(lbl_80257630[2], 106 - Round((f32)offset));
+}
+
+/* 0x80054CDC -- flag if any of the 4 thresholds exceeds 120. */
+s32 fn_80054CDC(void)
+{
+    s32 i;
+
+    for (i = 0; i < 4; i++) {
+        if (lbl_80257640[i] > 120) {
+            lbl_80344A2C = 1;
+        }
+    }
+    return lbl_80344A2C;
 }
 
 /* 0x800553B4 -- initialize the four timer/thermometer HUD blits. */
@@ -2493,11 +2500,8 @@ void game_main(void)
 
 void fn_80054E78(void)
 {
-    u8* state = (u8*)lbl_802575C0;
     s32 active;
-    u8* q;
     s32 i;
-    void** b;
 
     if (lbl_803447B8 != 0) {
         active = 0;
@@ -2507,13 +2511,13 @@ void fn_80054E78(void)
 
     if ((gControllerButtons & 0x10) == 0) {
         if (active != 0 && (gCurLevel->flags & 4) &&
-            *(void**)(state + 124) != 0) {
-            mbBlitInit3414(*(void**)(state + 124), 0);
+            lbl_80257630[3] != 0) {
+            mbBlitInit3414(lbl_80257630[3], 0);
         }
         if (lbl_80344818 >
-            lbl_80346AF0 + (f32)gCurLevel->wavetime) {
-            lbl_80344814 = lbl_80346B08;
-            lbl_80344818 = lbl_80346B08;
+            1.0f + (f32)gCurLevel->wavetime) {
+            lbl_80344814 = 5.0f;
+            lbl_80344818 = 5.0f;
         }
     }
 
@@ -2528,35 +2532,28 @@ void fn_80054E78(void)
         oldi = (s32)t;
         lbl_80344818 = t - gClockFrameStep;
         nt = lbl_80344818;
-        if (nt <= lbl_80346B10) {
+        if (nt <= 0.0) {
             for (i = 0; i < 4; i++) {
-                u32 v;
-
-                q = state + i * 4;
-                v = *(u32*)(q += 112);
-                if (v != 0) {
-                    MBRemoveBlit((struct MBBLIT*)v);
-                    *(u32*)q = 0;
+                if (lbl_80257630[i] != 0) {
+                    MBRemoveBlit(lbl_80257630[i]);
+                    lbl_80257630[i] = 0;
                 }
             }
-            lbl_80344818 = lbl_80346AFC;
+            lbl_80344818 = 0.0f;
             active = 0;
             if ((gControllerButtons & 0x10) != 0 &&
                 (gGameOptions[9] >> 8) == 12) {
-                s32 player_off;
-                u8* row;
-                u8* p;
+                s32 player_index;
+                Player* player;
 
                 lbl_8034481C = 2;
-                p = (u8*)gPlayers;
-                for (player_off = 0; player_off < 48;
-                     player_off += 12, p += 13148) {
-                    Player* player = (Player*)p;
+                player = gPlayers;
+                for (player_index = 0; player_index < 4;
+                     player_index++, player++) {
                     if (player->state != INACTIVE) {
-                        row = state + player_off;
-                        *(f32*)(row + 144) = player->pos[0];
-                        *(f32*)(row + 148) = player->pos[1];
-                        *(f32*)(row + 152) = player->pos[2];
+                        lbl_80257650[player_index][0] = player->pos[0];
+                        lbl_80257650[player_index][1] = player->pos[1];
+                        lbl_80257650[player_index][2] = player->pos[2];
                     }
                 }
             } else {
@@ -2576,32 +2573,8 @@ void fn_80054E78(void)
         }
 
         if (active != 0) {
-            f32 total = (f32)(lbl_80346B18 * lbl_80344814);
-            f32 curv = (f32)(lbl_80346B18 * lbl_80344818);
-            f32 frac = (total - curv) / total;
-            f64 v1;
-            f64 v2;
-            f64 vertex;
-
-            b = (void**)(state + 116);
-            vertex = lbl_80346B30 * frac + lbl_80346B28;
-            vertex *= lbl_80346B38;
-            mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
-                             (f32)vertex,
-                             lbl_80346B20);
-            v1 = lbl_80346B40 * frac;
-            mbBlitProject(*b, 0, 41 - Round((f32)v1));
-            mbBlitCalcY(*b, Round((f32)v1) + 24);
-
-            b = (void**)(state + 120);
-            v2 = lbl_80346B50 * frac;
-            vertex = lbl_80346B48 - v2;
-            vertex *= lbl_80346B38;
-            mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
-                             (f32)vertex,
-                             lbl_80346B20);
-            mbBlitProject(*b, 0, Round((f32)v2) + 23);
-            mbBlitCalcY(*b, 106 - Round((f32)v2));
+            fn_800552A4((f32)(60.0 * lbl_80344814),
+                         (f32)(60.0 * lbl_80344818));
 
             if ((gControllerButtons & 0x10) != 0) {
                 DrawText(-256, 8, 6, 0xFFFFFF, "%.1f",
