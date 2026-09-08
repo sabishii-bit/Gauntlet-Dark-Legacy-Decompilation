@@ -65,6 +65,8 @@
  */
 
 struct Critter;
+struct MBObject;   /* include/game/mbobject.h; every handle
+                    * below is Xbox crit_inst's `struct mbnode *` */
 struct CritterColDescriptor;  /* one stride-0x50 NODE record of a loaded
                                * CRITTER wad; completed in critter.c, the only
                                * TU that dereferences it */
@@ -82,6 +84,77 @@ struct CritterHeader;   /* loaded type template (CRITTER.OBJ CritterInitHeader);
                          *   0x128 ptr  per-move sub-table (stride 0x50)
                          *   0x130 ptr  child def table (->0x14 base, stride 0x140)
                          *   0x138 ptr  geometry/type data (non-null == loaded) */
+
+/* -- CRITTER enumerations, verbatim from the Xbox debug PDB
+ *    (research/xbox_symbols/misc.h: enum CRIT_STATE, MOVETYPE, COLNODE_FLAG,
+ *    INTERRUPT).  Adopting a name at a call site still requires a GameCube
+ *    access proving the operand is that field; the record strides that share
+ *    these numeric ranges (0x30 CritterDescriptor/CritterAddAnim, 0x50
+ *    CritterColDescriptor/CritterDamageDef/CritterPattern/CritterSfxRecord,
+ *    0x90 CritterMove, 0x140 CritterHeader) are sizes, not enum values. -- */
+typedef enum CritterState {
+    CRIT_INIT   = 0,
+    CRIT_DYING  = 1,
+    CRIT_IDLE   = 2,
+    CRIT_ACTIVE = 3
+} CritterState;
+
+/* CritterMove.type / CritterFindMoveType's `type` argument.  MOVE_STEPFIRST
+ * and MOVE_STEPLAST bracket the walk moves, which is the range test
+ * CritterInitMoves uses to set the expanded-move flag; MOVE_ATTACKS is the
+ * threshold every "is this an attack" comparison uses. */
+typedef enum CritterMoveType {
+    MOVE_INIT       = 0x00,
+    MOVE_SYNC       = 0x01,
+    MOVE_START      = 0x10,
+    MOVE_DEATH      = 0x11,
+    MOVE_READY      = 0x20,
+    MOVE_TAUNT      = 0x21,
+    MOVE_ROAR       = 0x22,
+    MOVE_BLOCK      = 0x23,
+    MOVE_STEPFIRST  = 0x30,
+    MOVE_PIVOT      = 0x31,
+    MOVE_STEPL      = 0x32,
+    MOVE_STEPR      = 0x33,
+    MOVE_STEPF      = 0x34,
+    MOVE_STEPB      = 0x35,
+    MOVE_STEPFL     = 0x36,
+    MOVE_STEPFR     = 0x37,
+    MOVE_STEPTOWARD = 0x38,
+    MOVE_STEPLAST   = 0x39,
+    MOVE_HITREACT   = 0x40,
+    MOVE_KNOCKBACK  = 0x41,
+    MOVE_KNOCKDOWN  = 0x42,
+    MOVE_ATTACKS    = 0x7F,
+    MOVE_CLAW       = 0x80,
+    MOVE_GRAB       = 0x81,
+    MOVE_STOMP      = 0x82,
+    MOVE_BREATH     = 0x83,
+    MOVE_SHOOT      = 0x84,
+    MOVE_SPRAY      = 0x85,
+    MOVE_CHARGE     = 0x86,
+    MOVE_SPOUT      = 0x87,
+    MOVE_TARGETED   = 0x88,
+    MOVE_FINISH     = 0xF0
+} CritterMoveType;
+
+/* CritterColDescriptor.flags bits (the NODE record's `flags` at +0x10). */
+typedef enum CritterColnodeFlag {
+    COLNODE_NOFX             = 1,
+    COLNODE_DESTROY          = 2,
+    COLNODE_DESTROY_CHILDREN = 4,
+    COLNODE_MOVECOL          = 8
+} CritterColnodeFlag;
+
+/* CritterMove.interrupt (+0x56): how readily a running move yields. */
+typedef enum CritterInterrupt {
+    INTERRUPT_NEVER        = 0,
+    INTERRUPT_MUCH_HIGHER  = 20,
+    INTERRUPT_HIGHER       = 40,
+    INTERRUPT_SAME         = 60,
+    INTERRUPT_NONZERO      = 80,
+    INTERRUPT_ANY          = 90
+} CritterInterrupt;
 
 /* -- CritterTargetCriteria (0x20): the shared 8-float target-selection
  *    constraint block embedded in both CritterMove (@0x60) and CritterPattern
@@ -135,6 +208,39 @@ typedef struct CritterMove {
     f32 holdDuration;     /* 0x8C CritterAnimate move-hold/fade duration        */
 } CritterMove;            /* size 0x90 */
 
+/* -- CritterSkinFx (0x18): the per-critter skin-effect state block at
+ *    Critter+0x0E0.  Xbox crit_inst carries `struct skinfx skinfx` here and
+ *    the GC passes its address straight to SetSkinFX/ProcessSkinFX. -- */
+typedef struct CritterSkinFx {
+    f32 nframes;              /* 0x00 */
+    f32 frame;                /* 0x04 */
+    f32 rate;                 /* 0x08 */
+    s32 texidx;               /* 0x0C */
+    s32 repeat;               /* 0x10 */
+    f32 ambientadd;           /* 0x14 */
+} CritterSkinFx;              /* size 0x18 */
+
+/* -- CritterTargetInfo (0x24): one resolved target slot; Critter has four at
+ *    +0x12C.  Xbox crit_target.  Every consumer in critter.c walks this array
+ *    with an explicit 0x24 stride from `pidx` or `dist`. -- */
+typedef struct CritterTargetInfo {
+    s32 pidx;                 /* 0x00 player index                            */
+    f32 dp;                   /* 0x04 facing dot product                      */
+    f32 dist;                 /* 0x08 distance (the old `targetAngle`)        */
+    f32 testdist;             /* 0x0C                                         */
+    f32 invanger;             /* 0x10                                         */
+    f32 dpos[4];              /* 0x14 delta to the target                     */
+} CritterTargetInfo;          /* size 0x24 */
+
+/* -- CritterPlayerDamage (0x10): per-player damage bookkeeping, four entries
+ *    at Critter+0x1BC.  Xbox crit_inst.playerDamage. -- */
+typedef struct CritterPlayerDamage {
+    f32 received;             /* 0x00 damage this player took from the critter */
+    f32 receivedTime;         /* 0x04 timestamp of that damage                 */
+    f32 dealt;                /* 0x08 damage this player dealt to the critter  */
+    f32 dealtTime;            /* 0x0C timestamp of that damage                 */
+} CritterPlayerDamage;        /* size 0x10 */
+
 /* -- CritterHitNode (0x5C): one runtime collision/attach node.  Critter has a
  *    fixed array of 16 of them at +0x4F8 (0x5C0 bytes == 16 * 0x5C); the live
  *    count is the owning type's CritterPackedType.colCount (+0x118), which
@@ -181,7 +287,7 @@ typedef struct Critter {
     u8  _res058[4];           /* 0x058                                        */
     f32 pos[3];               /* 0x05C world position                          */
     u8  _res068[4];           /* 0x068                                        */
-    void *mbnode;             /* 0x06C scene/model node handle                 */
+    struct MBObject *mbnode;  /* 0x06C OBJGRP.node -- the critter's model node */
     u8  _res070[4];           /* 0x070                                        */
     void *colhandle;          /* 0x074 collision/link handle (AtreeDelete)     */
     u8  sound[0x20];          /* 0x078 embedded sound/voice control block      */
@@ -191,15 +297,21 @@ typedef struct Critter {
     void *anodes;             /* 0x0B4 anode array base (stride 0x28)          */
     u8  _res0B8[4];           /* 0x0B8                                        */
     void *subnodes;           /* 0x0BC aux node list head (node->next @0x50)   */
-    void *anim;               /* 0x0C0 anim-tree node (MBTreeClearFlags target)     */
-    void *shadow;             /* 0x0C4 attached transform obj (->0x30 pos)     */
-    void *hitnode0;           /* 0x0C8 hit/attach node (hdr->0x56 index)       */
-    void *hitnode1;           /* 0x0CC hit/attach node (hdr->0x58 index)       */
-    void *obj_d0;             /* 0x0D0                                        */
-    void *emitter;            /* 0x0D4 particle/emitter handle (MBRemoveNode)   */
+    struct MBObject *anim;    /* 0x0C0 crit_inst.root -- animation root node   */
+    struct MBObject *shadow;  /* 0x0C4 crit_inst.shadow                        */
+    struct MBObject *hitnode0;/* 0x0C8 crit_inst.headnode (hdr->node0Index)    */
+    struct MBObject *hitnode1;/* 0x0CC crit_inst.eyenode  (hdr->node1Index)    */
+    struct MBObject *obj_d0;  /* 0x0D0 crit_inst.movenode                      */
+    struct MBObject *emitter; /* 0x0D4 crit_inst.dmgdbgnode                    */
     u32  emitterset;          /* 0x0D8 emitter-present flag                    */
-    void *hitnode2;           /* 0x0DC hit/attach node (hdr->0x5A index)       */
-    f32 skinMatrix[12];       /* 0x0E0 ProcessSkinFX per-node transform (3x4) */
+    struct MBObject *hitnode2;/* 0x0DC crit_inst.noskinfxnode (hdr->node2Index) */
+    CritterSkinFx skinfx;     /* 0x0E0 SetSkinFX/ProcessSkinFX state block    */
+    f32 inityaw;              /* 0x0F8 facing yaw the critter spawned with    */
+    f32 curyaw;               /* 0x0FC current facing yaw (CritterRotate)     */
+    f32 headyaw;              /* 0x100 NodeLookAtPos hitnode0 yaw output      */
+    f32 eyeyaw;               /* 0x104 NodeLookAtPos hitnode1 yaw output      */
+    f32 headpitch;            /* 0x108 NodeLookAtPos hitnode0 pitch output    */
+    f32 eyepitch;             /* 0x10C NodeLookAtPos hitnode1 pitch output    */
     f32 rateScale;            /* 0x110 move-rate scale (health-derived)       */
     f32 invRateScale;         /* 0x114 1.0 / rateScale                        */
     s16 curmove;              /* 0x118 current move index                     */
@@ -212,13 +324,8 @@ typedef struct Critter {
     s16 unk126;               /* 0x126 (init -1)                              */
     s16 unk128;               /* 0x128 (init -1)                              */
     s16 targetCount;          /* 0x12A active target count                     */
-    s32 targetPlayer;         /* 0x12C targetInfo[0].player; also read alone as
-                                * the single-target player index (CritterGetTarget) */
-    u8  _blk130[4];           /* 0x130 .. 0x134 (targetInfo[0], +4)          */
-    f32 targetAngle;          /* 0x134 targetInfo[0].angle; base of a walked,
-                                * stride-0x24 per-target record array          */
-    u8  _blk138[0x84];        /* 0x138 .. 0x1BC                              */
-    f32 unk1BC[4][4];         /* 0x1BC 4x4 floats (init 0; per-limb scratch)   */
+    CritterTargetInfo targets[4];      /* 0x12C resolved target slots        */
+    CritterPlayerDamage playerDamage[4]; /* 0x1BC per-player damage ledger    */
     f32 targetPos[3];         /* 0x1FC resolved target position                */
     u8  _blk208[4];           /* 0x208 .. 0x20C                              */
     s16 moveFlags;            /* 0x20C per-move activation flags             */
@@ -229,18 +336,21 @@ typedef struct Critter {
     f32 patternTimes[0x20];   /* 0x318 per-pattern last-use timestamps         */
     f32 worldMoveMatrix[12];  /* 0x398 move-node world transform              */
     f32 moveOrigin[3];        /* 0x3C8 cached move origin                      */
-    u8  _blk3D4[0x44];        /* 0x3D4 .. 0x418                              */
+    u8  _pad3D4[4];           /* 0x3D4 worldMoveMatrix's unused fourth column */
+    f32 initmat[4][4];        /* 0x3D8 spawn-time transform (crit_inst.initmat) */
     f32 prevMovePathPos[3];   /* 0x418 prior-frame movePathPos snapshot        */
     u8  _blk424[4];           /* 0x424 .. 0x428                              */
     f32 moveMatrix[3];        /* 0x428 current move-space position             */
     u8  _blk434[4];           /* 0x434 .. 0x438                              */
     f32 floorContact[3];      /* 0x438 last FloorCollide contact point (CollideWorld) */
-    u8  _blk444[8];           /* 0x444 .. 0x44C                              */
+    u8  _pad444[4];           /* 0x444                                        */
+    s32 hitwall;              /* 0x448 crit_inst.hitwall -- CritterCollideWorld
+                               * stores its wall-contact result here          */
     s16 healthmtr;            /* 0x44C health-meter handle (>=0 == present)     */
     s8  childcnt;             /* 0x44E spawned child count                    */
     s8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */
     u8  healthbar[0x48];      /* 0x450 health-bar object (AtreeDelete)         */
-    void *damageflash;        /* 0x498 damage-flash object (MBTreeSetScale)       */
+    struct MBObject *damageflash; /* 0x498 crit_inst.geometer_bar              */
     f32 movePathPos[3];       /* 0x49C waypoint-move anchor position          */
     u8  _res4A8[4];           /* 0x4A8                                        */
     f32 unk4AC;               /* 0x4AC (init 0)                              */
