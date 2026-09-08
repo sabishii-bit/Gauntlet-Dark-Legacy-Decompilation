@@ -45,6 +45,20 @@ void GXSetNumTexGens(u32 n);
 void GXSetNumTevStages(u32 n);
 void GXLoadTexObj(void* obj, u8 map);
 
+/* --- GX TEV argument constants (dolphin/gx/GXEnum.h) ------------------- */
+#define GX_TEVSTAGE0 0
+#define GX_TEVSTAGE1 1
+#define GX_CC_CPREV 0
+#define GX_CC_TEXC 8
+#define GX_CC_RASC 10
+#define GX_CC_ZERO 15
+#define GX_CA_APREV 0
+#define GX_CA_TEXA 4
+#define GX_CA_KONST 6
+#define GX_CA_ZERO 7
+#define GX_ALWAYS 7
+#define GX_COLOR_NULL 0xFF
+
 /* --- write-gather pipe (immediate-mode vertex FIFO) --- */
 typedef union {
     u8  vu8;
@@ -478,7 +492,7 @@ void sSetGFXEnv(PbGfxEnv* e)
     if (e->alphaOn) {
         GXSetAlphaCompare(e->alphaFunc, e->alphaRef, 0, 7, 0);
     } else {
-        GXSetAlphaCompare(7, 0, 0, 7, 0);
+        GXSetAlphaCompare(GX_ALWAYS, 0, 0, GX_ALWAYS, 0);
     }
     GXSetZMode(e->zCmpEn, e->zFunc, lbl_80343F58);
     if (e->blendOn) {
@@ -582,19 +596,21 @@ void SetMultiPassTextureParams(s32 stages)
         n = 1;
         switch (stages) {
         case 1:
-            GXSetTevOrder(1, 1, 1, 0xFF);
+            GXSetTevOrder(GX_TEVSTAGE1, 1, 1, GX_COLOR_NULL);
             GXSetTevOp(1, 4);
             GXSetTevColorOp(1, 0, 0, 0, 1, 0);
-            GXSetTevColorIn(1, 0xF, 0, 9, 0xF);
+            GXSetTevColorIn(GX_TEVSTAGE1, GX_CC_ZERO, GX_CC_CPREV, 9, GX_CC_ZERO);
             GXSetNumTexGens(2);
             n = 2;
             break;
         case 2:
             GXSetTevOrder(1, 0, 1, 4);
-            GXSetTevAlphaIn(1, 0, 6, 4, 7);
+            GXSetTevAlphaIn(GX_TEVSTAGE1, GX_CA_APREV, GX_CA_KONST, GX_CA_TEXA,
+                            GX_CA_ZERO);
             GXSetTevAlphaOp(1, 0xE, 0, 0, 1, 0);
             GXSetTevColorOp(1, 0, 0, 1, 1, 0);
-            GXSetTevColorIn(1, 0xF, 10, 8, 0xF);
+            GXSetTevColorIn(GX_TEVSTAGE1, GX_CC_ZERO, GX_CC_RASC, GX_CC_TEXC,
+                            GX_CC_ZERO);
             n = 3;
             break;
         case 3:
@@ -608,7 +624,8 @@ void SetMultiPassTextureParams(s32 stages)
         case 3:
             GXSetTevOp(0, 0);
             GXSetTevColorOp(0, 0, 0, 1, 1, 0);
-            GXSetTevColorIn(0, 0xF, 10, 8, 0xF);
+            GXSetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_RASC, GX_CC_TEXC,
+                            GX_CC_ZERO);
             break;
         }
         GXSetNumTevStages(n);
