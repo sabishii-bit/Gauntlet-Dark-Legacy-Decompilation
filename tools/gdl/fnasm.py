@@ -6,9 +6,26 @@ Usage:
   python tools/gdl/fnasm.py game/pb_window pbProjCalc 40:120   # insn index slice
   python tools/gdl/fnasm.py game/pb_window pbProjCalc 0x68:0xa0  # offset slice
   python tools/gdl/fnasm.py game/pb_window pbProjCalc --ours   # OUR built object
+  python tools/gdl/fnasm.py game/pb_window pbProjCalc --raw    # OUR compiler object
   python tools/gdl/fnasm.py game/pb_window pbProjCalc --diff   # target|ours aligned
   python tools/gdl/fnasm.py game/sys/sysservice sysClearFlags --raw --diff
   python tools/gdl/fnasm.py game/pb_window                     # list functions
+
+WHICH STREAM IS PRINTED. Three, and every dump names the one it printed on
+its first line, because the difference between them is a register number and
+the reader cannot see which stream a bare column came from:
+
+  (no flag)  TARGET  build/GUNE5D/obj/<unit>.o   the dtk-extracted retail object
+  --ours     OURS    build/GUNE5D/src/<unit>.o   our built object
+  --raw      OURS    our compiler-stage object, resolved from the build graph
+
+--raw IMPLIES --ours. It is a qualifier naming WHICH of our objects to read,
+not a third default; on its own it prints our stream, never the target's. It
+did that silently before run 62: the help documented the target as the
+default, the plain dump carried no header, and `--raw | head` showed our
+registers to a reader who believed they were the target's -- on
+game/audio/dcsdrv dcsHandleRequest, `+0x10 addi r29,r5,0` (ours) against the
+target's `addi r30,r5,0`, an off-by-one recolour invented out of the view.
 
 --diff prints target and ours side-by-side, sequence-aligned on the opcode
 stream (the same correspondence fndiff --ops uses) — immune to the
@@ -100,6 +117,44 @@ def pin_warning(unit, fn, kind, *, root=None):
             f"to read the compiler output.")
 
 
+#: stream key -> (column label, what the object actually is).
+#: `raw` is a variant of OURS, never of TARGET; the label says so.
+STREAMS = {
+    "target": ("TARGET", "dtk-extracted retail object"),
+    "ours": ("OURS", "our built object, as linked"),
+    "raw": ("OURS", "our compiler-stage object, pre-postprocess"),
+}
+
+
+def select_stream(argv, diff=False):
+    """('target'|'ours'|'raw') for the single-stream dump these flags ask for.
+
+    One place decides, so the header, the footer and the object actually
+    opened cannot disagree. --raw selects OURS on its own: it names which of
+    our objects to read. --diff always reads both streams and is reported
+    separately by diff_view.
+    """
+    flags = {a for a in argv if a.startswith("--")}
+    if "--raw" in flags:
+        return "raw"
+    if "--ours" in flags or diff:
+        return "ours"
+    return "target"
+
+
+def stream_header(unit, fn, stream, object_path):
+    """The first line of every dump: which stream, and the file it came from."""
+    label, what = STREAMS[stream]
+    path = Path(str(object_path))
+    try:
+        path = path.resolve().relative_to(ROOT.resolve())
+    except (ValueError, OSError):
+        pass
+    return ("# %s %s -- %s (%s): %s"
+            % (unit, fn or "<all>", label, what,
+               str(path).replace("\\", "/")))
+
+
 def raw_obj_path(unit, *, root=None):
     """Current compiler object, including plain TUs; refuse unknown graphs."""
     from raw_object import resolve_object
@@ -116,8 +171,9 @@ except ImportError:        # imported as tools.gdl.<module>
 def main():
     cliscreen.help_only(__doc__)
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    raw = "--raw" in sys.argv
-    ours = "--ours" in sys.argv or raw
+    stream = select_stream(sys.argv[1:])
+    raw = stream == "raw"
+    ours = stream in ("ours", "raw")
     if not args or args[0] in ("--help", "-h", "help"):
         print(__doc__)
         return 1
@@ -144,7 +200,9 @@ def main():
         # stdout, not stderr: the failure mode this closes is "the reader
         # piped the dump and never saw the warning".
         print(warn)
-    rows, names, err = parse_fn(unit, fn, ours=ours and not diff, raw=raw)
+    left_info, right_info = {}, {}
+    rows, names, err = parse_fn(unit, fn, ours=ours and not diff, raw=raw,
+                                info=left_info)
     if err:
         print(err)
         return 1
@@ -155,21 +213,29 @@ def main():
         print(f"function {fn} not found; has: {', '.join(names)}")
         return 1
     if diff:
-        our_rows, _, our_err = parse_fn(unit, fn, ours=True, raw=raw)
+        our_rows, _, our_err = parse_fn(unit, fn, ours=True, raw=raw,
+                                        info=right_info)
         if our_err:
             print(our_err)
             return 1
+        print(stream_header(unit, fn, "target", left_info.get("object", "?")))
+        print(stream_header(unit, fn, "raw" if raw else "ours",
+                            right_info.get("object", "?")))
         return diff_view(rows, our_rows, lo, hi, by_offset, raw=raw)
+    # The header goes FIRST, before any instruction, so `| head` still shows
+    # it. The trailing count alone was invisible to every piped read.
+    print(stream_header(unit, fn, stream, left_info.get("object", "?")))
     for i, (off, ins) in enumerate(rows):
         key = off if by_offset else i
         if lo <= key < hi:
             print(f"{off:4x}: {ins}")
-    label = f" ({'raw, pre-postprocess' if raw else 'ours'})" if ours else ""
-    print(f"[{len(rows)} insns{label}]")
+    label, what = STREAMS[stream]
+    print(f"[{len(rows)} insns; {label} -- {what}]")
     return 0
 
 
-def parse_fn(unit, fn, *, ours, raw=False):
+def parse_fn(unit, fn, *, ours, raw=False, info=None):
+    """(rows, names, error). `info`, when given, records {'object': path}."""
     kind = "src" if ours else "obj"
     obj = Path(f"build/{VERSION}/{kind}/{unit}.o")
     if ours and raw:
@@ -190,6 +256,8 @@ def parse_fn(unit, fn, *, ours, raw=False):
         hint = (f"run ninja build/{VERSION}/src/{unit}.o first" if ours
                 else "run ninja once so dtk extracts it")
         return [], [], f"missing {obj} ({hint})"
+    if info is not None:
+        info["object"] = str(obj)
     # A postprocessor refusal leaves the PREVIOUS object here (run-35 item
     # 4). Reading assembly out of it is the quietest possible wrong answer:
     # the listing is well-formed, it just is not the source in your tree.
