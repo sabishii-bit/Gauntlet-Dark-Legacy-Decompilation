@@ -2828,8 +2828,8 @@ void init_player_select(s32 mode)
     char* pool = lbl_801143F8;
     u8* page = lbl_80121688;
     s32 i2;
-    s32* xp;
     u8* blits;
+    s32* xp;
     u8* pl;
     s32 initValue;
     u8 _spare[32];
