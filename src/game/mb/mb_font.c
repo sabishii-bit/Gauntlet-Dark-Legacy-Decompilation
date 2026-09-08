@@ -680,11 +680,11 @@ int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
     f32 sv = su;
     MBFont* fnt;
     void* blit;
-    MBGlyphDef* g;
-    u8* dst;
     MBBlitCell* c;
     int i;
+    MBGlyphDef* g;
     int maxCode;
+    u8* dst;
     int size;
     int cc;
 
