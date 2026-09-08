@@ -146,6 +146,11 @@ an inherent limitation of the function. A refuted premise is a useful result.
   helper in `enemy.c` remain documented compatibility scaffolding, not recovered
   original types/header provenance. These narrow exceptions do not authorize
   analogous scaffolding elsewhere.
+- The user also approved gamemain.c's explicitly documented 8-byte and
+  32-byte unrecovered stack reservations and disabled HistHero reconstruction
+  (2026-09-08). Their original source provenance remains unproven. This narrow
+  exception does not authorize other padding, hooks or postprocessing, nor
+  waive native code/data/relocation/EH and source-linked checksum gates.
 - Never improve one function by silently regressing exact siblings, source
   semantics, linked data, exception metadata, the DOL checksum or the best
   verified project result. Preserve unrelated user changes.

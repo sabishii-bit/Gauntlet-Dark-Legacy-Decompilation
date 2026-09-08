@@ -32,7 +32,7 @@
  * reversed public definitions and deferred BSS declarations recover retail
  * text order, the ten BSS objects, and the complete 0x130-byte numeric pool.
  * The string region is reconstructed below as typed objects and literals.
- * Two frames and game_main remain nonexact; the extracted fallback stays
+ * game_main's adjacent instruction-order pair remains nonexact; fallback stays
  * selected until complete source-linked code/data/EH verification succeeds. */
 
 extern level_data* gCurLevel;
@@ -779,6 +779,8 @@ static inline s32 countdown_ticks(s32* timer, s32 ticks)
  * party is idle at a boss gate. */
 void fn_80055AFC(void)
 {
+    // lint-allow-next-line FM003: User-approved compatibility reservation (2026-09-08): retail reserves 32 otherwise unaccessed bytes beyond the recovered locals; their original source identity remains unknown. No runtime reads or writes are added.
+    u8 unrecovered_stack[32];
     s32 i;
     MILESTONE* ms;
     s32 n;
@@ -1185,6 +1187,13 @@ s32 fn_80054CDC(void)
     return lbl_80344A2C;
 }
 
+/* User-approved compatibility reconstruction (2026-09-08). Xbox STATS.OBJ
+ * identifies a one-byte HistHero(int) no-op. Its original GameCube linkage
+ * and caller identity remain unproven. Inlining this disabled statistics hook
+ * preserves GC's otherwise unused player-mask loop without volatile accesses
+ * or generated-code rewriting; it is not a recovered original definition. */
+static inline void HistHero(int hero) {}
+
 /* 0x80054230 - top-level per-frame game mode dispatcher. */
 void game_main(void)
 {
@@ -1374,9 +1383,15 @@ void game_main(void)
         if (AudioSysUpdate(100000)) {
             break;
         }
-        /* GC retains an unused four-player mask calculation here.
-         * It has no stores or calls. Do not manufacture a volatile read
-         * to preserve that dead computation; its source origin is unknown. */
+        /* See the explicitly approved HistHero reconstruction above. */
+        {
+            Player* player = gPlayers;
+            for (i = 0; i < 4; i++, player++) {
+                if (lbl_80344824 & (1 << i)) {
+                    HistHero(player->character);
+                }
+            }
+        }
         fn_8005351C();
         break;
     case MG_MAPSCREEN:
@@ -2018,6 +2033,8 @@ void fn_8005351C(void)
 /* 0x80053420 -- second-stage game/audio init (main() calls this). */
 void game_init_data(void)
 {
+    // lint-allow-next-line FM003: User-approved compatibility reservation (2026-09-08): retail reserves 8 otherwise unaccessed bytes beyond the recovered save area; their original source identity remains unknown. No runtime reads or writes are added.
+    u8 unrecovered_stack[8];
 
     InitPlayerControls();
     ControlsUpdate();
