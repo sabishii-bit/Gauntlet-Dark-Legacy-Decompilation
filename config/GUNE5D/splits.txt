@@ -566,6 +566,7 @@ game/audio/dcs.c:
 	extab       start:0x80007F78 end:0x80008068
 	extabindex  start:0x8000C784 end:0x8000C8EC
 	.text       start:0x800D1E04 end:0x800D4308
+	.sdata2     start:0x803492B8 end:0x80349300
 
 game/audio/buffile.c:
 	extab       start:0x80008068 end:0x80008098
