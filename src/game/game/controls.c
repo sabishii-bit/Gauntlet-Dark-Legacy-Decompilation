@@ -53,6 +53,7 @@
  * via JoyAng/JoyMag/fn_80034C88/atan2 into the staged F20..FC0 arrays).
  */
 #include "types.h"
+#include "game/player.h"
 
 /* ------------------------------------------------------------------ */
 /* external code                                                       */
@@ -566,15 +567,15 @@ f32 fn_80034C88(f32 x);
 
 /* ================================================================== */
 
-/* 0x8003104C  does any ACTIVE player (gPlayers stride 0x335C) have a
- * new edge under mask?  (auxscreen: accept-button query) */
-extern u8 gPlayers[4][0x335C]; /* gPlayers */
+/* 0x8003104C  does any ACTIVE player have a new edge under mask?
+ * (auxscreen: accept-button query) */
+extern Player gPlayers[4];     /* 0x80275AE0 player records (gPlayerRecords) */
 s32 active_player_edge(u32 mask)
 {
     int i;
 
     for (i = 0; i < 4; i++) {
-        if (*(s32*)(gPlayers[i] + 0xE8) != 0 && (mask & lbl_80240E30[i].edges) != 0) {
+        if (gPlayers[i].state != 0 && (mask & lbl_80240E30[i].edges) != 0) {
             return 1;
         }
     }
@@ -966,7 +967,6 @@ void do_vibe(s32 plyr, s32 inten, s32 time)
 /* 0x80031A40  pump one pad's connection state machine (scePadGetState/
  * scePadInfoMode/press-mode negotiation, phases 0/0x28-0x2A/0x46-0x4D/99)
  * and joyReadPad it once stable. */
-#pragma dont_inline on
 s32 joyGetStatus(s32 pad, u8* buf)
 {
     s32 phase;
@@ -1126,7 +1126,6 @@ s32 joyGetStatus(s32 pad, u8* buf)
     lbl_803445E0 = 0;
     return 0;
 }
-#pragma dont_inline off
 
 #define SET_CLAMPED_BUTTON(idx, mode, expr) \
     {                                       \
@@ -1162,7 +1161,6 @@ s32 joyGetStatus(s32 pad, u8* buf)
 /* 0x80031E74  read one pad via scePadRead and translate the PS2-format
  * button/pressure report into the 24 {mode,value} button records
  * (get_dir/calc_analog_stick/set*Button inlined). */
-#pragma dont_inline on
 s32 joyReadPad(s32 pad, u8* buf)
 {
     u32 slot = pad & 3;
@@ -1262,7 +1260,6 @@ s32 joyReadPad(s32 pad, u8* buf)
     }
     return 1;
 }
-#pragma dont_inline off
 
 /* 0x80032778  re-enable player controls (clears everything first) */
 static void reset_player_controls(s32 z, s32 n)
