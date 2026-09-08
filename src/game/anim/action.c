@@ -125,7 +125,7 @@ s32 DoEnemyAction(void* enemy)
     s32 result;
     s32 type;
 
-    node = e + 0x1B;
+    node = (s32*)&en->atree;
     cur = en->action;        /* +0xCC current action */
     act = next;
     if (act >= E_HIT_REACT1) {
@@ -135,11 +135,11 @@ s32 DoEnemyAction(void* enemy)
     }
     switch (sw) {
     case E_START:
-        type = e[0];
+        type = en->type;
         mode = 0;
         interruptible = 0;
-        if (type == 1 || type == 4 || type == 10 || type == 7) {
-            if (defs[3 * 2] >= 0) {
+        if (type == E_TROLL || type == E_GRUNT || type == E_LIZARDMAN || type == E_SORCERER) {
+            if (defs[E_WALK * 2] >= 0) {
                 act = E_WALK;
             } else {
                 act = E_RUN;
@@ -147,7 +147,7 @@ s32 DoEnemyAction(void* enemy)
         }
         break;
     case E_READY:
-        if (e[0] == 0x1D) {
+        if (en->type == E_GOLEM) {
             if (next >= E_HIT_REACT1) {
                 mode = 2;
             } else {
@@ -155,12 +155,12 @@ s32 DoEnemyAction(void* enemy)
             }
             interruptible = 0;
         }
-        if (e[0] == 0x1B) {
+        if (en->type == E_GARM2) {
             mode = 2;
-        } else if (next == E_WALK && defs[9 * 2] >= 0) {
+        } else if (next == E_WALK && defs[E_READYTOWALK * 2] >= 0) {
             act = E_READYTOWALK;
             mode = 0;
-        } else if (next == E_RUN && defs[11 * 2] >= 0) {
+        } else if (next == E_RUN && defs[E_READYTORUN * 2] >= 0) {
             act = E_READYTORUN;
             mode = 0;
         } else if (next == E_ATTACK || next == E_ATTACK2 || next == E_ATTACK_PWR) {
@@ -173,7 +173,7 @@ s32 DoEnemyAction(void* enemy)
         } else {
             mode = 0;
             interruptible = 0;
-            if (defs[4 * 2] >= 0) {
+            if (defs[E_RUN * 2] >= 0) {
                 act = E_RUN;
             } else {
                 act = E_WALK;
@@ -186,7 +186,7 @@ s32 DoEnemyAction(void* enemy)
         } else {
             mode = 0;
             interruptible = 0;
-            if (defs[3 * 2] >= 0) {
+            if (defs[E_WALK * 2] >= 0) {
                 act = E_WALK;
             } else {
                 act = E_RUN;
@@ -207,20 +207,20 @@ s32 DoEnemyAction(void* enemy)
     case E_FLY:
     case E_HOVER:
     case E_LANDING:
-        if (e[0] == 0x1D && next == E_READY) {
+        if (en->type == E_GOLEM && next == E_READY) {
             mode = 0;
             interruptible = 0;
             act = E_READY;
         }
         if (next == E_READY) {
-            if (defs[8 * 2] >= 0) {
+            if (defs[E_WALKTOREADY * 2] >= 0) {
                 act = E_WALKTOREADY;
             }
             mode = 0;
         }
         break;
     case E_RUN:
-        if (next == E_READY && defs[10 * 2] >= 0) {
+        if (next == E_READY && defs[E_RUNTOREADY * 2] >= 0) {
             act = E_RUNTOREADY;
             mode = 0;
         }
@@ -232,7 +232,7 @@ s32 DoEnemyAction(void* enemy)
     case E_HIT_REACT2:
         mode = 0;
         interruptible = 0;
-        if (defs[0x1F * 2] >= 0) {
+        if (defs[E_GETUP * 2] >= 0) {
             act = E_GETUP;
         }
         break;
@@ -267,7 +267,7 @@ s32 DoEnemyAction(void* enemy)
         if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            if (defs[14 * 2] >= 0) {
+            if (defs[E_ATTACK2 * 2] >= 0) {
                 act = E_ATTACK2;
             } else {
                 if (next == E_ATTACK) {
@@ -363,7 +363,7 @@ s32 DoEnemyAction(void* enemy)
         }
         break;
     case E_THROW:
-        if (defs[0x18 * 2] < 0) {
+        if (defs[E_THROW * 2] < 0) {
             act = E_THROW2;
             cur = E_THROW2;
         }
@@ -488,12 +488,12 @@ s32 DoEnemyAction(void* enemy)
         switch (act) {
         case E_ATTACK:
         case E_ATTACK2:
-            if (e[0] == 0x1B) {
+            if (en->type == E_GARM2) {
                 SfxSetParent((void*)StartEnemyAtkFX(0, 0), (void*)e[0x19]);
             }
             break;
         case E_ATTACK_PWR:
-            if (e[0] == 0x1B) {
+            if (en->type == E_GARM2) {
                 SfxSetParent((void*)StartEnemyAtkFX(0, 1), (void*)e[0x19]);
             }
             break;
@@ -504,7 +504,7 @@ s32 DoEnemyAction(void* enemy)
         case E_DYING:
             break;
         default:
-            if (e[0] == 0x1B) {
+            if (en->type == E_GARM2) {
                 SfxDeleteParented((void*)e[0x19], 0, -1);
             }
             break;
