@@ -258,9 +258,9 @@ void DoGoodWizard(void)
                 u8* slot = p + *(s32*)(p + offsetof(Player, character)) *
                                    sizeof(PlayerCharSave);
 
-                acc3542 |= *(u16*)(slot + offsetof(Player, char_save) +
+                acc3542 |= *(u16*)(slot + offsetof(Player, save.stuff) +
                                     offsetof(PlayerCharSave, rune_stones2));
-                acc3540 |= *(u16*)(slot + offsetof(Player, char_save) +
+                acc3540 |= *(u16*)(slot + offsetof(Player, save.stuff) +
                                     offsetof(PlayerCharSave, rune_stones));
             }
         }
@@ -608,7 +608,7 @@ s32 hide_rune_stones(void* unused)
         if (*(s32*)(p + offsetof(Player, state)) == 1) {
             u8* slot = p + *(s32*)(p + offsetof(Player, character)) *
                                sizeof(PlayerCharSave);
-            acc |= *(u16*)(slot + offsetof(Player, char_save) +
+            acc |= *(u16*)(slot + offsetof(Player, save.stuff) +
                             offsetof(PlayerCharSave, rune_stones2));
         }
     }

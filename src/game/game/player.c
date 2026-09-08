@@ -848,7 +848,7 @@ void ShowRuneStones(void) {
                 if ((u32)(state - 1) <= 1 || (u32)(state - 4) <= 1) {
                     for (j = 0; j < 8; j++) {
                         if ((blit = crystal_blit[i][j]) != NULL) {
-                            if ((((Player*)p)->char_save[((Player*)p)->character].rune_stones &
+                            if ((((Player*)p)->save.stuff[((Player*)p)->character].rune_stones &
                                  (1 << j)) != 0) {
                                 hide = 0;
                             } else {
@@ -961,7 +961,7 @@ static void write_health_and_items(s32 i) {
     switch (p->display_mode) {
     case 6:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->save.name);
         }
         break;
     case 1:
@@ -978,7 +978,7 @@ static void write_health_and_items(s32 i) {
         /* fall through */
     case 5:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->save.name);
         }
         if (lbl_80344A28 != 0 || !hidden) {
             sprintf(buf2, "LV %d", p->level);
@@ -2013,7 +2013,7 @@ s32 do_players(void) {
                             p->name_timer = 0;
                         }
                         for (j = 0; j < 8; j++) {
-                            name[j] = p->name[j];
+                            name[j] = p->save.name[j];
                             if (name[j] == '_') {
                                 name[j] = ' ';
                             }
@@ -3220,9 +3220,6 @@ void kill_player(s32 i) {
 }
 
 static inline void restore_inactive_player(s32 i) {
-    typedef struct InactiveSaveImage {
-        u8 bytes[0x1434];
-    } InactiveSaveImage;
     Player* p = PT(i);
     f32 cap;
 
@@ -3233,8 +3230,7 @@ static inline void restore_inactive_player(s32 i) {
         }
         p->health = cap;
     } else {
-        *(InactiveSaveImage*)((u8*)p + offsetof(Player, name)) =
-            *(InactiveSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
+        p->save = p->save_backup;
         player_get_from_save(p, -1);
     }
 }
@@ -3735,71 +3731,55 @@ void load_player(s32 i) {
 /* save image / per-character stats                                    */
 /* ------------------------------------------------------------------ */
 
-typedef struct PlayerSaveImage {
-    u8 bytes[0x1434];
-} PlayerSaveImage;
-
-typedef struct PlayerMemcardView {
-    u8 _pad0000[0xA80];
-    PlayerSaveImage image;
-    u8 _pad1EB4[0x18];
-    PlayerSaveImage backup;
-    u8 _pad3300[0x4C];
-    s32 cardFile;
-    s32 cardDirectory;
-    u8 _pad3354[4];
-    s32 cardSlot;
-} PlayerMemcardView;
-
 /* Memcard read into the save image, then unpack (msg on failure).     */
 s32 PlayerLoadSaveFile(s32 i, s32 slot) {
     s32 player = i;
     s32 size[2];
     s32 ok;
     s32 j;
-    PlayerMemcardView* p = &((PlayerMemcardView*)gPlayers)[player];
+    Player* p = &gPlayers[player];
 
-    p->cardSlot = slot;
-    size[0] = sizeof(p->image);
+    p->sel_file_cursor = slot;
+    size[0] = sizeof(p->save);
     do {
-        ok = saveLoad(p->cardFile, p->cardDirectory, p->cardSlot,
-                      &p->image, size);
+        ok = saveLoad(p->sel_card_chan, p->sel_card_slot, p->sel_file_cursor,
+                      &p->save, size);
         if (ok == 0 && memCardErrorPrompt("Game load failed !!") == 0) {
             break;
         }
     } while (ok == 0);
     if (ok != 0) {
-        j = InitPreferences(p->cardFile, p->cardDirectory);
+        j = InitPreferences(p->sel_card_chan, p->sel_card_slot);
         if (j != 0) {
             OptionsSetup(j);
         }
     }
     player_get_from_save(p, -1);
-    p->image.bytes[0xB] = 1;
+    p->save.saved = 1;
     /* image -> backup */
-    p->backup = p->image;
+    p->save_backup = p->save;
     for (j = 0; j < 0x100; j++) {
-        p->image.bytes[0x1334 + j] &= 0xF0;
+        p->save.help_disp[j] &= 0xF0;
     }
-    change_player(player, ((Player*)p)->character);
+    change_player(player, p->character);
     return ok;
 }
 
 /* Pack and memcard-write the save image (msg on failure).             */
 s32 PlayerWriteSaveFile(s32 i, s32 slot) {
-    PlayerMemcardView* p = &((PlayerMemcardView*)gPlayers)[i];
+    Player* p = &gPlayers[i];
     s32 ok;
 
-    p->cardSlot = slot;
+    p->sel_file_cursor = slot;
     player_store_in_save(p);
     do {
-        ok = saveSave(p->cardFile, p->cardDirectory, p->cardSlot,
-                      &p->image, sizeof(p->image));
+        ok = saveSave(p->sel_card_chan, p->sel_card_slot, p->sel_file_cursor,
+                      &p->save, sizeof(p->save));
         if (ok == 0 && memCardErrorPrompt("Game save failed !!") == 0) {
             break;
         }
     } while (ok == 0);
-    p->image.bytes[0xB] = 1;
+    p->save.saved = 1;
     return ok;
 }
 
@@ -3840,8 +3820,7 @@ void PlayerRestoreState(s32 player) {
         }
         p->health = cap;
     } else {
-        *(PlayerSaveImage*)((u8*)p + offsetof(Player, name)) =
-            *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
+        p->save = p->save_backup;
         player_get_from_save(p, -1);
     }
 }
@@ -3856,10 +3835,9 @@ void PlayerSaveState(s32 player, s32 full) {
     player_store_in_save(p);
     if (full != 0 && !(sMusicTrackHi == 5 && sMusicTrackLo == 1) &&
         !(sMusicTrackHi == 6 && sMusicTrackLo == 1)) {
-        *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
-            *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
+        p->save_backup = p->save;
     }
-    p->saved = 0;
+    p->save.saved = 0;
 }
 
 /* Unpack the per-character slots into the live fields.  type < 0      */
@@ -3882,8 +3860,7 @@ void player_get_from_save(void* vp, s32 type) {
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden character: fixed loadout */
-        *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
-            *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
+        p->save_backup = p->save;
         p->class_id = 0;
         ATT_FIGHT(p) = 999.0f;
         ATT_ARMOR(p) = 999.0f;
@@ -3976,8 +3953,7 @@ void player_store_in_save(void* vp) {
 
     if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden char: park it, restore the base character, re-flag */
-        *(PlayerSaveImage*)((u8*)p + offsetof(Player, name)) =
-            *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
+        p->save = p->save_backup;
         HIDDEN_CODE(p) = NULL;
         player_get_from_save(p, -1);
         HIDDEN_CODE(p) = lbl_80343D6C;
@@ -3994,22 +3970,22 @@ void player_store_in_save(void* vp) {
         *(u16*)(item + 0xDD4) |= p->runes;
         *(u16*)(item + 0xDD6) |= p->shards;
     }
-    p->last_alttype = (s16)p->character;
-    p->last_color = (s8)p->class_id;
+    p->save.last_alttype = (s16)p->character;
+    p->save.last_color = (s8)p->class_id;
     /* total-level checksum across all 16 characters */
     for (j = 0; j < 16; j++) {
         total += ExpToLevel(CHAR_STATS(p, j)[0]);
     }
-    p->leveltot = total;
+    p->save.leveltot = total;
     memcpy((u8*)p + chartype + 0xE04, (u8*)p + 0x130, 0xB0);
     {
         u8* item = (u8*)p + chartype;
         *(s16*)(item + 0xDDA) = (s16)PF(p, 0x1EC, s32);
     }
-    p->control_scheme = (u8)lbl_80240E30[player].scheme;
-    p->control_rumble = (u8)lbl_80240E30[player].hasActuator;
-    p->control_autoattack = (u8)lbl_80240E30[player].unk38;
-    p->control_autoaim = (u8)lbl_80240E30[player].unk34;
+    p->save.control_scheme = (u8)lbl_80240E30[player].scheme;
+    p->save.control_rumble = (u8)lbl_80240E30[player].hasActuator;
+    p->save.control_autoattack = (u8)lbl_80240E30[player].unk38;
+    p->save.control_autoaim = (u8)lbl_80240E30[player].unk34;
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         player_get_from_save(p, -1);
     }
@@ -4020,14 +3996,14 @@ void player_store_in_save(void* vp) {
 void player_save_controls(s32 i) {
     Player* p = P(i);
 
-    p->control_scheme = (u8)lbl_80240E30[i].scheme;
-    p->control_rumble = (u8)lbl_80240E30[i].hasActuator;
-    p->control_autoattack = (u8)lbl_80240E30[i].unk38;
-    p->control_autoaim = (u8)lbl_80240E30[i].unk34;
-    p->control_scheme_ckpt = (u8)lbl_80240E30[i].scheme;
-    p->control_rumble_ckpt = (u8)lbl_80240E30[i].hasActuator;
-    p->control_autoattack_ckpt = (u8)lbl_80240E30[i].unk38;
-    p->control_autoaim_ckpt = (u8)lbl_80240E30[i].unk34;
+    p->save.control_scheme = (u8)lbl_80240E30[i].scheme;
+    p->save.control_rumble = (u8)lbl_80240E30[i].hasActuator;
+    p->save.control_autoattack = (u8)lbl_80240E30[i].unk38;
+    p->save.control_autoaim = (u8)lbl_80240E30[i].unk34;
+    p->save_backup.control_scheme = (u8)lbl_80240E30[i].scheme;
+    p->save_backup.control_rumble = (u8)lbl_80240E30[i].hasActuator;
+    p->save_backup.control_autoattack = (u8)lbl_80240E30[i].unk38;
+    p->save_backup.control_autoaim = (u8)lbl_80240E30[i].unk34;
 }
 
 /* Derive the combat stats from the attribute norms x class ranges.    */
@@ -4274,7 +4250,7 @@ model_ready:
 
 /*
  * Hidden-character/cheat name hook, called from load_player_geo when
- * secret characters are enabled.  Compares p->name against the cheat
+ * secret characters are enabled.  Compares p->save.name against the cheat
  * strings ("Access?", "Unlimited?", "NoDamage?", "Shards?", "Runes?",
  * "Cheats?", "Select a character?", "Worlds?"), the 27-entry hidden
  * character table ("ICE600".."Rand??") and the 27-entry powerup-cheat
@@ -4307,14 +4283,14 @@ s32 set_hidden_player(void* vp) {
     s32 j;
     s32 k;
 
-    if (strncmp(p->name, lbl_803479E0, 6) == 0) {
+    if (strncmp(p->save.name, lbl_803479E0, 6) == 0) {
         pick = 0x10;
         match = 1;
     }
     /* the interactive cheat menu (start+trigger names) */
-    if ((strncmp(p->name, lbl_803479C8, 6) == 0 ||
-         strncmp(p->name, lbl_803479D0, 6) == 0 ||
-         strncmp(p->name, lbl_803479D8, 6) == 0) &&
+    if ((strncmp(p->save.name, lbl_803479C8, 6) == 0 ||
+         strncmp(p->save.name, lbl_803479D0, 6) == 0 ||
+         strncmp(p->save.name, lbl_803479D8, 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
         access_options[0] = lbl_80347734;
         access_one[0] = lbl_80347740;
@@ -4435,7 +4411,7 @@ s32 set_hidden_player(void* vp) {
                     for (k = 0; k < 16; k++) {
                         *(s16*)((u8*)p + j * 240 + 3566 + k * 2) = -1;
                     }
-                    p->char_save[p->character].rune_near = 0xFFFF;
+                    p->save.stuff[p->character].rune_near = 0xFFFF;
                     for (k = 0; k < 3; k++) {
                         *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
                     }
@@ -4447,17 +4423,17 @@ s32 set_hidden_player(void* vp) {
     }
     /* one-shot cheat names */
     if (any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-        if (strncmp(p->name, lbl_80347A18, 6) == 0) {
+        if (strncmp(p->save.name, lbl_80347A18, 6) == 0) {
             match = 1;
             pick = (rand() & 0xFF) % 27U;
             pups = rand();
         }
-        if (strncmp(p->name, lbl_80347A20, 6) == 0) {
+        if (strncmp(p->save.name, lbl_80347A20, 6) == 0) {
             match = 1;
             pick = 5;
             pups = rand();
         }
-        if (strncmp(p->name, lbl_80347A28, 6) == 0) {
+        if (strncmp(p->save.name, lbl_80347A28, 6) == 0) {
             match = 1;
             pick = 1;
             pups = rand();
@@ -4533,10 +4509,10 @@ s32 set_hidden_player(void* vp) {
                 for (k = 0; k < 3; k++) {
                     *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
                 }
-                p->char_save[p->character].rune_near = 0xFFFF;
+                p->save.stuff[p->character].rune_near = 0xFFFF;
             }
         }
-        if (strncmp(p->name, lbl_80347A30, 6) == 0) {
+        if (strncmp(p->save.name, lbl_80347A30, 6) == 0) {
             match = 1;
             pick = 0x17;
             pups = rand();
@@ -4552,7 +4528,7 @@ s32 set_hidden_player(void* vp) {
     }
     for (j = 0; (u32)j < 27; j++) {
         HiddenChar* hidden = (HiddenChar*)(data + 2512) + j;
-        if ((strncmp(p->name, hidden->name, 6) == 0 &&
+        if ((strncmp(p->save.name, hidden->name, 6) == 0 &&
              (hidden->unlocked == 0 || lbl_80344828 > 1)) ||
             (match && pick == j)) {
             p->class_id = hidden->class_id;
@@ -4563,7 +4539,7 @@ s32 set_hidden_player(void* vp) {
     }
     for (j = 0; (u32)j < 27; j++) {
         PupCheat* cheat = (PupCheat*)(data + 3484) + j;
-        if (strncmp(p->name, cheat->name, 6) == 0 ||
+        if (strncmp(p->save.name, cheat->name, 6) == 0 ||
             (pups & (1 << j))) {
             switch (cheat->type) {
             case 1:
