@@ -78,11 +78,8 @@ class Warning(unittest.TestCase):
 class PinLoading(unittest.TestCase):
     def test_the_live_config_yields_the_pin_set(self):
         pins = savedregs.webfrank_pins()
-        config = json.loads((REPO / "config/GUNE5D/webfrank.json").read_text())
-        expected = {(unit, rule["function"])
-                    for unit, rules in config["units"].items()
-                    for rule in rules if rule.get("function")}
-        self.assertEqual(pins, expected)
+        self.assertFalse((REPO / "config/GUNE5D/webfrank.json").exists())
+        self.assertEqual(pins,set())
 
     def test_a_checkout_with_no_config_fails_soft(self):
         with tempfile.TemporaryDirectory() as tmp:

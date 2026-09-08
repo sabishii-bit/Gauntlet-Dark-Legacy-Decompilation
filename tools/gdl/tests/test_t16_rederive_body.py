@@ -109,39 +109,6 @@ class PastePairs(unittest.TestCase):
         self.assertIsNone(pairs[1][0])
 
 
-class LiveRule(unittest.TestCase):
-    """The shipped config is READ ONLY here; nothing writes."""
-
-    UNIT, FN = "game/anim/atree", "fn_8001267C"
-
-    def setUp(self):
-        cfg = REPO / "config" / "GUNE5D" / "webfrank.json"
-        self.rule = next(
-            (r for r in json.loads(cfg.read_text(encoding="utf-8"))
-             .get("units", {}).get(self.UNIT, [])
-             if r.get("function") == self.FN), None)
-        if self.rule is None:
-            self.skipTest("atree::fn_8001267C rule not in webfrank.json")
-        body = (REPO / "build" / "GUNE5D" / "src" / "game" / "anim"
-                / ".postprocess" / "body" / "atree.o")
-        target = REPO / "build" / "GUNE5D" / "obj" / "game" / "anim" / "atree.o"
-        if not (body.exists() and target.exists()):
-            self.skipTest("atree objects not built")
-        self.our = bytearray(body.read_bytes())
-        self.target = bytearray(target.read_bytes())
-
-    def test_a_current_pin_derives_to_its_own_hashes(self):
-        derived = rb.derive_slots(self.rule, self.our, self.target, self.FN)
-        verdict, moved = rb.classify_move(self.rule, derived)
-        self.assertEqual((verdict, moved), ("UNCHANGED", []),
-                         f"derived={derived}")
-
-    def test_every_slot_the_rule_carries_is_derived(self):
-        derived = rb.derive_slots(self.rule, self.our, self.target, self.FN)
-        self.assertIn("before_sha256", derived)
-        self.assertIn("after_sha256", derived)
-        if "instruction_permutation" in self.rule:
-            self.assertIn(("window", 0, "before_relocations_sha256"), derived)
 
 
 class DocumentedContract(unittest.TestCase):

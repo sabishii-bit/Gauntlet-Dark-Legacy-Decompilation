@@ -29,6 +29,11 @@ OTHER_STAGES = ("instruction_permutation", "equivalent_copy_form",
 
 
 def main():
+    if '--help' in sys.argv or '-h' in sys.argv:
+        print(__doc__); return
+    if not os.path.exists(os.path.join(ROOT,'config','GUNE5D','webfrank.json')):
+        print('RETIRED: no production rule corpus; inspect Git history.')
+        raise SystemExit(2)
     config = json.load(open(os.path.join(ROOT, "config", "GUNE5D",
                                          "webfrank.json"), encoding="utf-8"))
     units = config.get("units", config)

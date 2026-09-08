@@ -1,6 +1,7 @@
 """Compare raw and postprocessed relocation-datum multisets through fndiff.
 
-Default scope: unique WebFrank-pinned functions (rule chains count once).
+Default native-only scope: non-complete, non-auto report units. Legacy graphs
+select unique WebFrank-pinned functions (rule chains count once).
 --image selects functions of non-complete, non-auto report units. A bounded
 control is --unit game/enemy/enemy --function do_enemy_move. Requires a fresh
 successful build; this read-only tool does not build or certify freshness.
@@ -29,8 +30,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "tools" / "gdl"))
 import fndiff  # noqa: E402
+from raw_object import load_graph  # noqa: E402
 
 SCHEMA_VERSION = 1
+
+
+def active_pins():
+    """Absent rules are valid only with a verified native-only graph."""
+    graph = load_graph(ROOT, "GUNE5D")
+    if graph.get("native_only") is True:
+        return [], 0, True
+    config = json.loads((ROOT / "config/GUNE5D/webfrank.json").read_text(encoding="utf-8"))
+    pins, count = pinned_functions(config)
+    return pins, count, False
 
 
 def active_raw_edges():
@@ -254,10 +266,13 @@ def main(argv=None):
     fndiff.OBJDUMP = args.objdump or ROOT / "build/binutils" / (
         "powerpc-eabi-objdump.exe" if os.name == "nt" else "powerpc-eabi-objdump")
     try:
-        config = json.loads((ROOT / "config/GUNE5D/webfrank.json").read_text(encoding="utf-8"))
-        pins, rule_count = pinned_functions(config)
-        roster, discovery, selected = select_functions(pins, args.image, args.unit, args.function)
+        pins, rule_count, native_only = active_pins()
+        roster, discovery, selected = select_functions(
+            pins, args.image or (native_only and not args.unit), args.unit, args.function)
         result = audit(pins, rule_count, roster, discovery, selected, active_raw_edges())
+        result["native_only"] = native_only
+        result["object_views"] = ("raw and post fields both refer to direct compiler output"
+                                  if native_only else "raw compiler and transformed output")
     except (OSError, ValueError, RuntimeError, SystemExit) as exc:
         result = {"schema_version": SCHEMA_VERSION, "status": "FAIL", "error": str(exc)}
     output = Path(args.out)

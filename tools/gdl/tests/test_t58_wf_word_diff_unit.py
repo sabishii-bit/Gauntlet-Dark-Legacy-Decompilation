@@ -179,7 +179,7 @@ class UnitCliContract(unittest.TestCase):
         _kind, _insns, diffs, _mnem = wd.word_diff(
             "game/enemy/enemy", "closest_enemy")
         self.assertIn(f"DIFFERING WORDS = {len(diffs)}", proc.stdout)
-        self.assertIn("PINNED = YES", proc.stdout)
+        self.assertIn("PINNED = no", proc.stdout)
 
 
 class UnitTotalsMatchPerFunctionRuns(unittest.TestCase):

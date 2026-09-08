@@ -54,9 +54,11 @@ def load_graph(root, version):
         if graph["ninja_sha256"] != _hash(root / "build.ninja"):
             raise RawObjectError("build.ninja differs from build_edges snapshot")
         inputs = graph["generator_inputs"]
-        required = {"configure.py", "tools/project.py", "tools/gdl/build_provenance.py",
+        policy_inputs = ({"tools/gdl/native_build.py"} if graph.get("native_only") else
+                         {f"config/{version}/webfrank.json", f"config/{version}/p6frank.json"})
+        required = {"configure.py", "tools/project.py", "tools/gdl/build_provenance.py", *policy_inputs,
                     *(f"config/{version}/{name}" for name in
-                      ("webfrank.json", "p6frank.json", "config.yml", "splits.txt", "symbols.txt"))}
+                      ("config.yml", "splits.txt", "symbols.txt"))}
         if not required.issubset(inputs):
             raise RawObjectError("incomplete generator-input hash inventory")
         for name, expected in inputs.items():
@@ -64,6 +66,15 @@ def load_graph(root, version):
                 raise RawObjectError("generator input changed since configure: " + name)
         if not isinstance(graph["non_matching"], bool):
             raise RawObjectError("unknown matching/editable graph mode")
+        if graph.get("native_only"):
+            try:
+                from .native_build import check_snapshot
+            except ImportError:
+                from native_build import check_snapshot
+            try:
+                check_snapshot(graph)
+            except ValueError as error:
+                raise RawObjectError(str(error)) from error
         if graph["non_matching"] and any(e["rule"] in TRANSFORMS - {"globalize_atree"}
                                          for e in graph["edges"]):
             raise RawObjectError("editable graph contains a target-bound transform")

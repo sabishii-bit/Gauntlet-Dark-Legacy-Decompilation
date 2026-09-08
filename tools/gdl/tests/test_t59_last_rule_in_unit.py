@@ -111,8 +111,7 @@ class PostprocessEdgeFilter(unittest.TestCase):
             self.skipTest("checkout is not configured")
         data = json.loads(path.read_text(encoding="utf-8"))
         self.assertIsNone(ra.postprocess_edge(data, "game/audio/dcs"))
-        self.assertEqual(
-            ra.postprocess_edge(data, "game/enemy/enemy")["rule"], "webfrank")
+        self.assertIsNone(ra.postprocess_edge(data, "game/enemy/enemy"))
 
 
 class DerivedEdge(unittest.TestCase):
@@ -167,9 +166,8 @@ class DerivedEdge(unittest.TestCase):
         if not path.exists():
             self.skipTest("checkout is not configured")
         data = json.loads(path.read_text(encoding="utf-8"))
-        edge = ra.derive_postprocess_edge(data, "game/audio/dcs")
-        self.assertGreater(edge["derived"]["donor_edges"], 1)
-        self.assertEqual(edge["variables"]["webfrank_image"], IMAGE)
+        with self.assertRaisesRegex(ra.Refused,'no surviving'):
+            ra.derive_postprocess_edge(data, "game/audio/dcs")
 
 
 class RuleDeltaKeyRemoval(unittest.TestCase):

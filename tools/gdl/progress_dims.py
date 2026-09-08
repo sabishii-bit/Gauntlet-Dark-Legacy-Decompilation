@@ -81,7 +81,17 @@ def _read_json(path, what):
 def load_inputs(report=None, rules=None, edges=None):
     """(report, rules, edges) parsed, or Refusal. `edges` may be None."""
     report_data = _read_json(report or REPORT, "report.json")
-    rules_data = _read_json(rules or RULES, "webfrank.json")
+    if rules is None and not RULES.exists():
+        from raw_object import load_graph
+        try:
+            graph = load_graph(REPO, VERSION)
+        except ValueError as error:
+            raise Refusal(str(error)) from error
+        if not graph.get('native_only'):
+            raise Refusal('missing rules without a verified native-only graph')
+        rules_data = {'units': {}}
+    else:
+        rules_data = _read_json(rules or RULES, "webfrank.json")
     if not isinstance(rules_data, dict) or "units" not in rules_data:
         raise Refusal(
             "webfrank config has no top-level 'units' key; refusing to report"

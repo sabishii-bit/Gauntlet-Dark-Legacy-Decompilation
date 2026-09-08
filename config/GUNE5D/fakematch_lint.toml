@@ -1,0 +1,6 @@
+# Visible compatibility debt, not permission to add matching scaffolding.
+# Use --warnings-as-errors to make these diagnostics build-breaking.
+schema_version = 1
+exceptions = []
+pragma_allowlist = []
+warning_pragmas = ["#pragma dont_inline on", "#pragma dont_inline off"]

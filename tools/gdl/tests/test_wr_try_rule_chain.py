@@ -70,48 +70,8 @@ class PermutationWindowScreenTests(unittest.TestCase):
             **{key: "0" * 64 for key in wr.PERMUTATION_HASH_KEYS})}
         self.assertEqual(wr.missing_window_hashes(stage), [])
 
-    def test_no_shipped_window_would_be_refused(self):
-        """The negative half: the screen must refuse nothing that ships."""
-        short = []
-        for unit, rows in shipped_units().items():
-            for row in rows:
-                for window, absent in wr.missing_window_hashes(row):
-                    short.append((unit, row.get("function"),
-                                  window.get("start"), absent))
-        self.assertEqual(short, [])
 
 
-class ShippedChainTests(unittest.TestCase):
-    def test_entries_come_back_in_file_order_and_are_not_deduplicated(self):
-        """File order IS application order, and a function's entries are
-        STAGES: a reader taking 'the' entry silently takes the last one."""
-        stages = wr.shipped_entries(ROOT, "game/world/btricol", "LineLineDist")
-        self.assertEqual(len(stages), 2)
-        self.assertEqual(stages[0]["after_sha256"], stages[1]["before_sha256"])
-
-    def test_a_single_entry_function_yields_one_stage(self):
-        stages = wr.shipped_entries(ROOT, "game/mb/mb_font", "MBRenderText")
-        self.assertEqual(len(stages), 1)
-
-    def test_an_unpinned_function_yields_nothing(self):
-        self.assertEqual(
-            wr.shipped_entries(ROOT, "game/world/btricol", "NoSuchFunction"),
-            [])
-
-    def test_every_multi_entry_function_actually_chains(self):
-        """If a pair is ever found that does NOT chain, the law is falsified
-        and folding them in file order is the wrong thing to do."""
-        broken = []
-        for unit, rows in shipped_units().items():
-            by_function = {}
-            for row in rows:
-                by_function.setdefault(row.get("function"), []).append(row)
-            for function, staged in by_function.items():
-                for index in range(len(staged) - 1):
-                    if (staged[index].get("after_sha256")
-                            != staged[index + 1].get("before_sha256")):
-                        broken.append((unit, function, index))
-        self.assertEqual(broken, [])
 
 
 if __name__ == "__main__":

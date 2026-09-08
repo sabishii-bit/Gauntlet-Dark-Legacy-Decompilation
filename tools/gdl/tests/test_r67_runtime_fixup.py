@@ -111,20 +111,18 @@ class RuntimeBuildConfigTests(unittest.TestCase):
         generate.assert_called_once()
         return generate.call_args.args[0]
 
-    def test_matching_has_two_distinct_guarded_object_stages(self):
+    def test_native_matching_demotes_both_runtime_objects_without_rewriting(self):
         config = self.config()
-        for unit, kind in (("NMWException", "nmw"), ("ExceptionPPC", "exppc")):
-            stage = config.object_postprocesses[f"Runtime.PPCEABI.H/{unit}"]
-            self.assertEqual(stage["rule"], "fix_exception_object")
-            self.assertEqual(stage["variables"], {"exception_kind": kind})
-        self.assertNotIn("post-compile", config.custom_build_steps)
-        rule = next(r for r in config.custom_build_rules if r["name"] == "fix_exception_object")
-        self.assertIn("--input $in --output $out", rule["command"])
-        self.assertNotIn("build/", rule["command"])
+        self.assertTrue(config.native_only)
+        self.assertEqual(config.object_postprocesses,{})
+        self.assertEqual(config.custom_build_rules,[])
+        self.assertEqual(config.custom_build_steps,{})
+        for unit in ('NMWException','ExceptionPPC'):
+            self.assertFalse(config.objects()[f'Runtime.PPCEABI.H/{unit}.cpp'].completed)
 
     def test_editable_mode_has_no_retail_byte_rewrites(self):
         config = self.config("--non-matching")
-        self.assertEqual({v["rule"] for v in config.object_postprocesses.values()}, {"globalize_atree"})
+        self.assertEqual(config.object_postprocesses, {})
         self.assertEqual(config.custom_build_steps, {})
         self.assertNotIn("fix_exception_objects", {r["name"] for r in config.custom_build_rules})
 

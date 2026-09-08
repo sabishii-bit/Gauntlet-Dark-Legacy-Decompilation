@@ -375,9 +375,11 @@ class PinScreenLive(unittest.TestCase):
     def test_the_default_read_carries_the_pin_warning(self):
         proc = self.run_cli()
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        self.assertIn("-> EXACT", proc.stdout)
-        self.assertIn("WEBFRANK-PINNED", proc.stdout)
-        self.assertIn("POSTPROCESSED body", proc.stdout)
+        self.assertNotIn("WEBFRANK-PINNED", proc.stdout)
+        raw = self.run_cli('--raw')
+        self.assertEqual(raw.returncode,0,raw.stdout+raw.stderr)
+        self.assertEqual([l for l in proc.stdout.splitlines() if l.startswith('== ')],
+                         [l for l in raw.stdout.splitlines() if l.startswith('== ')])
 
     def test_the_raw_read_shows_the_residual_the_pin_closes(self):
         proc = self.run_cli("--raw")
@@ -432,21 +434,19 @@ class PinScreenLive(unittest.TestCase):
             cwd=str(self.root), capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn("POSTPROCESSED body", proc.stdout)
-        self.assertIn("PIN SCREEN:", proc.stdout)
+        self.assertNotIn("PIN SCREEN:", proc.stdout)
         marked = [line for line in proc.stdout.splitlines()
                   if line.startswith("== ") and line.endswith(" PINNED")]
         marked_names = {line.split()[1].rstrip(":") for line in marked}
 
-        config = json.loads(
-            (self.root / "config/GUNE5D/webfrank.json").read_text(
-                encoding="utf-8"))
-        rules = config["units"].get("game/enemy/enemy", [])
+        self.assertFalse((self.root/'config/GUNE5D/webfrank.json').exists())
+        rules = []
         # The census keys rows on `fndiff.parse`'s reduced name while a rule
         # spells the ELF name, so reduce before comparing (run-59 item 4).
         import fndiff
         ruled = {fndiff.strip_dtk_suffix(rule["function"]) for rule in rules}
 
-        self.assertTrue(ruled, "no enemy rules to screen")
+        self.assertFalse(ruled)
         self.assertEqual(marked_names, ruled,
                          f"marked {sorted(marked_names)}"
                          f" vs ruled {sorted(ruled)}")

@@ -84,6 +84,33 @@ class ExceptionControlTests(unittest.TestCase):
                     preflight.validate_exception_control(row)
 
 
+class InputFingerprintTests(unittest.TestCase):
+    def test_uses_validated_graph_inputs_without_retired_rule_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paths = ("objdiff.json", "build.ninja", "build/GUNE5D/build_edges.json",
+                     "tools/gdl/native_build.py", "build/control.o")
+            for name in paths:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("fixture", encoding="utf-8")
+            (root / "objdiff.json").write_text(json.dumps({"units": [
+                {"target_path": "build/control.o"}]}), encoding="utf-8")
+            graph = {"generator_inputs": {"tools/gdl/native_build.py": "validated"}}
+            with patch.object(preflight, "load_graph", return_value=graph) as load:
+                hashes = preflight.input_fingerprints(root)
+                load.assert_called_once_with(root, "GUNE5D")
+                self.assertEqual(set(hashes), {str(root / name) for name in paths})
+                (root / "tools/gdl/native_build.py").unlink()
+                with self.assertRaises(OSError):
+                    preflight.input_fingerprints(root)
+
+    def test_stale_graph_is_not_silently_accepted(self):
+        with patch.object(preflight, "load_graph", side_effect=ValueError("stale graph")):
+            with self.assertRaisesRegex(ValueError, "stale graph"):
+                preflight.input_fingerprints(Path("unused"))
+
+
 class CommandArtifactTests(unittest.TestCase):
     def test_previous_artifact_is_never_accepted(self):
         with tempfile.TemporaryDirectory() as temp:

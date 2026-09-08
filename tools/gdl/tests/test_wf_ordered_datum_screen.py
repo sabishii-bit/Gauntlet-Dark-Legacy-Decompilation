@@ -238,31 +238,6 @@ class LiveRefusal(unittest.TestCase):
         self.assertIn("NOTHING WAS SCREENED", proc.stdout)
         self.assertNotIn("BENIGN", proc.stdout)
 
-    def test_every_shipped_pin_resolves(self):
-        """The calibration in the class docstring, asserted live.
-
-        A pin this screen cannot locate is a pin nothing screens, so the
-        population number is the gate: 0 UNRESOLVED, not "most of them".
-        """
-        import json
-        config = os.path.join(ROOT, "config", "GUNE5D", "webfrank.json")
-        with open(config, encoding="utf-8") as handle:
-            data = json.load(handle)
-        unresolved = []
-        for unit, rules in (data.get("units") or {}).items():
-            paths = [os.path.join(ROOT, "build", "GUNE5D", kind,
-                                  unit + ".o") for kind in ("obj", "src")]
-            if not all(os.path.exists(path) for path in paths):
-                continue
-            tables = [fndiff.parse(path) for path in paths]
-            for rule in rules:
-                name = rule.get("function")
-                if not name:
-                    continue
-                if any(screen.resolve_function(table, name) is None
-                       for table in tables):
-                    unresolved.append(f"{unit}::{name}")
-        self.assertEqual(unresolved, [])
 
 
 if __name__ == "__main__":

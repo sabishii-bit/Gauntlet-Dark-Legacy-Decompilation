@@ -215,8 +215,8 @@ class LiveCheckoutTests(unittest.TestCase):
     """The convention check, against this checkout's real inputs."""
 
     def setUp(self):
-        if not (pd.REPORT.exists() and pd.RULES.exists()):
-            self.skipTest("report.json/webfrank.json not built in this checkout")
+        if not (pd.REPORT.exists() and pd.EDGES.exists()):
+            self.skipTest("report.json/build_edges.json not built in this checkout")
         self.result = pd.dimensions(*pd.load_inputs())
 
     def test_split_line_keeps_the_retired_progress_convention(self):

@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """CV lane stage 1: catalogue every webfrank.json rule by mechanism class."""
 import json, collections, os, sys
+if '--help' in sys.argv or '-h' in sys.argv:
+    print(__doc__); raise SystemExit(0)
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))  # repo root (fixed after promotion)
 WF = os.path.join(ROOT, "config", "GUNE5D", "webfrank.json")
+if not os.path.exists(WF):
+    print('RETIRED: no production rule corpus; inspect Git history.')
+    raise SystemExit(2)
 
 data = json.load(open(WF, encoding="utf-8"))
 units = data["units"]

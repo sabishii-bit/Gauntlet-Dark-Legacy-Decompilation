@@ -21,13 +21,6 @@ class PromotionQueueSchema(unittest.TestCase):
         self.assertEqual(schema["join_key"], ["unit", "function"])
         self.assertIn("ONE WEBFRANK RULE", schema["row_is"])
 
-    def test_every_emitted_row_field_is_documented(self):
-        # The schema cannot drift from the rows without this failing.
-        rows = t15_promotion_queue.rule_rows()
-        if not rows:
-            self.skipTest("no rules in this tree")
-        documented = set(t15_promotion_queue.OUT_SCHEMA["fields"])
-        self.assertEqual(set(rows[0]) - documented, set())
 
 
 class OwnedUnitsAudit(unittest.TestCase):
@@ -64,7 +57,7 @@ class OwnedUnitsAudit(unittest.TestCase):
         # 12 of 112 historical entries were files reported as `prefix`, both
         # distinct paths belonging to the postprocessor lane's scope.
         claim = {"owner": "t21", "id": "work_claim.fake.v4",
-                 "owned_units": ["config/GUNE5D/webfrank.json",
+                 "owned_units": ["config/GUNE5D/fakematch_lint.toml",
                                  "tools/gdl/webfrank.py"],
                  "declared": True}
         rows = claimscope.audit_owned_units([claim], repo=REPO)
@@ -73,7 +66,7 @@ class OwnedUnitsAudit(unittest.TestCase):
     def test_the_row_list_accounts_for_every_entry(self):
         claim = {"owner": "t21", "id": "work_claim.fake.v5",
                  "owned_units": ["game/sys/ml_mem", "tools/gdl",
-                                 "config/GUNE5D/webfrank.json",
+                                 "config/GUNE5D/fakematch_lint.toml",
                                  "game/ps2/ml_mem"],
                  "declared": True}
         rows = claimscope.audit_owned_units([claim], repo=REPO)

@@ -194,6 +194,7 @@ class ProjectConfig:
             None  # Custom build steps, types are ["pre-compile", "post-compile", "post-link", "post-build"]
         )
         self.object_postprocesses: Dict[str, Dict[str, Any]] = {}
+        self.native_only: bool = False
         self.generate_compile_commands: bool = (
             True  # Generate compile_commands.json for clangd
         )
@@ -450,6 +451,8 @@ def load_build_config(
 def generate_build(config: ProjectConfig) -> None:
     config.validate()
     objects = config.objects()
+    from tools.gdl.native_build import check_config
+    check_config(config, objects)
     build_config = load_build_config(config, config.out_path() / "config.json")
     generate_build_ninja(config, objects, build_config)
     generate_objdiff_config(config, objects, build_config)
@@ -701,7 +704,8 @@ def generate_build_ninja(
     # GNU as
     gnu_as = binutils / f"powerpc-eabi-as{EXE}"
     gnu_as_cmd = (
-        f"{CHAIN}{gnu_as} $asflags -o $out $in" + f" && {dtk} elf fixup $out $out"
+        f"{CHAIN}{gnu_as} $asflags -o $out $in"
+        + ("" if config.native_only else f" && {dtk} elf fixup $out $out")
     )
     gnu_as_implicit = [binutils_implicit or gnu_as, dtk]
     # As a workaround for https://github.com/encounter/dtk-template/issues/51
@@ -1643,6 +1647,7 @@ def generate_build_ninja(
         build_path / "build_edges.json", version=config.version,
         non_matching=config.non_matching, compilers=compilers,
         linker_version=config.linker_version, ninja_path=config.ninja_path or "ninja",
+        native_only=config.native_only,
     )
 
 

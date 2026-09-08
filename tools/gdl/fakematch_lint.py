@@ -5,7 +5,8 @@ lexical-use/byte-shape/mask filters, exact review policy, and MWCC asm fallback.
 Macros are scanned in a separate offset-preserving projection, not expanded.
 Parse recovery is reported, not treated as proof of clean source. No type/CFG
 analysis or original-source authenticity proof is implied. Exit 0: scan complete;
-1: findings with --fail-on-findings; 2: missing input/dependency or scanner error.
+1: errors with --fail-on-findings, or warnings with --warnings-as-errors;
+2: missing input/dependency or scanner error.
 scan_source creates temporary snapshots for the native parser; it is not a pure
 analysis API. Importing this module does not start the parser or write files.
 IMPORTABLE CORE: apply_policy -- apply review policy to already collected findings.
@@ -24,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[2]
 RULES = {
@@ -250,9 +252,14 @@ def scan_source(text, path='<input>', diagnostics=None):
 
 
 def load_policy(path):
-    data=json.loads(path.read_text(encoding='utf-8'))
-    if set(data)!={'schema_version','exceptions','pragma_allowlist'} or data['schema_version']!=1:
+    raw=path.read_text(encoding='utf-8')
+    data=tomllib.loads(raw) if path.suffix=='.toml' else json.loads(raw)
+    required={'schema_version','exceptions','pragma_allowlist'}
+    if not required.issubset(data) or set(data)-required-{'warning_pragmas'} or data['schema_version']!=1:
         raise ValueError('policy requires schema_version=1, exceptions and pragma_allowlist')
+    warnings=data.get('warning_pragmas',[])
+    if not isinstance(warnings,list) or any(w not in ('#pragma dont_inline on','#pragma dont_inline off') for w in warnings) or len(set(warnings))!=len(warnings):
+        raise ValueError('warning_pragmas must contain distinct approved dont_inline directives')
     if not isinstance(data['exceptions'],list) or not isinstance(data['pragma_allowlist'],list): raise ValueError('policy lists required')
     for e in data['exceptions']:
         if not isinstance(e,dict) or set(e)!={'fingerprint','reason'} or not isinstance(e['fingerprint'],str) or not re.fullmatch('[0-9a-f]{64}',e['fingerprint']) or not isinstance(e['reason'],str) or not e['reason'].strip():
@@ -272,6 +279,10 @@ def apply_policy(findings, policy):
     exceptions={e['fingerprint']:e['reason'] for e in policy['exceptions']}
     used=Counter()
     for row in result:
+        row['severity']='error'
+        if row['rule']=='FM006' and row.get('directive') in policy.get('warning_pragmas',[]):
+            row.update(severity='warning',suppressed=False)
+            continue  # Warning debt stays visible, even if an old exception exists.
         reason=exceptions.get(row['fingerprint'])
         if row['rule']=='FM008': reason=None  # Inventory is not a source-policy exception.
         if row['rule']=='FM005' and not row.get('macro'): reason=None
@@ -286,7 +297,14 @@ def apply_policy(findings, policy):
 def postprocessor_findings(root, source_names, include_all=False):
     """Configured dependencies, NOT a claim that a rule executed in this build."""
     findings=[];hashes={}
+    if not any((root/p).exists() for _,p in POSTPROCESSORS):
+        # Retirement is explicit, not a missing-config fallback. Full graph
+        # enforcement belongs to native_build and the build provenance gate.
+        relative='tools/gdl/native_build.py'
+        hashes[relative]=hashlib.sha256((root/relative).read_bytes()).hexdigest()
+        return findings,hashes
     for engine,relative in POSTPROCESSORS:
+        if not (root/relative).exists(): continue
         raw=(root/relative).read_bytes();hashes[relative]=hashlib.sha256(raw).hexdigest()
         text=raw.decode('utf-8');config=json.loads(text)
         if config.get('version')!=1 or not isinstance(config.get('units'),dict):
@@ -319,16 +337,17 @@ def postprocessor_findings(root, source_names, include_all=False):
 
 def diagnostic(row,root,style):
     message=f"{row['rule']} [{row['scope']}] {row['message']}"
+    severity=row.get('severity','error')
     if style=='github':
         def escape(value,property=False):
             value=str(value).replace('%','%25').replace('\r','%0D').replace('\n','%0A')
             return value.replace(':','%3A').replace(',','%2C') if property else value
-        return (f"::error file={escape(row['path'],True)},line={row['line']},col={row['column']},"
+        return (f"::{severity} file={escape(row['path'],True)},line={row['line']},col={row['column']},"
                 f"title={row['rule']}::{escape(message)}")
     if style=='problems':
         message=re.sub(r'[\r\n]+',' ',f"[{row['scope']}] {row['message']}")
-        return f"{(root/row['path']).as_posix()}:{row['line']}:{row['column']}: error {row['rule']}: {message}"
-    return f"{row['path']}:{row['line']}:{row['column']}: {message}"
+        return f"{(root/row['path']).as_posix()}:{row['line']}:{row['column']}: {severity} {row['rule']}: {message}"
+    return f"{row['path']}:{row['line']}:{row['column']}: {severity}: {message}"
 
 
 def watch(argv):
@@ -339,7 +358,7 @@ def watch(argv):
         while True:
             watched=[p for base in ('src','include') for p in (ROOT/base).rglob('*')
                      if p.is_file() and p.suffix.lower() in EXTENSIONS]
-            watched += [ROOT/p for p in ('config/GUNE5D/fakematch_lint.json','sgconfig.yml',
+            watched += [ROOT/p for p in ('config/GUNE5D/fakematch_lint.toml','sgconfig.yml',
                        'tools/gdl/lint/rules/reconstruction.yml',*[p for _,p in POSTPROCESSORS])]
             state=tuple((str(p),p.stat().st_mtime_ns,p.stat().st_size) if p.exists() else (str(p),None,None)
                         for p in sorted(watched))
@@ -362,10 +381,11 @@ def main(argv=None, _cache=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('paths',nargs='*',help='repository-relative files/directories; default src and include')
     p.add_argument('--root',type=Path,default=ROOT)
-    p.add_argument('--policy',type=Path,default=Path('config/GUNE5D/fakematch_lint.json'))
+    p.add_argument('--policy',type=Path,default=Path('config/GUNE5D/fakematch_lint.toml'))
     p.add_argument('--out',type=Path,help='JSON report under build/')
     p.add_argument('--limit',type=int,default=40,help='console rows only; JSON retains every finding')
     p.add_argument('--fail-on-findings',action='store_true')
+    p.add_argument('--warnings-as-errors',action='store_true',help='also fail on warning-only debt')
     p.add_argument('--format',choices=('human','github','problems'),default='human')
     p.add_argument('--postprocessors',action='store_true',help='include configured WebFrank/P6Frank dependencies (FM008)')
     p.add_argument('--watch',action='store_true',help='editor task: rescan saved changes, reuse unchanged source snapshots')
@@ -419,9 +439,12 @@ def main(argv=None, _cache=None):
             raise ValueError('FM008 requires --postprocessors')
         selected=sorted(set(args.rule or [r for r in RULES if r!='FM008' or args.postprocessors]))
         rows=[r for r in rows if r['rule'] in selected];active=[r for r in rows if not r['suppressed']]
+        warnings=sum(r.get('severity')=='warning' for r in active)
+        errors=len(active)-warnings
         report=dict(schema_version=1,status='SCAN_COMPLETE',engine='ast-grep 0.45.3 + review filters',
                     interpretation='Review candidates, not proven fakematches. Parse recovery limits coverage; macros are not expanded.',
                     source_sha256=hashes,files_scanned=len(files),findings=rows,unsuppressed=len(active),suppressed=len(rows)-len(active),
+                    errors=errors,warnings=warnings,warnings_as_errors=args.warnings_as_errors,
                     by_rule=dict(sorted(Counter(r['rule'] for r in active).items())),by_file=dict(Counter(r['path'] for r in active).most_common()),
                     rules_selected=selected,parse_recovery=diagnostics,policy_sha256=hashlib.sha256(policy_bytes).hexdigest(),
                     postprocessor_config_sha256=post_hashes,
@@ -431,11 +454,12 @@ def main(argv=None, _cache=None):
             out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
         for r in active if args.format=='problems' else active[:args.limit]: print(diagnostic(r,root,args.format))
         print(f"SCAN_COMPLETE: {len(files)} files; {len(active)} review candidates; {len(rows)-len(active)} reviewed exceptions.")
+        print(f'Diagnostics: {errors} errors; {warnings} warnings; warnings-as-errors={args.warnings_as_errors}.')
         print('By rule: '+json.dumps(report['by_rule'],sort_keys=True))
         print(f'Parser recovery regions: {len(diagnostics)} (includes macro projection; not a clean-code certificate).')
         if len(active)>args.limit and args.format!='problems': print(f'Console limited to {args.limit}; use --out for all findings.')
         if out: print('Report: '+str(args.out))
-        return 1 if args.fail_on_findings and active else 0
+        return 1 if (args.fail_on_findings and errors) or (args.warnings_as_errors and warnings) else 0
     except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError) as e:
         if args.format!='human':
             print(diagnostic(dict(path='sgconfig.yml',line=1,column=1,rule='FM000',scope='scanner',

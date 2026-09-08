@@ -23,6 +23,20 @@ def screen(delta=False):
 
 
 class SharedDatumTests(unittest.TestCase):
+    def test_native_graph_needs_no_rule_config(self):
+        with patch.object(ce, "load_graph", return_value={"native_only": True}), \
+                patch.object(Path, "read_text", side_effect=AssertionError("no retired config reads")):
+            self.assertEqual(ce.active_pins(), ([], 0, True))
+
+    def test_legacy_graph_missing_rules_and_stale_graph_refuse(self):
+        with patch.object(ce, "load_graph", return_value={}), \
+                patch.object(Path, "read_text", side_effect=FileNotFoundError("missing rules")):
+            with self.assertRaises(FileNotFoundError):
+                ce.active_pins()
+        with patch.object(ce, "load_graph", side_effect=ValueError("stale graph")):
+            with self.assertRaisesRegex(ValueError, "stale graph"):
+                ce.active_pins()
+
     def test_screen_calls_shared_core_with_exact_object_pair(self):
         target_lines, our_lines = ["target"], ["ours"]
         ours = ce.ROOT / "build/GUNE5D/src/u.o"
@@ -171,7 +185,7 @@ class SharedDatumTests(unittest.TestCase):
 
     def test_cli_writes_versioned_failure_without_silent_empty_report(self):
         with tempfile.TemporaryDirectory() as tmp, \
-                patch.object(ce, "pinned_functions", side_effect=ValueError("bad config")):
+                patch.object(ce, "active_pins", side_effect=ValueError("bad config")):
             output = Path(tmp) / "report.json"
             code = ce.main(["--out", str(output)])
             result = json.loads(output.read_text())

@@ -17,6 +17,11 @@ import sys
 import tempfile
 import time
 
+try:
+    from .raw_object import load_graph
+except ImportError:
+    from raw_object import load_graph
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -98,7 +103,9 @@ def input_fingerprints(root):
     build before starting. Hash object contents, not only their timestamps.
     """
     config = root / "objdiff.json"
-    paths = {config, root / "build.ninja", root / "config/GUNE5D/webfrank.json"}
+    graph = load_graph(root, "GUNE5D")
+    paths = {config, root / "build.ninja", root / "build/GUNE5D/build_edges.json",
+             *(root / name for name in graph["generator_inputs"])}
     document = json.loads(config.read_text(encoding="utf-8"))
     if not document.get("units"):
         raise ValueError("objdiff.json has no comparison units")

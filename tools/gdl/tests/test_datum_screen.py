@@ -162,13 +162,10 @@ class PlaceholderAddressTests(unittest.TestCase):
 
 
 class OursObjectPathTests(unittest.TestCase):
-    def test_raw_prefers_the_pre_postprocess_body_when_it_exists(self):
+    def test_raw_follows_active_graph_not_stale_postprocess_body(self):
         path, used = fndiff.ours_object_path("game/enemy/enemy", raw=True)
-        body = Path("build/GUNE5D/src/game/enemy/.postprocess/body/enemy.o")
-        if body.is_file():
-            self.assertEqual((Path(path), used), (body, True))
-        else:                      # unpinned TU: the plain object IS raw
-            self.assertFalse(used)
+        self.assertEqual(Path(path),Path('build/GUNE5D/src/game/enemy/enemy.o'))
+        self.assertTrue(used)  # Raw view was requested; does not mean a rewrite exists.
 
     def test_without_raw_the_plain_object_is_used(self):
         path, used = fndiff.ours_object_path("game/enemy/enemy")

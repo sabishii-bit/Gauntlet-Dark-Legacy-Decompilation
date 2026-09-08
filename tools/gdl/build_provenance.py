@@ -67,17 +67,23 @@ class RecordingWriter(ninja_syntax.Writer):
         return super().build(serialized["outputs"], rule, serialized["inputs"], **kwargs)
 
     def write_snapshot(self, path, *, version, non_matching, compilers,
-                       linker_version, ninja_path):
+                       linker_version, ninja_path, native_only=False):
+        policy_inputs = (["tools/gdl/native_build.py"] if native_only else
+                         [f"config/{version}/webfrank.json", f"config/{version}/p6frank.json"])
         result = {"schema_version": SCHEMA_VERSION, "version": version,
+                  "native_only": native_only,
                   "non_matching": non_matching, "compilers": key(compilers),
                   "linker_version": linker_version, "ninja": key(ninja_path),
                   "ninja_sha256": sha256("build.ninja"), "rules": self.rules,
                   "edges": self.edges, "units": self.units,
                   "generator_inputs": {key(p): sha256(p) for p in
                       ["configure.py", "tools/project.py", "tools/gdl/build_provenance.py",
-                       f"config/{version}/webfrank.json", f"config/{version}/p6frank.json",
+                       *policy_inputs,
                        f"config/{version}/config.yml", f"config/{version}/splits.txt",
                        f"config/{version}/symbols.txt"]}}
+        if native_only:
+            from tools.gdl.native_build import check_snapshot
+            check_snapshot(result)
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         Path(path).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
 
@@ -272,8 +278,14 @@ def collect_manifest(root, build_dir="build", version="GUNE5D"):
         inplace = {path: edge for edge in edges if edge["rule"] == "fix_exception_objects"
                    for path in edge["inputs"]}
         by_output = {key(output): edge for edge in edges for output in edge["outputs"]}
-        wf = load(root / "config" / version / "webfrank.json")
-        p6 = load(root / "config" / version / "p6frank.json")
+        if snapshot.get("native_only"):
+            from tools.gdl.native_build import check_snapshot
+            check_snapshot(snapshot)
+            wf = p6 = {"units": {}}
+            result["native_only"] = True
+        else:
+            wf = load(root / "config" / version / "webfrank.json")
+            p6 = load(root / "config" / version / "p6frank.json")
         report = load(out_dir / "report.json")
         expected_units = {key(Path(row["module"]) / Path(row["name"]).with_suffix("")): row
                           for row in snapshot["units"]}

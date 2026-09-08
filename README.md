@@ -28,7 +28,7 @@ A work-in-progress decompilation of **Gauntlet Dark Legacy** for the Nintendo Ga
 
 This repository does **not** contain any game assets or assembly whatsoever. An existing copy of the game is required.
 
-It builds `main.dol`:
+The required original `main.dol` input is:
 
 | Version    | Game ID  | SHA-1                                      |
 | ---------- | -------- | ------------------------------------------ |
@@ -82,8 +82,9 @@ Building
   ninja
   ```
 
-The build is verified against [config/GUNE5D/build.sha1](config/GUNE5D/build.sha1), and also
-produces `build/GUNE5D/main.retail.dol`, byte-identical to the retail disc image.
+The build is verified against [config/GUNE5D/build.sha1](config/GUNE5D/build.sha1),
+which targets the extab-cleaned reference, not the original input hash above.
+The former retail-byte-spliced `main.retail.dol` is no longer generated.
 
 Diffing
 =======
@@ -121,20 +122,11 @@ python configure.py --non-matching
 ninja
 ```
 
-This mode bypasses Frank, WebFrank, P6Frank and the retail-layout exception
-runtime fixups. It does **not** promote `Object(NonMatching, ...)` units to the
-link: their extracted objects remain selected. An edit in one of those source
-files can compile successfully without appearing in the game. Consult the
-provenance manifest's `linked_object`/`linkage`, not just a successful build.
-
-One target-independent ELF visibility fixup runs in both build modes for
-`game/anim/atree.c`: the current reconstruction compiles `atree_handles`,
-`atree_scroll`, and `whichatree` with internal linkage, then promotes their
-existing symbols for the cross-TU interface. `natreelists` and `sAtreeZero`
-are now defined publicly in source; no anonymous zero literal is renamed.
-The remaining fixup does not rewrite code, data, relocations, or addresses.
-Its source-export checks permit edited values and layouts; an editable-build
-test verified that changing `sAtreeZero` to `1.0f` reaches the linked binary.
+Both modes now compile without object postprocessing. This mode does **not**
+promote `Object(NonMatching, ...)` units to the link: extracted objects remain
+selected. Edits to their source may compile without appearing in the game.
+Consult `linked_object`/`linkage` in the provenance manifest. Cross-TU
+visibility and complete source linking remain reconstruction obligations.
 
 To print decompilation progress:
 
@@ -142,94 +134,48 @@ To print decompilation progress:
 python configure.py progress
 ```
 
-### Postprocessing, and how progress is reported
+### Native-only build and honest progress
 
-The normal build mixes source-built objects with extracted target objects for
-unfinished units. A green DOL checksum verifies that mixed build, not a complete
-source reconstruction. Its linked-source coverage is separate from objdiff's
-matching score.
+The user-directed reset (2026-09-07) removes Frank/WebFrank/P6Frank,
+atree symbol promotion, exception-runtime layout rewriting, assembler ELF
+fixups and post-link retail-byte splicing from the generated build. The
+three former JSON configurations are removed; lint policy is a small TOML
+file. Legacy analysis modules/tests are retained where useful, not scheduled
+as patchers. Historical rules can be inspected at commit `1c9273631`.
 
-Inspect build provenance and fresh diagnostic reports after `ninja`:
+Twenty-four formerly source-linked TUs are demoted to NonMatching, including
+the two exception-runtime TUs and the TRK assembly TU. Other dependent TUs
+were already NonMatching. This is a disclosed loss of claimed source coverage,
+not a native closure. Source and compiler settings are retained for repair.
+The normal build still mixes source objects with extracted fallback, and its
+green checksum verifies that mixed build.
+
+The generator refuses postprocessing in native-only mode. Inspect current
+source/fallback selection and compiler provenance after `ninja`:
 
 ```sh
 python tools/gdl/build_provenance.py --out build/GUNE5D/build_provenance.json
 python tools/gdl/reconstruction_preflight.py --smoke-tools
 ```
 
-Provenance distinguishes stock/derived compiler output, postprocessor rule
-classes (including manual exceptions), and the actual source/fallback link
-selection. These dimensions overlap and must not be added as percentages.
-GC 1.2.5n and experimental 1.2.5s are derived compilers, even when their object
-is linked without a subsequent instruction rewrite. Hashes identify artifacts;
-they do not prove source semantics or historical compiler provenance.
+GC 1.2.5n and optional 1.2.5s remain **derived compilers**. No postprocessing
+does not mean stock-compiler output or recovered original source. Report
+scores, actual linked-source coverage and source authenticity are separate.
+The existing checksum targets the documented extab-cleaned reference;
+reference extraction/normalization remains, but no `main.retail.dol` splice
+is generated. Reproducing those original padding bytes natively is still open.
 
-The former STRICT/EQUIVALENT progress split overstated what it measured: it
-used lenient relocation scoring and subtracted only WebFrank functions, not
-P6. Current reporting labels that scope instead of calling the remainder
-compiler-output byte identity. A proven postprocessor rule establishes its
-declared transformation, not exhaustive failure of every possible source form.
+Former source exceptions remain visible debt: the `WorldNameRef` wrapper
+in `world.c` and weak square-root helper in `enemy.c` are not recovered
+original structures. Both TUs now link extracted fallback until complete
+native reconstruction. No new scaffolding is authorized by the reset.
 
-The preflight produces fresh normal and stricter relocation reports without
-changing production scoring. Its PASS means the requested diagnostics executed
-and their populations/inputs agree, **not** that the source is complete or all
-relocations are correct. Demotions remain `UNRESOLVED` pending datum, addend,
-width and operand-position review; a datum multiset alone misses transpositions.
-Logs and hashes live beside its JSON in a unique generated `build/` directory.
-
-To adjudicate the source-linked subset against actual linked function bytes:
-
-```sh
-python tools/gdl/composed_census/r67_linked_shadow_audit.py --preflight build/GUNE5D/reconstruction_preflight.json
-```
-
-This checks complete function bytes in the ELF, built DOL and retail DOL at the
-target address and size. It does not clear the unlinked subset or certify raw
-compiler output. In the initial audit, all 17 linked demotions were exact after
-linking; the other 359 remained unresolved.
-
-Matching emitted bytes also does not prove that original source has been
-recovered. In `world.c`, `StartWorldLoad` and `LoadWorldDone` use the
-user-approved (2026-09-04) `WorldNameRef` compatibility wrapper: an ordinary
-one-pointer local struct that changes MWCC's register allocation. It is
-explicitly **not** a recovered game type. Both functions match without
-postprocessing; the TU retains its existing `WorldSaveInitState` rule.
-The wrapper does not lock either function to fixed bytes when modders edit
-the source. Its compiler regression check is
-`python tools/gdl/composed_census/r59_world_name_ref_probe.py`; the complete
-linked build, not this instruction-only probe, verifies relocations/data.
-
-`enemy.c` is linked with 25 WebFrank rules. Its final `do_enemy_move` rule
-uses the reviewed `address_fold` proof, not a register-mask exemption:
-the contiguous `add; addi; lwz` alternatives compute the same load address
-(`3608 + 524 = 4132`) and every GPR is equal after the third instruction.
-Only this temporary/base forwarding idiom is supported; the entire function
-outside that window must already match. Input/target/output hashes,
-relocation/datum binding, and control-flow/entry checks still apply.
-The proof is for normal completion, not identical intermediate register
-snapshots under hardware exceptions or debugging. Regression tests are in
-`tools/gdl/tests/test_address_fold.py`. Inspect the rule's mechanism in
-`config/GUNE5D/webfrank.json`, its implementation and relevant Git history
-for the precise scope and source-first investigation.
-
-`python configure.py --non-matching` bypasses the target-bound object pipelines,
-so their rules do not require modders' edits to preserve input hashes. The
-matching build intentionally refuses changed pinned bodies. Its exception
-runtime compatibility stage removes a weak function and rewrites string/data
-layout, relocations and exception records; it is not merely metadata cleanup
-or a proven historical compiler requirement. Both raw runtime objects are now
-retained under `.postprocess/body/`, and separate `fix_exception_object` edges
-produce the hash-guarded matching objects without modifying their inputs.
-
-The prior in-place fixup could silently replace an edited `exception::what()`
-string with the retail literal. It is now disabled in editable builds. A real
-source edit to `"MODIFIED!"` survived into the resolved returned string in both
-the linked ELF and DOL; switching that edited source to matching mode refused,
-and restoring the source returned the matching DOL to its verified checksum.
-`tools/gdl/composed_census/r67_runtime_verify.py --mode matching` checks the
-retained raw/fixed boundary. With the deliberate source edit and an editable
-build, use `--mode editable --expect-string MODIFIED!` instead. These are
-compile/link tests, not console boot or gameplay tests. Target-independent
-atree symbol export/rename processing remains enabled in both modes.
+Fable's run-61 split additions cover 14 ranges in 12 TUs (4416 bytes).
+Independent checks confirmed non-overlap, seven literal/string byte runs
+with zero-only trailing slack, five table-owning function populations and
+two BSS extents. Some table branch offsets still differ; BSS extent equality
+does not prove fine-grained object identity. The changes are useful ownership
+work, not an all-data or all-source matching certificate.
 
 The embedded static-asset payload has a separate extraction hazard: words in
 serialized asset data can resemble native addresses, causing DTK to infer
@@ -246,10 +192,6 @@ python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5
 
 The audit is deliberately limited to that hash-identified payload. It does
 not suppress real pointers elsewhere or claim the game has been boot-tested.
-
-The user-approved weak square-root helper in
-`enemy.c` remains explicitly documented compatibility scaffolding, not a
-claim of recovered header provenance.
 
 ### Reconstruction priorities from the R67 investigation
 
@@ -289,10 +231,9 @@ The recommended order is:
 3. Run compiler/flag controls against a byte-identical fresh raw baseline.
    Measure whole-TU effects and pragma overrides, not just the nearest function
    score. A finite failed matrix is not evidence that no source form exists.
-4. Revisit guarded postprocessor cases only after those obligations are
-   controlled. Keep raw compiler results, transformed matching results and
-   editable-build behavior separately visible. A proven transformation does
-   not prove the transformation is necessary.
+4. Repair the formerly postprocessed functions natively under the verified
+   whole-TU context. Keep them NonMatching until code, data, relocations and
+   EH all pass; do not substitute a new rule or artificial source construct.
 
 Two experiments explain that ordering. Stock GC 1.2.5 emits the exact
 372-byte `AudioStreamPlay` instruction body under a diagnostic local wrapper,
@@ -311,33 +252,19 @@ and `r67_sound_boundary_probe.py` under `tools/gdl/composed_census/`.
 Inspect those scripts, their tests and relevant Git commits for the bounded
 controls and scope limits; this overview is not a complete source-recovery proof.
 
-### Postprocessor policy boundaries
+### Native reconstruction policy
 
-The full policy is in [AGENTS.md](AGENTS.md):
-
-- **Explicit authorization and source-first evidence.** No new rule,
-  capability, compiler patch or expanded exception without explicit user
-  approval and integrator review. Supply reproducible source controls and
-  their held-fixed context; mechanical closability alone is insufficient.
-  A finite failed matrix does not prove that no source form exists.
-- **Fail-closed guards.** Preserve the current implementation's hash,
-  form-aware decoding, dataflow, dependence/liveness, branch-entry and
-  positional relocation/datum checks. Never hide structural, immediate,
-  operand, ABI, semantic or data differences as register changes. Existing
-  unproven/manual exceptions remain disclosed, not silently machine-proven.
-- **Class ceiling.** Supported transformations address attributable
-  allocator/scheduler variance, not arbitrary semantically equivalent streams.
-  Native retirement requires exact instructions, actual datum/address binding,
-  preserved siblings, data and exception metadata, and fresh build verification.
-
-A postprocessed function reads `real 0` by construction, so scores taken
-from a pinned function measure the rule rather than the source. Screen
-`config/GUNE5D/webfrank.json` before ranking any roster by measured
-`real`.
+The full policy is in [AGENTS.md](AGENTS.md). Build postprocessing is forbidden.
+Use source/target evidence, not a percentage gain, to justify data constructs,
+declarations, compiler flags and TU boundaries. A failed finite source matrix
+does not prove a source form impossible. A matching instruction body is not
+proof of correct data ownership, positional pointer bindings or a linked TU.
+Keep extracted fallback explicitly reported until all native promotion gates
+pass.
 
 ### Reconstruction source lint
 
-Install Node.js 22, pnpm 10.25.0 and Python 3.10+ (no game or compiler is needed
+Install Node.js 22, pnpm 10.25.0 and Python 3.11+ (no game or compiler is needed
 for linting). The pinned ast-grep backend supplies structural C++ matching;
 the Python reporter applies semantic heuristics and reviewed-exception policy.
 
@@ -359,18 +286,18 @@ python tools/gdl/fakematch_lint.py src/game/movie/movieplayer.cpp --out build/mo
 | FM005 | GNU/MWCC assembly, except exact reviewed macro definitions |
 | FM006 | Pragmas and recognized function optimization attributes against a per-file/scope allowlist |
 | FM007 | Hex expression literals outside named constants/enums and direct bitwise-mask operands |
-| FM008 | Configured WebFrank/P6Frank dependencies requiring native retirement |
+| FM008 | Reintroduced legacy WebFrank/P6Frank configuration |
 
 The push/PR workflow runs rule tests and a complete `src/` + `include/` scan in
 the independent **Reconstruction source lint** job, publishing
 `reconstruction_source_lint` with all findings, source hashes and parser-recovery
-regions. **Outstanding candidates now fail CI**, including existing debt and
-configured postprocessor dependencies. This intentionally keeps the cleanup
-job red until debt is resolved or a legitimate source use is explicitly reviewed;
-it does not change the independent DOL build or authorize deleting needed rules.
+regions. **Outstanding errors fail CI**, including existing debt. This keeps
+the cleanup job red until debt is resolved or legitimate uses are reviewed.
+Warnings remain visible without failing the job unless promoted. The independent
+DOL build additionally enforces the native-only pipeline.
 `pnpm run lint:decomp` includes `--fail-on-findings --postprocessors`. The underlying
 Python command remains usable for reporting-only scans without those flags.
-Exit 1 means outstanding findings; invalid inputs/scanner failures return 2.
+Exit 1 means blocking findings; invalid inputs/scanner failures return 2.
 Exit 1 still produces a complete report; do not consume an older report after
 an exit-2 scanner failure. `--limit` caps only human/GitHub console
 output; `--rule FM001` narrows the report deliberately. `pnpm run lint:ast` is
@@ -379,7 +306,7 @@ a lower-level four-family diagnostic, **not** the full reconstruction report.
 #### VS Code / Cursor errors
 
 After installing the pinned dependencies, run **Tasks: Run Task → GDL: watch
-reconstruction debt**. It populates the Problems panel with error diagnostics
+reconstruction debt**. It populates the Problems panel with errors and warnings
 and refreshes on **saved** source/config changes; unchanged source snapshots are
 cached. It is also configured to start on folder open if you allow automatic
 tasks in this trusted workspace. Stop it with **Tasks: Terminate Task**.
@@ -387,11 +314,10 @@ No additional editor extension is required. The existing Ninja build task is
 unchanged. This is a task-based watcher, not an unsaved-buffer language server.
 Restart the task after changing the scanner itself or installing dependencies.
 
-FM008 points to the configured rule and names its TU/function in the error.
-It means **configured dependency**, not proof the rule fired in a particular
-build or that the compiler cannot produce native output. Those errors cannot
-be hidden by the source-exception allowlist. Preserve the guards while retiring
-each rule through source/data recovery and whole-TU validation.
+FM008 detects legacy rule files if reintroduced. It does not establish that a
+rule fired or that the compiler cannot produce native output, and cannot be
+hidden by source exceptions. Full graph enforcement is independently performed
+by the native-only build policy, including non-JSON rewrite stages.
 
 FM003 also screens Fable's dead-but-incremented local pattern: a local such as
 `timeOffset` whose only uses are standalone assignments/increments. This caught
@@ -414,18 +340,24 @@ Optimization flags in build configuration still require the existing compiler-
 provenance audit; this scanner covers source pragmas/attributes, not Ninja flags.
 
 Rules and fixtures live in `tools/gdl/lint/`. Review approvals live in
-`config/GUNE5D/fakematch_lint.json`: `exceptions` entries require an exact report
+`config/GUNE5D/fakematch_lint.toml`: `exceptions` entries require an exact report
 `fingerprint` plus `reason`; `pragma_allowlist` entries require exact relative
 `path`, `scope` (function or `before:function`), normalized `directive`, positive
 `count` and `reason`. Changed assembly macro bodies invalidate their approval;
 direct assembly cannot be exempted by a fingerprint. Reviewed rows stay visible
 with their reasons. No existing debt is blanket-approved.
 
-The user-approved temporary exception for existing `#pragma dont_inline on/off`
-is recorded per file/scope/directive/count. These preserve standalone-function
-emission during reconstruction and remain visible as reviewed compatibility
-debt, not recovered original structure. New occurrences or changed scopes are
-not automatically exempt, and this does not exempt other optimization pragmas.
+`#pragma dont_inline on/off` is a **warning**, not a suppressed exception.
+Every occurrence remains visible in CLI, report and editor as compatibility
+debt. This does not approve new pragmas or prove original source structure.
+To make warnings build-breaking locally or in CI, use:
+
+```sh
+pnpm run lint:decomp --warnings-as-errors
+```
+
+The TOML `warning_pragmas` list controls this narrow severity policy. Removing
+an entry makes that directive an ordinary error; other pragmas remain errors.
 
 ### Matching work queues
 

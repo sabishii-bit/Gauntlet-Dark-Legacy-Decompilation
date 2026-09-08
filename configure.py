@@ -392,12 +392,12 @@ config.libs = [
             Object(Matching, "Runtime.PPCEABI.H/global_destructor_chain.c"),
             Object(Matching, "Runtime.PPCEABI.H/__init_cpp_exceptions.cpp"),
             Object(
-                Matching,
+                NonMatching,
                 "Runtime.PPCEABI.H/NMWException.cpp",
                 extra_cflags=["-Cpp_exceptions on", "-RTTI on", "-str reuse,nopool"],
             ),
             Object(
-                Matching,
+                NonMatching,
                 "Runtime.PPCEABI.H/ExceptionPPC.cpp",
                 extra_cflags=["-Cpp_exceptions on", "-RTTI on", "-str reuse,nopool"],
             ),
@@ -427,17 +427,17 @@ config.libs = [
             Object(NonMatching, "game/world/worldcol.c", cflags=cflags_demo),
             Object(Matching, "game/anim/anim.c", cflags=cflags_demo),
             Object(Matching, "game/anim/anim_play.c", cflags=cflags_demo),
-            Object(Matching, "game/anim/atree.c", cflags=cflags_demo),
+            Object(NonMatching, "game/anim/atree.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/auxanim.c", cflags=cflags_demo),
-            Object(Matching, "game/anim/action.c", cflags=cflags_demo),
+            Object(NonMatching, "game/anim/action.c", cflags=cflags_demo),
             Object(Matching, "game/sys/main.c", cflags=cflags_demo),
             Object(NonMatching, "game/sys/memcard.c", cflags=cflags_demo),
-            Object(Matching, "game/sys/cardutil.c", cflags=cflags_demo),
-            Object(Matching, "game/sys/sysservice.c", cflags=cflags_demo),
+            Object(NonMatching, "game/sys/cardutil.c", cflags=cflags_demo),
+            Object(NonMatching, "game/sys/sysservice.c", cflags=cflags_demo),
             Object(Matching, "game/mb/mb_poly.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_particle.c", cflags=cflags_demo),
-            Object(Matching, "game/mb/mb_camera.c", cflags=cflags_demo),
-            Object(Matching, "game/mb/mb_font.c", cflags=cflags_demo),
+            Object(NonMatching, "game/mb/mb_camera.c", cflags=cflags_demo),
+            Object(NonMatching, "game/mb/mb_font.c", cflags=cflags_demo),
             Object(Matching, "game/mb/mb_lights.c", cflags=cflags_demo),
             Object(Matching, "game/mb/mb_main.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_model.c", cflags=cflags_demo),
@@ -450,30 +450,30 @@ config.libs = [
             Object(Matching, "game/ps2/ml_fmath.c", cflags=cflags_demo),
             Object(Matching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
-            Object(Matching, "game/sys/registry.c", mw_version=p6_compiler_version),
+            Object(NonMatching, "game/sys/registry.c", mw_version=p6_compiler_version),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/texPalette.c", mw_version="GC/1.2.5n"),
-            Object(Matching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
-            Object(Matching, "game/crt/vsprintf.c", cflags=cflags_demo),
+            Object(NonMatching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
+            Object(NonMatching, "game/crt/vsprintf.c", cflags=cflags_demo),
             Object(Matching, "game/pb/pbutils.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/pb_objects.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/pb_objregs.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_texture.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(Matching, "game/pb/pb_tree.cpp", cflags=cflags_demo, mw_version="GC/1.2.5n"),
-            Object(Matching, "game/pb/dbgtext.c", cflags=cflags_demo),
-            Object(Matching, "game/pb/pb_winglobals.c", cflags=cflags_demo),
-            Object(Matching, "game/pb/pb_error.c", cflags=cflags_demo),
+            Object(NonMatching, "game/pb/dbgtext.c", cflags=cflags_demo),
+            Object(NonMatching, "game/pb/pb_winglobals.c", cflags=cflags_demo),
+            Object(NonMatching, "game/pb/pb_error.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_frame.c", cflags=cflags_demo),
             Object(Matching, "game/pb/pb_global.c", cflags=cflags_demo),
             Object(Matching, "game/ps2/mathfunc.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/dcs.c", cflags=cflags_demo),
             Object(Matching, "game/audio/buffile.c", cflags=cflags_demo),
-            Object(Matching, "game/audio/dcsdrv.c", cflags=cflags_demo),
-            Object(Matching, "game/audio/mempool.c", cflags=cflags_demo),
+            Object(NonMatching, "game/audio/dcsdrv.c", cflags=cflags_demo),
+            Object(NonMatching, "game/audio/mempool.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/adstream.c", cflags=cflags_demo),
-            Object(Matching, "game/g3d/g3dpad.c", cflags=cflags_demo),
+            Object(NonMatching, "game/g3d/g3dpad.c", cflags=cflags_demo),
             Object(NonMatching, "game/movie/movieplayer.cpp", cflags=cflags_demo),
-            Object(Matching, "game/pb/pb_window.c", cflags=cflags_demo),
+            Object(NonMatching, "game/pb/pb_window.c", cflags=cflags_demo),
             Object(Matching, "game/g3d/g3dMath3D.cpp", cflags=cflags_demo),
             Object(NonMatching, "game/ps2/fakelib.c", cflags=cflags_demo),
             Object(Matching, "game/shop/shopquery.c", cflags=cflags_demo),
@@ -485,18 +485,18 @@ config.libs = [
             Object(NonMatching, "game/world/tower.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/attract.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/options.c", cflags=cflags_demo),
-            Object(Matching, "game/ui/message.c", cflags=cflags_demo),
+            Object(NonMatching, "game/ui/message.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/screensaver.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/auxscreen.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/select.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/btext.c", cflags=cflags_demo),
-            Object(Matching, "game/world/btricol.c", cflags=cflags_demo),
+            Object(NonMatching, "game/world/btricol.c", cflags=cflags_demo),
             Object(NonMatching, "game/boss/boss.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/gauntworld.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/camera.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/combat.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/newcam.c", cflags=cflags_demo),
-            Object(Matching, "game/world/world.c", cflags=cflags_demo),
+            Object(NonMatching, "game/world/world.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/items.c", cflags=cflags_demo),
             Object(Matching, "game/world/lights.c", cflags=cflags_demo),
             Object(Matching, "game/world/dyngrid.c", cflags=cflags_demo),
@@ -505,9 +505,9 @@ config.libs = [
             Object(NonMatching, "game/pb/pb_diag.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/audio.c", cflags=cflags_demo),
             Object(Matching, "game/audio/soundmgr.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
-            Object(Matching, "game/sys/ml_mem.c", cflags=cflags_demo),
+            Object(NonMatching, "game/sys/ml_mem.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_blit.c", cflags=cflags_demo),
-            Object(Matching, "game/enemy/enemy.c", cflags=cflags_demo),
+            Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_demo),
             Object(Matching, "game/mb/mb_objects.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/gamemain.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/controls.c", cflags=cflags_demo),
@@ -769,7 +769,7 @@ config.libs = [
         "progress_category": "sdk",
         "objects": [
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/mem_TRK.c"),
-            Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s"),
+            Object(NonMatching, "TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/mainloop.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/nubevent.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/nubinit.c"),
@@ -820,157 +820,15 @@ config.progress_categories = [
 ]
 config.progress_each_module = args.verbose
 
-# Compatibility fixups have distinct raw inputs and final outputs. They are
-# enabled below only for matching builds; editable builds retain source data.
-config.custom_build_rules = [
-    {
-        "name": "frank",
-        "command": "$python tools/gdl/frank.py $in $out --verbose",
-        "description": "FRANK $out",
-    },
-    {
-        "name": "webfrank",
-        "command": "$python tools/gdl/webfrank.py $in $out $webfrank_config $webfrank_unit --target $webfrank_target --image $webfrank_image",
-        "description": "WEBFRANK $out",
-    },
-    {
-        "name": "webfrank_globalize_atree",
-        "command": "$python tools/gdl/atree_exports.py $in $out --objcopy $atree_objcopy --webfrank-config $webfrank_config --webfrank-unit $webfrank_unit --target $webfrank_target --image $webfrank_image",
-        "description": "WEBFRANK+EXPORT $out",
-    },
-    {
-        "name": "globalize_atree",
-        "command": "$python tools/gdl/atree_exports.py $in $out --objcopy $atree_objcopy",
-        "description": "EXPORT $out",
-    },
-    {
-        "name": "p6frank",
-        "command": "$python tools/gdl/p6frank.py $in $out $p6frank_config $p6frank_unit --target $p6frank_target",
-        "description": "P6FRANK $out",
-    },
-    {
-        "name": "fix_exception_object",
-        "command": "$python tools/fix_exception_objects.py --kind $exception_kind --input $in --output $out",
-        "description": "FIXUP $out",
-    },
-    {
-        "name": "retail_dol",
-        "command": "$python tools/gdl/retaildol.py $in $out",
-        "description": "RETAILDOL $out",
-    },
-]
-webfrank_config = Path(f"config/{config.version}/webfrank.json")
-webfrank_units = json.loads(webfrank_config.read_text(encoding="utf-8"))["units"]
-# The retail image webfrank's datum screen reads: dtk splits .rodata into its
-# own `auto_*_rodata.o` objects, so a target relocation's pool label is an
-# UNDEF extern and the bytes it binds exist only here.  The extracted target
-# objects each webfrank edge already depends on are split out of this same
-# file, so requiring it adds no new precondition to a matching build.
-webfrank_image = f"orig/{config.version}/sys/main.dol"
+# Source-only reconstruction campaign: no instruction, symbol, data or EH
+# rewrites after compilation, and no retail-byte splice after linking.
+# Formerly transformed Matching units above are explicitly NonMatching; their
+# extracted objects remain fallback inputs until complete native reconstruction.
+config.native_only = True
+config.custom_build_rules = []
 config.object_postprocesses = {}
-
-# Exact-match postprocessors intentionally depend on extracted retail objects
-# and fixed input/postimage hashes.  A modded/non-matching build must always
-# compile and link the editable source without those target-dependent rewrites.
-if not config.non_matching:
-    config.object_postprocesses = {
-        unit: {
-            "rule": "webfrank",
-            "implicit": [
-                "tools/gdl/webfrank.py",
-                "tools/gdl/ppc_address_fold.py",
-                str(webfrank_config),
-                f"build/{config.version}/obj/{unit}.o",
-                webfrank_image,
-            ],
-            "variables": {
-                "webfrank_config": str(webfrank_config),
-                "webfrank_unit": unit,
-                "webfrank_target": f"build/{config.version}/obj/{unit}.o",
-                "webfrank_image": webfrank_image,
-            },
-        }
-        for unit in webfrank_units
-    }
-
-# The current atree reconstruction keeps three cross-TU arrays internal while
-# compiling: atree_handles, atree_scroll, and whichatree. Promote their ELF
-# symbols without changing section bytes or relocations. natreelists and
-# sAtreeZero are public source definitions; neither needs symbol rewriting.
-# Run the same target-independent visibility fixup in editable/non-matching
-# builds so mods retain the cross-TU interface. Source-export checks permit
-# changed values and layouts rather than requiring retail data.
-atree_export_unit = "game/anim/atree"
-binutils_dir = config.binutils_path or config.build_dir / "binutils"
-atree_objcopy = binutils_dir / (
-    "powerpc-eabi-objcopy.exe" if is_windows() else "powerpc-eabi-objcopy"
-)
-# Managed binutils are downloaded by a rule whose OUTPUT is the directory,
-# not each executable. Match the assembler's tool dependency convention.
-atree_objcopy_implicit = atree_objcopy if config.binutils_path else binutils_dir
-atree_export_vars = {"atree_objcopy": atree_objcopy}
-if config.non_matching:
-    config.object_postprocesses[atree_export_unit] = {
-        "rule": "globalize_atree",
-        "implicit": ["tools/gdl/atree_exports.py", atree_objcopy_implicit],
-        "variables": atree_export_vars,
-    }
-else:
-    atree_postprocess = config.object_postprocesses[atree_export_unit]
-    atree_postprocess["rule"] = "webfrank_globalize_atree"
-    atree_postprocess["implicit"].append("tools/gdl/atree_exports.py")
-    atree_postprocess["implicit"].append(atree_objcopy_implicit)
-    atree_postprocess["variables"].update(atree_export_vars)
-p6frank_config = Path(f"config/{config.version}/p6frank.json")
-p6frank_units = json.loads(p6frank_config.read_text(encoding="utf-8"))["units"]
-if not config.non_matching:
-    for unit in p6frank_units:
-        if args.experimental_p6_compiler and unit == "game/sys/registry":
-            continue
-        if unit in config.object_postprocesses:
-            raise ValueError(f"multiple object postprocessors configured for {unit}")
-        config.object_postprocesses[unit] = {
-            "rule": "p6frank",
-            "implicit": [
-                "tools/gdl/p6frank.py",
-                str(p6frank_config),
-                f"build/{config.version}/obj/{unit}.o",
-            ],
-            "variables": {
-                "p6frank_config": str(p6frank_config),
-                "p6frank_unit": unit,
-                "p6frank_target": f"build/{config.version}/obj/{unit}.o",
-            },
-        }
-if not config.non_matching:
-    for unit, kind in (
-        ("Runtime.PPCEABI.H/NMWException", "nmw"),
-        ("Runtime.PPCEABI.H/ExceptionPPC", "exppc"),
-    ):
-        if unit in config.object_postprocesses:
-            raise ValueError(f"multiple object postprocessors configured for {unit}")
-        config.object_postprocesses[unit] = {
-            "rule": "fix_exception_object",
-            "implicit": ["tools/fix_exception_objects.py"],
-            "variables": {"exception_kind": kind},
-        }
 config.custom_build_steps = {}
 
-# Post-build: splice the retail DOL's unreproducible extab padding bytes from
-# the user's own original DOL into a copy of the verified cleaned-target
-# output, producing a byte-perfect retail artifact (see tools/gdl/retaildol.py
-# for the fail-closed guards). Skipped for mod builds and when the original
-# DOL is not present.
-retail_orig_dol = Path(f"orig/{config.version}/sys/main.dol")
-if not config.non_matching and retail_orig_dol.exists():
-    config.custom_build_steps["post-build"] = [
-        {
-            "rule": "retail_dol",
-            "inputs": [f"build/{config.version}/main.dol"],
-            "implicit": ["tools/gdl/retaildol.py", str(retail_orig_dol)],
-            "outputs": [f"build/{config.version}/main.retail.dol"],
-        },
-    ]
 # Optional extra arguments to `objdiff-cli report generate`
 config.progress_report_args = [
     # Marks relocations as mismatching if the target value is different
