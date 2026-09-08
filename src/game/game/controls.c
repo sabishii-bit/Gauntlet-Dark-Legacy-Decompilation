@@ -1757,8 +1757,8 @@ s32 CheckSpecials(s32 plyr, u32 lev)
 {
     s32 found;
     u32 i;
-    u8* progress;
     u32 byte_lev;
+    u8* progress;
     u8 unused[8];
 
     progress = lbl_80240AE8[plyr];

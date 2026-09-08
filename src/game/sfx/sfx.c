@@ -1135,13 +1135,13 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
     s32 cp;
     f32* cp3;
     f32 rad;
-    s32 fxh;
     u32 fl;
     Effect* e;
     f32 yaw;
     f32 vz;
     u8* ep;
     u8* e4;
+    s32 fxh;
 
     rad = (f32)(0.03125 * sz);
     if (rad > 1.0) {

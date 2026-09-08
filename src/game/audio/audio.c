@@ -960,14 +960,13 @@ static inline s32 AudioLoadPoll(void)
 
 s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
 {
+    s32 mapPtr;
     char name[64];
     volatile u8 unused[256];
-    s32 mapPtr;
     s32 mapSz1;
     s32 mapSz2;
     s32 slot;
     s32 result;
-    s32 savedBusy;
     s32 expected;
     s32 retry;
     s32 resp;
@@ -975,6 +974,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     u8* state = sAudioState;
     u8* bankEntry;
     u8* romBank;
+    s32 savedBusy;
     u8* queueSlot;
     u8* cmdSlot;
     u16 handle;
