@@ -108,52 +108,10 @@
 #include "types.h"
 #include "game/camera.h"
 #include "game/gamemode.h"
+#include "game/newcam.h"
 
-typedef struct Vec3 {
-    f32 x;
-    f32 y;
-    f32 z;
-} Vec3;
+typedef NcVec3 Vec3;
 
-/*
- * NEWCAM camera object (Xbox: the StdCamera/DebugCamera CAMERA type; NOT the
- * 0x18C CAMERA.OBJ gCameras[] element).  Only the fields NEWCAM touches are
- * named; offsets are read from the GC target asm.  Padded to 0x1B0 so the fields
- * stay byte-accurate for the reconstructions below.
- */
-typedef struct NcPlane {
-    Vec3 normal;
-    f32 unused;
-} NcPlane;
-
-typedef struct NcCamera {
-    u8  _000[0x030];
-    Vec3 position;     /* 0x030 world position */
-    u8  _03C[0x040 - 0x03C];
-    NcPlane planes[4]; /* 0x040 frustum plane normals (CalcDist output) */
-    u8  _080[0x0A4 - 0x080];
-    Vec3 attention;    /* 0x0A4 look-at point (debug cam: translate accum) */
-    Vec3 attn_prev;    /* 0x0B0 previous attention (debug cam) */
-    Vec3 velocity;     /* 0x0BC per-frame attention step (scripted path) */
-    u8  _0C8[0x0DC - 0x0C8];
-    f32 dist_current;  /* 0x0DC clamped working distance (init: bounds max) */
-    Vec3 direction;    /* 0x0E0 forward vector */
-    f32 yaw;           /* 0x0EC */
-    f32 yaw_rate;      /* 0x0F0 per-frame yaw step (scripted path) */
-    f32 distance;      /* 0x0F4 smoothed follow distance */
-    f32 dist_rate;     /* 0x0F8 per-frame distance step (scripted path) */
-    u8  _0FC[0x100 - 0x0FC];
-    f32 field_100;     /* 0x100 (debug HUD "(%.2f)" value) */
-    f32 pitch;         /* 0x104 */
-    f32 pitch_rate;    /* 0x108 per-frame pitch step (scripted path) */
-    f32 zoom;          /* 0x10C */
-    f32 aspect;        /* 0x110 */
-    Vec3 ring_pos[9];  /* 0x114 attention history ring */
-    f32 ring_dist[9];  /* 0x180 distance history ring */
-    s32 field_1A4;     /* 0x1A4 history ring index (mod lbl_80343CD0) */
-    s32 field_1A8;     /* 0x1A8 (reset to -1) */
-    f32 field_1AC;     /* 0x1AC */
-} NcCamera;            /* 0x1B0 */
 
 /*
  * Player record view (subset the camera reads).  Full record is game/player.h
@@ -187,7 +145,6 @@ extern NcPlayer  gPlayers[4];   /* the 4 player records (game/player.h Player[])
 extern f32       gDefaultPlayerPosition[3];   /* default position when no player is valid */
 extern NcCamera  lbl_80274AA0;      /* DebugCamera instance */
 extern NcCamera  lbl_80274C50;      /* standard camera instance */
-extern NcCamera* lbl_80344A6C;      /* live standard-camera pointer (frustum query) */
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
 extern s32       lbl_80344A70;
 extern s32       lbl_80344A7C;      /* debug-camera active flag */

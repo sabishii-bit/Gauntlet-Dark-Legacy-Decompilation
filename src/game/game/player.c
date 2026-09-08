@@ -2620,7 +2620,7 @@ static void do_exit(void* vp, s32 dest) {
             towerRuneNearAudio();
             lbl_803447B4 = 1;
         }
-        PF(p, 0x8B8, f32) = p->floor_base;
+        p->field_8B8 = p->floor_base;
         if (lbl_8034481C >= 0x10000) {
             p->exit_dest = lbl_8034481C - 0x10000;
         } else if (lbl_8034481C >= 0xD) {
@@ -2664,7 +2664,7 @@ static void do_exit(void* vp, s32 dest) {
             p->state = 5;
             del_target(p->mat);
         }
-    } else if ((2.0 * p->col_height + p->pos[1]) + 1.0 > PF(p, 0x8B8, f32)) {
+    } else if ((2.0 * p->col_height + p->pos[1]) + 1.0 > p->field_8B8) {
         /* still above the hole floor: sink and spin */
         f32 move_x = 0.0f;
         f32 move_y = -0.12f;
@@ -3029,16 +3029,16 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             }
             p->obj_flags |= flags;
             if (dir != NULL) {
-                PF(p, 0x8DC, f32) = dir[0] + PF(p, 0x8DC, f32);
-                PF(p, 0x8E0, f32) = dir[1] + PF(p, 0x8E0, f32);
-                PF(p, 0x8E4, f32) = dir[2] + PF(p, 0x8E4, f32);
+                p->hit_force[0] = dir[0] + p->hit_force[0];
+                p->hit_force[1] = dir[1] + p->hit_force[1];
+                p->hit_force[2] = dir[2] + p->hit_force[2];
             }
         }
     } else {
         if (invuln == 0 && (flags & 0x8000) == 0) {
             p->health = hp - dmg;
         }
-        PF(p, 0x8D0, f32) += dmg;
+        p->hit_damage += dmg;
         if (invuln < 2) {
             if (flags & 0xF) {
                 p->obj_flags &= ~0xF;
@@ -3048,16 +3048,16 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             }
             p->obj_flags |= flags;
             if (dir != NULL) {
-                PF(p, 0x8DC, f32) = dir[0] + PF(p, 0x8DC, f32);  /* hit push vec */
-                PF(p, 0x8E0, f32) = dir[1] + PF(p, 0x8E0, f32);
-                PF(p, 0x8E4, f32) = dir[2] + PF(p, 0x8E4, f32);
+                p->hit_force[0] = dir[0] + p->hit_force[0];  /* hit push vec */
+                p->hit_force[1] = dir[1] + p->hit_force[1];
+                p->hit_force[2] = dir[2] + p->hit_force[2];
             }
             if (dmg > 0.0f) {
                 if (flags & 0x800) {
-                    PF(p, 0x898, f32) = 1.0 + sMusicFadeBase;
+                    p->field_898 = 1.0 + sMusicFadeBase;
                 }
                 if (flags & 0x1000) {
-                    PF(p, 0x898, f32) = 4.0 + sMusicFadeBase;
+                    p->field_898 = 4.0 + sMusicFadeBase;
                 }
                 if (flags & 0x10040) {
                     do_vibe(i, 3, 0x1E);
@@ -3287,7 +3287,7 @@ void abort_player(s32 i) {
     p->intower = 0;
     p->state = 0;
     p->motion_state = 0;
-    PF(p, 0x333C, s32) = 0;
+    p->motion_state_save = 0;
     controls_remove_active_player(i);
     p->respawn_timer = 0xB4;
     if (p->node != NULL) {
@@ -3475,10 +3475,10 @@ void clear_player(s32 i, s32 full) {
     p->health = 500.0f;
     p->runes = 0;
     p->shards = 0;
-    PF(p, 0x334C, s32) = 0;
-    PF(p, 0x3350, s32) = 0;
-    PF(p, 0x3354, s32) = 0;
-    PF(p, 0x3358, s32) = -1;
+    p->sel_card_chan = 0;
+    p->sel_card_slot = 0;
+    p->sel_save_file = 0;
+    p->sel_file_cursor = -1;
     HIDDEN_CODE(p) = NULL;
     for (j = 0; j < 11; j++) {
         memset(&p->powerup[j], 0, sizeof(PlayerPowerup));
@@ -3514,7 +3514,7 @@ void clear_player(s32 i, s32 full) {
         memset((u8*)p + 0x1ECC, 0, 0x1434);
         p->state = 0;
         p->motion_state = 0;
-        PF(p, 0x333C, s32) = 0;
+        p->motion_state_save = 0;
     }
     player_index = p->index;
     {
@@ -3619,7 +3619,7 @@ void load_player(s32 i) {
     }
     zero = 0;
     p->node = NULL;
-    PF(p, 0x78, s32) = zero;
+    p->field_078 = zero;
     load_player_geo(i, p);
     /* Reset the live-gameplay block in the target's store order. */
     PF(p, 0x800, s32) = 0;
@@ -3642,20 +3642,20 @@ void load_player(s32 i) {
     p->light_vec[0] = 0.0f;
     PF(p, offsetof(Player, light_vec) + 4, f32) = 0.0f;
     PF(p, offsetof(Player, light_vec) + 8, f32) = 0.0f;
-    PF(p, 0x870, f32) = 0.0f;
-    PF(p, 0x874, f32) = 0.0f;
-    PF(p, 0x878, f32) = 0.0f;
-    PF(p, 0x888, f32) = 0.0f;
-    PF(p, 0x88C, f32) = 0.0f;
-    PF(p, 0x890, f32) = 0.0f;
-    PF(p, 0x898, f32) = 0.0f;
+    p->vel[0] = 0.0f;
+    p->vel[1] = 0.0f;
+    p->vel[2] = 0.0f;
+    p->dpos[0] = 0.0f;
+    p->dpos[1] = 0.0f;
+    p->dpos[2] = 0.0f;
+    p->field_898 = 0.0f;
     p->timer_89C = 0.0f;
-    PF(p, 0x8D0, f32) = 0.0f;
+    p->hit_damage = 0.0f;
     p->obj_flags = 0;
     p->act_flags = 0;
-    PF(p, 0x8DC, f32) = 0.0f;
-    PF(p, 0x8E0, f32) = 0.0f;
-    PF(p, 0x8E4, f32) = 0.0f;
+    p->hit_force[0] = 0.0f;
+    p->hit_force[1] = 0.0f;
+    p->hit_force[2] = 0.0f;
     p->fxhittime = 0.0f;
     p->floor_fx_time = 0.0f;
     p->floor_hi = 256.0f;
@@ -3671,20 +3671,20 @@ void load_player(s32 i) {
     p->name_timer = 0xF0;
     p->vibe_timer = 0;
     p->vibe_timer2 = 0;
-    PF(p, 0x8F4, s32) = 0;
-    PF(p, 0x8F8, s32) = 0;
+    p->field_8F4 = 0;
+    p->field_8F8 = 0;
     p->act_bits = 0;
     p->combo_fade = 0.0f;
     p->melee_yaw = 0.0f;
-    PF(p, 0x908, s32) = 0;
+    p->field_908 = 0;
     p->coll_flags = 0;
     p->bossdamage = 0.0f;
     PF(p, offsetof(Player, hit_streak), s32) = 0;
-    PF(p, 0xA48, f32) = 1.0f;
-    PF(p, 0xA4C, f32) = 1.0f;
-    PF(p, 0xA50, f32) = 1.0f;
-    PF(p, 0xA54, f32) = 1.0f;
-    PF(p, 0x956, s16) = 0x10;
+    p->field_A48 = 1.0f;
+    p->field_A4C = 1.0f;
+    p->field_A50 = 1.0f;
+    p->field_A54 = 1.0f;
+    p->field_956 = 0x10;
     p->throw_str = 0;
     p->speak_timer = 0;
     p->speak_kind = 0;
@@ -3697,8 +3697,8 @@ void load_player(s32 i) {
     PF(p, 0xA24, s32) = 0;
     PF(p, 0xA28, f32) = 0.0f;
     PF(p, offsetof(Player, field_A68), s32) = 0;
-    PF(p, 0x93C, s32) = 0;
-    PF(p, 0x940, s32) = 0;
+    p->field_93C = 0;
+    p->field_940 = 0;
     p->speech_req = NULL;
     p->combo_cd = 0.0f;
     p->camera_limit = 0;
@@ -3733,11 +3733,11 @@ void load_player(s32 i) {
         get_player_pos(i, 1);
         CreateYPRMatrix(scratch.matrix, p->angles);
         CopyMat3((f32*)((u8*)&scratch + sizeof(scratch.pad)), p->mat);
-        p->move_yaw = PF(p, 0xC8, f32);
+        p->move_yaw = p->angles[1];
         p->floor_base = p->pos[1];
-        PF(p, 0x87C, f32) = p->pos[0];
-        PF(p, 0x880, f32) = p->pos[1];
-        PF(p, 0x884, f32) = p->pos[2];
+        p->prev_pos[0] = p->pos[0];
+        p->prev_pos[1] = p->pos[1];
+        p->prev_pos[2] = p->pos[2];
         if ((p->hud_flags & 0x20) == 0) {
             UpdateObjWorldMat(p->mat);
             fn_8005A404(p->mat, p->anchor_fwd, p->anchor_pos);
@@ -3877,7 +3877,7 @@ void PlayerSaveState(s32 player, s32 full) {
         *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
             *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
     }
-    PF(p, 0xA8B, u8) = 0;
+    p->saved = 0;
 }
 
 /* Unpack the per-character slots into the live fields.  type < 0      */
@@ -4016,22 +4016,22 @@ void player_store_in_save(void* vp) {
         *(u16*)(item + 0xDD4) |= p->runes;
         *(u16*)(item + 0xDD6) |= p->shards;
     }
-    PF(p, 0xA88, s16) = (s16)p->character;
-    PF(p, 0xA8A, s8) = (s8)p->class_id;
+    p->last_alttype = (s16)p->character;
+    p->last_color = (s8)p->class_id;
     /* total-level checksum across all 16 characters */
     for (j = 0; j < 16; j++) {
         total += ExpToLevel(CHAR_STATS(p, j)[0]);
     }
-    PF(p, 0xA8E, u16) = total;
+    p->leveltot = total;
     memcpy((u8*)p + chartype + 0xE04, (u8*)p + 0x130, 0xB0);
     {
         u8* item = (u8*)p + chartype;
         *(s16*)(item + 0xDDA) = (s16)PF(p, 0x1EC, s32);
     }
-    PF(p, 0x1DB0, u8) = (u8)lbl_80240E30[player].scheme;
-    PF(p, 0x1DB1, u8) = (u8)lbl_80240E30[player].hasActuator;
-    PF(p, 0x1DB2, u8) = (u8)lbl_80240E30[player].unk38;
-    PF(p, 0x1DB3, u8) = (u8)lbl_80240E30[player].unk34;
+    p->control_scheme = (u8)lbl_80240E30[player].scheme;
+    p->control_rumble = (u8)lbl_80240E30[player].hasActuator;
+    p->control_autoattack = (u8)lbl_80240E30[player].unk38;
+    p->control_autoaim = (u8)lbl_80240E30[player].unk34;
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         player_get_from_save(p, -1);
     }
@@ -4043,14 +4043,14 @@ void player_store_in_save(void* vp) {
 void player_save_controls(s32 i) {
     Player* p = P(i);
 
-    PF(p, 0x1DB0, u8) = (u8)lbl_80240E30[i].scheme;
-    PF(p, 0x1DB1, u8) = (u8)lbl_80240E30[i].hasActuator;
-    PF(p, 0x1DB2, u8) = (u8)lbl_80240E30[i].unk38;
-    PF(p, 0x1DB3, u8) = (u8)lbl_80240E30[i].unk34;
-    PF(p, 0x31FC, u8) = (u8)lbl_80240E30[i].scheme;
-    PF(p, 0x31FD, u8) = (u8)lbl_80240E30[i].hasActuator;
-    PF(p, 0x31FE, u8) = (u8)lbl_80240E30[i].unk38;
-    PF(p, 0x31FF, u8) = (u8)lbl_80240E30[i].unk34;
+    p->control_scheme = (u8)lbl_80240E30[i].scheme;
+    p->control_rumble = (u8)lbl_80240E30[i].hasActuator;
+    p->control_autoattack = (u8)lbl_80240E30[i].unk38;
+    p->control_autoaim = (u8)lbl_80240E30[i].unk34;
+    p->control_scheme_ckpt = (u8)lbl_80240E30[i].scheme;
+    p->control_rumble_ckpt = (u8)lbl_80240E30[i].hasActuator;
+    p->control_autoattack_ckpt = (u8)lbl_80240E30[i].unk38;
+    p->control_autoaim_ckpt = (u8)lbl_80240E30[i].unk34;
 }
 
 /* Derive the combat stats from the attribute norms x class ranges.    */
@@ -4168,7 +4168,7 @@ model_ready:
     sprintf(geoBss->scratch, "%s_%s", (char*)(tab + 1128) + cls * 4, name);
     strncpy((char*)&p->pad_0210[0x4B0], geoBss->scratch, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
-    PF(p, 0x78, s32) = 0;
+    p->field_078 = 0;
     p->platform = fn_80011BBC(geoBss->models[i].model_buf,
                              (char*)(tab + 1128) + p->char_type * 4,
                              &p->platform, geoBss->scratch, 0x800);
@@ -4211,10 +4211,10 @@ model_ready:
         nd = AtreeFindMbidxNode(p->platform, n);
     }
     if (nd != NULL) {
-        PF(p, 0x6D8, s32) = *nd;
+        p->field_6D8 = *nd;
         MBTreeSetFlags((void*)*nd, 0x800810, 0);
     } else {
-        PF(p, 0x6D8, s32) = 0;
+        p->field_6D8 = 0;
     }
     sprintf(geoBss->scratch, "%sHEAD", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
