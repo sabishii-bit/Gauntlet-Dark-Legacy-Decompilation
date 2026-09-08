@@ -7,14 +7,23 @@
  * struct).  Critters are the large, scripted, multi-part creatures (golems,
  * bosses, generals, ...) distinct from the swarm-style Enemy record.
  *
- * The Xbox debug PDB (research/xbox_symbols/shell3D.pdb, module CRITTER.obj)
- * exports every CRITTER.OBJ *function* but retains NO named CRITTER instance
- * struct in its type stream (grep of game.h / misc.h / type_index.txt /
- * xbox_structs.tsv finds only PBMEM_CRITTER).  This layout is therefore
- * reconstructed directly from the GameCube (GUNE5D) DOL asm - the field
- * boundaries below are byte-exact against the target objects, with behavioural
- * names.  Offsets that could not be pinned to a use are left as reserved
- * (_blkXXX / _resXXX) padding so the struct stays offset-exact (0xAE0).
+ * CORRECTION (2026-09-11): the earlier banner claimed the Xbox debug PDB has no
+ * CRITTER instance struct.  It does -- research/xbox_symbols/misc.h carries the
+ * whole CRITTER family: crit_inst (Size=0xae0), crit_type (0x140), crit_move
+ * (0x90), crit_pattern (0x50), crit_damage (0x50), crit_desc (0x30) and
+ * crit_header (0x50).  crit_inst's first fields line up with this record
+ * exactly (index@0, id@2, `struct crit_type *type`@4, state@8, OBJGRP objgrp@0xc
+ * size 0x68, atree@0x74 size 0x48, addaniminst@0xbc, root@0xc0, shadow@0xc4,
+ * headnode@0xc8, eyenode@0xcc, movenode@0xd0, dmgdbgnode@0xd4, coldbgnode@0xd8,
+ * noskinfxnode@0xdc, skinfx@0xe0 size 0x18, then inityaw/curyaw/headyaw/eyeyaw/
+ * headpitch/eyepitch, difficulty@0x110, invdifficulty@0x114), so the names below
+ * can be corrected against it field by field.  One correction is already known
+ * and NOT yet applied: `skinMatrix[12]` at 0x0E0 is crit_inst.skinfx (0x18)
+ * followed by six separate f32 yaw/pitch fields, not one 3x4 matrix.
+ * The layout itself is still reconstructed from the GameCube (GUNE5D) DOL asm -
+ * the field boundaries below are byte-exact against the target objects, with
+ * behavioural names.  Offsets that could not be pinned to a use are left as
+ * reserved (_blkXXX / _resXXX) padding so the struct stays offset-exact (0xAE0).
  *
  * GameCube (GUNE5D) anchors (config/GUNE5D/symbols.txt):
  *   Critter instance size  0xAE0  (2784 bytes)
@@ -48,13 +57,17 @@
  *   health     0x4B0  lfs   (current hp; hdr->maxhp * gCurLevel->0xAC on init)
  *   next       0xAD8  lwz   (sibling in active critter list)
  *   parent     0xADC  lwz   (parent critter; NULL for a root critter)
- * GC-vs-Xbox delta: the Xbox PDB has no CRITTER struct to compare, so no field
- * delta can be stated; the Xbox and GC share the CRITTER.OBJ function roster
- * 1:1 (see research/xbox_symbols/functions_by_module.txt), so the record is
- * expected to be the same Midway source struct.
+ * GC-vs-Xbox delta: crit_inst is 0xae0 on both, and every offset checked above
+ * agrees; the Xbox and GC also share the CRITTER.OBJ function roster 1:1 (see
+ * research/xbox_symbols/functions_by_module.txt).  Xbox names remain
+ * corroboration, not proof of GC layout: each one still has to be confirmed
+ * against a GC access before it is adopted.
  */
 
 struct Critter;
+struct CritterColDescriptor;  /* one stride-0x50 NODE record of a loaded
+                               * CRITTER wad; completed in critter.c, the only
+                               * TU that dereferences it */
 struct CritterHeader;   /* loaded type template (CRITTER.OBJ CritterInitHeader);
                          * full layout not reconstructed - known offsets:
                          *   0x0E4 f32  base health scale
@@ -94,10 +107,13 @@ typedef struct CritterTargetCriteria {
 typedef struct CritterMove {
     s32 type;             /* 0x00 move opcode (1, 0x11, 0xF0, ...)             */
     u32 flags;            /* 0x04 flag bits (bit 3 tested in ProcessCritter)   */
-    s32 unk08;            /* 0x08 (compared against 0xF00 in CritterAnimate)   */
-    s16 anim;             /* 0x0C animation id to play                         */
-    s16 node;             /* 0x0E attached animation-node index                */
-    u8  _blk10[0x30];     /* 0x10 .. 0x40                                      */
+    s32 priority;         /* 0x08 crit_move.priority (compared against 0xF00
+                             * in CritterAnimate)                              */
+    s16 seqidx;           /* 0x0C resolved animation-sequence index            */
+    s16 nodeidx;          /* 0x0E resolved attach-node index                   */
+    char name[0x10];      /* 0x10 crit_move.name    -- editor/debug move name  */
+    char anim[0x10];      /* 0x20 crit_move.anim    -- AtreeHeaderFindSeq name */
+    char colnode[0x10];   /* 0x30 crit_move.colnode -- AtreeFindNodeIdx name   */
     s32 frameStart;       /* 0x40 primary event window start frame (CopyAnim)  */
     s32 frameStart2;      /* 0x44 secondary event window start frame           */
     s16 interruptAnim0;    /* 0x48 CritterAnimInterrupt anim index (event 1)    */
@@ -105,12 +121,12 @@ typedef struct CritterMove {
     f32 framePeriod;      /* 0x4C repeat period for the 0x85 (looped) move type */
     s16 frameEnd;         /* 0x50 primary event window end frame               */
     s16 frameEnd2;        /* 0x52 secondary event window end frame             */
-    s16 link;             /* 0x54 chained/target move index                    */
-    s16 unk56;            /* 0x56                                              */
-    u8  _blk58[0x08];     /* 0x58 .. 0x60 sfx/sfxFrame/sfx2/sfx2Frame (see the
-                            * CritterMoveFx overlay in critter.c: naming these
-                            * directly here hoists an address register in
-                            * CritterActivate, so they stay raw pad here) */
+    s16 link;             /* 0x54 chained/target move index (crit_move.nextidx) */
+    s16 interrupt;        /* 0x56 crit_move.interrupt                          */
+    s16 sfx;              /* 0x58 crit_move.movefx  -- file->sfx[] index       */
+    s16 sfxFrame;         /* 0x5A crit_move.fxframe                            */
+    s16 sfx2;             /* 0x5C crit_move.movefx2 -- file->sfx[] index       */
+    s16 sfx2Frame;        /* 0x5E crit_move.fxframe2                           */
     CritterTargetCriteria target; /* 0x60 CritterMoveSetup/CritterLookForReady/
                                     * CritterChildGetPattern's moveTarget arg  */
     f32 cooldown;         /* 0x80 move reuse delay                             */
@@ -118,6 +134,37 @@ typedef struct CritterMove {
     f32 turnRate;         /* 0x88 CritterRotate max turn rate (rad/tick, x frameStep) */
     f32 holdDuration;     /* 0x8C CritterAnimate move-hold/fade duration        */
 } CritterMove;            /* size 0x90 */
+
+/* -- CritterHitNode (0x5C): one runtime collision/attach node.  Critter has a
+ *    fixed array of 16 of them at +0x4F8 (0x5C0 bytes == 16 * 0x5C); the live
+ *    count is the owning type's CritterPackedType.colCount (+0x118), which
+ *    CritterInitInst uses as the memset length (`colCount * 92`) and every
+ *    collide/sfx walk uses as the loop bound.  Stride 0x5C is GC-verified
+ *    (CritterUpdateSkinfx / CritterInitColnodes step by 0x5C; ProcessCritter
+ *    indexes `c->unkAB8 * 0x5C`).  The 16-entry bound is consistent with the
+ *    shipped assets: the NODE section of every CRITTER/*.WAD is a stride-0x50
+ *    CritterColDescriptor table and the largest per-type colCount shipped is
+ *    12 (GARM.WAD), with colBase + colCount within the file's NODE count for
+ *    every type in all 18 files (build/a_lane/a_wad.py). -- */
+typedef struct CritterHitNode {
+    struct CritterColDescriptor *descriptor;
+                              /* 0x00 the owning type's NODE record; set by
+                               * CritterInitColnodes to
+                               * `file->nodes + (hdr->colBase + i) * 0x50`,
+                               * so the pointee is one stride-0x50 NODE entry
+                               * (the WAD directory proves that stride) */
+    void *volatile active;    /* 0x04 live atree/scene node; NULL == inactive  */
+    void *boundNode;          /* 0x08 secondary node handle; walked via the
+                                 * MBNode parent/child links in
+                                 * CritterInitColnodes                          */
+    f32 matrix[12];           /* 0x0C node world transform (3x4)                */
+    f32 position[3];          /* 0x3C node world position                       */
+    u8 _pad48[4];             /* 0x48                                           */
+    void *dmgfx;              /* 0x4C optional DmgFxCircleAdd handle            */
+    s32 state;                /* 0x50 per-node hit state                        */
+    f32 activeUntil;          /* 0x54 window end   (active while from < until)  */
+    f32 activeFrom;           /* 0x58 window start                              */
+} CritterHitNode;             /* size 0x5C */
 
 /* ==================================================================== *
  *  Critter - the active critter record (0xAE0 / 2784 bytes)            *
@@ -207,8 +254,8 @@ typedef struct Critter {
     f32 counterTime;          /* 0x4DC last counter-update timestamp           */
     s16 unk4E0[4];            /* 0x4E0 four ids (init -1)                     */
     f32 timed[4];              /* 0x4E8 expiry times paired with unk4E0 ids  */
-    u8  hitnodes[0x5C0];      /* 0x4F8 collision/sfx nodes (16 x 0x5C,         */
-                              /*       hdr->0x118 count)                       */
+    CritterHitNode hitnodes[16]; /* 0x4F8 collision/sfx nodes; hdr->colCount   */
+                              /*       of them are live (0x5C0 bytes)          */
     s16 unkAB8;               /* 0xAB8                                        */
     s16 unkABA;               /* 0xABA (init -1)                              */
     s16 unkABC;               /* 0xABC (init -1)                              */
