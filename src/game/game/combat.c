@@ -114,11 +114,21 @@ typedef struct MissileDescription {
 s32 pmissile_sfxidx[5];
 s32 WeapThrowFx[4][5];
 void* WeapHoldFxTree[4][5];
-void* FamiliarSpit[4];
-void* lbl_80240624;
+void* FamiliarSpit[5];
 void* FamiliarTree[4][2];
 void* EnemyMissileTree[28][3];
 MissileTreeInfo PlayerMissileTreeInfo[4];
+void* BallistaTree;
+void* BossElecTree;
+void* BossAcidTree;
+void* FireShieldTree;
+void* PhoenixTree;
+void* WingsTree;
+void* PojoTree;
+void* BreatheFireTree;
+void* BreatheAcidTree;
+void* BreatheElecTree;
+s32 WeaponStreakTex;
 extern MissileInfo PlayerMissileInfo[8];
 extern MissileInfo EnemyMissileInfo[28][3];
 extern MissileInfo BallistaMissileInfo;
@@ -265,7 +275,6 @@ extern f32 lbl_803463C0, lbl_8034633C, lbl_80346328, lbl_803463D0;
 extern f64 lbl_80346348, lbl_80346350, lbl_80346340, lbl_803463C8;
 extern char lbl_80111E28[];
 extern s32 optionsAudioAndPrefs30[8];
-extern s32 WeaponStreakTex;
 extern u32 lbl_8011A178[], lbl_8011A188[];
 extern plyr_data* lbl_80282930[];
 void SfxSetPhysics();
@@ -4234,7 +4243,6 @@ typedef struct MissileSpread {
 } MissileSpread;
 extern MissileSpread lbl_80111DE0, lbl_80111DF4;
 extern void* EffectInfo[];
-extern void *BossAcidTree, *BossElecTree, *BallistaTree;
 typedef struct PlayerMissileAnode {
     s32 node;
 } PlayerMissileAnode;
@@ -4415,7 +4423,7 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
                 tree = BossAcidTree;
             } else if ((f & 0x400) != 0) {
                 extraFlags |= 0x10000;
-                tree = lbl_80240624;
+                tree = FamiliarSpit[4];
             } else if ((damageType & 0x100000) != 0 &&
                        (damageType & 0x2000000) == 0) {
                 tree = BallistaTree;
@@ -4524,9 +4532,6 @@ void InitEnemyMissiles(s32 enemyType)
     }
 }
 
-extern void *BallistaTree, *BossElecTree, *BossAcidTree, *PhoenixTree;
-extern void *WingsTree, *PojoTree, *BreatheFireTree, *BreatheElecTree;
-extern void *BreatheAcidTree, *FireShieldTree, *lbl_80240624;
 extern void *sWeaponsBuf, *sPowerupsBuf;
 void* MBOX_FindTexture(char* name, void* arg);
 s32 InitCustomEffect(void* tree, char* name, s32 zmod, s32 alpha);
@@ -4609,7 +4614,7 @@ void InitPlayerMissiles(void* player)
     FamiliarTree[idx][0] = AtreeMatch(weaponWad, "FAMILIAR1", 1);
     FamiliarTree[idx][1] = AtreeMatch(weaponWad, "FAMILIAR2", 1);
     FamiliarSpit[idx] = AtreeMatch(weaponWad, "FAMILIAR_SPIT", 1);
-    lbl_80240624 = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
+    FamiliarSpit[4] = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
     if (missing) {
         FatalError("InitPlayerMissiles failed!", 0x800000);
     }
