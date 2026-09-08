@@ -5366,7 +5366,7 @@ found_gen:
             AudioGeneratorDies(&v[1], *generator);
             enemy_count = gNumEnemies;
             for (k = 0; k < enemy_count; k++) {
-                if (gEnemies[k].generator == (struct item*)item) {
+                if (gEnemies[k].generator == (struct Item*)item) {
                     gEnemies[k].generator = 0;
                 }
             }
@@ -8691,10 +8691,10 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
             gNextItemIdx = idx;
         }
         if (sp->rad > sZeroDouble) {
-            crit->unkAD0 = sp->rad * gCurLevel->ene_visrad;
+            crit->visrad = sp->rad * gCurLevel->ene_visrad;
         }
         if (sp->pickup >= 0) {
-            *(Item**)crit->_blkACC = &sItems[sp->pickup];
+            crit->gotitem = (struct item *)&sItems[sp->pickup];
         }
         return;
     }
@@ -8744,7 +8744,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
             }
         }
         if (sp->pickup >= 0) {
-            e->gotitem = (struct item*)&sItems[sp->pickup];
+            e->gotitem = (struct Item*)&sItems[sp->pickup];
         }
     } else if (g > -99) {
         if (sp->strength >= 4 || e->type > 1) {
