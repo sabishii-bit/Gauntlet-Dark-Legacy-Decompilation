@@ -1313,8 +1313,8 @@ s32 next_world(void)
         s32 i;
 
         world = -1;
-        for (i = 0, transitioning = 0; i < 4; i++, transitioning += 13148) {
-            Player* player = (Player*)((u8*)gPlayers + transitioning);
+        for (i = 0; i < 4; i++) {
+            Player* player = &gPlayers[i];
             state = player->state;
             if (state != 0 && state != 2) {
                 state = player->exit_dest;
