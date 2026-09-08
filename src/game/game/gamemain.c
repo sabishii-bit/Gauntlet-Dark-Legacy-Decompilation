@@ -95,9 +95,9 @@
 /*   0x80057E6C  NextWorldLevel     -- next level matching a wave mask,    */
 /*                                      wrapping to the next world.        */
 /*                                                                      */
-/* game_main retains an instruction residual. Other functions reproduce */
-/* target instructions, but several source scaffolds and complete TU    */
-/* data ownership/linkage remain unresolved. No TU promotion is implied. */
+/* Native matching is deferred while artificial source scaffolding is  */
+/* removed. Complete TU data ownership/linkage remains unresolved too.  */
+/* The extracted fallback remains selected; no TU promotion is implied. */
 /* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
@@ -652,7 +652,6 @@ void fn_800521E8(void)
     s32 newTimer;
     MBTextMsg* txt;
     char* textData;
-    u8 unused[8];
 
     lbl_80344774 = oldTimer + gFrameTicks;
     newTimer = lbl_80344774;
@@ -1066,19 +1065,16 @@ int sprintf(char* s, const char* fmt, ...);
 void* fn_80057ACC(s32 key);
 
 /* 0x8005403C -- lock the model box, then run AtreeListLock. */
-#pragma dont_inline on
 void LockModels(s32 arg0)
 {
     MBOX_LockModels();
     AtreeListLock(arg0);
 }
-#pragma dont_inline off
 
 /* 0x80053420 -- second-stage game/audio init (main() calls this). */
 void game_init_data(void)
 {
     char* msgs = lbl_80112538;
-    u8 unused[8];
 
     InitPlayerControls();
     ControlsUpdate();
@@ -1166,7 +1162,6 @@ void LoadTowerAndSelect(void)
 }
 
 /* 0x80053D08 -- tear down the current front-end/world state and load a wave. */
-#pragma opt_lifetimes off
 s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
 {
     char* strings = lbl_80112538;
@@ -1255,10 +1250,8 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
     InitLighting(0);
     return result;
 }
-#pragma opt_lifetimes reset
 
 /* 0x80054D18 -- choose and resolve the next world/level selection. */
-#pragma opt_propagation off
 static inline s32 load_world_option(s32* options)
 {
     return options[9];
@@ -1266,7 +1259,6 @@ static inline s32 load_world_option(s32* options)
 
 s32 next_world(void)
 {
-    u8 unused[8];
     s32 world;
     s32 forced;
     s32 transitioning = 0;
@@ -1325,12 +1317,10 @@ s32 next_world(void)
     }
     return world;
 }
-#pragma opt_propagation reset
 
 /* 0x800552A4 -- animate the two halves of the loading thermometer. */
 void fn_800552A4(f32 total, f32 current)
 {
-    u8 unused[8];
     f64 offset;
     f64 vertex;
     f32 progress = (total - current) / total;
@@ -1483,7 +1473,6 @@ void fn_80052134(void)
 }
 
 /* 0x8005412C -- categorise the loaded worlds and update the flow globals. */
-#pragma opt_propagation off
 void SetPlayerVars(void)
 {
     u8* base = (u8*)gPlayers;
@@ -1527,7 +1516,6 @@ void SetPlayerVars(void)
     }
     fn_8005207C(count1, count2, count3);
 }
-#pragma opt_propagation reset
 
 /* 0x80053C70 -- pick Atree list sizes from the current game-mode id. */
 void fn_80053C70(void)
@@ -1562,7 +1550,6 @@ void fn_80055AFC(void)
     MILESTONE* ms;
     s32 n;
     s32 limit;
-    u8 _spare[32];
 
     if (ShowMilestones(-1) != 0) {
         return;
@@ -1659,7 +1646,6 @@ extern void fn_8009FFA4(f32* pos);
 
 /* 0x80055678 -- update the special-item proximity meter blits from the
  * distance between the two given points. */
-#pragma opt_propagation off
 void fn_80055678(f32* a, f32* b)
 {
     f32 d;
@@ -1722,9 +1708,7 @@ void fn_80055678(f32* a, f32* b)
         mbBlitCalcY((void*)lbl_803447A8[1], 102 - Round((f32)lvl2));
     }
 }
-#pragma opt_propagation on
 
-#pragma opt_propagation off
 void init_thermometer(void)
 {
     s32 playerOffset;
@@ -1793,7 +1777,6 @@ void init_thermometer(void)
     }
     lbl_80343C08 = (f32)(lbl_80346BA8 / (lbl_80346BD8 * length));
 }
-#pragma opt_propagation on
 
 /* 0x8005351C -- world/level entry orchestrator (only caller: game_main). */
 extern s32  opt_restart_request;
@@ -1844,7 +1827,6 @@ typedef struct PlayerSaveBlk {
 
 void fn_8005351C(void)
 {
-    u8 unused[8];
     s32 t = 0;
     s32 state = lbl_8034481C;
     s32 inTower;
@@ -2091,8 +2073,6 @@ extern void fn_80054E78(void);
 /* 0x80054230 - top-level per-frame game mode dispatcher. */
 void game_main(void)
 {
-    u8 unused[8];
-    u8 unused2[8];
     s32 i;
     s32 reset_player;
     s32 cond;
@@ -2285,12 +2265,9 @@ void game_main(void)
         if (AudioSysUpdate(100000)) {
             break;
         }
-        {
-            u32 player_mask = *(volatile u32*)&lbl_80344824;
-            for (i = 0; i < 4; i++) {
-                !!(player_mask & (1 << i));
-            }
-        }
+        /* GC retains an unused four-player mask calculation here.
+         * It has no stores or calls. Do not manufacture a volatile read
+         * to preserve that dead computation; its source origin is unknown. */
         fn_8005351C();
         break;
     case MG_MAPSCREEN:
