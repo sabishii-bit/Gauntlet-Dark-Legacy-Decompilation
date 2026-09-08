@@ -2188,16 +2188,16 @@ void move_logic00(s32 index)
         flee = 0;
     } else {
         u8* other = basep + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero00;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2318,7 +2318,7 @@ void move_logic01(s32 index)
     u8 unused[24];
 
     row01 = base + index * 916;
-    dead0 = *(s32*)(row01 + OFF_E(dead_end));
+    dead0 = ((Enemy *)(row01 + ENEMY_POOL_OFF))->dead_end;
     e0 = row01 + 3608;
     e = (Enemy*)(u8*)e0;
     if (dead0 > 0) {
@@ -2331,16 +2331,16 @@ void move_logic01(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dead0 > 0) {
             goto flee_zero01;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2413,16 +2413,16 @@ void move_logic02(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2559,16 +2559,16 @@ void move_logic04(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2643,16 +2643,16 @@ void move_logic05(s32 index)
         flee = 0;
     } else {
         u8* other = (u8*)page + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > e->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > e->sight) {
             flee = 0;
         } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero05;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2686,9 +2686,9 @@ void move_logic05(s32 index)
             }
         }
     }
-    probe[0] = *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-    probe[1] = *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-    probe[2] = *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+    probe[0] = ((Enemy *)e0)->objgrp.worldmat[3][0];
+    probe[1] = ((Enemy *)e0)->objgrp.worldmat[3][1];
+    probe[2] = ((Enemy *)e0)->objgrp.worldmat[3][2];
     probe[1] += 0.1 + e->rad;
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
@@ -2766,16 +2766,16 @@ void move_logic06(s32 index)
         flee = 0;
     } else {
         u8* other = (u8*)page + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > e->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > e->sight) {
             flee = 0;
         } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero06;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2809,9 +2809,9 @@ void move_logic06(s32 index)
             }
         }
     }
-    probe[0] = *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-    probe[1] = *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-    probe[2] = *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+    probe[0] = ((Enemy *)e0)->objgrp.worldmat[3][0];
+    probe[1] = ((Enemy *)e0)->objgrp.worldmat[3][1];
+    probe[2] = ((Enemy *)e0)->objgrp.worldmat[3][2];
     probe[1] += 0.1 + e->rad;
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
@@ -2887,7 +2887,7 @@ void move_logic07(s32 index)
     u8 unusedB[16];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 + OFF_E(type));
+    type = ((Enemy *)(e0 + ENEMY_POOL_OFF))->type;
     e0 += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)e0;
     speed = page->speed[type];
@@ -2895,16 +2895,16 @@ void move_logic07(s32 index)
         flee = 0;
     } else {
         u8* other = (u8*)page + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero07;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3050,7 +3050,7 @@ void move_logic08(s32 index)
     u8 unusedB[16];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 + OFF_E(type));
+    type = ((Enemy *)(e0 + ENEMY_POOL_OFF))->type;
     e0 += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)e0;
     speed = page->speed[type];
@@ -3058,16 +3058,16 @@ void move_logic08(s32 index)
         flee = 0;
     } else {
         u8* other = (u8*)page + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero08;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3240,16 +3240,16 @@ void move_logic10(s32 index)
         flee = 0;
     } else {
         other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(e0 + offsetof(Enemy, sight))) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > *(f32*)(e0 + offsetof(Enemy, sight))) {
             flee = 0;
         } else if (index == it || *(s16*)(e0 + offsetof(Enemy, birth_style)) != 0 || *(s32*)(e0 + offsetof(Enemy, dead_end)) > 0) {
             goto flee_zero10;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3856,27 +3856,27 @@ void move_logic12(s32 index)
 
     p = base + index * 916;
     it = lbl_80344748;
-    gen = *(struct item**)(p + OFF_E(generator));
+    gen = ((Enemy *)(p + ENEMY_POOL_OFF))->generator;
     p += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) >
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist >
                    ((Enemy *)p)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)p)->birth_style != 0 ||
                    ((Enemy *)p)->dead_end > 0) {
             goto flee_zero;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] -
                      *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) -
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] -
                      *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) -
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] -
                      *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
@@ -3957,27 +3957,27 @@ void move_logic13(s32 index)
 
     p = base + index * 916;
     it = lbl_80344748;
-    gen = *(struct item**)(p + OFF_E(generator));
+    gen = ((Enemy *)(p + ENEMY_POOL_OFF))->generator;
     p += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) >
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist >
                    ((Enemy *)p)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)p)->birth_style != 0 ||
                    ((Enemy *)p)->dead_end > 0) {
             goto flee_zero13;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] -
                      *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) -
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] -
                      *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) -
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] -
                      *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
@@ -4090,16 +4090,16 @@ void move_logic14(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero14;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -4233,16 +4233,16 @@ void move_logic15(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)row15)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)row15)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)row15)->birth_style != 0 || ((Enemy *)row15)->dead_end > 0) {
             goto flee_zero15;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - *(f32*)(row15 + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -4349,7 +4349,7 @@ void move_logic16(s32 index)
     u8 _pad16[24];
 
     row16 = base + index * 916;
-    dend = *(s32*)(row16 + OFF_E(dead_end));
+    dend = ((Enemy *)(row16 + ENEMY_POOL_OFF))->dead_end;
     e0 = row16 + 3608;
     e = (Enemy*)(u8*)e0;
     if (dend > 0) {
@@ -4362,16 +4362,16 @@ void move_logic16(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dend > 0) {
             goto flee_zero16;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -4876,16 +4876,16 @@ void move_logic22(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero22;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -5135,7 +5135,7 @@ void move_logic29(s32 index)
     u8 _pad29[32];
 
     row29 = base + index * 916;
-    dend = *(s32*)(row29 + OFF_E(dead_end));
+    dend = ((Enemy *)(row29 + ENEMY_POOL_OFF))->dead_end;
     e0 = row29 + 3608;
     e = (Enemy*)(u8*)e0;
     if (dend > 0) {
@@ -5148,16 +5148,16 @@ void move_logic29(s32 index)
         flee = 0;
     } else {
         u8* other = base + it * 916;
-        if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
+        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > ((Enemy *)e0)->sight) {
+        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
             flee = 0;
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dend > 0) {
             goto flee_zero29;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0]));
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][1]));
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][2]));
+            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -5286,9 +5286,9 @@ void move_logic30(s32 index)
         flee = 0;
     } else {
         u8* op = (u8*)lbl_80250E00 + it * 916;
-        if (*(s32*)(op + OFF_E(state)) != 1) {
+        if (((Enemy *)(op + ENEMY_POOL_OFF))->state != 1) {
             flee = 0;
-        } else if (*(f32*)(op + OFF_E(actual_dist)) > e->sight) {
+        } else if (((Enemy *)(op + ENEMY_POOL_OFF))->actual_dist > e->sight) {
             flee = 0;
         } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero30;
