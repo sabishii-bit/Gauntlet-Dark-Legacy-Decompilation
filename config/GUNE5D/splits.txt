@@ -196,6 +196,7 @@ game/game/player.c:
 	extabindex  start:0x8000A5D0 end:0x8000A918
 	.text       start:0x800745D0 end:0x8008091C
 	.data       start:0x80120B4C end:0x80120BEC
+	.bss        start:0x80274EA0 end:0x80275AE0
 
 game/game/pmotion.c:
 	extab       start:0x80006B30 end:0x80006BE8
