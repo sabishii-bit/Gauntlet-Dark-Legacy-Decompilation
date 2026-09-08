@@ -69,9 +69,11 @@ void InitAnimInfo(animinfo* info, u8 flags)
     }
 }
 
+/* the sequence record completed for this TU; AnimateTree only needs fixpos,
+ * the signed halfword at +0x26 tested at 8000ECD8 (PDB atreeseq.fixpos) */
 typedef struct atreeseq {
     u8 pad[0x26];
-    s16 flags26;
+    s16 fixpos;
     u8 pad2[8];
 } SEQVIEW;
 
@@ -172,7 +174,7 @@ u32 AnimateTree(f32 time, animinfo* info, s32 seq, s32 frame, s32 mode)
         if ((initret = InitAnim(time, info, seq, frame, 1)) <= 0) {
             FatalErrorf(lbl_80110730, initret, seq, info->numseqs);
         }
-        if ((info->seqheader[curseq].flags26 & 1) != 0) {
+        if ((info->seqheader[curseq].fixpos & 1) != 0) {
             result |= 8;
         }
         result |= 1;

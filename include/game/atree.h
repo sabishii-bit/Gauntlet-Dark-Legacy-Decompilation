@@ -4,8 +4,10 @@
 #include "types.h"
 
 struct anodeinfo;     /* the node-description record, completed in atree.c */
-struct atreeseq;      /* the sequence record (PDB misc.h Id=3262, 0x30);
-                       * each TU completes the tag with the view it uses  */
+struct atreeseq;      /* one animation sequence (PDB misc.h Id=3262, 0x30);
+                       * defined in full by atree.c, which owns it, and
+                       * completed per TU by anim.c with the one field it
+                       * reads (fixpos @0x26, target 8000ECD8)            */
 
 /*
  * atree.h -- the animation-tree instance record and the two sub-records every

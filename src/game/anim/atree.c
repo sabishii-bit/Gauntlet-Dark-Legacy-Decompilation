@@ -39,13 +39,19 @@ typedef struct TEXMOD {
     /* 0x54 */ s32 counter;
 } TEXMOD; /* 0x58 */
 
-/* -- atreeseq: one animation sequence (name + texmod list) -- */
-typedef struct atreeseq {
-    /* 0x00 */ char name[0x08];
+/* -- atreelist (PDB misc.h, 0x18): the per-model atree/texmod/psys table.
+ *    DoTexMods/FindTexMod/InitTexMods take one of these, not a sequence:
+ *    the target reads the count as a word at +0x08 and the list pointer at
+ *    +0x0C (80010A70/80010A90, 80010ADC/80010B18, 80010B80/80010B98). -- */
+typedef struct atreelist {
+    /* 0x00 */ s16 natrees;
+    /* 0x02 */ s16 version;
+    /* 0x04 */ void* atreeinfo;
     /* 0x08 */ s32 ntexmods;
     /* 0x0C */ TEXMOD* texmods;
-    /* 0x10 */ u8 _pad[0x20];
-} atreeseq; /* 0x30 */
+    /* 0x10 */ s32 npsys;
+    /* 0x14 */ void* psys;
+} atreelist; /* 0x18 */
 
 /* -- anodeinfo: per-node name/description table entry -- */
 typedef struct anodeinfo {
@@ -69,14 +75,21 @@ typedef struct animdata {
     /* 0x70 */ u8 _pad70[0x30];
 } animdata; /* 0xA0 */
 
-typedef struct animseqdesc {
-    /* 0x00 */ u8 _pad00[0x24];
-    /* 0x24 */ s16 wraps;
-    /* 0x26 */ u8 _pad26[2];
+/* -- atreeseq (PDB misc.h Id=3262, 0x30): one animation sequence.  Reached
+ *    as animinfo.seqheader[n] and as animheader.seqs[n]; the strcmp key at
+ *    +0x00 (80010D44, 80010DB4) is the name, and the animate path reads
+ *    repeat @0x24, fixpos @0x26, ntexmods @0x28, flags @0x2A as signed
+ *    halfwords with texmods @0x2C. -- */
+typedef struct atreeseq {
+    /* 0x00 */ char name[0x20];
+    /* 0x20 */ s16 numframes;
+    /* 0x22 */ s16 framerate;
+    /* 0x24 */ s16 repeat;
+    /* 0x26 */ s16 fixpos;
     /* 0x28 */ s16 ntexmods;
     /* 0x2A */ s16 flags;
     /* 0x2C */ TEXMOD* texmods;
-} animseqdesc; /* 0x30 */
+} atreeseq; /* 0x30 */
 
 /* -- animheader: sequence-name table header (AtreeHeaderFindSeq) -- */
 typedef struct animheader {
@@ -210,7 +223,7 @@ extern u32 gErrorCode;
 
 /* ---------------- texmod ops ---------------- */
 
-void DoTexMods(atreeseq* seq)
+void DoTexMods(atreelist* seq)
 {
     int i;
     TEXMOD* tm;
@@ -225,7 +238,7 @@ void DoTexMods(atreeseq* seq)
     }
 }
 
-s32 FindTexMod(atreeseq* seq, char* name, TEXMOD** out)
+s32 FindTexMod(atreelist* seq, char* name, TEXMOD** out)
 {
     int i;
     TEXMOD* tm;
@@ -247,7 +260,7 @@ s32 FindTexMod(atreeseq* seq, char* name, TEXMOD** out)
     return 0;
 }
 
-void InitTexMods(atreeseq* seq, int texidx)
+void InitTexMods(atreelist* seq, int texidx)
 {
     int i;
     TEXMOD* tm;
@@ -317,7 +330,7 @@ s32 AtreeHeaderFindSeq(animheader* hdr, char* name)
 
     seqs = hdr->seqs;
     for (i = 0; i < hdr->numseqs; i++) {
-        if (strcmp((char*)seqs + i * 0x30, name) == 0) {
+        if (strcmp(seqs[i].name, name) == 0) {
             return i;
         }
     }
@@ -331,9 +344,9 @@ s32 AtreeFindSeq(atree* tree, char* name)
     atreeseq* seqs;
 
     ai = &tree->animinfo;
-    seqs = (atreeseq*)ai->seqheader;
+    seqs = ai->seqheader;
     for (i = 0; i < ai->numseqs; i++) {
-        if (strcmp((char*)seqs + i * 0x30, name) == 0) {
+        if (strcmp(seqs[i].name, name) == 0) {
             return i;
         }
     }
@@ -463,14 +476,14 @@ static inline void AnimFixPos(anode* root, animinfo* info)
         for (i = 0; i < (seq)->ntexmods; i++) {                             \
             texmod = &(seq)->texmods[i];                                    \
             period = texmod->frames * texmod->rate;                         \
-            if ((frame) > period && (seq)->wraps != 0 && period > 1) {      \
+            if ((frame) > period && (seq)->repeat != 0 && period > 1) {      \
                 (frame) %= period;                                          \
             }                                                               \
             DoTexModSeqSub((context), texmod, (frame));                     \
         }                                                                   \
     }
 
-static inline void DoSeqTexMods(void* context, s32 frame, animseqdesc* seq)
+static inline void DoSeqTexMods(void* context, s32 frame, atreeseq* seq)
 {
     s32 i;
     s32 offset;
@@ -482,7 +495,7 @@ static inline void DoSeqTexMods(void* context, s32 frame, animseqdesc* seq)
     while (i < seq->ntexmods) {
         texmod = (TEXMOD*)((u8*)seq->texmods + offset);
         period = texmod->frames * texmod->rate;
-        if (frame > period && seq->wraps != 0 && period > 1) {
+        if (frame > period && seq->repeat != 0 && period > 1) {
             frame %= period;
         }
         DoTexModSeqSub(context, texmod, frame);
@@ -497,7 +510,7 @@ s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
 {
     animinfo* info;
     anode* root;
-    animseqdesc* seq;
+    atreeseq* seq;
     s32 result;
 
     root = tree->root;
@@ -506,7 +519,7 @@ s32 DoAnimateTreeFrame(atree* tree, s32 sequence, s32 frame, s32 recurse)
     if (recurse > 0) {
         if (info->seqheader != NULL) {
             void* obj = root->obj;
-            seq = &((animseqdesc*)info->seqheader)[sequence];
+            seq = &info->seqheader[sequence];
             DoSeqTexModsInPlace(obj, frame, seq);
         }
         AnimateNode(root, info, recurse);
@@ -543,9 +556,9 @@ s32 DoAnimateTree(f32 time, atree* tree, s32 sequence, s32 first, s32 last,
     }
 
     if (recurse > 0 && info->seqheader != NULL) {
-        animseqdesc* seq;
+        atreeseq* seq;
 
-        seq = &((animseqdesc*)info->seqheader)[info->animseq];
+        seq = &info->seqheader[info->animseq];
         if ((seq->flags & 1) != 0) {
             frame = info->numframes -
                     (s32)(sAtreeFrameRoundBias + info->frame) - 1;
@@ -563,9 +576,9 @@ void AnimateNode(anode* node, animinfo* info, s32 recurse)
 {
     s32 frame;
     u32 flags;
-    animseqdesc* seq;
+    atreeseq* seq;
 
-    seq = &((animseqdesc*)info->seqheader)[info->animseq];
+    seq = &info->seqheader[info->animseq];
     if ((seq->flags & 1) != 0) {
         frame = info->numframes - (s32)(sAtreeFrameRoundBias + info->frame) - 1;
     } else {
@@ -1196,18 +1209,18 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             blob[0] = (s32)blob + blob[0];
             blob[3] = (s32)blob + blob[3];
 
-            /* sequence table, stride sizeof(animseqdesc). +0x20/+0x22/+0x26
-             * are real fields absorbed into animseqdesc's _pad00/_pad26 -
+            /* sequence table, stride sizeof(atreeseq). +0x20/+0x22/+0x26
+             * are real fields absorbed into atreeseq's _pad00/_pad26 -
              * left as bare offsets, no GC-verified name for them yet. */
             for (j = 0; j < def->sequenceCount; j++) {
-                u8* seq = (u8*)(blob[0] + j * sizeof(animseqdesc));
+                u8* seq = (u8*)(blob[0] + j * sizeof(atreeseq));
                 SWAP16(*(u16*)(seq + 0x20));
                 SWAP16(*(u16*)(seq + 0x22));
-                SWAP16(*(u16*)(seq + offsetof(animseqdesc, wraps)));
+                SWAP16(*(u16*)(seq + offsetof(atreeseq, repeat)));
                 SWAP16(*(u16*)(seq + 0x26));
-                SWAP16(*(u16*)(seq + offsetof(animseqdesc, ntexmods)));
-                SWAP16(*(u16*)(seq + offsetof(animseqdesc, flags)));
-                SWAP32(*(u32*)(seq + offsetof(animseqdesc, texmods)));
+                SWAP16(*(u16*)(seq + offsetof(atreeseq, ntexmods)));
+                SWAP16(*(u16*)(seq + offsetof(atreeseq, flags)));
+                SWAP32(*(u32*)(seq + offsetof(atreeseq, texmods)));
             }
 
             /* node-info table, stride sizeof(AtreeNodeDef) */
@@ -1246,8 +1259,8 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                 s32 sbase = blob[0];
                 for (j = 0; j < nseqs; j++) {
                     s32* ptexmods =
-                        (s32*)(sbase + seqoff + offsetof(animseqdesc, texmods));
-                    seqoff += sizeof(animseqdesc);
+                        (s32*)(sbase + seqoff + offsetof(atreeseq, texmods));
+                    seqoff += sizeof(atreeseq);
                     *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
                 }
             }
