@@ -21,6 +21,8 @@
 #include "game/player.h"
 #include "game/worldinfo.h"
 #include "game/leveldata.h"
+#include "game/item.h"
+#include "game/plyrdata.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -241,7 +243,6 @@ s32 start_magic();
  * retain the original vararg/floating-register call contracts. */
 extern void damage_enemy();
 extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
-extern void AddItem();
 extern s32 StartFXTree();
 extern void SfxSetDamage();
 extern void SfxSetHit();
@@ -266,7 +267,7 @@ extern char lbl_80111E28[];
 extern s32 optionsAudioAndPrefs30[8];
 extern s32 WeaponStreakTex;
 extern u32 lbl_8011A178[], lbl_8011A188[];
-extern void* lbl_80282930[];
+extern plyr_data* lbl_80282930[];
 void SfxSetPhysics();
 void SfxSetStreak();
 
@@ -2245,16 +2246,9 @@ f32 get_pitch(f32* a, f32* b)
 
 extern f32 lbl_8023F8C4[], lbl_8023F8B8[];
 extern s32 gGameMode, lbl_80344824, lbl_80344414;
-typedef struct CombatItem {
-    void* info;
-    u8 pad04[0x40];
-    f32 attn_pos[3];
-    u8 pad50[0x76];
-    s16 activetime;
-    u8 padC8[0x14];
-    u8 data[0x14];
-} CombatItem;
-extern CombatItem* sItems;
+/* This TU's former file-local `CombatItem` was a partial view of the shipped
+ * Item (game/item.h): info@0x00, attn_pos@0x44 == objgrp.attn_pos,
+ * activetime@0xC6 and data@0xDC all line up, so the real type is used. */
 extern f64 lbl_803461F0;
 
 void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
@@ -2334,15 +2328,15 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             cam->unvib = 0;
         }
         if (cam->unvib >= 0xB4 && lbl_80344960 >= 0) {
-            CombatItem* item;
+            Item* item;
             out[0] = *(f32*)(*(u8**)(*(u8**)((item =
-                sItems + lbl_80344960)->data) +
+                sItems + lbl_80344960)->data.raw) +
                 0x28) + 0x30);
             out[1] = *(f32*)(*(u8**)(*(u8**)((item =
-                sItems + lbl_80344960)->data) +
+                sItems + lbl_80344960)->data.raw) +
                 0x28) + 0x34);
             out[2] = *(f32*)(*(u8**)(*(u8**)((item =
-                sItems + lbl_80344960)->data) +
+                sItems + lbl_80344960)->data.raw) +
                 0x28) + 0x38);
             cam->attn_dest[0] = out[0];
             cam->attn_dest[1] = out[1];
@@ -3684,7 +3678,7 @@ big:
                            ((Player*)player)->character * 0x1C);
         count[0xC20 / sizeof(s32)] = count[0xC20 / sizeof(s32)] + 1;
     }
-    t = PF(item, offsetof(CombatItem, data), s16);
+    t = *(s16*)((Item*)item)->data.raw;
     if (t == -2) {
         t = 1;
     } else if (t == -3) {
@@ -3699,7 +3693,7 @@ big:
     }
     goto out;
 small:
-    if (((CombatItem*)item)->activetime > 0) {
+    if (((Item*)item)->activetime > 0) {
         goto out;
     }
     switch (info[1]) {
@@ -3708,9 +3702,9 @@ small:
         f32 pos[3];
         f32 vec[3];
         s32 magic = info[0xF];
-        pos[0] = *(f32*)((u8*)item + offsetof(CombatItem, attn_pos[0]));
-        pos[1] = *(f32*)((u8*)item + offsetof(CombatItem, attn_pos[1]));
-        pos[2] = *(f32*)((u8*)item + offsetof(CombatItem, attn_pos[2]));
+        pos[0] = ((Item*)item)->objgrp.attn_pos[0];
+        pos[1] = ((Item*)item)->objgrp.attn_pos[1];
+        pos[2] = ((Item*)item)->objgrp.attn_pos[2];
         vec[0] = ((Player*)player)->col_pos[0];
         vec[1] = ((Player*)player)->col_pos[1];
         vec[2] = ((Player*)player)->col_pos[2];
@@ -4060,7 +4054,7 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
             }
         }
         SfxSetStreak(fx, tex, vibColor, vibIntensity, lbl_80346328,
-            *(f32*)((u8*)lbl_80282930[owner - 1] + 0x17C));
+            lbl_80282930[owner - 1]->streakfwdmul);
     }
     return fx;
 }
@@ -4322,10 +4316,10 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
         MulVecMat3(lbl_8011A1A8, aim, playerView->mat);
     } else {
         if (mode == 1) {
-            MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x5C), aim,
+            MulVecMat3(lbl_80282930[idx]->weapon_offset, aim,
                        playerView->mat);
         } else if (mode == 2) {
-            MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x158), aim,
+            MulVecMat3(lbl_80282930[idx]->turboa_offset, aim,
                        playerView->mat);
         } else {
             aim[0] = lbl_80346328;
