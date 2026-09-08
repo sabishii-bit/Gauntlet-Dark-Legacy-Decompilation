@@ -283,7 +283,9 @@ typedef struct GotIt {
 } GotIt;
 static GotIt got_it[24];           /* 0x694 (0x80275534) */
 
-static f32 death_pos[3];           /* 0x934 (0x802757D4) last death position */
+f32 gDefaultPlayerPosition[3];     /* 0x934 (0x802757D4) last death position;
+                                    * the file-static definition of the symbol
+                                    * seven TUs import (symbols.txt, .bss) */
 
 /* mini-inventory per-player box info (0x802757E0, "tb_info" on Xbox) */
 typedef struct TbInfo {
@@ -2295,7 +2297,7 @@ extern void* FamiliarTree[4][2]; /* level-tier halo atrees */
 extern void* WeapHoldFxTree[4][5];
 extern void* PojoTree;
 extern void* FireShieldTree;
-extern void* lbl_803445B0;
+extern void* PhoenixTree;
 extern void* BreatheFireTree;
 extern void* BreatheAcidTree;
 extern void* BreatheElecTree;
@@ -3174,9 +3176,9 @@ static inline void player_dies(s32 i) {
     }
     if (p->item_body_lo > 0 && sMusicTrackHi != 0xD) {
         CopyMat4(gIdentityMatrix, m);
-        m[12] = death_pos[0];
-        m[13] = death_pos[1];
-        m[14] = death_pos[2];
+        m[12] = gDefaultPlayerPosition[0];
+        m[13] = gDefaultPlayerPosition[1];
+        m[14] = gDefaultPlayerPosition[2];
         CopyMat4(p->mat, m);
         if (gBossType < 0) {
             chest = (s32*)PlaceItem(1, 2,
@@ -3250,9 +3252,9 @@ void inactivate_player(s32 i) {
     setup_player_display(i);
     p->health = 0.0f;
     if (p->node != NULL) {
-        death_pos[0] = p->pos[0];
-        death_pos[1] = p->pos[1];
-        death_pos[2] = p->pos[2];
+        gDefaultPlayerPosition[0] = p->pos[0];
+        gDefaultPlayerPosition[1] = p->pos[1];
+        gDefaultPlayerPosition[2] = p->pos[2];
         player_dies(i);
     }
     setup_player_display(i);
@@ -5436,7 +5438,7 @@ void PlayerProcessPowerups(void* vp) {
     } else if ((p->shield_flags & 0x200000) && p->anim_208 == 22) {
         PLAYER_SET_FAMILIAR(FireShieldTree, p->node);
     } else if (p->flags & 0x80) {
-        PLAYER_SET_FAMILIAR(lbl_803445B0, p->node);
+        PLAYER_SET_FAMILIAR(PhoenixTree, p->node);
     } else if (p->flags & 0x10) {
         PLAYER_SET_FAMILIAR(BreatheFireTree, p->weapon_node);
     } else if (p->flags & 0x20) {
