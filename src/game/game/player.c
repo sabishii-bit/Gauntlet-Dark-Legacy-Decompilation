@@ -132,7 +132,7 @@
  * GetPlayerColPos, PlayerSelecting, new_player, change_player,
  * player_can_be_damaged, all_players_go_to_same_level and every other fn
  * touching gPlayerRecords: the TARGET pools all player-record accesses off
- * potionicon_tab (.bss block base, -0xC40 from the records), so our
+ * lbl_80274EA0 (.bss block base, -0xC40 from the records), so our
  * extern-based displacements differ by construction until the flip-time
  * .bss claim; gPlayerRecords itself must stay extern gPlayers
  * (Matching shopquery pin).  NOT a per-fn matching failure -- do not grind.
@@ -147,7 +147,8 @@
  *
  * gPlayerRecords = gPlayers ([4] x 0x335C player records; stays lbl_ --
  * Matching shopquery.c references it).  HUD .bss layout (PLAYER.OBJ's own):
- *   0x80274EA0 potionicon_tab[5]   potion-type -> texture id
+ *   0x80274EA0 lbl_80274EA0[5]   potion-type -> texture id (the Xbox name
+ *                                potionicon_tab is the char *[5] at 0x8011FCD4)
  *   0x80274EB4 hod_blit[4]         hand-of-death (shards&0x1000) icons
  *   0x80274EC4 quest_blit[4]       QUEST_ICON blits
  *   0x80275394 tbuf[...]           sprintf scratch (tbuf+0xE truncation)
@@ -157,7 +158,7 @@
  *   0x80275940 crystal_blit[4][8]  crystal icons (welcome display)
  *   0x802759C0 rune_blit[4][12]    rune-stone icons
  *   0x80275A80 frame_blit[4][6]    portrait frame set (own symbol frame_blit)
- *   (interior of potionicon_tab / tb_info -- .bss unclaimed, extern here)
+ *   (interior of lbl_80274EA0 / lbl_802757E0 -- .bss unclaimed, extern here)
  *
  * Player-record field offsets confirmed by this slice (extends player.h map):
  *   0x010 respawn char, 0x074 scene node, 0x0DC saved pos[3], 0x10C magic power,
@@ -194,8 +195,8 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define P(i)          (&gPlayerRecords[i])
-#define PT(i)         ((Player*)((u8*)potionicon_tab + (i) * PREC_STRIDE + 0xC40))
-#define PTA(i)        (&((Player*)((u8*)potionicon_tab + 0xC40))[i])
+#define PT(i)         ((Player*)((u8*)lbl_80274EA0 + (i) * PREC_STRIDE + 0xC40))
+#define PTA(i)        (&((Player*)((u8*)lbl_80274EA0 + 0xC40))[i])
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
 
 /* ------------------------------------------------------------------ */
@@ -204,15 +205,15 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 
 /*
  * This TU's .bss (0x80274EA0..0x80275AE0, 0xC40 bytes).  The target pools
- * every access off the FIRST symbol (potionicon_tab @0x80274EA0) with folded
+ * every access off the FIRST symbol (lbl_80274EA0 @0x80274EA0) with folded
  * constant deltas (sibling-symbol pooling law), so the arrays are DEFINED
  * here with the exact layout; the DOL-splitter names for the block are
- * potionicon_tab / player_multiple_models / lbl_80275534 / gDefaultPlayerPosition / tb_info /
+ * lbl_80274EA0 / player_multiple_models / lbl_80275534 / gDefaultPlayerPosition / lbl_802757E0 /
  * frame_blit.  pad_* regions belong to PLAYER fns beyond this slice
- * (mini-inventory tables, got_it state, tb_info) -- refine when wired.
+ * (mini-inventory tables, got_it state, lbl_802757E0) -- refine when wired.
  * NonMatching TU: these never link; the DOL keeps the original .bss.
  */
-static void* potionicon_tab[5];    /* 0x000 (0x80274EA0) potion type -> texture */
+static void* lbl_80274EA0[5];    /* 0x000 (0x80274EA0) potion type -> texture */
 static void* hod_blit[4];          /* 0x014 hand-of-death icons */
 static void* quest_blit[4];        /* 0x024 QUEST_ICON blits */
 static u8 hud_pad_034[0x4C0];      /* 0x034 (0x80274ED4, unmapped scratch) */
@@ -287,7 +288,9 @@ f32 gDefaultPlayerPosition[3];     /* 0x934 (0x802757D4) last death position;
                                     * the file-static definition of the symbol
                                     * seven TUs import (symbols.txt, .bss) */
 
-/* mini-inventory per-player box info (0x802757E0, "tb_info" on Xbox) */
+/* mini-inventory per-player box info at 0x802757E0.  The Xbox name tb_info
+ * belongs to the 140-byte .data _blit_setup[7] at 0x8011FC48, not here: this
+ * .bss object is 0x2A0 and has no attested name, so it keeps lbl_ADDR. */
 typedef struct TbInfo {
     /* 0x00 */ s32 sel;            /* selected powerup slot, -1 none */
     /* 0x04 */ s32 state;          /* 0 closed, 1 open, 2 sliding in, 3 out */
@@ -300,7 +303,7 @@ typedef struct TbInfo {
     /* 0x20 */ s32 tex2;           /* 0xF9F2 */
     /* 0x24 */ char* label;        /* current powerup label */
 } TbInfo;
-static TbInfo tb_info[4];          /* 0x940 (0x802757E0) */
+static TbInfo lbl_802757E0[4];          /* 0x940 (0x802757E0) */
 
 static void* rune13_blit[4];       /* 0x9E0 (0x80275880) 13th-rune icons */
 static void* pm_blit[4][7];        /* 0x9F0 (0x80275890) power-meter septet */
@@ -320,22 +323,22 @@ extern u16 lbl_80120240[];   /* per-player HUD right x (drawn as -x) */
 extern u32 lbl_801201C8[];   /* class colors */
 extern u32 lbl_801201D8[];   /* class colors (in-game set) */
 extern u32 lbl_801201E8[];   /* class colors (dim set) */
-extern s32 lbl_8011FC48[];   /* +8 pm bar x/y/h, +0x1C pm frame x/y/h, +0x78 frames */
+extern s32 tb_info[];   /* +8 pm bar x/y/h, +0x1C pm frame x/y/h, +0x78 frames */
 extern s32 lbl_80126C68[];   /* action-init bank table (InitActions 3rd arg) */
 /* The HUD name/flag tables (0x801200B0..0x80120598) sit inside the
- * lbl_8011FC48 .data blob; the original code addressed them off the blob
+ * tb_info .data blob; the original code addressed them off the blob
  * base with folded byte offsets (target asm: 1128/1212/1276/1340/2384). */
-#define HUDTAB(off, T)  ((T*)((u8*)lbl_8011FC48 + (off)))
+#define HUDTAB(off, T)  ((T*)((u8*)tb_info + (off)))
 extern f32 lbl_80127D00[];   /* zero vec */
 extern f32 gIdentityMatrix[];   /* identity matrix */
 
-#define pm_bar_x    (lbl_8011FC48[2])
-#define pm_bar_y    (lbl_8011FC48[3])
-#define pm_bar_z    (lbl_8011FC48[4])
-#define pm_frame_x  (lbl_8011FC48[7])
-#define pm_frame_y  (lbl_8011FC48[8])
-#define pm_frame_z  (lbl_8011FC48[9])
-#define pm_frames   (lbl_8011FC48[30])
+#define pm_bar_x    (tb_info[2])
+#define pm_bar_y    (tb_info[3])
+#define pm_bar_z    (tb_info[4])
+#define pm_frame_x  (tb_info[7])
+#define pm_frame_y  (tb_info[8])
+#define pm_frame_z  (tb_info[9])
+#define pm_frames   (tb_info[30])
 
 /* effects (sfx TU) */
 extern u8 lbl_80285BCC[]; /* gEffects[]: stride 0xF0, +0 node ptr */
@@ -839,7 +842,7 @@ void ShowRuneStones(void) {
         for (i = 0; i < 4; i++) {
             s16 hud_flags2;
 
-            p = (u8*)potionicon_tab + i * PREC_STRIDE;
+            p = (u8*)lbl_80274EA0 + i * PREC_STRIDE;
             hud_flags2 = *(s16*)(p + 5542);
             state = *(s32*)(p + 3368);
             p += 3136;
@@ -895,7 +898,7 @@ void ShowRuneStones(void) {
 /* Name/level/health/keys/potions writer for one player's HUD row. */
 static void write_health_and_items(s32 i) {
     Player* p;
-    u8* tab = (u8*)lbl_8011FC48;
+    u8* tab = (u8*)tb_info;
     s32 hidden;
     s32 show_gold;
     s32 j;
@@ -996,7 +999,7 @@ static void write_health_and_items(s32 i) {
             DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x1A, 0x147, 4, rgb, buf2);
         }
         if (p->item_body_hi > 0) {
-            blit = MBNewTempBlit(potionicon_tab[PF(p, 0x32FC + p->item_body_hi * 4, s32)],
+            blit = MBNewTempBlit(lbl_80274EA0[PF(p, 0x32FC + p->item_body_hi * 4, s32)],
                                  ((u16*)(tab + 1520))[i] + 0x66, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_hi);
@@ -1066,7 +1069,7 @@ static void debug_player_pos(s32 i) {
     s32 oldflags;
 
     fmt = (char*)lbl_80113AE0;
-    base = (u8*)potionicon_tab;
+    base = (u8*)lbl_80274EA0;
     p = (Player*)((u8*)(p = (Player*)(base + i * 0x335C)) + 0xC40);
     name = fmt + 908;
     if (gGameMode == MG_PLAY) {
@@ -1127,7 +1130,7 @@ static void write_gold(s32 i, s32 show) {
 /* Turbo/power meter: bar scale + color, charge flash, drain flash. */
 static void draw_power_meter(s32 i) {
     Player* p = PT(i);
-    s32* table = lbl_8011FC48;
+    s32* table = tb_info;
     s32 j;
     s32 zone0;
     s32 zone;
@@ -1722,7 +1725,7 @@ s32 do_players(void) {
         for (i = 0, p = PT(0); i < 4; i++, p++) {
             if (p->state != 0) {
                 s32 sel;
-                u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
+                u8* prec = (u8*)lbl_80274EA0 + i * PREC_STRIDE;
 
                 if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
                     sel = 1;
@@ -1846,7 +1849,7 @@ s32 do_players(void) {
             continue;
         }
         {
-            u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
+            u8* prec = (u8*)lbl_80274EA0 + i * PREC_STRIDE;
 
             if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
                 selected = 1;
@@ -2180,7 +2183,7 @@ s32 do_players(void) {
     j = firstgetidx++ % 4;
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
-        u8* krec = (u8*)potionicon_tab + k * PREC_STRIDE;
+        u8* krec = (u8*)lbl_80274EA0 + k * PREC_STRIDE;
         Player* speaker = (Player*)(krec + 0xC40);
 
         if (PF(krec, 0xC40 + offsetof(Player, speech_req), s32*) != NULL) {
@@ -2201,7 +2204,7 @@ s32 do_players(void) {
         }
     }
     if (i < 4 && gGameMode != MG_SHOP) {
-        u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
+        u8* prec = (u8*)lbl_80274EA0 + i * PREC_STRIDE;
 
         fn_8009D610(0, ((Player*)(prec + 0xC40))->col_pos);
     } else {
@@ -2347,7 +2350,7 @@ typedef struct PupCheat {
 extern PupCheat Cheats[27];
 
 /* mini-inventory label table (0x8011FCE8, stride 0xC) */
-extern s32 lbl_8011FCE8[];    /* [i*3+0] type, [i*3+1] mask, [i*3+2] name ptr */
+extern s32 mini_inv_items[];    /* [i*3+0] type, [i*3+1] mask, [i*3+2] name ptr */
 
 extern char* lbl_80120104[];  /* per-pad player color names */
 extern char* lbl_801200F4[];  /* per-pad color dir names */
@@ -2385,7 +2388,7 @@ extern char lbl_80347A78;
 extern char lbl_80347A80;
 extern char lbl_801205D8[][4];  /* rune world tags (4) */
 extern char lbl_801205F8[][4];  /* crystal color tags (8) */
-extern char* lbl_8011FCD4[];  /* POTION_ICON_* names (5) */
+extern char* potionicon_tab[];  /* POTION_ICON_* names (5) */
 
 /* extern functions (back slice) */
 extern int rand(void);
@@ -3285,7 +3288,7 @@ void abort_player(s32 i) {
 
 /* Collision-probe position (offset 0x64).                             */
 void GetPlayerColPos(s32 i, f32* out) {
-    u8* p = (u8*)potionicon_tab + i * PREC_STRIDE;
+    u8* p = (u8*)lbl_80274EA0 + i * PREC_STRIDE;
 
     out[0] = *(f32*)(p + 0xCA4);
     out[1] = *(f32*)(p + 0xCA8);
@@ -3294,7 +3297,7 @@ void GetPlayerColPos(s32 i, f32* out) {
 
 /* World position (offset 0x44).                                       */
 void GetPlayerPos(s32 i, f32* out) {
-    u8* p = (u8*)potionicon_tab + i * PREC_STRIDE;
+    u8* p = (u8*)lbl_80274EA0 + i * PREC_STRIDE;
 
     out[0] = *(f32*)(p + 0xC84);
     out[1] = *(f32*)(p + 0xC88);
@@ -3517,7 +3520,7 @@ void clear_player(s32 i, s32 full) {
 
 /* Take player i live into the world (post-select).                    */
 s32 activate_player(s32 i) {
-    u8* tab = (u8*)potionicon_tab;
+    u8* tab = (u8*)lbl_80274EA0;
     s32 off = i * PREC_STRIDE;
     Player* p;
     s32 j;
@@ -4067,8 +4070,8 @@ void load_player_geo(s32 i, void* vp) {
     char name[20];
     u8 unused[12];
     u8* rodata = lbl_80113AE0;
-    u8* tab = (u8*)lbl_8011FC48;
-    PlayerGeoBssView* geoBss = (PlayerGeoBssView*)potionicon_tab;
+    u8* tab = (u8*)tb_info;
+    PlayerGeoBssView* geoBss = (PlayerGeoBssView*)lbl_80274EA0;
     char* c;
     s32* nd;
     s32 class_idx;
@@ -4259,7 +4262,7 @@ model_ready:
 s32 set_hidden_player(void* vp) {
     Player* p = vp;
     u8* rodata = lbl_80113AE0;
-    u8* data = (u8*)lbl_8011FC48;
+    u8* data = (u8*)tb_info;
     char* access_options[2];
     char* access_one[1];
     char* fly_options[2];
@@ -4568,7 +4571,7 @@ s32 set_hidden_player(void* vp) {
 #pragma opt_common_subs off
 s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     Player* p = vp;
-    u8* pot = (u8*) potionicon_tab;
+    u8* pot = (u8*) lbl_80274EA0;
     Player* record;
     s32* sfx_arena;
     char** sfx_buf;
@@ -4621,8 +4624,8 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     s32 ct;
     s32 ct8;
     u8* fmt = (u8*) lbl_80113AE0;
-    u8* tab = (u8*) lbl_8011FC48;
-    u8* pot = (u8*) potionicon_tab;
+    u8* tab = (u8*) tb_info;
+    u8* pot = (u8*) lbl_80274EA0;
     u32 arena;
 
     q = (u8*) vp;
@@ -4732,16 +4735,16 @@ void init_players(void) {
     alpha = 0;
     key_blit_idx = (s32)MBOX_FindTexture("KEY_ICON", NULL);
     for (j = 0; j < 5; j++) {
-        tex = (u32)MBOX_FindTexture(lbl_8011FCD4[j], NULL);
-        potionicon_tab[j] = (void*)tex;
+        tex = (u32)MBOX_FindTexture(potionicon_tab[j], NULL);
+        lbl_80274EA0[j] = (void*)tex;
     }
 }
 
 /* Create every per-player HUD blit set (portrait frames, runes,       */
-/* crystals, keys, power meter, rune13, HOD, quest, tb_info).          */
+/* crystals, keys, power meter, rune13, HOD, quest, lbl_802757E0).          */
 static void create_player_blits(s32 i) {
     Player* player;
-    u8* tab = (u8*)lbl_8011FC48;
+    u8* tab = (u8*)tb_info;
     u16* lx = (u16*)(tab + i * 2);
     u16* rx;
     u32 tex;
@@ -4796,16 +4799,16 @@ static void create_player_blits(s32 i) {
     player = PT(i);
     player->meter_flash = 0;
     rx = &lbl_80120240[i];
-    tb_info[i].sel = -1;
-    tb_info[i].slide = -1;
-    tb_info[i].state = 0;
-    tb_info[i].x_right = *rx - 0x34;
-    tb_info[i].y_top = 0x14F;
-    tb_info[i].x_left = *rx - 0x40;
-    tb_info[i].y_box = 0x143;
-    tb_info[i].tex1 = 0xF9F1;
-    tb_info[i].tex2 = 0xF9F2;
-    tb_info[i].label = NULL;
+    lbl_802757E0[i].sel = -1;
+    lbl_802757E0[i].slide = -1;
+    lbl_802757E0[i].state = 0;
+    lbl_802757E0[i].x_right = *rx - 0x34;
+    lbl_802757E0[i].y_top = 0x14F;
+    lbl_802757E0[i].x_left = *rx - 0x40;
+    lbl_802757E0[i].y_box = 0x143;
+    lbl_802757E0[i].tex1 = 0xF9F1;
+    lbl_802757E0[i].tex2 = 0xF9F2;
+    lbl_802757E0[i].label = NULL;
     rune13_blit[i] = MBCreateBlit(0, 0, *rx - 0xE, -0x143, -1, -1);
     tex = (u32)MBOX_FindTexture_Err("BTMBK_LEVL", NULL, 1);
     mbInitBlitEntry(rune13_blit[i], tex, 0);
@@ -6509,7 +6512,7 @@ void UpdatePlayerWorldMat(void* vp, s32 anchor) {
 /* Pad-driven mini-inventory: cycle selection, use, open/close.        */
 void mini_inventory_update(s32 i) {
     s32* label_table;
-    u8* base = (u8*)potionicon_tab;
+    u8* base = (u8*)lbl_80274EA0;
     Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
     s32 tb_offset;
     TbInfo* tb;
@@ -6524,7 +6527,7 @@ void mini_inventory_update(s32 i) {
     s32 state;
     u8 unused[32];
 
-    label_table = lbl_8011FC48;
+    label_table = tb_info;
     if (gGameMode != MG_PLAY || gGameBusy != 0) {
         return;
     }
@@ -6663,14 +6666,14 @@ void mini_inventory_draw_label(s32 i) {
     s32 x;
     s32 y;
 
-    tb = (TbInfo*) ((u8*) potionicon_tab + i * 40 + 2368);
-    if ((label = *(char**) ((u8*) potionicon_tab + i * 40 + 2404)) == NULL) {
+    tb = (TbInfo*) ((u8*) lbl_80274EA0 + i * 40 + 2368);
+    if ((label = *(char**) ((u8*) lbl_80274EA0 + i * 40 + 2404)) == NULL) {
         return;
     }
-    st = *(u8*) ((u8*) potionicon_tab + i * 13148 + tb->sel + 3616);
-    y = *(s32*) ((u8*) potionicon_tab + i * 40 + 2388) - 25;
+    st = *(u8*) ((u8*) lbl_80274EA0 + i * 13148 + tb->sel + 3616);
+    y = *(s32*) ((u8*) lbl_80274EA0 + i * 40 + 2388) - 25;
     y += 128 - tb->slide;
-    x = *(s32*) ((u8*) potionicon_tab + i * 40 + 2380) + 12;
+    x = *(s32*) ((u8*) lbl_80274EA0 + i * 40 + 2380) + 12;
     switch (st) {
     case 1:
     case 3:
@@ -6690,7 +6693,7 @@ s32 mini_inventory_find_previous_selectable_item(s32 i) {
     Player* p;
     s32 n;
 
-    current = tb_info[i].sel;
+    current = lbl_802757E0[i].sel;
     p = P(i);
     sel = current;
     n = 0;
@@ -6726,7 +6729,7 @@ s32 mini_inventory_find_next_selectable_item(s32 i) {
     s32 n;
     s32 sel;
 
-    sel = tb_info[i].sel;
+    sel = lbl_802757E0[i].sel;
     p = P(i);
     sel++;
     n = 0;
