@@ -114,6 +114,12 @@ void MBUnlockMessages(int a);
 void MBBlitSetColor(void* blit, int a);
 
 /* ---- data: in-memory directory + options ----------------------------- */
+/* ---- save-cache geometry (see the lane note for the proving uses) ---- */
+#define SAVE_CACHE_SIZE 0x310000   /* bytes; the `aramSize`/`transferSize` arg */
+#define ARAM_SAVE_CACHE_A 0x9E0000 /* first ARAM block  */
+#define ARAM_SAVE_CACHE_B 0xCF0000 /* second, immediately after A */
+#define SAVE_MAGIC_OKAY 0x4F4B4159 /* "OKAY" stamp in SaveRecord.okay */
+
 typedef struct GameOpts {
     u32 data[8];                   /* 32-byte options block; [2] = stereo   */
 } GameOpts;
@@ -305,7 +311,7 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        restoreSaveCache(0x310000);
+        restoreSaveCache(SAVE_CACHE_SIZE);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -314,7 +320,7 @@ int add_vmu_file(int a, int b, int c, const char* name, u32 v0, u32 v1)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        restoreSaveCache(0x310000);
+        restoreSaveCache(SAVE_CACHE_SIZE);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -396,7 +402,7 @@ int get_vmu_directory(int a, int b)
         cardWaitResult();
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
-        restoreSaveCache(0x310000);
+        restoreSaveCache(SAVE_CACHE_SIZE);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -534,7 +540,7 @@ int saveLoad(int port, int slot, int fileNo, void* dst)
         register u32 aramSize;
 
         aramTop = (u8*) GetHiMemCacheTop();
-        dcsAramReadTop((void*)((u32)aramTop - 0x310000), (aramSize = 0x310000));
+        dcsAramReadTop((void*)((u32)aramTop - SAVE_CACHE_SIZE), (aramSize = SAVE_CACHE_SIZE));
     }
     sysClearFlags(64);
     bulletproof_printf(MEMCARD_STRING_POOL);
@@ -587,7 +593,7 @@ int saveSave(int port, int slot, int fileNo, void* src)
         register u32 aramSize;
 
         aramTop = (u8*) GetHiMemCacheTop();
-        dcsAramReadTop((void*)((u32)aramTop - 0x310000), (aramSize = 0x310000));
+        dcsAramReadTop((void*)((u32)aramTop - SAVE_CACHE_SIZE), (aramSize = SAVE_CACHE_SIZE));
     }
     sysClearFlags(64);
     bulletproof_printf(MEMCARD_STRING_POOL);
@@ -647,7 +653,7 @@ void check_prefs_loaded(void)
     cardWaitResult();
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
-    restoreSaveCache(0x310000);
+    restoreSaveCache(SAVE_CACHE_SIZE);
     sysClearFlags(64);
     st = lbl_801131C0;
     bulletproof_printf(st);
@@ -736,7 +742,7 @@ int MemCardCreateGaunt(int port, int slot)
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
     base = (u8*) GetHiMemCacheTop();
-    dcsAramReadTop((void*)((u32)base - 0x310000), (transferSize = 0x310000));
+    dcsAramReadTop((void*)((u32)base - SAVE_CACHE_SIZE), (transferSize = SAVE_CACHE_SIZE));
     sysClearFlags(64);
     bulletproof_printf(lbl_801131C0);
     lbl_803449EC = 0;
@@ -810,11 +816,11 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
         }
     } while (retry);
 
-    aramSize = 0x310000;
+    aramSize = SAVE_CACHE_SIZE;
     sysSetFlags(64);
     top = (u8*) GetHiMemCacheTop();
-    dcsAramWriteTop(top - 0x310000, aramSize);
-    lbl_80344A0C = OSCreateHeap((void*) (lo = (u32) top - 0x310000), (void*) (lo + aramSize));
+    dcsAramWriteTop(top - SAVE_CACHE_SIZE, aramSize);
+    lbl_80344A0C = OSCreateHeap((void*) (lo = (u32) top - SAVE_CACHE_SIZE), (void*) (lo + aramSize));
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
     lbl_803449FC = (u8*) OSAllocFromHeap(__OSCurrHeap, 0x10000 - 24576);
@@ -894,7 +900,7 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
     top = (u8*) GetHiMemCacheTop();
-    dcsAramReadTop((void*)((u32)top - 0x310000), (transferSize = 0x310000));
+    dcsAramReadTop((void*)((u32)top - SAVE_CACHE_SIZE), (transferSize = SAVE_CACHE_SIZE));
     sysClearFlags(64);
     lbl_80343C78 |= 0xFFFFFFFF;
 
@@ -952,7 +958,7 @@ int InitPreferences(void)
         OSSetCurrentHeap(lbl_80344A08);
         OSDestroyHeap(lbl_80344A0C);
         aramTop = (u8*)GetHiMemCacheTop();
-        dcsAramReadTop(aramTop - 0x310000, aramSize = 0x310000);
+        dcsAramReadTop(aramTop - SAVE_CACHE_SIZE, aramSize = SAVE_CACHE_SIZE);
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
@@ -998,11 +1004,11 @@ int beginSaveCacheTransaction(void)
     while (FileSystemReading() != 0) {
         serve_busy(-1);
     }
-    size = 0x310000;
+    size = SAVE_CACHE_SIZE;
     sysSetFlags(64);
     buf = (u8*) GetHiMemCacheTop();
-    dcsAramWriteTop(buf - 0x310000, size);
-    lo = buf - 0x310000;
+    dcsAramWriteTop(buf - SAVE_CACHE_SIZE, size);
+    lo = buf - SAVE_CACHE_SIZE;
     lbl_80344A0C = OSCreateHeap(lo, lo + size);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
@@ -1319,7 +1325,7 @@ retry:
                 for (n = bigSize - 23992; n != 0; n--) {
                     sum += *q2++;
                 }
-                if (saved == sum && *(u32*)(q + offsetof(SaveRecord, okay)) == 0x4F4B4159) {
+                if (saved == sum && *(u32*)(q + offsetof(SaveRecord, okay)) == SAVE_MAGIC_OKAY) {
                 } else {
                     saveMenuPrompt(rpool + 736, lbl_80343C68, 1);
                     switch (CARDDelete(0, dpool + 1904)) {
@@ -1470,7 +1476,7 @@ int writeGauntletSave(void)
         TEXGetPalette((int)&lbl_803449E8, rpool + 696);
     }
 
-    okay = 0x4F4B4159;
+    okay = SAVE_MAGIC_OKAY;
     big = 0x10000;
 retry:
     for (i = 0; i < 2; i++) {
@@ -1589,12 +1595,12 @@ u8 vmu_exists(s32 chan, const char* name, s32* fileNoOut)
     s32 found;
 
     found = 0;
-    aramSize = 0x310000;
+    aramSize = SAVE_CACHE_SIZE;
 
     sysSetFlags(64);
     top = (u8*) GetHiMemCacheTop();
-    dcsAramWriteTop(top - 0x310000, aramSize);
-    lo = top - 0x310000;
+    dcsAramWriteTop(top - SAVE_CACHE_SIZE, aramSize);
+    lo = top - SAVE_CACHE_SIZE;
     lbl_80344A0C = OSCreateHeap(lo, lo + aramSize);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
@@ -1653,7 +1659,7 @@ loopEnd:
     OSSetCurrentHeap(lbl_80344A08);
     OSDestroyHeap(lbl_80344A0C);
     top = (u8*) GetHiMemCacheTop();
-    dcsAramReadTop((void*)((u32)top - 0x310000), (transferSize = 0x310000));
+    dcsAramReadTop((void*)((u32)top - SAVE_CACHE_SIZE), (transferSize = SAVE_CACHE_SIZE));
     sysClearFlags(64);
     return (u8)found;
 }
@@ -1675,30 +1681,45 @@ void cardRemovedCallback(int arg)
 }
 
 /*
- * buildSaveImage's scratch header, assembled at pool+0x10000-19388 (108
- * bytes total, matching the whole-struct `memset(..., 0, 108)` at the top
- * of the function).  Field offsets verified against the target's
- * -19388/-19356/-19342/-19340/-19336 literal displacements; the pad
- * regions between them are genuinely unresolved.
+ * buildSaveImage assembles a CARDStat (dolphin/card/CARDStat.h) in scratch at
+ * pool+0x10000-19388.  It is the SDK record exactly: 108 bytes, which is the
+ * whole-struct `memset(..., 0, 108)` at the top of the function, and every
+ * field lands on the target's -19388/-19356/-19342/-19340/-19336 literal
+ * displacements.  Declared locally rather than included because this TU keeps
+ * its own CARD prototypes (CARDGetStatus takes void* here).
  */
-typedef struct SaveImageHeader {
-    char name[32];      /* +0:  save name */
-    s32 imageSize;       /* +32: total built image byte size */
-    u8 pad1[10];          /* +36: unresolved */
-    u8 bannerFmt;          /* +46: banner CI/RGB5A3 format (1=CI,2=RGB5A3); fmtB ORed in */
-    u8 pad2;                /* +47: unresolved */
-    s32 dataOffset;         /* +48: cursor past name+comment (64) */
-    u16 iconFmt;             /* +52: 2 bits/frame icon texture format */
-    u16 iconSpeed;            /* +54: 2 bits/frame icon animation speed */
-    s32 reserved;              /* +56: zeroed, unresolved */
-    u8 pad3[48];                 /* +60..+107 */
-} SaveImageHeader;
+typedef struct CARDStat {
+    char fileName[32];   /* +0x00 */
+    u32 length;          /* +0x20 total built image byte size */
+    u32 time;            /* +0x24 */
+    u8 gameName[4];      /* +0x28 */
+    u8 company[2];       /* +0x2C */
+    u8 bannerFormat;     /* +0x2E CARD_STAT_BANNER_*; fmtB is ORed in */
+    u8 __padding;        /* +0x2F */
+    u32 iconAddr;        /* +0x30 cursor past name+comment (CARD_COMMENT_SIZE) */
+    u16 iconFormat;      /* +0x34 2 bits per frame, CARD_STAT_ICON_* */
+    u16 iconSpeed;       /* +0x36 2 bits per frame */
+    u32 commentAddr;     /* +0x38 */
+    u32 offsetBanner;    /* +0x3C */
+    u32 offsetBannerTlut;/* +0x40 */
+    u32 offsetIcon[8];   /* +0x44 CARD_ICON_MAX frames */
+    u32 offsetIconTlut;  /* +0x64 */
+    u32 offsetData;      /* +0x68 */
+} CARDStat;              /* 0x6C */
+
+#define CARD_COMMENT_SIZE 64
+#define CARD_STAT_ICON_C8 1
+#define CARD_STAT_ICON_RGB5A3 2
+#define CARD_STAT_ICON_MASK 3
+#define CARD_STAT_BANNER_C8 1
+#define CARD_STAT_BANNER_RGB5A3 2
+#define CARD_STAT_BANNER_MASK 3
 
 /* buildSaveImage's `hi`/`sizeHi`/`hi2` locals (and `pool+0x10000` directly)
- * all equal SaveImageHeader's base address PLUS 19388; SIH_OFF folds a
+ * all equal the CARDStat's base address PLUS 19388; SIH_OFF folds a
  * field's negative displacement from that point back to the same literal
  * MWCC already emits (19388 - offsetof == the original bare-hex constant). */
-#define SIH_OFF(field) (19388 - offsetof(SaveImageHeader, field))
+#define SIH_OFF(field) (19388 - offsetof(CARDStat, field))
 
 /* mirrors game/sys/texPalette.c's TEXHeader (format @ +4); TEXGet actually
  * returns a TEXDescriptorPtr {TEXHeaderPtr; CLUTHeaderPtr;}, so `tex[0]` is
@@ -1739,8 +1760,8 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     total = (total + cardGetTotalBytes() - 1) / blockSize;
     bytes = total * cardGetTotalBytes();
     sizeHi = pool + 0x10000;
-    sizePtr = (s32*) (sizeHi - SIH_OFF(imageSize));
-    *(s32*) (sizeHi - SIH_OFF(imageSize)) = bytes;
+    sizePtr = (s32*) (sizeHi - SIH_OFF(length));
+    *(s32*) (sizeHi - SIH_OFF(length)) = bytes;
 
     if (lbl_803449F8 == 0) {
         lbl_803449F8 = (u32) OSAllocFromHeap(__OSCurrHeap, *(u32*) sizePtr);
@@ -1750,14 +1771,14 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     strncpy((char*) (pool + 0x10000 - 19388), name, 32);
     out = (u8*) lbl_803449F8;
     hi = pool + 0x10000;
-    *(s32*) (hi - SIH_OFF(reserved)) = 0;
+    *(s32*) (hi - SIH_OFF(commentAddr)) = 0;
     strncpy((char*) out, (char*) hdr + 6176, 32);
     strncpy((char*) (out + 32), comment, 32);
-    *(s32*) (hi - SIH_OFF(dataOffset)) = (s32) ((out + 64) - (u8*) lbl_803449F8);
+    *(s32*) (hi - SIH_OFF(iconAddr)) = (s32) ((out + CARD_COMMENT_SIZE) - (u8*) lbl_803449F8);
 
     /* banner */
     if ((u32) bannerTex == 0) {
-        *(u8*) (hi - SIH_OFF(bannerFmt)) = 2;
+        *(u8*) (hi - SIH_OFF(bannerFormat)) = CARD_STAT_BANNER_RGB5A3;
         memcpy(out + 64, (u8*) hdr + 32, 6144);
         out += 6208;
     } else {
@@ -1765,15 +1786,16 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
 
         switch (*(s32*) ((u8*) tex[0] + offsetof(TexHeaderView, format))) {
         case 5:
-            *(u8*) (hi - SIH_OFF(bannerFmt)) = 2;
+            *(u8*) (hi - SIH_OFF(bannerFormat)) = CARD_STAT_BANNER_RGB5A3;
             break;
         case 9:
-            *(u8*) (hi - SIH_OFF(bannerFmt)) = 1;
+            *(u8*) (hi - SIH_OFF(bannerFormat)) = CARD_STAT_BANNER_C8;
             break;
         default:
             OSPanic(rpool + 608, 856, rpool + 920);
         }
-        if ((*(u8*) (pool + 0x10000 - SIH_OFF(bannerFmt)) & 3) == 2) {
+        if ((*(u8*) (pool + 0x10000 - SIH_OFF(bannerFormat)) &
+         CARD_STAT_BANNER_MASK) == CARD_STAT_BANNER_RGB5A3) {
             memcpy(out + 64, ((u8**) tex[0])[2], 6144);
             out += 6208;
         } else {
@@ -1786,7 +1808,7 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
     /* icon animation frames */
     if ((u32) iconTex != 0) {
         u8* hi1 = pool + 0x10000;
-        u16* fmtW = (u16*) (hi1 - SIH_OFF(iconFmt));
+        u16* fmtW = (u16*) (hi1 - SIH_OFF(iconFormat));
         u16* animW = (u16*) (hi1 - SIH_OFF(iconSpeed));
         u16* clearAnimW;
         s32 lastFrame;
@@ -1836,14 +1858,15 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
         }
 
         hi2 = pool + 0x10000;
-        *(u8*) (hi2 - SIH_OFF(bannerFmt)) |= fmtB;
+        *(u8*) (hi2 - SIH_OFF(bannerFormat)) |= fmtB;
         lastFrame = -1;
         for (j = 0, bit = 0;
              (u32) j < anim->numFrames && j < 8;
              j++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, j);
 
-            switch ((*(u16*) (hi2 - SIH_OFF(iconFmt)) >> bit) & 3) {
+            switch ((*(u16*) (hi2 - SIH_OFF(iconFormat)) >> bit) &
+                CARD_STAT_ICON_MASK) {
             case 2:
                 memcpy(out, ((u8**) tex[0])[2], 2048);
                 out += 2048;
@@ -1888,7 +1911,7 @@ u8* loadOpeningBanner(void)
  */
 void beginSaveTransaction(void)
 {
-    u32 size = 0x310000;
+    u32 size = SAVE_CACHE_SIZE;
     u32 transferSize;
     u8* buf;
     u8* lo;
@@ -1896,9 +1919,9 @@ void beginSaveTransaction(void)
 
     sysSetFlags(64);
     buf = (u8*) GetHiMemCacheTop();
-    dcsAramWriteTop((void*)((u32)buf - 0x310000),
-                    (transferSize = 0x310000));
-    lo = buf - 0x310000;
+    dcsAramWriteTop((void*)((u32)buf - SAVE_CACHE_SIZE),
+                    (transferSize = SAVE_CACHE_SIZE));
+    lo = buf - SAVE_CACHE_SIZE;
     lbl_80344A0C = OSCreateHeap(lo, lo + size);
     lbl_80344A08 = OSSetCurrentHeap(lbl_80344A0C);
     lbl_80344A00 = (u8*) OSAllocFromHeap(__OSCurrHeap, 8192);
@@ -1952,8 +1975,8 @@ s32 saveMenuPrompt(const char* msg, char** options, s32 count)
     s32 timer = 30;
     u8 had;
 
-    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0x9E0000, 0x310000);
-    dcsAramRead(0xCF0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), ARAM_SAVE_CACHE_A, SAVE_CACHE_SIZE);
+    dcsAramRead(ARAM_SAVE_CACHE_B, (void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), SAVE_CACHE_SIZE);
     had = sysTestFlags(64);
     if (had) {
         sysClearFlags(64);
@@ -1975,36 +1998,36 @@ s32 saveMenuPrompt(const char* msg, char** options, s32 count)
         sysHandleReset();
         if (--timer <= 0) {
             timer = 30;
-            dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0xCF0000, 0x310000);
-            dcsAramRead(0x9E0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+            dcsAramWrite((void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), ARAM_SAVE_CACHE_B, SAVE_CACHE_SIZE);
+            dcsAramRead(ARAM_SAVE_CACHE_A, (void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), SAVE_CACHE_SIZE);
             serve_busy(-1);
-            dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0x9E0000, 0x310000);
-            dcsAramRead(0xCF0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+            dcsAramWrite((void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), ARAM_SAVE_CACHE_A, SAVE_CACHE_SIZE);
+            dcsAramRead(ARAM_SAVE_CACHE_B, (void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), SAVE_CACHE_SIZE);
         }
         if (padButtonReleased(-1, 256) != 0) {
             break;
         }
     }
-    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0xCF0000, 0x310000);
-    dcsAramRead(0x9E0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), ARAM_SAVE_CACHE_B, SAVE_CACHE_SIZE);
+    dcsAramRead(ARAM_SAVE_CACHE_A, (void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), SAVE_CACHE_SIZE);
     if (had) {
         sysSetFlags(64);
     }
     return sel;
 }
 
-/* pageSaveCacheIn - swap the save cache back in (0xCF0000 -> main -> 0x9E0000) */
+/* pageSaveCacheIn - swap the save cache back in (ARAM_SAVE_CACHE_B -> main -> ARAM_SAVE_CACHE_A) */
 void pageSaveCacheIn(void)
 {
-    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0xCF0000, 0x310000);
-    dcsAramRead(0x9E0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), ARAM_SAVE_CACHE_B, SAVE_CACHE_SIZE);
+    dcsAramRead(ARAM_SAVE_CACHE_A, (void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), SAVE_CACHE_SIZE);
 }
 
-/* pageSaveCacheOut - swap the save cache out (0x9E0000 -> main -> 0xCF0000) */
+/* pageSaveCacheOut - swap the save cache out (ARAM_SAVE_CACHE_A -> main -> ARAM_SAVE_CACHE_B) */
 void pageSaveCacheOut(void)
 {
-    dcsAramWrite((void*)(GetHiMemCacheTop() - 0x310000), 0x9E0000, 0x310000);
-    dcsAramRead(0xCF0000, (void*)(GetHiMemCacheTop() - 0x310000), 0x310000);
+    dcsAramWrite((void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), ARAM_SAVE_CACHE_A, SAVE_CACHE_SIZE);
+    dcsAramRead(ARAM_SAVE_CACHE_B, (void*)(GetHiMemCacheTop() - SAVE_CACHE_SIZE), SAVE_CACHE_SIZE);
 }
 
 /*
