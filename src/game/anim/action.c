@@ -109,11 +109,12 @@ s32 e_actpri[33] = {
 s32 DoEnemyAction(void* enemy)
 {
     s32* e = (s32*)enemy;
+    Enemy* en = (Enemy*)enemy;
     f32* ef = (f32*)enemy;
     animinfo* e70 = (animinfo*)((u8*)e + 0x70); /* == &enemy->atree.animinfo: repeat (interruptible
                                  flag) at +0x34, numframes at +0x10 */
     s32* defs = e + 0x35; /* ACTIONDEF[34] at +0xD4 */
-    s32 next = e[0x34];   /* +0xD0 requested action */
+    s32 next = en->daction;   /* +0xD0 requested action */
     s32* node;            /* atree node at +0x6C */
     s32 act;
     s32 cur;
@@ -125,7 +126,7 @@ s32 DoEnemyAction(void* enemy)
     s32 type;
 
     node = e + 0x1B;
-    cur = e[0x33];        /* +0xCC current action */
+    cur = en->action;        /* +0xCC current action */
     act = next;
     if (act >= E_HIT_REACT1) {
         sw = E_READY;
@@ -321,7 +322,7 @@ s32 DoEnemyAction(void* enemy)
         }
         break;
     case E_ATTACK4_R:
-        if (next == E_READY && e[0xA1] >= 0) {
+        if (next == E_READY && en->coll_pnum >= 0) {
             act = E_ATTACK;
         }
         break;
@@ -335,7 +336,7 @@ s32 DoEnemyAction(void* enemy)
         }
         break;
     case E_ATTACK5_R:
-        if (next == E_READY && e[0xA1] >= 0) {
+        if (next == E_READY && en->coll_pnum >= 0) {
             act = E_ATTACK;
         }
         break;
@@ -464,23 +465,23 @@ s32 DoEnemyAction(void* enemy)
         case E_ATTACK4:
         case E_ATTACK5:
             if (act == E_ATTACK_R || act == E_ATTACK2_R || act == E_ATTACK4_R || act == E_ATTACK5_R) {
-                e[0xB4] |= 1;
+                en->attack_flag |= 1;
             }
             break;
         case E_ATTACK_PWR:
             if (act == E_ATTACK_PWR_R) {
-                e[0xB4] |= 2;
+                en->attack_flag |= 2;
             }
             break;
         case E_THROW:
         case E_THROW2:
             if (act == E_THROW_FINISH) {
-                e[0xB4] |= 0x10;
+                en->attack_flag |= 0x10;
             }
             break;
         case E_RUNATTACK:
             if (act == E_RUNATTACK2) {
-                e[0xB4] |= 0x10;
+                en->attack_flag |= 0x10;
             }
             break;
         }
@@ -515,19 +516,19 @@ s32 DoEnemyAction(void* enemy)
         f32 accum = 0.0f;
 
         if (act >= E_THROW && act <= E_THROW_FINISH) {
-            dur = ef[0xDE] * gCurLevel->ene_mrate + ef[0xE0];
+            dur = en->idle_time * gCurLevel->ene_mrate + en->idle_frac;
         }
         if (dur > 0.0) {
             while (dur > 1.0) {
                 accum += 1.0;
                 dur = (f32)(dur - 1.0);
             }
-            ef[0xE0] = dur;
-            ef[0xDF] = accum;
-            if (ef[0xDF] >= 1.0) {
-                ef[0xDF] = (f32)(0.0333333333 *
+            en->idle_frac = dur;
+            en->idle_secs = accum;
+            if (en->idle_secs >= 1.0) {
+                en->idle_secs = (f32)(0.0333333333 *
                                  (s32)e70->numframes +
-                                 ef[0xDF]);
+                                 en->idle_secs);
             }
         }
         return act;
