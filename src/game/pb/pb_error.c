@@ -155,7 +155,6 @@ void fn_800C13CC(void)
     u32 pixels[1024];
     u32 zero;
     u8 image[164];
-    s32 off;
     u32 i;
 
     for (zero = 0; zero < 1024; zero++) {
@@ -164,9 +163,8 @@ void fn_800C13CC(void)
     FlushCache(0);
 
     i = 0;
-    off = 0;
     do {
-        sceGsSetDefLoadImage(image, (s16)off, 4, 0, 0, 0, 32, 32);
+        sceGsSetDefLoadImage(image, (s16)(i * 16), 4, 0, 0, 0, 32, 32);
         if (lbl_80343EE8 != 0) {
             FlushCache(0);
         }
@@ -175,7 +173,6 @@ void fn_800C13CC(void)
             fn_800C1148(0, 0, lbl_801164C0);
         }
         i++;
-        off += 16;
     } while (i < 4096);
 }
 
