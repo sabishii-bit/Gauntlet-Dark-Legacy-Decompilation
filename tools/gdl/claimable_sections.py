@@ -1050,6 +1050,59 @@ def elect_base(scored, bss, pool=None, alignment=1, claim_probe=None):
     return vote, decision
 
 
+def derive_base(section, ours_object, target_object, intervals=None,
+                unit=None, symbols=None):
+    """The full base derivation for ONE section, for a sibling tool.
+
+    Does its own objdump reads, so it is convenient rather than cheap: use
+    `census` for a sweep. It exists so `pool_owner.py` can quote the SAME
+    answer this census prints instead of forming a second opinion -- a
+    `--range` hypothesis and the census disagreeing silently is exactly the
+    failure run 62 spent a lane on.
+
+    Returns {"base", "decision", "pool", "alignment"}; `base` is None when
+    nothing decides.
+    """
+    symbols = fndiff.symbol_table() if symbols is None else symbols
+    intervals = intervals or {}
+    our_symbols = object_symbols(ours_object)
+    pool = pool_base_sites(section,
+                           data_relocation_rows(ours_object),
+                           data_relocation_rows(target_object),
+                           instruction_map(ours_object),
+                           instruction_map(target_object), symbols)
+    bases, _stats = candidate_bases(relocation_rows(ours_object),
+                                    relocation_rows(target_object),
+                                    our_symbols)
+    found = dict(bases.get(section, {}))
+    if pool["bind_base"] is not None:
+        found.setdefault(pool["bind_base"],
+                         {"symbols": [section_base_name(section)],
+                          "targets": []})
+    payload = b"" if section in BSS_SECTIONS \
+        else section_bytes(ours_object, section)
+    relocated = relocated_offsets(ours_object).get(section, set())
+    scored = {}
+    for base in found:
+        window = fndiff.dol_read(base, len(payload) + max(len(payload), 0x400))
+        scored[base] = {
+            "support": len(found[base]["symbols"]),
+            "dissent": len(found) - 1,
+            "dol": score_base(payload, relocated,
+                              fndiff.dol_read(base, len(payload))),
+            "inventory": None if window is None
+            else gap_inventory(payload, relocated, window, base),
+            "symbols": found[base]["symbols"][:8],
+            "targets": found[base]["targets"][:8]}
+    alignment = proven_alignment(our_symbols, section)
+    best, decision = elect_base(
+        scored, section in BSS_SECTIONS, pool, alignment,
+        lambda base: claim_containing(section, base, intervals,
+                                      exclude=(unit + ".c") if unit else None))
+    return {"base": best, "decision": decision, "pool": pool,
+            "alignment": alignment}
+
+
 def rank_units(results):
     """[(unit, claimable_bytes, bss_bytes, blocked_bytes)] worth first."""
     rows = []

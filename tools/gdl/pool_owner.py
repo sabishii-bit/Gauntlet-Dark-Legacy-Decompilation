@@ -34,6 +34,20 @@ that predicted order against the actual address order and names the first
 position where they disagree -- which is the shape of a pool-ownership or
 emission-order defect, not a proof of one.
 
+That prediction is made ONCE PER EXTENT, and the extent's base is checked
+first. Both were run-62 defects (lane J, options.c):
+
+  * The order test ran over every datum the unit "owns", which with two
+    `--range` hypotheses meant a `.sdata2` datum was ordered against a
+    `.rodata` one and index 0 was reported as a disagreement. `.rodata` and
+    `.sdata2` are separate pools and a `--range` covers exactly the extent
+    it names, so each is now ordered on its own and the report says which.
+  * "an earlier reference is implied -- inlined, computed, or not
+    reconstructed yet" fired on an extent whose base was simply wrong. Every
+    extent is now cross-checked against `claimable_sections.derive_base`,
+    and a base disagreement is reported INSTEAD of that hint: inside a wrong
+    extent neither agreement nor disagreement means anything.
+
 Sources, all read-only: config/GUNE5D/symbols.txt (names, addresses, sizes,
 data kinds), config/GUNE5D/splits.txt (ownership runs), the extracted target
 object under build/<v>/obj (bytes and reference sites), our raw
@@ -53,8 +67,10 @@ one original object, and this tool never proposes a binding: it reports
 ownership evidence for a human decision.
 
 IMPORTABLE CORE: load_splits, owner_of, decode_value, pool_datums,
-predict_first_use, parse_range, check_range_conflict, apply_candidate_ranges
--- pure over parsed data; no build and no printing.
+pool_extents, predict_first_use, parse_range, check_range_conflict,
+apply_candidate_ranges -- pure over parsed data; no build and no printing.
+`derived_section_bases` is the one exception: it reads objects through
+`claimable_sections`, and returns {} rather than raising when it cannot.
 """
 from __future__ import annotations
 
@@ -377,12 +393,114 @@ def apply_candidate_ranges(rows, candidates):
     return adopted
 
 
-def predict_first_use(rows, unit):
-    """First-use order against address order, for this unit's OWN datums.
+def pool_extents(unit, runs, candidates=()):
+    """[(label, section, start, end)] the first-use order applies within.
+
+    One contiguous run of one section. MWCC lays out `.rodata` and `.sdata2`
+    as SEPARATE pools, and a `--range` hypothesis covers exactly the extent
+    it names -- so a single order test over the union of everything a unit
+    owns compares datums that no one ordering governs.
+    """
+    out = [("splits.txt", section, start, end)
+           for owner, section, start, end in runs
+           if owner == unit and section in POOL_SECTIONS]
+    out += [(f"--range candidate {section}:0x{start:08X}-0x{end - 1:08X}",
+             section, start, end) for section, start, end in candidates]
+    return sorted(out, key=lambda extent: (extent[1], extent[2]))
+
+
+def _order_within(modelled, derived_base=None, extent=None):
+    """The first-use/address comparison for ONE extent's modelled datums."""
+    by_use = sorted(modelled, key=lambda r: r["first_reference_text_offset"])
+    by_address = sorted(modelled, key=lambda r: int(r["address"], 16))
+    predicted = [r["name"] for r in by_use]
+    actual = [r["name"] for r in by_address]
+    index = next((i for i, (a, b) in enumerate(zip(predicted, actual))
+                  if a != b), None)
+    # A base that DISAGREES with the derivation makes the whole extent
+    # suspect, whether or not the order inside it happens to agree: the
+    # first-use hint otherwise sends a lane looking for an inlined caller
+    # when the range it was handed starts at the wrong address. (Lane J,
+    # run 62: options `.rodata` tested at 0x80113A78 when the section binds
+    # at 0x80113A0C.)
+    wrong_base = (derived_base is not None and extent is not None
+                  and derived_base != extent[2])
+    row = {"predicted_first_use_order": predicted,
+           "actual_address_order": actual,
+           "modelled_generated_literals": len(modelled),
+           "orders_agree": bool(modelled) and predicted == actual,
+           "first_disagreement_index": index, "first_disagreement": None,
+           "base_disagreement": None if not wrong_base else {
+               "extent_start": f"0x{extent[2]:08X}",
+               "derived_base": f"0x{derived_base:08X}",
+               "note": "claimable_sections derives a different base for this"
+                       " section, so the extent under test is probably wrong;"
+                       " neither agreement nor disagreement inside a wrong"
+                       " extent says anything about emission order"}}
+    if index is None:
+        return row
+    earlier = bool(by_address[index]["first_reference_text_offset"]
+                   > by_use[index]["first_reference_text_offset"])
+    row["first_disagreement"] = {
+        "predicted": predicted[index], "actual": actual[index],
+        "implied_missing_early_reference": earlier and not wrong_base,
+        "base_disagreement": row["base_disagreement"],
+        "actual_first_read_text_offset":
+            by_address[index]["first_reference_text_offset"],
+        "actual_first_read_function":
+            by_address[index]["reference_sites"][0]["function"],
+        "predicted_first_read_text_offset":
+            by_use[index]["first_reference_text_offset"]}
+    return row
+
+
+def derived_section_bases(unit, sections, root=REPO, version=VERSION):
+    """{section: base} from `claimable_sections`, or {} when it cannot say.
+
+    Reuses the sibling tool's own derivation rather than a second opinion,
+    so a `--range` hypothesis and the census cannot disagree silently. Every
+    failure -- absent objects, an objdump that will not run, no evidence at
+    all -- returns nothing: an absent base must read as "not measured", never
+    as "the extent agrees".
+    """
+    ours = Path(root) / "build" / version / "src" / (unit + ".o")
+    target = Path(root) / "build" / version / "obj" / (unit + ".o")
+    if not (ours.exists() and target.exists()):
+        return {}
+    try:
+        from tools.gdl import claimable_sections as cs
+        from tools.gdl import fndiff
+        symbols = fndiff.symbol_table()
+        intervals = cs.claimed_intervals(
+            cs.parse_splits(Path(root) / "config" / version / "splits.txt"))
+        out = {}
+        for section in sections:
+            derived = cs.derive_base(section, ours, target, intervals, unit,
+                                     symbols)
+            if derived["base"] is not None:
+                out[section] = derived["base"]
+        return out
+    except Exception:                        # noqa: BLE001 - never fatal here
+        return {}
+
+
+def predict_first_use(rows, unit, extents=None, derived_bases=None):
+    """First-use order against address order, WITHIN each pool extent.
 
     MWCC emits a pool entry when the code first needs it, so for the datums
     a TU owns the two orders should agree. The first disagreement is where
     an emission-order or ownership question starts; it is not a verdict.
+
+    The comparison is made once per extent (`pool_extents`). Merging them
+    was a defect: lane J's run-62 options report ordered a `.sdata2` datum
+    against a `.rodata` one and called index 0 a disagreement. With no
+    `extents` argument the old single-bucket behaviour is kept and labelled,
+    so an importer that has no extents still gets an answer that says what
+    it measured.
+
+    `derived_bases` is {section: base} from `claimable_sections`; where it
+    disagrees with an extent's start, that is reported INSTEAD of the
+    "an earlier reference is implied" hint.
     """
     own = [r for r in rows if r["owned_by_this_unit"]]
     # DECLARED objects and writable globals are outside the model: a named
@@ -392,39 +510,60 @@ def predict_first_use(rows, unit):
     modelled = [r for r in own
                 if r["compiler_generated_name"] and r["disposition"] == "POOL"]
     excluded = [r["name"] for r in own if r not in modelled]
-    by_use = sorted(modelled, key=lambda r: r["first_reference_text_offset"])
-    by_address = sorted(modelled, key=lambda r: int(r["address"], 16))
-    predicted = [r["name"] for r in by_use]
-    actual = [r["name"] for r in by_address]
-    disagreement = next((i for i, (a, b) in enumerate(zip(predicted, actual))
-                         if a != b), None)
+    derived_bases = derived_bases or {}
+    if extents is None:
+        buckets = [({"label": "every owned datum (no extent supplied: this"
+                              " mixes separate pools if the unit owns more"
+                              " than one run)", "section": None,
+                     "start": None, "end": None},
+                    modelled, None, None)]
+        outside = []
+    else:
+        buckets, placed = [], set()
+        for extent in extents:
+            _label, section, start, end = extent
+            inside = [r for r in modelled
+                      if r["section"] == section
+                      and start <= int(r["address"], 16) < end]
+            placed.update(id(r) for r in inside)
+            buckets.append(({"label": extent[0], "section": section,
+                             "start": f"0x{start:08X}",
+                             "end": f"0x{end:08X}"}, inside,
+                            derived_bases.get(section), extent))
+        outside = [r["name"] for r in modelled if id(r) not in placed]
+    results = []
+    for header, inside, derived_base, extent in buckets:
+        results.append(dict(header, **_order_within(inside, derived_base,
+                                                    extent)))
+    applicable = [row for row in results if row["modelled_generated_literals"]]
+    failing = next((row for row in applicable if not row["orders_agree"]), None)
     return {"referenced_own_datums": len(own),
-            "applicable": bool(modelled),
+            "applicable": bool(applicable),
             "modelled_generated_literals": len(modelled),
             "excluded_named_or_writable": excluded,
-            "predicted_first_use_order": predicted,
-            "actual_address_order": actual,
-            "orders_agree": bool(modelled) and predicted == actual,
-            "first_disagreement_index": disagreement,
-            "first_disagreement": None if disagreement is None else
-            {"predicted": predicted[disagreement], "actual": actual[disagreement],
-             # The address-order datum sitting earlier than any read we can
-             # see means an EARLIER reference exists that relocations do not
-             # show: inlined into a caller, computed, or simply not
-             # reconstructed yet. That is the lead, not a defect verdict.
-             "implied_missing_early_reference": bool(
-                 by_address[disagreement]["first_reference_text_offset"]
-                 > by_use[disagreement]["first_reference_text_offset"]),
-             "actual_first_read_text_offset":
-                 by_address[disagreement]["first_reference_text_offset"],
-             "actual_first_read_function":
-                 by_address[disagreement]["reference_sites"][0]["function"],
-             "predicted_first_read_text_offset":
-                 by_use[disagreement]["first_reference_text_offset"]},
-            "basis": "MWCC emits a compiler-generated pool entry at first use; "
-                     "declared globals and writable .sdata are excluded. A "
-                     "disagreement is a question about emission order or "
-                     "ownership, not a verdict"}
+            "extents": results,
+            "modelled_outside_every_extent": outside,
+            # Kept flat for existing consumers: the whole-unit verdict, and
+            # the FIRST extent that disagrees.
+            "predicted_first_use_order":
+                (failing or (applicable[0] if applicable else
+                             {}))["predicted_first_use_order"]
+                if applicable else [],
+            "actual_address_order":
+                (failing or (applicable[0] if applicable else
+                             {}))["actual_address_order"]
+                if applicable else [],
+            "orders_agree": bool(applicable) and failing is None,
+            "first_disagreement_index":
+                None if failing is None else failing["first_disagreement_index"],
+            "first_disagreement":
+                None if failing is None else failing["first_disagreement"],
+            "basis": "MWCC emits a compiler-generated pool entry at first use, "
+                     "per section run; declared globals and writable .sdata "
+                     "are excluded, and datums outside the extent under test "
+                     "are not ordered against those inside it. A disagreement "
+                     "is a question about emission order or ownership, not a "
+                     "verdict"}
 
 
 def analyze(unit, symbols=None, runs=None, candidate_ranges=()):
@@ -460,6 +599,9 @@ def analyze(unit, symbols=None, runs=None, candidate_ranges=()):
     rows = pool_datums(unit, symbols, runs, references, target_sections,
                        poolval.load_dol(), our_anonymous, source_text)
     adopted = apply_candidate_ranges(rows, candidates)
+    extents = pool_extents(unit, runs, candidates)
+    derived_bases = derived_section_bases(
+        unit, sorted({extent[1] for extent in extents}))
     claimed = [{"section": section, "start": f"0x{start:08X}", "end": f"0x{end:08X}",
                 "size": end - start,
                 "named_datums_in_symbols": sum(
@@ -490,7 +632,13 @@ def analyze(unit, symbols=None, runs=None, candidate_ranges=()):
         "referenced_foreign": sorted({r["owner"] for r in rows
                                       if r["owner"] not in (unit, "UNCLAIMED")}),
         "datums": rows,
-        "first_use_prediction": predict_first_use(rows, unit),
+        "first_use_prediction": predict_first_use(
+            rows, unit, extents, derived_bases),
+        "pool_extents_tested": [
+            {"label": label, "section": section, "start": f"0x{start:08X}",
+             "end": f"0x{end:08X}"} for label, section, start, end in extents],
+        "derived_section_bases": {section: f"0x{base:08X}"
+                                  for section, base in derived_bases.items()},
         "limitations": [
             "Reference sites come from relocations; a computed address is invisible.",
             "Equal bytes are a value match, never proof of one original object.",
@@ -589,22 +737,50 @@ def format_report(result, limit=None):
     out.append(f"  FIRST-USE ORDER over {prediction['modelled_generated_literals']}"
                f" of {prediction['referenced_own_datums']} own referenced"
                f" datums ({len(prediction['excluded_named_or_writable'])}"
-               " declared/writable excluded): "
-               + ("agrees with the address order"
-                  if prediction["orders_agree"] else
-                  f"DISAGREES at index {prediction['first_disagreement_index']}"
-                  f" (first use {prediction['first_disagreement']['predicted']},"
-                  f" address order {prediction['first_disagreement']['actual']})"))
-    if prediction["first_disagreement"] and prediction["first_disagreement"][
-            "implied_missing_early_reference"]:
-        row = prediction["first_disagreement"]
-        out.append(f"    {row['actual']} sits earlier in the pool than any read"
-                   f" this tool can see (its first relocation-visible read is"
-                   f" {row['actual_first_read_function']} at .text"
-                   f" +0x{row['actual_first_read_text_offset']:x}, after"
-                   f" +0x{row['predicted_first_read_text_offset']:x}): an"
-                   " earlier reference is implied -- inlined, computed, or not"
-                   " reconstructed yet.")
+               " declared/writable excluded), tested SEPARATELY inside each"
+               f" of {len(prediction['extents'])} pool extent(s)")
+    for extent in prediction["extents"]:
+        if not extent["modelled_generated_literals"]:
+            out.append(f"    {extent['section']} {extent['start']}..."
+                       f"{extent['end']} [{extent['label']}]: no modelled"
+                       " datum inside this extent -- nothing to order")
+        else:
+            out.append(f"    {extent['section']} {extent['start']}..."
+                       f"{extent['end']} [{extent['label']}]:"
+                       f" {extent['modelled_generated_literals']} datum(s), "
+                       + ("first use agrees with the address order"
+                          if extent["orders_agree"] else
+                          "DISAGREES at index"
+                          f" {extent['first_disagreement_index']}"
+                          f" (first use"
+                          f" {extent['first_disagreement']['predicted']},"
+                          " address order"
+                          f" {extent['first_disagreement']['actual']})"))
+        if extent.get("base_disagreement"):
+            base = extent["base_disagreement"]
+            out.append(f"      BASE DISAGREEMENT: this extent starts at"
+                       f" {base['extent_start']} but the derivation gives"
+                       f" {base['derived_base']} for"
+                       f" {extent['section']}. {base['note']}")
+            continue
+        row = extent["first_disagreement"]
+        if row and row["implied_missing_early_reference"]:
+            out.append(f"      {row['actual']} sits earlier in the pool than"
+                       " any read this tool can see (its first"
+                       " relocation-visible read is"
+                       f" {row['actual_first_read_function']} at .text"
+                       f" +0x{row['actual_first_read_text_offset']:x}, after"
+                       f" +0x{row['predicted_first_read_text_offset']:x}): an"
+                       " earlier reference is implied -- inlined, computed, or"
+                       " not reconstructed yet.")
+    if prediction["modelled_outside_every_extent"]:
+        out.append("    NOT ORDERED (owned but outside every extent under"
+                   " test): "
+                   + ", ".join(prediction["modelled_outside_every_extent"][:8]))
+    for section, base in sorted(result.get("derived_section_bases",
+                                           {}).items()):
+        out.append(f"    derived base for {section}: {base}"
+                   "  (tools/gdl/claimable_sections.py pool-base rule)")
     out.append("  LIMITS: " + " ".join(result["limitations"]))
     return "\n".join(out)
 
