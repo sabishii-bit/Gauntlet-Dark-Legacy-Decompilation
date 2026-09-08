@@ -441,13 +441,6 @@ static const MotorCommands lbl_80111FDC = { { 2, 2, 2, 2 } };
 /* 0x8011AE8C  vibe_inten */
 static f32 lbl_8011AE8C[5] = { 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
 
-/* 0x8011AEA0  monkey/shadow playback names (ReadControls) */
-static char* lbl_8011AEA0[3] = { "SHADOW1L1", "SHADOW2L1", "SHADOW3L1" };
-
-/* 0x8011AEAC / 0x8011AEC0  stick scale ladders */
-static f32 lbl_8011AEAC[5] = { 1.0f, 1.0f, 1.5f, 2.0f, 2.0f };
-static f32 lbl_8011AEC0[5] = { 1.0f, 1.0f, 0.5f, 0.3f, 0.2f };
-
 /* --- .sdata --- */
 
 /* 0x80343BE0  MtapOpenPort: sceMtapGetConnection-done per port */
@@ -2286,3 +2279,10 @@ f32 fn_80034C88(f32 x)
     }
     return x;
 }
+
+/* 0x8011AEA0  monkey/shadow playback names (ReadControls) */
+static char* lbl_8011AEA0[3] = { "SHADOW1L1", "SHADOW2L1", "SHADOW3L1" };
+
+/* 0x8011AEAC / 0x8011AEC0  stick scale ladders */
+static f32 lbl_8011AEAC[5] = { 1.0f, 1.0f, 1.5f, 2.0f, 2.0f };
+static f32 lbl_8011AEC0[5] = { 1.0f, 1.0f, 0.5f, 0.3f, 0.2f };
