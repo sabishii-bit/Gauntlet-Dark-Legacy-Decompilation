@@ -20,10 +20,9 @@
  * as sane numbers little-endian; every value quoted below is LE.
  *
  * A field is TYPED here only where a GameCube access in src/game/game/player.c
- * proves its width, and the citation is on the member.  Fields whose only
- * reader is another TU stay sized raw runs naming the PDB field - see the
- * lane report for the src/game/game/combat.c and src/game/sfx/psfx.c
- * evidence, which is reported rather than adopted.
+ * proves its width, and the citation is on the member.  weapon_offset, turboa_offset and streakfwdmul are typed on
+ * src/game/game/combat.c's accesses instead.  Fields whose only reader is
+ * src/game/sfx/psfx.c stay sized raw runs naming the PDB field.
  *
  * The shipped values corroborate the PDB's names independently:
  *   fight/speed/armor/magic min-max are per-class 100..999 pairs with
@@ -56,14 +55,14 @@ typedef struct plyr_data {
     /* 0x050 */ f32 attny;         /* load_player: Player.anchor_pos[1]      */
     /* 0x054 */ f32 coly;          /* load_player: Player.anchor_fwd[1]      */
     /* 0x058 */ f32 powerup_time;  /* scales the powerup strength            */
-    /* 0x05C */ u8 _pdb_05C[0xC];  /* PDB: float weapon_offset[3] - read by
-                                    * combat.c only                          */
+    /* 0x05C */ f32 weapon_offset[3];  /* combat.c aim_from_mode passes it to
+                                       * MulVecMat3 as the f32 source vector  */
     /* 0x068 */ f32 weapon_fx_offset[10][3]; /* per weapon tier              */
     /* 0x0E0 */ f32 weapon_fx_scale[10][3];  /* per weapon tier              */
-    /* 0x158 */ u8 _pdb_158[0xC];  /* PDB: float turboa_offset[3] - combat.c */
+    /* 0x158 */ f32 turboa_offset[3];  /* combat.c, the mode-2 MulVecMat3 arm */
     /* 0x164 */ f32 familiar_offset[3];      /* familiar node placement      */
     /* 0x170 */ u8 _pdb_170[0xC];  /* PDB: float fam_proj_offset[3]          */
-    /* 0x17C */ u8 _pdb_17C[4];    /* PDB: float streakfwdmul - combat.c     */
+    /* 0x17C */ f32 streakfwdmul;      /* combat.c SfxSetStreak's last f32 arg */
 } plyr_data;                       /* 0x180 == the shipped PDAT stride */
 
 #ifdef __MWERKS__
