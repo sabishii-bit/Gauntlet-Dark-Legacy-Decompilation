@@ -109,6 +109,7 @@ game/game/combat.c:
 	extab       start:0x80005B00 end:0x80005C18
 	extabindex  start:0x800090D0 end:0x80009274
 	.text       start:0x8002951C end:0x8003104C
+	.rodata     start:0x80111B50 end:0x80111F70
 	.bss        start:0x80240560 end:0x802407B8
 	.sbss       start:0x80344598 end:0x803445C4
 

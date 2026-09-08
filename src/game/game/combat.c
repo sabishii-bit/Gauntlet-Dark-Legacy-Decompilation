@@ -178,7 +178,6 @@ extern f64 lbl_80346150;
 extern f64 lbl_80345F50;
 extern f64 lbl_80345F40;
 extern f64 lbl_80346160;
-extern char lbl_80111B50[];
 extern s32 StringTextWidth(s32 id, s32 a, f32 scale);
 extern s32 StringTextHeight(s32 id, s32 a, s32 b, f32 scale);
 extern void* MBNewBlit(void* tex, s32 x, s32 y);
@@ -273,7 +272,6 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
 /* StartMissile FX/vibration constants */
 extern f32 lbl_803463C0, lbl_8034633C, lbl_80346328, lbl_803463D0;
 extern f64 lbl_80346348, lbl_80346350, lbl_80346340, lbl_803463C8;
-extern char lbl_80111E28[];
 extern s32 optionsAudioAndPrefs30[8];
 extern u32 lbl_8011A178[], lbl_8011A188[];
 extern plyr_data* lbl_80282930[];
@@ -1086,7 +1084,7 @@ void init_stage_info(void)
         height += 16;
         x = 256 - width / 2;
         y = 108 - height / 2;
-        lbl_8034440C = MBNewBlit(lbl_80111B50, x, y);
+        lbl_8034440C = MBNewBlit("SCROLL_A", x, y);
         mbBlitProject(lbl_8034440C, width, height);
     }
 }
@@ -3617,6 +3615,15 @@ void ClockOncePerFrame(void)
     gClockPreviousTime = sMusicFadeBase;
 }
 
+typedef struct MissileSpread {
+    f32 value[5];
+} MissileSpread;
+
+/* PlayerStartMissile's 5-way spread: cosine and sine of 0, +/-15 and
+   +/-30 degrees. Retail .rodata 0x80111DE0 and 0x80111DF4. */
+static const MissileSpread lbl_80111DE0 = {{1.0f, 0.966f, 0.966f, 0.866f, 0.866f}};
+static const MissileSpread lbl_80111DF4 = {{0.0f, 0.259f, -0.259f, 0.5f, -0.5f}};
+
 void PlayerDamagedEnemy(void* player, void* enemy, s32 state, s32 damage,
                         s32 flag)
 {
@@ -3974,100 +3981,6 @@ void* MissileCollidePlayer(f32 radius, f32* from, f32* to, f32* hit)
     return 0;
 }
 
-/*
- * StartMissile -- common effect allocator/configurator shared by enemy and
- * player launch paths.  MissileInfo is the PDB-described runtime definition;
- * the effect system owns movement after these attributes are installed.
- */
-s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
-                 MissileInfo* desc, void* missileTree, s32 variant,
-                 u32 extraFlags, f32 scale, f32 damageMag)
-{
-    f32 color = lbl_803463C0;
-    s32 wallSound = desc->wallSound;
-    f32 vel[3];
-    s32 big;
-    s32 fx;
-    f32 radius;
-
-    if ((damageType & 0x480000) != 0) {
-        color = lbl_8034633C;
-        if (wallSound == 5) {
-            if (variant == 0) {
-                if ((damageType & 0x400000) != 0) {
-                    wallSound = 7;
-                } else {
-                    wallSound = 6;
-                }
-            } else {
-                wallSound = 0;
-            }
-        }
-    }
-    vel[0] = velocity[0] * scale;
-    vel[1] = velocity[1] * scale;
-    vel[2] = velocity[2] * scale;
-    if ((f64)(vel[2] * vel[2] +
-        (f32)(vel[0] * vel[0] + (f32)(vel[1] * vel[1]))) < lbl_80346348) {
-        FatalError(lbl_80111E28, 0x800000);
-    }
-    if (owner > 0) {
-        if (optionsAudioAndPrefs30[7] == 1) {
-            extraFlags |= 0x200F;
-        } else if (optionsAudioAndPrefs30[7] == 2) {
-            extraFlags |= 0xF;
-        } else {
-            extraFlags |= 0x20E;
-        }
-        if ((damageType & 0x100000) != 0) {
-            extraFlags &= ~0x4u;
-        }
-    } else {
-        extraFlags |= 0x1107;
-    }
-    if (lbl_80346340 == (f64)desc->angularVelocity[0] &&
-        lbl_80346340 == (f64)desc->angularVelocity[1] &&
-        lbl_80346340 == (f64)desc->angularVelocity[2]) {
-        extraFlags |= 0x20000;
-    }
-    extraFlags |= 0x1000000;
-    fx = StartFXTree(missileTree, position, extraFlags, 0x80000, color);
-    big = damageType & 0x2000000;
-    radius = desc->collisionRadius;
-    if (big != 0) {
-        radius = (f32)((f64)radius * lbl_803463C8);
-    }
-    SfxSetPhysics(fx, vel, desc->angularVelocity, desc->weight, radius);
-    SfxSetHit(fx, desc->hitEffect, desc->hitSound, wallSound);
-    SfxSetDamage(fx, damageType | desc->damageType, owner, damageMag,
-                 desc->hitRadius, lbl_80346328);
-    if (big != 0) {
-        ScaleFX(fx, lbl_803463D0, lbl_803463D0, lbl_803463D0);
-    }
-    if (owner > 0) {
-        s32 tex = WeaponStreakTex;
-        s32 vibColor;
-        s32 vibIntensity;
-        if ((damageType & 0x100000) != 0 && big == 0) {
-            vibColor = 0xFFFFFF;
-            vibIntensity = 64;
-        } else {
-            u8* pl = (u8*)gPlayers + owner * PLAYER_STRIDE;
-            vibColor = lbl_8011A178[*(s32*)(pl - 13144)];
-            vibIntensity = lbl_8011A188[*(s32*)(pl - 13140)];
-            if (big != 0) {
-                vibIntensity += 64;
-                if ((u32)vibIntensity >= 255) {
-                    vibIntensity = 255;
-                }
-            }
-        }
-        SfxSetStreak(fx, tex, vibColor, vibIntensity, lbl_80346328,
-            lbl_80282930[owner - 1]->streakfwdmul);
-    }
-    return fx;
-}
-
 void CalcTargetDir(f32* velocity, f32 targetScale, f32 speed,
                    f32 gravity, f32 lift)
 {
@@ -4238,10 +4151,6 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
 
 /* PlayerStartMissile's local-space launch offset at retail 0x8011A1A8. */
 f32 lbl_8011A1A8[3] = {0.0f, -0.5f, -1.25f};
-typedef struct MissileSpread {
-    f32 value[5];
-} MissileSpread;
-extern MissileSpread lbl_80111DE0, lbl_80111DF4;
 extern void* EffectInfo[];
 typedef struct PlayerMissileAnode {
     s32 node;
@@ -4511,6 +4420,100 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
     return i;
 }
 
+/*
+ * StartMissile -- common effect allocator/configurator shared by enemy and
+ * player launch paths.  MissileInfo is the PDB-described runtime definition;
+ * the effect system owns movement after these attributes are installed.
+ */
+s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
+                 MissileInfo* desc, void* missileTree, s32 variant,
+                 u32 extraFlags, f32 scale, f32 damageMag)
+{
+    f32 color = lbl_803463C0;
+    s32 wallSound = desc->wallSound;
+    f32 vel[3];
+    s32 big;
+    s32 fx;
+    f32 radius;
+
+    if ((damageType & 0x480000) != 0) {
+        color = lbl_8034633C;
+        if (wallSound == 5) {
+            if (variant == 0) {
+                if ((damageType & 0x400000) != 0) {
+                    wallSound = 7;
+                } else {
+                    wallSound = 6;
+                }
+            } else {
+                wallSound = 0;
+            }
+        }
+    }
+    vel[0] = velocity[0] * scale;
+    vel[1] = velocity[1] * scale;
+    vel[2] = velocity[2] * scale;
+    if ((f64)(vel[2] * vel[2] +
+        (f32)(vel[0] * vel[0] + (f32)(vel[1] * vel[1]))) < lbl_80346348) {
+        FatalError("ERROR: ZERO LENGTH MISSILE VEL", 0x800000);
+    }
+    if (owner > 0) {
+        if (optionsAudioAndPrefs30[7] == 1) {
+            extraFlags |= 0x200F;
+        } else if (optionsAudioAndPrefs30[7] == 2) {
+            extraFlags |= 0xF;
+        } else {
+            extraFlags |= 0x20E;
+        }
+        if ((damageType & 0x100000) != 0) {
+            extraFlags &= ~0x4u;
+        }
+    } else {
+        extraFlags |= 0x1107;
+    }
+    if (lbl_80346340 == (f64)desc->angularVelocity[0] &&
+        lbl_80346340 == (f64)desc->angularVelocity[1] &&
+        lbl_80346340 == (f64)desc->angularVelocity[2]) {
+        extraFlags |= 0x20000;
+    }
+    extraFlags |= 0x1000000;
+    fx = StartFXTree(missileTree, position, extraFlags, 0x80000, color);
+    big = damageType & 0x2000000;
+    radius = desc->collisionRadius;
+    if (big != 0) {
+        radius = (f32)((f64)radius * lbl_803463C8);
+    }
+    SfxSetPhysics(fx, vel, desc->angularVelocity, desc->weight, radius);
+    SfxSetHit(fx, desc->hitEffect, desc->hitSound, wallSound);
+    SfxSetDamage(fx, damageType | desc->damageType, owner, damageMag,
+                 desc->hitRadius, lbl_80346328);
+    if (big != 0) {
+        ScaleFX(fx, lbl_803463D0, lbl_803463D0, lbl_803463D0);
+    }
+    if (owner > 0) {
+        s32 tex = WeaponStreakTex;
+        s32 vibColor;
+        s32 vibIntensity;
+        if ((damageType & 0x100000) != 0 && big == 0) {
+            vibColor = 0xFFFFFF;
+            vibIntensity = 64;
+        } else {
+            u8* pl = (u8*)gPlayers + owner * PLAYER_STRIDE;
+            vibColor = lbl_8011A178[*(s32*)(pl - 13144)];
+            vibIntensity = lbl_8011A188[*(s32*)(pl - 13140)];
+            if (big != 0) {
+                vibIntensity += 64;
+                if ((u32)vibIntensity >= 255) {
+                    vibIntensity = 255;
+                }
+            }
+        }
+        SfxSetStreak(fx, tex, vibColor, vibIntensity, lbl_80346328,
+            lbl_80282930[owner - 1]->streakfwdmul);
+    }
+    return fx;
+}
+
 void InitEnemyMissiles(s32 enemyType)
 {
     char buf[32];
@@ -4564,7 +4567,7 @@ void InitPlayerMissiles(void* player)
         sprintf(buf, "%s_THROW0", charName);
         PlayerMissileTreeInfo[idx].throwHeader = AtreeMatch(powerupWad, buf, 0);
     } else {
-        sprintf(buf, "%s_THROW_%c", charName, (char)throwByte);
+        sprintf(buf, "%s_THROW%c", charName, (char)throwByte);
         PlayerMissileTreeInfo[idx].throwHeader = AtreeMatch(weaponWad, buf, 0);
     }
     if (PlayerMissileTreeInfo[idx].throwHeader == 0) {
@@ -4616,7 +4619,7 @@ void InitPlayerMissiles(void* player)
     FamiliarSpit[idx] = AtreeMatch(weaponWad, "FAMILIAR_SPIT", 1);
     FamiliarSpit[4] = AtreeMatch(sWeaponsBuf, "PHOENIX_FBALL", 1);
     if (missing) {
-        FatalError("InitPlayerMissiles failed!", 0x800000);
+        FatalError("InitPlayerMissiles failed.", 0x800000);
     }
 }
 
