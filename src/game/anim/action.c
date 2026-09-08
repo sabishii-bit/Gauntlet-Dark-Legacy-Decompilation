@@ -568,8 +568,8 @@ void DoPlayerAction(void* player)
     s32 dance;
     u8 unused[8];
 
-    act = p[0x83];
-    cur = p[0x82];
+    act = pl->anim_20C;
+    cur = pl->anim_208;
     next = act;
     *((u8*)p + 0x93) |= 2;
     atkNext = PlayerAttackType(next);
@@ -602,7 +602,7 @@ void DoPlayerAction(void* player)
         mode = 2;
     }
     if ((atkD < 2 || atkD > 6) && atkD != 8) {
-        p[0x242] = 0;
+        pl->field_908 = 0;
     }
     p[0x201] = 0;
     dance = 0;
@@ -613,7 +613,7 @@ void DoPlayerAction(void* player)
     case P_READY:
         didt = 1;
         mode = 2;
-        if (next == P_READY && p[0x20D] == 0) {
+        if (next == P_READY && pl->quest_state == 0) {
             s32 hi, lo;
             if ((gControllerButtons & 0x10) != 0) {
                 hi = 0xB4;
@@ -731,7 +731,7 @@ void DoPlayerAction(void* player)
         if (next == P_STRAFE_ATKB) {
             act = P_STRAFE_ATKB2;
         }
-        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (pl->char_type & 3) != 2 && pl->char_type != 3) {
             if (atree->frame < 2.0f) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
@@ -747,7 +747,7 @@ void DoPlayerAction(void* player)
         if (next == P_STRAFE_ATKB) {
             act = P_STRAFE_ATKB;
         }
-        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (pl->char_type & 3) != 2 && pl->char_type != 3) {
             if (atree->frame < 2.0f) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
@@ -763,7 +763,7 @@ void DoPlayerAction(void* player)
         if (next == P_STRAFE_ATKR) {
             act = P_STRAFE_ATKR2;
         }
-        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (pl->char_type & 3) != 2 && pl->char_type != 3) {
             if (atree->frame < 2.0f) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
@@ -779,7 +779,7 @@ void DoPlayerAction(void* player)
         if (next == P_STRAFE_ATKR) {
             act = P_STRAFE_ATKR;
         }
-        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+        if (pl->weaphold_node != 0 && (pl->char_type & 3) != 2 && pl->char_type != 3) {
             if (atree->frame < 2.0f) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             } else {
@@ -854,8 +854,8 @@ void DoPlayerAction(void* player)
     case P_ATTACK_QUICK:
     case P_ATTACK_QUICK2:
     case P_ATTACK_QUICK3:
-        flags = p[0x23E];
-        if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+        flags = pl->field_8F8;
+        if ((flags & 0x400U) != 0 && (combo = pl->field_908) != 0) {
             if (combo == 1) {
                 act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
@@ -863,10 +863,10 @@ void DoPlayerAction(void* player)
             } else {
                 act = P_ATTACK_360;
             }
-        } else if (flags != 0 || p[0x23D] != 0) {
-            if ((p[0x243] & 8U) != 0) {
+        } else if (flags != 0 || pl->field_8F4 != 0) {
+            if ((pl->coll_flags & 8U) != 0) {
                 act = cur == P_ATTACK_QUICK2 ? P_ATTACK_QUICK2_R : P_ATTACK_QUICK3_R;
-            } else if ((p[0x243] & 4U) != 0) {
+            } else if ((pl->coll_flags & 4U) != 0) {
                 act = cur == P_ATTACK_QUICK2 ? P_ATTACK_STEP3 : P_ATTACK_STEP2;
             } else {
                 act = cur == P_ATTACK_QUICK2 ? P_ATTACK_QUICK3 : P_ATTACK_QUICK2;
@@ -877,8 +877,8 @@ void DoPlayerAction(void* player)
         break;
     case P_ATTACK_QUICK2_R:
     case P_ATTACK_QUICK3_R:
-        flags = p[0x23E];
-        if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+        flags = pl->field_8F8;
+        if ((flags & 0x400U) != 0 && (combo = pl->field_908) != 0) {
             if (combo == 1) {
                 act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
@@ -887,7 +887,7 @@ void DoPlayerAction(void* player)
                 act = P_ATTACK_360;
             }
         } else if (flags != 0 && atree->frame <= 2.0 &&
-                   (p[0x243] & 1U) != 0) {
+                   (pl->coll_flags & 1U) != 0) {
             act = cur == P_ATTACK_QUICK2_R ? P_ATTACK_QUICK3 : P_ATTACK_QUICK2;
             mode = 2;
         }
@@ -898,8 +898,8 @@ void DoPlayerAction(void* player)
     case P_ATTACK_STEP:
     case P_ATTACK_STEP2:
     case P_ATTACK_STEP3:
-        flags = p[0x23E];
-        if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+        flags = pl->field_8F8;
+        if ((flags & 0x400U) != 0 && (combo = pl->field_908) != 0) {
             if (combo == 1) {
                 act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
@@ -907,8 +907,8 @@ void DoPlayerAction(void* player)
             } else {
                 act = P_ATTACK_360;
             }
-        } else if (flags != 0 || p[0x23D] != 0) {
-            if ((p[0x243] & 8U) != 0) {
+        } else if (flags != 0 || pl->field_8F4 != 0) {
+            if ((pl->coll_flags & 8U) != 0) {
                 s32 gapAct;
 
                 if (cur == P_ATTACK_STEP2) {
@@ -917,7 +917,7 @@ void DoPlayerAction(void* player)
                     gapAct = 0x42;
                 }
                 act = gapAct;
-            } else if ((p[0x243] & 4U) != 0) {
+            } else if ((pl->coll_flags & 4U) != 0) {
                 s32 gapAct;
 
                 if (cur == P_ATTACK_STEP2) {
@@ -949,7 +949,7 @@ void DoPlayerAction(void* player)
         break;
     case P_ATTACK_STEP2_R:
     case P_ATTACK_STEP3_R:
-        if ((p[0x23E] & 0x400U) != 0 && (combo = p[0x242]) != 0) {
+        if ((pl->field_8F8 & 0x400U) != 0 && (combo = pl->field_908) != 0) {
             if (combo == 1) {
                 act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
@@ -1007,7 +1007,7 @@ void DoPlayerAction(void* player)
         break;
     case P_ATTACK_360:
         p[0x201] = 1;
-        if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
+        if ((pl->field_8F8 & 0x400U) != 0 && pl->field_908 != 0) {
             act = P_ATTACK_PWRA_MED;
         } else {
             act = P_ATTACK_360_R;
@@ -1127,14 +1127,14 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_KICK:
-        if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
+        if ((pl->field_8F8 & 0x400U) != 0 && pl->field_908 != 0) {
             act = P_ATTACK_PWRA_LOW;
         } else {
             act = P_ATTACK_KICK_R;
         }
         break;
     case P_ATTACK_KICK_R:
-        if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
+        if ((pl->field_8F8 & 0x400U) != 0 && pl->field_908 != 0) {
             act = P_ATTACK_PWRA_LOW;
         } else {
             if (atkNext == 1) {
@@ -1364,11 +1364,11 @@ void DoPlayerAction(void* player)
     /* direction / follow-up refinement of the chosen action */
     switch (act) {
     case P_READY:
-        if ((p[0x48] & 0x620000U) != 0) {
+        if ((pl->shield_flags & 0x620000U) != 0) {
             act = P_SHIELD_READY;
         }
         if (cur != P_READY && (cur < P_ATTACK_PWRB || cur > P_COMBO_JES) && cur != P_HIT_REACT &&
-            (u32)(cur - P_SPIKE_HIT) > 1 && (p[2] != 3 || cur != P_ATTACK_QUICK2_R)) {
+            (u32)(cur - P_SPIKE_HIT) > 1 && (pl->char_type != 3 || cur != P_ATTACK_QUICK2_R)) {
             speed = 0.066667f;
         }
         break;
@@ -1376,7 +1376,7 @@ void DoPlayerAction(void* player)
     case P_WALK2:
     case P_RUN:
     case P_RUN2:
-        if ((p[0x48] & 0x620000U) != 0) {
+        if ((pl->shield_flags & 0x620000U) != 0) {
             act = P_SHIELD_RUN;
             if (cur == P_SHIELD_RUN) {
                 mode = 0;
@@ -1386,7 +1386,7 @@ void DoPlayerAction(void* player)
         break;
     case P_ATTACK_QUICK:
     case P_ATTACK_QUICK3:
-        ang = pf[0x241];
+        ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_180;
         } else if (ang < -2.3561944905) {
@@ -1398,7 +1398,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_QUICK2:
-        ang = pf[0x241];
+        ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_1802;
         } else if (ang < -2.3561944905) {
@@ -1432,7 +1432,7 @@ void DoPlayerAction(void* player)
         }
         /* fallthrough */
     case P_ATTACK_STEP3:
-        ang = pf[0x241];
+        ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_180;
         } else if (ang < -2.3561944905) {
@@ -1444,7 +1444,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_STEP2:
-        ang = pf[0x241];
+        ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_1802;
         } else if (ang < -2.3561944905) {
@@ -1456,7 +1456,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_PWRA_CLOSE:
-        if ((p[0x243] & 2U) != 0) {
+        if ((pl->coll_flags & 2U) != 0) {
             act = P_ATTACK_PWRA_LOW;
         }
         break;
@@ -1492,17 +1492,17 @@ void DoPlayerAction(void* player)
     } else if ((act >= P_COMBO_ACTIVE1 && act <= P_COMBO_ACTIVE3) ||
                (act >= P_COMBO_WAR1 && act <= P_COMBO_JES)) {
         atree->animscale = 1.0f;
-    } else if ((p[0x235] & 0x8000U) != 0 && act >= P_KNOCKBACK) {
+    } else if ((pl->obj_flags & 0x8000U) != 0 && act >= P_KNOCKBACK) {
         atree->animscale = 2.0f;
-    } else if ((p[0x47] & 0x20000000U) != 0 &&
+    } else if ((pl->field_11C & 0x20000000U) != 0 &&
                (u32)(atkNext - 9) <= 1) {
         atree->animscale = 0.75f;
     } else if (act == P_DEFEND2) {
-        atree->animscale = (f32)(0.2 * pf[0x42]);
+        atree->animscale = (f32)(0.2 * pl->stat_armor);
         if (atree->animscale < 0.25) {
             atree->animscale = 0.25f;
         }
-    } else if ((p[0x49] & 0x10000U) != 0) {
+    } else if ((pl->flags & 0x10000U) != 0) {
         atree->animscale = 0.75f;
     } else {
         atree->animscale = 1.0f;
@@ -1514,10 +1514,10 @@ void DoPlayerAction(void* player)
     } else {
         seq = PlayerAttackType(cur);
     }
-    p[0x23C] = seq;
+    pl->action = seq;
 
     if (adv != 0) {
-        pf[0x296] = -1.0f;
+        pl->combo_cd = -1.0f;
         switch (cur) {
         case P_IDLE1:
             pl->vibe_timer = 0;
@@ -1543,7 +1543,7 @@ void DoPlayerAction(void* player)
         case P_ATTACK_360:
         case P_ATTACK_LOW:
         case P_ATTACK_LOW2:
-            p[0x240] |= 2;
+            pl->act_bits |= 2;
             break;
         case P_ATTACK_SLOW1:
         case P_ATTACK_STEP:
@@ -1551,23 +1551,23 @@ void DoPlayerAction(void* player)
         case P_ATTACK_STEP3:
         case P_ATTACK_Q3TOSTEP1:
         case P_ATTACK_WALK2:
-            p[0x240] |= 4;
+            pl->act_bits |= 4;
             break;
         case P_ATTACK_KICK:
-            p[0x240] |= 8;
+            pl->act_bits |= 8;
             break;
         case P_ATTACK_PWRA_LOW:
-            p[0x240] |= 0x10;
+            pl->act_bits |= 0x10;
             break;
         case P_ATTACK_PWRA_CLOSE:
         case P_ATTACK_PWRA_MED:
-            if (p[2] != 6) {
-                p[0x240] |= 0x10;
+            if (pl->char_type != 6) {
+                pl->act_bits |= 0x10;
             }
             break;
         case P_ATTACK_PWRA_THROW:
-            if (p[2] != 6 || p[0x20D] >= 2) {
-                p[0x240] |= 0x1000;
+            if (pl->char_type != 6 || pl->quest_state >= 2) {
+                pl->act_bits |= 0x1000;
             }
             break;
         case P_STRAFE_ATKF:
@@ -1582,30 +1582,30 @@ void DoPlayerAction(void* player)
         case P_THROW2_RELEASE:
         case P_THROW_STEP:
         case P_THROW_STEP2:
-            p[0x240] |= 0x100;
+            pl->act_bits |= 0x100;
             break;
         case P_THROW_RECOVER:
         case P_THROW2_RECOVER:
         case P_ATTACK_PWRA_THROW_R:
             if (pl->weaphold_node != 0 &&
-                (p[2] & 3) != 2 && p[2] != 3) {
+                (pl->char_type & 3) != 2 && pl->char_type != 3) {
                 MBTreeClearFlags(pl->weaphold_node, 2, 0);
             }
             break;
         case P_SSHOT:
         case P_SSHOT2:
             if ((u32)(act - P_SSHOT2) <= 1) {
-                p[0x240] |= 0x800;
+                pl->act_bits |= 0x800;
             }
             break;
         case P_FIREL:
             if (act == P_FIREL_R) {
-                p[0x240] |= 0x2000;
+                pl->act_bits |= 0x2000;
             }
             break;
         case P_FIRER:
             if (act == P_FIRER_R) {
-                p[0x240] |= 0x4000;
+                pl->act_bits |= 0x4000;
             }
             break;
         case P_SSHOT_R:
@@ -1647,13 +1647,13 @@ void DoPlayerAction(void* player)
         case P_ATTACK_LOW:
         case P_ATTACK_LOW2:
         case P_ATTACK_KICK:
-            p[0x240] |= 1;
-            if (p[0x23E] != 0) {
-                p[0x242] = p[0x242] + 1;
+            pl->act_bits |= 1;
+            if (pl->field_8F8 != 0) {
+                pl->field_908 = pl->field_908 + 1;
             } else {
-                p[0x242] = 0;
+                pl->field_908 = 0;
             }
-            p[0x23E] = 0;
+            pl->field_8F8 = 0;
             break;
         case P_THROW:
         case P_THROWQ:
@@ -1661,51 +1661,51 @@ void DoPlayerAction(void* player)
         case P_THROW2Q:
         case P_THROW_STEP:
         case P_THROW_STEP2:
-            p[0x240] |= 1;
-            p[0x23E] = 0;
+            pl->act_bits |= 1;
+            pl->field_8F8 = 0;
             break;
         case P_THROW_RECOVER:
         case P_THROW2_RECOVER:
             if (pl->weaphold_node != 0 &&
-                (p[2] & 3) != 2 && p[2] != 3) {
+                (pl->char_type & 3) != 2 && pl->char_type != 3) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             }
             break;
         case P_SSHOT:
         case P_SSHOT2:
-            p[0x240] |= 1;
-            p[0x23E] = 0;
+            pl->act_bits |= 1;
+            pl->field_8F8 = 0;
             break;
         case P_ATTACK_PWRA_THROW_R:
             if (pl->weaphold_node != 0 &&
-                (p[2] & 3) != 2 && p[2] != 3) {
+                (pl->char_type & 3) != 2 && pl->char_type != 3) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             }
             break;
         case P_USE_MAGIC:
-            p[0x240] |= 0x10000;
-            p[0x23E] = 0;
+            pl->act_bits |= 0x10000;
+            pl->field_8F8 = 0;
             break;
         case P_MAGIC_RELEASE:
-            p[0x240] |= 0x20000;
-            p[0x23E] = 0;
+            pl->act_bits |= 0x20000;
+            pl->field_8F8 = 0;
             break;
         case P_THROW_MAGIC:
-            p[0x240] |= 0x10000;
-            p[0x23E] = 0;
+            pl->act_bits |= 0x10000;
+            pl->field_8F8 = 0;
             pl->throw_str = 0;
             break;
         case P_THROW_MAGIC_RELEASE:
-            p[0x240] |= 0x40000;
-            p[0x23E] = 0;
+            pl->act_bits |= 0x40000;
+            pl->field_8F8 = 0;
             break;
         case P_BREATHE:
-            p[0x240] |= 0x1000000;
-            p[0x23E] = 0;
+            pl->act_bits |= 0x1000000;
+            pl->field_8F8 = 0;
             break;
         case P_HAMMER_R:
-            p[0x240] |= 0x2000000;
-            p[0x23E] = 0;
+            pl->act_bits |= 0x2000000;
+            pl->field_8F8 = 0;
             break;
         case P_VICTORY:
             pl->hud_flags |= 0x800;
@@ -1747,12 +1747,12 @@ void DoPlayerAction(void* player)
         case P_STRAFE_ATKR:
         case P_STRAFE_ATKR2:
             pl->hud_flags |= 0x8000;
-            p[0x240] |= 1;
-            p[0x23E] = 0;
+            pl->act_bits |= 1;
+            pl->field_8F8 = 0;
             break;
         case P_SHOVE:
             pl->hud_flags |= 0x400;
-            p[0x23E] = 0;
+            pl->field_8F8 = 0;
             break;
         case P_ATTACK_SLOW1_R:
         case P_ATTACK_QUICK2_R:
@@ -1774,135 +1774,135 @@ void DoPlayerAction(void* player)
         case P_ATTACK_KICK_R:
             break;
         default:
-            p[0x23E] = 0;
+            pl->field_8F8 = 0;
             break;
         }
     }
 
     /* per-action move / turn scales */
-    pf[0x295] = 1.0f;
-    pf[0x294] = 1.0f;
+    pl->field_A54 = 1.0f;
+    pl->field_A50 = 1.0f;
     if (cur >= P_ATTACK_SLOW && cur < P_LAST_ATTACK) {
         if (cur >= P_SSHOT) {
-            pf[0x292] = 0.0f;
-            pf[0x293] = 0.5f;
-            pf[0x295] = 0.0f;
+            pl->field_A48 = 0.0f;
+            pl->field_A4C = 0.5f;
+            pl->field_A54 = 0.0f;
         } else if (cur >= P_FIREL) {
-            pf[0x292] = 0.25f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 0.25f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_THROW_STEP) {
-            pf[0x292] = 1.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_ATTACK_PWRA_THROW) {
-            pf[0x292] = 0.25f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 0.25f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_THROW) {
-            pf[0x292] = 0.0f;
-            pf[0x293] = 0.5f;
+            pl->field_A48 = 0.0f;
+            pl->field_A4C = 0.5f;
         } else if (cur >= P_COMBO_ACTIVE1) {
-            pf[0x292] = 0.0f;
-            pf[0x293] = 0.0f;
-            pf[0x295] = 0.0f;
+            pl->field_A48 = 0.0f;
+            pl->field_A4C = 0.0f;
+            pl->field_A54 = 0.0f;
         } else if (cur >= P_ATTACK_PWRC) {
-            if (p[2] == 6 && atree->frame > 11.0f) {
-                pf[0x293] = 0.0f;
-                pf[0x292] = 0.0f;
+            if (pl->char_type == 6 && atree->frame > 11.0f) {
+                pl->field_A4C = 0.0f;
+                pl->field_A48 = 0.0f;
             } else {
-                pf[0x293] = 0.25f;
-                pf[0x292] = 0.0f;
+                pl->field_A4C = 0.25f;
+                pl->field_A48 = 0.0f;
             }
-            pf[0x295] = 0.0f;
+            pl->field_A54 = 0.0f;
         } else if (cur >= P_ATTACK_PWRB) {
-            pf[0x292] = 0.0f;
-            pf[0x293] = 1.0f;
-            pf[0x295] = 0.0f;
+            pl->field_A48 = 0.0f;
+            pl->field_A4C = 1.0f;
+            pl->field_A54 = 0.0f;
         } else if (cur >= P_ATTACK_PWRA_LOW) {
-            pf[0x293] = 1.0f;
-            pf[0x292] = 0.25f;
-            pf[0x295] = 0.0f;
+            pl->field_A4C = 1.0f;
+            pl->field_A48 = 0.25f;
+            pl->field_A54 = 0.0f;
         } else if (cur >= P_ATTACK_LOW) {
-            pf[0x292] = 1.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_STRAFE_ATKF) {
-            pf[0x292] = 0.667f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 0.667f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_ATTACK_STEP) {
-            pf[0x292] = 1.0f;
-            pf[0x293] = 0.25f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 0.25f;
         } else if (cur >= P_ATTACK_360) {
-            pf[0x292] = 0.5f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 0.5f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_ATTACK_180) {
-            pf[0x292] = 1.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_ATTACK_RIGHT) {
-            pf[0x292] = 1.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_ATTACK_QUICK) {
-            pf[0x292] = 0.25f;
-            pf[0x293] = 0.0f;
+            pl->field_A48 = 0.25f;
+            pl->field_A4C = 0.0f;
         } else if (cur == P_ATTACK_PWRA_MED) {
-            if (p[2] == 7 || p[2] == 6) {
-                pf[0x292] = 0.0f;
-                pf[0x293] = 0.0f;
-            } else if ((u32)(p[2] - 2) <= 1) {
-                pf[0x292] = 0.25f;
-                pf[0x293] = 1.0f;
+            if (pl->char_type == 7 || pl->char_type == 6) {
+                pl->field_A48 = 0.0f;
+                pl->field_A4C = 0.0f;
+            } else if ((u32)(pl->char_type - 2) <= 1) {
+                pl->field_A48 = 0.25f;
+                pl->field_A4C = 1.0f;
             } else {
-                pf[0x292] = 0.5f;
-                pf[0x293] = 1.0f;
+                pl->field_A48 = 0.5f;
+                pl->field_A4C = 1.0f;
             }
-            pf[0x295] = 0.0f;
+            pl->field_A54 = 0.0f;
         } else if (cur >= P_ATTACK_PWRA_CLOSE) {
-            if (p[2] == 5 || p[2] == 6) {
-                pf[0x292] = 0.0f;
-                pf[0x293] = 0.0f;
-            } else if (p[2] == 2) {
-                pf[0x292] = 0.25f;
-                pf[0x293] = 1.0f;
+            if (pl->char_type == 5 || pl->char_type == 6) {
+                pl->field_A48 = 0.0f;
+                pl->field_A4C = 0.0f;
+            } else if (pl->char_type == 2) {
+                pl->field_A48 = 0.25f;
+                pl->field_A4C = 1.0f;
             } else {
-                pf[0x292] = 0.5f;
-                pf[0x293] = 1.0f;
+                pl->field_A48 = 0.5f;
+                pl->field_A4C = 1.0f;
             }
-            pf[0x295] = 0.0f;
+            pl->field_A54 = 0.0f;
         } else {
-            pf[0x292] = 0.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 0.0f;
+            pl->field_A4C = 1.0f;
         }
     } else {
         if (cur == P_STUCK) {
-            pf[0x292] = 0.4f;
-            pf[0x293] = 0.5f;
+            pl->field_A48 = 0.4f;
+            pl->field_A4C = 0.5f;
         } else if ((u32)(cur - P_RUN) <= 1 || cur == P_SHIELD_RUN) {
-            pf[0x292] = 1.3f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.3f;
+            pl->field_A4C = 1.0f;
         } else if (cur == P_COMBO_DWF2) {
-            pf[0x292] = 1.5f;
-            pf[0x293] = 0.5f;
+            pl->field_A48 = 1.5f;
+            pl->field_A4C = 0.5f;
         } else if (cur == P_SHOVE) {
-            pf[0x292] = 1.5f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.5f;
+            pl->field_A4C = 1.0f;
         } else if (cur >= P_DEFEND1 && cur <= P_DEFENDF) {
-            pf[0x292] = 0.0f;
-            pf[0x293] = 0.0f;
+            pl->field_A48 = 0.0f;
+            pl->field_A4C = 0.0f;
         } else if (cur >= P_STRAFE_WLKF && cur <= P_STRAFE_WLKR2) {
-            pf[0x292] = 0.667f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 0.667f;
+            pl->field_A4C = 1.0f;
         } else if (cur == P_VICTORY) {
-            pf[0x292] = 1.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 1.0f;
         } else if (cur > P_LAST_ATTACK) {
-            pf[0x294] = 0.0f;
-            pf[0x292] = 1.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A50 = 0.0f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 1.0f;
         } else {
-            pf[0x292] = 1.0f;
-            pf[0x293] = 1.0f;
+            pl->field_A48 = 1.0f;
+            pl->field_A4C = 1.0f;
         }
     }
 
     if ((gControllerButtons & 1) != 0 &&
-        (gControllerButtons & 8) != 0 && p[0] == 0) {
+        (gControllerButtons & 8) != 0 && pl->index == 0) {
         dbgTextPrintfCol(1, 0x1C,
                          "ACTION:%s NEXT:%s D:%s INT:%d RPT:%d DIDT:%d",
                          action_names[cur], action_names[act],
@@ -1913,9 +1913,9 @@ void DoPlayerAction(void* player)
     }
 
     if (adv != 0) {
-        p[0x82] = act;
+        pl->anim_208 = act;
     } else {
-        p[0x82] = cur;
+        pl->anim_208 = cur;
     }
 }
 
