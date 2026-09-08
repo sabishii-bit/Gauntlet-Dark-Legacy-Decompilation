@@ -67,6 +67,7 @@
 struct Critter;
 struct MBObject;   /* include/game/mbobject.h; every handle
                     * below is Xbox crit_inst's `struct mbnode *` */
+struct item;       /* include/game/item.h */
 struct CritterColDescriptor;  /* one stride-0x50 NODE record of a loaded
                                * CRITTER wad; completed in critter.c, the only
                                * TU that dereferences it */
@@ -374,8 +375,12 @@ typedef struct Critter {
     s16 pausecnt;             /* 0xAC4 anim pause counter (CritterAnimate)     */
     s16 unkAC6;               /* 0xAC6 (init 0)                              */
     f32 unkAC8;               /* 0xAC8 (init 0)                              */
-    u8  _blkACC[4];           /* 0xACC .. 0xAD0                            */
-    f32 unkAD0;               /* 0xAD0 target-score gate threshold          */
+    struct item *gotitem;     /* 0xACC crit_inst.gotitem -- the item this
+                               * critter is carrying/will drop; gauntworld's
+                               * spawn path stores &sItems[enemy.pickup] here */
+    f32 visrad;               /* 0xAD0 crit_inst.visrad -- spawn writes
+                               * `enemy.rad * gCurLevel->ene_visrad`; read as
+                               * the target-score gate in CritterGetTarget    */
     void *particle;           /* 0xAD4 particle handle (FindClosestWaypoint)           */
     struct Critter *next;     /* 0xAD8 sibling in active critter list          */
     struct Critter *parent;   /* 0xADC parent critter (NULL if root)           */

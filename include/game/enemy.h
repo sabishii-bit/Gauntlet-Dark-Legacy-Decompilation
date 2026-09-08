@@ -71,7 +71,7 @@ typedef enum enemy_action_type {
 
 /* forward decls for pointer-only members (defined by their own modules) */
 struct mbnode;
-struct item;
+struct Item;   /* include/game/item.h: the shipped tag is `Item` */
 struct worldobj;
 struct anode;
 struct anodeinfo;
@@ -193,8 +193,8 @@ typedef struct Enemy {
     s16 stopped;                       /* 0x282                          */
     s32 coll_pnum;                     /* 0x284 collided player number   */
     s32 coll_enenum;                   /* 0x288 collided enemy number    */
-    struct item *coll_ip;              /* 0x28C collided item            */
-    struct item *generator;            /* 0x290 owning generator/head    */
+    struct Item *coll_ip;              /* 0x28C collided item            */
+    struct Item *generator;            /* 0x290 owning generator/head    */
     f32 floory;                        /* 0x294                          */
     struct worldobj *floor_wobj;       /* 0x298                          */
     s32 floor_surf;                    /* 0x29C floor surface type       */
@@ -253,7 +253,7 @@ typedef struct Enemy {
     f32 idle_time;                     /* 0x378                          */
     f32 idle_secs;                     /* 0x37C                          */
     f32 idle_frac;                     /* 0x380                          */
-    struct item *gotitem;              /* 0x384                          */
+    struct Item *gotitem;              /* 0x384                          */
     s32 alpha;                         /* 0x388                          */
     f32 prev_frame;                    /* 0x38C                          */
     s32 anim_done;                     /* 0x390                          */

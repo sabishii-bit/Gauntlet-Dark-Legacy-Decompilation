@@ -2172,7 +2172,7 @@ void CritterGetSingleTargetPlayer(Critter *c)
         score = CritterCalcTarget(c, (f32 *)&c->hdr->target,
                                   targetpos,
                                   &candidate);
-        if (c->particle != NULL && c->unkAD0 > zero && score > c->unkAD0) {
+        if (c->particle != NULL && c->visrad > zero && score > c->visrad) {
             continue;
         }
         if (sMusicFadeBase < player->fxhittime) {
@@ -2315,7 +2315,7 @@ void CritterGetTargetPlayers(Critter *c)
         score = CritterCalcTarget(c, (f32 *)&c->hdr->target, targetpos,
                                   &record);
         if (c->particle != NULL) {
-            thr = c->unkAD0;
+            thr = c->visrad;
             if (thr > zero && score > thr) {
                 continue;
             }
@@ -4394,29 +4394,29 @@ void CritterDropItem(Critter *c)
 
     item = NULL;
     type = 0;
-    /* lint-begin FM001, FM007: measured: typing the dropped-item cursor is 396 -> 392 B, 94 words */
-    if (*(void **)((u8 *)c + offsetof(Critter, _blkACC)) != NULL) {
-        item = *(void **)((u8 *)c + offsetof(Critter, _blkACC));
-        *(void **)c->_blkACC = NULL;
+    if (c->gotitem != NULL) {
+        item = c->gotitem;
+        c->gotitem = NULL;
         type = 1;
     } else {
         switch (c->hdr->descriptor->type) {
         case 7: {
             char *p;
 
+            /* lint-allow-next-line FM007: random-range argument, no enum in tree */
             sprintf(name, &lbl_803465EC, fn_80057ACC(0x20));
             p = name;
             while (*p != '\0') {
                 *p = (char)toupper(*p);
                 p++;
             }
+            /* lint-allow-next-line FM007: PlaceItem item-class argument, no enum in tree */
             item = PlaceItem(1, 0x10, name, NULL);
             type = 2;
             break;
         }
         }
     }
-    /* lint-end FM001, FM007 */
     if (item == NULL) {
         return;
     }
