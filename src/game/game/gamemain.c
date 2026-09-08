@@ -265,7 +265,10 @@ typedef struct MBTextMsg {
     s16 seq;
     u32 color;
 } MBTextMsg;
-extern void* DrawStringText(s32 a, s32 b, s32 c, s32 d, s32 e, ...);
+/* DrawStringText's GC va_list starts after six GPR arguments; the message
+ * index is fixed, not the first variadic argument. */
+extern void* DrawStringText(s32 x, s32 y, u32 flags, u32 color,
+                            s32 message, s32 index, ...);
 extern f32   RestoreDrawStringScale(void);
 extern void  init_attract_mode(s32 mode);
 extern Player gPlayers[];      /* gPlayerRecords[4], stride 13148 (0x335C) */
