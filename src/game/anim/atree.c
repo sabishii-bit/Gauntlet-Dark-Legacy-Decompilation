@@ -1188,8 +1188,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         }
 
         /* per-match-entry tree blobs */
-        i = 0;
-        off = 0;
+        off = i = 0;
         while (i < (s16)hdr[0]) {
             s32* blob =
                 (s32*)(base + *(s32*)(*(u32*)(hdr + 2) + off +
