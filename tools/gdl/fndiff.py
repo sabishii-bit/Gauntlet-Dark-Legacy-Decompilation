@@ -106,6 +106,16 @@ no cluster; --ops therefore also prints IMMEDIATE rows for those (relocated
 fields, which the linker owns, excluded) and refuses to call such a function
 "pure reorder, schedule-class residual".
 
+An IMMEDIATE row is tagged SCALED-DISPLACEMENT when the two instructions are
+identical apart from ONE literal and ours is an exact integer multiple of the
+target's -- the signature of `p + N` after `p`'s type changed, where the
+offset silently starts counting RECORDS. Four of those shipped past review in
+run 62 (`lwz r3,1600(r3)` against the target's `lwz r3,20(r3)`) and were
+caught only by a whole-object byte comparison, because in --ops each is one
+lone IMMEDIATE row that reads like regalloc noise. Calibrated: 5 of 5 known
+positives, 0 of 10 negatives, and 3 of 2,345 live IMMEDIATE rows (0.13%)
+across 258 TUs.
+
 --count prints one summary line per function (target/base insn counts, total
 diff lines, and "real" diff lines) -- use it as the per-iteration score
 instead of piping through grep -c.
@@ -164,6 +174,11 @@ def objdump_path(root=Path("."), *, platform_name=None):
 OBJDUMP = objdump_path()
 SYMBOLS_TXT = Path(f"config/{VERSION}/symbols.txt")
 RETAIL_DOL = Path(f"orig/{VERSION}/sys/main.dol")
+#: This checkout's root, resolved from THIS FILE rather than the cwd. Every
+#: other path here is cwd-relative by long-standing convention; the header
+#: scan in known_record_strides must not be, or the same command answers
+#: differently depending on the directory it was typed in.
+REPO = Path(__file__).resolve().parents[2]
 
 def unit_key(unit):
     """The canonical unit spelling: no `src/`, no `.c`/`.cpp`, forward slashes.
@@ -2274,6 +2289,173 @@ def immediate_deltas(t, b):
     return out
 
 
+# --------------------------------------------------------------------------
+# The retype-scaling tell.
+#
+# When a member changes from `u8 *` to a typed pointer, every `+ N` on it
+# silently starts counting RECORDS instead of BYTES. The source compiles, the
+# linter passes, and the object emits a displacement scaled by sizeof(record).
+# Four of these shipped past review in run 62 and were caught only by a
+# whole-object byte comparison (from-fable-2026-09-11-run62-critter-lint-clean):
+#
+#   CritterNewInst       header->file + offsetof(CritterFileHeader, types)
+#                        `lwz r3,1600(r3)`  target `lwz r3,20(r3)`     x80
+#   CritterInitColnodes  header->file + offsetof(..., nodes)
+#                        `lwz r5,4800(r5)`  target `lwz r5,60(r5)`     x80
+#   CritterBossAI        header->movesPtr + moveIndex * 0x90        0x90 records
+#   CRITTER_DIE          hdr->descriptor + 0x20                     0x20 records
+#
+# In --ops each is ONE aligned IMMEDIATE row, indistinguishable by eye from
+# regalloc noise -- which is exactly how they were dismissed. The row already
+# carries the discriminant: the two literals stand in an exact integer ratio,
+# and the ratio is a record size.
+#: `sizeof(T) == 0xNN`, the compile-time assertion form the headers use.
+_SIZEOF_ASSERT_RE = re.compile(
+    r"sizeof\s*\(\s*(?:struct\s+|union\s+)?(\w+)\s*\)\s*==\s*"
+    r"(0[xX][0-9a-fA-F]+|\d+)")
+#: `} Name;  /* sizeof == 0xNN */`, the trailing-comment form.
+_SIZEOF_COMMENT_RE = re.compile(
+    r"\}\s*(\w+)\s*;[^\n]*?sizeof\s*==\s*(0[xX][0-9a-fA-F]+|\d+)")
+#: A ratio at least this large is reported even when no header names it: no
+#: plausible hand-written displacement is 16x another one at the same opcode.
+SCALED_BLIND_FACTOR = 16
+#: Strides below this are too common to carry information (4, 8, 12 ...).
+SCALED_MIN_STRIDE = 16
+#: A target literal below this is a loop constant, not a displacement, and
+#: EVERY literal is an integer multiple of 1. Calibrated: without this floor
+#: the live sweep flagged `li r4,1` -> `li r5,33` and `addi r0,r4,1` ->
+#: `addi r4,r3,96` as x33 and x96 -- ratios that exist only because the
+#: target literal was 1. All five positive controls are >= 20.
+SCALED_MIN_TARGET = 4
+_STRIDE_CACHE = {}
+
+
+def known_record_strides(root=None):
+    """{size: (type names,)} for every record size the game headers assert.
+
+    Deliberately only `include/game/*.h` and only sizes the headers state
+    outright: a size this tool INFERRED would be a layout claim, and a wrong
+    one would put a confident name on a coincidence. A size with no name here
+    is still reported by the blind-factor rule, unnamed.
+    """
+    root = Path(root) if root is not None else REPO
+    key = str(root)
+    if key in _STRIDE_CACHE:
+        return _STRIDE_CACHE[key]
+    sizes = {}
+    folder = root / "include" / "game"
+    for header in sorted(folder.glob("*.h")) if folder.is_dir() else []:
+        try:
+            text = header.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for regex in (_SIZEOF_ASSERT_RE, _SIZEOF_COMMENT_RE):
+            for name, value in regex.findall(text):
+                size = int(value, 0)
+                if size >= SCALED_MIN_STRIDE:
+                    sizes.setdefault(size, set()).add(name)
+    table = {size: tuple(sorted(names)) for size, names in sizes.items()}
+    _STRIDE_CACHE[key] = table
+    return table
+
+
+def _sole_literal_delta(t_line, b_line):
+    """(target value, our value) when ONLY ONE literal moved and nothing else.
+
+    The SKELETON -- opcode, every register, the addressing form -- has to be
+    identical, with every literal replaced by a placeholder. That is the
+    mechanism's own signature: `p + N` over a retyped pointer changes the
+    displacement and nothing whatever else. Calibration forced this from
+    "exactly one differing numeric field" to full skeleton equality: with
+    only the field test, the live sweep paired `lwz r10,4(r31)` against
+    `lwz r10,180(r1)` and called it x45. Those two instructions read
+    different BASES; whatever separates them, it is not one scaled
+    displacement, and the pairing itself is a guess.
+    """
+    if IMM_RE.sub("#", t_line) != IMM_RE.sub("#", b_line):
+        return None
+    t_imm, b_imm = IMM_RE.findall(t_line), IMM_RE.findall(b_line)
+    if len(t_imm) != len(b_imm):
+        return None
+    differing = [(a, c) for a, c in zip(t_imm, b_imm) if a != c]
+    if len(differing) != 1:
+        return None
+    try:
+        return int(differing[0][0], 0), int(differing[0][1], 0)
+    except ValueError:
+        return None
+
+
+def scaled_displacement(t_line, b_line, strides=None):
+    """{'factor', 'difference', 'stride', 'names', 'why'} for a retype-scaled row.
+
+    THE ONE SHAPE THIS REPORTS: ours == target * k exactly, k >= 2, with k a
+    record size some `include/game/*.h` states outright or k >=
+    SCALED_BLIND_FACTOR. That is the mechanism itself -- `p + N` over a typed
+    pointer emits `N * sizeof(*p)` -- and it is what all four run-62 misses
+    look like.
+
+    A SECOND SHAPE WAS BUILT AND MEASURED AWAY. `ours == target + k * stride`
+    (the same bug after the compiler folded a base in) has no positive
+    control and, swept over every built object, produced 9 hits of which
+    every one was a frame-slot or different-base difference:
+    `ControlsUpdate  addi r3,r1,20 -> addi r3,r1,108` read as
+    "+1 * sizeof(SndVoice)" because 88 happens to be a struct size in this
+    tree. With eight sizes in the table and differences in the hundreds, that
+    rule names coincidences. It is not shipped; see the item-4 report.
+
+    The stride NAMES are CANDIDATES, never a layout claim: only eight sizes
+    are asserted anywhere in include/game, so an equal number proves nothing
+    about which record is involved. `sizeof(plyr_sfx) == 0x50` and a
+    `crit_header` of 0x50 are indistinguishable here, and the actual run-62
+    x80 hits were crit_header.
+
+    Returns None when the shape does not hold.
+    """
+    pair = _sole_literal_delta(t_line, b_line)
+    if pair is None:
+        return None
+    target, ours = pair
+    if abs(target) < SCALED_MIN_TARGET or ours == 0:
+        return None
+    if (target > 0) != (ours > 0) or abs(ours) <= abs(target):
+        return None
+    if ours % target:
+        return None
+    factor = ours // target
+    strides = known_record_strides() if strides is None else strides
+    names = strides.get(abs(factor), ())
+    if not names and abs(factor) < SCALED_BLIND_FACTOR:
+        return None
+    return {"factor": factor, "difference": ours - target,
+            "stride": abs(factor), "names": names,
+            "why": ("0x%X is a record size in include/game (%s -- CANDIDATE"
+                    " names only; an equal size is not the record)"
+                    % (abs(factor), ", ".join(names)) if names else
+                    "0x%X is past any plausible hand-written literal ratio"
+                    % abs(factor))}
+
+
+def scaled_displacement_rows(imm_rows, strides=None):
+    """{t_index: verdict} over the IMMEDIATE rows --ops already computed."""
+    found = {}
+    for t_index, _o_index, kind, t_line, b_line in imm_rows:
+        if kind != "immediate":
+            continue
+        verdict = scaled_displacement(t_line, b_line, strides)
+        if verdict:
+            found[t_index] = verdict
+    return found
+
+
+def format_scaled_displacement(verdict):
+    """The `SCALED-DISPLACEMENT (x{k} / +{n})` tag printed beside a row."""
+    factor = ("x%d" % verdict["factor"]) if verdict["factor"] is not None \
+        else "x n/a"
+    return ("[SCALED-DISPLACEMENT (%s / %+d): %s]"
+            % (factor, verdict["difference"], verdict["why"]))
+
+
 _BRANCH_TARGET_INDEX_RE = re.compile(r"<fn\+0x(-?[0-9a-f]+)>")
 
 
@@ -2716,6 +2898,7 @@ def ops_diff(name, t, b):
               f"  O[{j1}:{j2}]@{j1 * 4:x}-{j2 * 4:x}={bo[j1:j2]}{note}")
     # Which of these rows the matcher had to GUESS at (run-39 item 12).
     unreliable = immediate_row_reliability(t, b)
+    scaled = scaled_displacement_rows(imm)
     shaky = 0
     for ti, bi, kind, t_line, b_line in imm:
         why = unreliable.get(ti)
@@ -2723,7 +2906,22 @@ def ops_diff(name, t, b):
             shaky += 1
         print(f"  IMMEDIATE T[{ti}]@{ti * 4:x}  O[{bi}]@{bi * 4:x}"
               f"   T: {t_line}   O: {b_line}"
-              + (f"   [PAIRING UNRELIABLE: {why}]" if why else ""))
+              + (f"   [PAIRING UNRELIABLE: {why}]" if why else "")
+              + (("   " + format_scaled_displacement(scaled[ti]))
+                 if ti in scaled else ""))
+    if scaled:
+        print(f"  {len(scaled)} of {len(imm)} IMMEDIATE row(s) are"
+              " SCALED-DISPLACEMENT: same opcode, same registers, same"
+              " addressing form, and OUR literal is an exact integer MULTIPLE"
+              " of the target's. That is the signature of a pointer whose"
+              " type changed under a `+ N`: `p + N` over a typed pointer"
+              " emits `N * sizeof(*p)`, so the offset silently starts"
+              " counting RECORDS. Four of these shipped past review in run 62"
+              " and were caught only by a whole-object byte comparison. Grep"
+              " the TU for `-><field> +` on every member you retyped before"
+              " reading these as regalloc noise. The stride NAMES are"
+              " candidates from include/game sizeof assertions, not a layout"
+              " claim.")
     if shaky:
         print(f"  {shaky} of {len(imm)} IMMEDIATE row(s) are marked PAIRING"
               " UNRELIABLE: they sit at the edge of an equal run, where the"
@@ -2787,6 +2985,18 @@ def truncate_ops(ops_text, limit):
             " suppressed — a branch that drift cannot explain is a"
             " control-flow difference, not noise; read the full"
             " `fndiff --ops`")
+    # A SCALED-DISPLACEMENT row is an IMMEDIATE row, so it was covered by
+    # the count below -- but "one of 40 immediates was hidden" is not the
+    # same warning as "a retype-scaling candidate was hidden", and this is
+    # the class that shipped four times in run 62.
+    scaled_dropped = sum(1 for line in dropped
+                         if "SCALED-DISPLACEMENT" in line)
+    if scaled_dropped:
+        kept.append(
+            f"  ... {scaled_dropped} SCALED-DISPLACEMENT row(s) suppressed —"
+            " our literal is an exact integer multiple of the target's at an"
+            " otherwise identical instruction, the signature of a `+ N` on a"
+            " retyped pointer; read the full `fndiff --ops`")
     imm_dropped = sum(
         1 for line in dropped if line.lstrip().startswith("IMMEDIATE "))
     if imm_dropped:

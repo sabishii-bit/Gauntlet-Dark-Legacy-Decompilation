@@ -1,0 +1,16 @@
+[
+ {
+  "id": "comment-only",
+  "file": "src/game/sound/sounds.c",
+  "old": "/* --- sound-engine callees (game/audio/sndfx.c + audio.c, 0x8001xxxx) --- */",
+  "new": "/* --- sound-engine callees: game/audio/sndfx.c + audio.c, 0x8001xxxx --- */",
+  "count": 1
+ },
+ {
+  "id": "welcome-extra-224-to-225",
+  "file": "src/game/sound/sounds.c",
+  "old": "sndFxQueAddEx(1, 0xC0084, -1.0f, 10.0f, 224, extra, 2);",
+  "new": "sndFxQueAddEx(1, 0xC0084, -1.0f, 10.0f, 225, extra, 2);",
+  "count": 1
+ }
+]
