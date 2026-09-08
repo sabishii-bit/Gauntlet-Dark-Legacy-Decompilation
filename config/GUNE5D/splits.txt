@@ -356,7 +356,7 @@ zlib/infutil.c:
 	extab       start:0x800076A0 end:0x800076A8
 	extabindex  start:0x8000BA40 end:0x8000BA4C
 	.text       start:0x800B263C end:0x800B27C4
-	.data       start:0x80127B60 end:0x80127BA8
+	.data       start:0x80127B60 end:0x80127BA4
 
 game/mb/mb_blit.c:
 	extab       start:0x800076A8 end:0x80007768
@@ -1186,7 +1186,7 @@ dolphin/os/OSFont.c:
 
 dolphin/os/OSInterrupt.c:
 	.text       start:0x80106BA0 end:0x80107408
-	.data       start:0x8023C830 end:0x8023C860
+	.data       start:0x8023C830 end:0x8023C85C
 	.sbss       start:0x80345610 end:0x80345628
 
 dolphin/os/OSLink.c:
