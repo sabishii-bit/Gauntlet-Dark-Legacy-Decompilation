@@ -261,6 +261,7 @@ game/sound/sounds.c:
 	extab       start:0x800072B0 end:0x800073A0
 	extabindex  start:0x8000B458 end:0x8000B5C0
 	.text       start:0x800A00A0 end:0x800A18E8
+	.rodata     start:0x80114CA8 end:0x80114CC0
 
 game/world/tower.c:
 	extab       start:0x800073A0 end:0x80007410
