@@ -203,7 +203,10 @@ class LiveUnitTests(unittest.TestCase):
         result = po.analyze("game/sys/ml_mem")
         self.assertEqual(result["claimed_pool_extent"], [{
             "section": ".rodata", "start": "0x801161B0", "end": "0x80116450",
-            "size": 672, "named_datums_in_symbols": 11,
+            # 17, not 11: the three merged .rodata runs (lbl_801161B0,
+            # mlmGameSubdirectory, lbl_80116388) were split into the literals
+            # the DOL terminates, so symbols.txt now names every one of them.
+            "size": 672, "named_datums_in_symbols": 17,
             "target_section_bytes": 672}])
         self.assertFalse(result["claims_no_pool_run"])
         own = [d for d in result["datums"] if d["owned_by_this_unit"]]
@@ -220,13 +223,21 @@ class LiveUnitTests(unittest.TestCase):
         self.assertEqual(heap["disposition"], "DATA")
         self.assertEqual(heap["value"]["preferred"], "u32")
 
-    def test_ml_mem_merged_string_runs_match_segment_by_segment(self):
-        """A whole-run byte compare fails by construction; segments do not."""
+    def test_ml_mem_unmerged_string_run_matches_as_one_whole_datum(self):
+        """Once the run is not merged, the whole-run byte compare SUCCEEDS.
+
+        The old expectation (0 whole-datum matches, rescued by 2 string
+        segments) described the merged-run defect: lbl_801161B0 covered 0x88
+        spanning two literals, so no single datum of ours could equal it and
+        only segment-by-segment matching found them. symbols.txt now sizes it
+        0x6F -- exactly the one literal the DOL terminates there -- so it
+        matches as one datum and the segment fallback is not needed.
+        """
         result = po.analyze("game/sys/ml_mem")
         row = next(d for d in result["datums"] if d["name"] == "lbl_801161B0")
-        self.assertEqual(row["our_equal_value_count"], 0)
-        self.assertEqual(len(row["our_string_segment_matches"]), 2)
-        self.assertEqual(row["our_string_segments_matched"], 2)
+        self.assertEqual(row["our_equal_value_count"], 1)
+        self.assertEqual(len(row["our_string_segment_matches"]), 0)
+        self.assertEqual(row["our_string_segments_matched"], 0)
 
     def test_enemy_claims_its_sdata2_run_refuting_the_unclaimed_premise(self):
         result = po.analyze("game/enemy/enemy")
