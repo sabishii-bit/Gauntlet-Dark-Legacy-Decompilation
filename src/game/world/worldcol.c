@@ -18,6 +18,9 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef unsigned short u16;
 typedef signed char s8;
+typedef double f64;
+#define NULL 0
+#include "game/worldcol.h"
 
 typedef struct WorldCollisionResult {
     f32 hitPt[3];      /* 0x000 closest hit point */
@@ -65,13 +68,6 @@ typedef struct CollisionPoint {
     f32 _unused;
 } CollisionPoint;
 
-typedef struct FloorCollisionResult {
-    u8 _pad00[0x34];
-    f32 floorY;
-    u8 _pad38[0xC];
-    s32 current;
-} FloorCollisionResult;
-
 extern s32 lbl_80344188;
 extern f32 lbl_80344190;
 extern f32 lbl_80344194;
@@ -88,7 +84,6 @@ extern f32 lbl_8023CA50[];
 extern WorldCollisionResult lbl_8023CA40;
 extern FloorCollisionResult gFloorCollisionResult;
 
-typedef double f64;
 extern f64 lbl_80345730, lbl_80345738, lbl_803457A0, lbl_803457A8;
 extern f32 lbl_80344164, lbl_80345764;
 
@@ -368,7 +363,7 @@ f32 FloorPos(f32 fallback, f32 radius, Vec3* position, s32 mode) {
     CollisionPoint from;
     s32 hit;
 
-    gFloorCollisionResult.current = hit = 0;
+    gFloorCollisionResult.obj = (struct worldobj*)(hit = 0);
     from.x = position->x;
     from.y = position->y;
     from.z = position->z;
@@ -386,7 +381,7 @@ f32 FloorPos(f32 fallback, f32 radius, Vec3* position, s32 mode) {
         hit = 1;
     }
     if (hit != 0) {
-        return gFloorCollisionResult.floorY;
+        return gFloorCollisionResult.mtx[3][1];
     }
     return fallback;
 }
@@ -399,7 +394,7 @@ u32 FloorCollide(f32 radius, f32 yFrom, f32 yTo, Vec3* position,
     if (result == 0) {
         result = &gFloorCollisionResult;
     }
-    result->current = 0;
+    result->obj = NULL;
     from.x = position->x;
     from.y = position->y;
     from.z = position->z;

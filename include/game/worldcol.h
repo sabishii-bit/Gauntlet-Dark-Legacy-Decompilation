@@ -1,8 +1,13 @@
 #ifndef GAME_WORLDCOL_H
 #define GAME_WORLDCOL_H
 
-#include "types.h"
-#include "game/worldobj.h"
+/* Deliberately dependency-free: worldcol.c predates types.h and declares
+ * its own primitives, and porting it onto types.h moves bytes (`s32` as
+ * `signed long` instead of `signed int` rewrites 96 words of WorldCollide
+ * with no size change).  So this header only names f32/s32 and takes the
+ * surface object as an opaque `struct worldobj*`; every other includer
+ * already pulls types.h and game/worldobj.h for the complete type. */
+struct worldobj;
 
 /*
  * worldcol.h -- the world-collision probe result record.
@@ -44,7 +49,7 @@
 typedef struct FloorCollisionResult {
     /* 0x00 */ f32 mtx[4][4]; /* rows 0..2 surface basis, row 3 contact point */
     /* 0x40 */ s32 _unk40;    /* never read on GC                            */
-    /* 0x44 */ WorldObj* obj; /* surface owner; NULL == nothing under us     */
+    /* 0x44 */ struct worldobj* obj; /* surface owner; NULL == no floor     */
 } FloorCollisionResult;       /* size 0x48                                   */
 
 #endif /* GAME_WORLDCOL_H */
