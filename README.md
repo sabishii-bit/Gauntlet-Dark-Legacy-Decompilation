@@ -84,7 +84,6 @@ Building
 
 The build is verified against [config/GUNE5D/build.sha1](config/GUNE5D/build.sha1),
 which targets the extab-cleaned reference, not the original input hash above.
-The former retail-byte-spliced `main.retail.dol` is no longer generated.
 
 Diffing
 =======
@@ -95,25 +94,8 @@ Download the latest release from [encounter/objdiff](https://github.com/encounte
 
 Select an object from the left sidebar to begin diffing. Changes to the project will rebuild automatically: changes to source files, headers, `configure.py`, `splits.txt` or `symbols.txt`.
 
-Contributing
-============
-
-Contributions that improve the accuracy of the decompilation are welcome. The
-project's helper scripts live in [`tools/gdl/`](tools/gdl/), and each script
-supports `--help`.
-
-Agents should read [AGENTS.md](AGENTS.md). Investigate directly from the source,
-headers, target disassembly, Git history and tests; coordinate exclusive file/TU
-ownership before editing and include reproducible measurements in the handoff.
-The [source-structure screen](AGENTS.md#source-structure-screen-before-declaring-compiler-variance)
-adapts SMS's program-reconstruction and MWCC guidance into GDL-specific checks.
-Use it before diagnosing a postprocessor residual as compiler variance; it does
-not authorize foreign flags, artificial helpers or unverified layout changes.
-
-Before submitting a change, rebuild the project, inspect the affected object in
-objdiff, and make sure the linked DOL still passes the configured hash check.
-Please keep commits focused and avoid mixing unrelated cleanup with decompilation
-work.
+Editable builds and progress
+============================
 
 To build editable versions of the source-linked units (final hash will not match):
 
@@ -122,7 +104,7 @@ python configure.py --non-matching
 ninja
 ```
 
-Both modes now compile without object postprocessing. This mode does **not**
+Both modes compile without object postprocessing. This mode does **not**
 promote `Object(NonMatching, ...)` units to the link: extracted objects remain
 selected. Edits to their source may compile without appearing in the game.
 Consult `linked_object`/`linkage` in the provenance manifest. Cross-TU
@@ -134,72 +116,39 @@ To print decompilation progress:
 python configure.py progress
 ```
 
-### Native-only build and honest progress
+### Native-only build
 
-The user-directed reset (2026-09-07) removes Frank/WebFrank/P6Frank,
-atree symbol promotion, exception-runtime layout rewriting, assembler ELF
-fixups and post-link retail-byte splicing from the generated build. The
-three former JSON configurations are removed; lint policy is a small TOML
-file. Legacy analysis modules/tests are retained where useful, not scheduled
-as patchers. Historical rules can be inspected at commit `1c9273631`.
-
-Twenty-four formerly source-linked TUs are demoted to NonMatching, including
-the two exception-runtime TUs and the TRK assembly TU. Other dependent TUs
-were already NonMatching. This is a disclosed loss of claimed source coverage,
-not a native closure. Source and compiler settings are retained for repair.
-The normal build still mixes source objects with extracted fallback, and its
-green checksum verifies that mixed build.
-
-The generator refuses postprocessing in native-only mode. Inspect current
-source/fallback selection and compiler provenance after `ninja`:
+The generated build applies no object postprocessing: every linked object is
+either the compiler's output for a source-linked unit or the extracted object
+for a `NonMatching` unit. The green checksum verifies that mixed build, not an
+all-source build. Inspect the current source/fallback selection and compiler
+provenance after `ninja`:
 
 ```sh
 python tools/gdl/build_provenance.py --out build/GUNE5D/build_provenance.json
 python tools/gdl/reconstruction_preflight.py --smoke-tools
 ```
 
-GC 1.2.5n and optional 1.2.5s remain **derived compilers**. No postprocessing
-does not mean stock-compiler output or recovered original source. Report
-scores, actual linked-source coverage and source authenticity are separate.
-The existing checksum targets the documented extab-cleaned reference;
-reference extraction/normalization remains, but no `main.retail.dol` splice
-is generated. Reproducing those original padding bytes natively is still open.
+GC 1.2.5n and optional 1.2.5s are **derived compilers**: compiling without
+postprocessing does not by itself establish stock-compiler output or recovered
+original source. Report scores, linked-source coverage and source authenticity
+are separate measurements.
 
-Former source exceptions remain visible debt: the `WorldNameRef` wrapper
-in `world.c` and weak square-root helper in `enemy.c` are not recovered
-original structures. Both TUs now link extracted fallback until complete
-native reconstruction. No new scaffolding is authorized by the reset.
-
-Fable's run-61 split additions cover 14 ranges in 12 TUs (4416 bytes).
-Independent checks confirmed non-overlap, seven literal/string byte runs
-with zero-only trailing slack, five table-owning function populations and
-two BSS extents. Some table branch offsets still differ; BSS extent equality
-does not prove fine-grained object identity. The changes are useful ownership
-work, not an all-data or all-source matching certificate.
-
-The embedded static-asset payload has a separate extraction hazard: words in
-serialized asset data can resemble native addresses, causing DTK to infer
-relocations which corrupt the payload when an editable build moves symbols.
-The split configuration now suppresses the 58 remaining inferred relocations
-in the verified `0x80129734..0x80238290` range. Before this correction, even an
-unchanged-source editable build changed 43 payload bytes; after it, the entire
-1,108,828-byte range stays exact in both matching and shifted editable builds.
-This corrects extraction metadata, not compiled instructions. Verify with:
+The embedded static-asset payload (`0x80129734..0x80238290`) is serialized data
+whose words can resemble native addresses; the split configuration suppresses
+the inferred relocations in that range so editable builds leave the payload
+byte-exact. Verify with:
 
 ```sh
 python tools/gdl/composed_census/r67_asset_relocation_audit.py --dol build/GUNE5D/main.dol --out build/GUNE5D/asset_audit.json
 ```
 
-The audit is deliberately limited to that hash-identified payload. It does
-not suppress real pointers elsewhere or claim the game has been boot-tested.
+### Reconstruction priorities
 
-### Reconstruction priorities from the R67 investigation
-
-The measured next milestone is **linking every configured source TU**, followed
-by exact code, data, relocations and exception metadata. It is not another
-fuzzy-score threshold. The ordinary editable build still links extracted
-objects for unfinished TUs. To expose the actual source-link failures without
-changing production link inputs:
+The next milestone is **linking every configured source TU**, followed by exact
+code, data, relocations and exception metadata; it is not a fuzzy-score
+threshold. To expose the actual source-link failures without changing the
+production link inputs:
 
 ```sh
 python configure.py --non-matching
@@ -210,47 +159,23 @@ python configure.py
 ninja -j2
 ```
 
-The probe first reproduces the normal ELF exactly, then substitutes all
-configured source objects in a scratch link. Its `PASS` means the experiment
-ran faithfully, not that the trial linked. Initially, replacing 42 unfinished
-objects exposed duplicate data definitions and unresolved public symbols,
-while retaining 84 explicitly counted automatic data/BSS inputs. The linker
-stopped at its diagnostic cap: counts are lower bounds, and removing early
-errors can reveal new names without indicating a regression.
+The probe reproduces the normal ELF first, then substitutes every configured
+source object in a scratch link; its `PASS` means the experiment ran
+faithfully, not that the trial linked. Work in this order:
 
-The recommended order is:
-
-1. Repair genuine cross-TU visibility/name disagreements and reconcile each
+1. Repair genuine cross-TU visibility and name disagreements and reconcile each
    source datum with its extracted owner. Keep pointer-bearing RTTI, exception
    data and serialized assets distinct. Do not force the link with missing
    function stubs, duplicate-tolerant flags or invented symbol aliases.
 2. Reconstruct complete TU context: initialized tables, literal and BSS pools,
-   prototypes, data visibility, source order and pragma boundaries. Use target
-   bytes and callers as authority; Xbox types are corroboration. Test proposed
-   TU merges rather than treating a shared pool address as proof of one TU.
-3. Run compiler/flag controls against a byte-identical fresh raw baseline.
-   Measure whole-TU effects and pragma overrides, not just the nearest function
-   score. A finite failed matrix is not evidence that no source form exists.
-4. Repair the formerly postprocessed functions natively under the verified
-   whole-TU context. Keep them NonMatching until code, data, relocations and
-   EH all pass; do not substitute a new rule or artificial source construct.
-
-Two experiments explain that ordering. Stock GC 1.2.5 emits the exact
-372-byte `AudioStreamPlay` instruction body under a diagnostic local wrapper,
-restored literal prefix and compensated existing pad. This proves that body
-shape is reachable, **not** that the artificial source is acceptable or its
-TU is matched; none of that scaffolding was retained. Separately, merging
-`sounds_evt` and `sounds` preserves all 151 raw bodies without closing their
-residuals. Five independent sound arrays reconstruct 340 data bytes and 32
-pointer bindings at retail bases, and normal compiler data pooling can retain
-their unreferenced filename table. Missing data context is a demonstrated
-lead; the exact original GC grouping and production placement remain open.
-
-Reproduce those bounded experiments with
-`r67_audio_context_probe.py --flags`, `r67_audio_effective_string_audit.py`,
-and `r67_sound_boundary_probe.py` under `tools/gdl/composed_census/`.
-Inspect those scripts, their tests and relevant Git commits for the bounded
-controls and scope limits; this overview is not a complete source-recovery proof.
+   prototypes, data visibility, source order and pragma boundaries. Target
+   bytes and callers are the authority; Xbox types are corroboration.
+3. Run compiler and flag controls against a byte-identical fresh raw baseline
+   and measure whole-TU effects, not just the nearest function score. A finite
+   failed matrix is not evidence that no source form exists.
+4. Close the remaining function residuals natively under the verified whole-TU
+   context. Keep a unit `NonMatching` until code, data, relocations and
+   exception metadata all pass; never substitute an artificial source construct.
 
 ### Native reconstruction policy
 
@@ -286,7 +211,7 @@ python .vscode/lint/fakematch_lint.py src/game/movie/movieplayer.cpp --out build
 | FM005 | GNU/MWCC assembly, except exact reviewed macro definitions |
 | FM006 | Pragmas and recognized function optimization attributes against a per-file/scope allowlist |
 | FM007 | Hex expression literals outside named constants/enums and direct bitwise-mask operands |
-| FM008 | Reintroduced legacy WebFrank/P6Frank configuration |
+| FM008 | Reintroduced build postprocessor configuration |
 | FM009 | Unnamed numeric offsets into visibly declared pointers/arrays, including decimal pool offsets |
 
 The push/PR workflow runs rule tests and a complete `src/game/` scan in
