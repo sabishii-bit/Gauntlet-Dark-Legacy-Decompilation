@@ -98,7 +98,7 @@ void LoadAllRecords(void) {
             }
             if (item->info->type == 3 && (item->active & 1) == 0) {
                 item->armor = -1;
-                item->data[6] = 0;
+                item->data.raw[6] = 0;
                 item->active = -1;
                 if (item->objgrp.node != 0) {
                     MBTreeSetFlags(item->objgrp.node, 2, 0);
