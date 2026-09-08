@@ -3211,7 +3211,7 @@ static inline void player_dies(s32 i) {
     remove_player_geo(i);
     AudioPlayEvt102();
     for (j = 0; j < 11; j++) {
-        memset((u8*)p + 0x130 + j * 0x10, 0, 0x10);
+        memset(&p->powerup[j], 0, sizeof(PlayerPowerup));
     }
     PF(p, 0x1EC, s32) = 0;
     p->flags = 0;
@@ -3397,7 +3397,7 @@ void remove_player_geo(s32 i) {
         }
     }
     SfxDeleteParented(p->node, 1, i);
-    AtreeDelete((void**)((u8*)p + 0x7C));
+    AtreeDelete(&p->platform);
     if (p->node != NULL) {
         if (p->node != NULL && *(u32*)(p->node + 0x78) != 0) {
             ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ATREEDELETE");
@@ -3481,7 +3481,7 @@ void clear_player(s32 i, s32 full) {
     PF(p, 0x3358, s32) = -1;
     HIDDEN_CODE(p) = NULL;
     for (j = 0; j < 11; j++) {
-        memset((u8*)p + 0x130 + j * 0x10, 0, 0x10);
+        memset(&p->powerup[j], 0, sizeof(PlayerPowerup));
     }
     PF(p, 0x1EC, s32) = 0;
     p->flags = 0;
@@ -3731,7 +3731,7 @@ void load_player(s32 i) {
     }
     if (lbl_80344DA4 != 0) {
         get_player_pos(i, 1);
-        CreateYPRMatrix(scratch.matrix, (f32*)((u8*)p + 0xC4));
+        CreateYPRMatrix(scratch.matrix, p->angles);
         CopyMat3((f32*)((u8*)&scratch + sizeof(scratch.pad)), p->mat);
         p->move_yaw = PF(p, 0xC8, f32);
         p->floor_base = p->pos[1];
@@ -3923,7 +3923,7 @@ void player_get_from_save(void* vp, s32 type) {
         p->runes = 0x7FE;
         p->shards = 0x1FFF;
         for (t = 0; t < 11; t++) {
-            memset((u8*)p + 0x130 + t * 0x10, 0, 0x10);
+            memset(&p->powerup[t], 0, sizeof(PlayerPowerup));
         }
         PF(p, 0x1EC, s32) = 0;
         p->flags = 0;
@@ -6585,6 +6585,7 @@ void mini_inventory_update(s32 i) {
     TbInfo* tb;
     u32* held;
     u8 moved;
+    // lint-begin FM001, FM007, FM009: `selected_pup` is a Player-based cursor biased by -0x130, so +0x134 and +0x13C are p->powerup[tb->sel].type and .specialflags (PlayerPowerup, include/game/player.h: timeleft@0, type@4, attributeadd@8, specialflags@0xC, stride 0x10, array at Player+0x130). Writing it as &p->powerup[tb->sel] with named members is NOT byte-neutral: 129 differing words and 980 -> 988 bytes in mini_inventory_update, because the target keeps the biased base.
     u8* selected_pup;
     u8* entry;
     s32 sel;
@@ -6704,6 +6705,7 @@ void mini_inventory_update(s32 i) {
                         (*(s32*)(entry + 4) &
                          *(s32*)(selected_pup + 0x13C)) &&
                     *(s32*)(selected_pup + 0x134) == *(s32*)entry) {
+                    // lint-end FM001, FM007, FM009
                     break;
                 }
             }
