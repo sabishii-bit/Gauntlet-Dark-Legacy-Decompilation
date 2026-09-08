@@ -311,6 +311,14 @@ visible warnings, even with legacy pragma approvals, not suppressed findings
 or recovered-source claims. `--warnings-as-errors` makes them build-breaking.
 Optimization attributes remain errors; `#pragma once` remains excluded.
 This diagnostic severity does not authorize new pragmas to force a match.
+Before repairing a finding, read its rule guidance with
+`python .vscode/lint/fakematch_lint.py --explain FM001` (substitute its rule id).
+The guide provides investigation steps, conditional examples, legitimate cases,
+unsafe shortcuts and verification gates. It is not a substitute for evidence.
+Agents can run `pnpm run lint:decomp` for the repository-wide queue and read
+`build/fakematch_lint.json`: each finding's `guidance_id` resolves into the report's
+`remediation_guidance.rules`, with shared gates in `remediation_guidance.common`.
+The console is capped; use the JSON for all findings, and remeasure stale reports.
 Test rule changes with `pnpm run test:lint` and `pnpm run test:lint:integration`.
 CI fails on source-debt errors and scanner/test failures; warnings are nonfatal
 unless promoted. The generator independently refuses postprocessing. FM008

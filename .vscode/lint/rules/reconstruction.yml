@@ -97,7 +97,7 @@ rule:
 id: FM006
 language: Cpp
 severity: warning
-message: Source pragma/optimization override; compare the per-file and scope allowlist.
+message: Source pragma/optimization override; investigate scope and original source context. Pragmas warn; attributes remain errors under the reporting policy.
 rule:
   any:
     - kind: preproc_call

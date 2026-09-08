@@ -425,5 +425,84 @@ class PolicyAndCli(unittest.TestCase):
                 self.assertEqual(scanner.call_count,2)
 
 
+class RemediationGuidance(unittest.TestCase):
+    def test_every_rule_and_scanner_failure_have_complete_guidance(self):
+        guidance,digest=lint.load_guidance(lint.GUIDANCE_PATH)
+        self.assertEqual(set(guidance['rules']),set(lint.RULES)|{'FM000'})
+        self.assertRegex(digest,r'^[0-9a-f]{64}$')
+        for rule in guidance['rules']:
+            with self.subTest(rule=rule):
+                explanation=lint.explain_rule(rule,guidance)
+                for heading in ('Investigation:','Conditional example:','Before:','After:',
+                                'Legitimate cases:','Avoid:','Verification for source changes:'):
+                    self.assertIn(heading,explanation)
+                self.assertIn('not proof',explanation)
+
+    def test_explain_needs_no_parser_policy_or_source_and_does_not_scan(self):
+        with tempfile.TemporaryDirectory() as td,patch.object(lint,'ast_binary',side_effect=AssertionError('must not start parser')):
+            output=io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(lint.main(['--root',td,'--explain','FM001','--explain','FM007']),0)
+            self.assertIn('effective BYTE offset',output.getvalue())
+            self.assertIn('Direct bitwise masks',output.getvalue())
+            self.assertNotIn('SCAN_COMPLETE',output.getvalue())
+            self.assertEqual(list(Path(td).iterdir()),[])
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(lint.main(['--explain','FM001','--out','build/report.json']),2)
+
+    def test_missing_or_malformed_guidance_is_not_a_successful_scan(self):
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'guidance.toml'
+            malformed=['schema_version=1\n[rules]\n',
+                       lint.GUIDANCE_PATH.read_text().replace('hint =','missing_hint =',1)]
+            for content in malformed:
+                path.write_text(content)
+                with self.assertRaises(ValueError):lint.load_guidance(path)
+            with patch.object(lint,'GUIDANCE_PATH',path),contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(lint.main(['--explain','FM001']),2)
+
+    def test_editor_includes_single_line_conditional_example_and_help(self):
+        guidance,_=lint.load_guidance(lint.GUIDANCE_PATH)
+        tasks=(lint.ROOT/'.vscode/tasks.json').read_text()
+        import re
+        patterns=re.findall(r'"regexp":\s*("(?:[^"\\]|\\.)*")',tasks)
+        for rule in guidance['rules']:
+            row=dict(path='src/a.c',line=3,column=5,rule=rule,scope='f',message='review',
+                     severity='warning' if rule=='FM006' else 'error')
+            original=dict(row)
+            output=lint.diagnostic(row,Path('W:/My Project'),'problems',guidance)
+            self.assertNotIn('\n',output)
+            self.assertIn('Conditional example (Only if' if rule=='FM001' else 'Conditional example (',output)
+            self.assertIn('--explain '+rule,output)
+            for encoded in patterns:
+                match=re.match(json.loads(encoded),output)
+                self.assertIsNotNone(match)
+                self.assertEqual(match.group(4),row['severity'])
+                self.assertEqual(match.group(5),rule)
+            self.assertEqual(row,original)
+
+    def test_report_guidance_is_shared_and_cannot_change_cached_findings(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);(root/'a.c').write_text('#pragma scheduling off\nint f(){return *(int*)(p+0x8);}')
+            (root/'policy.json').write_text(json.dumps(dict(schema_version=1,exceptions=[],pragma_allowlist=[])))
+            local_guide=root/'guidance.toml';local_guide.write_bytes(lint.GUIDANCE_PATH.read_bytes())
+            args=['--root',td,'--policy','policy.json','a.c','--out','build/report.json','--limit','0']
+            cache={}
+            with patch.object(lint,'GUIDANCE_PATH',local_guide),patch.object(lint,'scan_source',wraps=lint.scan_source) as scanner,contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(lint.main(args,_cache=cache),0)
+                before=json.loads((root/'build/report.json').read_text())
+                local_guide.write_text(local_guide.read_text().replace('Resolve the base object', 'First resolve the base object'))
+                self.assertEqual(lint.main(args,_cache=cache),0)
+                after=json.loads((root/'build/report.json').read_text())
+                self.assertEqual(scanner.call_count,1)
+            self.assertEqual(before['findings'],after['findings'])
+            self.assertEqual((before['errors'],before['warnings']),(after['errors'],after['warnings']))
+            self.assertNotEqual(before['guidance_sha256'],after['guidance_sha256'])
+            for row in after['findings']:
+                self.assertEqual(row['guidance_id'],row['rule'])
+                self.assertIn(row['guidance_id'],after['remediation_guidance']['rules'])
+            self.assertTrue(all('guidance_id' not in row for row in cache['a.c'][1]))
+
+
 if __name__=='__main__':
     unittest.main()

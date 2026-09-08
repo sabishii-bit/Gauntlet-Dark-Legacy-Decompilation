@@ -41,6 +41,7 @@ RULES = {
 }
 POSTPROCESSORS = [('WebFrank','config/GUNE5D/webfrank.json'),('P6Frank','config/GUNE5D/p6frank.json')]
 EXTENSIONS = {'.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hh', '.hxx'}
+GUIDANCE_PATH = ROOT/'.vscode/lint/guidance.toml'
 TOKEN = re.compile(
     r'(?P<comment>//(?:\\\r?\n|[^\n])*|/\*.*?\*/)'
     r'|(?P<string>(?:u8|u|U|L)?R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\(.*?\)(?P=delimiter)"'
@@ -360,15 +361,51 @@ def postprocessor_findings(root, source_names, include_all=False):
                 if selected is None and not include_all: continue
                 identity=engine+'\0'+unit+'\0'+name
                 findings.append(dict(rule='FM008',path=relative,line=line,column=1,scope=name,
-                    message=f'{engine} dependency: {unit}::{name}. Reconstruct native output and prove whole-TU preservation before retiring; do not disable the guard.',
+                    message=f'{engine} configuration reintroduced: {unit}::{name}. Native-only policy forbids production postprocessing; coordinate removal and any required TU demotion, not guard bypass.',
                     confidence='configured-dependency',excerpt=name,
                     fingerprint=hashlib.sha256(identity.encode()).hexdigest(),suppressed=False,
                     unit=unit,function=name,source_path=selected,postprocessor=engine))
     return findings,hashes
 
 
-def diagnostic(row,root,style):
-    message=f"{row['rule']} [{row['scope']}] {row['message']}"
+def load_guidance(path):
+    """Versioned, shared repair guidance; never a source rewrite or policy input."""
+    raw=path.read_bytes();data=tomllib.loads(raw.decode('utf-8'))
+    if data.get('schema_version')!=1 or not isinstance(data.get('rules'),dict) or set(data['rules'])!=set(RULES)|{'FM000'}:
+        raise ValueError('guidance requires schema_version=1 and every FM000-FM009 rule')
+    def text(value): return isinstance(value,str) and bool(value.strip())
+    def steps(value): return isinstance(value,list) and bool(value) and all(text(v) for v in value)
+    common=data.get('common',{})
+    if not isinstance(common,dict) or not text(common.get('interpretation')) or not steps(common.get('verification')):
+        raise ValueError('guidance requires common interpretation and verification steps')
+    for rule,entry in data['rules'].items():
+        if not isinstance(entry,dict) or not all(text(entry.get(k)) for k in
+                ('summary','hint','example_condition','before','after','legitimate','avoid')) or not steps(entry.get('steps')):
+            raise ValueError('incomplete remediation guidance for '+rule)
+    return data,hashlib.sha256(raw).hexdigest()
+
+
+def explain_rule(rule,guidance):
+    entry=guidance['rules'][rule]
+    lines=[f"{rule}: {entry['summary']}",guidance['common']['interpretation'],'','Investigation:']
+    lines.extend(f'{i}. {step}' for i,step in enumerate(entry['steps'],1))
+    lines.extend(['','Conditional example: '+entry['example_condition'],
+                  'Before:\n'+entry['before'],'After:\n'+entry['after'],
+                  '', 'Legitimate cases: '+entry['legitimate'],'Avoid: '+entry['avoid'],
+                  '', 'Verification for source changes:'])
+    lines.extend(f'{i}. {step}' for i,step in enumerate(guidance['common']['verification'],1))
+    return '\n'.join(lines)
+
+
+def diagnostic(row,root,style,guidance=None):
+    detail=row['message']
+    if guidance is not None:
+        entry=guidance['rules'].get(row['rule'])
+        if entry:
+            detail+=(f" Review: {entry['hint']} Conditional example ({entry['example_condition']}): "
+                     f"{entry['before']} => {entry['after']} Full steps: "
+                     f"python .vscode/lint/fakematch_lint.py --explain {row['rule']}")
+    message=f"{row['rule']} [{row['scope']}] {detail}"
     severity=row.get('severity','error')
     if style=='github':
         def escape(value,property=False):
@@ -377,7 +414,7 @@ def diagnostic(row,root,style):
         return (f"::{severity} file={escape(row['path'],True)},line={row['line']},col={row['column']},"
                 f"title={row['rule']}::{escape(message)}")
     if style=='problems':
-        message=re.sub(r'[\r\n]+',' ',f"[{row['scope']}] {row['message']}")
+        message=re.sub(r'[\r\n]+',' ',f"[{row['scope']}] {detail}")
         return f"{(root/row['path']).as_posix()}:{row['line']}:{row['column']}: {severity} {row['rule']}: {message}"
     return f"{row['path']}:{row['line']}:{row['column']}: {severity}: {message}"
 
@@ -391,7 +428,7 @@ def watch(argv):
             watched=[p for base in ('src','include') for p in (ROOT/base).rglob('*')
                      if p.is_file() and p.suffix.lower() in EXTENSIONS]
             watched += [ROOT/p for p in ('.vscode/lint/fakematch_lint.toml','.vscode/lint/sgconfig.yml',
-                       '.vscode/lint/rules/reconstruction.yml',*[p for _,p in POSTPROCESSORS])]
+                       '.vscode/lint/rules/reconstruction.yml','.vscode/lint/guidance.toml',*[p for _,p in POSTPROCESSORS])]
             state=tuple((str(p),p.stat().st_mtime_ns,p.stat().st_size) if p.exists() else (str(p),None,None)
                         for p in sorted(watched))
             if state!=previous:
@@ -422,8 +459,17 @@ def main(argv=None, _cache=None):
     p.add_argument('--postprocessors',action='store_true',help='include configured WebFrank/P6Frank dependencies (FM008)')
     p.add_argument('--watch',action='store_true',help='editor task: rescan saved changes, reuse unchanged source snapshots')
     p.add_argument('--rule',choices=sorted(RULES),action='append')
+    p.add_argument('--explain',choices=sorted(set(RULES)|{'FM000'}),action='append',
+                   help='show detailed repair guidance and examples, without scanning or requiring ast-grep')
     args=p.parse_args(argv)
+    guidance=None
     try:
+        guidance,guidance_hash=load_guidance(GUIDANCE_PATH)
+        if args.explain:
+            if args.paths or args.out or args.rule or args.postprocessors or args.format!='human':
+                raise ValueError('--explain is a standalone text lookup; do not combine with scan/output options')
+            for rule in dict.fromkeys(args.explain): print(explain_rule(rule,guidance))
+            return 0
         root=args.root.resolve();files=set()
         if args.limit<0: raise ValueError('--limit must be nonnegative')
         out=(root/args.out).resolve() if args.out else None
@@ -470,13 +516,18 @@ def main(argv=None, _cache=None):
         elif args.rule and 'FM008' in args.rule:
             raise ValueError('FM008 requires --postprocessors')
         selected=sorted(set(args.rule or [r for r in RULES if r!='FM008' or args.postprocessors]))
-        rows=[r for r in rows if r['rule'] in selected];active=[r for r in rows if not r['suppressed']]
+        # Reference one shared guide per rule, not several KB repeated per row.
+        # Copy rows: watch-cache entries and fingerprint identities stay unchanged.
+        rows=[dict(r,guidance_id=r['rule']) for r in rows if r['rule'] in selected]
+        active=[r for r in rows if not r['suppressed']]
         warnings=sum(r.get('severity')=='warning' for r in active)
         errors=len(active)-warnings
         report=dict(schema_version=1,status='SCAN_COMPLETE',engine='ast-grep 0.45.3 + review filters',
                     interpretation='Review candidates, not proven fakematches. Parse recovery limits coverage; macros are not expanded.',
                     source_sha256=hashes,files_scanned=len(files),findings=rows,unsuppressed=len(active),suppressed=len(rows)-len(active),
                     errors=errors,warnings=warnings,warnings_as_errors=args.warnings_as_errors,
+                    remediation_guidance=dict(schema_version=guidance['schema_version'],common=guidance['common'],
+                        rules={rule:guidance['rules'][rule] for rule in selected}),guidance_sha256=guidance_hash,
                     by_rule=dict(sorted(Counter(r['rule'] for r in active).items())),by_file=dict(Counter(r['path'] for r in active).most_common()),
                     rules_selected=selected,parse_recovery=diagnostics,policy_sha256=hashlib.sha256(policy_bytes).hexdigest(),
                     postprocessor_config_sha256=post_hashes,
@@ -484,7 +535,7 @@ def main(argv=None, _cache=None):
                     config_sha256=hashlib.sha256((ROOT/'.vscode/lint/sgconfig.yml').read_bytes()).hexdigest())
         if out:
             out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
-        for r in active if args.format=='problems' else active[:args.limit]: print(diagnostic(r,root,args.format))
+        for r in active if args.format=='problems' else active[:args.limit]: print(diagnostic(r,root,args.format,guidance))
         print(f"SCAN_COMPLETE: {len(files)} files; {len(active)} review candidates; {len(rows)-len(active)} reviewed exceptions.")
         print(f'Diagnostics: {errors} errors; {warnings} warnings; warnings-as-errors={args.warnings_as_errors}.')
         print('By rule: '+json.dumps(report['by_rule'],sort_keys=True))
@@ -495,7 +546,7 @@ def main(argv=None, _cache=None):
     except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError) as e:
         if args.format!='human':
             print(diagnostic(dict(path='.vscode/lint/sgconfig.yml',line=1,column=1,rule='FM000',scope='scanner',
-                                  message='Scan incomplete: '+str(e)),args.root.resolve(),args.format))
+                                  message='Scan incomplete: '+str(e)),args.root.resolve(),args.format,guidance))
         print('UNRESOLVED: '+str(e),file=sys.stderr);return 2
 
 

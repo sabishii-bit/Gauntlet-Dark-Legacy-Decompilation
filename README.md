@@ -374,6 +374,29 @@ loop. Actual pool bytes and relocation ownership decide the source repair.
 Legacy TOML `warning_pragmas` and `pragma_allowlist` fields are still accepted,
 but cannot change pragma severity or hide these warnings.
 
+Repair instructions and examples live in `.vscode/lint/guidance.toml`, covering
+FM001-FM009 plus scanner failures (FM000). Read a complete guide without running
+the parser or scanning source:
+
+```sh
+python .vscode/lint/fakematch_lint.py --explain FM001
+python .vscode/lint/fakematch_lint.py --explain FM003 --explain FM009
+```
+
+Editor/CLI diagnostics include a short investigation hint, a **conditional**
+example and the full-guide command. Restart an already running lint watcher
+after updating its Python implementation. Agents do not automatically see
+editor squiggles: run `pnpm run lint:decomp` and read `build/fakematch_lint.json`.
+The report retains every finding even when console output is capped. Resolve
+each `guidance_id` in `remediation_guidance.rules`; shared verification steps
+live in `remediation_guidance.common`. Guidance is stored once per rule to avoid
+duplicating paragraphs thousands of times. Reports include its content hash.
+
+Examples are not auto-fixes or recovered GDL declarations. Confirm target
+types/data/relocations before applying them; legitimate byte buffers, bitmasks
+and hardware operations may need no source change. A cleaner lint report alone
+does not establish a matching or more faithful reconstruction.
+
 ### Matching work queues
 
 Use the low-match queue for semantic and structural reconstruction work:

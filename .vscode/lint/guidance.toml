@@ -1,0 +1,162 @@
+schema_version = 1
+
+[common]
+interpretation = "Findings are review candidates, not proof of fakematching. Examples are conditional illustrations, not patches or recovered GDL declarations. Never invent a type, name, filler, pragma or helper solely to clear a diagnostic."
+verification = [
+  "Read AGENTS.md and coordinate ownership. Capture the current raw owning-object, sibling and data/relocation baseline before editing.",
+  "Support the proposed source construct with target disassembly, actual data and relocation targets, callers, existing declarations and GC-verified layout. Xbox PDB names/layout are leads, not automatic GC truth.",
+  "Change one evidence-backed construct at a time under the same compiler and flags. Check complete-TU code, positional relocations, section layout and exception metadata, not only a function's score.",
+  "Run the linter again and the applicable project gates. A green default DOL may use extracted fallback and does not prove that edited source matches. Do not introduce postprocessing to recover equality.",
+  "If evidence is insufficient, retain the finding and document the unknown. A legitimate false positive may receive an exact reasoned exception only where policy permits; never blanket-suppress a family or rewrite syntax merely to evade it."
+]
+
+[rules.FM000]
+summary = "The scanner did not complete; this is not a source-code defect or a clean result."
+hint = "Read the scanner failure; repair the missing input, parser dependency or policy, then rerun. Never treat exit 2 as a clean scan."
+steps = [
+  "Read the UNRESOLVED message and the command's exit code before touching game source.",
+  "For a missing ast-grep dependency, run pnpm install --frozen-lockfile from the repository root. For malformed policy/rules, repair and test those files instead of suppressing the error.",
+  "Rerun the same scan on stable inputs and require SCAN_COMPLETE. Review parser-recovery limits separately even after a completed scan."
+]
+example_condition = "Only when the failure says the pinned ast-grep dependency is unavailable"
+before = "UNRESOLVED: ast-grep unavailable"
+after = "pnpm install --frozen-lockfile; then rerun the original lint command"
+legitimate = "Parser recovery may occur on MWCC syntax; it limits coverage and does not justify manufacturing source changes."
+avoid = "Do not waive a broken scan, use a stale report as current evidence, or change compiler input to appease a parser."
+
+[rules.FM001]
+summary = "Pointer casts with offsets or indexing may be hiding a field or incorrectly typed array."
+hint = "Resolve the base object's type and effective byte offset; verify width, signedness and stride before using a named field or typed element."
+steps = [
+  "Find the base declaration and trace assignments/callers to identify the actual object. Expand relevant macros manually; the linter does not type-check them.",
+  "Compute the effective BYTE offset: p + K scales by sizeof(*p), whereas (u8*)p + K advances K bytes. Check the target load/store width and signedness.",
+  "Search existing headers and GC-validated PDB fields before inventing a name. Verify surrounding accesses, array bounds/stride and the owner's complete layout.",
+  "Replace the access with the verified field/element and repair the base type at its real declaration where supported. Gate affected callers if a shared type changes."
+]
+example_condition = "Only if Actor.health is independently verified as an s32 at byte offset 8 and p points to Actor"
+before = "value = *(s32*)((u8*)p + 8);"
+after = "value = p->health;"
+legitimate = "A real byte buffer, serialization format or hardware interface can require byte access. Verify bounds, alignment and access semantics instead of forcing it into a struct."
+avoid = "Do not merely name the numeric offset, wrap the cast in a macro, add invented padding or rename p; none recovers the missing type."
+
+[rules.FM002]
+summary = "A chain of dereferences through casts hides intermediate pointer levels and object types."
+hint = "Trace each pointer load separately, verify its pointee and null/lifetime assumptions, then express the verified member chain."
+steps = [
+  "Break the expression into its actual target pointer loads for analysis. Record each load's base, offset and resulting pointee; do not assume all offsets belong to one object.",
+  "Check producers and consumers of every intermediate pointer, including null checks, ownership and lifetime. Confirm pointer depth from the target.",
+  "Recover existing field types from headers/data/PDB evidence, verifying GC layout and signedness at the final load.",
+  "Use the typed chain only once every level is supported. Preserve the original number/order of observable accesses and existing null behavior."
+]
+example_condition = "Only if owner->child is a verified pointer field at +8 and Child.value is s32 at +0"
+before = "value = *(s32*)*(void**)((u8*)owner + 8);"
+after = "value = owner->child->value;"
+legitimate = "Pointer tables and ABI interfaces can legitimately contain indirection; depth alone is not a defect."
+avoid = "Do not guess a class hierarchy or add null checks/extra loads: those change behavior rather than reconstruct it."
+
+[rules.FM003]
+summary = "Unused arrays, volatile/trash locals and write-only counters may be artificial stack or allocation scaffolding."
+hint = "Check real uses, escaping addresses and side effects; recover genuine local objects/lifetimes instead of retaining padding solely for register allocation."
+steps = [
+  "Identify the reported subtype: unused array, volatile declaration, padding/trash name, or write-only local. Lexical non-use is not a def-use or dead-store proof.",
+  "Inspect macro expansion, address escapes, initializers, aliases and hardware/interrupt observations. An unused assignment's right-hand side may still have side effects.",
+  "Compare stack accesses and call signatures with the target. Investigate missing aggregates, by-value parameters, inline temporaries and real lifetime boundaries before removing a frame discrepancy.",
+  "Remove only independently proven artificial/dead scaffolding, preserving side effects. A matching regression requires further source investigation, not a different padding name or an added volatile."
+]
+example_condition = "Only if this nonvolatile local has no reads, address escapes or side effects and no recovered source purpose"
+before = "int unusedCounter = 0; unusedCounter++; update_world();"
+after = "update_world();"
+legitimate = "A volatile object may model a real externally observed access; an array may be used through a macro or escaped address. Preserve those semantics."
+avoid = "Do not rename trash, convert an array to a struct solely to evade detection, delete side-effecting initializers, or remove volatile from hardware accesses blindly."
+
+[rules.FM004]
+summary = "A numeric byte array resembles floating-point values or addresses; its actual data type and ownership are unresolved."
+hint = "Decode target bytes and inspect consumers/relocations before replacing a byte blob with typed literals, pointers or compiler-generated control flow."
+steps = [
+  "Inspect the owning target section's exact bytes, extent, alignment and symbol/relocation boundaries. The float/address shape test is only a heuristic.",
+  "Trace consumers: lfs/lfd can distinguish float widths; indexed loads and pointer relocations can distinguish scalar arrays, pointer tables and packed formats.",
+  "Recover exact values and order with the correct endianness. A NaN payload, negative zero, compression stream or serialized format may genuinely require bytes.",
+  "Declare a typed object only with ownership/type evidence. For a jump table, investigate the generating switch and source order rather than replacing addresses with another opaque table.",
+  "Verify emitted bytes, relocations, placement, all consumers and sibling pools. Equal values alone do not prove correct bindings or object boundaries."
+]
+example_condition = "Only if target loads prove two contiguous big-endian float32 elements, 1.0 and 2.0, owned by this array"
+before = "static const u8 weights[] = {0x3f,0x80,0,0,0x40,0,0,0};"
+after = "static const float weights[] = {1.0f, 2.0f};"
+legitimate = "Images, compressed streams, serialized records and bit-exact payloads may correctly remain byte arrays."
+avoid = "Do not assume float-looking bytes prove floats, fabricate filler, reorder pools, or replace a target address with an equal-valued but differently bound object."
+
+[rules.FM005]
+summary = "Assembly requires source and platform review; direct target-instruction transcription is not native decompilation."
+hint = "Classify hardware/ABI operations versus copied target instructions; reconstruct ordinary behavior in supported source, preserving genuine barriers and platform semantics."
+steps = [
+  "Read the complete asm body, its inputs/outputs, clobbers and callers. Determine whether it is a real hardware, synchronization or ABI primitive.",
+  "For ordinary game logic, reconstruct the operation using evidence-backed C/C++ and verified types; compare the native compiler output under the real TU settings.",
+  "For a genuine platform primitive, search existing sanctioned implementations/macros. Reuse one only if its behavior, calling convention and ordering guarantees are equivalent.",
+  "Any macro exception needs the exact reviewed fingerprint and reason under policy. Direct asm cannot be fingerprint-exempted; do not move copied asm into a macro to bypass that rule."
+]
+example_condition = "Only if the asm computes an ordinary unsigned addition and no condition-register, overflow or other side effect is required"
+before = "Inline asm used solely to add two u32 values"
+after = "u32 sum = a + b;"
+legitimate = "Hardware barriers, interrupt control and ABI primitives may require sanctioned assembly; deleting them can break the game."
+avoid = "Do not delete asm blindly, replace barriers with empty functions, insert raw opcodes or create wrapper macros solely to evade the diagnostic."
+
+[rules.FM006]
+summary = "Pragmas and optimization attributes alter compilation; reported pragmas warn, attributes remain errors."
+hint = "Document the override's scope and reason, compare default codegen and investigate real inline/header context; do not remove a needed pragma just to clear a warning."
+steps = [
+  "Identify the directive/attribute and its precise scope, including reset directives, include boundaries and subsequent functions. Pragmas are warnings; --warnings-as-errors can promote them to blocking checks.",
+  "Compare the actual TU compiler/flags and available source/header evidence. Investigate missing inline definitions, visibility, helper context or verified per-file settings before calling an override necessary.",
+  "Test removal only in an isolated, measured change; a code-size improvement is not proof of faithful reconstruction. Check affected inline callers and exception/data metadata.",
+  "Remove an override only after the supported source form works and all relevant gates hold. Otherwise keep its visible warning and the precise remaining limitation."
+]
+example_condition = "Only after a verified source/header reconstruction makes a dont_inline pair unnecessary, with exact native output preserved"
+before = "#pragma dont_inline on\nvoid f() { work(); }\n#pragma dont_inline off"
+after = "void f() { work(); }"
+legitimate = "Legitimate packing or platform pragmas and temporary documented compatibility overrides may remain. #pragma once is excluded."
+avoid = "Do not move per-function overrides into global flags, exchange a pragma for an attribute, or add artificial noinline helpers to hide the same dependency."
+
+[rules.FM007]
+summary = "An unnamed hexadecimal expression may hide an enum, field offset or API value, but hexadecimal notation is not itself a fakematch."
+hint = "Determine whether the number is a mask, enum, packed API value, scalar or address offset. Recover its meaning; changing hex to decimal is not a repair."
+steps = [
+  "Trace the value's consumer and parameter type, including the callee implementation when necessary. Check whether it is a real bitmask, packed color/error value, size, enum, index or raw field offset.",
+  "For a proven domain value, reuse a verified constant/enum with the correct width and signedness. Derive a descriptive name from behavior, not from the number alone.",
+  "For an address/field access, follow FM001/FM009 and recover the actual object. A named OFFSET constant does not repair missing object structure.",
+  "Direct bitwise masks are intentionally excluded. A legitimate packed argument may still be flagged; retain it or use a precise reviewed exception if appropriate, rather than blanket-allowing all literals in a call."
+]
+example_condition = "Only if the callee and target prove that mode 2 means selecting the fire element and the enum's type is compatible"
+before = "set_element(0x2);"
+after = "set_element(ELEMENT_FIRE); /* verified existing enum value 2 */"
+legitimate = "mp->flags & 0x1000 is a legitimate mask form. A packed API argument such as FatalError's value needs callee-specific review, not an assumption that it is an offset."
+avoid = "Do not convert 0x8 to 8, introduce CONST_0x8, use a const declaration solely to silence the rule, or replace verified flags with invented domain meanings."
+
+[rules.FM008]
+summary = "Legacy postprocessor configuration has reappeared in a native-only project. It is not an approved route to matching."
+hint = "Identify the configuration's owner and affected TUs; coordinate its removal and any required demotion. Never re-enable postprocessing or weaken the native-only guard."
+steps = [
+  "Inspect the reported engine, unit and function and determine whether the config is accidental, stale or introduced by another active worker. Coordinate before deleting shared work.",
+  "Check raw source-built code, relocations and data against the target. A former patched match does not establish native equality.",
+  "If native equality is not proven, preserve the source and classify the affected TU as NonMatching using the approved workflow; do not claim its extracted fallback as source-built output.",
+  "Remove unauthorized production configuration after coordination and verify the native-only pipeline. Continue evidence-backed source/data recovery as a separate task."
+]
+example_condition = "If an old WebFrank config is reintroduced for a TU whose native object still differs, after ownership is resolved"
+before = "TU declared Matching only because a legacy object patch supplied the target bytes"
+after = "Legacy patch configuration removed; TU NonMatching with explicitly disclosed extracted fallback until native equality is proven"
+legitimate = "Historical Git records and isolated analysis/test fixtures are not production permission; inspect actual build use."
+avoid = "Do not delete a guard, add a new rule, hash-pin a wrong source shape, splice target bytes, or relabel a patched match as native."
+
+[rules.FM009]
+summary = "A fixed offset into a visibly declared pointer/array may be an unnamed string, field or element. It does not prove a struct or loop."
+hint = "Resolve the exact referenced datum and relocation addend, then recover its real declaration and binding; do not manufacture an aggregate merely because offsets repeat."
+steps = [
+  "Trace the base declaration and compute the effective byte address, including element-size scaling. Read the target relocation symbol plus addend and the bytes at that address.",
+  "Inspect neighboring data and all consumers to distinguish separate strings, interior substrings, array elements, struct fields or a genuinely packed buffer.",
+  "Recover ownership, storage duration, constness, bounds and element/field types. Contiguous strings do not by themselves establish a struct, class or array of pointers.",
+  "Replace a pool placeholder with the actual literal or verified named object only when its binding is correct. Verify compiler pooling/order and the whole TU before retaining it.",
+  "Do not turn repeated calls into a loop without target control-flow evidence: source sequencing, side effects and emitted code must remain faithful."
+]
+example_condition = "Only if the target relocation and bytes prove a standalone string named below, and complete-TU pool/binding checks pass"
+before = "texture = MBOX_FindTexture(strings + 364, 0);"
+after = 'texture = MBOX_FindTexture("verified_texture_name", 0);'
+legitimate = "Interior string pointers, binary packets and true indexed buffers may need offsets. Verify the actual format and bounds; a finding does not require inventing an object."
+avoid = "Do not replace +364 with +TEXTURE_OFFSET, fabricate a struct of strings, infer a loop from repetition alone, or relocate a literal by value without checking its target binding."
