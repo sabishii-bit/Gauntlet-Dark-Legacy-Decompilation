@@ -1654,8 +1654,6 @@ collision_done:
     return floorObject;
 }
 
-#pragma dont_inline on
-#pragma opt_propagation off
 #pragma opt_common_subs off
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
 {
@@ -1696,9 +1694,7 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
         break;
     }
 }
-#pragma opt_propagation reset
 #pragma opt_common_subs reset
-#pragma dont_inline off
 
 void fn_80046140(s32 index)
 {
@@ -5775,7 +5771,6 @@ void do_enemies(void)
     if (gBoss398 >= 0) {
         gEnemies[gBoss398].state = ACTIVE;
     }
-#pragma reset
     if ((gGameBusy | gGameplayPauseTimer) != 0) {
         return;
     }
@@ -6638,7 +6633,6 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     f32* effect_position = (f32*)effect_position_arg;
     f32* hit_direction = (f32*)hit_direction_arg;
     f32 old_health = e->health;
-    u8 unused0[4];
     f32 effect_pos[3];
     u8 unused1[4];
     f32 saved_matrix[16];
@@ -8057,7 +8051,6 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
 }
 
 /* Keep the per-index resource base shared by the two table reads. */
-#pragma dont_inline on
 #pragma opt_propagation off
 void fn_800508A0(void)
 {
@@ -8077,7 +8070,6 @@ void fn_800508A0(void)
     }
 }
 #pragma opt_propagation reset
-#pragma dont_inline off
 
 void fn_80050910(s32 arg0)
 {
@@ -8367,7 +8359,6 @@ void fn_80051164(void)
 }
 #pragma opt_propagation reset
 
-#pragma opt_common_subs off
 #pragma opt_propagation off
 s32 fn_800511D0(s32 milestone, f32 tolerance)
 {
@@ -8500,7 +8491,6 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     return best;
 }
 #pragma opt_propagation reset
-#pragma opt_common_subs on
 
 s32 fn_80051480(f32* pos)
 {
@@ -8882,7 +8872,6 @@ char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
     }
     return buf;
 }
-#pragma inline_depth(0)
 
 void* EnemyTypePrefix(s32 id)
 {
