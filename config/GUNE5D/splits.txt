@@ -186,6 +186,8 @@ game/world/newcam.c:
 	extab       start:0x800067A8 end:0x80006840
 	extabindex  start:0x8000A3CC end:0x8000A4B0
 	.text       start:0x8006DC2C end:0x80070A60
+	.rodata     start:0x80113808 end:0x80113830
+	.sdata2     start:0x80347448 end:0x80347510
 
 game/ui/options.c:
 	extab       start:0x80006840 end:0x80006900
