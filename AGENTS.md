@@ -305,10 +305,11 @@ The ast-grep-backed report covers source reconstruction-debt families. Findings
 are review candidates, not proven fakematches; parser recovery, macro expansion
 and absent type/liveness analysis limit coverage. Never mechanically rewrite
 findings to improve the lint count or weaken matching gates. Review exceptions
-in `.vscode/lint/fakematch_lint.toml` require exact fingerprints or scoped,
-count-bound pragma entries and a reason; suppressed rows remain in the report.
-`dont_inline on/off` statements are visible warnings, not suppressed findings
+in `.vscode/lint/fakematch_lint.toml` require exact fingerprints and a reason;
+suppressed rows remain in the report. All reported `#pragma` directives are
+visible warnings, even with legacy pragma approvals, not suppressed findings
 or recovered-source claims. `--warnings-as-errors` makes them build-breaking.
+Optimization attributes remain errors; `#pragma once` remains excluded.
 This diagnostic severity does not authorize new pragmas to force a match.
 Test rule changes with `pnpm run test:lint` and `pnpm run test:lint:integration`.
 CI fails on source-debt errors and scanner/test failures; warnings are nonfatal

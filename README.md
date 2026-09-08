@@ -348,15 +348,15 @@ provenance audit; this scanner covers source pragmas/attributes, not Ninja flags
 
 Rules and fixtures live in `.vscode/lint/`. Review approvals live in
 `.vscode/lint/fakematch_lint.toml`: `exceptions` entries require an exact report
-`fingerprint` plus `reason`; `pragma_allowlist` entries require exact relative
-`path`, `scope` (function or `before:function`), normalized `directive`, positive
-`count` and `reason`. Changed assembly macro bodies invalidate their approval;
+`fingerprint` plus `reason`. Changed assembly macro bodies invalidate their approval;
 direct assembly cannot be exempted by a fingerprint. Reviewed rows stay visible
 with their reasons. No existing debt is blanket-approved.
 
-`#pragma dont_inline on/off` is a **warning**, not a suppressed exception.
-Every occurrence remains visible in CLI, report and editor as compatibility
-debt. This does not approve new pragmas or prove original source structure.
+All reported `#pragma` directives are **warnings**, not suppressed exceptions.
+They remain visible in CLI, report and editor as compatibility debt, including
+`dont_inline`, scheduling and optimization pragmas. `#pragma once` remains
+excluded; optimization attributes remain errors. This does not approve new
+pragmas or prove original source structure.
 To make warnings build-breaking locally or in CI, use:
 
 ```sh
@@ -371,8 +371,8 @@ include/type information remain limitations. The diagnostic requests recovery
 of the referenced string, field or element; it does not prescribe a struct or
 loop. Actual pool bytes and relocation ownership decide the source repair.
 
-The TOML `warning_pragmas` list controls this narrow severity policy. Removing
-an entry makes that directive an ordinary error; other pragmas remain errors.
+Legacy TOML `warning_pragmas` and `pragma_allowlist` fields are still accepted,
+but cannot change pragma severity or hide these warnings.
 
 ### Matching work queues
 

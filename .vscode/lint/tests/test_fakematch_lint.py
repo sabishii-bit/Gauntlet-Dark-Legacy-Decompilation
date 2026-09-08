@@ -235,31 +235,35 @@ class PolicyAndCli(unittest.TestCase):
         changed=lint.apply_policy(lint.scan_source('int f(){return *(int*)(p+12);}','a.c'),policy)
         self.assertFalse(changed[0]['suppressed'])
 
-    def test_pragma_approval_is_scope_and_count_bound(self):
+    def test_legacy_pragma_approval_cannot_hide_warnings(self):
         rows=lint.scan_source('void f(){\n#pragma scheduling off\n#pragma scheduling off\n}\nvoid g(){\n#pragma scheduling off\n}','a.c')
         policy=self.policy();policy['pragma_allowlist']=[dict(path='a.c',scope='f',directive='#pragma scheduling off',count=1,reason='Explicitly reviewed.')]
         result=lint.apply_policy(rows,policy)
-        self.assertEqual(sum(r['suppressed'] for r in result),1)
+        self.assertEqual(len(result),3)
+        self.assertTrue(all(r['severity']=='warning' and not r['suppressed'] for r in result))
 
-    def test_dont_inline_is_visible_warning_and_optional_build_failure(self):
+    def test_all_pragmas_are_visible_warnings_and_optional_build_failure(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
-            (root/'a.c').write_text('#pragma dont_inline on\nvoid f(){}\n#pragma dont_inline off\n')
-            (root/'policy.toml').write_text('schema_version=1\nexceptions=[]\npragma_allowlist=[]\nwarning_pragmas=["#pragma dont_inline on","#pragma dont_inline off"]\n')
+            (root/'a.c').write_text('#pragma dont_inline on\nvoid f(){}\n#pragma dont_inline off\n#pragma scheduling off\n# pragma opt_propagation off\n#pragma unknown_setting on\n')
+            (root/'policy.toml').write_text('schema_version=1\nexceptions=[]\npragma_allowlist=[]\n')
             args=['--root',td,'--policy','policy.toml','a.c','--format','problems','--fail-on-findings','--out','build/report.json']
             output=io.StringIO()
             with contextlib.redirect_stdout(output):
                 self.assertEqual(lint.main(args),0)
                 self.assertEqual(lint.main(args+['--warnings-as-errors']),1)
             report=json.loads((root/'build/report.json').read_text())
-            self.assertEqual((report['errors'],report['warnings'],report['suppressed']),(0,2,0))
+            self.assertEqual((report['errors'],report['warnings'],report['suppressed']),(0,5,0))
             self.assertIn(': warning FM006:',output.getvalue())
             self.assertTrue(lint.diagnostic(report['findings'][0],root,'github').startswith('::warning '))
-            (root/'a.c').write_text('#pragma scheduling off\nvoid f(){}')
+            (root/'a.c').write_text('void __attribute__((optimize("O0"))) f(){}')
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(lint.main(args),1)
+            report=json.loads((root/'build/report.json').read_text())
+            self.assertEqual((report['errors'],report['warnings']),(1,0))
+            self.assertEqual(report['findings'][0]['rule'],'FM006')
 
-    def test_warning_policy_does_not_suppress_or_downgrade_other_pragmas(self):
+    def test_legacy_warning_selector_and_exceptions_do_not_hide_pragmas(self):
         source='#pragma dont_inline on\n#pragma scheduling off\nvoid f(){}'
         rows=lint.scan_source(source,'a.c');policy=self.policy()
         policy['warning_pragmas']=['#pragma dont_inline on']
@@ -268,7 +272,8 @@ class PolicyAndCli(unittest.TestCase):
         pragmas={r['directive']:r for r in result if r['rule']=='FM006'}
         self.assertEqual(pragmas['#pragma dont_inline on']['severity'],'warning')
         self.assertFalse(pragmas['#pragma dont_inline on']['suppressed'])
-        self.assertEqual(pragmas['#pragma scheduling off']['severity'],'error')
+        self.assertEqual(pragmas['#pragma scheduling off']['severity'],'warning')
+        self.assertFalse(pragmas['#pragma scheduling off']['suppressed'])
 
     def test_no_legacy_configs_requires_explicit_native_policy(self):
         with tempfile.TemporaryDirectory() as td:

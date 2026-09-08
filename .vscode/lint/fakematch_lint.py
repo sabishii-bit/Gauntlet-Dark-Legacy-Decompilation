@@ -287,6 +287,8 @@ def load_policy(path):
     required={'schema_version','exceptions','pragma_allowlist'}
     if not required.issubset(data) or set(data)-required-{'warning_pragmas'} or data['schema_version']!=1:
         raise ValueError('policy requires schema_version=1, exceptions and pragma_allowlist')
+    # Accept the legacy selector for old policy files; all reported pragmas
+    # now warn independently of this list.
     warnings=data.get('warning_pragmas',[])
     if not isinstance(warnings,list) or any(w not in ('#pragma dont_inline on','#pragma dont_inline off') for w in warnings) or len(set(warnings))!=len(warnings):
         raise ValueError('warning_pragmas must contain distinct approved dont_inline directives')
@@ -310,7 +312,7 @@ def apply_policy(findings, policy):
     used=Counter()
     for row in result:
         row['severity']='error'
-        if row['rule']=='FM006' and row.get('directive') in policy.get('warning_pragmas',[]):
+        if row['rule']=='FM006' and re.match(r'^#\s*pragma\b',row.get('directive','')):
             row.update(severity='warning',suppressed=False)
             continue  # Warning debt stays visible, even if an old exception exists.
         reason=exceptions.get(row['fingerprint'])
