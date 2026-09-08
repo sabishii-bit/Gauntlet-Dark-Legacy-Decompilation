@@ -65,8 +65,24 @@ object and ours and reports the symmetric difference. Verdicts:
               names are printed. This is a CANDIDATE, not a proof: equal
               names and sizes do not prove equal intent, and a real fix
               still needs its own witnesses.
-  BYTE        the maps agree yet the section is under 100%. The bytes
-              differ; symbols.txt cannot help.
+  RELOC       the maps agree AND every byte is equal, yet the section is
+              under 100% because relocations in it point at datums NO unit
+              claims, so objdiff has nothing to pair them with. This is
+              `.rodata`-CLAIM work, not source work. Run 62 measured
+              `game/game/controls .data` at 99.0715% while `objcopy -O
+              binary --only-section .data` on both objects gave 3252 == 3252
+              with zero differing bytes and `datadiff --sections` reported
+              `100.0% bytes equal`; the shortfall is 11 `R_PPC_ADDR32` rows
+              at +0xC48..+0xC68 and +0xC80..+0xC88 whose target side names
+              `lbl_80111F70..lbl_801120F8` in an UNCLAIMED `.rodata` while
+              ours names `...rodata.0+off`. The mechanism is proved by the
+              two neighbours that DO pair, +0xC44 and +0xC50: they point
+              into `.sdata2`, which IS claimed. Classing that as BYTE told a
+              lane to go looking for a byte difference that does not exist,
+              and contradicted `datadiff` on the same tree.
+  BYTE        the maps agree, no unpairable relocation explains it, yet the
+              section is under 100%. The bytes differ; symbols.txt cannot
+              help.
   ANONYMOUS   every differing name is compiler-generated (`@NN`, `@etb_`,
               `jumptable_`, `gap_`). MWCC renumbers `@NN` on any pool
               change, so these can never be paired by renaming either.
@@ -208,11 +224,106 @@ def symbol_map(obj):
     return out
 
 
-def classify_gap(unit_name, section, target_map=None, ours_map=None):
-    """Why a section is under 100%: SOURCELESS / BOUNDARY / ANONYMOUS / BYTE.
+#: `objdump -r`: "00000c4c R_PPC_ADDR32      ...rodata.0+0x0000000c"
+RELOC_ROW = re.compile(r"^([0-9a-f]{8})\s+(R_PPC\S+)\s+(\S+)$")
+#: A dtk-invented name for a datum with no symbol of its own.
+LBL_RE = re.compile(r"^lbl_([0-9A-Fa-f]{8})$")
 
-    Returns {verdict, only_target, only_ours, resized}. Callers may pass
-    pre-read maps; that is what makes this testable without object files.
+
+def relocation_rows(obj):
+    """{section: {offset: (type, symbol, addend)}} for one object file."""
+    out, section = {}, None
+    for line in _datadiff().dump_object(obj, "-r").splitlines():
+        head = re.match(r"^RELOCATION RECORDS FOR \[(\S+)\]", line)
+        if head:
+            section = head.group(1)
+            out.setdefault(section, {})
+            continue
+        row = RELOC_ROW.match(line)
+        if row and section:
+            symbol, addend = row.group(3), 0
+            for separator, sign in (("+0x", 1), ("-0x", -1)):
+                if separator in symbol:
+                    symbol, tail = symbol.split(separator, 1)
+                    addend = sign * int(tail, 16)
+                    break
+            out[section][int(row.group(1), 16)] = (row.group(2), symbol,
+                                                   addend)
+    return out
+
+
+def claimed_runs(unit_name, splits=None):
+    """[(section, start, end)] this unit claims, from splits.txt."""
+    splits = _datadiff().parse_splits() if splits is None else splits
+    base = base_of(unit_name)
+    for key, sections in splits.items():
+        if re.sub(r"\.(c|cpp|s)$", "", key) == base:
+            return [(name, lo, hi) for name, (lo, hi) in sections.items()]
+    return []
+
+
+def unpairable_relocations(section, target_relocs, our_relocs, runs):
+    """Rows relocating the same word to symbols nothing can pair.
+
+    A word both objects relocate, where the target names an address NO run
+    of this unit claims, has no counterpart symbol on our side at all: our
+    object reaches the same datum through its own section base
+    (`...rodata.0 + off`) because the datum is not in the split. objdiff
+    scores that word as unmatched however identical the bytes are, and no
+    renaming or source edit can pay it -- only claiming the run can.
+
+    A differing row whose target address IS inside one of this unit's runs
+    is not a defect and not evidence either: the split has a symbol there,
+    so objdiff pairs the two however differently they are spelled (controls
+    +0xC44, ours `@1` against the target's `lbl_803463F8`). Those are
+    returned as `pairable`. Only a row whose target address cannot be
+    resolved at all is `unexplained`, and that stops the RELOC verdict.
+
+    Returns {"rows", "pairable", "unexplained"}.
+    """
+    # EVERY run this unit claims, not just this section's: a `.data` pointer
+    # into the unit's own claimed `.sdata2` pairs fine even though the two
+    # objects spell the symbol differently (controls +0xC44, ours `@1` and
+    # the target `lbl_803463F8`). What cannot pair is a pointer to an
+    # address no run of this unit covers at all.
+    claimed = [(lo, hi) for _name, lo, hi in runs]
+    rows, pairable, unexplained = [], [], []
+    theirs = target_relocs.get(section, {})
+    mine = our_relocs.get(section, {})
+    for offset in sorted(set(theirs) & set(mine)):
+        their_kind, their_symbol, their_addend = theirs[offset]
+        our_kind, our_symbol, our_addend = mine[offset]
+        if (their_kind, their_symbol, their_addend) == \
+                (our_kind, our_symbol, our_addend):
+            continue
+        literal = LBL_RE.match(their_symbol)
+        address = int(literal.group(1), 16) + their_addend if literal else None
+        inside = address is not None and any(lo <= address < hi
+                                             for lo, hi in claimed)
+        row = {"offset": offset, "target_symbol": their_symbol,
+               "our_symbol": our_symbol, "our_addend": our_addend,
+               "target_address": None if address is None
+               else "0x%08X" % address}
+        if address is None:
+            unexplained.append(row)
+        elif inside:
+            pairable.append(row)
+        else:
+            rows.append(row)
+    return {"rows": rows, "pairable": pairable, "unexplained": unexplained}
+
+
+def classify_gap(unit_name, section, target_map=None, ours_map=None,
+                 target_relocs=None, our_relocs=None, bytes_equal=None,
+                 runs=None):
+    """Why a section is under 100%.
+
+    SOURCELESS / BOUNDARY / ANONYMOUS / RELOC / BYTE, in that refusal order.
+    Returns {verdict, only_target, only_ours, resized, unpairable_relocs}.
+    Callers may pass pre-read maps, relocations, byte equality and claimed
+    runs; that is what makes this testable without object files. RELOC is
+    only ever reached with a measured `bytes_equal` -- an unmeasured byte
+    comparison must never turn a byte difference into a claim question.
     """
     if target_map is None or ours_map is None:
         base = base_of(unit_name)
@@ -223,9 +334,26 @@ def classify_gap(unit_name, section, target_map=None, ours_map=None):
             ours = _datadiff().ours_object(base)
         except Exception as exc:                      # noqa: BLE001 - reported
             return {"verdict": "SOURCELESS", "only_target": [],
-                    "only_ours": [], "resized": [], "note": str(exc)}
+                    "only_ours": [], "resized": [], "note": str(exc),
+                    "unpairable_relocs": []}
+        ours_path = getattr(ours, "path", ours)
         target_map = symbol_map(target)
-        ours_map = symbol_map(getattr(ours, "path", ours))
+        ours_map = symbol_map(ours_path)
+        if target_relocs is None or our_relocs is None:
+            target_relocs = relocation_rows(target)
+            our_relocs = relocation_rows(ours_path)
+        if bytes_equal is None:
+            datadiff = _datadiff()
+            try:
+                bytes_equal = (datadiff.section_bytes(target, section)
+                               == datadiff.section_bytes(ours_path, section))
+            except Exception:             # noqa: BLE001 - an absent section
+                # One object does not carry the section at all (a BSS-class
+                # run, or a `.ctors` only one side emits). Unmeasured byte
+                # equality must never promote a row to RELOC.
+                bytes_equal = None
+        if runs is None:
+            runs = claimed_runs(unit_name)
 
     tgt = target_map.get(section, {})
     our = ours_map.get(section, {})
@@ -233,14 +361,24 @@ def classify_gap(unit_name, section, target_map=None, ours_map=None):
     only_ours = sorted(set(our) - set(tgt))
     resized = sorted(n for n in set(tgt) & set(our) if tgt[n] != our[n])
     differing = [strip_visibility(n) for n in only_target + only_ours + resized]
-    if not differing:
-        verdict = "BYTE"
-    elif all(ANON_RE.match(n) for n in differing):
-        verdict = "ANONYMOUS"
-    else:
-        verdict = "BOUNDARY"
-    return {"verdict": verdict, "only_target": only_target,
-            "only_ours": only_ours, "resized": resized}
+    row = {"only_target": only_target, "only_ours": only_ours,
+           "resized": resized, "unpairable_relocs": []}
+    if differing:
+        row["verdict"] = ("ANONYMOUS" if all(ANON_RE.match(n)
+                                             for n in differing)
+                          else "BOUNDARY")
+        return row
+    if bytes_equal and target_relocs is not None and our_relocs is not None:
+        found = unpairable_relocations(section, target_relocs, our_relocs,
+                                       runs or [])
+        row["unpairable_relocs"] = found["rows"]
+        row["pairable_relocs"] = found["pairable"]
+        row["relocs_not_explained"] = found["unexplained"]
+        if found["rows"] and not found["unexplained"]:
+            row["verdict"] = "RELOC"
+            return row
+    row["verdict"] = "BYTE"
+    return row
 
 
 def format_units(report, wanted=None):
@@ -352,6 +490,21 @@ def main(argv=None):
                      + verdict["resized"])[:6]
             lines.append("   %-42s %-12s %-10s %s"
                          % (unit, section, verdict["verdict"], ", ".join(names)))
+            if verdict["verdict"] == "RELOC":
+                rows = verdict["unpairable_relocs"]
+                lines.append("        every byte of this section is equal;"
+                             " %d relocation(s) point at datums no run of"
+                             " this unit claims, so objdiff has nothing to"
+                             " pair them with. CLAIM work, not source work"
+                             " -- run tools/gdl/claimable_sections.py %s"
+                             % (len(rows), unit))
+                for row in rows[:6]:
+                    lines.append("        +0x%04X %s -> target %s (%s)"
+                                 % (row["offset"], row["our_symbol"],
+                                    row["target_symbol"],
+                                    row["target_address"]))
+                if len(rows) > 6:
+                    lines.append("        ... %d more" % (len(rows) - 6))
         payload["boundaries"] = classified
     if not (args.verify or args.rank or args.boundaries):
         lines += format_units(report, wanted)

@@ -713,6 +713,57 @@ def report_extab_sections(base):
     return []
 
 
+def report_section_fuzzy(base, section):
+    """report.json's fuzzy percent for one section, or None.
+
+    A byte-equal data section can still be paid nothing: objdiff scores a
+    word it cannot pair by SYMBOL as unmatched however identical the bytes
+    are. Run 62 had `game/game/controls .data` reading `100.0% bytes equal`
+    here and `99.0715% withheld` in `data_credit.py` at the same tree, with
+    no line connecting the two. See `credit_note` below.
+    """
+    try:
+        data = json.loads(REPORT.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    for unit in data.get("units", []):
+        if unit.get("name", "").split("/", 1)[-1] == base:
+            for row in unit.get("sections", []):
+                if row.get("name") == section:
+                    return row.get("fuzzy_match_percent")
+    return None
+
+
+def credit_note(unit_key, base, section):
+    """One line explaining a byte-equal section the report still withholds.
+
+    Returns None when the report pays the section, when it has no opinion,
+    or when the classifier cannot say. It never contradicts the byte
+    comparison above it: the bytes ARE equal, and this says what else the
+    credit is waiting on.
+    """
+    fuzzy = report_section_fuzzy(base, section)
+    if fuzzy is None or fuzzy == 100.0:
+        return None
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import data_credit
+        verdict = data_credit.classify_gap("main/" + base, section)
+    except Exception:                        # noqa: BLE001 - never fatal
+        return (f"[{unit_key}] {section}: bytes are equal but report.json"
+                f" pays {fuzzy:.4f}% -- the shortfall is not a byte"
+                " difference; see tools/gdl/data_credit.py --boundaries")
+    rows = verdict.get("unpairable_relocs") or []
+    if verdict.get("verdict") == "RELOC" and rows:
+        return (f"[{unit_key}] {section}: bytes are equal but report.json"
+                f" pays {fuzzy:.4f}% -- {len(rows)} relocation(s) point at"
+                " datums NO run of this unit claims, so objdiff cannot pair"
+                " them. CLAIM work, not source work"
+                " (tools/gdl/claimable_sections.py)")
+    return (f"[{unit_key}] {section}: bytes are equal but report.json pays"
+            f" {fuzzy:.4f}% -- data_credit classes the gap {verdict.get('verdict')}")
+
+
 def exception_table(target_object, our_object):
     """Versioned identity-based metadata result, independent of record order."""
     from exception_metadata import exception_records, compare_exception_records
@@ -803,8 +854,12 @@ def section_table(unit_key, strict_slack=False, debt=None, report=None):
             " account for some — cross-check the byte mode)"
         print(f"[{unit_key}] {sec}: size 0x{tlen:X}, {pct:.1f}% bytes"
               f" equal{mark}")
+        note = credit_note(unit_key, base, sec) if pct == 100.0 else None
+        if note:
+            print(note)
         rows.append({"section": sec, "status": "PASS" if pct == 100.0 else "UNRESOLVED",
                      "target_size": tlen, "ours_size": olen, "raw_bytes_equal_percent": pct,
+                     "credit_note": note,
                      "scope": "raw section bytes; relocation payload identity remains a separate obligation"})
         if pct != 100.0:
             bad += 1
