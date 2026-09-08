@@ -10,6 +10,7 @@ Object dependency freshness remains the builder's responsibility.
 from dataclasses import dataclass
 import hashlib
 import json
+import time
 from pathlib import Path
 
 try:
@@ -43,8 +44,109 @@ def _local(root, value):
     return full
 
 
+# --------------------------------------------------------------------------
+# Validated-graph memo.
+#
+# THE REPORTED DIAGNOSIS WAS REFUTED BY MEASUREMENT. Run 61 item 5 arrived as
+# "resolve_object re-hashes build.ninja and all seven generator inputs on
+# every call (0.106 s)". Reconstructed at 20c0d7ea1 with
+# build/t4_scratch/t4_resolve_cost.py and t4_cost_split*.py, 168 calls for
+# game/enemy/enemy:
+#
+#     resolve_object                 0.1330 s per call
+#     _local over every output       0.1195 s per call   <- 90%
+#     load_graph (whole)             0.0107 s per call   <-  8%
+#       json.loads(build_edges)      0.0035 s
+#       sha256 of the 9 inputs       0.0022 s   <- the reported cause: 1.7%
+#     stat of the same 10 files      0.0002 s
+#
+# The hashing is nearly free. The cost is `Path.resolve()` inside `_local`,
+# run once per build-graph OUTPUT (601 of them) to build `by_output` — 601
+# filesystem path resolutions per resolve_object call. Memoizing only the
+# hashes would have removed 1.7% of the measured cost and the item would have
+# read as fixed. So the memo caches the VALIDATED GRAPH **and** its derived
+# output index together, on the (path, mtime_ns, size) identity of every file
+# the validation reads, exactly as fndiff's objdump/parse memos key theirs.
+#
+# A changed input misses: a new mtime_ns or size revalidates from scratch and
+# raises the same refusals. Content changed under an identical mtime_ns AND
+# size is the one hole, shared with the existing memos; it is closed for the
+# dangerous case by _stamp() refusing to memoize a file written within
+# _RACY_WINDOW_NS of now, so a tool that rewrites a config and immediately
+# re-resolves is never served the pre-write graph.
+#
+# Never persisted to disk: this is a within-process memo whose whole staleness
+# surface is one interpreter run.
+_GRAPH_CACHE = {}
+_CACHE_LIMIT = 8
+_RACY_WINDOW_NS = 2_000_000_000
+
+
+def _stamp(path):
+    """(mtime_ns, size), or None when this file must not be memoized."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    if stat.st_mtime_ns > time.time_ns() - _RACY_WINDOW_NS:
+        return None
+    return (stat.st_mtime_ns, stat.st_size)
+
+
+def _output_index(root, graph):
+    """artifact path -> producing edge; refuses ambiguous ownership."""
+    try:
+        by_output = {}
+        for edge in graph["edges"]:
+            for output in edge["outputs"] + edge.get("implicit_outputs", []):
+                output = _local(root, output)
+                if output in by_output:
+                    raise RawObjectError("duplicate build output: " + str(output))
+                by_output[output] = edge
+        return by_output
+    except (KeyError, TypeError) as error:
+        raise RawObjectError("malformed source pipeline: " + str(error)) from error
+
+
+def _graph_index(root, version):
+    """(graph, by_output), revalidated only when an input's identity changed.
+
+    The returned graph and index are a SHARED read-only snapshot. Callers
+    must not mutate them; every in-repo caller only reads.
+    """
+    key = (str(root), version)
+    entry = _GRAPH_CACHE.get(key)
+    if entry is not None:
+        stamps, graph, by_output = entry
+        if all(_stamp(root / name) == stamp for name, stamp in stamps.items()):
+            return graph, by_output
+    graph = _validate_graph(root, version)
+    by_output = _output_index(root, graph)
+    stamps = {}
+    for name in ("build.ninja", f"build/{version}/build_edges.json",
+                 *graph["generator_inputs"]):
+        stamp = _stamp(root / name)
+        if stamp is None:
+            stamps = None
+            break
+        stamps[name] = stamp
+    if stamps is not None:
+        if len(_GRAPH_CACHE) >= _CACHE_LIMIT:
+            _GRAPH_CACHE.clear()
+        _GRAPH_CACHE[key] = (stamps, graph, by_output)
+    return graph, by_output
+
+
 def load_graph(root, version):
-    """Use the existing generator snapshot; refuse missing/stale contracts."""
+    """Use the existing generator snapshot; refuse missing/stale contracts.
+
+    Returns the shared memoized snapshot; treat it as read-only.
+    """
+    return _graph_index(Path(root).resolve(), version)[0]
+
+
+def _validate_graph(root, version):
+    """The uncached hash-bound validation. Callers go through _graph_index."""
     root = Path(root).resolve()
     path = root / "build" / version / "build_edges.json"
     try:
@@ -91,18 +193,11 @@ def resolve_object(unit, *, root=None, version="GUNE5D", view="compiler", requir
         raise RawObjectError("unknown object view: " + str(view))
     root = Path(root if root is not None else Path(__file__).resolve().parents[2]).resolve()
     unit = unit_key(unit)
-    graph = load_graph(root, version)
+    graph, by_output = _graph_index(root, version)
     try:
         owners = [row for row in graph["units"] if unit_key(row["name"]) == unit]
         if len(owners) != 1 or not owners[0].get("source_object"):
             raise RawObjectError("unit lacks a unique active source object: " + unit)
-        by_output = {}
-        for edge in graph["edges"]:
-            for output in edge["outputs"] + edge.get("implicit_outputs", []):
-                output = _local(root, output)
-                if output in by_output:
-                    raise RawObjectError("duplicate build output: " + str(output))
-                by_output[output] = edge
         current = _local(root, owners[0]["source_object"])
         seen, chain, pin_input = set(), [], None
         while True:

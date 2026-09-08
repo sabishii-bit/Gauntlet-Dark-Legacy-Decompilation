@@ -29,6 +29,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
 sys.path.insert(0, HERE)
+import cc_artifact  # noqa: E402
 import cliscreen  # noqa: E402
 cliscreen.help_only(__doc__)
 import webfrank as wf  # noqa: E402
@@ -88,7 +89,7 @@ def simulate(unit, fn, order=None, window=None):
 
 
 def main():
-    roster = json.load(open(os.path.join(HERE, "ch_roster.json")))
+    roster = cc_artifact.load_artifact("ch_roster.json", "ch_closable.py")
     out = []
     for r in roster:
         order = r["legal_order"]
@@ -117,8 +118,9 @@ def main():
         print(f"  {r['unit']}::{r['function']}  "
               f"fwd_rc={c.get('fwd_rc',0)} inv_rc={c.get('inv_rc',0)} "
               f"regfield={c.get('regfield',0)} perm={r['legal_order']}")
-    json.dump(out, open(os.path.join(HERE, "ch_closable.json"), "w"), indent=1)
-    print(f"\nwrote {os.path.join(HERE, 'ch_closable.json')}")
+    written = cc_artifact.write_artifact("ch_closable.json", out,
+                                         cc_artifact.out_override(sys.argv))
+    print(f"\nwrote {cc_artifact.artifact_label(written)}")
 
 
 if __name__ == "__main__":

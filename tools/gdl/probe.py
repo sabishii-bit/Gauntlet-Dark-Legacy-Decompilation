@@ -186,6 +186,16 @@ docstring omitted it — the flags below all work):
                      improved; --rebase-best --accept-fuzzy-loss banks it
                      deliberately as REBASED-RAW-WORD-LOSS. An UNPINNED
                      function keeps the fuzzy gate, which is sound there.
+                     WHAT IT BUILDS, in so many words (run-61 item 4): the
+                     ninja target
+                     build/<V>/src/<dir>/.postprocess/body/<unit>.o, the
+                     PRE-postprocess object the WEBFRANK edge never touches
+                     — so this IS the hand loop (that ninja target, then
+                     wf_word_diff.py in its whole-TU JSON mode), in one call
+                     and scoped to one function. Without this flag the
+                     shipped object is built and a stale pin aborts it; that
+                     failure now names the pin and prints the exact commands
+                     instead of only a build tail.
   --rederive-pin     one call: build the raw body object, run
                      wf_rederive_pin --apply (guarded: aborts if a BODY hash
                      moved), configure.py, and rebuild the object to confirm
@@ -964,16 +974,130 @@ REDERIVE_HINT_RE = re.compile(
     r"probe\.py\s+(?P<unit>\S+)\s+(?P<fn>\S+)\s+--rederive-pin")
 
 
-def pin_named_by_build(text):
-    """The pin function webfrank's OWN repair hint names, or None.
+#: WebFrank's body-hash refusal, verbatim:
+#:   ValueError: do_enemy_move: input hash e403b1d0... != expected a2927c9a...
+#: (`output hash` is the same shape at the other end of the patch).
+PIN_HASH_ABORT_RE = re.compile(
+    r"(?:^|[\s:])(?P<fn>[A-Za-z_$@][\w$@]*): (?P<which>input|output) hash "
+    r"(?P<got>[0-9a-f]{64}) != expected (?P<want>[0-9a-f]{64})")
+#: `_find_symbol`'s refusal when the pinned function is not in the object.
+PIN_MISSING_SYMBOL_RE = re.compile(
+    r"KeyError: [\"']symbol ['\"](?P<fn>[^'\"]+)['\"] not found")
 
-    webfrank.rederive_hint() already prints
-    `python tools/gdl/probe.py <unit> <pin> --rederive-pin` on the abort, so
-    the failing pin's identity is in the build output every time. probe just
-    never read it.
+
+def pin_abort_details(text):
+    """(function, kind) for a WebFrank pin abort in build output, or None.
+
+    RUN-61 ITEM 4. `pin_named_by_build` reads webfrank's own repair HINT,
+    which webfrank prints only for the RELOCATION-hash class. The abort a
+    stale pin actually produces in an ordinary probe loop is the BODY-hash
+    one, and it carries no hint. Reproduced at 9dc9c0e26 without touching
+    any tracked file (build/t4_scratch/t4_pin_abort_probe2.py copies
+    game/enemy/enemy's own body object, flips ONE bit inside the pinned
+    do_enemy_move, and runs the real WebFrank edge over the copy):
+
+        ValueError: do_enemy_move: input hash e403b1d0...
+                    != expected a2927c9a...
+        probe.pin_named_by_build(...) -> None
+
+    So the failing pin was in the output and probe read None. Kinds:
+
+      rederive-hint   webfrank named the pin and said it is re-derivable
+      body-hash       the window's INSTRUCTION bytes moved -- re-deriving is
+                      the wrong cure; this is a codegen change
+      missing-symbol  the pinned function is not in the object at all
     """
-    match = REDERIVE_HINT_RE.search(text or "")
-    return match.group("fn") if match else None
+    text = text or ""
+    match = REDERIVE_HINT_RE.search(text)
+    if match:
+        return match.group("fn"), "rederive-hint"
+    match = PIN_HASH_ABORT_RE.search(text)
+    if match:
+        return match.group("fn"), "body-hash"
+    match = PIN_MISSING_SYMBOL_RE.search(text)
+    if match:
+        return match.group("fn"), "missing-symbol"
+    return None
+
+
+def pin_named_by_build(text):
+    """The pin function webfrank's OWN abort names, or None.
+
+    webfrank.rederive_hint() prints
+    `python tools/gdl/probe.py <unit> <pin> --rederive-pin` for the
+    relocation-hash class, so that pin's identity is in the build output.
+    Run-61 item 4 added the other two abort spellings through
+    `pin_abort_details`, because the hint is NOT printed for a body-hash
+    refusal and this returned None on the commonest stale-pin abort there is.
+    """
+    found = pin_abort_details(text)
+    return found[0] if found else None
+
+
+def pinned_build_escape(unit, fn, text):
+    """The exact loop to run when a pin aborts a probe build, or None.
+
+    A pinned TU's shipped object cannot be built while a pin is stale, so
+    the ordinary `probe.py <unit> <fn>` loop dies in the WEBFRANK edge and
+    used to print only a build tail. `--raw` already builds the
+    PRE-postprocess body object instead (run-39 item 10) and since run 48
+    prints the raw differing-word count, which is the only arbiter available
+    on a pinned function -- verified at 9dc9c0e26:
+
+        probe.py game/enemy/enemy do_enemy_move --raw --stateless
+        [--raw: building build/GUNE5D/src/game/enemy/.postprocess/body/
+         enemy.o - the compiler's own output, WITHOUT driving the WEBFRANK
+         edge, so a stale pin cannot block this score]
+        RAW WORDS = 3 of 905 insns; CLASS: RECOLOR-SHAPED BUT NOT
+        RECOLOURABLE ... PINNED
+
+    so the manual `ninja <body>.o` + `wf_word_diff --unit --json` loop is
+    what `--raw` already does. This refusal says so, names the failing pin,
+    and gives the manual form for the case a lane wants the whole TU.
+    """
+    found = pin_abort_details(text)
+    if found is None:
+        return None
+    pin, kind = found
+    parts = unit.split("/")
+    body = (f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
+            f"/.postprocess/body/{parts[-1]}.o")
+    why = {
+        "rederive-hint": (f"the RELOCATION hashes of the pin on {pin} moved"
+                          " (an upstream pool renumbering); the pin can be"
+                          " re-derived"),
+        "body-hash": (f"the pin on {pin} hash-asserts a BODY that is no"
+                      " longer the one it was proven on, so the WEBFRANK"
+                      " edge refuses. Re-deriving is NOT the cure for a"
+                      " moved body hash"),
+        "missing-symbol": (f"the pinned function {pin} is not in the object"
+                           " at all (renamed, inlined away, or removed)"),
+    }[kind]
+    lines = [
+        "",
+        f"PINNED TU: this build did not fail on your source -- {why}.",
+        "The SHIPPED object cannot be built while that pin is stale, so"
+        " score the compiler's own output instead:",
+        "",
+        f"    python tools/gdl/probe.py {unit} {fn} --raw",
+        "",
+        f"  --raw builds {body} (the PRE-postprocess object, which the"
+        " WEBFRANK edge never touches) and prints RAW WORDS, the count that"
+        " decides postprocessor candidacy and the only arbiter available on"
+        " a pinned function.",
+        "",
+        "  The whole-TU form of the same loop, when you want every function:",
+        "",
+        f"    ninja {body}",
+        f"    python tools/gdl/composed_census/wf_word_diff.py --unit {unit}"
+        " --json",
+        "",
+    ]
+    if kind == "rederive-hint":
+        lines += [f"  To repair the pin itself: python tools/gdl/probe.py"
+                  f" {unit} {pin} --rederive-pin  (add --transient for a"
+                  " throwaway A/B).", ""]
+    return "\n".join(lines)
 
 
 def pin_functions(config_data, unit):
@@ -5783,6 +5907,12 @@ def main():
             print(COUPLED_SCOPE_BUILD_NOTE)
         print("BUILD FAILED:")
         print((build.stdout + build.stderr).strip()[-1500:])
+        # Run-61 item 4: a pin abort is not a source error, and the tail
+        # above does not say what to run instead. Name the pin and the loop.
+        escape = None if raw else pinned_build_escape(
+            unit, fn, build.stdout + build.stderr)
+        if escape:
+            print(escape)
         return 1
 
     raw_flag = ["--raw"] if raw else []

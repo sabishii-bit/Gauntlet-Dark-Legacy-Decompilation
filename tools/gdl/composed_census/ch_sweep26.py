@@ -19,6 +19,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
 sys.path.insert(0, HERE)
+import cc_artifact  # noqa: E402
 import cn_census as census  # noqa: E402
 import webfrank as wf  # noqa: E402
 import ch_derive  # noqa: E402
@@ -71,7 +72,8 @@ def main():
     # tracked ch_sweep26.json -- a help request with a side effect on disk,
     # the exact shape run-53 item 2 was raised for.
     cliscreen.help_only(__doc__)
-    shipped = set(json.load(open(os.path.join(HERE, "ch_shipped.json"))))
+    shipped = set(cc_artifact.load_artifact("ch_shipped.json",
+                                            "ch_sweep26.py"))
     rows = []
     for unit, fn, lo, hi in survivors():
         own = OWNED.get(unit)
@@ -93,8 +95,9 @@ def main():
     for r in new:
         own = f"  [owned {r['owned']}]" if r["owned"] else "  <-- AUTHORABLE"
         print(f"  {r['unit']}::{r['function']}{own}")
-    json.dump(rows, open(os.path.join(HERE, "ch_sweep26.json"), "w"), indent=1)
-    print(f"\nwrote {os.path.join(HERE, 'ch_sweep26.json')}")
+    written = cc_artifact.write_artifact("ch_sweep26.json", rows,
+                                         cc_artifact.out_override(sys.argv))
+    print(f"\nwrote {cc_artifact.artifact_label(written)}")
 
 
 if __name__ == "__main__":

@@ -159,11 +159,18 @@ class UnitCliContract(unittest.TestCase):
         rows, _kind = wd.unit_rows("game/enemy/enemy")
         self.assertEqual(len(payload["rows"]), len(rows))
         self.assertGreater(len(rows), 0)
+        # Run-61 item 3 added `count_asymmetric`, `instruction_delta` and the
+        # two body hashes to every row, and a `totals` block beside them, so
+        # a census can sum the column a COUNT-ASYMMETRIC row leaves null and
+        # can tell "same word count" from "same bytes".
+        self.assertEqual(sorted(payload), ["object", "rows", "totals", "unit"])
         for row in payload["rows"]:
             self.assertEqual(
                 sorted(row),
                 sorted(["function", "pinned", "target_insns", "ours_insns",
-                        "verdict", "differing_words",
+                        "verdict", "differing_words", "count_asymmetric",
+                        "instruction_delta", "body_sha256_ours",
+                        "body_sha256_target",
                         "mnemonic_divergence", "klass", "decode"]))
 
     def test_a_single_function_still_prints_its_headline(self):
