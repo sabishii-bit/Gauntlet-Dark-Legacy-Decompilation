@@ -592,7 +592,6 @@ int FileExists(char* wad, char* name)
 
 void* AllocFile(char* wad, char* name)
 {
-    u8 unused[8];
     int avail;
     int read;
     void* dest;
@@ -614,21 +613,8 @@ void* AllocFile(char* wad, char* name)
         gErrorCode = 0xff;
         FatalErrorf("AllocFile: Read failed.");
     }
-    avail = read;
     used0 = mlmMemUsed;
-    if (mlmMemReserved != 0) {
-        gErrorCode = 0xa0a000;
-        FatalErrorf("AllocMem() called while mem reserved");
-    }
-    if (read & 0xf) {
-        avail += 0x10 - (read & 0xf);
-    }
-    mlmMemUsed += avail;
-    if (mlmMemUsed > mlmMemLimit) {
-        gErrorCode = 0xc0c000;
-        FatalErrorf("AllocMem failed: %d bytes, exceeds free by %d bytes",
-                    avail, mlmMemUsed - mlmMemLimit);
-    }
+    AllocMem(read);
     bulletproof_printf("==== ALLOC FILE=%s/%s, MEM:%06dk -> %06dk [%dk]\n",
                        wad, name, used0 >> 10, mlmMemUsed >> 10, read >> 10);
     mlmLastFileSize = read;
