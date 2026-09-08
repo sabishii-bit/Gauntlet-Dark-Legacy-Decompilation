@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/sndid.h"
 #include "game/gamemode.h"
 #include "game/player.h"
 #include "game/leveldata.h"
@@ -152,9 +153,9 @@ void AudioWelcome(int pidx, int flag)
     int extra = lbl_801232C8[pidx];
 
     if (flag != 0) {
-        AudioWithName(0xC0084, pidx, 10.0f, -1, -1);
+        AudioWithName(S_WELCOMEBACK, pidx, 10.0f, -1, -1);
     } else if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0xC0084, -1.0f, 10.0f, 224, extra, 2);
+        sndFxQueAddEx(1, S_WELCOMEBACK, -1.0f, 10.0f, 224, extra, 2);
     }
 }
 
@@ -163,9 +164,9 @@ void AudioWelcomeBack(int pidx, int flag)
     int extra = lbl_801232C8[pidx];
 
     if (flag != 0) {
-        AudioWithName(0xC0083, pidx, 10.0f, -1, -1);
+        AudioWithName(S_WELCOME, pidx, 10.0f, -1, -1);
     } else if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0xC0083, -1.0f, 10.0f, 224, extra, 2);
+        sndFxQueAddEx(1, S_WELCOME, -1.0f, 10.0f, 224, extra, 2);
     }
 }
 
@@ -256,37 +257,37 @@ void AudioStopAll(void)
 
 void AudioPlayEvt101IfIdle(int arg)
 {
-    if (AudioSoundExists(101) == 0) {
-        sndFxPlay3D(101, arg, 127, 22);
+    if (AudioSoundExists(S_DEATHDIE) == 0) {
+        sndFxPlay3D(S_DEATHDIE, arg, 127, 22);
     }
 }
 
 void AudioPlayEvt101(int arg)
 {
-    sndFxPlay3D(101, arg, 127, 22);
+    sndFxPlay3D(S_DEATHDIE, arg, 127, 22);
 }
 
 void AudioPlayEvt104(int arg)
 {
-    sndFxPlay3D(104, arg, 224, 12);
+    sndFxPlay3D(S_DEATHLAUGH, arg, 224, 12);
 }
 
 void AudioPlayEvt103(int arg)
 {
-    sndFxPlay3D(103, arg, 224, 13);
+    sndFxPlay3D(S_DEATHSHATTER, arg, 224, 13);
 }
 
 void AudioPlayEvt102(void)
 {
-    AudioKillBySound(102);
+    AudioKillBySound(S_DEATHSUCK);
 }
 
 void AudioPlayEvt102Follow(int arg)
 {
     int h;
 
-    if (AudioSoundExists(102) == 0) {
-        sndFxPlay3DTracked(102, arg, 127, 111);
+    if (AudioSoundExists(S_DEATHSUCK) == 0) {
+        sndFxPlay3DTracked(S_DEATHSUCK, arg, 127, 111);
     }
     h = AudioMaskByEvent(111);
     if (h != 0) {
@@ -334,7 +335,7 @@ void ShopMusicStart(void)
     int ch;
     int h;
 
-    AudioKillBySound(0xC0000);
+    AudioKillBySound(S_SELECTMUS);
     if (sSelectStreamHandle >= 0) {
         AudioStreamStop();
     }
@@ -367,7 +368,7 @@ void MapMusicStart(void)
 
     buf = (char*)sSpeechNameBuf;
     ch = LevelLetter(0);
-    AudioKillBySound(0xC0000);
+    AudioKillBySound(S_SELECTMUS);
     if (sSelectStreamHandle >= 0) {
         AudioStreamStop();
     }
@@ -407,7 +408,7 @@ void AudioSelect(int track)
         break;
     case 0:
     default:
-        AudioKillBySound(0xC0000);
+        AudioKillBySound(S_SELECTMUS);
         break;
     }
     sCurSelectTrack = track;
@@ -865,12 +866,12 @@ void AudioAmbientUpdate(void)
         poff += 13148;
     }
     if (mode != 0) {
-        if (AudioSoundExists(83) == 0) {
+        if (AudioSoundExists(S_HOURGLASS) == 0) {
             if (mode == 1) {
-                sndFxPlay3DTracked(83, 0, 127, 113);
+                sndFxPlay3DTracked(S_HOURGLASS, 0, 127, 113);
             } else {
                 sndFxPlay3DTracked(
-                    83, (s32)((u8*)gPlayers + idx * 13148 + offsetof(Player, col_pos)),
+                    S_HOURGLASS, (s32)((u8*)gPlayers + idx * 13148 + offsetof(Player, col_pos)),
                     127, 113);
             }
         }
@@ -894,7 +895,7 @@ void AudioAmbientUpdate(void)
                 }
             }
         }
-        AudioKillBySound(83);
+        AudioKillBySound(S_HOURGLASS);
     }
 }
 

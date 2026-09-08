@@ -153,7 +153,86 @@ typedef struct OPTITEM {
 enum OPTMENU_TYPE {
     OPTMENU_INACTIVE = 0,
     OPTMENU_FINISH = 1,
-    OPTMENU_TITLE = 2
+    OPTMENU_TITLE = 2,
+    OPTMENU_TOWER = 3,
+    OPTMENU_GAME = 4,
+    OPTMENU_TITLE_OPTS = 5,
+    OPTMENU_TOWER_OPTS = 6,
+    OPTMENU_GAME_OPTS = 7,
+    OPTMENU_AUDIO = 8,
+    OPTMENU_GAMEOPTIONS = 9,
+    OPTMENU_DIFFICULTY = 10,
+    OPTMENU_MULTIPLAYER = 11,
+    OPTMENU_COMPASS = 12,
+    OPTMENU_CONTROLS = 13,
+    OPTMENU_CONTROLSTYLE = 14,
+    OPTMENU_CONTROL_RUMBLE = 15,
+    OPTMENU_CONTROL_AUTOAIM = 16,
+    OPTMENU_CONTROL_AUTOATTACK = 17,
+    OPTMENU_SCREEN = 18,
+    OPTMENU_QUITGAME = 19,
+    OPTMENU_QUITLEVEL = 20,
+    OPTMENU_SUBMENU = 21,
+    OPTMENU_HINT = 22,
+    OPTMENU_HINT_GENERAL = 23,
+    OPTMENU_HINT_BOSS = 24,
+    OPTMENU_HINT_LEGEND = 25,
+    OPTMENU_HINT_RUNE = 26,
+    OPTMENU_LAST = 27,
+};
+
+/* item/choice codes: the same PDB space, confirmed by the step = -2 split
+ * (OPT_LEFT_* vs OPT_RIGHT_*) and by the sfx slider arm. */
+enum OPT_TYPE {
+    OPT_ABORTALL = -2,
+    OPT_ABORT = -1,
+    OPT_NONE = 0,
+    OPT_CHANGED = 1,
+    OPT_CIRCLE = 2,
+    OPT_LEFT_EDGE = 3,
+    OPT_RIGHT_EDGE = 4,
+    OPT_LEFT_LEVEL = 5,
+    OPT_RIGHT_LEVEL = 6,
+    OPT_UP_EDGE = 7,
+    OPT_DOWN_EDGE = 8,
+    OPT_UP_LEVEL = 9,
+    OPT_DOWN_LEVEL = 10,
+    OPT_START_GAME = 11,
+    OPT_OPTIONS = 12,
+    OPT_CHARSEL = 13,
+    OPT_SHOP = 14,
+    OPT_INVENTORY = 15,
+    OPT_GAMEOPTIONS = 16,
+    OPT_AUDIO = 17,
+    OPT_DIFFICULTY = 18,
+    OPT_MULTIPLAYER = 19,
+    OPT_COMPASS = 20,
+    OPT_CONTROLS = 21,
+    OPT_SCREEN = 22,
+    OPT_MUSICVOL = 23,
+    OPT_SFXVOL = 24,
+    OPT_STEREO = 25,
+    OPT_OFF = 26,
+    OPT_ON = 27,
+    OPT_EASY = 28,
+    OPT_MEDIUM = 29,
+    OPT_HARD = 30,
+    OPT_SHOW = 31,
+    OPT_HIDE = 32,
+    OPT_CTLSCHEME = 33,
+    OPT_RUMBLE = 34,
+    OPT_AUTOAIM = 35,
+    OPT_AUTOATTACK = 36,
+    OPT_QUITGAME = 37,
+    OPT_QUITLEVEL = 38,
+    OPT_HINTS_GENERAL = 39,
+    OPT_HINTS_BOSS = 40,
+    OPT_HINTS_LEGEND = 41,
+    OPT_HINTS_RUNE = 42,
+    OPT_BOSS = 100,
+    OPT_LEGEND = 200,
+    OPT_RUNE = 300,
+    OPT_LAST = 1000,
 };
 
 typedef struct OPTMENU {
@@ -651,7 +730,7 @@ int DoOptions(void)
     s32 skipBackSound;
     u8* data = lbl_8011DD20;
 
-    choice = 0;
+    choice = OPT_NONE;
     skipBackSound = 0;
 
     /* menu clock: full speed, or (paused w/ button held) 2, else 0 */
@@ -715,7 +794,7 @@ int DoOptions(void)
         if (m->title_blit != NULL) {
             mbBlitInit3414(m->title_blit, 1);
         }
-        if ((u32)(choice + 2) <= 1 || choice == 0xF) {
+        if ((u32)(choice + 2) <= 1 || choice == OPT_INVENTORY) {
             draw_fullscreen_inventory();
         }
         return 1;
@@ -732,18 +811,18 @@ int DoOptions(void)
     switch (options_state) {
     case OPTMENU_TITLE:
         if ((gControllerButtons & 4) != 0) {
-            choice = 0xB;
+            choice = OPT_START_GAME;
         }
         switch (choice) {
-        case 1:
+        case OPT_CHANGED:
             title_choice = 1;
             break;
-        case -2:
-        case -1:
+        case OPT_ABORTALL:
+        case OPT_ABORT:
             goto close_title_options;
-        case 0xC:
+        case OPT_OPTIONS:
             goto open_game_options;
-        case 0xB:
+        case OPT_START_GAME:
             goto abort_title_options;
         default:
             break;
@@ -765,17 +844,17 @@ int DoOptions(void)
         controls_remove_active_player(player);
         return 1;
 
-    case 3: /* in-game top menu */
+    case OPTMENU_TOWER: /* in-game top menu */
         switch (choice) {
-        case 0xF:
+        case OPT_INVENTORY:
             goto open_shop_mode2;
-        case 0xD:
+        case OPT_CHARSEL:
             goto open_player_select;
-        case 0xC:
+        case OPT_OPTIONS:
             goto open_quit_confirm;
-        case 0xE:
+        case OPT_SHOP:
             goto open_shop_mode1;
-        case 0x25:
+        case OPT_QUITGAME:
             goto open_yesno3;
         default:
             break;
@@ -818,12 +897,12 @@ int DoOptions(void)
         ((OPTMENU*)(data + 3580))->sel = 0;
         break;
 
-    case 4: /* quit-confirm */
+    case OPTMENU_GAME: /* quit-confirm */
         switch (choice) {
-        case 0xC:
+        case OPT_OPTIONS:
             start_optmenu((OPTMENU*)(data + 2328), player);
             break;
-        case 0x26:
+        case OPT_QUITLEVEL:
             start_optmenu((OPTMENU*)(data + 3008), player);
             ((OPTMENU*)(data + 3008))->sel = 0;
             break;
@@ -832,11 +911,11 @@ int DoOptions(void)
         }
         break;
 
-    case 5:
-    case 6:
-    case 7: /* options submenu */
+    case OPTMENU_TITLE_OPTS:
+    case OPTMENU_TOWER_OPTS:
+    case OPTMENU_GAME_OPTS: /* options submenu */
         switch (choice) {
-        case 0x11:
+        case OPT_AUDIO:
             start_optmenu((OPTMENU*)(data + 3240), player);
             optglobals.music.val = optglobals.music_vol;
             optglobals.sfx.val = optglobals.sfx_vol;
@@ -844,14 +923,14 @@ int DoOptions(void)
             start_audioslider(&optglobals.sfx);
             sfx_sound_count = 0;
             break;
-        case 0x10:
+        case OPT_GAMEOPTIONS:
             start_optmenu((OPTMENU*)(data + 2668), player);
             break;
-        case 0x14:
+        case OPT_COMPASS:
             start_optmenu((OPTMENU*)(data + 4672), player);
             ((OPTMENU*)(data + 4672))->sel = optglobals.vibration;
             break;
-        case 0x15:
+        case OPT_CONTROLS:
             start_optmenu((OPTMENU*)(data + 5148), player);
             break;
         default:
@@ -859,13 +938,13 @@ int DoOptions(void)
         }
         break;
 
-    case 9: /* more prefs */
+    case OPTMENU_GAMEOPTIONS: /* more prefs */
         switch (choice) {
-        case 0x12:
+        case OPT_DIFFICULTY:
             start_optmenu((OPTMENU*)(data + 3956), player);
             ((OPTMENU*)(data + 3956))->sel = optglobals.style;
             break;
-        case 0x13:
+        case OPT_MULTIPLAYER:
             start_optmenu((OPTMENU*)(data + 4332), player);
             ((OPTMENU*)(data + 4332))->sel = optglobals.subtitles;
             break;
@@ -874,9 +953,9 @@ int DoOptions(void)
         }
         break;
 
-    case 0x13:
+    case OPTMENU_QUITGAME:
         switch (choice) {
-        case 0x25:
+        case OPT_QUITGAME:
             opt_quit_request = 1;
             end_optmenu(-1, -1);
             break;
@@ -885,9 +964,9 @@ int DoOptions(void)
         }
         break;
 
-    case 0x14:
+    case OPTMENU_QUITLEVEL:
         switch (choice) {
-        case 0x26:
+        case OPT_QUITLEVEL:
             opt_restart_request = 1;
             end_optmenu(-1, -1);
             break;
@@ -896,20 +975,20 @@ int DoOptions(void)
         }
         break;
 
-    case 8: { /* audio sliders */
+    case OPTMENU_AUDIO: { /* audio sliders */
         s32 step = 0;
         AudioClampMusicVol(0.0f, 1.0f);
         do_audiomenu(m);
 
         switch (choice) {
-        case 3:
-        case 5:
+        case OPT_LEFT_EDGE:
+        case OPT_LEFT_LEVEL:
             step = -2;
             /* fallthrough */
-        case 4:
-        case 6:
+        case OPT_RIGHT_EDGE:
+        case OPT_RIGHT_LEVEL:
             switch (item->code) {
-            case 0x18:
+            case OPT_SFXVOL:
                 optglobals.sfx.val += (step + 1) * vb_elapsed_menu;
                 optglobals.sfx.val = optglobals.sfx.val < 0 ? 0 :
                                      optglobals.sfx.val > 0xFF ? 0xFF : optglobals.sfx.val;
@@ -923,7 +1002,7 @@ int DoOptions(void)
                     }
                 }
                 break;
-            case 0x17:
+            case OPT_MUSICVOL:
                 optglobals.music.val += (step + 1) * vb_elapsed_menu;
                 optglobals.music.val = optglobals.music.val < 0 ? 0 :
                                        optglobals.music.val > 0xFF ? 0xFF : optglobals.music.val;
@@ -931,7 +1010,7 @@ int DoOptions(void)
                 AudioSetEvt1(0x80);
                 optglobals.music_vol = optglobals.music.val;
                 break;
-            case 0x19:
+            case OPT_STEREO:
                 if ((u32)(choice - 3) <= 1) {
                     s32 mode;
 
@@ -952,12 +1031,12 @@ int DoOptions(void)
                 break;
             }
             break;
-        case 0x17:
-        case 0x18:
-        case 0x19:
+        case OPT_MUSICVOL:
+        case OPT_SFXVOL:
+        case OPT_STEREO:
             break;
-        case -2:
-        case -1:
+        case OPT_ABORTALL:
+        case OPT_ABORT:
             optglobals.music.empty = MBRemoveBlit(optglobals.music.empty);
             optglobals.music.pink = MBRemoveBlit(optglobals.music.pink);
             optglobals.music.ml = MBRemoveBlit(optglobals.music.ml);
@@ -973,7 +1052,7 @@ int DoOptions(void)
             break;
         default:
             switch (item->code) {
-            case 0x18:
+            case OPT_SFXVOL:
                 if (sfx_sound_count > 0x3C) {
                     fn_8009EE2C(0);
                     sfx_sound_count = 0;
@@ -987,7 +1066,7 @@ int DoOptions(void)
         break;
     }
 
-    case 10: /* radio menu on optglobals.style */
+    case OPTMENU_DIFFICULTY: /* radio menu on optglobals.style */
         for (i = 0; i < m->num_items; i++) {
             if (i == optglobals.style) {
                 m->items[i].on = 1;
@@ -996,19 +1075,19 @@ int DoOptions(void)
             }
         }
         switch (choice) {
-        case 0x1C:
-        case 0x1D:
-        case 0x1E:
+        case OPT_EASY:
+        case OPT_MEDIUM:
+        case OPT_HARD:
             optglobals.style = m->sel;
             fn_8009D350(player);
             break;
-        case 1:
+        case OPT_CHANGED:
         default:
             break;
         }
         break;
 
-    case 0xB: /* radio menu on optglobals.subtitles */
+    case OPTMENU_MULTIPLAYER: /* radio menu on optglobals.subtitles */
         for (i = 0; i < m->num_items; i++) {
             if (i == optglobals.subtitles) {
                 m->items[i].on = 1;
@@ -1017,19 +1096,19 @@ int DoOptions(void)
             }
         }
         switch (choice) {
-        case 0x1C:
-        case 0x1D:
-        case 0x1E:
+        case OPT_EASY:
+        case OPT_MEDIUM:
+        case OPT_HARD:
             optglobals.subtitles = m->sel;
             fn_8009D350(player);
             break;
-        case 1:
+        case OPT_CHANGED:
         default:
             break;
         }
         break;
 
-    case 0xC: /* vibration on/off */
+    case OPTMENU_COMPASS: /* vibration on/off */
         for (i = 0; i < m->num_items; i++) {
             if (i == optglobals.vibration) {
                 m->items[i].on = 1;
@@ -1038,35 +1117,35 @@ int DoOptions(void)
             }
         }
         switch (choice) {
-        case 0x1F:
+        case OPT_SHOW:
             optglobals.vibration = 1;
             fn_8009D350(player);
             break;
-        case 0x20:
+        case OPT_HIDE:
             optglobals.vibration = 0;
             fn_8009D350(player);
             break;
-        case 1:
+        case OPT_CHANGED:
         default:
             break;
         }
         break;
 
-    case 0x12: { /* screen position */
+    case OPTMENU_SCREEN: { /* screen position */
         s32 step2 = 0;
         do_screenmenu();
         switch (choice) {
-        case 2:
+        case OPT_CIRCLE:
             screen_dx = 0;
             screen_dy = 0;
             fn_800C25F0(screen_dx, screen_dy);
             break;
-        case 3:
-        case 5:
+        case OPT_LEFT_EDGE:
+        case OPT_LEFT_LEVEL:
             step2 = -2;
             /* fallthrough */
-        case 4:
-        case 6: {
+        case OPT_RIGHT_EDGE:
+        case OPT_RIGHT_LEVEL: {
             s32 value;
 
             screen_dx += (step2 + 1) * 4;
@@ -1080,12 +1159,12 @@ int DoOptions(void)
             fn_800C25F0(screen_dx, screen_dy);
             break;
         }
-        case 7:
-        case 9:
+        case OPT_UP_EDGE:
+        case OPT_UP_LEVEL:
             step2 = -2;
             /* fallthrough */
-        case 8:
-        case 10: {
+        case OPT_DOWN_EDGE:
+        case OPT_DOWN_LEVEL: {
             s32 value;
 
             screen_dy += step2 + 1;
@@ -1099,17 +1178,17 @@ int DoOptions(void)
             fn_800C25F0(screen_dx, screen_dy);
             break;
         }
-        case -2:
-        case -1:
+        case OPT_ABORTALL:
+        case OPT_ABORT:
             fn_800C25F0(optglobals.screen_dx, optglobals.screen_dy);
             break;
         }
         break;
     }
 
-    case 0xD: /* controls hub */
+    case OPTMENU_CONTROLS: /* controls hub */
         switch (choice) {
-        case 0x21:
+        case OPT_CTLSCHEME:
             control_style = ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style;
             start_optmenu((OPTMENU*)(data + 5452), player);
             for (i = 0; i < 3; i++) {
@@ -1120,16 +1199,16 @@ int DoOptions(void)
             }
             fn_8009D350(player);
             break;
-        case 0x22:
+        case OPT_RUMBLE:
             start_optmenu((OPTMENU*)(data + 5792), player);
             break;
-        case 0x23:
+        case OPT_AUTOAIM:
             start_optmenu((OPTMENU*)(data + 6132), player);
             break;
-        case 0x24:
+        case OPT_AUTOATTACK:
             start_optmenu((OPTMENU*)(data + 6472), player);
             break;
-        case -1:
+        case OPT_ABORT:
             player_save_controls(player);
             break;
         default:
@@ -1137,19 +1216,19 @@ int DoOptions(void)
         }
         break;
 
-    case 0xE: { /* controller diagram / style picker */
+    case OPTMENU_CONTROLSTYLE: { /* controller diagram / style picker */
         s32 add = 0;
         if (player >= 0) {
             m->items[0].text = (char*)(data + 4904 + control_style * 16);
             do_controlsmenu(m, player);
         }
         switch (choice) {
-        case 3:
+        case OPT_LEFT_EDGE:
             add = -2;
             /* fallthrough */
-        case 4:
+        case OPT_RIGHT_EDGE:
             switch (item->code) {
-            case 0x21:
+            case OPT_CTLSCHEME:
                 if (player >= 0) {
                     add += control_style;
                     control_style = add + 1;
@@ -1164,11 +1243,11 @@ int DoOptions(void)
                 break;
             }
             break;
-        case -1:
-            choice = 0;
+        case OPT_ABORT:
+            choice = OPT_NONE;
             break;
-        case -2:
-        case 0x21:
+        case OPT_ABORTALL:
+        case OPT_CTLSCHEME:
             ((OPTION_PAD*)(lbl_80240E30 + player * 60))->style = control_style;
             for (i = 0; i < 3; i++) {
                 CTLBLIT* blit = &((CTLBLIT*)(data + 7640))[i];
@@ -1186,7 +1265,7 @@ int DoOptions(void)
         break;
     }
 
-    case 0xF: /* per-pad setting radio (pad + 0x2C) */
+    case OPTMENU_CONTROL_RUMBLE: /* per-pad setting radio (pad + 0x2C) */
         for (i = 0; i < m->num_items; i++) {
             if (i == ((OPTION_PAD*)(lbl_80240E30 + player * 60))->setting) {
                 m->items[i].on = 1;
@@ -1195,20 +1274,20 @@ int DoOptions(void)
             }
         }
         switch (choice) {
-        case 0x1A:
-        case 0x1C:
-        case 0x1D:
-        case 0x1E:
+        case OPT_OFF:
+        case OPT_EASY:
+        case OPT_MEDIUM:
+        case OPT_HARD:
             ((OPTION_PAD*)(lbl_80240E30 + player * 60))->setting = m->sel;
             fn_8009D350(player);
             break;
-        case 0x1B:
+        case OPT_ON:
         default:
             break;
         }
         break;
 
-    case 0x10: /* per-pad boolean radio (pad + 0x30; 0 = first item) */
+    case OPTMENU_CONTROL_AUTOAIM: /* per-pad boolean radio (pad + 0x30; 0 = first item) */
         for (i = 0; i < m->num_items; i++) {
             if (i == !((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0) {
                 m->items[i].on = 1;
@@ -1217,8 +1296,8 @@ int DoOptions(void)
             }
         }
         switch (choice) {
-        case 0x1A:
-        case 0x1B:
+        case OPT_OFF:
+        case OPT_ON:
             ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean0 = !m->sel;
             fn_8009D350(player);
             break;
@@ -1227,7 +1306,7 @@ int DoOptions(void)
         }
         break;
 
-    case 0x11: /* per-pad boolean radio (pad + 0x34) */
+    case OPTMENU_CONTROL_AUTOATTACK: /* per-pad boolean radio (pad + 0x34) */
         for (i = 0; i < m->num_items; i++) {
             if (i == !((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1) {
                 m->items[i].on = 1;
@@ -1236,8 +1315,8 @@ int DoOptions(void)
             }
         }
         switch (choice) {
-        case 0x1A:
-        case 0x1B:
+        case OPT_OFF:
+        case OPT_ON:
             ((OPTION_PAD*)(lbl_80240E30 + player * 60))->boolean1 = !m->sel;
             fn_8009D350(player);
             break;
@@ -1246,19 +1325,19 @@ int DoOptions(void)
         }
         break;
 
-    case 0x16: /* hint category select */
+    case OPTMENU_HINT: /* hint category select */
         hint_submenu = choice;
         switch (choice) {
-        case 0x28:
+        case OPT_HINTS_BOSS:
             goto open_boss_hint;
-        case 0x27:
+        case OPT_HINTS_GENERAL:
             goto open_general_hint;
-        case 0x29:
+        case OPT_HINTS_LEGEND:
             goto open_legend_hint;
-        case 0x2A:
+        case OPT_HINTS_RUNE:
             goto open_rune_hint;
-        case -2:
-        case -1:
+        case OPT_ABORTALL:
+        case OPT_ABORT:
             goto activate_sumner_hints;
         default:
             break;
@@ -1298,7 +1377,7 @@ int DoOptions(void)
         SumnerHintsActivate(player);
         break;
 
-    case 0x17: { /* hint display */
+    case OPTMENU_HINT_GENERAL: { /* hint display */
         u32 rgb = ((m->rgb_off[0] & 0xFF) << 16) | ((m->rgb_off[1] & 0xFF) << 8) | (m->rgb_off[2] & 0xFF);
         s32 y;
         SetDrawStringScale(m->scale);
@@ -1377,7 +1456,7 @@ s32 OptionsStart(s32 player)
                     break;
                 }
                 switch (it->code) {
-                case 0x26:
+                case OPT_QUITLEVEL:
                 if (sMusicTrackHi == 0xC) {
                     it->value = -1;
                 } else {
@@ -1578,17 +1657,17 @@ static void do_audiomenu(OPTMENU* m)
         }
         act = (i == m->sel) ? 0 : 1;
         switch (it->code) {
-        case 0x17:
+        case OPT_MUSICVOL:
             position_audioslider(&og->music, m->x,
                                  it->draw_y + fh + OPTMENU_VOL_DY,
                                  OPTAUDIO_VOL_WIDTH, OPTAUDIO_VOL_HEIGHT, act);
             break;
-        case 0x18:
+        case OPT_SFXVOL:
             position_audioslider(&og->sfx, m->x,
                                  it->draw_y + fh + OPTMENU_VOL_DY,
                                  OPTAUDIO_VOL_WIDTH, OPTAUDIO_VOL_HEIGHT, act);
             break;
-        case 0x19:
+        case OPT_STEREO:
             it->on = *sm + 1;
             it->value = *sm;
             break;
