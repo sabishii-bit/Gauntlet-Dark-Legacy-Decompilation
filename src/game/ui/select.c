@@ -2526,7 +2526,6 @@ extern void* MBOX_FindTexture(char* name, s32 mode);
 
 void update_class_attr(s32 player)
 {
-    u8* pl = (u8*)gPlayers + player * 13148;
     char* pool = lbl_801143F8;
     s32 stats[4];
     u8 statsPad[4];
@@ -2535,6 +2534,7 @@ void update_class_attr(s32 player)
     u8* expslot;
     s32 lvl;
     s32 best;
+    u8* pl = (u8*)gPlayers + player * 13148;
     s32 j;
 
     LoadPlyrData(player, *(s32*)(pl + offsetof(Player, character)), 0);
