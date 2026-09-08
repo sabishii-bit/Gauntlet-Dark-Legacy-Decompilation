@@ -91,9 +91,7 @@ struct worldanim {
 struct coltri {
     /* 0x00 */ u8  _pad0[8];
     /* 0x08 */ f32 pos[3];
-    /* lint-begin FM007: record stride from the shipped WDATA directory, kept as the literal the cursor steps by */
     /* 0x14 */ u8  _pad14[0x28 - 0x14];
-    /* lint-end FM007 */
 };
 
 /* WORLDPSYS (Xbox 0x138): a particle-system template; +0x06 is the id char
@@ -101,9 +99,7 @@ struct coltri {
 struct WORLDPSYS {
     /* 0x00 */ u8 _pad0[6];
     /* 0x06 */ s8 id;
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     /* 0x07 */ u8 _pad7[0x138 - 7];
-    /* lint-end FM007 */
 };
 
 /* animdata (0xA0, PDB struct "animdata"/graphics.h): per-track keyframe
@@ -138,9 +134,7 @@ typedef struct G3DNode {
     /* 0x30 */ f32 x, y, z;      /* local translation                       */
     /* 0x3C */ u8  _pad3C[4];
     /* 0x40 */ f32 sx, sy, sz;   /* scale                                   */
-    /* lint-begin FM007: numeric constant whose meaning is not recovered yet */
     /* 0x4C */ u8  _pad4C[0x60 - 0x4C];
-    /* lint-end FM007 */
     /* 0x60 */ s32 dflags;       /* display flags                           */
 } G3DNode;
 
@@ -290,7 +284,6 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
     f32 curframe;
     f32 xf[11]; /* sampled transform (pos @16, scale @32) from CalcAnimData */
 
-    /* lint-allow-next-line FM001: numeric constant whose meaning is not recovered yet */
     obj = &((WorldObj*)gWorldInfo.wobjs)[wa->objidx];
     data = panim[0];
 
@@ -328,11 +321,8 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
     /* Read the stream header (stored little-endian).  Byte-swaps go through
      * memory (the sSwap* helpers), matching the original's stack-slot swaps. */
     d = (u8*)data;
-    /* lint-allow-next-line FM001, FM009: numeric constant whose meaning is not recovered yet */
     sequence = animBase + sSwapU32(*(u32*)(d + 4));
-    /* lint-allow-next-line FM001, FM009: numeric constant whose meaning is not recovered yet */
     mode = sSwapU16(*(u16*)(d + 0));
-    /* lint-allow-next-line FM001, FM009: numeric constant whose meaning is not recovered yet */
     hdr2 = sSwapU16(*(u16*)(d + 2));
 
     if ((mode & 0xFFF) == 0) {
@@ -383,13 +373,11 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
                 wa->state ^= 2;
             } else if (wa->state & 0x100) {   /* loop */
                 wa->curframe = (f32)(wa->nframes - 1);
-                /* lint-begin FM007, FM009: numeric constant whose meaning is not recovered yet */
                 if ((obj->flags & 0x100F0000) == 0x00050000) {
                     f32 m[16];
                     GetWorldMat(obj->nodeptr, m, 0);
                     WorldObjectExplode(obj, m + 12);
                 }
-                /* lint-end FM007, FM009 */
             } else {                          /* one-shot: stop at start */
                 wa->curframe = 0.0f;
                 obj->flags &= ~0x08000000;
@@ -410,13 +398,11 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
                 wa->state ^= 2;
             } else if (wa->state & 0x100) {   /* loop */
                 wa->curframe = 0.0f;
-                /* lint-begin FM007, FM009: numeric constant whose meaning is not recovered yet */
                 if ((obj->flags & 0x100F0000) == 0x00050000) {
                     f32 m[16];
                     GetWorldMat(obj->nodeptr, m, 0);
                     WorldObjectExplode(obj, m + 12);
                 }
-                /* lint-end FM007, FM009 */
             } else {                          /* one-shot: clamp at end */
                 wa->curframe = (f32)(wa->nframes - 1);
                 obj->flags &= ~0x08000000;
@@ -445,7 +431,6 @@ struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
 
     /* base+228 is gWorldInfo; nworldanims/worldanims/wobjs are re-read from
      * memory every iteration below, matching target - do not hoist them. */
-    /* lint-begin FM001, FM003, FM009: unrecovered: the world animation/psys record has no full layout in this tree | measured -- deleting it moves FindWorldAnimNode by 11 words at unchanged size; original local unrecovered | unrecovered: live local the padding heuristic flagged by name; the per-site drive could not delete it | unrecovered: offset into a module global whose record has no type in this tree */
     for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldanims)); i++) {
         struct worldanim* wa =
             *(struct worldanim**)(base + 228 + offsetof(WorldInfo, worldanims)) + i;
@@ -477,7 +462,6 @@ struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
             bestd = d2;
         }
     }
-    /* lint-end FM001, FM003, FM009 */
     if (best != NULL) {
         return (struct mbnode*)best->nodeptr;
     }
@@ -524,7 +508,6 @@ void WorldSaveInitState(void) {
     base = gWorldName;
     if (lbl_80344DA4 != 0) {
         u8** wobjsp;
-        /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
         world_objects = InitWorldInfo((WorldInfo*)(base + 228), lbl_80344DA4);
         memBase = mlmMemUsed;
         lbl_80344D74 = AllocMem(*(s32*)lbl_80344DA4 * 4);
@@ -537,9 +520,7 @@ void WorldSaveInitState(void) {
          * (claim.law.offsetof-rename-preserves-protected-web: a single
          * additive expression's constant may be renamed without re-entering
          * the alias/web hazard laws) - WorldObj.parent @0x18, .pos @0x1C. */
-        /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
         wobjsp = (u8**)(base + 228 + offsetof(WorldInfo, wobjs));
-        /* lint-begin FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree | unrecovered: offset into a module global whose record has no type in this tree | measured: same InitWorldInfo cursor family -- 52 words indexed, 94 words cast-transit, measured whole-object */
         for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
             ((s32*)lbl_80344D74)[i] =
                 *(s32*)(*wobjsp + i * 60 + offsetof(WorldObj, parent));
@@ -550,11 +531,9 @@ void WorldSaveInitState(void) {
             lbl_80344D78[i * 3 + 2] =
                 *(f32*)(*wobjsp + i * 60 + offsetof(WorldObj, pos) + 8);
         }
-        /* lint-end FM001, FM009 */
         bulletproof_printf(lbl_801151D8, (mlmMemUsed - memBase) >> 10);
         lbl_80344D8C = world_root0;
         CreateWorldNode(world_objects, world_objects, 0);
-        /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
         MBTreeSetFlags(world_root0, 0x1000, 1);
         WorldDisplay = 1;
     } else {
@@ -562,14 +541,11 @@ void WorldSaveInitState(void) {
     }
 
     if (lbl_80344DA0 != 0) {
-        /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
         lbl_80344D98 = InitWorldInfo((WorldInfo*)(base + 64), lbl_80344DA0);
         lbl_80344D8C = world_root1;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
-        /* lint-begin FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree */
         MBTreeSetAltTex(world_root1, -2,
                         *(s32*)(base + 228 + offsetof(WorldInfo, whitetex)), 1);
-        /* lint-end FM001, FM009 */
         WorldDisplay = 2;
     } else {
         lbl_80344D98 = 0;
@@ -594,10 +570,8 @@ void WorldRestoreInitState(void) {
          * displacements are offsetof(WorldObj,...) on that same raw pointer
          * (claim.law.offsetof-rename-preserves-protected-web) - WorldObj
          * .flags@0x10, .parent@0x18, .pos@0x1C. */
-        /* lint-allow-next-line FM009: unrecovered: offset into a module global whose record has no type in this tree */
         u8** wobjsp = (u8**)(base + 228 + offsetof(WorldInfo, wobjs));
         s32 i;
-        /* lint-begin FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree | measured: same InitWorldInfo cursor family -- 52 words indexed, 94 words cast-transit, measured whole-object | measured: same InitWorldInfo cursor family -- 52 words indexed, 94 words cast-transit, measured whole-object | unrecovered: offset into a module global whose record has no type in this tree */
         for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
             *(u32*)(*wobjsp + i * 60 + offsetof(WorldObj, flags)) &= 0xC31FFFFF;
             *(u32*)(*wobjsp + i * 60 + offsetof(WorldObj, parent)) =
@@ -609,8 +583,6 @@ void WorldRestoreInitState(void) {
             *(f32*)(*wobjsp + i * 60 + offsetof(WorldObj, pos) + 8) =
                 lbl_80344D78[i * 3 + 2];
         }
-        /* lint-end FM001, FM009 */
-        /* lint-begin FM001, FM002, FM009: unrecovered: the world animation/psys record has no full layout in this tree */
         for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldanims)); i++) {
             /* animdata[i].seq (offset 0, this TU's local struct animdata -
              * see InitWorldInfo) != 0; worldanims[i].curframe reset. */
@@ -621,7 +593,6 @@ void WorldRestoreInitState(void) {
                     lbl_80348778;
             }
         }
-        /* lint-end FM001, FM002, FM009 */
     }
 }
 
@@ -740,13 +711,10 @@ s32 StartWorldLoad(s32 arg) {
         }
         break;
     case 4: {
-        /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
         s32 model = *(s32*)(load.base + 228 + offsetof(WorldInfo, model)); /* gWorldInfo.model */
 
-        /* lint-begin FM001: unrecovered: offset into a module global whose record has no type in this tree */
         *(s32*)(load.base + 228 + offsetof(WorldInfo, whitetex)) = /* gWorldInfo.whitetex */
             (s32)MBOX_FindTexture_Sub(&buf[48], 0, model, model, 1);
-        /* lint-end FM001 */
         world_load_state = 5;
     }
         /* fall through */
@@ -794,19 +762,15 @@ s32 LoadWorldDone(char* name) {
         world_load_state = -1;
         return -1;
     }
-    /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
     *(s32*)(load.base + 228 + offsetof(WorldInfo, whitetex)) = 0; /* gWorldInfo.whitetex */
     lbl_80344DA0 = 0;
     strcpy(load.base, name);
     if (FileExists(name, "anim") != 0) {
         size = FileSize(name, "anim");
-        /* lint-begin FM001: unrecovered: offset into a module global whose record has no type in this tree */
         *(s32*)(load.base + 228 + offsetof(WorldInfo, atreelist)) = /* gWorldInfo.atreelist */
             (s32)AllocMem(size);
-        /* lint-end FM001 */
         lbl_80344D84 += size;
     } else {
-        /* lint-allow-next-line FM001: unrecovered: offset into a module global whose record has no type in this tree */
         *(s32*)(load.base + 228 + offsetof(WorldInfo, atreelist)) = 0; /* gWorldInfo.atreelist */
     }
     bulletproof_printf(lbl_80115230, mlmMemUsed,
@@ -932,66 +896,37 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     wi->gridrow = (struct GRIDROW*)(base + blob[8]);
     wi->grid = (struct GRIDENTRY*)(base + blob[5]);
     wi->gridobjlist = (char*)(base + blob[7]);
-    /* lint-begin FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->iteminfo = (struct iteminfo*)(base + blob[0x13]);
-    /* lint-end FM007 */
-    /* lint-begin FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->iteminst = (struct iteminst*)(base + blob[0x15]);
-    /* lint-end FM007 */
-    /* lint-begin FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->locators = (struct locator*)(base + blob[0x17]);
-    /* lint-end FM007 */
 
-    /* lint-begin FM001, FM009: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
-    /* lint-end FM001, FM009 */
         /* world objects (stride 0x3C); field offsets are WorldObj's (raw
          * walked pointer kept - a typed WorldObj* alias regressed the
          * analogous coltri/wobjsp loops elsewhere in this TU, verified). */
         for (i = 0; i < blob[0]; i++) {
-            /* lint-allow-next-line FM007: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             p = (u8*)wi->wobjs + i * 0x3C;
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + offsetof(WorldObj, triggertype)) =
                 sSwapU16(*(u16*)(p + offsetof(WorldObj, triggertype)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + offsetof(WorldObj, nextidx)) =
                 sSwapU16(*(u16*)(p + offsetof(WorldObj, nextidx)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + offsetof(WorldObj, childidx)) =
                 sSwapU16(*(u16*)(p + offsetof(WorldObj, childidx)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + offsetof(WorldObj, nctris)) =
                 sSwapU16(*(u16*)(p + offsetof(WorldObj, nctris)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u32*)(p + offsetof(WorldObj, flags)) =
                 sSwapU32(*(u32*)(p + offsetof(WorldObj, flags)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(f32*)(p + offsetof(WorldObj, rad)) =
                 sSwapF32(*(f32*)(p + offsetof(WorldObj, rad)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u32*)(p + offsetof(WorldObj, ctriidx)) =
                 sSwapU32(*(u32*)(p + offsetof(WorldObj, ctriidx)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u32*)(p + offsetof(WorldObj, parent)) =
                 sSwapU32(*(u32*)(p + offsetof(WorldObj, parent)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u32*)(p + offsetof(WorldObj, nodeptr)) =
                 sSwapU32(*(u32*)(p + offsetof(WorldObj, nodeptr)));
-            /* lint-end FM001 */
             for (k = 0; k < 3; k++) {
-                /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + offsetof(WorldObj, pos) + k * 4) =
                     sSwapF32(*(f32*)(p + offsetof(WorldObj, pos) + k * 4));
-                /* lint-end FM001 */
             }
         }
         /* collision triangles (stride 0x28); only coltri.pos (+0x08, this
@@ -999,40 +934,27 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
          * header, +0x04 unknown f32, +0x14 second vec3, +0x20.. tail) have
          * no GC-verified names, left raw. */
         for (i = 0; i < blob[2]; i++) {
-            /* lint-allow-next-line FM007: record stride from the shipped WDATA directory, kept as the literal the cursor steps by */
             p = (u8*)wi->ctris + i * 0x28;
-            /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
-            /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
-            /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + 0x20) = sSwapU16(*(u16*)(p + 0x20));
-            /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + 0x22) = sSwapU16(*(u16*)(p + 0x22));
-            /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + 0x24) = sSwapU16(*(u16*)(p + 0x24));
-            /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + 0x26) = sSwapU16(*(u16*)(p + 0x26));
-            /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(f32*)(p + 0x04) = sSwapF32(*(f32*)(p + 0x04));
             for (k = 0; k < 3; k++) {
-                /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + offsetof(struct coltri, pos) + k * 4) =
                     sSwapF32(*(f32*)(p + offsetof(struct coltri, pos) + k * 4));
-                /* lint-end FM001 */
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + 0x14 + k * 4) = sSwapF32(*(f32*)(p + 0x14 + k * 4));
             }
         }
         /* grid rows (stride 8) */
-        /* lint-begin FM001, FM007, FM009: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index | measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
         for (i = 0; i < blob[0x11]; i++) {
             p = (u8*)wi->gridrow + i * 8;
             *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
             *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
             *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
         }
-        /* lint-end FM001, FM007, FM009 */
         /* grid object index list (halfwords) */
         n = (s32)((u32)(blob[5] - blob[7]) >> 1);
         for (i = 0; i < n; i++) {
@@ -1049,7 +971,6 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
          * (game/item.h) - IOFF resolves an iteminfodata field's absolute
          * offset off the walked p (raw pointer kept, per the offsetof-
          * fused-immediate counter-form; see wobjs loop note above). */
-/* lint-begin FM001, FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index | record stride from the shipped WDATA directory, kept as the literal the cursor steps by | measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
 #define IOFF(f) (offsetof(iteminfo, item) + offsetof(iteminfodata, f))
         for (i = 0; i < blob[0x12]; i++) {
             p = (u8*)wi->iteminfo + i * 0x50;
@@ -1084,127 +1005,81 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 }
             }
         }
-/* lint-end FM001, FM007 */
 #undef IOFF
         /* item instances (stride 0x3C); fields are iteminst (game/item.h).
          * The 0x30..0x3C switch-case payload is iteminst.params, an opaque
          * u8[12] union whose per-type breakdown has no header names - left
          * raw. */
-        /* lint-begin FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
         for (i = 0; i < blob[0x14]; i++) {
-        /* lint-end FM007 */
-            /* lint-allow-next-line FM007: record stride from the shipped WDATA directory, kept as the literal the cursor steps by */
             p = (u8*)wi->iteminst + i * 0x3C;
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + offsetof(iteminst, index)) =
                 sSwapU16(*(u16*)(p + offsetof(iteminst, index)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + offsetof(iteminst, ctriidx)) =
                 sSwapU16(*(u16*)(p + offsetof(iteminst, ctriidx)));
-            /* lint-end FM001 */
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             *(u16*)(p + offsetof(iteminst, nctris)) =
                 sSwapU16(*(u16*)(p + offsetof(iteminst, nctris)));
-            /* lint-end FM001 */
-            /* lint-begin FM001, FM002, FM007: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             switch (*(s32*)((u8*)wi->iteminfo +
                              *(s16*)(p + offsetof(iteminst, index)) * 0x50)) {
-            /* lint-end FM001, FM002, FM007 */
             case 2:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
                 break;
             case 5:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x3A) = sSwapU16(*(u16*)(p + 0x3A));
                 break;
             case 4:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + 0x34) = sSwapF32(*(f32*)(p + 0x34));
                 break;
             case 3:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x36) = sSwapU16(*(u16*)(p + 0x36));
                 break;
             case 9:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
                 break;
             case 11:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
                 break;
             case 12:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + 0x34) = sSwapF32(*(f32*)(p + 0x34));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + 0x38) = sSwapF32(*(f32*)(p + 0x38));
                 break;
             case 13:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x38) = sSwapU16(*(u16*)(p + 0x38));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x3A) = sSwapU16(*(u16*)(p + 0x3A));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + 0x30) = sSwapF32(*(f32*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u32*)(p + 0x34) = sSwapU32(*(u32*)(p + 0x34));
                 break;
             case 10:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
                 break;
             case 1:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
                 break;
             case 6:
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x30) = sSwapU16(*(u16*)(p + 0x30));
-                /* lint-allow-next-line FM001, FM007, FM009: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(u16*)(p + 0x32) = sSwapU16(*(u16*)(p + 0x32));
                 break;
             }
             for (k = 0; k < 3; k++) {
-                /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + offsetof(iteminst, pos) + k * 4) =
                     sSwapF32(*(f32*)(p + offsetof(iteminst, pos) + k * 4));
-                /* lint-end FM001 */
-                /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
                 *(f32*)(p + offsetof(iteminst, pyr) + k * 4) =
                     sSwapF32(*(f32*)(p + offsetof(iteminst, pyr) + k * 4));
-                /* lint-end FM001 */
             }
         }
         /* locators (stride 0x1C); fields are locator (game/item.h) */
-        /* lint-begin FM001, FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index | record stride from the shipped WDATA directory, kept as the literal the cursor steps by | measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
         for (i = 0; i < blob[0x16]; i++) {
             p = (u8*)wi->locators + i * 0x1C;
             *(u16*)(p + offsetof(locator, index)) =
@@ -1216,16 +1091,12 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                     sSwapF32(*(f32*)(p + offsetof(locator, pyr) + k * 4));
             }
         }
-        /* lint-end FM001, FM007 */
     }
 
     wi->nwobjs = blob[0];
     wi->nctris = blob[2];
-    /* lint-allow-next-line FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->niteminfos = blob[0x12];
-    /* lint-allow-next-line FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->niteminsts = blob[0x14];
-    /* lint-allow-next-line FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->nlocators = blob[0x16];
     wi->worldmin[0] = fblob[9];
     wi->worldmin[1] = fblob[10];
@@ -1240,9 +1111,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         wi->worldcenter[i] =
             (f32)(lbl_80348788 * wi->worldsize[i] + wi->worldmin[i]);
     }
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     wi->gridsize = fblob[0xF];
-    /* lint-allow-next-line FM007: numeric constant whose meaning is not recovered yet */
     gsz = fblob[0xF];
     if (!sWorldFloatEqual(gsz, lbl_80348778)) {
         inv = lbl_803487A8 / gsz;
@@ -1250,9 +1119,7 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         inv = lbl_80348768;
     }
     wi->invgridsize = (f32)inv;
-    /* lint-allow-next-line FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->gridnumx = blob[0x10];
-    /* lint-allow-next-line FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     wi->gridnumz = blob[0x11];
     wi->checknum = 1;
     InitDynobjGrid();
@@ -1262,26 +1129,17 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     }
 
     /* header magic: 0xF00BABvv, vv = format version */
-    /* lint-begin FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     if (((u32)blob[0x18] & 0xF00BAB00) == 0xF00BAB00) {
         version = blob[0x18] & 0xFF;
     } else {
         version = 0;
     }
-    /* lint-end FM007 */
 
-    /* lint-begin FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
     if (version >= 1 && blob[0x19] != 0) {
-    /* lint-end FM007 */
-        /* lint-begin FM001, FM007, FM009: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
         if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
             wi->animheader = SetupAnimHeader(base + blob[0x19], 0);
         }
-        /* lint-end FM001, FM007, FM009 */
-        /* lint-begin FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
         wi->worldanims = (struct worldanim*)(base + blob[0x1B]);
-        /* lint-end FM007 */
-        /* lint-begin FM001, FM007, FM009: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index | unrecovered: the world animation/psys record has no full layout in this tree | measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
         if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
             for (i = 0; i < blob[0x1A]; i++) {
                 /* fields are struct worldanim (this TU's own local struct,
@@ -1301,12 +1159,8 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                     sSwapU32(*(u32*)(p + offsetof(struct worldanim, data)));
             }
         }
-        /* lint-end FM001, FM007, FM009 */
-        /* lint-allow-next-line FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
         wi->nworldanims = blob[0x1A];
-        /* lint-allow-next-line FM007: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index */
         wi->animdata = AllocMem(blob[0x1A] * 0xA0);
-        /* lint-begin FM001, FM007, FM009: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index | unrecovered: the world animation/psys record has no full layout in this tree | measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
         if (*(s32*)(wg + 228 + offsetof(WorldInfo, inited)) == 0) {
             for (i = 0; i < blob[0x1A]; i++) {
                 /* fields are struct animdata (defined near the top of this
@@ -1347,21 +1201,16 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 }
             }
         }
-        /* lint-end FM001, FM007, FM009 */
         for (i = 0; i < wi->nworldanims; i++) {
             if (!(wi->worldanims[i].fixed & 0x8000)) {
                 wi->worldanims[i].data =
                     base + (s32)wi->worldanims[i].data;
                 wi->worldanims[i].fixed |= 0x8000;
             }
-            /* lint-allow-next-line FM007: unrecovered: the world animation/psys record has no full layout in this tree */
             InitAnimData((u8*)wi->animdata + i * 0xA0, wi->worldanims[i].data);
-            /* lint-allow-next-line FM007: unrecovered: the world animation/psys record has no full layout in this tree */
             wi->worldanims[i].state = 0x101;
-            /* lint-begin FM001: measured: the WorldInfo section cursors are load-bearing -- indexing them (`&wi->wobjs[i]`) is 5728 B unchanged / 52 differing words and the cast-transit spelling `((WorldObj *)p)->F` is 94 words */
             ((WorldObj*)wi->wobjs)[wi->worldanims[i].objidx].flags |=
                 0x2000000;
-            /* lint-end FM001 */
         }
     } else {
         wi->animheader = 0;
@@ -1370,7 +1219,6 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         wi->animdata = 0;
     }
 
-    /* lint-begin FM001, FM007, FM009: unrecovered: the world blob header is a raw u32 index table with no record type in this tree; the shipped container's directory names sections, not this in-memory index | unrecovered: the world animation/psys record has no full layout in this tree */
     if (version >= 2 && blob[0x1D] != 0) {
         wi->worldpsys = (struct WORLDPSYS*)(base + blob[0x1D]);
         wi->nworldpsys = blob[0x1C];
@@ -1383,7 +1231,6 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         wi->worldpsys = 0;
         wi->nworldpsys = 0;
     }
-    /* lint-end FM001, FM007, FM009 */
 
     wi->inited = 1;
     bulletproof_printf(lbl_80115244, (mlmMemUsed - memBase) >> 10);
@@ -1450,13 +1297,11 @@ static inline s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
 
     i = 0;
 
-    /* lint-begin FM001, FM009: unrecovered: the world animation/psys record has no full layout in this tree */
     for (; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldpsys)); i++) {
         if ((s8)tbl[i * 312 + offsetof(struct WORLDPSYS, id)] == id) {
             return i;
         }
     }
-    /* lint-end FM001, FM009 */
     ErrorPrintf(lbl_80115280, id);
     return -1;
 }
@@ -1479,10 +1324,8 @@ s32 WorldPsysActivate(WorldObj* obj) {
         return 0;
     }
 
-    /* lint-begin FM009: unrecovered: the world animation/psys record has no full layout in this tree */
     i = GetWorldPsysIdx((s8)tag[4], base,
                         *(wpsp = (u8**)(base + 228 + offsetof(WorldInfo, worldpsys))));
-    /* lint-end FM009 */
     if (i < 0) {
         goto done;
     }
@@ -1493,14 +1336,10 @@ s32 WorldPsysActivate(WorldObj* obj) {
          * into ct itself (instead of a typed coltri* with ->pos[k]) is
          * load-bearing for target's lfs 0/4/8(r3) shape - a typed alias
          * regressed real 0->21 (verified). */
-        /* lint-begin FM001, FM009: unrecovered: offset into a module global whose record has no type in this tree */
         u8* ct = *(u8**)(base + 228 + offsetof(WorldInfo, ctris)) +
                  obj->ctriidx * 40 + offsetof(struct coltri, pos);
-        /* lint-end FM001, FM009 */
         pos[0] = (f32)(-1.0 * *(f32*)ct);
-        /* lint-allow-next-line FM001: record stride from the shipped WDATA directory, kept as the literal the cursor steps by */
         pos[1] = (f32)(-1.0 * *(f32*)(ct + sizeof(f32)));
-        /* lint-allow-next-line FM001: record stride from the shipped WDATA directory, kept as the literal the cursor steps by */
         pos[2] = (f32)(-1.0 * *(f32*)(ct + 2 * sizeof(f32)));
         posp = pos;
     }
