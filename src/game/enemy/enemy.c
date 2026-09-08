@@ -536,8 +536,8 @@ extern int toupper(int c);
 extern char* fn_80057ACC(s32 slot);                 /* current-level tag string */
 struct Item;
 extern struct Item* PlaceItem(s32 a, s32 b, char* name, void* c);
-extern void StartBagFX(f32* pos, struct item* ip, f32 z); /* toss carried item */
-extern void AddItemSub(struct item* ip);           /* commit placed item */
+extern void StartBagFX(f32* pos, struct Item* ip, f32 z); /* toss carried item */
+extern void AddItemSub(struct Item* ip);           /* commit placed item */
 extern void del_target(f32* worldmat);               /* release camera target */
 extern void MBRemoveNode(struct mbnode* n, s32 a);   /* delete scene node */
 extern void SfxDeleteParented(struct mbnode* n, s32 a, s32 b);
@@ -760,7 +760,7 @@ void kill_enemy(s32 index);
 void fn_8004F1DC(Enemy* enemy);
 void uncouple_enemy(s32 index);
 s32 check_vacancy(s32 index, f32* pos);
-s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew, struct item* gen, s32 imp, f32 ang);
+s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew, struct Item* gen, s32 imp, f32 ang);
 s32 fn_8004F87C(s32 type, s32 level, s32 spew);
 s32 check_enemy_pos(f32* start, f32* out, s32 slot);
 static f32 gendir_8004FBC8(f32* input, f32* output, s32 direction);
@@ -3972,7 +3972,7 @@ void move_logic12(s32 index)
 {
     u8* base = (u8*)lbl_80250E00;
     Enemy* e;
-    struct item* gen;
+    struct Item* gen;
     s32 flee;
     f32 a;
     u8* p;
@@ -4076,7 +4076,7 @@ void move_logic13(s32 index)
     u8* strs = lbl_80112370;
     u8* base = (u8*)lbl_80250E00;
     Enemy* e;
-    struct item* gen;
+    struct Item* gen;
     u8* p;
     s32 it;
     s32 flee;
@@ -7098,7 +7098,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
 void kill_enemy(s32 index)
 {
     Enemy* e = &gEnemies[index];
-    struct item* item = 0;
+    struct Item* item = 0;
     s32 carried = 0;
     char* p;
     char buf[32];
@@ -7117,7 +7117,7 @@ void kill_enemy(s32 index)
             for (p = buf; *p != 0; p++) {
                 *p = toupper(*p);
             }
-            item = (struct item*)PlaceItem(1, 16, buf, 0);
+            item = (struct Item*)PlaceItem(1, 16, buf, 0);
             break;
         }
     }
@@ -7289,7 +7289,7 @@ typedef struct EnemySpawnPoolView {
  * directions around the generator for a free position; finish by claiming
  * the grid cell, starting the E_START anim and the generator fx. */
 s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
-                   struct item* gen, s32 imp, f32 ang)
+                   struct Item* gen, s32 imp, f32 ang)
 {
     u8* tbl = lbl_8011AF48;
     EnemySpawnPoolView* pool = (EnemySpawnPoolView*)lbl_80250E00;
