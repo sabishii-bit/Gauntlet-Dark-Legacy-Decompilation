@@ -2297,7 +2297,7 @@ extern void* FamiliarTree[4][2]; /* level-tier halo atrees */
 extern void* WeapHoldFxTree[4][5];
 extern void* PojoTree;
 extern void* FireShieldTree;
-extern void* lbl_803445B0;
+extern void* PhoenixTree;
 extern void* BreatheFireTree;
 extern void* BreatheAcidTree;
 extern void* BreatheElecTree;
@@ -5438,7 +5438,7 @@ void PlayerProcessPowerups(void* vp) {
     } else if ((p->shield_flags & 0x200000) && p->anim_208 == 22) {
         PLAYER_SET_FAMILIAR(FireShieldTree, p->node);
     } else if (p->flags & 0x80) {
-        PLAYER_SET_FAMILIAR(lbl_803445B0, p->node);
+        PLAYER_SET_FAMILIAR(PhoenixTree, p->node);
     } else if (p->flags & 0x10) {
         PLAYER_SET_FAMILIAR(BreatheFireTree, p->weapon_node);
     } else if (p->flags & 0x20) {
