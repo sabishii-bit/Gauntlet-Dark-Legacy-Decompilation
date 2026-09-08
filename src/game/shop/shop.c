@@ -1217,7 +1217,7 @@ static void shop_setup(void)
         s32 poff = 0;
         for (i = 0; i < 4; i++, boff += 20, toff += 4, poff += 13148) {
             u8* pl = (u8*)gPlayers + poff;
-            s32 cls = *(s32*)(pl + offsetof(Player, class_id));
+            s32 cls = ((Player *)pl)->class_id;
             sprintf(buf, fmts + 232, i + 1);
             {
                 s32* texp = (s32*)(tbl + toff);
@@ -1242,7 +1242,7 @@ static void shop_setup(void)
                 clsBase = tbl + cls * 4;
                 sprintf(buf, fmts + 268, *(char**)(clsBase + 144));
                 *(b4 = b + 4) = MBNewBlit(buf, *texp + 32, 0);
-                if (*(s32*)(pl + offsetof(Player, state)) == 0) {
+                if (((Player *)pl)->state == 0) {
                     mbBlitInit3414(*b4, 1);
                 }
                 mbBlitCvtCoord(*b, 64000.0f);
@@ -1271,9 +1271,9 @@ static void shop_setup(void)
             s32* itemBlits;
             s32* available;
             s32* playerMap;
-            *(s32*)(pl + offsetof(Player, field_A68)) = 0;
-            *(s32*)(pl + offsetof(Player, field_A64)) = 0;
-            *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
+            ((Player *)pl)->field_A68 = 0;
+            ((Player *)pl)->field_A64 = 0;
+            ((Player *)pl)->field_A6C = 0;
             setup_player_display(i);
             if (lbl_80344C18 != 0) {
                 continue;
@@ -1295,7 +1295,7 @@ static void shop_setup(void)
                     playerMap[j] = 0;
                 }
             }
-            if (*(s32*)(pl + offsetof(Player, state)) == 1 || *(s32*)(pl + offsetof(Player, state)) == 5) {
+            if (((Player *)pl)->state == 1 || ((Player *)pl)->state == 5) {
                 s32* texp = (s32*)(tbl + o4);
                 s32 name20 = *(texp += 24) + 20;
                 u8* e = tbl;
@@ -1316,7 +1316,7 @@ static void shop_setup(void)
                     {
                         u8* item = lbl_80344C14;
                         for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                            if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + offsetof(DSItem, price))) {
+                            if (((Player *)pl)->gold >= *(s32*)(item + offsetof(DSItem, price))) {
                                 *count += 1;
                             }
                             ((void**)itemBlits)[j] = MBNewBlit(item, name20, 0);
@@ -2106,7 +2106,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
         } else {
             hl = 0;
         }
-        if (j == *(s32*)(pl + offsetof(Player, field_A68))) {
+        if (j == ((Player *)pl)->field_A68) {
             sel = 1;
         } else {
             sel = 0;
@@ -2368,42 +2368,42 @@ static s32 calculate_player_shopping_parameters_8009C0F0(s32 player, u8* entry)
 {
     u8* p = (u8*)gPlayers + player * 13148;
 
-    if (*(s32*)(p + offsetof(Player, gold)) < *(s32*)(entry + offsetof(DSItem, price))) {
+    if (((Player *)p)->gold < *(s32*)(entry + offsetof(DSItem, price))) {
         return 0;
     }
     switch (*(u32*)(entry + offsetof(DSItem, type))) {
     case 1:
-        if (*(s32*)(p + offsetof(Player, item_body_lo)) >= lbl_803448A4) {
+        if (((Player *)p)->item_body_lo >= lbl_803448A4) {
             return 0;
         }
         break;
     case 3:
-        if (*(s32*)(p + offsetof(Player, item_body_hi)) >= lbl_803448A0) {
+        if (((Player *)p)->item_body_hi >= lbl_803448A0) {
             return 0;
         }
         break;
     case 5:
-        if ((f64)*(f32*)(p + offsetof(Player, att_fight)) >= 999.0) {
+        if ((f64)((Player *)p)->att_fight >= 999.0) {
             return 0;
         }
         break;
     case 6:
-        if ((f64)*(f32*)(p + offsetof(Player, att_speed)) >= 999.0) {
+        if ((f64)((Player *)p)->att_speed >= 999.0) {
             return 0;
         }
         break;
     case 7:
-        if ((f64)*(f32*)(p + offsetof(Player, att_armor)) >= 999.0) {
+        if ((f64)((Player *)p)->att_armor >= 999.0) {
             return 0;
         }
         break;
     case 8:
-        if ((f64)*(f32*)(p + offsetof(Player, att_magic)) >= 999.0) {
+        if ((f64)((Player *)p)->att_magic >= 999.0) {
             return 0;
         }
         break;
     case 17:
-        if ((f64)*(f32*)(p + offsetof(Player, health)) >= (f64)player_max_health(p)) {
+        if ((f64)((Player *)p)->health >= (f64)player_max_health(p)) {
             return 0;
         }
         break;

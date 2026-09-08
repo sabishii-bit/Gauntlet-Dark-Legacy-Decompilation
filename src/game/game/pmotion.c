@@ -965,6 +965,7 @@ void PlayerMotion(Player* p) {
     f32 moveAmount;
 
     if (fn_8005A730((f32*)motion) == 0) {
+        /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
         FatalError(strings + 36, 0x800000);
         get_player_pos(index, 0);
     }
@@ -1110,6 +1111,7 @@ void PlayerMotion(Player* p) {
         get_player_pos(index, 0);
     }
     if (PlayerMotion_FpClassify(*(f32*)(motion + 0x24)) == 1) {
+        /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
         FatalError(strings + 36, 0x800000);
         get_player_pos(index, 0);
     }
@@ -3753,6 +3755,7 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
         critter = CritterLineCollide(dotThresh, limit, pos, dir, vec, &dist);
         if (critter != NULL && dist < best) {
             if (*(void**)(critter + 4) == NULL) {
+                /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
                 FatalError("Ack!", 0x800000);
             }
             best = dist;
