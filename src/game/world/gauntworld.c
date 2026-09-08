@@ -7112,22 +7112,22 @@ void fn_800606FC(void)
         }
         case 0xC: {
             s32 sub = it->info->item.subtype;
-            u8* tgt = *(u8**)&it->data[0];
+            WorldObj* tgt = *(WorldObj**)&it->data[0];
             if (sub == 0) {
                 f32 ang;
                 if (tgt == NULL) {
                     break;
                 }
-                if (lbl_80344500 != 0 && (*(u32*)(tgt + 0x10) & 4)) {
+                if (lbl_80344500 != 0 && (tgt->flags & 4)) {
                     break;
                 }
                 ang = *(f32*)&it->data[4] * (f32)(u32)gFrameTicks;
                 it->daction = 2;
-                if (*(u8**)(tgt + 0x28) == NULL) {
+                if (tgt->nodeptr == NULL) {
                     break;
                 }
-                *(u32*)(tgt + 0x10) &= ~1;
-                YawMat3(*(f32**)(tgt + 0x28), ang);
+                tgt->flags &= ~1;
+                YawMat3((f32*)tgt->nodeptr, ang);
             } else if (sub == 2) {
                 if (tgt == NULL) {
                     break;
@@ -7142,18 +7142,18 @@ void fn_800606FC(void)
                      *(f32*)&it->data[0xC] >= *(f32*)&it->data[8]) ||
                     (*(f32*)&it->data[4] < sItemZero &&
                      *(f32*)&it->data[0xC] <= -*(f32*)&it->data[8])) {
-                    fn_8009D7E4(2, (f32*)(*(u8**)(tgt + 0x28) + 0x30));
+                    fn_8009D7E4(2, (f32*)((u8*)tgt->nodeptr + 0x30));
                     it->active |= 0x1000;
                     it->daction = 2;
                 } else {
                     f32 ang;
-                    fn_8009D7E4(0, (f32*)(*(u8**)(tgt + 0x28) + 0x30));
+                    fn_8009D7E4(0, (f32*)((u8*)tgt->nodeptr + 0x30));
                     ang = *(f32*)&it->data[4] * (f32)(u32)gFrameTicks;
                     *(f32*)&it->data[0xC] = *(f32*)&it->data[0xC] + ang;
                     it->daction = 2;
-                    if (*(u8**)(tgt + 0x28) != NULL) {
-                        *(u32*)(tgt + 0x10) &= ~1;
-                        YawMat3(*(f32**)(tgt + 0x28), ang);
+                    if (tgt->nodeptr != NULL) {
+                        tgt->flags &= ~1;
+                        YawMat3((f32*)tgt->nodeptr, ang);
                     }
                 }
             } else if (sub == 1 && tgt != NULL) {
@@ -8047,6 +8047,7 @@ extern f64 lbl_80346FB8;
 #pragma dont_inline on
 s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
 {
+    // lint-begin FM001, FM009: every offset off `e` here is a named Enemy field (game/enemy.h): 568=rad, 652=coll_ip (the cached blocking item), 812=skip_itemcol (the rescan countdown), 184=atts.invspeed. None of them converts byte-neutrally in this dont_inline function: all four typed moves 108 words and grows it 460 -> 468 bytes, dropping only coll_ip still moves 82 words at 460 -> 464, and skip_itemcol alone moves 82 words at 460 -> 464. The target holds one raw byte cursor across the whole body, so the offsets stay raw and the names live in this comment.
     u8* e = (u8*)&gEnemies[index];
     u32 obj;
     s32 blocked;
@@ -8088,6 +8089,7 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
     } else {
         *(s32*)(e + 652) = 0;
     }
+    // lint-end FM001, FM009
     return blocked;
 }
 #pragma dont_inline off
