@@ -1,0 +1,5 @@
+id: FM004-bytes
+valid:
+  - "static const float values[]={1.0f,2.0f};"
+invalid:
+  - "static const u8 values[]={0x3f,0x80,0,0,0x40,0,0,0};"

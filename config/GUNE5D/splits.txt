@@ -44,6 +44,7 @@ game/ui/attract.c:
 	extab       start:0x80005678 end:0x800056E8
 	extabindex  start:0x80008A04 end:0x80008AAC
 	.text       start:0x800137BC end:0x800150CC
+	.data       start:0x8011892C end:0x8011897C
 	.sdata      start:0x80343B04 end:0x80343B18
 	.sdata2     start:0x803458E8 end:0x803458F0
 
@@ -68,6 +69,7 @@ game/ui/auxscreen.c:
 	extab       start:0x80005878 end:0x800058C0
 	extabindex  start:0x80008D04 end:0x80008D70
 	.text       start:0x80019090 end:0x8001A960
+	.data       start:0x80118980 end:0x801189DC
 	.sdata      start:0x80343B50 end:0x80343B70
 	.sbss       start:0x80344318 end:0x80344378
 
@@ -90,6 +92,7 @@ game/ui/btext.c:
 	.bss        start:0x8023EAE0 end:0x8023F7E8
 	.sdata      start:0x80343BB8 end:0x80343BC4
 	.sbss       start:0x803443D8 end:0x803443E4
+	.sdata2     start:0x80345CB0 end:0x80345CC4
 
 game/world/btricol.c:
 	extab       start:0x80005A68 end:0x80005A80
@@ -159,6 +162,7 @@ game/world/items.c:
 	extab       start:0x800064C0 end:0x80006608
 	extabindex  start:0x80009F70 end:0x8000A15C
 	.text       start:0x800631AC end:0x80067904
+	.data       start:0x8011CC84 end:0x8011CD58
 
 game/world/lights.c:
 	extab       start:0x80006608 end:0x80006618
@@ -185,17 +189,22 @@ game/world/newcam.c:
 	extab       start:0x800067A8 end:0x80006840
 	extabindex  start:0x8000A3CC end:0x8000A4B0
 	.text       start:0x8006DC2C end:0x80070A60
+	.rodata     start:0x80113808 end:0x80113830
+	.sdata2     start:0x80347448 end:0x80347510
 
 game/ui/options.c:
 	extab       start:0x80006840 end:0x80006900
 	extabindex  start:0x8000A4B0 end:0x8000A5D0
 	.text       start:0x80070A60 end:0x800745D0
+	.data       start:0x8011FB40 end:0x8011FC44
+	.bss        start:0x80274E00 end:0x80274EA0
 
 game/game/player.c:
 	extab       start:0x80006900 end:0x80006B30
 	extabindex  start:0x8000A5D0 end:0x8000A918
 	.text       start:0x800745D0 end:0x8008091C
 	.data       start:0x80120B4C end:0x80120BEC
+	.bss        start:0x80274EA0 end:0x80275AE0
 
 game/game/pmotion.c:
 	extab       start:0x80006B30 end:0x80006BE8
@@ -206,6 +215,7 @@ game/sfx/psfx.c:
 	extab       start:0x80006BE8 end:0x80006C50
 	extabindex  start:0x8000AA2C end:0x8000AAC8
 	.text       start:0x80089120 end:0x8008BC50
+	.data       start:0x80120E40 end:0x80120E94
 
 game/sys/psx2.c:
 	extab       start:0x80006C50 end:0x80006C60
@@ -237,6 +247,7 @@ game/shop/shop.c:
 	extab       start:0x80006EB0 end:0x80006F18
 	extabindex  start:0x8000AE58 end:0x8000AEF4
 	.text       start:0x800988A4 end:0x8009C228
+	.rodata     start:0x80114A3C end:0x80114A48
 	.data       start:0x8012318C end:0x801232C8
 
 game/shop/shopquery.c:
@@ -252,6 +263,7 @@ game/sound/sounds.c:
 	extab       start:0x800072B0 end:0x800073A0
 	extabindex  start:0x8000B458 end:0x8000B5C0
 	.text       start:0x800A00A0 end:0x800A18E8
+	.rodata     start:0x80114CA8 end:0x80114CC0
 
 game/world/tower.c:
 	extab       start:0x800073A0 end:0x80007410
@@ -471,6 +483,7 @@ game/pb/pb_objects.c:
 	extab       start:0x80007C30 end:0x80007C68
 	extabindex  start:0x8000C298 end:0x8000C2EC
 	.text       start:0x800C3674 end:0x800C3F58
+	.sdata2     start:0x80348F38 end:0x80348F50
 
 game/pb/pb_objregs.c:
 	extab       start:0x80007C68 end:0x80007CE0
@@ -557,6 +570,7 @@ game/audio/dcs.c:
 	extab       start:0x80007F78 end:0x80008068
 	extabindex  start:0x8000C784 end:0x8000C8EC
 	.text       start:0x800D1E04 end:0x800D4308
+	.sdata2     start:0x803492B8 end:0x80349300
 
 game/audio/buffile.c:
 	extab       start:0x80008068 end:0x80008098

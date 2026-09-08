@@ -1,0 +1,7 @@
+id: FM007
+valid:
+  - "const int SIZE=0x20;"
+  - "enum {SIZE=0x20};"
+  - "void f(){ use(\"0x20\"); }"
+invalid:
+  - "void f(){ use(0x20); }"

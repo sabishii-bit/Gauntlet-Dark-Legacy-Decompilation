@@ -1,0 +1,216 @@
+id: FM001
+language: Cpp
+severity: warning
+message: Raw offset/index cast; verify the actual field, element type, width and stride.
+rule:
+  any:
+    - pattern: '*($T*)($P + $K)'
+    - pattern: '*($T*)($P - $K)'
+    - pattern: '(($T*)$P)[$K]'
+    - pattern: '*($T*)(($U*)$P + $K)'
+    - pattern: '*(($T*)($P + $K))'
+    - kind: subscript_expression
+      has:
+        kind: parenthesized_expression
+        field: argument
+        has:
+          kind: cast_expression
+---
+id: FM002
+language: Cpp
+severity: warning
+message: Nested dereference through casts exceeds depth one; reconstruct intermediate pointer types.
+rule:
+  kind: pointer_expression
+  all:
+    - has:
+        kind: cast_expression
+        field: argument
+    - has:
+        kind: pointer_expression
+        stopBy: end
+        has:
+          kind: cast_expression
+          field: argument
+---
+id: FM003-array
+language: Cpp
+severity: hint
+message: Local array candidate; the reporting wrapper checks lexical uses before flagging it.
+rule:
+  kind: array_declarator
+  inside:
+    kind: compound_statement
+    stopBy: end
+  all:
+    - inside:
+        kind: function_definition
+        stopBy: end
+    - has:
+        kind: identifier
+        field: declarator
+        pattern: $NAME
+---
+id: FM003-volatile
+language: Cpp
+severity: warning
+message: Volatile local declaration; verify legitimate hardware/concurrency semantics, not allocation scaffolding.
+rule:
+  kind: declaration
+  has:
+    kind: type_qualifier
+    regex: '^volatile$'
+    stopBy: end
+  inside:
+    kind: function_definition
+    stopBy: end
+---
+id: FM003-trash
+language: Cpp
+severity: warning
+message: Trash/unused/padding-family declaration; investigate original local structure.
+rule:
+  kind: declaration
+  regex: '\b(?i:trash\w*|unused\w*|(?:stack|frame)_?pad\w*|pad(?:ding)?(?:[0-9_]\w*)?)\b'
+  inside:
+    kind: function_definition
+    stopBy: end
+---
+id: FM004-bytes
+language: Cpp
+severity: hint
+message: Numeric byte-array candidate; the reporting wrapper checks floating/address shapes.
+rule:
+  kind: declaration
+  regex: '^static\s+const\s+(?:u8|uint8_t|unsigned\s+char)\s+\w+\s*\['
+  has:
+    kind: initializer_list
+    stopBy: end
+---
+id: FM005
+language: Cpp
+severity: warning
+message: Assembly requires review; the wrapper also checks MWCC assembly and exact sanctioned macros.
+rule:
+  kind: gnu_asm_expression
+---
+id: FM006
+language: Cpp
+severity: warning
+message: Source pragma/optimization override; compare the per-file and scope allowlist.
+rule:
+  any:
+    - kind: preproc_call
+      regex: '^#\s*pragma\b'
+      not:
+        regex: '^#\s*pragma\s+once\s*$'
+    - kind: attribute_specifier
+      regex: '\b(optimize|optnone|target|noinline|always_inline)\b'
+---
+id: FM007
+language: Cpp
+severity: hint
+message: Hex expression candidate; the wrapper excludes named constants and direct bitwise masks.
+rule:
+  kind: number_literal
+  regex: '^0[xX]'
+  not:
+    any:
+      - inside:
+          kind: enum_specifier
+          stopBy: end
+      - inside:
+          kind: declaration
+          stopBy: end
+          has:
+            kind: type_qualifier
+            regex: '^(const|constexpr)$'
+---
+id: decomp-function
+language: Cpp
+severity: hint
+message: Function context for the reporting wrapper, not a diagnostic.
+rule:
+  kind: function_definition
+---
+id: decomp-local-name
+language: Cpp
+severity: hint
+message: Local declarator identifier, excluding initializer references.
+rule:
+  kind: identifier
+  all:
+    - inside:
+        kind: declaration
+        stopBy: end
+        inside:
+          kind: function_definition
+          stopBy: end
+    - any:
+        - inside:
+            kind: declaration
+            field: declarator
+        - inside:
+            kind: init_declarator
+            field: declarator
+        - inside:
+            kind: array_declarator
+            field: declarator
+        - inside:
+            kind: pointer_declarator
+            field: declarator
+---
+id: decomp-mask
+language: Cpp
+severity: hint
+message: Direct bitwise literal operand; reporting filter only.
+rule:
+  any:
+    - pattern: '$VALUE & $MASK'
+    - pattern: '$VALUE | $MASK'
+    - pattern: '$VALUE ^ $MASK'
+    - pattern: '$VALUE &= $MASK'
+    - pattern: '$VALUE |= $MASK'
+    - pattern: '$VALUE ^= $MASK'
+constraints:
+  MASK:
+    regex: '^\(*\s*0[xX][0-9a-fA-F]+[uUlL]*\s*\)*$'
+---
+id: decomp-mask-left
+language: Cpp
+severity: hint
+message: Direct left bitwise literal operand; reporting filter only.
+rule:
+  any:
+    - pattern: '$MASK & $VALUE'
+    - pattern: '$MASK | $VALUE'
+    - pattern: '$MASK ^ $VALUE'
+constraints:
+  MASK:
+    regex: '^\(*\s*0[xX][0-9a-fA-F]+[uUlL]*\s*\)*$'
+---
+id: decomp-mask-complement
+language: Cpp
+severity: hint
+message: Direct bitwise complement literal; reporting filter only.
+rule:
+  pattern:
+    context: 'void f(){ ~$MASK; }'
+    selector: unary_expression
+constraints:
+  MASK:
+    regex: '^\(*\s*0[xX][0-9a-fA-F]+[uUlL]*\s*\)*$'
+---
+id: decomp-coverage
+language: Cpp
+severity: hint
+message: File coverage for the reporting wrapper, not a diagnostic.
+rule:
+  kind: translation_unit
+---
+id: decomp-parse-error
+language: Cpp
+severity: hint
+message: Parser recovery region; absence of findings here is not evidence of clean code.
+rule:
+  kind: ERROR

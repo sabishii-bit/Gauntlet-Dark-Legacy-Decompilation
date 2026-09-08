@@ -331,6 +331,64 @@ from a pinned function measure the rule rather than the source. Screen
 `config/GUNE5D/webfrank.json` before ranking any roster by measured
 `real`.
 
+### Reconstruction source lint
+
+Install Node.js 22, pnpm 10.25.0 and Python 3.10+ (no game or compiler is needed
+for linting). The pinned ast-grep backend supplies structural C++ matching;
+the Python reporter applies semantic heuristics and reviewed-exception policy.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run test:lint
+pnpm run test:lint:integration
+pnpm run lint:decomp
+# Focus on an owned TU; output must stay under ignored build/.
+python tools/gdl/fakematch_lint.py src/game/movie/movieplayer.c --out build/movie-lint.json
+```
+
+| Rule | Review candidate |
+| --- | --- |
+| FM001 | Pointer-cast offset accesses and indexed cast views, including decimal/symbolic offsets |
+| FM002 | Nested dereference-through-cast expressions beyond depth one |
+| FM003 | Lexically unused local arrays, volatile locals and trash/padding-family declarations |
+| FM004 | Numeric byte arrays with big-endian float or aligned GameCube-address shapes |
+| FM005 | GNU/MWCC assembly, except exact reviewed macro definitions |
+| FM006 | Pragmas and recognized function optimization attributes against a per-file/scope allowlist |
+| FM007 | Hex expression literals outside named constants/enums and direct bitwise-mask operands |
+
+The push/PR workflow runs rule tests and a complete `src/` + `include/` scan in
+the independent **Reconstruction source lint** job, publishing
+`reconstruction_source_lint` with all findings, source hashes and parser-recovery
+regions. Existing candidates do **not** fail CI; broken tools/rules/tests do.
+Exit 0 means scan completed, not clean source; `--fail-on-findings` opts into
+exit 1 for unsuppressed findings, and invalid inputs/scanner failures return 2.
+Do not consume an older report after a failed run. `--limit` caps only console
+output; `--rule FM001` narrows the report deliberately. `pnpm run lint:ast` is
+a lower-level four-family diagnostic, **not** the full seven-family report.
+
+For example, `!(mp->flags & 0x1000)` in `enemy.c` is a legitimate direct mask
+and is exempt from FM007. The same literal in `p + 0x1000` or `call(0x1000)`
+is still a review candidate. Regression tests cover masks on either side,
+parentheses, complements and compound updates without exempting arithmetic
+or calls nested inside bitwise expressions.
+
+These are review heuristics, not a fakematch verdict or automatic fixes. A used
+array can still be artificial; lexical non-use is not CFG liveness. Float-shaped
+bytes may be legitimate assets. Volatile, offsets and masks can be legitimate.
+The C++ grammar is used even for `.c`/`.h` because reconstructed MWCC files mix
+C and C++; vendor syntax may require parser recovery. Macro bodies receive a
+separate syntax scan, but macros/includes are not expanded or type-checked.
+Optimization flags in build configuration still require the existing compiler-
+provenance audit; this scanner covers source pragmas/attributes, not Ninja flags.
+
+Rules and fixtures live in `tools/gdl/lint/`. Review approvals live in
+`config/GUNE5D/fakematch_lint.json`: `exceptions` entries require an exact report
+`fingerprint` plus `reason`; `pragma_allowlist` entries require exact relative
+`path`, `scope` (function or `before:function`), normalized `directive`, positive
+`count` and `reason`. Changed assembly macro bodies invalidate their approval;
+direct assembly cannot be exempted by a fingerprint. Reviewed rows stay visible
+with their reasons. No existing debt is blanket-approved.
+
 ### Matching work queues
 
 Use the low-match queue for semantic and structural reconstruction work:

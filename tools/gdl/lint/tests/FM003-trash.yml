@@ -1,0 +1,5 @@
+id: FM003-trash
+valid:
+  - "void f(){ use(trash); }"
+invalid:
+  - "void f(){ int trash0; }"

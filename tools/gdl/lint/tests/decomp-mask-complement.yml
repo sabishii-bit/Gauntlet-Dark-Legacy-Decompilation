@@ -1,0 +1,6 @@
+id: decomp-mask-complement
+valid:
+  - 'void f(){ use(0x1000); }'
+  - 'void f(){ ~(0x1000 + offset); }'
+invalid:
+  - 'void f(){ flags &= ~0x1000; }'

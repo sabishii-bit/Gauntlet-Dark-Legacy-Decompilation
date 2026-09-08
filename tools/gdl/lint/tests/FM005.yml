@@ -1,0 +1,5 @@
+id: FM005
+valid:
+  - "void f(){ use(\"asm(nop)\"); }"
+invalid:
+  - "void f(){ __asm__ volatile(\"nop\"); }"
