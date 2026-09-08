@@ -95,10 +95,9 @@
 /*   0x80057E6C  NextWorldLevel     -- next level matching a wave mask,    */
 /*                                      wrapping to the next world.        */
 /*                                                                      */
-/* Native reconstruction is still incomplete: level entry and         */
-/* game_main retain instruction residuals. The statistics and timer   */
-/* helpers reproduce the target instructions and recovered data        */
-/* prefixes, but complete TU data ownership/linkage remains unverified. */
+/* game_main retains an instruction residual. Other functions reproduce */
+/* target instructions, but several source scaffolds and complete TU    */
+/* data ownership/linkage remain unresolved. No TU promotion is implied. */
 /* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
@@ -1980,9 +1979,14 @@ void fn_8005351C(void)
                 } else if (sMusicTrackHi != 12) {
                     PlayerSaveState(i, 1);
                 }
-                if (player->exp == 0) {
-                    player->exp = 1;
-                    player->saved = 0;
+                {
+                    s32* experience;
+                    /* GC takes the field address before testing exp and
+                     * uses that same address for the conditional store. */
+                    if (*(experience = &player->exp) == 0) {
+                        *experience = 1;
+                        player->saved = 0;
+                    }
                 }
             }
         }
