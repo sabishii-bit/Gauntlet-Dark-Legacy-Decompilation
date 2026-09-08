@@ -4150,6 +4150,7 @@ s32 CritterBossAI(Critter *c)
         } else {
             strcpy(moveName, lbl_803465E4);
         }
+        /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
         DrawText(8, 214, 0, 0xFFFFFF, lbl_80112104, moveName,
                  (u8 *)move + 0x10, (s32)c->health,
                  (s32)(10.0f * c->rateScale),
@@ -4194,6 +4195,7 @@ s32 CritterBossAI(Critter *c)
             if (c->curmove >= 0) {
                 childFrame = (s32)*(f32 *)&c->sound[0x18];
             }
+            /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
             DrawText(8, y, 0, 0xFFFFFF, lbl_8011213C, i,
                      moveName,
                      c->curmove >= 0
@@ -5326,6 +5328,7 @@ void CritterAnimate(Critter *c)
     }
 
     if (sequence < 0) {
+        /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
         FatalError(lbl_80112174, 0x800000);
     }
     if (current != next && transition == 0 && sMusicFadeBase > c->rate &&
@@ -6681,10 +6684,12 @@ void CritterUpdateSkinfx(Critter *c)
         s32 counter = c->hitnodes[i].state;
         node = &c->hitnodes[i];
         if (counter > 0) {
+            /* lint-allow-next-line FM007: MBTreeSetAltTex mask ~3: clears the low two texture-select bits the call then sets */
             MBTreeSetAltTex(node->boundNode, 0xFFFFFFFC, lbl_80344BF8, 1);
             MBTreeSetAmbientAdd(node->boundNode, 0xFF, 1);
             node->state--;
         } else if (node->state == 0) {
+            /* lint-allow-next-line FM007: MBTreeSetAltTex all-ones mask: the API's "no alternate texture" argument */
             MBTreeSetAltTex(node->boundNode, 0xFFFFFFFF, 0, 1);
             MBTreeSetAmbientAdd(node->boundNode, 0, 1);
             node->state = -1;
@@ -6692,10 +6697,12 @@ void CritterUpdateSkinfx(Critter *c)
     }
 
     if (c->unkABC > 0) {
+        /* lint-allow-next-line FM007: MBTreeSetAltTex mask ~3: clears the low two texture-select bits the call then sets */
         MBTreeSetAltTex(c->anim, 0xFFFFFFFC, lbl_80344BF8, 1);
         MBTreeSetAmbientAdd(c->anim, 0xFF, 1);
         c->unkABC--;
     } else if (c->unkABC == 0) {
+        /* lint-allow-next-line FM007: MBTreeSetAltTex all-ones mask: the API's "no alternate texture" argument */
         MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
         MBTreeSetAmbientAdd(c->anim, 0, 1);
         c->unkABC = -1;
@@ -6703,11 +6710,14 @@ void CritterUpdateSkinfx(Critter *c)
     if (c->pausecnt > 0) {
         c->pausecnt -= gFrameTicks;
         if (c->pausecnt <= 0) {
+            /* lint-allow-next-line FM007: MBTreeSetAltTex all-ones mask: the API's "no alternate texture" argument */
             MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
             c->pausecnt = 0;
         } else if (c->pausecnt < 180 && (c->pausecnt & 8) != 0) {
+            /* lint-allow-next-line FM007: MBTreeSetAltTex all-ones mask: the API's "no alternate texture" argument */
             MBTreeSetAltTex(c->anim, 0xFFFFFFFF, 0, 1);
         } else {
+            /* lint-allow-next-line FM007: MBTreeSetAltTex mask ~3: clears the low two texture-select bits the call then sets */
             MBTreeSetAltTex(c->anim, 0xFFFFFFFC, (u32)c->unkAC0, 1);
         }
     }
@@ -7233,6 +7243,7 @@ void CritterLoadFinish(CritterPackedType *header)
         parent = &header->file->types[header->parentIndex];
         header->atree = parent->atree;
         if (parent->atree == NULL) {
+            /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
             FatalError("Child critter defined before parent", 0x800000);
         }
     }
@@ -7557,6 +7568,7 @@ void CritterInitHeader(void *hdr, void *file)
                                               CritterWadTag(lbl_80346694),
                                               &header->addAnimCount);
         if (header->types == NULL) {
+            /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
             FatalError("Critter Header has no types", 0x800000);
         }
         header->state = 1;
