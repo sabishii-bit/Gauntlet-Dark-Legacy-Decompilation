@@ -227,6 +227,84 @@ typedef struct WorldSoundView {
     s16  pri;
 } WorldSoundView;
 
+/* Item.data (game/item.h declares it as an opaque u8[0x14]) is the Xbox PDB's
+ * per-item-type union `union __unnamed` (misc.h Id=3251), whose eleven
+ * variants - containerdata / triggerdata / enemydata / gendata / exitdata /
+ * transdata / rotdata / sounddata / obsticledata / trapdata / powerupdata -
+ * all sit at offset 0x00 of that 0x14-byte member and are selected by
+ * Item.info->type.  item.h is a shared header with a different owner, so the
+ * union is NOT added to Item this run; the variants this TU actually reads
+ * are declared here as file-local views, the same way camera_data /
+ * audio_data / map_data / bosscam_data above name the world-WAD records.
+ *
+ * enemydata is Xbox game.h Id=3325.  Every field below is independently
+ * GC-verified by fn_80060114's own loads/stores: etype s16@0x00 (the switch
+ * selector, generate_enemy's `kind`, and the `>= 0` / `== 31` guards),
+ * strength s8@0x02 and ai s8@0x03 (generate_enemy arguments 3 and 5, both
+ * sign-extended by the target), flags u32@0x08 (the `& 1` spawn gate),
+ * rad f32@0x0C (multiplied by gCurLevel->ene_visrad into Enemy.sight and
+ * Critter+0xAD0), interval s16@0x10 (scaled by sItemFloorYOffset into
+ * Enemy.idle_time) and pickup s16@0x12 (an sItems element index stored into
+ * Enemy.gotitem).  ang f32@0x04 is not read by this TU. */
+typedef struct enemydata {
+    /* 0x00 */ s16 etype;
+    /* 0x02 */ s8  strength;
+    /* 0x03 */ s8  ai;
+    /* 0x04 */ f32 ang;
+    /* 0x08 */ u32 flags;
+    /* 0x0C */ f32 rad;
+    /* 0x10 */ s16 interval;
+    /* 0x12 */ s16 pickup;
+} enemydata; /* 0x14 == sizeof(Item.data) */
+
+
+/* gendata is Xbox misc.h Id=3328, the ITEM_GENERATOR (info->type 3) variant.
+ * GC-verified by fn_800606FC's generator case: etype s16@0x00 (the `== -1`
+ * idle test and generate_enemy's type argument), numenemies s8@0x02 (compared
+ * against maxenemies and incremented per spawn), maxenemies s8@0x03,
+ * num_generated s8@0x04 (the `& 1` alternation for ai 0x0E and the `>= 3`
+ * decrement for ai 0x0C), tail s8@0x05 (the previous spawn's gEnemies slot,
+ * linked through Enemy.prev_enemy/next_enemy for ai 0x0D), strength s8@0x06
+ * and ai s8@0x07 (generate_enemy arguments 3 and 5, and the 0x0C/0x0D/0x0E/
+ * 0x0F dispatch), counter s16@0x08, flags u8@0x0A, interval u8@0x0B (read
+ * zero-extended into the wob scale), genratio f32@0x0C (accumulated per
+ * spawn and wrapped at sItemFloorRadius) and ang f32@0x10 (added to
+ * Enemy.genang_offset to seed Enemy.ang). */
+typedef struct gendata {
+    /* 0x00 */ s16 etype;
+    /* 0x02 */ s8  numenemies;
+    /* 0x03 */ s8  maxenemies;
+    /* 0x04 */ s8  num_generated;
+    /* 0x05 */ s8  tail;
+    /* 0x06 */ s8  strength;
+    /* 0x07 */ s8  ai;
+    /* 0x08 */ s16 counter;
+    /* 0x0A */ u8  flags;
+    /* 0x0B */ u8  interval;
+    /* 0x0C */ f32 genratio;
+    /* 0x10 */ f32 ang;
+} gendata; /* 0x14 */
+
+/* triggerdata is Xbox misc.h Id=3294, the ITEM_TRIGGER (info->type 5) variant.
+ * GC-verified twice over: ActivateSpecialTrigger walks `target` (worldobj*
+ * @0x00, whose 0x10/0x16/0x17/0x28 accesses are WorldObj.flags/triggerstate/
+ * ptriggerstate/nodeptr) and chains through `next` (item* @0x08) after
+ * selecting items with `info->type == 5`; fn_800606FC's case 5 reads
+ * flags s16@0x04 (bits 0x40/0x100/0x400), id s8@0x06 (the tower level/garg
+ * argument and ActivateSpecialTrigger's `type` key), next item*@0x08 for the
+ * playermask fan-out, and idletime s16@0x10 as a gFrameTicks countdown.
+ * rad f32@0x0C and camid s16@0x12 are not read by this TU. */
+typedef struct triggerdata {
+    /* 0x00 */ WorldObj* target;
+    /* 0x04 */ s16 flags;
+    /* 0x06 */ s8  id;
+    /* 0x07 */ s8  nextid;
+    /* 0x08 */ Item* next;
+    /* 0x0C */ f32 rad;
+    /* 0x10 */ s16 idletime;
+    /* 0x12 */ s16 camid;
+} triggerdata; /* 0x14 */
+
 /* ---- real callees (names already resolved in config/GUNE5D/symbols.txt) --- */
 extern s32   MBSetupWad(void* ctx, void* wadData);
 extern void* MBGetFromWad(void* ctx, s32 tag, s32* outLen);
@@ -6328,9 +6406,11 @@ void fn_800606FC(void)
         }
         vis = MBWorldSphereVisible3(it->objgrp.attn_pos, it->visrad);
         if (vis != 0 && lbl_80344A6C != NULL && (u32)(lbl_80344A80 - 1) <= 1) {
+            // lint-begin FM001, FM007, FM009: lbl_80344A6C is the live NEWCAM camera and 0xA4/0xA8/0xAC are its Vec3 attention point, recovered and named in src/game/world/newcam.c (NcCamera.attention, offset 0x0A4, newcam.c:135) and consistent with the f32 triple read here; that type is a file-local view inside newcam.c and this run makes no header edits, so the three loads stay raw until NcCamera is promoted to a shared header.
             f32 dy = *(f32*)(lbl_80344A6C + 0xA8) - it->objgrp.attn_pos[1];
             f32 dx = *(f32*)(lbl_80344A6C + 0xA4) - it->objgrp.attn_pos[0];
             f32 dz = *(f32*)(lbl_80344A6C + 0xAC) - it->objgrp.attn_pos[2];
+            // lint-end FM001, FM007, FM009
             f32 d2 = dy * dy;
             d2 = dx * dx + d2;
             d2 = dz * dz + d2;
@@ -6426,14 +6506,14 @@ void fn_800606FC(void)
             continue;
         }
         if (*(void**)it->atree != NULL) {
-            u8* anim = it->atree + 4;
+            animinfo* anim = &((atree*)it->atree)->animinfo;
             s32 mode = 2;
             s32 t;
             s32 w;
             s32 res;
             if (it->activetime <= 0) {
                 if (a & 4) {
-                    if ((s8)(it->daction += 1) >= *(s16*)(anim + 0xC)) {
+                    if ((s8)(it->daction += 1) >= anim->numseqs) {
                         if (it->active & 2) {
                             it->daction--;
                         } else {
@@ -6462,9 +6542,9 @@ void fn_800606FC(void)
                     }
                 }
                 w = (s32)(sArrowFloorYOffset +
-                          (f32)*(s16*)(anim + 0x10) * *(f32*)(anim + 0x2C))
+                          (f32)anim->numframes * anim->seqscale)
                     << 1;
-                if (it->info->type == 8 && *(s16*)(anim + 0xC) > 4 && t < 0) {
+                if (it->info->type == 8 && anim->numseqs > 4 && t < 0) {
                     t = 0;
                     w = 0;
                 }
@@ -6532,7 +6612,7 @@ void fn_800606FC(void)
         if ((s8)it->minoff != 0) {
             continue;
         }
-        if (!((type == 3 && (s8)it->data[7] == 0xF) ||
+        if (!((type == 3 && ((gendata*)it->data)->ai == 0xF) ||
               (type == 0xC && it->info->item.subtype == 2) ||
               (it->active & 0x40) || (it->active & 0x4000))) {
             continue;
@@ -6586,7 +6666,7 @@ void fn_800606FC(void)
             }
             break;
         case 3: {
-            u8* gen = it->data;
+            gendata* gen = (gendata*)it->data;
             s32 max;
             s32 visflag;
             if (*(s32*)(gGameOptions + 8) <= 1) {
@@ -6595,19 +6675,19 @@ void fn_800606FC(void)
             if (*(s32*)(gGameOptions + 8) == 2) {
                 break;
             }
-            if ((s8)gen[6] <= 0) {
+            if (gen->strength <= 0) {
                 break;
             }
-            if (*(s16*)&gen[0] == -1) {
+            if (gen->etype == -1) {
                 break;
             }
             visflag = it->active & 0x4000;
-            max = (s8)gen[3];
-            if ((s8)gen[7] == 0xF) {
+            max = gen->maxenemies;
+            if (gen->ai == 0xF) {
                 generate_single_80063444(it, 0xF, 0);
                 break;
             }
-            if ((s8)gen[2] >= max) {
+            if (gen->numenemies >= max) {
                 break;
             }
             gpos[0] = it->objgrp.coll_pos[0];
@@ -6620,80 +6700,79 @@ void fn_800606FC(void)
                 gypr[0] = it->objgrp.worldmat[2][0];
                 gypr[1] = it->objgrp.worldmat[2][1];
                 gypr[2] = it->objgrp.worldmat[2][2];
-                if ((s8)gen[7] == 0xC && (s8)gen[4] >= 3) {
-                    gen[4] -= 3;
-                    gen[0xA] = 0;
+                if (gen->ai == 0xC && gen->num_generated >= 3) {
+                    gen->num_generated -= 3;
+                    gen->flags = 0;
                 }
                 if (visflag != 0) {
                     imp = 0;
                 } else {
                     imp = -1;
                 }
-                slot = generate_enemy(gpos, *(s16*)&gen[0], (s8)gen[6], gypr,
-                                      (s8)gen[7], (s32)it, imp, rad);
+                slot = generate_enemy(gpos, gen->etype, gen->strength, gypr,
+                                      gen->ai, (s32)it, imp, rad);
                 if (slot < 0) {
                     break;
                 }
                 {
-                    u8* e = (u8*)gEnemies + slot * 0x394;
+                    Enemy* e = &gEnemies[slot];
                     s32 wob;
-                    f32 fa = sItemFloorRadius + *(f32*)&it->data[0xC];
+                    f32 fa = sItemFloorRadius + ((gendata*)it->data)->genratio;
                     f32 rate = sItemFloorRadius /
                                (f32)(sCameraVisibilityRadius * (f32)max);
-                    wob = (s32)((f32)(lbl_80347050 * (f32)(u8)gen[0xB]) * fa);
-                    *(s16*)&it->data[8] = (s16)wob;
+                    wob = (s32)((f32)(lbl_80347050 * (f32)gen->interval) * fa);
+                    ((gendata*)it->data)->counter = (s16)wob;
+                    // lint-begin FM007: Item.data+0xC is gendata.genratio, but converting this accumulate-and-wrap pair to ((gendata*)it->data)->genratio is NOT byte-neutral: the pair together moves 1538 words and grows the function 8872 -> 8876 bytes, the accumulate alone moves 37 words at unchanged size; the target keeps a raw base+0xE8 web here, so the two statements stay raw and typed recovery is recorded instead.
                     *(f32*)&it->data[0xC] =
                         *(f32*)&it->data[0xC] + rate;
                     if (*(f32*)&it->data[0xC] > sItemFloorRadius) {
                         *(f32*)&it->data[0xC] = sItemZero;
                     }
-                    *(s16*)(e + 0x2D8) = 0;
-                    *(f32*)(e + 0x24C) =
-                        *(f32*)&it->data[0x10] + *(f32*)(e + 0x258);
-                    WRAP_ANGLE(*(f32*)(e + 0x24C));
-                    *(f32*)(e + 0x250) = *(f32*)(e + 0x24C);
-                    *(f32*)(e + 0x2EC) = *(f32*)(e + 0x34);
-                    *(f32*)(e + 0x2F0) = *(f32*)(e + 0x38);
-                    *(f32*)(e + 0x2F4) = *(f32*)(e + 0x3C);
-                    *(f32*)(e + 0x240) = sItemZero;
-                    *(f32*)(e + 0x244) = *(f32*)(e + 0x24C);
-                    *(f32*)(e + 0x248) = sItemZero;
-                    if ((s8)gen[7] == 0xC) {
+                    // lint-end FM007
+                    e->birth_style = 0;
+                    e->ang = ((gendata*)it->data)->ang + e->genang_offset;
+                    WRAP_ANGLE(e->ang);
+                    e->angbak = e->ang;
+                    e->birth_pos[0] = e->objgrp.worldmat[3][0];
+                    e->birth_pos[1] = e->objgrp.worldmat[3][1];
+                    e->birth_pos[2] = e->objgrp.worldmat[3][2];
+                    e->pyr[0] = sItemZero;
+                    e->pyr[1] = e->ang;
+                    e->pyr[2] = sItemZero;
+                    if (gen->ai == 0xC) {
                         place_logic12_800631AC((s8*)gen, slot);
                         break;
                     }
-                    if ((s8)gen[7] == 0xD) {
-                        if ((s8)gen[5] < 0) {
-                            *(s32*)(e + 0x334) = -1;
+                    if (gen->ai == 0xD) {
+                        if (gen->tail < 0) {
+                            e->prev_enemy = -1;
                         } else {
-                            u8* prev = (u8*)gEnemies + (s8)gen[5] * 0x394;
-                            *(s32*)(prev + 0x338) = slot;
-                            *(s32*)(e + 0x334) = (s8)gen[5];
+                            Enemy* prev = &gEnemies[gen->tail];
+                            prev->next_enemy = slot;
+                            e->prev_enemy = gen->tail;
                         }
-                        *(s32*)(e + 0x338) = -1;
-                        gen[5] = (s8)slot;
-                        gen[2]++;
-                        gen[4]++;
+                        e->next_enemy = -1;
+                        gen->tail = (s8)slot;
+                        gen->numenemies++;
+                        gen->num_generated++;
                         break;
                     }
-                    if ((s8)gen[7] == 0xE) {
-                        if (gen[4] & 1) {
-                            *(f32*)(e + 0x24C) =
-                                (f32)(*(f32*)(e + 0x24C) - lbl_80347058);
-                            *(s32*)(e + 0x31C) = -1;
+                    if (gen->ai == 0xE) {
+                        if (gen->num_generated & 1) {
+                            e->ang = (f32)(e->ang - lbl_80347058);
+                            e->flag1 = -1;
                         } else {
-                            *(f32*)(e + 0x24C) =
-                                (f32)(*(f32*)(e + 0x24C) + lbl_80347058);
-                            *(s32*)(e + 0x31C) = 1;
+                            e->ang = (f32)(e->ang + lbl_80347058);
+                            e->flag1 = 1;
                         }
-                        WRAP_ANGLE(*(f32*)(e + 0x24C));
-                        *(f32*)(e + 0x250) = *(f32*)(e + 0x24C);
-                        gen[2]++;
-                        gen[4]++;
+                        WRAP_ANGLE(e->ang);
+                        e->angbak = e->ang;
+                        gen->numenemies++;
+                        gen->num_generated++;
                         break;
                     }
-                    gen[2]++;
-                    gen[4]++;
+                    gen->numenemies++;
+                    gen->num_generated++;
                 }
             }
             break;
@@ -6769,22 +6848,24 @@ void fn_800606FC(void)
                 it->info->item.subtype != 0x2C) {
                 void* node2 = *(void**)(link + 0x64);
                 if ((s8)it->action < 2) {
-                    u8* anim = it->atree + 4;
+                    animinfo* anim = &((atree*)it->atree)->animinfo;
                     f32 al;
                     if ((s8)it->action == 0) {
                         al = sArrowFloorRadius;
-                    } else if (*(s16*)(anim + 0x10) > 1) {
+                    } else if (anim->numframes > 1) {
                         al = (f32)(lbl_80347090 *
-                                       ((lbl_80346EE8 + *(f32*)(anim + 0x18)) /
-                                        (f64)*(s16*)(anim + 0x10)) +
+                                       ((lbl_80346EE8 + anim->frame) /
+                                        (f64)anim->numframes) +
                                    lbl_80347088);
                     } else {
                         al = sItemFloorRadius;
                     }
                     MBTreeSetFlags(node2, 8, 0);
+                    // lint-begin FM001, FM007: node2 is the linked item's OBJGRP.node and 0x40/0x44/0x48 are mbnode.scale[0..2] (Xbox misc.h struct mbnode Id=3249, float scale[4] at 0x40, matching the three consecutive f32 stores and MBTreeSetFlags on the same handle); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this run makes no header edits.
                     *(f32*)((u8*)node2 + 0x40) = al;
                     *(f32*)((u8*)node2 + 0x44) = al;
                     *(f32*)((u8*)node2 + 0x48) = al;
+                    // lint-end FM001, FM007
                 } else {
                     MBTreeClearFlags(node2, 8, 0);
                 }
@@ -6808,12 +6889,12 @@ void fn_800606FC(void)
                 {
                     s32 n;
                     for (n = 0; n < 25; n++) {
-                        u8* e = (u8*)gEnemies + n * 0x394;
-                        s32* genid = (s32*)(e + 0x340);
+                        Enemy* e = &gEnemies[n];
+                        s32* genid = &e->guard_closest;
                         if (n == *genid) {
-                            *(s32*)(e + 0x33C) = 0;
+                            e->guard_mode = 0;
                             *genid = -1;
-                            *(f32*)(e + 0x344) = lbl_80347000;
+                            e->guard_dist = lbl_80347000;
                         }
                     }
                 }
@@ -6824,7 +6905,7 @@ void fn_800606FC(void)
             fn_80060114(it, gpos, gypr);
             break;
         case 5: {
-            u8* tgt;
+            WorldObj* tgt;
             s16 flags;
             s32 mask;
             s32 pdact;
@@ -6835,14 +6916,16 @@ void fn_800606FC(void)
             if (it->active & 0x400) {
                 break;
             }
+            // lint-begin FM007: Item.data+0x10 is triggerdata.idletime and +4 is triggerdata.flags, but neither converts byte-neutrally here: the idletime countdown alone moves 1128 words and grows fn_800606FC 8872 -> 8876 bytes, and this first flags read alone moves 1757 words and grows it 8872 -> 8884, while the same two fields DO convert identically at their later reads below. The target keeps a raw base+disp web across this prologue, so these two stay raw.
             if (*(s16*)&it->data[0x10] > 0) {
                 *(s16*)&it->data[0x10] -= gFrameTicks;
             }
             flags = *(s16*)&it->data[4];
-            tgt = *(u8**)&it->data[0];
+            // lint-end FM007
+            tgt = ((triggerdata*)it->data)->target;
             if (flags & 0x40) {
                 Item* p2;
-                s32 lvl = (s8)it->data[6];
+                s32 lvl = ((triggerdata*)it->data)->id;
                 if (lvl < 100) {
                     if (it->playermask != 0 &&
                         towerAllPlayersMetBossReq(lvl) == 0) {
@@ -6860,20 +6943,21 @@ void fn_800606FC(void)
                         it->playermask = 0;
                     }
                 }
-                for (p2 = it; p2 != NULL; p2 = *(Item**)&p2->data[8]) {
+                for (p2 = it; p2 != NULL;
+                     p2 = ((triggerdata*)p2->data)->next) {
                     p2->playermask = it->playermask;
                 }
             }
             if (it->playermask != 0) {
-                if (*(s16*)&it->data[4] & 0x100) {
+                if (((triggerdata*)it->data)->flags & 0x100) {
                     u32 m = 0xFFFFFFF0;
                     s32 b;
                     for (b = 0; b < 4; b++) {
                         Player* p = &gPlayers[b];
                         if (p->state == 1 &&
-                            (p->floor_name2 == (WorldObj*)tgt ||
+                            (p->floor_name2 == tgt ||
                              (p->floor_name2 != NULL &&
-                              *(u8**)((u8*)p->floor_name2 + 0x18) == tgt))) {
+                              p->floor_name2->parent == tgt))) {
                             m |= 1 << b;
                         }
                     }
@@ -6881,30 +6965,30 @@ void fn_800606FC(void)
                 }
                 mask = it->playermask;
             }
-            flags = *(s16*)&it->data[4];
+            flags = ((triggerdata*)it->data)->flags;
             if (flags & 0x400) {
                 if (mask != lbl_803447E0) {
                     it->playermask = 0;
                     mask = 0;
                     if (tgt != NULL) {
-                        *(u32*)(tgt + 0x10) &= ~0x4000000;
+                        tgt->flags &= ~0x4000000;
                     }
                 } else {
                     if (tgt != NULL) {
-                        *(u32*)(tgt + 0x10) |= 0x4000000;
+                        tgt->flags |= 0x4000000;
                     }
                 }
             }
             if (tgt != NULL) {
                 if (flags & 1) {
                     if (mask != 0) {
-                        if (((s8)tgt[0x16] & ~0xF) == 0x20) {
-                            tgt[0x16] &= 0xF;
+                        if ((tgt->triggerstate & ~0xF) == 0x20) {
+                            tgt->triggerstate &= 0xF;
                         }
                         it->daction = 2;
                     } else {
                         s32 d;
-                        if (tgt[0x16] & 0x20) {
+                        if (tgt->triggerstate & 0x20) {
                             d = 0;
                         } else {
                             d = 2;
@@ -6913,14 +6997,14 @@ void fn_800606FC(void)
                     }
                 } else if (flags & 2) {
                     if (mask != 0) {
-                        if (((s8)tgt[0x16] & ~0xF) == 0) {
-                            tgt[0x16] &= 0xF;
-                            tgt[0x16] |= 0x20;
+                        if ((tgt->triggerstate & ~0xF) == 0) {
+                            tgt->triggerstate &= 0xF;
+                            tgt->triggerstate |= 0x20;
                         }
                         it->daction = 2;
                     } else {
                         s32 d;
-                        if (tgt[0x16] & 0x20) {
+                        if (tgt->triggerstate & 0x20) {
                             d = 2;
                         } else {
                             d = 0;
@@ -6933,16 +7017,16 @@ void fn_800606FC(void)
                 } else if (flags & 4) {
                     if (mask != 0) {
                         s32 doset = 1;
-                        s32 low = (s8)tgt[0x16] & 0xF;
-                        if (((s8)tgt[0x16] & 0x10) == 0) {
+                        s32 low = tgt->triggerstate & 0xF;
+                        if ((tgt->triggerstate & 0x10) == 0) {
                             if (low < (low | mask)) {
-                                tgt[0x16] &= ~0xF;
-                                tgt[0x16] |= mask;
+                                tgt->triggerstate &= ~0xF;
+                                tgt->triggerstate |= mask;
                             }
                             if (*(s16*)&it->data[0x10] <= 0) {
-                                tgt[0x16] ^= 0x20;
-                                tgt[0x16] &= ~0xF;
-                                tgt[0x16] |= mask;
+                                tgt->triggerstate ^= 0x20;
+                                tgt->triggerstate &= ~0xF;
+                                tgt->triggerstate |= mask;
                             } else {
                                 doset = 0;
                             }
@@ -6962,12 +7046,12 @@ void fn_800606FC(void)
                     }
                 } else {
                     if (mask != 0) {
-                        tgt[0x16] = (s8)mask;
-                        tgt[0x16] |= 0x20;
+                        tgt->triggerstate = (s8)mask;
+                        tgt->triggerstate |= 0x20;
                         it->daction = 2;
                     } else {
                         s32 d;
-                        if (tgt[0x16] & 0x20) {
+                        if (tgt->triggerstate & 0x20) {
                             d = 2;
                         } else {
                             d = 0;
@@ -8446,36 +8530,6 @@ void fn_80062A00(void)
         fn_8009D694(-1, 0, 0);
     }
 }
-
-/* Item.data (game/item.h declares it as an opaque u8[0x14]) is the Xbox PDB's
- * per-item-type union `union __unnamed` (misc.h Id=3251), whose eleven
- * variants - containerdata / triggerdata / enemydata / gendata / exitdata /
- * transdata / rotdata / sounddata / obsticledata / trapdata / powerupdata -
- * all sit at offset 0x00 of that 0x14-byte member and are selected by
- * Item.info->type.  item.h is a shared header with a different owner, so the
- * union is NOT added to Item this run; the variants this TU actually reads
- * are declared here as file-local views, the same way camera_data /
- * audio_data / map_data / bosscam_data above name the world-WAD records.
- *
- * enemydata is Xbox game.h Id=3325.  Every field below is independently
- * GC-verified by fn_80060114's own loads/stores: etype s16@0x00 (the switch
- * selector, generate_enemy's `kind`, and the `>= 0` / `== 31` guards),
- * strength s8@0x02 and ai s8@0x03 (generate_enemy arguments 3 and 5, both
- * sign-extended by the target), flags u32@0x08 (the `& 1` spawn gate),
- * rad f32@0x0C (multiplied by gCurLevel->ene_visrad into Enemy.sight and
- * Critter+0xAD0), interval s16@0x10 (scaled by sItemFloorYOffset into
- * Enemy.idle_time) and pickup s16@0x12 (an sItems element index stored into
- * Enemy.gotitem).  ang f32@0x04 is not read by this TU. */
-typedef struct enemydata {
-    /* 0x00 */ s16 etype;
-    /* 0x02 */ s8  strength;
-    /* 0x03 */ s8  ai;
-    /* 0x04 */ f32 ang;
-    /* 0x08 */ u32 flags;
-    /* 0x0C */ f32 rad;
-    /* 0x10 */ s16 interval;
-    /* 0x12 */ s16 pickup;
-} enemydata; /* 0x14 == sizeof(Item.data) */
 
 /* 0x80060114 - convert a pending enemy-spawn item into a live critter or
  * generated enemy once it becomes visible, then retire the item slot. */
