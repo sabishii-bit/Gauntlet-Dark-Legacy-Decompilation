@@ -23,6 +23,7 @@
 #include "game/effect.h"
 #include "game/player.h"
 #include "game/mbobject.h"
+#include "game/plyrdata.h"
 
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 
@@ -56,45 +57,6 @@ typedef struct PsfxFileTable {
  * sfx and damage keep their reconstructed u8* type (the PDB spells them
  * plyr_sfx and plyr_damage pointers) so the existing byte-stride pointer
  * arithmetic on them is unchanged. */
-typedef struct plyr_data {
-    /* 0x000 */ s16 numsfx;    /* number of plyr_sfx records     */
-    /* 0x002 */ s16 numdamage; /* number of plyr_damage rows     */
-    /* 0x004 */ u8* sfx;       /* plyr_sfx[numsfx], 0x50 each    */
-    /* 0x008 */ u8* damage;    /* plyr_damage[numdamage], 0x58   */
-    /* 0x00C */ s16 turboAclose;
-    /* 0x00E */ s16 turboAlow;
-    /* 0x010 */ s16 turboAstep;
-    /* 0x012 */ s16 turboA360;
-    /* 0x014 */ s16 turboAthrow;
-    /* 0x016 */ s16 turboB;
-    /* 0x018 */ s16 turboC1;
-    /* 0x01A */ s16 turboC2;
-    /* 0x01C */ s16 combo1;
-    /* 0x01E */ s16 combo2;
-    /* 0x020 */ s16 combohit;
-    /* 0x022 */ s16 victory;
-    /* 0x024 */ s32 initflag;  /* handles resolved this level    */
-    /* 0x028 */ f32 fight_min;
-    /* 0x02C */ f32 fight_max;
-    /* 0x030 */ f32 speed_min;
-    /* 0x034 */ f32 speed_max;
-    /* 0x038 */ f32 armor_min;
-    /* 0x03C */ f32 armor_max;
-    /* 0x040 */ f32 magic_min;
-    /* 0x044 */ f32 magic_max;
-    /* 0x048 */ f32 height;
-    /* 0x04C */ f32 width;
-    /* 0x050 */ f32 attny;
-    /* 0x054 */ f32 coly;
-    /* 0x058 */ f32 powerup_time;
-    /* 0x05C */ f32 weapon_offset[3];
-    /* 0x068 */ f32 weapon_fx_offset[10][3];
-    /* 0x0E0 */ f32 weapon_fx_scale[10][3];
-    /* 0x158 */ f32 turboa_offset[3];
-    /* 0x164 */ f32 familiar_offset[3];
-    /* 0x170 */ f32 fam_proj_offset[3];
-    /* 0x17C */ f32 streakfwdmul;
-} plyr_data; /* size 0x180 = 384 */
 extern PsfxPdataBuf lbl_802828B0;
 extern u8 lbl_8012006C[];
 extern void* lbl_80120E00[16];
@@ -318,21 +280,6 @@ extern void player_get_powerup_state(u8* p, s32 kind, u32 mask, f32 dt);
  *
  * Declared widths are left exactly as the pre-existing reconstruction had
  * them; the PDB spells flags/nextfxidx/sfxidx/sndidx int and color unsigned. */
-typedef struct plyr_sfx {
-    /* 0x00 */ u32 flags;
-    /* 0x04 */ u32 nextfxidx; /* chained record index, -1 = none */
-    /* 0x08 */ s32 sfxidx;    /* resolved effect/texture handle  */
-    /* 0x0C */ s32 sndidx;    /* resolved sound/mbox handle      */
-    /* 0x10 */ char fxdesc[16];
-    /* 0x20 */ char snddesc[16];
-    /* 0x30 */ s16 zmod;
-    /* 0x32 */ s16 alphamod;
-    /* 0x34 */ f32 offset[3];
-    /* 0x40 */ f32 maxlen;
-    /* 0x44 */ f32 radius;
-    /* 0x48 */ f32 scale;
-    /* 0x4C */ u32 color;
-} plyr_sfx; /* size 0x50 = 80 */
 
 /* One row of the pdata wad's third ("move") chunk, stride 0x58.
  *
@@ -357,33 +304,6 @@ typedef struct plyr_sfx {
  * Used only for offsetof() displacements on the raw walked row pointer,
  * never as a typed alias (claim.law.multifield-alias-defeats-indexed-
  * addressing: 3+ nearby fields off one index-computed base regress). */
-typedef struct plyr_damage {
-    /* 0x00 */ s16 type;
-    /* 0x02 */ s16 flags;
-    /* 0x04 */ u32 dmgtype;   /* PDB: enum DMG_TYPE */
-    /* 0x08 */ f32 hitrad;
-    /* 0x0C */ f32 radius;
-    /* 0x10 */ f32 minrad;
-    /* 0x14 */ f32 delay;
-    /* 0x18 */ f32 mintime;
-    /* 0x1C */ f32 maxtime;
-    /* 0x20 */ f32 angle;
-    /* 0x24 */ f32 arc;
-    /* 0x28 */ f32 pitch;
-    /* 0x2C */ f32 offset[3];
-    /* 0x38 */ f32 amount;
-    /* 0x3C */ f32 speed_min;
-    /* 0x40 */ f32 speed_max;
-    /* 0x44 */ f32 weight;
-    /* 0x48 */ s16 fxidx;
-    /* 0x4A */ s16 hitfxidx;
-    /* 0x4C */ s16 loopfxidx;
-    /* 0x4E */ s16 next;
-    /* 0x50 */ s16 startframe;
-    /* 0x52 */ s16 endframe;
-    /* 0x54 */ s16 helpidx;
-    /* 0x56 */ s16 dummy;
-} plyr_damage; /* size 0x58 = 88 */
 
 s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other);
 void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
