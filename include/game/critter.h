@@ -97,10 +97,13 @@ typedef struct CritterTargetCriteria {
 typedef struct CritterMove {
     s32 type;             /* 0x00 move opcode (1, 0x11, 0xF0, ...)             */
     u32 flags;            /* 0x04 flag bits (bit 3 tested in ProcessCritter)   */
-    s32 unk08;            /* 0x08 (compared against 0xF00 in CritterAnimate)   */
-    s16 anim;             /* 0x0C animation id to play                         */
-    s16 node;             /* 0x0E attached animation-node index                */
-    u8  _blk10[0x30];     /* 0x10 .. 0x40                                      */
+    s32 priority;         /* 0x08 crit_move.priority (compared against 0xF00
+                             * in CritterAnimate)                              */
+    s16 seqidx;           /* 0x0C resolved animation-sequence index            */
+    s16 nodeidx;          /* 0x0E resolved attach-node index                   */
+    char name[0x10];      /* 0x10 crit_move.name    -- editor/debug move name  */
+    char anim[0x10];      /* 0x20 crit_move.anim    -- AtreeHeaderFindSeq name */
+    char colnode[0x10];   /* 0x30 crit_move.colnode -- AtreeFindNodeIdx name   */
     s32 frameStart;       /* 0x40 primary event window start frame (CopyAnim)  */
     s32 frameStart2;      /* 0x44 secondary event window start frame           */
     s16 interruptAnim0;    /* 0x48 CritterAnimInterrupt anim index (event 1)    */
@@ -108,12 +111,12 @@ typedef struct CritterMove {
     f32 framePeriod;      /* 0x4C repeat period for the 0x85 (looped) move type */
     s16 frameEnd;         /* 0x50 primary event window end frame               */
     s16 frameEnd2;        /* 0x52 secondary event window end frame             */
-    s16 link;             /* 0x54 chained/target move index                    */
-    s16 unk56;            /* 0x56                                              */
-    u8  _blk58[0x08];     /* 0x58 .. 0x60 sfx/sfxFrame/sfx2/sfx2Frame (see the
-                            * CritterMoveFx overlay in critter.c: naming these
-                            * directly here hoists an address register in
-                            * CritterActivate, so they stay raw pad here) */
+    s16 link;             /* 0x54 chained/target move index (crit_move.nextidx) */
+    s16 interrupt;        /* 0x56 crit_move.interrupt                          */
+    s16 sfx;              /* 0x58 crit_move.movefx  -- file->sfx[] index       */
+    s16 sfxFrame;         /* 0x5A crit_move.fxframe                            */
+    s16 sfx2;             /* 0x5C crit_move.movefx2 -- file->sfx[] index       */
+    s16 sfx2Frame;        /* 0x5E crit_move.fxframe2                           */
     CritterTargetCriteria target; /* 0x60 CritterMoveSetup/CritterLookForReady/
                                     * CritterChildGetPattern's moveTarget arg  */
     f32 cooldown;         /* 0x80 move reuse delay                             */
