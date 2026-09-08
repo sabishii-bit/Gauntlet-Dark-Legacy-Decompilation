@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/sndid.h"
 #include "game/leveldata.h"
 #include "game/player.h"
 
@@ -14,50 +15,50 @@ char lbl_801232DC[6][8] = {"MET", "ROPE", "CHAIN", "ICE", "STONE", "*ROCK"};
 char lbl_8012330C[16] = "abcdefghijk";
 static char* MovieBanks[32] = {"title.s", "story.s", "wizmus.s", "valmus.s", "warmus.s", "arcmus.s", "grunt_a.s", "grunt_b.s", "grunt_c.s", "grunt_d.s", "demon_a", "demon_b.s", "demon_c.s", "demon_d.s", "key.s", "atari.s", "3dfxsplash.s", "kata-sor.s", "kata-kni.s", "kata-dwf.s", "kata-jes.s", "grunt_g.s", "demon_k.s", "grunt_i.s", "demon_i.s", "grunt_j.s", "grunt_h.s", "attr-newgame.s", "attr-playme.s", "gamegiveaway.s", "skorne2garm.s", "completion.s"};
 static int MovieMusic[32] = {1, 1, -1, -1, -1, -1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-long lbl_8012341C[14] = {-1, 0xf0009, 0x100009, 0x110008, 0x120008, 0x130005, 0x140005, 0x150008, 0x160007, 0x170008, 0x180009, 0x190008, -1, 0x0};
-long lbl_80123454[14] = {-1, 0x1a0001, 0x1b0001, 0x1c0001, 0x1d0001, 0x1e0001, 0x1f0001, 0x200001, 0x210001, 0x220001, 0x230001, 0x240001, -1, 0x0};
-long lbl_8012348C[11] = {0x10032, 0x10033, 0x10034, 0x10035, 0x10036, 0x10037, 0x10038, 0x10039, 0x1003a, 0x1003b, 0x1003c};
-long lbl_801234B8[11] = {0x2000b, 0x2000a, 0x20009, 0x20008, 0x20007, 0x20006, 0x20005, 0x20004, 0x20003, 0x20002, 0x20001};
+long lbl_8012341C[14] = {-1, S_MAPDOTA, S_MAPDOTB, S_MAPDOTC, S_MAPDOTD, S_MAPDOTE, S_MAPDOTF, S_MAPDOTG, S_MAPDOTH, S_MAPDOTI, S_MAPDOTJ, S_MAPDOTK, -1, 0x0};
+long lbl_80123454[14] = {-1, S_TALLYSFXA, S_TALLYSFXB, S_TALLYSFXC, S_TALLYSFXD, S_TALLYSFXE, S_TALLYSFXF, S_TALLYSFXG, S_TALLYSFXH, S_TALLYSFXI, S_TALLYSFXJ, S_TALLYSFXK, -1, 0x0};
+long lbl_8012348C[11] = {S_RUNE2, S_RUNE3, S_RUNE4, S_RUNE5, S_RUNE6, S_RUNE7, S_RUNE8, S_RUNE9, S_RUNE10, S_RUNE11, S_RUNE12};
+long lbl_801234B8[11] = {S_COUNT0, S_COUNT1, S_COUNT2, S_COUNT3, S_COUNT4, S_COUNT5, S_COUNT6, S_COUNT7, S_COUNT8, S_COUNT9, S_COUNT10};
 long lbl_801234E4[8][4] = {
-    {0x40000, 0x40001, 0x40002, 0x40003},
-    {0x50000, 0x50001, 0x50002, 0x50003},
-    {0x60000, 0x60001, 0x60002, 0x60003},
-    {0x70000, 0x70001, 0x70002, 0x70003},
-    {0x80000, 0x80001, 0x80002, 0x80003},
-    {0x90000, 0x90001, 0x90002, 0x90003},
-    {0xa0000, 0xa0001, 0xa0002, 0xa0003},
-    {0xb0000, 0xb0001, 0xb0002, 0xb0003}
+    {S_WARPAIN1, S_WARPAIN2, S_WARPAIN3, S_WARPAIN4},
+    {S_VALPAIN1, S_VALPAIN2, S_VALPAIN3, S_VALPAIN4},
+    {S_WIZPAIN1, S_WIZPAIN2, S_WIZPAIN3, S_WIZPAIN4},
+    {S_ARCPAIN1, S_ARCPAIN2, S_ARCPAIN3, S_ARCPAIN4},
+    {S_DWFPAIN1, S_DWFPAIN2, S_DWFPAIN3, S_DWFPAIN4},
+    {S_KNIPAIN1, S_KNIPAIN2, S_KNIPAIN3, S_KNIPAIN4},
+    {S_SORPAIN1, S_SORPAIN2, S_SORPAIN3, S_SORPAIN4},
+    {S_JESPAIN1, S_JESPAIN2, S_JESPAIN3, S_JESPAIN4}
 };
-long lbl_80123564[8] = {0x40004, 0x50004, 0x60004, 0x70004, 0x80004, 0x90004, 0xa0004, 0xb0004};
+long lbl_80123564[8] = {S_WARDIE1, S_VALDIE1, S_WIZDIE1, S_ARCDIE1, S_DWFDIE1, S_KNIDIE1, S_SORDIE1, S_JESDIE1};
 static int snd_eat[8][4] = {
-    {0x40008, 0x40008, 0x40008, 0x40008},
-    {0x50008, 0x50008, 0x50008, 0x50008},
-    {0x60008, 0x60008, 0x60008, 0x60008},
-    {0x70008, 0x70009, 0x7000a, 0x7000b},
-    {0x80008, 0x80008, 0x80008, 0x80008},
-    {0x90008, 0x90008, 0x90008, 0x90008},
-    {0xa0008, 0xa0008, 0xa0008, 0xa0008},
-    {0xb0008, 0xb0008, 0xb0008, 0xb0008}
+    {S_WAREAT, S_WAREAT, S_WAREAT, S_WAREAT},
+    {S_VALEAT, S_VALEAT, S_VALEAT, S_VALEAT},
+    {S_WIZEAT, S_WIZEAT, S_WIZEAT, S_WIZEAT},
+    {S_ARCEAT1, S_ARCEAT2, S_ARCEAT3, S_ARCEAT4},
+    {S_DWFEAT, S_DWFEAT, S_DWFEAT, S_DWFEAT},
+    {S_KNIEAT, S_KNIEAT, S_KNIEAT, S_KNIEAT},
+    {S_SOREAT, S_SOREAT, S_SOREAT, S_SOREAT},
+    {S_JESEAT, S_JESEAT, S_JESEAT, S_JESEAT}
 };
-static int snd_eat_default[8] = {0x40006, 0x50006, 0x60006, 0x70006, 0x80006, 0x90006, 0xa0006, 0xb0006};
-long lbl_80123624[8] = {0x40007, 0x50007, 0x60007, 0x70007, 0x80007, 0x90007, 0xa0007, 0xb0007};
-long lbl_80123644[8] = {0x40009, 0x50009, 0x60009, 0x7000c, 0x80009, 0x90009, 0xa0009, 0xb0009};
-long lbl_80123664[8] = {0x4000a, 0x5000a, 0x6000a, 0x7000d, 0x8000a, 0x9000a, 0xa000a, 0xb000a};
-long lbl_80123684[8] = {0x4000b, 0x5000b, 0x6000b, 0x7000e, 0x8000b, 0x9000b, 0xa000b, 0xb000b};
-long lbl_801236A4[8] = {0x4000c, 0x5000c, 0x6000c, 0x7000f, 0x8000c, 0x9000c, 0xa000c, 0xb000c};
+static int snd_eat_default[8] = {S_WAREATSFX, S_VALEATSFX, S_WIZEATSFX, S_ARCEATSFX, S_DWFEATSFX, S_KNIEATSFX, S_SOREATSFX, S_JESEATSFX};
+long lbl_80123624[8] = {S_WARPOISON, S_VALPOISON, S_WIZPOISON, S_ARCPOISON, S_DWFPOISON, S_KNIPOISON, S_SORPOISON, S_JESPOISON};
+long lbl_80123644[8] = {S_WARSTEAL, S_VALSTEAL, S_WIZSTEAL, S_ARCSTEAL, S_DWFSTEAL, S_KNISTEAL, S_SORSTEAL, S_JESSTEAL};
+long lbl_80123664[8] = {S_WAROBSTRUCT, S_VALOBSTRUCT, S_WIZOBSTRUCT, S_ARCOBSTRUCT, S_DWFOBSTRUCT, S_KNIOBSTRUCT, S_SOROBSTRUCT, S_JESOBSTRUCT};
+long lbl_80123684[8] = {S_WARVICTORY, S_VALVICTORY, S_WIZVICTORY, S_ARCVICTORY, S_DWFVICTORY, S_KNIVICTORY, S_SORVICTORY, S_JESVICTORY};
+long lbl_801236A4[8] = {S_WARTHROW, S_VALTHROW, S_WIZTHROW, S_ARCTHROW, S_DWFTHROW, S_KNITHROW, S_SORTHROW, S_JESTHROW};
 static int snd_turboA[8][4] = {
-    {0x4000e, 0x4000f, 0x40010, 0x4000d},
-    {0x5000e, 0x5000f, 0x50010, 0x5000d},
-    {0x6000e, 0x6000f, 0x60010, 0x6000d},
-    {0x70011, 0x70012, 0x70013, 0x70010},
-    {0x8000e, 0x8000f, 0x80010, 0x8000d},
-    {0x9000e, 0x9000f, 0x90010, 0x9000d},
-    {0xa000e, 0xa000f, 0xa0010, 0xa000d},
-    {0xb0010, 0xb0011, 0xb0012, 0xb000d}
+    {S_WARTURBOA2, S_WARTURBOA3, S_WARTURBOA4, S_WARTURBOA1},
+    {S_VALTURBOA2, S_VALTURBOA3, S_VALTURBOA4, S_VALTURBOA1},
+    {S_WIZTURBOA2, S_WIZTURBOA3, S_WIZTURBOA4, S_WIZTURBOA1},
+    {S_ARCTURBOA2, S_ARCTURBOA3, S_ARCTURBOA4, S_ARCTURBOA1},
+    {S_DWFTURBOA2, S_DWFTURBOA3, S_DWFTURBOA4, S_DWFTURBOA1},
+    {S_KNITURBOA2, S_KNITURBOA3, S_KNITURBOA4, S_KNITURBOA1},
+    {S_SORTURBOA2, S_SORTURBOA3, S_SORTURBOA4, S_SORTURBOA1},
+    {S_JESTURBOA2, S_JESTURBOA3, S_JESTURBOA4, S_JESTURBOA1A}
 };
-static int snd_turboB[8] = {0x40011, 0x50011, 0x60011, 0x70014, 0x80011, 0x90011, 0xa0012, 0xb0013};
-static int snd_turboC[8] = {0x40012, 0x50012, 0x60012, 0x70015, 0x80012, 0x90012, 0xa0013, 0xb0014};
-long lbl_80123784[14] = {-1, 0x2f001b, 0x2e000e, 0x300018, 0x310016, -1, -1, 0x34001c, -1, 0x320015, 0x350013, 0x330015, -1, 0x0};
+static int snd_turboB[8] = {S_WARTURBOB, S_VALTURBOB, S_WIZTURBOB, S_ARCTURBOB, S_DWFTURBOB, S_KNITURBOB, S_SORTURBOB, S_JESTURBOB};
+static int snd_turboC[8] = {S_WARTURBOC, S_VALTURBOC, S_WIZTURBOC, S_ARCTURBOC, S_DWFTURBOC, S_KNITURBOC, S_SORTURBOC, S_JESTURBOC};
+long lbl_80123784[14] = {-1, S_BOSSKEYA, S_BOSSKEYB, S_BOSSKEYC, S_BOSSKEYD, -1, -1, S_BOSSKEYG, -1, S_BOSSKEYI, S_BOSSKEYJ, S_BOSSKEYK, -1, 0x0};
 long lbl_801237BC[5][4] = {
     {0x2f, 0x2f, 0x2f, 0x2f},
     {0x31, 0x31, 0x31, 0x31},
@@ -65,20 +66,20 @@ long lbl_801237BC[5][4] = {
     {0x35, 0x35, 0x35, 0x35},
     {0x36, 0x36, 0x36, 0x36}
 };
-long lbl_8012380C[8] = {0x40005, 0x50005, 0x60005, 0x70005, 0x80005, 0x90005, 0xa0005, 0xb0005};
+long lbl_8012380C[8] = {S_WARDIE2, S_VALDIE2, S_WIZDIE2, S_ARCDIE2, S_DWFDIE2, S_KNIDIE2, S_SORDIE2, S_JESDIE2};
 long lbl_8012382C[14][7] = {
     {-1, -1, -1, -1, -1, -1, -1},
-    {0x25000f, -1, 0x25000d, 0x250000, 0x250002, 0x250002, -1},
-    {-1, 0x260027, -1, -1, -1, -1, -1},
-    {0x270031, 0x270032, 0x270030, -1, -1, -1, 0x270033},
-    {0x28002d, 0x280000, -1, 0x28002c, 0x28002e, 0x28002e, -1},
+    {S_SPIKEA, -1, S_FFIELDZAPA, S_BUZZSAW, S_TENTACLES, S_TENTACLES, -1},
+    {-1, S_FIREHOLE, -1, -1, -1, -1, -1},
+    {S_SPIKEC, S_FIREHOLEC, S_FFIELDZAPC, -1, -1, -1, S_SPIKEGATE},
+    {S_LOGSPIKE, S_FIREHOLED, -1, S_SWINGBLADE, S_TENTACLESD, S_TENTACLESD, -1},
     {-1, -1, -1, -1, -1, -1, -1},
-    {-1, 0x38001f, -1, -1, -1, -1, -1},
-    {-1, 0x290028, -1, -1, -1, -1, -1},
-    {-1, 0x2a001c, -1, -1, -1, -1, -1},
-    {-1, 0x2b0028, -1, -1, -1, -1, -1},
-    {-1, 0x2c002a, -1, -1, -1, -1, -1},
-    {-1, 0x2d0028, -1, -1, -1, -1, -1},
+    {-1, S_FIREHOLEF, -1, -1, -1, -1, -1},
+    {-1, S_FIREHOLEG, -1, -1, -1, -1, -1},
+    {-1, S_FIREHOLEH, -1, -1, -1, -1, -1},
+    {-1, S_FIREHOLEI, -1, -1, -1, -1, -1},
+    {-1, S_FIREHOLEJ, -1, -1, -1, -1, -1},
+    {-1, S_FIREHOLEK, -1, -1, -1, -1, -1},
     {-1, -1, -1, -1, -1, -1, -1},
     {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
 };
@@ -90,83 +91,83 @@ long lbl_801239DC[2][5] = {
     {0x1c, 0x20, 0x1e, 0x1a, 0x22},
     {0x1d, 0x21, 0x1f, 0x1b, 0x23}
 };
-long lbl_80123A04[14] = {-1, 0x250007, 0x260024, 0x270020, 0x280003, -1, -1, 0x290025, 0x2a0019, 0x2b0025, 0x2c0027, 0x2d0025, -1, 0x0};
-long lbl_80123A3C[14] = {-1, 0x250008, 0x260025, 0x270021, 0x280004, -1, -1, 0x290026, 0x2a001a, 0x2b0026, 0x2c0028, 0x2d0026, -1, 0x0};
-long lbl_80123A74[14] = {-1, 0x250009, 0x260026, 0x270022, 0x280005, -1, -1, 0x290027, 0x2a001b, 0x2b0027, 0x2c0029, 0x2d0027, -1, 0x0};
-long lbl_80123AAC[14] = {-1, 0x250041, 0x260001, 0x270027, 0x280001, 0x370000, 0x38001e, 0x290034, 0x2a002c, 0x2b0049, -1, -1, -1, 0x0};
-long lbl_80123AE4[14] = {-1, -1, -1, -1, 0x280002, -1, -1, -1, -1, 0x2b004b, -1, -1, -1, 0x0};
-long lbl_80123B1C[14] = {-1, 0x260002, -1, -1, -1, -1, -1, -1, -1, 0x2b004c, -1, -1, -1, 0x0};
-long lbl_80123B54[14] = {-1, 0x260003, -1, -1, -1, -1, -1, -1, -1, 0x2b004d, -1, -1, -1, 0x0};
+long lbl_80123A04[14] = {-1, S_BARREL_WOODA, S_BARREL_WOODB, S_BARREL_WOODC, S_BARREL_WOODD, -1, -1, S_BARREL_WOODG, S_BARREL_WOODH, S_BARREL_WOODI, S_BARREL_WOODJ, S_BARREL_WOODK, -1, 0x0};
+long lbl_80123A3C[14] = {-1, S_BARREL_GASA, S_BARREL_GASB, S_BARREL_GASC, S_BARREL_GASD, -1, -1, S_BARREL_GASG, S_BARREL_GASH, S_BARREL_GASI, S_BARREL_GASJ, S_BARREL_GASK, -1, 0x0};
+long lbl_80123A74[14] = {-1, S_BARREL_EXPLOA, S_BARREL_EXPLOB, S_BARREL_EXPLOC, S_BARREL_EXPLOD, -1, -1, S_BARREL_EXPLOG, S_BARREL_EXPLOH, S_BARREL_EXPLOI, S_BARREL_EXPLOJ, S_BARREL_EXPLOK, -1, 0x0};
+long lbl_80123AAC[14] = {-1, S_FALLAWAY, S_ROCKBREAK, S_LIMBBREAKC, S_LIMBBREAK, S_ROCKBREAKE, S_ROCKBREAKF, S_ROCKBREAKG, S_LIMBBREAKH, S_ICEBREAK, -1, -1, -1, 0x0};
+long lbl_80123AE4[14] = {-1, -1, -1, -1, S_LEAFBREAK, -1, -1, -1, -1, S_WOODBREAKI, -1, -1, -1, 0x0};
+long lbl_80123B1C[14] = {-1, S_ROCKROTATE, -1, -1, -1, -1, -1, -1, -1, S_METLROTATE, -1, -1, -1, 0x0};
+long lbl_80123B54[14] = {-1, S_ROCKSTOP, -1, -1, -1, -1, -1, -1, -1, S_METLROTATESTO, -1, -1, -1, 0x0};
 long lbl_80123B8C[2][14] = {
-    {-1, 0x25000a, -1, 0x270023, 0x280006, 0x36001a, 0x38001d, 0x29002a, -1, 0x2b004e, 0x2c002c, 0x2d002a, -1, 0x0},
-    {-1, -1, -1, 0x27002c, -1, -1, -1, -1, -1, -1, -1, 0x2d0033, -1, 0x0}
+    {-1, S_TRAPA, -1, S_TRAPC, S_TRAPD, S_TRAPE, S_TRAPF, S_TRAPG, -1, S_TRAPI, S_TRAPJ, S_TRAPK, -1, 0x0},
+    {-1, -1, -1, S_QUAKEC, -1, -1, -1, -1, -1, -1, -1, S_ELVCNNK, -1, 0x0}
 };
-long lbl_80123BFC[14] = {-1, 0x25000b, -1, 0x270024, 0x280007, -1, -1, -1, 0x2a0027, 0x2b004f, -1, -1, -1, 0x0};
-long lbl_80123C34[14] = {-1, 0x25000c, -1, 0x270025, 0x280008, -1, -1, -1, 0x2a0028, 0x2b0050, -1, -1, -1, 0x0};
+long lbl_80123BFC[14] = {-1, S_BRIDOPA, -1, S_BRIDOPC, S_BRIDOPD, -1, -1, -1, S_BRIDOPH, S_BRIDOPI, -1, -1, -1, 0x0};
+long lbl_80123C34[14] = {-1, S_BRIDCLA, -1, S_BRIDCLC, S_BRIDCLD, -1, -1, -1, S_BRIDCLH, S_BRIDCLI, -1, -1, -1, 0x0};
 long lbl_80123C6C[14][4] = {
     {-1, -1, -1, -1},
-    {0x250006, 0x250004, 0x250005, 0x250003},
-    {0x260023, 0x260023, 0x260023, 0x260023},
-    {0x27001d, 0x27001e, 0x27001f, 0x27001d},
-    {0x28002b, 0x28002b, 0x28002b, 0x28002b},
+    {S_GATEA4, S_GATEA2, S_GATEA3, S_GATEA1},
+    {S_GATEB1, S_GATEB1, S_GATEB1, S_GATEB1},
+    {S_GATEC1, S_GATEC2, S_GATEC3, S_GATEC1},
+    {S_GATED1, S_GATED1, S_GATED1, S_GATED1},
     {-1, -1, -1, -1},
     {-1, -1, -1, -1},
-    {0x290024, 0x290024, 0x290024, 0x290041},
-    {0x2a0018, 0x2a0018, 0x2a0018, 0x2a0018},
-    {0x2b0024, 0x2b0024, 0x2b0024, 0x2b0024},
-    {0x2c0026, 0x2c0026, 0x2c0026, 0x2c004a},
-    {0x2d0024, 0x2d0024, 0x2d0024, 0x2d0024},
+    {S_GATEWOODG, S_GATEWOODG, S_GATEWOODG, S_GATEMETG},
+    {S_GATEWOODH, S_GATEWOODH, S_GATEWOODH, S_GATEWOODH},
+    {S_GATEWOODI, S_GATEWOODI, S_GATEWOODI, S_GATEWOODI},
+    {S_GATEWOODJ, S_GATEWOODJ, S_GATEWOODJ, S_GATEMETJ},
+    {S_GATEWOODK, S_GATEWOODK, S_GATEWOODK, S_GATEWOODK},
     {-1, -1, -1, -1},
     {0x0, 0x0, 0x0, 0x0}
 };
-static int bronze[4] = {0x3b0000, 0x3b0003, 0x3b0006, 0x3b0009};
-static int silver[4] = {0x3b0001, 0x3b0004, 0x3b0007, 0x3b000a};
-static int gold[4] = {0x3b0002, 0x3b0005, 0x3b0008, 0x3b000b};
+static int bronze[4] = {S_PKUPBRONZE1, S_PKUPBRONZE2, S_PKUPBRONZE3, S_PKUPBRONZE4};
+static int silver[4] = {S_PKUPSILVER1, S_PKUPSILVER2, S_PKUPSILVER3, S_PKUPSILVER4};
+static int gold[4] = {S_PKUPGOLD1, S_PKUPGOLD2, S_PKUPGOLD3, S_PKUPGOLD4};
 long lbl_80123D7C[16][9] = {
-    {0xe0048, 0xe0049, 0xe004a, 0xe004b, 0xe004c, 0xe004d, 0xe004e, 0xe004f, 0xe0050},
-    {0xe0024, 0xe0025, 0xe0026, 0xe0027, 0xe0028, 0xe0029, 0xe002a, 0xe002b, 0xe002c},
-    {0xe006c, 0xe006d, 0xe006e, 0xe006f, 0xe0070, 0xe0071, 0xe0072, 0xe0073, 0xe0074},
-    {0xe0000, 0xe0001, 0xe0002, 0xe0003, 0xe0004, 0xe0005, 0xe0006, 0xe0007, 0xe0008},
-    {0xe005a, 0xe005b, 0xe005c, 0xe005d, 0xe005e, 0xe005f, 0xe0060, 0xe0061, 0xe0062},
-    {0xe0036, 0xe0037, 0xe0038, 0xe0039, 0xe003a, 0xe003b, 0xe003c, 0xe003d, 0xe003e},
-    {0xe007e, 0xe007f, 0xe0080, 0xe0081, 0xe0082, 0xe0083, 0xe0084, 0xe0085, 0xe0086},
-    {0xe0012, 0xe0013, 0xe0014, 0xe0015, 0xe0016, 0xe0017, 0xe0018, 0xe0019, 0xe001a},
-    {0xe0051, 0xe0052, 0xe0053, 0xe0054, 0xe0055, 0xe0056, 0xe0057, 0xe0058, 0xe0059},
-    {0xe002d, 0xe002e, 0xe002f, 0xe0030, 0xe0031, 0xe0032, 0xe0033, 0xe0034, 0xe0035},
-    {0xe0075, 0xe0076, 0xe0077, 0xe0078, 0xe0079, 0xe007a, 0xe007b, 0xe007c, 0xe007d},
-    {0xe0009, 0xe000a, 0xe000b, 0xe000c, 0xe000d, 0xe000e, 0xe000f, 0xe0010, 0xe0011},
-    {0xe0063, 0xe0064, 0xe0065, 0xe0066, 0xe0067, 0xe0068, 0xe0069, 0xe006a, 0xe006b},
-    {0xe003f, 0xe0040, 0xe0041, 0xe0042, 0xe0043, 0xe0044, 0xe0045, 0xe0046, 0xe0047},
-    {0xe0087, 0xe0088, 0xe0089, 0xe008a, 0xe008b, 0xe008c, 0xe008d, 0xe008e, 0xe008f},
-    {0xe001b, 0xe001c, 0xe001d, 0xe001e, 0xe001f, 0xe0020, 0xe0021, 0xe0022, 0xe0023}
+    {S_EXP10WAR, S_EXP20WAR, S_EXP30WAR, S_EXP40WAR, S_EXP50WAR, S_EXP60WAR, S_EXP70WAR, S_EXP80WAR, S_EXP90WAR},
+    {S_EXP10VAL, S_EXP20VAL, S_EXP30VAL, S_EXP40VAL, S_EXP50VAL, S_EXP60VAL, S_EXP70VAL, S_EXP80VAL, S_EXP90VAL},
+    {S_EXP10WIZ, S_EXP20WIZ, S_EXP30WIZ, S_EXP40WIZ, S_EXP50WIZ, S_EXP60WIZ, S_EXP70WIZ, S_EXP80WIZ, S_EXP90WIZ},
+    {S_EXP10ARC, S_EXP20ARC, S_EXP30ARC, S_EXP40ARC, S_EXP50ARC, S_EXP60ARC, S_EXP70ARC, S_EXP80ARC, S_EXP90ARC},
+    {S_EXP10DWA, S_EXP20DWA, S_EXP30DWA, S_EXP40DWA, S_EXP50DWA, S_EXP60DWA, S_EXP70DWA, S_EXP80DWA, S_EXP90DWA},
+    {S_EXP10KNI, S_EXP20KNI, S_EXP30KNI, S_EXP40KNI, S_EXP50KNI, S_EXP60KNI, S_EXP70KNI, S_EXP80KNI, S_EXP90KNI},
+    {S_EXP10SOR, S_EXP20SOR, S_EXP30SOR, S_EXP40SOR, S_EXP50SOR, S_EXP60SOR, S_EXP70SOR, S_EXP80SOR, S_EXP90SOR},
+    {S_EXP10JES, S_EXP20JES, S_EXP30JES, S_EXP40JES, S_EXP50JES, S_EXP60JES, S_EXP70JES, S_EXP80JES, S_EXP90JES},
+    {S_EXP10MIN, S_EXP20MIN, S_EXP30MIN, S_EXP40MIN, S_EXP50MIN, S_EXP60MIN, S_EXP70MIN, S_EXP80MIN, S_EXP90MIN},
+    {S_EXP10FAL, S_EXP20FAL, S_EXP30FAL, S_EXP40FAL, S_EXP50FAL, S_EXP60FAL, S_EXP70FAL, S_EXP80FAL, S_EXP90FAL},
+    {S_EXP10JAC, S_EXP20JAC, S_EXP30JAC, S_EXP40JAC, S_EXP50JAC, S_EXP60JAC, S_EXP70JAC, S_EXP80JAC, S_EXP90JAC},
+    {S_EXP10TIG, S_EXP20TIG, S_EXP30TIG, S_EXP40TIG, S_EXP50TIG, S_EXP60TIG, S_EXP70TIG, S_EXP80TIG, S_EXP90TIG},
+    {S_EXP10OGR, S_EXP20OGR, S_EXP30OGR, S_EXP40OGR, S_EXP50OGR, S_EXP60OGR, S_EXP70OGR, S_EXP80OGR, S_EXP90OGR},
+    {S_EXP10UNI, S_EXP20UNI, S_EXP30UNI, S_EXP40UNI, S_EXP50UNI, S_EXP60UNI, S_EXP70UNI, S_EXP80UNI, S_EXP90UNI},
+    {S_EXP10MED, S_EXP20MED, S_EXP30MED, S_EXP40MED, S_EXP50MED, S_EXP60MED, S_EXP70MED, S_EXP80MED, S_EXP90MED},
+    {S_EXP10HYE, S_EXP20HYE, S_EXP30HYE, S_EXP40HYE, S_EXP50HYE, S_EXP60HYE, S_EXP70HYE, S_EXP80HYE, S_EXP90HYE}
 };
-static int legend_snd1[11] = {0x2f001e, 0x2e000f, 0x300019, 0x310017, 0x370017, -1, 0x340021, -1, 0x320016, 0x350014, 0x330016};
-static int legend_snd2[11] = {0x2f001f, 0x2e0010, 0x30001a, -1, 0x370019, -1, -1, -1, 0x320018, 0x350016, 0x330017};
-static int legend_snd3[11] = {0x2f0020, 0x2e0011, 0x30001b, 0x310019, 0x37001a, -1, 0x340024, -1, 0x320019, 0x350017, 0x330018};
-static int legend_snd4[11] = {0x2f0021, 0x2e0012, 0x30001c, 0x31001a, 0x370018, -1, 0x340022, -1, 0x320017, 0x350015, 0x330019};
-long lbl_8012406C[14] = {-1, 0x25000e, -1, 0x270026, -1, -1, -1, 0x290029, 0x2a002b, 0x2b0029, 0x2c002b, 0x2d0029, 0x3b001a, 0x0};
-long lbl_801240A4[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, 0x2b0047, -1, -1, -1, 0x0};
-long lbl_801240DC[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, 0x2b0048, -1, -1, -1, 0x0};
-long lbl_80124114[13] = {-1, 0x250034, 0x260030, 0x27003c, 0x280038, 0x360019, 0x38001c, 0x290023, 0x2a0017, 0x2b0023, 0x2c0023, 0x2d0023, -1};
-long lbl_80124148[13] = {-1, 0x250033, 0x26002f, 0x27003b, 0x280037, 0x360018, 0x38001b, 0x290022, 0x2a0016, 0x2b0022, 0x2c0022, 0x2d0022, -1};
+static int legend_snd1[11] = {S_ALEGWTHROW, S_BLEGWTHROW, S_CLEGWTHROW, S_DLEGWTHROW, S_ELEGWTHROW, -1, S_GLEGWTHROW, -1, S_ILEGWTHROW, S_JEGWTHROW, S_KLEGWTHROW};
+static int legend_snd2[11] = {S_ALEGWFLY, S_BLEGWFLY, S_CLEGWFLY, -1, S_ELEGWALL, -1, -1, -1, S_ILEGWALL, S_JLEGWALL, S_KLEGWFLY};
+static int legend_snd3[11] = {S_ALEGWHIT, S_BLEGWHIT, S_CLEGWHIT, S_DLEGWHIT, S_ELEGWALSTP, -1, S_GLEGWALSTP, -1, S_ILEGWALSTP, S_JLEGWALSTP, S_KLEGWHIT};
+static int legend_snd4[11] = {S_ALEGWPDN, S_BLEGWPDN, S_CLEGWPDN, S_DLEGWPDN, S_ELEGWPDN, -1, S_GLEGWPDN, -1, S_ILEGWPDN, S_JLEGWPDN, S_KLEGWPDN};
+long lbl_8012406C[14] = {-1, S_TRANSPORTA, -1, S_TRANSPORTC, -1, -1, -1, S_TRANSPORTG, S_TRANSPORTH, S_TRANSPORTI, S_TRANSPORTJ, S_TRANSPORTK, S_TRANSPORTS3, 0x0};
+long lbl_801240A4[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, S_MINECAREXPLO, -1, -1, -1, 0x0};
+long lbl_801240DC[14] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, S_MINECARPHIT, -1, -1, -1, 0x0};
+long lbl_80124114[13] = {-1, S_GENKILLA, S_GENKILLB, S_GENKILLC, S_GENKILLD, S_GENKILLE, S_GENKILLF, S_GENKILLG, S_GENKILLH, S_GENKILLI, S_GENKILLJ, S_GENKILLK, -1};
+long lbl_80124148[13] = {-1, S_GENDAMA, S_GENDAMB, S_GENDAMC, S_GENDAMD, S_GENDAME, S_GENDAMF, S_GENDAMG, S_GENDAMH, S_GENDAMI, S_GENDAMJ, S_GENDAMK, -1};
 long lbl_8012417C[11][8] = {
-    {0x2e000b, 0x2e000c, 0x2e000d, 0x2e000d, 0x2e000d, -1, -1, -1},
-    {0x2f0018, 0x2f0019, 0x2f001a, 0x2f001a, 0x2f001a, -1, -1, -1},
-    {0x300015, 0x300016, 0x300017, 0x300017, 0x300017, -1, -1, -1},
-    {0x310013, 0x310014, 0x310015, 0x310015, 0x310015, -1, -1, -1},
-    {0x330011, 0x330012, 0x330013, 0x330014, 0x330014, -1, -1, -1},
-    {0x320011, 0x320012, 0x320013, 0x320014, 0x320014, -1, -1, -1},
-    {0x35000f, 0x350010, 0x350011, 0x350012, 0x350012, -1, -1, -1},
-    {0x340018, 0x340019, 0x34001a, 0x34001b, 0x34001b, -1, -1, -1},
-    {0x370015, 0x370016, -1, -1, -1, -1, -1, -1},
-    {0x390014, 0x390014, -1, -1, -1, -1, -1, -1},
-    {0x3a0014, 0x3a0014, -1, -1, -1, -1, -1, -1}
+    {S_DEFEATVOXB, S_RUNEVOX0B, S_RUNEVOX1B, S_RUNEVOX1B, S_RUNEVOX1B, -1, -1, -1},
+    {S_DEFEATVOXA, S_RUNEVOX0A, S_RUNEVOX1A, S_RUNEVOX1A, S_RUNEVOX1A, -1, -1, -1},
+    {S_DEFEATVOXC, S_RUNEVOX0C, S_RUNEVOX1C, S_RUNEVOX1C, S_RUNEVOX1C, -1, -1, -1},
+    {S_DEFEATVOXD, S_RUNEVOX0D, S_RUNEVOX1D, S_RUNEVOX1D, S_RUNEVOX1D, -1, -1, -1},
+    {S_DEFEATVOXK, S_RUNEVOX0K, S_RUNEVOX1K, S_RUNEVOX2K, S_RUNEVOX2K, -1, -1, -1},
+    {S_DEFEATVOXI, S_RUNEVOX0I, S_RUNEVOX1I, S_RUNEVOX2I, S_RUNEVOX2I, -1, -1, -1},
+    {S_DEFEATVOXJ, S_RUNEVOX0J, S_RUNEVOX1J, S_RUNEVOX2J, S_RUNEVOX2J, -1, -1, -1},
+    {S_DEFEATVOXG, S_RUNEVOX0G, S_RUNEVOX1G, S_RUNEVOX2G, S_RUNEVOX2G, -1, -1, -1},
+    {S_E2VOXA, S_E2VOXB, -1, -1, -1, -1, -1, -1},
+    {S_ENDVOX, S_ENDVOX, -1, -1, -1, -1, -1, -1},
+    {S_GRMDESTVOX, S_GRMDESTVOX, -1, -1, -1, -1, -1, -1}
 };
-long lbl_801242DC[9] = {-1, 0xe0093, 0xe0094, 0xe0095, 0xe0096, 0xe0097, 0xe0092, 0xe0090, 0xe0091};
-long lbl_80124300[9] = {-1, 0xe009b, 0xe009c, 0xe009d, 0xe009e, 0xe009f, 0xe009a, 0xe0098, 0xe0099};
-long lbl_80124324[3] = {0xe00a0, 0xe00a1, 0xe00a2};
-long lbl_80124330[4] = {0x10057, 0x10045, 0x10058, 0x10047};
-long lbl_80124340[4] = {0x10055, 0x10046, 0x10056, 0x10048};
+long lbl_801242DC[9] = {-1, S_SHRD4TWN, S_SHRD4MNT, S_SHRD4CST, S_SHRD4SKY, S_SHRD4FOR, S_SHRD4DES, S_SHRD4ICE, S_SHRD4DRM};
+long lbl_80124300[9] = {-1, S_CRYS4TWN, S_CRYS4MNT, S_CRYS4CST, S_CRYS4SKY, S_CRYS4FOR, S_CRYS4DES, S_CRYS4ICE, S_CRYS4DRM};
+long lbl_80124324[3] = {S_FNGS4WST, S_FTHS4WST, S_CLWS4BTL};
+long lbl_80124330[4] = {S_SKORNTAUNT3, S_QUIK2LEAVE, S_SKORNTAUNT4, S_FRGTLGND};
+long lbl_80124340[4] = {S_SKORNTAUNT1, S_TOOHASTY, S_SKORNTAUNT2, S_SRCHBTTR};
 
 #define offsetof(type, member) ((u32)&(((type*)0)->member))
 
@@ -358,11 +359,11 @@ void AudioTowerFX(int sel)
     int id = -1;
 
     switch (sel) {
-    case 1:  id = 0xE00A3; break;
+    case 1:  id = S_RUNEHIT; break;
     case 2:  id = 22; break;
-    case 10: id = 0xE00AA; break;
-    case 14: id = 0xE00AB; break;
-    case 21: id = 0xE00A9; break;
+    case 10: id = S_SHRDS127; break;
+    case 14: id = S_SHRD8; break;
+    case 21: id = S_RUNEFALL; break;
     }
     if (id >= 0) {
         sndFxPlay3D(id, 0, 255, 10);
@@ -374,11 +375,11 @@ int AudioRuneSpeech(int sel)
     int id = -1;
 
     switch (sel) {
-    case 0:  id = 0xE00A4; break;
-    case 13: id = 0xE00A8; break;
-    case 36: id = 0xE00A7; break;
-    case 25: id = 0xE00A5; break;
-    case 26: id = 0xE00A6; break;
+    case 0:  id = S_FNDRUNEYOU; break;
+    case 13: id = S_RUNE13NO; break;
+    case 36: id = S_RUNE13YES; break;
+    case 25: id = S_12RUNENO; break;
+    case 26: id = S_12RUNEYES; break;
     }
     if (id >= 0) {
         sndFxQueAddEx(1, id, -1.0f, 10.0f, 224, 127, 2);
@@ -413,9 +414,9 @@ void AudioShardSpeech(int idx)
     if (idx < 9) {
         id = lbl_801242DC[idx];
     } else if (idx == 15) {
-        id = 0xE00AC;
+        id = S_CONTINUEVOX;
     } else if (idx == 16) {
-        id = 0x3000B;
+        id = S_4KEYVOX;
     }
     if (id >= 0) {
         sndFxQueAddEx(1, id, -1.0f, 10.0f, 224, 127, 2);
@@ -438,7 +439,7 @@ void AudioGeneratorDamaged(int pos, int sel)
     int id = lbl_80124148[mt];
 
     if (mt == 10 && sel == 24) {
-        id = 0x2C0024;
+        id = S_GENDAMWAR;
     }
     sndFxPlay3DAtten(id, pos, 180, 91);
 }
@@ -449,7 +450,7 @@ void AudioGeneratorDies(int pos, int sel)
     int id = lbl_80124114[mt];
 
     if (mt == 10 && sel == 24) {
-        id = 0x2C0025;
+        id = S_GENKILLWAR;
     }
     if (gBossType < 0 && id >= 0) {
         sndFxPlay3DAtten(id, pos, 127, 81);
@@ -543,18 +544,18 @@ void fn_8009CB44(s32 pidx, u32 sound, u32 extra)
 
     if (lbl_8034476C <= 1) {
         switch (event) {
-        case 0x1003D:
-        case 0x2002C:
+        case S_GAINEDLEVEL:
+        case S_SHRINKVOX:
             volume = lbl_80348490;
-            if (event == 0x1003D) {
+            if (event == S_GAINEDLEVEL) {
                 volume = lbl_80348494;
             }
-            AudioWithName(-1, pidx, volume, 0x20010, event);
+            AudioWithName(-1, pidx, volume, S_HAS, event);
             return;
-        case 0x2000F:
+        case S_NOWIT:
             AudioWithName(-1, pidx, lbl_80348498, event, tail);
             return;
-        case 0x1002C:
+        case S_POJOVOX:
             AudioWithName(-1, pidx, lbl_80348498, event, tail);
             return;
         }
@@ -566,57 +567,57 @@ void fn_8009CB44(s32 pidx, u32 sound, u32 extra)
     }
 
     switch (event) {
-    case 0x1003D:
-    case 0x20011:
-    case 0x20012:
-    case 0x20013:
-    case 0x20014:
-    case 0x20015:
-    case 0x20016:
-    case 0x20017:
-    case 0x20018:
-    case 0x20019:
-    case 0x2001A:
-    case 0x2001B:
-    case 0x2001C:
-    case 0x2001D:
-    case 0x2001E:
-    case 0x2001F:
-    case 0x20020:
-    case 0x20021:
-    case 0x20022:
-    case 0x20023:
-    case 0x20024:
-    case 0x20025:
-    case 0x20026:
-    case 0x20027:
-    case 0x20028:
-    case 0x2002B:
-    case 0x2002C:
-    case 0x2002D:
-    case 0x2002E:
-    case 0x2002F:
-    case 0x20030:
-    case 0x20031:
-    case 0x20035:
-    case 0x20036:
-    case 0x20037:
-    case 0x20038:
-    case 0x20039:
-    case 0x2003A:
-    case 0x2003B:
-    case 0x2003C:
-    case 0x2003D:
+    case S_GAINEDLEVEL:
+    case S_XSTRENGTH:
+    case S_XARMORN:
+    case S_XSPEED:
+    case S_XMAGIC:
+    case S_INVISVOX:
+    case S_INVULVOX:
+    case S_LEVVOX:
+    case S_GROWTHVOX:
+    case S_3WAYSHOTVOX:
+    case S_5WAYSHOTVOX:
+    case S_REFLECTVOX:
+    case S_SUPERVOX:
+    case S_XRAYVOX:
+    case S_STOPPEDVOX:
+    case S_ANTIDEATHVOX:
+    case S_FIREAMVOX:
+    case S_LGHTNGAMVOX:
+    case S_LIGHTAMVOX:
+    case S_ACIDAMVOX:
+    case S_FIREBRVOX:
+    case S_LGHTNGBRVOX:
+    case S_LIGHTBRVOX:
+    case S_ACIDBRVOX:
+    case S_REFLECTSHVOX:
+    case S_PHOENIXVOX:
+    case S_SHRINKVOX:
+    case S_HAMMERVOX:
+    case S_MASKVOX:
+    case S_HORNSVOX:
+    case S_GAUNTLETVOX:
+    case S_RAPIDFIREVOX:
+    case S_ICEAXEVOX:
+    case S_SAVIORVOX:
+    case S_BELLOWSVOX:
+    case S_LANTERNVOX:
+    case S_SCIMITARVOX:
+    case S_LAMPVOX:
+    case S_JAVELINVOX:
+    case S_BOOKVOX:
+    case S_PARCHVOX:
         volume = lbl_80348490;
-        if (event == 0x1003D) {
+        if (event == S_GAINEDLEVEL) {
             volume = lbl_80348494;
         }
-        AudioWithName(-1, pidx, volume, 0x20010, event);
+        AudioWithName(-1, pidx, volume, S_HAS, event);
         return;
-    case 0x2000F:
+    case S_NOWIT:
         AudioWithName(-1, pidx, lbl_80348498, event, tail);
         return;
-    case 0x1002C:
+    case S_POJOVOX:
         AudioWithName(-1, pidx, lbl_80348498, event, tail);
         return;
     }
@@ -653,14 +654,14 @@ void fn_8009D288(void)
 void fn_8009D2B4(void)
 {
     if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0x2000D, -1.0f, 10.0f, 224, 127, 2);
+        sndFxQueAddEx(1, S_FINDEXIT, -1.0f, 10.0f, 224, 127, 2);
     }
 }
 
 void fn_8009D300(void)
 {
     if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0x10006, -1.0f, 10.0f, 224, 127, 2);
+        sndFxQueAddEx(1, S_SHOTSSTUN, -1.0f, 10.0f, 224, 127, 2);
     }
 }
 
@@ -816,9 +817,9 @@ void fn_8009D91C(int pos)
     int id = lbl_80123AAC[mt];
 
     if (mt == 6 && sMusicTrackLo == 1) {
-        id = 0x390000;
+        id = S_ROCKBREAKF2;
     } else if (mt == 9 && sMusicTrackLo == 4) {
-        id = 0x32000D;
+        id = S_ICEBREAKY;
     }
     if (id >= 0) {
         sndFxPlay3DAtten(id, pos, 224, 18);
@@ -827,7 +828,7 @@ void fn_8009D91C(int pos)
 
 void fn_8009D9A4(int pos)
 {
-    sndFxPlay3DAtten(0x250001, pos, 224, 50);
+    sndFxPlay3DAtten(S_SERPENT, pos, 224, 50);
 }
 
 void fn_8009D9D8(int pos)
@@ -875,16 +876,16 @@ void fn_8009DCB4(int pos)
 void fn_8009DCE4(int pos)
 {
     int mt = sMusicTrackHi;
-    int id = 0x260027;
+    int id = S_FIREHOLE;
 
     if (mt == 3) {
-        id = 0x270032;
+        id = S_FIREHOLEC;
     }
     if (mt == 4) {
-        id = 0x280000;
+        id = S_FIREHOLED;
     }
     if (mt == 6) {
-        id = 0x38001F;
+        id = S_FIREHOLEF;
     }
     sndFxPlay3DAtten(id, pos, 127, 50);
 }
@@ -952,7 +953,7 @@ void fn_8009DB24(int sel, int arg)
     soundId = -1;
     switch (sel) {
     case 1:
-        soundId = 0x30000B;
+        soundId = S_DJINNPHIT2;
         flags = 14;
         break;
     case 2:
@@ -960,7 +961,7 @@ void fn_8009DB24(int sel, int arg)
         flags = 54;
         break;
     case 3:
-        soundId = 0x30000D;
+        soundId = S_DJINNPHIT4;
         flags = 14;
         break;
     case 5: {
@@ -1015,7 +1016,7 @@ void fn_8009DB24(int sel, int arg)
         flags = 15;
         break;
     case 12:
-        soundId = 0x310011;
+        soundId = S_DRIDSPLAT;
         pan = 127;
         flags = 14;
         break;
@@ -1464,24 +1465,24 @@ void AudioPlayerHit(int pidx, int a)
 
 void fn_8009FA84(void)
 {
-    sndFxPlayHandle(0xC0085, 224, 20);
+    sndFxPlayHandle(S_TIMEISRUNNING, 224, 20);
 }
 
 void fn_8009FAB4(void)
 {
     if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0x10029, -1.0f, 1.0f, 224, 127, 2);
+        sndFxQueAddEx(1, S_GRAB, -1.0f, 1.0f, 224, 127, 2);
     }
 }
 
 void fn_8009FB00(void)
 {
-    sndFxPlayHandle(0x1005A, 224, 20);
+    sndFxPlayHandle(S_GAMEOVERVOX, 224, 20);
 }
 
 int fn_8009FB30(void)
 {
-    int id = 0x3B0025;
+    int id = S_SECRETCHAR;
 
     if (good_wiz_state <= 2) {
         sndFxQueAddEx(1, id, -1.0f, 1.0f, 224, 127, 2);
@@ -1549,7 +1550,7 @@ void AudioEnterNextStage(void)
 
 void AudioPlayerBreath(int pidx)
 {
-    int sound = sMusicTrackHi == 13 ? 0x30014 : 0x2000C;
+    int sound = sMusicTrackHi == 13 ? S_WAITINGL : S_WAITING;
 
     AudioWithName(-1, pidx, 5.0f, sound, -1);
 }
@@ -1559,7 +1560,7 @@ void fn_8009FEA0(int pidx)
     int track = lbl_801232C8[pidx];
 
     if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0x10001, -1.0f, 3.0f, 224, track, 2);
+        sndFxQueAddEx(1, S_HEROIC, -1.0f, 3.0f, 224, track, 2);
     }
 }
 
@@ -1568,7 +1569,7 @@ void fn_8009FEFC(int pidx)
     int track = lbl_801232C8[pidx];
 
     if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0x10000, -1.0f, 3.0f, 224, track, 2);
+        sndFxQueAddEx(1, S_BRAVERY, -1.0f, 3.0f, 224, track, 2);
     }
 }
 
@@ -1577,7 +1578,7 @@ void fn_8009FF54(int pos)
     int track = AudioAng(pos);
 
     if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0x20033, -1.0f, 3.0f, 224, track, 2);
+        sndFxQueAddEx(1, S_UGETCLOSER, -1.0f, 3.0f, 224, track, 2);
     }
 }
 
@@ -1586,7 +1587,7 @@ void fn_8009FFA4(int pos)
     int track = AudioAng(pos);
 
     if (good_wiz_state <= 2) {
-        sndFxQueAddEx(1, 0x20034, -1.0f, 3.0f, 224, track, 2);
+        sndFxQueAddEx(1, S_RUNENEAR, -1.0f, 3.0f, 224, track, 2);
     }
 }
 
@@ -1595,11 +1596,11 @@ void AudioDamageTile(int pos, int idx)
     if (idx < 7) {
         int id = lbl_8012382C[sMusicTrackHi][idx];
 
-        if (id == 0x260027 && gBossType == 34) {
-            id = 0x2E0009;
+        if (id == S_FIREHOLE && gBossType == 34) {
+            id = S_FIREHOLE2;
         }
         if (id >= 0) {
-            if (id == 0x250002 || id == 0x28002E) {
+            if (id == S_TENTACLES || id == S_TENTACLESD) {
                 sndFxPlay3D(id, pos, 180, 50);
             } else {
                 sndFxPlay3D(id, pos, 127, 50);
@@ -1744,7 +1745,7 @@ void AudioPlayerPoison(int pidx)
     Player* player = &gPlayers[pidx];
 
     if (player->state == 1) {
-        if (!(player->shield_flags & 0x10000)) {
+        if (!(player->shield_flags & S_BRAVERY)) {
             int id = lbl_80123564[player->char_type];
 
             if (id >= 0) {
@@ -1807,7 +1808,7 @@ void AudioNumRunesFound(int runeCount)
     }
     if (runeCount == 1) {
         if (good_wiz_state <= 2) {
-            sndFxQueAddEx(1, 0x10030, -1.0f, -1.0f, 224, 127, 2);
+            sndFxQueAddEx(1, S_RUNEFOUND1, -1.0f, -1.0f, 224, 127, 2);
         }
     } else if (runeCount <= 12) {
         int id = lbl_8012348C[runeCount - 2];
@@ -1816,7 +1817,7 @@ void AudioNumRunesFound(int runeCount)
             sndFxQueAddEx(1, id, -1.0f, -1.0f, 224, 127, 2);
         }
         if (good_wiz_state <= 2) {
-            sndFxQueAddEx(1, 0x10031, -1.0f, -1.0f, 224, 127, 2);
+            sndFxQueAddEx(1, S_RUNEFOUND2, -1.0f, -1.0f, 224, 127, 2);
         }
     }
 }
@@ -1826,16 +1827,16 @@ void fn_8009FFF4(int sel, int pidx)
     switch (sel) {
     case 0:
     default:
-        AudioWithName(-1, pidx, 2.0f, 0x10004, -1);
+        AudioWithName(-1, pidx, 2.0f, S_NEEDSFOOD, -1);
         break;
     case 1:
-        AudioWithName(-1, pidx, 1.0f, 0x10005, -1);
+        AudioWithName(-1, pidx, 1.0f, S_BADLY, -1);
         break;
     case 2:
-        AudioWithName(-1, pidx, 1.0f, 0x10003, -1);
+        AudioWithName(-1, pidx, 1.0f, S_LIFEFORCE, -1);
         break;
     case 3:
-        AudioWithName(-1, pidx, 0.5f, 0x20000, -1);
+        AudioWithName(-1, pidx, 0.5f, S_ABOUT, -1);
         break;
     }
 }
@@ -1886,9 +1887,9 @@ void fn_8009D7E4(int a, int pos)
 void AudioExp(int pidx, int flag)
 {
     if (flag > 0) {
-        AudioWithName(-1, pidx, 3.0f, 0x20010, 0x1003D);
+        AudioWithName(-1, pidx, 3.0f, S_HAS, S_GAINEDLEVEL);
     } else if (flag < 0) {
-        AudioWithName(-1, pidx, 3.0f, 0x1003E, -1);
+        AudioWithName(-1, pidx, 3.0f, S_LOSTLEVEL, -1);
     }
 }
 
@@ -1897,7 +1898,7 @@ int fn_8009CD80(int a, int b, int val)
     int id;
 
     if (val >= 99) {
-        id = 0x1003F;
+        id = S_EXP99ALL;
     } else {
         id = lbl_80123D7C[b][val / 10 - 1];
     }
@@ -1945,7 +1946,7 @@ void fn_8009CEE0(int pidx, int sel, int flags)
         soundId = 38;
         break;
     case 6:
-        if (flags & 0x200000) {
+        if (flags & S_SHOP_G) {
             soundId = 41;
         }
         break;
