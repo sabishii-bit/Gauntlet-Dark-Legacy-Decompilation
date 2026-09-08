@@ -2278,9 +2278,9 @@ void setup_sel_menu(s32 player, s32 mode)
 {
     u8* bss = lbl_80284878;
     u8* data = lbl_80121688;
-    u8* menu;
     u8* field;
     s32 playerOffset;
+    u8* menu;
     s32 baseChoice;
 
     ClearPlayerControl(player, 2);
