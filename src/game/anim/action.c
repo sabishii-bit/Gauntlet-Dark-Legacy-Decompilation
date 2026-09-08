@@ -127,27 +127,27 @@ s32 DoEnemyAction(void* enemy)
     node = e + 0x1B;
     cur = e[0x33];        /* +0xCC current action */
     act = next;
-    if (act >= 0x1C) {
-        sw = 0;
+    if (act >= E_HIT_REACT1) {
+        sw = E_READY;
     } else {
         sw = cur;
     }
     switch (sw) {
-    case 1:
+    case E_START:
         type = e[0];
         mode = 0;
         interruptible = 0;
         if (type == 1 || type == 4 || type == 10 || type == 7) {
             if (defs[3 * 2] >= 0) {
-                act = 3;
+                act = E_WALK;
             } else {
-                act = 4;
+                act = E_RUN;
             }
         }
         break;
-    case 0:
+    case E_READY:
         if (e[0] == 0x1D) {
-            if (next >= 0x1C) {
+            if (next >= E_HIT_REACT1) {
                 mode = 2;
             } else {
                 mode = 0;
@@ -156,289 +156,289 @@ s32 DoEnemyAction(void* enemy)
         }
         if (e[0] == 0x1B) {
             mode = 2;
-        } else if (next == 3 && defs[9 * 2] >= 0) {
-            act = 9;
+        } else if (next == E_WALK && defs[9 * 2] >= 0) {
+            act = E_READYTOWALK;
             mode = 0;
-        } else if (next == 4 && defs[11 * 2] >= 0) {
-            act = 0xB;
+        } else if (next == E_RUN && defs[11 * 2] >= 0) {
+            act = E_READYTORUN;
             mode = 0;
-        } else if (next == 0xC || next == 0xE || next == 0x10) {
+        } else if (next == E_ATTACK || next == E_ATTACK2 || next == E_ATTACK_PWR) {
             mode = 0;
         }
         break;
-    case 0xB:
-        if (next >= 0x1C) {
+    case E_READYTORUN:
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
             mode = 0;
             interruptible = 0;
             if (defs[4 * 2] >= 0) {
-                act = 4;
+                act = E_RUN;
             } else {
-                act = 3;
+                act = E_WALK;
             }
         }
         break;
-    case 9:
-        if (next >= 0x1C) {
+    case E_READYTOWALK:
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
             mode = 0;
             interruptible = 0;
             if (defs[3 * 2] >= 0) {
-                act = 3;
+                act = E_WALK;
             } else {
-                act = 4;
+                act = E_RUN;
             }
         }
         break;
-    case 8:
-    case 10:
-        if (next >= 0x1C) {
+    case E_WALKTOREADY:
+    case E_RUNTOREADY:
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
             mode = 0;
             interruptible = 0;
-            act = 0;
+            act = E_READY;
         }
         break;
-    case 3:
-    case 5:
-    case 6:
-    case 7:
-        if (e[0] == 0x1D && next == 0) {
+    case E_WALK:
+    case E_FLY:
+    case E_HOVER:
+    case E_LANDING:
+        if (e[0] == 0x1D && next == E_READY) {
             mode = 0;
             interruptible = 0;
-            act = 0;
+            act = E_READY;
         }
-        if (next == 0) {
+        if (next == E_READY) {
             if (defs[8 * 2] >= 0) {
-                act = 8;
+                act = E_WALKTOREADY;
             }
             mode = 0;
         }
         break;
-    case 4:
-        if (next == 0 && defs[10 * 2] >= 0) {
-            act = 10;
+    case E_RUN:
+        if (next == E_READY && defs[10 * 2] >= 0) {
+            act = E_RUNTOREADY;
             mode = 0;
         }
         break;
-    case 0x1C:
+    case E_HIT_REACT1:
         mode = 0;
         interruptible = 0;
         break;
-    case 0x1D:
+    case E_HIT_REACT2:
         mode = 0;
         interruptible = 0;
         if (defs[0x1F * 2] >= 0) {
-            act = 0x1F;
+            act = E_GETUP;
         }
         break;
-    case 0x1E:
+    case E_HIT_REACT3:
         mode = 0;
         interruptible = 0;
         break;
-    case 0x20:
+    case E_DYING:
         mode = 0;
         interruptible = 0;
         break;
-    case 0x1F:
+    case E_GETUP:
         mode = 0;
         interruptible = 0;
         break;
-    case 2:
+    case E_TAUNT:
         mode = 0;
         interruptible = 0;
         break;
-    case 0xC:
+    case E_ATTACK:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            act = 0xD;
+            act = E_ATTACK_R;
         }
         break;
-    case 0xD:
+    case E_ATTACK_R:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
             if (defs[14 * 2] >= 0) {
-                act = 0xE;
+                act = E_ATTACK2;
             } else {
-                if (next == 0xC) {
-                    act = 0xC;
+                if (next == E_ATTACK) {
+                    act = E_ATTACK;
                 }
             }
         }
         break;
-    case 0xE:
+    case E_ATTACK2:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            act = 0xF;
+            act = E_ATTACK2_R;
         }
         break;
-    case 0xF:
+    case E_ATTACK2_R:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            if (next == 0xC) {
-                act = 0xC;
+            if (next == E_ATTACK) {
+                act = E_ATTACK;
             }
         }
         break;
-    case 0x10:
+    case E_ATTACK_PWR:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            act = 0x11;
+            act = E_ATTACK_PWR_R;
         }
         break;
-    case 0x11:
+    case E_ATTACK_PWR_R:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         }
         break;
-    case 0x12:
+    case E_ATTACK4:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
-            mode = 2;
-        } else {
-            act = 0x13;
-        }
-        break;
-    case 0x13:
-        if (next == 0 && e[0xA1] >= 0) {
-            act = 0xC;
-        }
-        break;
-    case 0x14:
-        mode = 0;
-        interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            act = 0x15;
+            act = E_ATTACK4_R;
         }
         break;
-    case 0x15:
-        if (next == 0 && e[0xA1] >= 0) {
-            act = 0xC;
+    case E_ATTACK4_R:
+        if (next == E_READY && e[0xA1] >= 0) {
+            act = E_ATTACK;
         }
         break;
-    case 0x16:
+    case E_ATTACK5:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            if (next == 0x16) {
-                act = 0x17;
+            act = E_ATTACK5_R;
+        }
+        break;
+    case E_ATTACK5_R:
+        if (next == E_READY && e[0xA1] >= 0) {
+            act = E_ATTACK;
+        }
+        break;
+    case E_RUNATTACK:
+        mode = 0;
+        interruptible = 0;
+        if (next >= E_HIT_REACT1) {
+            mode = 2;
+        } else {
+            if (next == E_RUNATTACK) {
+                act = E_RUNATTACK2;
             }
         }
         break;
-    case 0x17:
+    case E_RUNATTACK2:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            if (next == 0x16) {
-                act = 0x16;
+            if (next == E_RUNATTACK) {
+                act = E_RUNATTACK;
             }
         }
         break;
-    case 0x18:
+    case E_THROW:
         if (defs[0x18 * 2] < 0) {
-            act = 0x19;
-            cur = 0x19;
+            act = E_THROW2;
+            cur = E_THROW2;
         }
         /* fallthrough */
-    case 0x19:
+    case E_THROW2:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            act = 0x1A;
+            act = E_THROW_FINISH;
         }
         break;
-    case 0x1A:
+    case E_THROW_FINISH:
         mode = 0;
         interruptible = 0;
-        if (next >= 0x1C) {
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            if (next == 0x18) {
-                act = 0x19;
-            } else if (next == 0) {
-                act = 0x1B;
+            if (next == E_THROW) {
+                act = E_THROW2;
+            } else if (next == E_READY) {
+                act = E_THROWTOREADY;
             }
         }
         break;
-    case 0x1B:
+    case E_THROWTOREADY:
         mode = 0;
         interruptible = 0;
-        act = 0;
-        if (next >= 0x1C) {
+        act = E_READY;
+        if (next >= E_HIT_REACT1) {
             mode = 2;
         }
         break;
-    case 0x21:
+    case E_NACTIONS:
         break;
     }
 
     /* missing-sequence fallbacks */
     switch (act) {
-    case 0xE:
-    case 0x10:
-    case 0x12:
-    case 0x14:
+    case E_ATTACK2:
+    case E_ATTACK_PWR:
+    case E_ATTACK4:
+    case E_ATTACK5:
         if (defs[act * 2] < 0) {
-            act = 0xC;
+            act = E_ATTACK;
         }
         break;
-    case 3:
-    case 0xB:
+    case E_WALK:
+    case E_READYTORUN:
         if (defs[act * 2] < 0) {
-            act = 4;
+            act = E_RUN;
         }
         break;
-    case 4:
-    case 9:
+    case E_RUN:
+    case E_READYTOWALK:
         if (defs[act * 2] < 0) {
-            act = 3;
+            act = E_WALK;
         }
         break;
-    case 8:
-    case 10:
-    case 0x1B:
+    case E_WALKTOREADY:
+    case E_RUNTOREADY:
+    case E_THROWTOREADY:
         if (defs[act * 2] < 0) {
-            act = 0;
+            act = E_READY;
         }
         break;
-    case 0x19:
+    case E_THROW2:
         if (defs[act * 2] < 0) {
-            act = 0x18;
+            act = E_THROW;
         }
         break;
     }
 
     seq = defs[act * 2];
-    if (seq < 0 && act == 0x20) {
+    if (seq < 0 && act == E_DYING) {
         seq = defs[0x3A];
     }
     if (seq < 0) {
@@ -457,50 +457,50 @@ s32 DoEnemyAction(void* enemy)
 
     if (result != 0) {
         switch (cur) {
-        case 0:
+        case E_READY:
             break;
-        case 0xC:
-        case 0xE:
-        case 0x12:
-        case 0x14:
-            if (act == 0xD || act == 0xF || act == 0x13 || act == 0x15) {
+        case E_ATTACK:
+        case E_ATTACK2:
+        case E_ATTACK4:
+        case E_ATTACK5:
+            if (act == E_ATTACK_R || act == E_ATTACK2_R || act == E_ATTACK4_R || act == E_ATTACK5_R) {
                 e[0xB4] |= 1;
             }
             break;
-        case 0x10:
-            if (act == 0x11) {
+        case E_ATTACK_PWR:
+            if (act == E_ATTACK_PWR_R) {
                 e[0xB4] |= 2;
             }
             break;
-        case 0x18:
-        case 0x19:
-            if (act == 0x1A) {
+        case E_THROW:
+        case E_THROW2:
+            if (act == E_THROW_FINISH) {
                 e[0xB4] |= 0x10;
             }
             break;
-        case 0x16:
-            if (act == 0x17) {
+        case E_RUNATTACK:
+            if (act == E_RUNATTACK2) {
                 e[0xB4] |= 0x10;
             }
             break;
         }
         switch (act) {
-        case 0xC:
-        case 0xE:
+        case E_ATTACK:
+        case E_ATTACK2:
             if (e[0] == 0x1B) {
                 SfxSetParent((void*)StartEnemyAtkFX(0, 0), (void*)e[0x19]);
             }
             break;
-        case 0x10:
+        case E_ATTACK_PWR:
             if (e[0] == 0x1B) {
                 SfxSetParent((void*)StartEnemyAtkFX(0, 1), (void*)e[0x19]);
             }
             break;
-        case 0xD:
-        case 0xF:
-        case 0x11:
-        case 0x1D:
-        case 0x20:
+        case E_ATTACK_R:
+        case E_ATTACK2_R:
+        case E_ATTACK_PWR_R:
+        case E_HIT_REACT2:
+        case E_DYING:
             break;
         default:
             if (e[0] == 0x1B) {
@@ -514,7 +514,7 @@ s32 DoEnemyAction(void* enemy)
         f32 dur = 0.0f;
         f32 accum = 0.0f;
 
-        if (act >= 0x18 && act <= 0x1A) {
+        if (act >= E_THROW && act <= E_THROW_FINISH) {
             dur = ef[0xDE] * gCurLevel->ene_mrate + ef[0xE0];
         }
         if (dur > 0.0) {
@@ -579,17 +579,17 @@ void DoPlayerAction(void* player)
     mode = 0;
     didt = 0;
     frame = 0;
-    if (act >= 0x73 && atkCur != 0 && atkCur < 0xB) {
-        d = 0;
+    if (act >= P_USE_MAGIC && atkCur != 0 && atkCur < 0xB) {
+        d = P_READY;
     }
-    if (act >= 0x1D && act < 0x20) {
+    if (act >= P_DEATHGRAB && act < P_ATTACK_SLOW) {
         mode = 2;
     }
-    if (act >= 0x83 && act <= 0x94) {
+    if (act >= P_FALL_DOWN && act <= P_GRABBED) {
         s32 repeatCount;
 
         mode = 2;
-        if (act == 0x94) {
+        if (act == P_GRABBED) {
             repeatCount = 2;
         } else {
             repeatCount = 1;
@@ -598,7 +598,7 @@ void DoPlayerAction(void* player)
     }
     atkD = PlayerAttackType(d);
     if (atkD != 0 && atkD < 0xB && atkNext >= 11) {
-        d = 0;
+        d = P_READY;
         mode = 2;
     }
     if ((atkD < 2 || atkD > 6) && atkD != 8) {
@@ -607,13 +607,13 @@ void DoPlayerAction(void* player)
     p[0x201] = 0;
     dance = 0;
     switch (d) {
-    case 0x7D:
+    case P_ACTION_INIT:
         mode = 2;
         break;
-    case 0:
+    case P_READY:
         didt = 1;
         mode = 2;
-        if (next == 0 && p[0x20D] == 0) {
+        if (next == P_READY && p[0x20D] == 0) {
             s32 hi, lo;
             if ((gControllerButtons & 0x10) != 0) {
                 hi = 0xB4;
@@ -627,109 +627,109 @@ void DoPlayerAction(void* player)
             }
             if (pl->vibe_timer > hi) {
                 mode = 1;
-                act = 1;
+                act = P_IDLE1;
             } else if (pl->vibe_timer2 > lo) {
-                act = 2;
+                act = P_IDLE2;
                 mode = 1;
             }
         }
         break;
-    case 1:
+    case P_IDLE1:
         didt = 0;
         mode = 2;
-        if (next == 0) {
-            act = 0;
+        if (next == P_READY) {
+            act = P_READY;
             mode = 1;
         }
         break;
-    case 2:
+    case P_IDLE2:
         didt = 0;
         mode = 2;
-        if (next == 0) {
-            act = 3;
+        if (next == P_READY) {
+            act = P_IDLE2_LOOP;
             mode = 1;
         }
         break;
-    case 3:
+    case P_IDLE2_LOOP:
         didt = 1;
         mode = 2;
-        if (next == 0) {
-            act = 3;
+        if (next == P_READY) {
+            act = P_IDLE2_LOOP;
             mode = 0;
         }
         break;
-    case 0x15:
+    case P_SHIELD_READY:
         didt = 1;
         mode = 2;
         break;
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 0x77:
-    case 0x78:
+    case P_DEFENDL:
+    case P_DEFENDR:
+    case P_DEFENDB:
+    case P_DEFENDF:
+    case P_DEFEND1:
+    case P_DEFEND2:
         mode = 1;
-        if (d == 0x77) {
-            act = 0x78;
+        if (d == P_DEFEND1) {
+            act = P_DEFEND2;
         } else {
-            act = 0x79;
+            act = P_DEFEND3;
         }
         break;
-    case 9:
-    case 0xB:
-        if (next >= 0x20 || atkNext != 0) {
+    case P_STRAFE_WLKF:
+    case P_STRAFE_WLKB:
+        if (next >= P_ATTACK_SLOW || atkNext != 0) {
             mode = 2;
         }
-        if (next == 9) {
-            act = 10;
+        if (next == P_STRAFE_WLKF) {
+            act = P_STRAFE_WLKF2;
         }
-        if (next == 0xB) {
-            act = 0xC;
+        if (next == P_STRAFE_WLKB) {
+            act = P_STRAFE_WLKB2;
         }
         break;
-    case 10:
-    case 0xC:
-        if (next >= 0x20 || atkNext != 0) {
+    case P_STRAFE_WLKF2:
+    case P_STRAFE_WLKB2:
+        if (next >= P_ATTACK_SLOW || atkNext != 0) {
             mode = 2;
         }
-        if (next == 9) {
-            act = 9;
+        if (next == P_STRAFE_WLKF) {
+            act = P_STRAFE_WLKF;
         }
-        if (next == 0xB) {
-            act = 0xB;
+        if (next == P_STRAFE_WLKB) {
+            act = P_STRAFE_WLKB;
         }
         break;
-    case 0xD:
-    case 0xF:
-        if (next >= 0x20 || atkNext != 0) {
+    case P_STRAFE_WLKL:
+    case P_STRAFE_WLKR:
+        if (next >= P_ATTACK_SLOW || atkNext != 0) {
             mode = 2;
         }
-        if (next == 0xD) {
-            act = 0xE;
+        if (next == P_STRAFE_WLKL) {
+            act = P_STRAFE_WLKL2;
         }
-        if (next == 0xF) {
-            act = 0x10;
+        if (next == P_STRAFE_WLKR) {
+            act = P_STRAFE_WLKR2;
         }
         break;
-    case 0xE:
-    case 0x10:
-        if (next >= 0x20 || atkNext != 0) {
+    case P_STRAFE_WLKL2:
+    case P_STRAFE_WLKR2:
+        if (next >= P_ATTACK_SLOW || atkNext != 0) {
             mode = 2;
         }
-        if (next == 0xD) {
-            act = 0xD;
+        if (next == P_STRAFE_WLKL) {
+            act = P_STRAFE_WLKL;
         }
-        if (next == 0xF) {
-            act = 0xF;
+        if (next == P_STRAFE_WLKR) {
+            act = P_STRAFE_WLKR;
         }
         break;
-    case 0x47:
-    case 0x49:
-        if (next == 0x47) {
-            act = 0x48;
+    case P_STRAFE_ATKF:
+    case P_STRAFE_ATKB:
+        if (next == P_STRAFE_ATKF) {
+            act = P_STRAFE_ATKF2;
         }
-        if (next == 0x49) {
-            act = 0x4A;
+        if (next == P_STRAFE_ATKB) {
+            act = P_STRAFE_ATKB2;
         }
         if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree->frame < 2.0f) {
@@ -739,29 +739,13 @@ void DoPlayerAction(void* player)
             }
         }
         break;
-    case 0x48:
-    case 0x4A:
-        if (next == 0x47) {
-            act = 0x47;
+    case P_STRAFE_ATKF2:
+    case P_STRAFE_ATKB2:
+        if (next == P_STRAFE_ATKF) {
+            act = P_STRAFE_ATKF;
         }
-        if (next == 0x49) {
-            act = 0x49;
-        }
-        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-            if (atree->frame < 2.0f) {
-                MBTreeSetFlags(pl->weaphold_node, 2, 0);
-            } else {
-                MBTreeClearFlags(pl->weaphold_node, 2, 0);
-            }
-        }
-        break;
-    case 0x4B:
-    case 0x4D:
-        if (next == 0x4B) {
-            act = 0x4C;
-        }
-        if (next == 0x4D) {
-            act = 0x4E;
+        if (next == P_STRAFE_ATKB) {
+            act = P_STRAFE_ATKB;
         }
         if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree->frame < 2.0f) {
@@ -771,13 +755,13 @@ void DoPlayerAction(void* player)
             }
         }
         break;
-    case 0x4C:
-    case 0x4E:
-        if (next == 0x4B) {
-            act = 0x4B;
+    case P_STRAFE_ATKL:
+    case P_STRAFE_ATKR:
+        if (next == P_STRAFE_ATKL) {
+            act = P_STRAFE_ATKL2;
         }
-        if (next == 0x4D) {
-            act = 0x4D;
+        if (next == P_STRAFE_ATKR) {
+            act = P_STRAFE_ATKR2;
         }
         if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree->frame < 2.0f) {
@@ -787,131 +771,147 @@ void DoPlayerAction(void* player)
             }
         }
         break;
-    case 0x17:
-    case 0x18:
+    case P_STRAFE_ATKL2:
+    case P_STRAFE_ATKR2:
+        if (next == P_STRAFE_ATKL) {
+            act = P_STRAFE_ATKL;
+        }
+        if (next == P_STRAFE_ATKR) {
+            act = P_STRAFE_ATKR;
+        }
+        if (pl->weaphold_node != 0 && (p[2] & 3) != 2 && p[2] != 3) {
+            if (atree->frame < 2.0f) {
+                MBTreeSetFlags(pl->weaphold_node, 2, 0);
+            } else {
+                MBTreeClearFlags(pl->weaphold_node, 2, 0);
+            }
+        }
+        break;
+    case P_PIVOTL:
+    case P_PIVOTR:
         mode = 2;
         break;
-    case 0x11:
-        if (next >= 0x1B || atkNext != 0) {
+    case P_WALK:
+        if (next >= P_HIT_REACT || atkNext != 0) {
             mode = 2;
         }
-        if (next == 0x11) {
-            act = 0x12;
+        if (next == P_WALK) {
+            act = P_WALK2;
         }
         break;
-    case 0x12:
-        if (next >= 0x1B || atkNext != 0) {
+    case P_WALK2:
+        if (next >= P_HIT_REACT || atkNext != 0) {
             mode = 2;
         }
-        if (next == 0x11) {
-            act = 0x11;
+        if (next == P_WALK) {
+            act = P_WALK;
         }
         break;
-    case 0x13:
-        if (next >= 0x1B || atkNext != 0) {
+    case P_RUN:
+        if (next >= P_HIT_REACT || atkNext != 0) {
             mode = 2;
         }
-        if (next == 0x13) {
-            act = 0x14;
+        if (next == P_RUN) {
+            act = P_RUN2;
         }
         break;
-    case 0x14:
-        if (next == 0x1B || atkNext != 0) {
+    case P_RUN2:
+        if (next == P_HIT_REACT || atkNext != 0) {
             mode = 2;
         }
-        if (next == 0x13) {
-            act = 0x13;
+        if (next == P_RUN) {
+            act = P_RUN;
         }
         break;
-    case 0x16:
-        if (next >= 0x20 || atkNext != 0) {
+    case P_SHIELD_RUN:
+        if (next >= P_ATTACK_SLOW || atkNext != 0) {
             mode = 2;
         }
         break;
-    case 8:
+    case P_SHOVE:
         didt = 1;
-        if (next >= 0x20) {
+        if (next >= P_ATTACK_SLOW) {
             mode = 2;
         }
         break;
-    case 0x20:
+    case P_ATTACK_SLOW:
         if (atkNext >= 0xB || (u32)(atkNext - 9) <= 1) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
         } else {
-            act = 0x21;
+            act = P_ATTACK_SLOW1;
         }
         break;
-    case 0x21:
+    case P_ATTACK_SLOW1:
         p[0x201] = 1;
-        act = 0x22;
+        act = P_ATTACK_SLOW1_R;
         break;
-    case 0x22:
+    case P_ATTACK_SLOW1_R:
         if (atkNext == 1) {
             mode = 2;
         }
         break;
-    case 0x27:
-    case 0x28:
-    case 0x29:
+    case P_ATTACK_QUICK:
+    case P_ATTACK_QUICK2:
+    case P_ATTACK_QUICK3:
         flags = p[0x23E];
         if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
             if (combo == 1) {
-                act = 0x23;
+                act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
-                act = 0x25;
+                act = P_ATTACK_PWRA_MED;
             } else {
-                act = 0x3C;
+                act = P_ATTACK_360;
             }
         } else if (flags != 0 || p[0x23D] != 0) {
             if ((p[0x243] & 8U) != 0) {
-                act = cur == 0x28 ? 0x2A : 0x2B;
+                act = cur == P_ATTACK_QUICK2 ? P_ATTACK_QUICK2_R : P_ATTACK_QUICK3_R;
             } else if ((p[0x243] & 4U) != 0) {
-                act = cur == 0x28 ? 0x40 : 0x3F;
+                act = cur == P_ATTACK_QUICK2 ? P_ATTACK_STEP3 : P_ATTACK_STEP2;
             } else {
-                act = cur == 0x28 ? 0x29 : 0x28;
+                act = cur == P_ATTACK_QUICK2 ? P_ATTACK_QUICK3 : P_ATTACK_QUICK2;
             }
         } else {
-            act = cur == 0x28 ? 0x2A : 0x2B;
+            act = cur == P_ATTACK_QUICK2 ? P_ATTACK_QUICK2_R : P_ATTACK_QUICK3_R;
         }
         break;
-    case 0x2A:
-    case 0x2B:
+    case P_ATTACK_QUICK2_R:
+    case P_ATTACK_QUICK3_R:
         flags = p[0x23E];
         if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
             if (combo == 1) {
-                act = 0x23;
+                act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
-                act = 0x25;
+                act = P_ATTACK_PWRA_MED;
             } else {
-                act = 0x3C;
+                act = P_ATTACK_360;
             }
         } else if (flags != 0 && atree->frame <= 2.0 &&
                    (p[0x243] & 1U) != 0) {
-            act = cur == 0x2A ? 0x29 : 0x28;
+            act = cur == P_ATTACK_QUICK2_R ? P_ATTACK_QUICK3 : P_ATTACK_QUICK2;
             mode = 2;
         }
         if (atkNext == 1) {
             mode = 2;
         }
         break;
-    case 0x3E:
-    case 0x3F:
-    case 0x40:
+    case P_ATTACK_STEP:
+    case P_ATTACK_STEP2:
+    case P_ATTACK_STEP3:
         flags = p[0x23E];
         if ((flags & 0x400U) != 0 && (combo = p[0x242]) != 0) {
             if (combo == 1) {
-                act = 0x23;
+                act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
-                act = 0x25;
+                act = P_ATTACK_PWRA_MED;
             } else {
-                act = 0x3C;
+                act = P_ATTACK_360;
             }
         } else if (flags != 0 || p[0x23D] != 0) {
             if ((p[0x243] & 8U) != 0) {
                 s32 gapAct;
 
-                if (cur == 0x3F) {
+                if (cur == P_ATTACK_STEP2) {
                     gapAct = 0x41;
                 } else {
                     gapAct = 0x42;
@@ -920,7 +920,7 @@ void DoPlayerAction(void* player)
             } else if ((p[0x243] & 4U) != 0) {
                 s32 gapAct;
 
-                if (cur == 0x3F) {
+                if (cur == P_ATTACK_STEP2) {
                     gapAct = 0x40;
                 } else {
                     gapAct = 0x3F;
@@ -929,7 +929,7 @@ void DoPlayerAction(void* player)
             } else {
                 s32 gapAct;
 
-                if (cur == 0x3F) {
+                if (cur == P_ATTACK_STEP2) {
                     gapAct = 0x29;
                 } else {
                     gapAct = 0x28;
@@ -939,7 +939,7 @@ void DoPlayerAction(void* player)
         } else {
             s32 paired_action;
 
-            if (cur == 0x3F) {
+            if (cur == P_ATTACK_STEP2) {
                 paired_action = 0x41;
             } else {
                 paired_action = 0x42;
@@ -947,195 +947,195 @@ void DoPlayerAction(void* player)
             act = paired_action;
         }
         break;
-    case 0x41:
-    case 0x42:
+    case P_ATTACK_STEP2_R:
+    case P_ATTACK_STEP3_R:
         if ((p[0x23E] & 0x400U) != 0 && (combo = p[0x242]) != 0) {
             if (combo == 1) {
-                act = 0x23;
+                act = P_ATTACK_PWRA_CLOSE;
             } else if (combo == 2) {
-                act = 0x25;
+                act = P_ATTACK_PWRA_MED;
             } else {
-                act = 0x3C;
+                act = P_ATTACK_360;
             }
         } else if (atkNext == 1) {
             mode = 2;
         }
         break;
-    case 0x43:
-    case 0x44:
-    case 0x45:
-    case 0x46:
+    case P_ATTACK_Q3TOSTEP1:
+    case P_ATTACK_Q3TOSTEP1_R:
+    case P_ATTACK_WALK2:
+    case P_ATTACK_WALK2_R:
         if (atkNext == 1) {
             mode = 2;
         }
         break;
-    case 0x2C:
-        act = 0x2E;
+    case P_ATTACK_RIGHT:
+        act = P_ATTACK_RIGHT_R;
         break;
-    case 0x2D:
-        act = 0x2F;
+    case P_ATTACK_RIGHT2:
+        act = P_ATTACK_RIGHT2_R;
         break;
-    case 0x30:
-        act = 0x32;
+    case P_ATTACK_LEFT:
+        act = P_ATTACK_LEFT_R;
         break;
-    case 0x31:
-        act = 0x33;
+    case P_ATTACK_LEFT2:
+        act = P_ATTACK_LEFT2_R;
         break;
-    case 0x34:
-        act = 0x36;
+    case P_ATTACK_180:
+        act = P_ATTACK_180_R;
         break;
-    case 0x35:
-        act = 0x37;
+    case P_ATTACK_1802:
+        act = P_ATTACK_1802_R;
         break;
-    case 0x38:
-        act = 0x3A;
+    case P_ATTACK_180L:
+        act = P_ATTACK_180L_R;
         break;
-    case 0x39:
-        act = 0x3B;
+    case P_ATTACK_180L2:
+        act = P_ATTACK_180L2_R;
         break;
-    case 0x2E:
-    case 0x2F:
-    case 0x32:
-    case 0x33:
-    case 0x36:
-    case 0x37:
-    case 0x3A:
-    case 0x3B:
+    case P_ATTACK_RIGHT_R:
+    case P_ATTACK_RIGHT2_R:
+    case P_ATTACK_LEFT_R:
+    case P_ATTACK_LEFT2_R:
+    case P_ATTACK_180_R:
+    case P_ATTACK_1802_R:
+    case P_ATTACK_180L_R:
+    case P_ATTACK_180L2_R:
         if (atkNext == 1) {
             mode = 2;
         }
         break;
-    case 0x3C:
+    case P_ATTACK_360:
         p[0x201] = 1;
         if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
-            act = 0x25;
+            act = P_ATTACK_PWRA_MED;
         } else {
-            act = 0x3D;
+            act = P_ATTACK_360_R;
         }
         break;
-    case 0x3D:
+    case P_ATTACK_360_R:
         if (atkNext == 1) {
             mode = 2;
         }
         break;
-    case 0x54:
+    case P_ATTACK_PWRA_LOW:
         if (rpt < 2) {
             mode = 0;
         }
-        act = 0x55;
+        act = P_ATTACK_PWRA_LOW_R;
         break;
-    case 0x23:
+    case P_ATTACK_PWRA_CLOSE:
         if (rpt < 2) {
             mode = 0;
         }
-        act = 0x24;
+        act = P_ATTACK_PWRA_CLOSE_R;
         break;
-    case 0x25:
+    case P_ATTACK_PWRA_MED:
         p[0x201] = 1;
         if (rpt < 2) {
             mode = 0;
         }
-        act = 0x26;
+        act = P_ATTACK_PWRA_MED_R;
         break;
-    case 0x63:
+    case P_ATTACK_PWRA_THROW:
         if (rpt < 2) {
             mode = 0;
         }
-        act = 0x64;
+        act = P_ATTACK_PWRA_THROW_R;
         break;
-    case 0x56:
-        if (rpt < 2) {
-            mode = 0;
-        }
-        break;
-    case 0x57:
+    case P_ATTACK_PWRB:
         if (rpt < 2) {
             mode = 0;
         }
         break;
-    case 0x58:
+    case P_ATTACK_PWRC:
+        if (rpt < 2) {
+            mode = 0;
+        }
+        break;
+    case P_COMBO_ACTIVE1:
         mode = 1;
         if (defs[0x59].seq >= 0) {
-            act = 0x59;
+            act = P_COMBO_ACTIVE2;
         } else if (defs[0x5A].seq >= 0) {
-            act = 0x5A;
+            act = P_COMBO_ACTIVE3;
         } else if (rpt < 2) {
             mode = 0;
         }
         break;
-    case 0x5A:
-    case 0x88:
-    case 0x8A:
-    case 0x8B:
-    case 0x8C:
-    case 0x8D:
-    case 0x8E:
-    case 0x90:
-    case 0x91:
-    case 0x92:
-    case 0x93:
+    case P_COMBO_ACTIVE3:
+    case P_COMBO_WAR1:
+    case P_COMBO_WAR3:
+    case P_COMBO_VAL:
+    case P_COMBO_WIZ:
+    case P_COMBO_ARC:
+    case P_COMBO_DWF1:
+    case P_COMBO_DWF3:
+    case P_COMBO_KNI:
+    case P_COMBO_SOR:
+    case P_COMBO_JES:
         if (rpt < 2) {
             mode = 0;
         }
         break;
-    case 0x59:
-    case 0x89:
-    case 0x8F:
+    case P_COMBO_ACTIVE2:
+    case P_COMBO_WAR2:
+    case P_COMBO_DWF2:
         didt = 1;
         if (next != d) {
-            if (defs[d + 1].seq >= 0) {
-                act = d + 1;
+            if (defs[d + P_IDLE1].seq >= 0) {
+                act = d + P_IDLE1;
             }
             mode = 2;
         } else {
             mode = 0;
         }
         break;
-    case 0x24:
-    case 0x26:
-    case 0x55:
-    case 0x64:
+    case P_ATTACK_PWRA_CLOSE_R:
+    case P_ATTACK_PWRA_MED_R:
+    case P_ATTACK_PWRA_LOW_R:
+    case P_ATTACK_PWRA_THROW_R:
         if (rpt == 0) {
             mode = 0;
         }
         break;
-    case 0x4F:
-    case 0x50:
-        if (next == 0x4F) {
+    case P_ATTACK_LOW:
+    case P_ATTACK_LOW2:
+        if (next == P_ATTACK_LOW) {
             s32 gapAct;
 
-            if (cur == 0x4F) {
+            if (cur == P_ATTACK_LOW) {
                 gapAct = 0x50;
             } else {
                 gapAct = 0x4F;
             }
             act = gapAct;
         } else {
-            act = 0x51;
+            act = P_ATTACK_LOW_R;
         }
         break;
-    case 0x51:
+    case P_ATTACK_LOW_R:
         if (atkNext == 1) {
             mode = 2;
-        } else if (next == 0x4F) {
-            act = 0x50;
+        } else if (next == P_ATTACK_LOW) {
+            act = P_ATTACK_LOW2;
             if (defs[0x50].seq < 0) {
-                act = 0x4F;
+                act = P_ATTACK_LOW;
             }
         } else {
             mode = 1;
         }
         break;
-    case 0x52:
+    case P_ATTACK_KICK:
         if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
-            act = 0x54;
+            act = P_ATTACK_PWRA_LOW;
         } else {
-            act = 0x53;
+            act = P_ATTACK_KICK_R;
         }
         break;
-    case 0x53:
+    case P_ATTACK_KICK_R:
         if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
-            act = 0x54;
+            act = P_ATTACK_PWRA_LOW;
         } else {
             if (atkNext == 1) {
                 mode = 2;
@@ -1144,37 +1144,37 @@ void DoPlayerAction(void* player)
             }
         }
         break;
-    case 0x5D:
-    case 0x5E:
+    case P_THROW2:
+    case P_THROW2Q:
         dance = 1;
         /* fallthrough */
-    case 0x5B:
-    case 0x5C:
+    case P_THROW:
+    case P_THROWQ:
         if (atkNext > 1 && atkNext != 9 && atkNext != 10) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
         } else if (atkNext == 7) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
-        } else if (next == 0x73 || next == 0x75) {
+        } else if (next == P_USE_MAGIC || next == P_THROW_MAGIC) {
             mode = 2;
-        } else if (next == 0x65) {
+        } else if (next == P_THROW_STEP) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
         } else {
-            if (next != 0x5B && atree->frame >= 2.0f) {
+            if (next != P_THROW && atree->frame >= 2.0f) {
                 mode = 2;
-                act = ((dance + 1) == 2) ? 0x60 : 0x5F;
+                act = ((dance + P_IDLE1) == P_IDLE2) ? P_THROW2_RELEASE : P_THROW_RELEASE;
             } else {
-                act = ((dance + 1) == 2) ? 0x60 : 0x5F;
+                act = ((dance + P_IDLE1) == P_IDLE2) ? P_THROW2_RELEASE : P_THROW_RELEASE;
             }
         }
         break;
-    case 0x5F:
-    case 0x60: {
+    case P_THROW_RELEASE:
+    case P_THROW2_RELEASE: {
         s32 gapAct;
 
-        if (cur == 0x5F) {
+        if (cur == P_THROW_RELEASE) {
             gapAct = 0x61;
         } else {
             gapAct = 0x62;
@@ -1182,26 +1182,26 @@ void DoPlayerAction(void* player)
         act = gapAct;
         break;
     }
-    case 0x61:
-    case 0x62:
+    case P_THROW_RECOVER:
+    case P_THROW2_RECOVER:
         if (atkNext == 1) {
             mode = 2;
         }
         break;
-    case 0x65:
-    case 0x66:
+    case P_THROW_STEP:
+    case P_THROW_STEP2:
         if (atkNext > 1 && atkNext != 9 && atkNext != 10) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
         } else if (atkNext == 7) {
             mode = 2;
             frame = (s32)(0.5 + atree->frame);
-        } else if (next == 0x73 || next == 0x75) {
+        } else if (next == P_USE_MAGIC || next == P_THROW_MAGIC) {
             mode = 2;
-        } else if (next == 0x65) {
+        } else if (next == P_THROW_STEP) {
             s32 gapAct;
 
-            if (cur == 0x65) {
+            if (cur == P_THROW_STEP) {
                 gapAct = 0x66;
             } else {
                 gapAct = 0x65;
@@ -1209,255 +1209,255 @@ void DoPlayerAction(void* player)
             act = gapAct;
         }
         break;
-    case 0x6B:
-    case 0x6C:
-        if (next == 0x6B) {
-            act = 0x6C;
+    case P_SSHOT:
+    case P_SSHOT2:
+        if (next == P_SSHOT) {
+            act = P_SSHOT2;
             didt = 1;
         } else if (atkNext != 0) {
             mode = 1;
         } else {
-            act = 0x6D;
+            act = P_SSHOT_R;
         }
         break;
-    case 0x6E:
+    case P_BREATHE:
         if (rpt == 0) {
             mode = 0;
         }
-        act = 0x6F;
+        act = P_BREATHE_R;
         break;
-    case 0x70:
+    case P_HAMMER:
         if (rpt == 0) {
             mode = 0;
         }
-        act = 0x71;
+        act = P_HAMMER_R;
         break;
-    case 0x67:
+    case P_FIREL:
         if (rpt == 0) {
             mode = 0;
         }
-        act = 0x69;
+        act = P_FIREL_R;
         break;
-    case 0x68:
+    case P_FIRER:
         if (rpt == 0) {
             mode = 0;
         }
-        act = 0x6A;
+        act = P_FIRER_R;
         break;
-    case 0x73:
-        if (next == 0x75) {
-            act = 0x75;
+    case P_USE_MAGIC:
+        if (next == P_THROW_MAGIC) {
+            act = P_THROW_MAGIC;
             mode = 2;
         } else if ((pl->field_956 & 4) == 0) {
-            act = 0x75;
+            act = P_THROW_MAGIC;
             mode = 0;
         } else {
-            act = 0x74;
+            act = P_MAGIC_RELEASE;
         }
         break;
-    case 0x75:
-        act = 0x76;
+    case P_THROW_MAGIC:
+        act = P_THROW_MAGIC_RELEASE;
         break;
-    case 0x7A:
+    case P_DEATH_REACT:
         didt = 1;
-        if (next == 0 ||
+        if (next == P_READY ||
             (atree->frame < 10.0f && atree->stage == 0)) {
             mode = 0;
         } else {
             mode = 2;
         }
         break;
-    case 0x7B:
+    case P_VICTORY:
         if (rpt == 0) {
             mode = 0;
         }
         didt = 1;
         break;
-    case 0x19:
-    case 0x1A:
-        if (next != 0) {
+    case P_PUSH:
+    case P_PUSHED:
+        if (next != P_READY) {
             mode = 2;
             didt = 1;
         }
         break;
-    case 0x7C:
+    case P_ACTION_START:
         mode = 0;
         break;
-    case 0x7E:
-    case 0x84:
-    case 0x86:
+    case P_ACTION_DEATH:
+    case P_GET_UP:
+    case P_GET_UP_FWD:
         mode = 0;
         if (next == cur) {
-            act = 0;
+            act = P_READY;
         }
         break;
-    case 0x1C:
+    case P_PICKUP:
         if (next == cur) {
-            act = 0;
+            act = P_READY;
         }
         break;
-    case 0x1D:
-    case 0x1E:
-        if (next == 0x1D) {
-            act = 0x1E;
+    case P_DEATHGRAB:
+    case P_DEATHGRAB2:
+        if (next == P_DEATHGRAB) {
+            act = P_DEATHGRAB2;
             didt = 1;
         } else {
-            act = 0x1F;
+            act = P_DEATHGRAB_R;
         }
         break;
-    case 0x1B:
-        if (act >= 0x82) {
+    case P_HIT_REACT:
+        if (act >= P_KNOCKBACK) {
             mode = 3;
         } else {
             mode = 2;
         }
-        if (next == 0 || next == 0x11 || next == 0x13) {
+        if (next == P_READY || next == P_WALK || next == P_RUN) {
             mode = 0;
         }
         break;
-    case 0x80:
+    case P_STUCK:
         didt = 1;
-        if (next != 0) {
+        if (next != P_READY) {
             mode = 2;
         }
         break;
-    case 0x7F:
-    case 0x81:
-    case 0x82:
+    case P_STUN_REACT:
+    case P_SPIKE_HIT:
+    case P_KNOCKBACK:
         mode = 0;
-        if (next >= 0x83) {
+        if (next >= P_FALL_DOWN) {
             mode = 3;
         }
         if (next == cur) {
-            act = 0;
+            act = P_READY;
         }
         break;
-    case 0x83:
+    case P_FALL_DOWN:
         mode = 0;
-        if (next != 0x83) {
-            act = 0x84;
+        if (next != P_FALL_DOWN) {
+            act = P_GET_UP;
             mode = 1;
         }
         break;
-    case 0x85:
+    case P_FALL_DOWN_FWD:
         mode = 0;
-        if (next != 0x85) {
-            act = 0x86;
+        if (next != P_FALL_DOWN_FWD) {
+            act = P_GET_UP_FWD;
             mode = 1;
         }
         break;
-    case 0x87:
+    case P_WHIRLWIND:
         mode = 0;
-        if (next != 0x87) {
-            act = 0x84;
+        if (next != P_WHIRLWIND) {
+            act = P_GET_UP;
             mode = 1;
         }
         break;
-    case 0x94:
+    case P_GRABBED:
         mode = 2;
         didt = 1;
         break;
-    case 0x95:
+    case P_NACTIONS:
         break;
     }
 
     /* direction / follow-up refinement of the chosen action */
     switch (act) {
-    case 0:
+    case P_READY:
         if ((p[0x48] & 0x620000U) != 0) {
-            act = 0x15;
+            act = P_SHIELD_READY;
         }
-        if (cur != 0 && (cur < 0x56 || cur > 0x93) && cur != 0x1B &&
-            (u32)(cur - 0x81) > 1 && (p[2] != 3 || cur != 0x2A)) {
+        if (cur != P_READY && (cur < P_ATTACK_PWRB || cur > P_COMBO_JES) && cur != P_HIT_REACT &&
+            (u32)(cur - P_SPIKE_HIT) > 1 && (p[2] != 3 || cur != P_ATTACK_QUICK2_R)) {
             speed = 0.066667f;
         }
         break;
-    case 0x11:
-    case 0x12:
-    case 0x13:
-    case 0x14:
+    case P_WALK:
+    case P_WALK2:
+    case P_RUN:
+    case P_RUN2:
         if ((p[0x48] & 0x620000U) != 0) {
-            act = 0x16;
-            if (cur == 0x16) {
+            act = P_SHIELD_RUN;
+            if (cur == P_SHIELD_RUN) {
                 mode = 0;
             }
             didt = 1;
         }
         break;
-    case 0x27:
-    case 0x29:
+    case P_ATTACK_QUICK:
+    case P_ATTACK_QUICK3:
         ang = pf[0x241];
         if (ang > 2.3561944905) {
-            act = 0x34;
+            act = P_ATTACK_180;
         } else if (ang < -2.3561944905) {
-            act = 0x38;
+            act = P_ATTACK_180L;
         } else if (ang > 1.0471975513333334) {
-            act = 0x2C;
+            act = P_ATTACK_RIGHT;
         } else if (ang < -1.0471975513333334) {
-            act = 0x30;
+            act = P_ATTACK_LEFT;
         }
         break;
-    case 0x28:
+    case P_ATTACK_QUICK2:
         ang = pf[0x241];
         if (ang > 2.3561944905) {
-            act = 0x35;
+            act = P_ATTACK_1802;
         } else if (ang < -2.3561944905) {
-            act = 0x39;
+            act = P_ATTACK_180L2;
         } else if (ang > 1.0471975513333334) {
-            act = 0x2D;
+            act = P_ATTACK_RIGHT2;
         } else if (ang < -1.0471975513333334) {
-            act = 0x31;
+            act = P_ATTACK_LEFT2;
         }
         break;
-    case 0x5B:
-        if (cur == 0x11 || cur == 0x13) {
-            act = 0x5D;
+    case P_THROW:
+        if (cur == P_WALK || cur == P_RUN) {
+            act = P_THROW2;
         }
         break;
-    case 0x5C:
-        if (cur == 0x11 || cur == 0x13) {
-            act = 0x5E;
+    case P_THROWQ:
+        if (cur == P_WALK || cur == P_RUN) {
+            act = P_THROW2Q;
         }
         break;
-    case 0x65:
-        if (cur == 0x11 || cur == 0x13) {
-            act = 0x66;
+    case P_THROW_STEP:
+        if (cur == P_WALK || cur == P_RUN) {
+            act = P_THROW_STEP2;
         }
         break;
-    case 0x3E:
-        if (cur == 0x12 || cur == 0x14) {
-            act = 0x45;
-        } else if (cur == 0x27 || cur == 0x29) {
-            act = 0x43;
+    case P_ATTACK_STEP:
+        if (cur == P_WALK2 || cur == P_RUN2) {
+            act = P_ATTACK_WALK2;
+        } else if (cur == P_ATTACK_QUICK || cur == P_ATTACK_QUICK3) {
+            act = P_ATTACK_Q3TOSTEP1;
         }
         /* fallthrough */
-    case 0x40:
+    case P_ATTACK_STEP3:
         ang = pf[0x241];
         if (ang > 2.3561944905) {
-            act = 0x34;
+            act = P_ATTACK_180;
         } else if (ang < -2.3561944905) {
-            act = 0x38;
+            act = P_ATTACK_180L;
         } else if (ang > 1.0471975513333334) {
-            act = 0x2C;
+            act = P_ATTACK_RIGHT;
         } else if (ang < -1.0471975513333334) {
-            act = 0x30;
+            act = P_ATTACK_LEFT;
         }
         break;
-    case 0x3F:
+    case P_ATTACK_STEP2:
         ang = pf[0x241];
         if (ang > 2.3561944905) {
-            act = 0x35;
+            act = P_ATTACK_1802;
         } else if (ang < -2.3561944905) {
-            act = 0x39;
+            act = P_ATTACK_180L2;
         } else if (ang > 1.0471975513333334) {
-            act = 0x2D;
+            act = P_ATTACK_RIGHT2;
         } else if (ang < -1.0471975513333334) {
-            act = 0x31;
+            act = P_ATTACK_LEFT2;
         }
         break;
-    case 0x23:
+    case P_ATTACK_PWRA_CLOSE:
         if ((p[0x243] & 2U) != 0) {
-            act = 0x54;
+            act = P_ATTACK_PWRA_LOW;
         }
         break;
     }
@@ -1465,14 +1465,14 @@ void DoPlayerAction(void* player)
     /* resolve the sequence, falling back on 0x23/0x24 for missing dances */
     d = act;
     switch (act) {
-    case 0x54:
+    case P_ATTACK_PWRA_LOW:
         if (defs[act].seq < 0) {
-            d = 0x23;
+            d = P_ATTACK_PWRA_CLOSE;
         }
         break;
-    case 0x55:
+    case P_ATTACK_PWRA_LOW_R:
         if (defs[act].seq < 0) {
-            d = 0x24;
+            d = P_ATTACK_PWRA_CLOSE_R;
         }
         break;
     }
@@ -1489,15 +1489,15 @@ void DoPlayerAction(void* player)
     if ((pl->hud_flags & 0xD0) != 0 || atkNext >= 0xB ||
         atkNext == 1) {
         atree->animscale = 1.0f;
-    } else if ((act >= 0x58 && act <= 0x5A) ||
-               (act >= 0x88 && act <= 0x93)) {
+    } else if ((act >= P_COMBO_ACTIVE1 && act <= P_COMBO_ACTIVE3) ||
+               (act >= P_COMBO_WAR1 && act <= P_COMBO_JES)) {
         atree->animscale = 1.0f;
-    } else if ((p[0x235] & 0x8000U) != 0 && act >= 0x82) {
+    } else if ((p[0x235] & 0x8000U) != 0 && act >= P_KNOCKBACK) {
         atree->animscale = 2.0f;
     } else if ((p[0x47] & 0x20000000U) != 0 &&
                (u32)(atkNext - 9) <= 1) {
         atree->animscale = 0.75f;
-    } else if (act == 0x78) {
+    } else if (act == P_DEFEND2) {
         atree->animscale = (f32)(0.2 * pf[0x42]);
         if (atree->animscale < 0.25) {
             atree->animscale = 0.25f;
@@ -1519,134 +1519,134 @@ void DoPlayerAction(void* player)
     if (adv != 0) {
         pf[0x296] = -1.0f;
         switch (cur) {
-        case 1:
+        case P_IDLE1:
             pl->vibe_timer = 0;
             pl->vibe_timer2 = 1;
             break;
-        case 3:
-            if (act != 3) {
+        case P_IDLE2_LOOP:
+            if (act != P_IDLE2_LOOP) {
                 pl->vibe_timer = 0;
                 pl->vibe_timer2 = 0;
             }
             break;
-        case 0x27:
-        case 0x28:
-        case 0x29:
-        case 0x2C:
-        case 0x2D:
-        case 0x30:
-        case 0x31:
-        case 0x34:
-        case 0x35:
-        case 0x38:
-        case 0x39:
-        case 0x3C:
-        case 0x4F:
-        case 0x50:
+        case P_ATTACK_QUICK:
+        case P_ATTACK_QUICK2:
+        case P_ATTACK_QUICK3:
+        case P_ATTACK_RIGHT:
+        case P_ATTACK_RIGHT2:
+        case P_ATTACK_LEFT:
+        case P_ATTACK_LEFT2:
+        case P_ATTACK_180:
+        case P_ATTACK_1802:
+        case P_ATTACK_180L:
+        case P_ATTACK_180L2:
+        case P_ATTACK_360:
+        case P_ATTACK_LOW:
+        case P_ATTACK_LOW2:
             p[0x240] |= 2;
             break;
-        case 0x21:
-        case 0x3E:
-        case 0x3F:
-        case 0x40:
-        case 0x43:
-        case 0x45:
+        case P_ATTACK_SLOW1:
+        case P_ATTACK_STEP:
+        case P_ATTACK_STEP2:
+        case P_ATTACK_STEP3:
+        case P_ATTACK_Q3TOSTEP1:
+        case P_ATTACK_WALK2:
             p[0x240] |= 4;
             break;
-        case 0x52:
+        case P_ATTACK_KICK:
             p[0x240] |= 8;
             break;
-        case 0x54:
+        case P_ATTACK_PWRA_LOW:
             p[0x240] |= 0x10;
             break;
-        case 0x23:
-        case 0x25:
+        case P_ATTACK_PWRA_CLOSE:
+        case P_ATTACK_PWRA_MED:
             if (p[2] != 6) {
                 p[0x240] |= 0x10;
             }
             break;
-        case 0x63:
+        case P_ATTACK_PWRA_THROW:
             if (p[2] != 6 || p[0x20D] >= 2) {
                 p[0x240] |= 0x1000;
             }
             break;
-        case 0x47:
-        case 0x48:
-        case 0x49:
-        case 0x4A:
-        case 0x4B:
-        case 0x4C:
-        case 0x4D:
-        case 0x4E:
-        case 0x5F:
-        case 0x60:
-        case 0x65:
-        case 0x66:
+        case P_STRAFE_ATKF:
+        case P_STRAFE_ATKF2:
+        case P_STRAFE_ATKB:
+        case P_STRAFE_ATKB2:
+        case P_STRAFE_ATKL:
+        case P_STRAFE_ATKL2:
+        case P_STRAFE_ATKR:
+        case P_STRAFE_ATKR2:
+        case P_THROW_RELEASE:
+        case P_THROW2_RELEASE:
+        case P_THROW_STEP:
+        case P_THROW_STEP2:
             p[0x240] |= 0x100;
             break;
-        case 0x61:
-        case 0x62:
-        case 0x64:
+        case P_THROW_RECOVER:
+        case P_THROW2_RECOVER:
+        case P_ATTACK_PWRA_THROW_R:
             if (pl->weaphold_node != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
                 MBTreeClearFlags(pl->weaphold_node, 2, 0);
             }
             break;
-        case 0x6B:
-        case 0x6C:
-            if ((u32)(act - 0x6C) <= 1) {
+        case P_SSHOT:
+        case P_SSHOT2:
+            if ((u32)(act - P_SSHOT2) <= 1) {
                 p[0x240] |= 0x800;
             }
             break;
-        case 0x67:
-            if (act == 0x69) {
+        case P_FIREL:
+            if (act == P_FIREL_R) {
                 p[0x240] |= 0x2000;
             }
             break;
-        case 0x68:
-            if (act == 0x6A) {
+        case P_FIRER:
+            if (act == P_FIRER_R) {
                 p[0x240] |= 0x4000;
             }
             break;
-        case 0x6D:
-        case 0x6E:
+        case P_SSHOT_R:
+        case P_BREATHE:
             break;
-        case 8:
-        case 0x11:
-        case 0x13:
-        case 0x16:
+        case P_SHOVE:
+        case P_WALK:
+        case P_RUN:
+        case P_SHIELD_RUN:
             pl->grab_flags |= 1;
             break;
-        case 0x12:
-        case 0x14:
+        case P_WALK2:
+        case P_RUN2:
             pl->grab_flags |= 2;
             break;
         }
 
         pl->hud_flags &= ~0xC702;
         switch (act) {
-        case 0x20:
-        case 0x21:
-        case 0x27:
-        case 0x28:
-        case 0x29:
-        case 0x2C:
-        case 0x2D:
-        case 0x30:
-        case 0x31:
-        case 0x34:
-        case 0x35:
-        case 0x38:
-        case 0x39:
-        case 0x3C:
-        case 0x3E:
-        case 0x3F:
-        case 0x40:
-        case 0x43:
-        case 0x45:
-        case 0x4F:
-        case 0x50:
-        case 0x52:
+        case P_ATTACK_SLOW:
+        case P_ATTACK_SLOW1:
+        case P_ATTACK_QUICK:
+        case P_ATTACK_QUICK2:
+        case P_ATTACK_QUICK3:
+        case P_ATTACK_RIGHT:
+        case P_ATTACK_RIGHT2:
+        case P_ATTACK_LEFT:
+        case P_ATTACK_LEFT2:
+        case P_ATTACK_180:
+        case P_ATTACK_1802:
+        case P_ATTACK_180L:
+        case P_ATTACK_180L2:
+        case P_ATTACK_360:
+        case P_ATTACK_STEP:
+        case P_ATTACK_STEP2:
+        case P_ATTACK_STEP3:
+        case P_ATTACK_Q3TOSTEP1:
+        case P_ATTACK_WALK2:
+        case P_ATTACK_LOW:
+        case P_ATTACK_LOW2:
+        case P_ATTACK_KICK:
             p[0x240] |= 1;
             if (p[0x23E] != 0) {
                 p[0x242] = p[0x242] + 1;
@@ -1655,123 +1655,123 @@ void DoPlayerAction(void* player)
             }
             p[0x23E] = 0;
             break;
-        case 0x5B:
-        case 0x5C:
-        case 0x5D:
-        case 0x5E:
-        case 0x65:
-        case 0x66:
+        case P_THROW:
+        case P_THROWQ:
+        case P_THROW2:
+        case P_THROW2Q:
+        case P_THROW_STEP:
+        case P_THROW_STEP2:
             p[0x240] |= 1;
             p[0x23E] = 0;
             break;
-        case 0x61:
-        case 0x62:
+        case P_THROW_RECOVER:
+        case P_THROW2_RECOVER:
             if (pl->weaphold_node != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             }
             break;
-        case 0x6B:
-        case 0x6C:
+        case P_SSHOT:
+        case P_SSHOT2:
             p[0x240] |= 1;
             p[0x23E] = 0;
             break;
-        case 0x64:
+        case P_ATTACK_PWRA_THROW_R:
             if (pl->weaphold_node != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
                 MBTreeSetFlags(pl->weaphold_node, 2, 0);
             }
             break;
-        case 0x73:
+        case P_USE_MAGIC:
             p[0x240] |= 0x10000;
             p[0x23E] = 0;
             break;
-        case 0x74:
+        case P_MAGIC_RELEASE:
             p[0x240] |= 0x20000;
             p[0x23E] = 0;
             break;
-        case 0x75:
+        case P_THROW_MAGIC:
             p[0x240] |= 0x10000;
             p[0x23E] = 0;
             pl->throw_str = 0;
             break;
-        case 0x76:
+        case P_THROW_MAGIC_RELEASE:
             p[0x240] |= 0x40000;
             p[0x23E] = 0;
             break;
-        case 0x6E:
+        case P_BREATHE:
             p[0x240] |= 0x1000000;
             p[0x23E] = 0;
             break;
-        case 0x71:
+        case P_HAMMER_R:
             p[0x240] |= 0x2000000;
             p[0x23E] = 0;
             break;
-        case 0x7B:
+        case P_VICTORY:
             pl->hud_flags |= 0x800;
             /* fallthrough */
-        case 0x7E:
-        case 0x83:
-        case 0x84:
-        case 0x85:
-        case 0x86:
-        case 0x87:
+        case P_ACTION_DEATH:
+        case P_FALL_DOWN:
+        case P_GET_UP:
+        case P_FALL_DOWN_FWD:
+        case P_GET_UP_FWD:
+        case P_WHIRLWIND:
             pl->hud_flags |= 2;
             break;
-        case 0x77:
+        case P_DEFEND1:
             pl->hud_flags |= 0x100;
             break;
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-        case 0x78:
+        case P_DEFENDL:
+        case P_DEFENDR:
+        case P_DEFENDB:
+        case P_DEFENDF:
+        case P_DEFEND2:
             pl->hud_flags |= 0x200;
             break;
-        case 9:
-        case 10:
-        case 0xB:
-        case 0xC:
-        case 0xD:
-        case 0xE:
-        case 0xF:
-        case 0x10:
+        case P_STRAFE_WLKF:
+        case P_STRAFE_WLKF2:
+        case P_STRAFE_WLKB:
+        case P_STRAFE_WLKB2:
+        case P_STRAFE_WLKL:
+        case P_STRAFE_WLKL2:
+        case P_STRAFE_WLKR:
+        case P_STRAFE_WLKR2:
             pl->hud_flags |= 0x4000;
             break;
-        case 0x47:
-        case 0x48:
-        case 0x49:
-        case 0x4A:
-        case 0x4B:
-        case 0x4C:
-        case 0x4D:
-        case 0x4E:
+        case P_STRAFE_ATKF:
+        case P_STRAFE_ATKF2:
+        case P_STRAFE_ATKB:
+        case P_STRAFE_ATKB2:
+        case P_STRAFE_ATKL:
+        case P_STRAFE_ATKL2:
+        case P_STRAFE_ATKR:
+        case P_STRAFE_ATKR2:
             pl->hud_flags |= 0x8000;
             p[0x240] |= 1;
             p[0x23E] = 0;
             break;
-        case 8:
+        case P_SHOVE:
             pl->hud_flags |= 0x400;
             p[0x23E] = 0;
             break;
-        case 0x22:
-        case 0x2A:
-        case 0x2B:
-        case 0x2E:
-        case 0x2F:
-        case 0x32:
-        case 0x33:
-        case 0x36:
-        case 0x37:
-        case 0x3A:
-        case 0x3B:
-        case 0x3D:
-        case 0x41:
-        case 0x42:
-        case 0x44:
-        case 0x46:
-        case 0x51:
-        case 0x53:
+        case P_ATTACK_SLOW1_R:
+        case P_ATTACK_QUICK2_R:
+        case P_ATTACK_QUICK3_R:
+        case P_ATTACK_RIGHT_R:
+        case P_ATTACK_RIGHT2_R:
+        case P_ATTACK_LEFT_R:
+        case P_ATTACK_LEFT2_R:
+        case P_ATTACK_180_R:
+        case P_ATTACK_1802_R:
+        case P_ATTACK_180L_R:
+        case P_ATTACK_180L2_R:
+        case P_ATTACK_360_R:
+        case P_ATTACK_STEP2_R:
+        case P_ATTACK_STEP3_R:
+        case P_ATTACK_Q3TOSTEP1_R:
+        case P_ATTACK_WALK2_R:
+        case P_ATTACK_LOW_R:
+        case P_ATTACK_KICK_R:
             break;
         default:
             p[0x23E] = 0;
@@ -1782,28 +1782,28 @@ void DoPlayerAction(void* player)
     /* per-action move / turn scales */
     pf[0x295] = 1.0f;
     pf[0x294] = 1.0f;
-    if (cur >= 0x20 && cur < 0x72) {
-        if (cur >= 0x6B) {
+    if (cur >= P_ATTACK_SLOW && cur < P_LAST_ATTACK) {
+        if (cur >= P_SSHOT) {
             pf[0x292] = 0.0f;
             pf[0x293] = 0.5f;
             pf[0x295] = 0.0f;
-        } else if (cur >= 0x67) {
+        } else if (cur >= P_FIREL) {
             pf[0x292] = 0.25f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x65) {
+        } else if (cur >= P_THROW_STEP) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x63) {
+        } else if (cur >= P_ATTACK_PWRA_THROW) {
             pf[0x292] = 0.25f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x5B) {
+        } else if (cur >= P_THROW) {
             pf[0x292] = 0.0f;
             pf[0x293] = 0.5f;
-        } else if (cur >= 0x58) {
+        } else if (cur >= P_COMBO_ACTIVE1) {
             pf[0x292] = 0.0f;
             pf[0x293] = 0.0f;
             pf[0x295] = 0.0f;
-        } else if (cur >= 0x57) {
+        } else if (cur >= P_ATTACK_PWRC) {
             if (p[2] == 6 && atree->frame > 11.0f) {
                 pf[0x293] = 0.0f;
                 pf[0x292] = 0.0f;
@@ -1812,36 +1812,36 @@ void DoPlayerAction(void* player)
                 pf[0x292] = 0.0f;
             }
             pf[0x295] = 0.0f;
-        } else if (cur >= 0x56) {
+        } else if (cur >= P_ATTACK_PWRB) {
             pf[0x292] = 0.0f;
             pf[0x293] = 1.0f;
             pf[0x295] = 0.0f;
-        } else if (cur >= 0x54) {
+        } else if (cur >= P_ATTACK_PWRA_LOW) {
             pf[0x293] = 1.0f;
             pf[0x292] = 0.25f;
             pf[0x295] = 0.0f;
-        } else if (cur >= 0x4F) {
+        } else if (cur >= P_ATTACK_LOW) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x47) {
+        } else if (cur >= P_STRAFE_ATKF) {
             pf[0x292] = 0.667f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x3E) {
+        } else if (cur >= P_ATTACK_STEP) {
             pf[0x292] = 1.0f;
             pf[0x293] = 0.25f;
-        } else if (cur >= 0x3C) {
+        } else if (cur >= P_ATTACK_360) {
             pf[0x292] = 0.5f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x34) {
+        } else if (cur >= P_ATTACK_180) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x2C) {
+        } else if (cur >= P_ATTACK_RIGHT) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x27) {
+        } else if (cur >= P_ATTACK_QUICK) {
             pf[0x292] = 0.25f;
             pf[0x293] = 0.0f;
-        } else if (cur == 0x25) {
+        } else if (cur == P_ATTACK_PWRA_MED) {
             if (p[2] == 7 || p[2] == 6) {
                 pf[0x292] = 0.0f;
                 pf[0x293] = 0.0f;
@@ -1853,7 +1853,7 @@ void DoPlayerAction(void* player)
                 pf[0x293] = 1.0f;
             }
             pf[0x295] = 0.0f;
-        } else if (cur >= 0x23) {
+        } else if (cur >= P_ATTACK_PWRA_CLOSE) {
             if (p[2] == 5 || p[2] == 6) {
                 pf[0x292] = 0.0f;
                 pf[0x293] = 0.0f;
@@ -1870,28 +1870,28 @@ void DoPlayerAction(void* player)
             pf[0x293] = 1.0f;
         }
     } else {
-        if (cur == 0x80) {
+        if (cur == P_STUCK) {
             pf[0x292] = 0.4f;
             pf[0x293] = 0.5f;
-        } else if ((u32)(cur - 0x13) <= 1 || cur == 0x16) {
+        } else if ((u32)(cur - P_RUN) <= 1 || cur == P_SHIELD_RUN) {
             pf[0x292] = 1.3f;
             pf[0x293] = 1.0f;
-        } else if (cur == 0x8F) {
+        } else if (cur == P_COMBO_DWF2) {
             pf[0x292] = 1.5f;
             pf[0x293] = 0.5f;
-        } else if (cur == 8) {
+        } else if (cur == P_SHOVE) {
             pf[0x292] = 1.5f;
             pf[0x293] = 1.0f;
-        } else if (cur >= 0x77 && cur <= 7) {
+        } else if (cur >= P_DEFEND1 && cur <= P_DEFENDF) {
             pf[0x292] = 0.0f;
             pf[0x293] = 0.0f;
-        } else if (cur >= 9 && cur <= 0x10) {
+        } else if (cur >= P_STRAFE_WLKF && cur <= P_STRAFE_WLKR2) {
             pf[0x292] = 0.667f;
             pf[0x293] = 1.0f;
-        } else if (cur == 0x7B) {
+        } else if (cur == P_VICTORY) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
-        } else if (cur > 0x72) {
+        } else if (cur > P_LAST_ATTACK) {
             pf[0x294] = 0.0f;
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
@@ -1923,52 +1923,52 @@ void DoPlayerAction(void* player)
  * (1 = quick attacks, 2..12 = melee/turbo family bands, 0 = not an attack). */
 s32 PlayerAttackType(s32 seq)
 {
-    if (seq >= 32 && seq < 114) {
-        if (seq < 39) {
+    if (seq >= P_ATTACK_SLOW && seq < P_LAST_ATTACK) {
+        if (seq < P_ATTACK_QUICK) {
             return 2;
         }
-        if (seq < 44) {
+        if (seq < P_ATTACK_RIGHT) {
             return 3;
         }
-        if (seq < 60) {
+        if (seq < P_ATTACK_360) {
             return 4;
         }
-        if (seq < 62) {
+        if (seq < P_ATTACK_STEP) {
             return 5;
         }
-        if (seq < 71) {
+        if (seq < P_STRAFE_ATKF) {
             return 6;
         }
-        if (seq < 79) {
+        if (seq < P_ATTACK_LOW) {
             return 7;
         }
-        if (seq < 86) {
+        if (seq < P_ATTACK_PWRB) {
             return 8;
         }
-        if (seq < 88) {
+        if (seq < P_COMBO_ACTIVE1) {
             return 11;
         }
-        if (seq < 91) {
+        if (seq < P_THROW) {
             return 12;
         }
-        if (seq < 99) {
+        if (seq < P_ATTACK_PWRA_THROW) {
             return 9;
         }
-        if (seq < 107) {
+        if (seq < P_SSHOT) {
             return 10;
         }
         return 11;
     }
-    if (seq >= 136 && seq <= 147) {
+    if (seq >= P_COMBO_WAR1 && seq <= P_COMBO_JES) {
         return 12;
     }
-    if (seq >= 119 && seq <= 121) {
+    if (seq >= P_DEFEND1 && seq <= P_DEFEND3) {
         return 1;
     }
-    if (seq >= 4 && seq <= 7) {
+    if (seq >= P_DEFENDL && seq <= P_DEFENDF) {
         return 1;
     }
-    if (seq == 8) {
+    if (seq == P_SHOVE) {
         return 1;
     }
     return 0;
@@ -2003,10 +2003,10 @@ void InitActions(ATREE* atree, ACTIONDEF* defs, char** names)
  * current action's priority is not lower than the request's. */
 void RequestEnemyAction(ENEMYACT* e, s32 action)
 {
-    if (action >= 12 && action <= 20 && e->actTimer > 0.0f) {
+    if (action >= E_ATTACK && action <= E_ATTACK5 && e->actTimer > 0.0f) {
         return;
     }
-    if (action >= 24 && action <= 26 && e->actTimer > 0.0f) {
+    if (action >= E_THROW && action <= E_THROW_FINISH && e->actTimer > 0.0f) {
         return;
     }
     if (e_actpri[e->action] >= e_actpri[action]) {
