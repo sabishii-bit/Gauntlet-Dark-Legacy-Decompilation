@@ -6222,9 +6222,9 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     if (psys == NULL) {
         ErrorPrintf(lbl_801121D4);
     } else {
-        *(f32 *)((u8 *)psys + 0x30) = ((CritterSfxRecord *)s)->color[0];
-        *(f32 *)((u8 *)psys + 0x34) = *(f32 *)(s + (offsetof(CritterSfxRecord, color) + 4));
-        *(f32 *)((u8 *)psys + 0x38) = *(f32 *)(s + (offsetof(CritterSfxRecord, color) + 8));
+        ((MBObject *)psys)->mat[3][0] = ((CritterSfxRecord *)s)->color[0];
+        ((MBObject *)psys)->mat[3][1] = ((CritterSfxRecord *)s)->color[1];
+        ((MBObject *)psys)->mat[3][2] = ((CritterSfxRecord *)s)->color[2];
         MBPsysSetPTex(psys, tex);
         MBPsysSetERate4(rate, rate, rate, rate, psys);
         MBPsysSetETime(etime, lbl_8034663C, psys);
