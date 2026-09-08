@@ -282,7 +282,17 @@ extern s16   lbl_80343C14;
 extern f32   lbl_80343C18;
 extern f32   lbl_80343C1C;
 extern s32   lbl_80343C20;
-extern u8*   lbl_80344EE8;
+/* Verified partial view of mb_window.c's MBWINDOW/MBCamNode.
+ * The camera basis starts at +0x64; position follows its twelve floats. */
+typedef struct GamemainWindowCamera {
+    f32 mat[12];
+    f32 pos[3];
+} GamemainWindowCamera;
+typedef struct GamemainWindowView {
+    u8 projection_fields[0x64];
+    GamemainWindowCamera cam;
+} GamemainWindowView;
+extern GamemainWindowView* lbl_80344EE8;
 extern void  InitPlayerControls(void);
 extern void  ControlsUpdate(void);
 extern void  AnimInit(void);
@@ -1108,7 +1118,7 @@ void fn_80052134(void)
         } else {
             MBTreeClearFlags(lbl_8034479C, 1, 0);
             MBWindowTo3D(lbl_80343C1C, &lbl_80343C14,
-                         (f32*)(lbl_80344EE8 + 100),
+                         lbl_80344EE8->cam.mat,
                          ((MBObject*)lbl_8034479C)->mat[3]);
             for (i = 0; i < 3; i++) {
                 ((MBObject*)lbl_8034479C)->scale[i] = lbl_80343C18;
