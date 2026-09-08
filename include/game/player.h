@@ -28,7 +28,8 @@ struct worldobj; /* game/worldobj.h (pointer-only here) */
  *   0x044 pos[3]       VERIFIED  auxscreen.c calc_wizard_pos  lfs f,68/72/76(base)
  *   0x0E8 state        VERIFIED  lwz r,232(base)  (0=none 1=active 2=...)
  *   0x124 flags        VERIFIED  lwz r,292(base); rlwinm. bit 0x400
- *   0xDD4 char_save[]  VERIFIED  hide_rune_stones: mulli type*240; lhzx @+2/+0
+ *   0xDD0 char_save[]  VERIFIED  player_store_in_save: character*240, sth @+0/+2
+ *   0xDD4/0xDD6       rune/shard fields within char_save, not the record base
  *   0x1EB8/0x1EBC item VERIFIED  shopquery.c PlayerItemState  lwz r,7864/7868
  *   0x1EC8 runes /
  *   0x1ECA shards          documented (prior verified research)
@@ -38,8 +39,8 @@ struct worldobj; /* game/worldobj.h (pointer-only here) */
  *   - Whole record is 0x335C on GC vs 0x6140 on Xbox (GC drops the in-game-only
  *     runtime fields such as OBJGRP/atree/actionlist/save_backup).
  *   - Per-character save slot is 0xF0 (240) on GC vs P_SAVE_STUFF 0x254 on Xbox
- *     (GC stores the per-slot powerup arrays elsewhere); the GC slot begins with
- *     rune-stone bitmasks rather than Xbox's potions/keys.
+ *     (GC retains a smaller per-slot powerup image); both records begin with
+ *     the saved potion/key counts, then the collection bitmasks.
  *   - Xbox order plyr_color@4 / type@8 / alttype@0xc does not carry over; on GC
  *     +4 is used as a class index, +12 selects the 16-entry char_save[] slot
  *     (see enum e_p_type below).
@@ -73,48 +74,31 @@ enum PlayerCharType {
  * Per-character progression slot.  Player.char_save is an array of 16 of these
  * (one per enum PlayerCharType); Player.character selects the active one.
  * Size 0xF0 (240) -- the stride proven by `mulli type,240` in hide_rune_stones.
- * Xbox analogue: struct P_SAVE_STUFF (different, larger 0x254 layout).
+ * Xbox analogue: P_SAVE_STUFF (larger 0x254 layout). The GC base is 0xDD0,
+ * not the first previously named halfword at 0xDD4: player_store_in_save
+ * stores the two preceding s16s at 3536/3538 after character*240, and its
+ * gold store is at 3584. All existing named fields retain their absolute
+ * addresses. The 16 records end at 0x1CD0, exactly where tower/player access
+ * the distinct waves[16][14] table; they do not overlap it.
+ *
+ * completion1 has 3 entries (tower's level>2 clamp); completion2 has 9
+ * (screensaver walks [1..8], paired with the 9-entry requirement table).
+ * Both are signed: consumers use lha/lhax and test for negative records.
  */
 typedef struct PlayerCharSave {
-    /* 0x00 */ u16 rune_stones;      /* rune-stone collection bitmask (VERIFIED lhzx @+0) */
-    /* 0x02 */ u16 rune_stones2;     /* second collection bitmask     (VERIFIED lhzx @+2) */
-    /* 0x04 */ u16 rune_near;        /* documented (abs 0xDD8) */
-    /* 0x06 */ u8  pad_06[2];
-    /* 0x08 */ u16 level_masks[4];   /* level/boss-beaten bitmasks, documented (abs 0xDDC-0xDE2) */
-    /*
-     * Boss pass-1/pass-2 attempt bitmasks, tested as 1 << crystal_order[i]
-     * (abs 0xDE4/0xDE6) by options.c next_boss_hint -- the third member of the
-     * hint-tier family whose rune and legend pairs sit in level_masks[0..3].
-     * Names are Midway's own from the Xbox P_SAVE_STUFF analogue, adopted on
-     * ROLE evidence (next_boss_hint), not on position: the GC slot is compacted
-     * relative to Xbox, so this pair sits at 0x10/0x12 here vs 0x14/0x16 there.
-     */
-    /* 0x10 */ u16 boss_attempt1;    /* pass-1 tier [options.c next_boss_hint] */
-    /* 0x12 */ u16 boss_attempt2;    /* pass-2 tier [options.c next_boss_hint] */
-    /*
-     * Per-level completion records, indexed by level.  SIGNED: every consumer
-     * tests `< 0` for "not yet attempted", and the target loads them with lha /
-     * lhax (load halfword ALGEBRAIC), never lhz -- see towerGetLevelRecord
-     * `lha r3,3560(r3)` and towerBossStatus `lha r0,3566(r3)`.
-     *
-     * Widths are proven by byte fit plus consumer index bounds:
-     *   completion1[3] fills 0x14-0x19 exactly, terminating where completion2
-     *   begins; tower.c clamps `if (level > 2)` (towerAllPlayersMetLevelReq)
-     *   and walks `for (j = 0; j < 3; j++)` against the 3-entry requirement
-     *   tables lbl_80124D94[3] / lbl_80124CDC[3].
-     *   completion2[9] fills 0x1A-0x2B, pairing one-for-one with the 9-entry
-     *   requirement table lbl_80124C70[9].  The upper bound is proven by
-     *   screensaver.c, which walks `for (i = 0; i < 8; i++)` with `off += 2`
-     *   from 0x1C (= completion2[1]) -- last access 0x2A = completion2[8] --
-     *   reading lbl_80124C70[i+1] each iteration.  tower.c's own `j < 8` loops
-     *   reach only [0..7] and guard `lbl_80124C70[j] != 0`, skipping the
-     *   table's index-0 sentinel; screensaver.c is what fixes the width at 9.
-     * Both are arrays of a SCALAR type, so the aggregate-member cascade law
-     * (claim.law.embedded-struct-member-whole-tu-cascade) does not apply.
-     */
-    /* 0x14 */ s16 completion1[3];   /* per-level record A (abs 0xDE8) */
-    /* 0x1A */ s16 completion2[9];   /* per-level record B (abs 0xDEE) */
-    /* 0x2C */ u8  pad_2C[0xC4];     /* remainder of slot (unmapped) */
+    /* 0x00 */ s16 potions;          /* saved item_body_hi [player_store_in_save] */
+    /* 0x02 */ s16 keys;             /* saved item_body_lo [player_store_in_save] */
+    /* 0x04 */ u16 rune_stones;      /* absolute Player+0xDD4, GC rune bitmask */
+    /* 0x06 */ u16 rune_stones2;     /* absolute Player+0xDD6, GC shard bitmask */
+    /* 0x08 */ u16 rune_near;        /* absolute Player+0xDD8 */
+    /* 0x0A */ s16 npowerups;        /* absolute Player+0xDDA, saved active count */
+    /* 0x0C */ u16 level_masks[4];   /* absolute Player+0xDDC..0xDE2 */
+    /* 0x14 */ u16 boss_attempt1;    /* pass-1 tier [options.c next_boss_hint] */
+    /* 0x16 */ u16 boss_attempt2;    /* pass-2 tier [options.c next_boss_hint] */
+    /* 0x18 */ s16 completion1[3];   /* absolute Player+0xDE8; signed lha/lhax */
+    /* 0x1E */ s16 completion2[9];   /* absolute Player+0xDEE; signed lha/lhax */
+    /* 0x30 */ s32 gold;            /* absolute Player+0xE00 [player_store_in_save] */
+    /* 0x34 */ u8 pad_34[0xBC];      /* active-powerup image and remaining state */
 } PlayerCharSave;                    /* size 0xF0 */
 
 /*
@@ -128,7 +112,7 @@ typedef struct PlayerCharSave {
  * record carries `P_SAVE_STATS stats[16]` at 0x190 immediately followed by
  * `P_SAVE_STUFF stuff[16]` at 0x350, and GC reproduces exactly that adjacency --
  * this block[16] spans 0xC10..0xDD0 (0x1C0, the same array size Xbox reports)
- * and terminates 4 bytes before char_save[16] at 0xDD4.
+ * and terminates at the corrected char_save[16] base, 0xDD0.
  *
  * GC offset verification (gamemain.c do_stats_display, the stats-screen tally):
  *   +0x00 enemies_killed        VERIFIED  read as s32, animated /60 per frame
@@ -453,22 +437,24 @@ typedef struct Player {
     /* 0x0A78 */ f32 field_A78;      /* shop displayed-att-magic snapshot [shop.c] */
     /* 0x0A7C */ f32 field_A7C;      /* shop displayed-att-speed snapshot [shop.c] */
     /* 0x0A80 */ char name[8];       /* player name, underscore shown as space [player.c] */
-    /*
-     * pad_0A88's original 0x34C run splits with exact byte accounting:
-     *   0x0A88 + 0x188 = 0x0C10   leading pad (still unmodelled; it contains
-     *                             the s16 char-type at 0x0A88 and player.c's
-     *                             CHAR_STATS block, base 0x0A90 stride 0x18,
-     *                             whose 16 entries end exactly at 0x0C10)
-     *   0x0C10 + 0x1C0 = 0x0DD0   char_stats[16], 16 * 0x1C
-     *   0x0DD0 +   0x4 = 0x0DD4   trailing pad, up to char_save[]
-     * 0x188 + 0x1C0 + 0x4 = 0x34C, so Player stays 0x335C.
-     */
-    /* 0x0A88 */ u8  pad_0A88[0x188];
+    /* Persistent-save header and character attributes. GC player/select
+     * consumers corroborate the header bytes; P_SAVE supplies the names.
+     * The 16 attribute records remain unmodelled here, each 0x18 bytes. */
+    /* 0x0A88 */ s16 last_alttype;
+    /* 0x0A8A */ u8 last_color;
+    /* 0x0A8B */ u8 saved;
+    /* 0x0A8C */ u16 class_unlock;
+    /* 0x0A8E */ u16 leveltot;
+    /* 0x0A90 */ u8 pad_0A90[0x180];
     /* 0x0C10 */ PlayerCharStats char_stats[16]; /* per-character stat tally
                                         * (VERIFIED base 3088 + character*28) */
-    /* 0x0DD0 */ u8  pad_0DD0[4];
-    /* 0x0DD4 */ PlayerCharSave char_save[16]; /* per-character progression (VERIFIED base+stride) */
-    /* 0x1CD4 */ u8  pad_1CD4[0x1E0];
+    /* 0x0DD0 */ PlayerCharSave char_save[16]; /* 16 * 0xF0, ends at 0x1CD0 */
+    /* 0x1CD0 */ u8 waves[16][14];
+    /* 0x1DB0 */ u8 control_scheme;
+    /* 0x1DB1 */ u8 control_rumble;
+    /* 0x1DB2 */ u8 control_autoattack;
+    /* 0x1DB3 */ u8 control_autoaim;
+    /* 0x1DB4 */ u8 help_disp[256];
     /* 0x1EB4 */ f32 health;         /* hit points, 9999 display cap [player.c] */
     /* 0x1EB8 */ s32 item_body_lo;   /* body-armor item flag (VERIFIED shopquery @7864) */
     /* 0x1EBC */ s32 item_body_hi;   /* body-armor item flag (VERIFIED shopquery @7868) */
@@ -476,26 +462,18 @@ typedef struct Player {
     /* 0x1EC4 */ s32 gold;           /* gold, 99999 cap [player.c PlayerGiveGold] */
     /* 0x1EC8 */ u16 runes;          /* active-character rune count (documented) */
     /* 0x1ECA */ u16 shards;         /* active-character shard count (documented) */
-    /*
-     * Checkpoint shadow of the persistent block (claim.player-0x2220-is-char-
-     * save-checkpoint-shadow): [0x1ECC, 0x3300) mirrors [0xA80, 0x1EB4) at
-     * delta +0x144C.  gamemain.c:3798 and select.c:1273 copy the whole 0x1434
-     * block on level entry (select.c spells the source offsetof(Player,
-     * name)); player.c:3473 memsets both at 0x1434.  The char_save[16] image
-     * begins at 0x2220 (= 0xDD4 + 0x144C) and is modelled as char_save_ckpt
-     * below; consumers add character * 240 exactly like the live side
-     * (tower.c's paired live/shadow completion writes, shop.c's gold
-     * snapshot at slot +0x2C).  The previous crystals[8]/gargoyle_items[3]/
-     * legend_items[2] names here were misfiled Xbox P_SAVE_STUFF fields with
-     * zero consumers.  Adding this second PlayerCharSave member gated clean
-     * across the heavy includers (incl. shop.c) -- the embedded-cascade law's
-     * hazard is introducing a NEW aggregate type to the header, and
-     * PlayerCharSave was already a member type via char_save[16].
-     */
-    /* 0x1ECC */ u8  pad_1ECC[0x354]; /* shadow of name[8] + pad_0A88[0x34C] */
-    /* 0x2220 */ PlayerCharSave char_save_ckpt[16]; /* checkpoint shadow of
-                                        * char_save[16] (0x2220..0x3120) */
-    /* 0x3120 */ u8  pad_3120[0x1E0];  /* shadow of pad_1CD4 */
+    /* Checkpoint shadow: [0x1ECC,0x3300) mirrors [0xA80,0x1EB4)
+     * at delta +0x144C. The corrected record bases are 0xDD0/0x221C;
+     * the first named rune fields remain 0xDD4/0x2220. Whole-image
+     * copies in player/select/gamemain establish the 0x1434-byte extent. */
+    /* 0x1ECC */ u8  pad_1ECC[0x350]; /* shadow of save header, atts and stats */
+    /* 0x221C */ PlayerCharSave char_save_ckpt[16]; /* 16 * 0xF0, ends at 0x311C */
+    /* 0x311C */ u8 waves_ckpt[16][14];
+    /* 0x31FC */ u8 control_scheme_ckpt;
+    /* 0x31FD */ u8 control_rumble_ckpt;
+    /* 0x31FE */ u8 control_autoattack_ckpt;
+    /* 0x31FF */ u8 control_autoaim_ckpt;
+    /* 0x3200 */ u8 help_disp_ckpt[256];
     /* 0x3300 */ u8  pad_3300[0x24];   /* non-shadow bytes before level */
     /* 0x3324 */ s32 level;          /* character level 1..99 [player.c] */
     /* 0x3328 */ s32 intower;        /* set while active in tower [player.c] */
