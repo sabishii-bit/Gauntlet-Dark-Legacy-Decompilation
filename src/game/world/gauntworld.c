@@ -7880,6 +7880,7 @@ extern f64 sNewtonThree;
 extern s32 damage_enemy(u8* e, f32 amount, s32 dtype, s32 knock, s32 srcflags,
                         s32 arg6, s32 arg7);
 
+// lint-begin FM001, FM009: `wobj` is an Item and `hdr` is its iteminfo, so every offset here is a named field: hdr+16 = iteminfo.item.height, wobj+220/222/226 = Item.data read as the variant info->type selects (obsticledata.strength s16@0x02 for type 10, gendata.etype s16@0x00 and gendata.ai s8@0x06 for type 3; Xbox misc.h Id=3332 and Id=3328). Typing all four is NOT byte-neutral in this dont_inline function: it moves 74 words and grows it 496 -> 500 bytes, the same whole-body sensitivity its sibling fn_8005D20C shows, so the offsets stay raw with the fields named here.
 s32 fn_8005D3D8(s32 index, u8* wobj)
 {
     u8* hdr = *(u8**)wobj;
@@ -8062,6 +8063,7 @@ s32 fn_8005D5C8(u8* pl, u8* wobj)
     }
     return ret;
 }
+// lint-end FM001, FM009
 
 extern f64 sArrowFloorYOffset;
 extern f64 sZeroDouble;
