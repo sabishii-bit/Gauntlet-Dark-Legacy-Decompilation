@@ -216,22 +216,14 @@ extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
 extern f32   lbl_803468B0;
 extern f32   lbl_80346A80;
-/* Milestone table record (stride 0x68). Layout adopted from the recovered
- * MilestoneParam in src/game/world/items.c, which walks the same table:
- * items.c's GetMilestonePos reads matrix[12..14] as the world position,
- * exactly the m+48/52/56 triple this TU reads raw. Declared file-locally
- * (never added to a shared header) per the whole-TU cascade law. */
-typedef struct MilestoneParam {
-    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
-    f32 pos[3];       /* 0x40 */
-    u8  _pad4C[4];
-    f32 saved_pos[3]; /* 0x50 */
-    u8  _pad5C[4];
-    s32 handle;       /* 0x60 */
-    s32 active;       /* 0x64 */
-} MilestoneParam;     /* 0x68 */
-
-extern u8    sMilestones[];
+/* Xbox MILESTONE is an OBJGRP wrapper (misc.h, size 0x68). GC confirms
+ * stride 104 and node at +96 in fn_80055AFC; ShowMilestones supplies the
+ * matrix to add_arrow and stores that returned node at the same offset.
+ * Keep this declaration local: no shared-header layout change is needed. */
+typedef struct MILESTONE {
+    OBJGRP objgrp;
+} MILESTONE;
+extern MILESTONE sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
 extern f32   gIdentityMatrix[];       /* identity matrix */
@@ -343,7 +335,29 @@ extern void* lbl_80344E2C;
 
 /* World-load / blit / fx externs. */
 extern s32   sWorldDataConst;      /* 0x80344848 */
-extern s32   sMusicTrackHi;        /* 0x803448D8 */
+/* World IDs from WAVETYPE in the Xbox symbols, independently confirmed by
+ * the little-endian WRLD.type in all 14 Gauntlet/WDATA/*.WAD files. The
+ * GC ResolveWorldData path stores worldlevel >> 8 in sMusicTrackHi: despite
+ * that provisional symbol name, these comparisons select a world, not music.
+ * MOUNT.WAD is MOUNTAIN; TEMPLE.WAD is BOSSWAVE. */
+enum WAVETYPE {
+    TESTWAVE = 0,
+    CASTLE = 1,
+    MOUNTAIN = 2,
+    DESERT = 3,
+    FOREST = 4,
+    BOSSWAVE = 5,
+    HELL = 6,
+    TOWN = 7,
+    BATTLE = 8,
+    ICE = 9,
+    DREAM = 10,
+    SKY = 11,
+    SECRET = 12,
+    TOWER = 13,
+    NUMWORLDS = 14
+};
+extern s32   sMusicTrackHi;        /* 0x803448D8: current WAVETYPE, or -1 */
 extern s32   lbl_803447A4;
 extern s32   lbl_803447E4;
 extern s32   lbl_803447EC;
@@ -481,6 +495,24 @@ extern s32   lbl_803441F8;
 extern f32   lbl_80346AB8;
 extern void  fn_8009FB00(void);
 extern void  SetDrawStringScale(f32 s);
+/* Local mirror of mb_font.c's queued message, returned through the opaque
+ * DrawStringText API. GC MBDrawText uses a 44-byte stride and initializes
+ * every field below; its +0x10 pointer addresses the copied character data.
+ * fn_800521E8 truncates that copy, not the original string resource. */
+typedef struct MBTextMsg {
+    u32 flags;
+    s32 x;
+    s32 y;
+    f32 z;
+    char* text;
+    f32 xspace;
+    f32 xscale;
+    f32 yspace;
+    f32 yscale;
+    s16 font;
+    s16 seq;
+    u32 color;
+} MBTextMsg;
 extern void* DrawStringText(s32 a, s32 b, s32 c, s32 d, s32 e, ...);
 extern void  RestoreDrawStringScale(void);
 extern void  init_attract_mode(s32 mode);
@@ -610,13 +642,12 @@ void ResetModels(void)
 /* 0x80053A10 -- clear two per-enemy fields for all 25 enemy records. */
 void init_moving_objects(void)
 {
-    s32* e = (s32*)gEnemies;
+    Enemy* e = gEnemies;
     s32 i;
 
-    for (i = 0; i < 25; i++) {
-        e[45] = 0;   /* +0xB4 */
-        e[25] = 0;   /* +0x64 */
-        e += 229;    /* stride 0x394 */
+    for (i = 0; i < 25; i++, e++) {
+        e->state = INACTIVE;
+        e->objgrp.node = 0;
     }
 }
 
@@ -910,7 +941,7 @@ s32 next_world(void)
     } else if (sLastWorldLevel < 0) {
         selected = load_world_option(gGameOptions);
         world = selected;
-        if ((selected >> 8) >= 14) {
+        if ((selected >> 8) >= NUMWORLDS) {
             world = sFirstWorldId;
         }
         lbl_8034481C = world + 0x10000;
@@ -932,7 +963,7 @@ s32 next_world(void)
         if (world < 0) {
             world = sWorldDataConst;
         }
-        if ((world >> 8) >= 14) {
+        if ((world >> 8) >= NUMWORLDS) {
             world = sFirstWorldId;
         }
     }
@@ -1094,8 +1125,8 @@ void fn_800521E8(void)
     s32 flag = gGameBusy;
     s32 oldTimer = lbl_80344774;
     s32 newTimer;
-    void* txt;
-    u8* textData;
+    MBTextMsg* txt;
+    char* textData;
     u8 unused[8];
 
     lbl_80344774 = oldTimer + gFrameTicks;
@@ -1110,9 +1141,9 @@ void fn_800521E8(void)
         idx = 9;
     }
     SetDrawStringScale(lbl_80346AB8);
-    txt = DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
+    txt = (MBTextMsg*)DrawStringText(-256, 120, 6, 0xFFFFFF, 169, 0);
     RestoreDrawStringScale();
-    textData = ((void**)txt)[4];
+    textData = txt->text;
     textData[idx] = 0;
     if (flag != 0) {
         return;
@@ -1211,7 +1242,7 @@ extern s32 msgPost();
 void fn_80055AFC(void)
 {
     s32 i;
-    u8* ms;
+    MILESTONE* ms;
     s32 n;
     s32 limit;
     u8 _spare[32];
@@ -1259,8 +1290,8 @@ void fn_80055AFC(void)
         ms = sMilestones;
         i = 0;
         while (i < sNumMilestones) {
-            u8* mp = ms + i * 104;
-            MBTreeClearFlags(*(void**)(mp + 96), 2, 0);
+            MILESTONE* mp = &ms[i];
+            MBTreeClearFlags(mp->objgrp.node, 2, 0);
             i++;
         }
         if (sNumMilestones > 0 && lbl_80344780 == 0) {
@@ -1271,8 +1302,8 @@ void fn_80055AFC(void)
         ms = sMilestones;
         i = 0;
         while (i < sNumMilestones) {
-            u8* mp = ms + i * 104;
-            MBTreeSetFlags(*(void**)(mp + 96), 2, 0);
+            MILESTONE* mp = &ms[i];
+            MBTreeSetFlags(mp->objgrp.node, 2, 0);
             i++;
         }
     }
@@ -1404,9 +1435,9 @@ void init_thermometer(void)
                 enabled = 1;
                 break;
             }
-            if (sMusicTrackHi == 8) {
+            if (sMusicTrackHi == BATTLE) {
                 s32 charIdx = ((Player*)playerData)->character;
-                if ((*(u8*)(playerData + 7384 + charIdx * 14) & 4) != 0) {
+                if ((((Player*)playerData)->waves[charIdx][BATTLE] & 4) != 0) {
                     enabled = 0;
                 }
             } else if (PlayerHasRune(player, GetWorldOrder(5)) != 0) {
@@ -1475,7 +1506,7 @@ extern void load_player(s32 player);
 extern void add_target(void* mat);
 extern void LoadPlyrData(s32 player, s32 pad, s32 mode);
 extern void CopyMat3(f32* src, f32* dst);
-extern f32  lbl_80257650[];
+extern f32  lbl_80257650[4][3];
 extern void UpdatePlayerWorldMat(void* player, s32 force);
 extern void setup_player_display(s32 player);
 extern void PlayerSaveState(s32 player, s32 mode);
@@ -1501,9 +1532,6 @@ void fn_8005351C(void)
     s32 state = lbl_8034481C;
     s32 inTower;
     s32 isSelect;
-    s32 off;
-    u8* tbl;
-    f32* idmat;
     s32 i;
     u8* p;
 
@@ -1587,9 +1615,7 @@ void fn_8005351C(void)
 
     InitCamera(0);
     {
-        idmat = (f32*)gIdentityMatrix;
-        tbl = (u8*)lbl_80257650;
-        for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 12, p += 13148) {
+        for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
             ((Player*)p)->exit_dest = sLastWorldLevel;
             ((Player*)p)->node = 0;
             ((Player*)p)->platform = 0;
@@ -1601,8 +1627,8 @@ void fn_8005351C(void)
                 LoadPlyrData(i, player->character, 1);
                 if (isSelect != 0) {
                     f32* v;
-                    CopyMat3(idmat, player->mat);
-                    v = (f32*)(tbl + off);
+                    CopyMat3(gIdentityMatrix, player->mat);
+                    v = lbl_80257650[i];
                     player->pos[0] = v[0];
                     player->pos[1] = v[1];
                     player->pos[2] = v[2];
@@ -1614,10 +1640,9 @@ void fn_8005351C(void)
     }
 
     if (inTower == 0) {
-        s32 off2;
         u8* base = (u8*)gPlayers;
-        for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
-            u8* q = base + off2;
+        for (i = 0; i < 4; i++) {
+            u8* q = base + i * sizeof(Player);
             Player* player = (Player*)q;
             if (player->state != INACTIVE) {
                 if (sMusicTrackHi == 13) {
@@ -1627,7 +1652,7 @@ void fn_8005351C(void)
                 }
                 if (player->exp == 0) {
                     player->exp = 1;
-                    *(s8*)(q + 2699) = 0;
+                    player->saved = 0;
                 }
             }
         }
@@ -1769,16 +1794,15 @@ void game_main(void)
         }
     }
     if (opt_quit_request && OptionsDone()) {
-        i = 0;
-        opt_quit_request = i;
+        opt_quit_request = 0;
         gGameMode = MG_OVER;
-        gGameBusy = i;
+        gGameBusy = 0;
         AudioStopSelect();
         AudioSelectReset();
         fn_8009D34C();
-        lbl_80344774 = i;
+        lbl_80344774 = 0;
         lbl_80344778 = 240;
-        for (; i < 4; i++) {
+        for (i = 0; i < 4; i++) {
             abort_player(i);
         }
         lbl_80344824 = 0;
@@ -1822,13 +1846,12 @@ void game_main(void)
         AudioStopSelect();
         AudioSelectReset();
         bulletproof_printf(strs + 0x1f0);
-        v = 0;
-        alpha = v;
+        alpha = 0;
         fn_800520C8();
         AudioClearInputFlag();
         init_targets();
-        lbl_80344A2C = v;
-        options_state = v;
+        lbl_80344A2C = 0;
+        options_state = 0;
         end_all_optmenus();
         FireScrollReset();
         TriggerCameraEnd();
@@ -1839,13 +1862,12 @@ void game_main(void)
         bulletproof_printf(strs + 0x200);
         fn_80053D08(-1, 0, -1);
         bulletproof_printf(strs + 0x210);
-        i = -1;
-        lbl_80343C10 = i;
-        lbl_80343DD4 = i;
-        lbl_80343B38 = i;
+        lbl_80343C10 = -1;
+        lbl_80343DD4 = -1;
+        lbl_80343B38 = -1;
         AudioStopSelect();
-        lbl_803448AC = i;
-        lbl_803448A8 = i;
+        lbl_803448AC = -1;
+        lbl_803448A8 = -1;
         while (!MBOX_BGLoadModelDone()) {
         }
         init_attract_mode(0x8009);
@@ -1862,8 +1884,17 @@ void game_main(void)
     }
     c = gGameMode;
     switch (c) {
-    default:
-        if (c >= 0x8000) {
+    case MA_CREDITS:
+    case MA_TITLEMOVIE:
+    case MA_MOVIE:
+    case MA_INSTRUCT:
+    case MA_SCREEN2D:
+    case MA_CONTEST:
+    case MA_DEMO:
+    case MA_HSTABLE:
+    case MA_FLYBY:
+    case MA_TITLESCREEN:
+        {
             switch (c) {
             default:
             case MA_CREDITS:
@@ -1995,15 +2026,14 @@ void game_main(void)
             lbl_803447CC += gFrameTicks;
         }
         if (!lbl_80344824) {
-            i = 0;
             gGameMode = MG_OVER;
-            gGameBusy = i;
+            gGameBusy = 0;
             AudioStopSelect();
             AudioSelectReset();
             fn_8009D34C();
-            lbl_80344774 = i;
+            lbl_80344774 = 0;
             lbl_80344778 = 240;
-            for (; i < 4; i++) {
+            for (i = 0; i < 4; i++) {
                 abort_player(i);
             }
             lbl_80344824 = 0;
@@ -2017,15 +2047,14 @@ void game_main(void)
         if (do_players() && !sndFxUpdate(1)) {
             lvl = (lbl_803448D0 << 8) | (lbl_803448CC & 0xFF);
             if (!lbl_80344824) {
-                i = 0;
                 gGameMode = MG_OVER;
-                gGameBusy = i;
+                gGameBusy = 0;
                 AudioStopSelect();
                 AudioSelectReset();
                 fn_8009D34C();
-                lbl_80344774 = i;
+                lbl_80344774 = 0;
                 lbl_80344778 = 240;
-                for (; i < 4; i++) {
+                for (i = 0; i < 4; i++) {
                     abort_player(i);
                 }
                 lbl_80344824 = 0;
@@ -2034,13 +2063,12 @@ void game_main(void)
             }
             fn_8009D610(2, 0);
             if (lvl == sWorldDataConst) {
-                i = -1;
-                lbl_80343C10 = i;
-                lbl_80343DD4 = i;
-                lbl_80343B38 = i;
+                lbl_80343C10 = -1;
+                lbl_80343DD4 = -1;
+                lbl_80343B38 = -1;
                 AudioStopSelect();
-                lbl_803448AC = i;
-                lbl_803448A8 = i;
+                lbl_803448AC = -1;
+                lbl_803448A8 = -1;
                 lbl_80343C04 = next_world();
                 ResolveWorldData(lbl_80343C04);
                 lbl_80343C00 = init_mapscreen(120, 0);
@@ -2137,6 +2165,8 @@ void game_main(void)
             gGameMode = lbl_80344788;
         }
         break;
+    default:
+        break;
     }
 }
 #pragma dont_inline reset
@@ -2145,7 +2175,6 @@ void fn_80054E78(void)
 {
     u8* state = (u8*)lbl_802575C0;
     s32 active;
-    s32 off;
     u8* q;
     s32 i;
     void** b;
@@ -2180,10 +2209,10 @@ void fn_80054E78(void)
         lbl_80344818 = t - gClockFrameStep;
         nt = lbl_80344818;
         if (nt <= lbl_80346B10) {
-            for (i = 0, off = 0; i < 4; i++, off += 4) {
+            for (i = 0; i < 4; i++) {
                 u32 v;
 
-                q = state + off;
+                q = state + i * 4;
                 v = *(u32*)(q += 112);
                 if (v != 0) {
                     MBRemoveBlit(v);
@@ -2232,11 +2261,13 @@ void fn_80054E78(void)
             f32 frac = (total - curv) / total;
             f64 v1;
             f64 v2;
+            f64 vertex;
 
             b = (void**)(state + 116);
+            vertex = lbl_80346B30 * frac + lbl_80346B28;
+            vertex *= lbl_80346B38;
             mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
-                             (f32)((lbl_80346B30 * frac + lbl_80346B28) *
-                                   lbl_80346B38),
+                             (f32)vertex,
                              lbl_80346B20);
             v1 = lbl_80346B40 * frac;
             mbBlitProject(*b, 0, 41 - Round((f32)v1));
@@ -2244,8 +2275,10 @@ void fn_80054E78(void)
 
             b = (void**)(state + 120);
             v2 = lbl_80346B50 * frac;
+            vertex = lbl_80346B48 - v2;
+            vertex *= lbl_80346B38;
             mbBlitSetupVerts(*b, lbl_80346B20, lbl_80346B20,
-                             (f32)((lbl_80346B48 - v2) * lbl_80346B38),
+                             (f32)vertex,
                              lbl_80346B20);
             mbBlitProject(*b, 0, Round((f32)v2) + 23);
             mbBlitCalcY(*b, 106 - Round((f32)v2));

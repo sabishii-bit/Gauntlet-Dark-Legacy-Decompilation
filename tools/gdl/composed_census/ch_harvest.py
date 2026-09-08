@@ -27,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl", "composed_census"))
+import cc_artifact  # noqa: E402
 import cliscreen  # noqa: E402
 cliscreen.help_only(__doc__)
 import webfrank as wf  # noqa: E402
@@ -130,8 +131,9 @@ def attempt(unit, fn):
 
 
 def main():
-    census = json.load(open(os.path.join(HERE, "ch_census26.json")))
-    shipped = set(json.load(open(os.path.join(HERE, "ch_shipped.json"))))
+    census = cc_artifact.load_artifact("ch_census26.json", "ch_harvest.py")
+    shipped = set(cc_artifact.load_artifact("ch_shipped.json",
+                                            "ch_harvest.py"))
     cands = [r for r in census["rows"]
              if r["counts"].get("other", 0) == 0 and r["function"] not in shipped]
     print(f"other==0 functions: "
@@ -153,13 +155,14 @@ def main():
     print(f"\nCLOSED WITH EXISTING CLASSES: {len(closed)}")
     for u, f, _r, _w in closed:
         print(f"  {u}::{f}")
-    out = os.path.join(HERE, "ch_harvest.json")
-    json.dump({"closed": [{"unit": u, "function": f, "rule": r}
-                          for u, f, r, _w in closed],
-               "refused": [{"unit": u, "function": f, "why": w}
-                           for u, f, _r, w in refused]},
-              open(out, "w"), indent=1)
-    print(f"\nwrote {out}")
+    out = cc_artifact.write_artifact(
+        "ch_harvest.json",
+        {"closed": [{"unit": u, "function": f, "rule": r}
+                    for u, f, r, _w in closed],
+         "refused": [{"unit": u, "function": f, "why": w}
+                     for u, f, _r, w in refused]},
+        cc_artifact.out_override(sys.argv))
+    print(f"\nwrote {cc_artifact.artifact_label(out)}")
 
 
 if __name__ == "__main__":

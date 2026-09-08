@@ -86,9 +86,11 @@ typedef struct MBFontState {
 
 extern MBFontState mbfont_space;
 
+typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
+
 struct MBFont {
     s32 height;   /* 0x0 */
-    u8* cells;    /* 0x4  maxCode+1 blit entries, 36B each */
+    MBBlitCell* cells; /* 0x4  maxCode+1 blit cells, 36B each */
     s32 count;    /* 0x8 */
     u32 flags;    /* 0xC  bit0 = remap punctuation/extended chars */
 };
@@ -184,7 +186,7 @@ int MBFontStringWidth(const char* s)
             }
         }
 
-        mbBlitCalcX(font->cells + ch * 36, &x, 0);
+        mbBlitCalcX((u8*)&font->cells[ch], &x, 0);
         x = (s32)((f32)x * lbl_80344E5C);
         if (x == 0 && ch == ' ') {
             x = (s32)(lbl_80344E5C * (f32)state->space[lbl_80344E14]);
@@ -287,7 +289,6 @@ typedef struct MBBlitEnt {
 /* stored glyph cell (font->cells[cc], 36B each; built by MBNewFont, rescaled
  * by MBFontUpdateWindow): a projected MBBlitEnt-shaped template (_p) plus
  * the glyph's own on-screen size (w/h) used by MBRenderText's width lookup. */
-typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
 
 /* 0x800B5DEC - MBRenderText : rasterise queued messages through the pb blit
  * pipeline in two layer passes (flag-8 messages render on the second). */
@@ -408,7 +409,7 @@ void MBRenderText(void)
                         break;
                     default:
                         if (c < font->count) {
-                            glyph = ((MBBlitCell*)font->cells)[c].w;
+                            glyph = font->cells[c].w;
                         } else {
                             glyph = 0;
                         }
@@ -430,7 +431,7 @@ void MBRenderText(void)
                         } else {
                             goto next_char;
                         }
-                        glyph = ((MBBlitCell*)font->cells)[c].w;
+                        glyph = font->cells[c].w;
                     } else {
                         if (c == 0) {
                             goto next_char;
@@ -438,7 +439,7 @@ void MBRenderText(void)
                         if (c >= font->count) {
                             goto next_char;
                         }
-                        glyphValue = ((MBBlitCell*)font->cells)[c].w;
+                        glyphValue = font->cells[c].w;
                         glyph = glyphValue;
                         if (glyphValue == 0) {
                             if (c == 0x20) {
@@ -448,7 +449,7 @@ void MBRenderText(void)
                         }
                     }
                 }
-                memcpy(pRec, font->cells + c * 0x24 + 4, 0x18);
+                memcpy(pRec, font->cells[c]._p + 4, 0x18);
                 if (hb > 0) {
                     text++;
                     glyph = font->height + 4;
@@ -707,7 +708,7 @@ int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
     memset(fnt, 0, 16);
     maxCode++;
     size = maxCode * 36;
-    fnt->cells = (u8*)AllocMem(size);
+    fnt->cells = (MBBlitCell*)AllocMem(size);
     fnt->count = maxCode;
     memset(fnt->cells, 0, size);
     if (def->flags & 0x100) {
@@ -716,7 +717,7 @@ int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
     fnt->height = def->flags & 0xFF;
     g = def->glyphs;
     for (i = 0; i < nglyphs && (cc = g->code) != 0; i++, g++) {
-        dst = fnt->cells + cc * 36;
+        dst = (u8*)&fnt->cells[cc];
         memcpy(dst, blit, 36);
         mbInitBlitEntry(dst, -1, i / perRow);
         mbBlitProject(dst, g->w, fnt->height);
@@ -769,7 +770,7 @@ void MBFontUpdateWindow(f32 scaleX, f32 scaleY)
         MBFont* font = (MBFont*)lbl_802A4AA4[fontIndex];
 
         for (cellIndex = 0; cellIndex < font->count; cellIndex++) {
-            u8* cell = font->cells + cellIndex * 36;
+            u8* cell = (u8*)&font->cells[cellIndex];
 
             if (*(u16*)(cell + 16) != 0 && (*(u32*)cell & 0x40) == 0) {
                 *(u16*)(cell + 8) = (u16)((f32)*(u16*)(cell + 8) * scaleX);

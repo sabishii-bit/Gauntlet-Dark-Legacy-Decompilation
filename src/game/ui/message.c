@@ -476,7 +476,6 @@ int msgPost(int idx, int param, char* position)
     int count;
     int i;
     int descOffset;
-    int playerOffset;
     u8 unused[4];
 
     msgData = (MsgData*)&lbl_80124E58;
@@ -626,9 +625,8 @@ int msgPost(int idx, int param, char* position)
             first = param;
             last = param;
         }
-        playerOffset = first * 0x335C;
-        for (i = first; i <= last; i++, playerOffset += 0x335C) {
-            World* world = (World*)((u8*)gPlayers + playerOffset);
+        for (i = first; i <= last; i++) {
+            World* world = &gPlayers[i];
             if (world->state != 0) {
                 world->items[idx] |= 0x11;
             }
@@ -637,9 +635,8 @@ int msgPost(int idx, int param, char* position)
     case 1:
     case 3:
     default:
-        playerOffset = 0;
-        for (i = 0; i < 4; i++, playerOffset += 0x335C) {
-            World* world = (World*)((u8*)gPlayers + playerOffset);
+        for (i = 0; i < 4; i++) {
+            World* world = &gPlayers[i];
             if (world->state != 0) {
                 world->items[idx] |= 0x11;
             }

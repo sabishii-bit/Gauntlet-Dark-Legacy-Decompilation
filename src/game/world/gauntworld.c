@@ -227,6 +227,84 @@ typedef struct WorldSoundView {
     s16  pri;
 } WorldSoundView;
 
+/* Item.data (game/item.h declares it as an opaque u8[0x14]) is the Xbox PDB's
+ * per-item-type union `union __unnamed` (misc.h Id=3251), whose eleven
+ * variants - containerdata / triggerdata / enemydata / gendata / exitdata /
+ * transdata / rotdata / sounddata / obsticledata / trapdata / powerupdata -
+ * all sit at offset 0x00 of that 0x14-byte member and are selected by
+ * Item.info->type.  item.h is a shared header with a different owner, so the
+ * union is NOT added to Item this run; the variants this TU actually reads
+ * are declared here as file-local views, the same way camera_data /
+ * audio_data / map_data / bosscam_data above name the world-WAD records.
+ *
+ * enemydata is Xbox game.h Id=3325.  Every field below is independently
+ * GC-verified by fn_80060114's own loads/stores: etype s16@0x00 (the switch
+ * selector, generate_enemy's `kind`, and the `>= 0` / `== 31` guards),
+ * strength s8@0x02 and ai s8@0x03 (generate_enemy arguments 3 and 5, both
+ * sign-extended by the target), flags u32@0x08 (the `& 1` spawn gate),
+ * rad f32@0x0C (multiplied by gCurLevel->ene_visrad into Enemy.sight and
+ * Critter+0xAD0), interval s16@0x10 (scaled by sItemFloorYOffset into
+ * Enemy.idle_time) and pickup s16@0x12 (an sItems element index stored into
+ * Enemy.gotitem).  ang f32@0x04 is not read by this TU. */
+typedef struct enemydata {
+    /* 0x00 */ s16 etype;
+    /* 0x02 */ s8  strength;
+    /* 0x03 */ s8  ai;
+    /* 0x04 */ f32 ang;
+    /* 0x08 */ u32 flags;
+    /* 0x0C */ f32 rad;
+    /* 0x10 */ s16 interval;
+    /* 0x12 */ s16 pickup;
+} enemydata; /* 0x14 == sizeof(Item.data) */
+
+
+/* gendata is Xbox misc.h Id=3328, the ITEM_GENERATOR (info->type 3) variant.
+ * GC-verified by fn_800606FC's generator case: etype s16@0x00 (the `== -1`
+ * idle test and generate_enemy's type argument), numenemies s8@0x02 (compared
+ * against maxenemies and incremented per spawn), maxenemies s8@0x03,
+ * num_generated s8@0x04 (the `& 1` alternation for ai 0x0E and the `>= 3`
+ * decrement for ai 0x0C), tail s8@0x05 (the previous spawn's gEnemies slot,
+ * linked through Enemy.prev_enemy/next_enemy for ai 0x0D), strength s8@0x06
+ * and ai s8@0x07 (generate_enemy arguments 3 and 5, and the 0x0C/0x0D/0x0E/
+ * 0x0F dispatch), counter s16@0x08, flags u8@0x0A, interval u8@0x0B (read
+ * zero-extended into the wob scale), genratio f32@0x0C (accumulated per
+ * spawn and wrapped at sItemFloorRadius) and ang f32@0x10 (added to
+ * Enemy.genang_offset to seed Enemy.ang). */
+typedef struct gendata {
+    /* 0x00 */ s16 etype;
+    /* 0x02 */ s8  numenemies;
+    /* 0x03 */ s8  maxenemies;
+    /* 0x04 */ s8  num_generated;
+    /* 0x05 */ s8  tail;
+    /* 0x06 */ s8  strength;
+    /* 0x07 */ s8  ai;
+    /* 0x08 */ s16 counter;
+    /* 0x0A */ u8  flags;
+    /* 0x0B */ u8  interval;
+    /* 0x0C */ f32 genratio;
+    /* 0x10 */ f32 ang;
+} gendata; /* 0x14 */
+
+/* triggerdata is Xbox misc.h Id=3294, the ITEM_TRIGGER (info->type 5) variant.
+ * GC-verified twice over: ActivateSpecialTrigger walks `target` (worldobj*
+ * @0x00, whose 0x10/0x16/0x17/0x28 accesses are WorldObj.flags/triggerstate/
+ * ptriggerstate/nodeptr) and chains through `next` (item* @0x08) after
+ * selecting items with `info->type == 5`; fn_800606FC's case 5 reads
+ * flags s16@0x04 (bits 0x40/0x100/0x400), id s8@0x06 (the tower level/garg
+ * argument and ActivateSpecialTrigger's `type` key), next item*@0x08 for the
+ * playermask fan-out, and idletime s16@0x10 as a gFrameTicks countdown.
+ * rad f32@0x0C and camid s16@0x12 are not read by this TU. */
+typedef struct triggerdata {
+    /* 0x00 */ WorldObj* target;
+    /* 0x04 */ s16 flags;
+    /* 0x06 */ s8  id;
+    /* 0x07 */ s8  nextid;
+    /* 0x08 */ Item* next;
+    /* 0x0C */ f32 rad;
+    /* 0x10 */ s16 idletime;
+    /* 0x12 */ s16 camid;
+} triggerdata; /* 0x14 */
+
 /* ---- real callees (names already resolved in config/GUNE5D/symbols.txt) --- */
 extern s32   MBSetupWad(void* ctx, void* wadData);
 extern void* MBGetFromWad(void* ctx, s32 tag, s32* outLen);
@@ -646,7 +724,7 @@ extern f32  lbl_80346C80;
 extern f32  lbl_80346C84;
 extern s32  lbl_803447B4;
 extern void* lbl_803447B0;
-extern u8*  gBossObj;
+extern Critter* gBossObj;
 extern s32  gBossDead;
 extern f32  gClockTime;
 extern Effect Effects[]; /* live fx pool, stride 0xF0 (game/effect.h) */
@@ -864,6 +942,7 @@ s32 fn_80055F68(s32 arg0, s32 arg1)
 {
     register u8* table = (u8*)lbl_80257680;
     char name[264];
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 10 words in fn_80055F68 at unchanged 1028-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     volatile u8 unused[4];
     s32 type;
     s32 qty;
@@ -1278,11 +1357,13 @@ void world_update(void)
                                      lbl_80346BF0, lbl_80346BF0);
             } else {
                 if (!lbl_80344868) {
+                    // lint-begin FM001, FM007, FM009: 0x70 is level_data.fog (game/leveldata.h) and 0x80 is that block's fog_data.max, but this pair is load-bearing in world_update at unchanged 2264-byte size: level_data* lv + lv->fog + hdr+offsetof(FogData,max) moves 18 words, keeping u8* lv and converting only the 0x80 read moves 18, level_data* lv with lv->fog+0x10 moves 14, and u8* lv with ((level_data*)lv)->fog moves 18. The target keeps a raw gCurLevel byte cursor here, so both offsets stay raw.
                     u8* lv = (u8*)gCurLevel;
                     u8* hdr = lv + 0x70;
                     s32 col = 0;
 
                     if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                        // lint-end FM001, FM007, FM009
                         col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                     }
                     MBCompVertScaleAddUV(
@@ -1308,11 +1389,13 @@ void world_update(void)
             }
         } else {
             if (!lbl_80344868) {
+                // lint-begin FM001, FM007, FM009: 0x70 is level_data.fog (game/leveldata.h) and 0x80 is that block's fog_data.max, but this pair is load-bearing in world_update at unchanged 2264-byte size: level_data* lv + lv->fog + hdr+offsetof(FogData,max) moves 18 words, keeping u8* lv and converting only the 0x80 read moves 18, level_data* lv with lv->fog+0x10 moves 14, and u8* lv with ((level_data*)lv)->fog moves 18. The target keeps a raw gCurLevel byte cursor here, so both offsets stay raw.
                 u8* lv = (u8*)gCurLevel;
                 u8* hdr = lv + 0x70;
                 s32 col = 0;
 
                 if (*(f32*)(lv + 0x80) > lbl_80346BF0) {
+                    // lint-end FM001, FM007, FM009
                     col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                 }
                 MBCompVertScaleAddUV(
@@ -1337,21 +1420,23 @@ void world_update(void)
         }
     }
     if (cond && gGameMode == MG_PLAY && gBossObj != NULL &&
-        *(s32*)(gBossObj + offsetof(Critter, state)) != 0) {
+        gBossObj->state != 0) {
         {
-            u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
+            WorldObj* w = FindWORLDOBJ(strs + 0xd0);
 
-            if (w != 0 && *(u32*)(w + 0x28) != 0) {
-                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            if (w != 0 && w->nodeptr != 0) {
+                // lint-allow-next-line FM001, FM007: 0x60 off WorldObj.nodeptr is mbnode.flags (Xbox misc.h struct mbnode Id=3249: unsigned int flags at 0x60); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
+                *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
             } else {
                 ErrorPrintf(strs + 0xdc);
             }
         }
         {
-            u32 w = (u32)FindWORLDOBJ(strs + 0xfc);
+            WorldObj* w = FindWORLDOBJ(strs + 0xfc);
 
-            if (w != 0 && *(u32*)(w + 0x28) != 0) {
-                *(s32*)(*(u32*)(w + 0x28) + 0x60) |= 2;
+            if (w != 0 && w->nodeptr != 0) {
+                // lint-allow-next-line FM001, FM007: 0x60 off WorldObj.nodeptr is mbnode.flags (Xbox misc.h struct mbnode Id=3249: unsigned int flags at 0x60); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
+                *(s32*)((u8*)w->nodeptr + 0x60) |= 2;
             } else {
                 ErrorPrintf(strs + 0x108);
             }
@@ -1363,14 +1448,14 @@ void world_update(void)
 
         for (i = 0, off = 0; i < lbl_8034484C; i++, off += 4) {
             u8* row = tbl + off;
-            u8* wo = *(u8**)(row + 0x4c);
+            WorldObj* wo = *(WorldObj**)(row + 0x4c);
             u8* node;
             f32* timer;
 
             if (wo == 0) {
                 continue;
             }
-            node = *(u8**)(wo + 0x28);
+            node = (u8*)wo->nodeptr;
             if (node == 0) {
                 continue;
             }
@@ -1378,7 +1463,7 @@ void world_update(void)
                 timer = (f32*)(row + 0x5c);
                 if (sMusicFadeBase >= *timer) {
                     fn_80067AE0(lbl_80346C4C, lbl_80346C50);
-                    MBTreeClearFlags(*(void**)(wo + 0x28), 2, 0);
+                    MBTreeClearFlags(wo->nodeptr, 2, 0);
                     *timer = (f32)(k1 + sMusicFadeBase);
                 }
             } else {
@@ -1462,13 +1547,13 @@ void world_update(void)
         case 0x28:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
+                gBossObj->unkAC8 = lbl_80346BF0;
             }
             break;
         case 0x2a:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
+                gBossObj->unkAC8 = lbl_80346BF0;
             }
             break;
         case 0x24:
@@ -1479,12 +1564,14 @@ void world_update(void)
         case 0x26:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 void* found = MBOX_FindObject(strs + 0x128);
-                u32 o = *(u32*)(gBossObj + offsetof(Critter, hitnode1));
+                u32 o = (u32)gBossObj->hitnode1;
 
+                // lint-begin FM001, FM007: 0x78 off this node is mbnode.child (Xbox misc.h struct mbnode Id=3249: struct mbnode *child at 0x78); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                 if (o != 0 && *(u32*)(o + 0x78) != 0) {
                     MBSetObject((void*)*(s32*)(o + 0x78), found);
+                    // lint-end FM001, FM007
                 }
-                *(u16*)(gBossObj + offsetof(Critter, unkAC6)) = 0;
+                gBossObj->unkAC6 = 0;
                 lbl_8034489C = 6;
             }
             break;
@@ -1492,13 +1579,13 @@ void world_update(void)
         if (kill) {
             if (lbl_80344894 >= 0) {
                 lbl_80344894 = DeleteEffect(lbl_80344894, 1);
-                fn_8009C9DC(3, gBossObj + offsetof(Critter, movevec));
-                fn_8009C9DC(4, gBossObj + offsetof(Critter, movevec));
+                fn_8009C9DC(3, gBossObj->movevec);
+                fn_8009C9DC(4, gBossObj->movevec);
             }
             lbl_8034489C = 6;
         }
         if (lbl_80344890 >= 0) {
-            u8* e = (u8*)Effects + lbl_80344890 * 0xf0;
+            u8* e = (u8*)&Effects[lbl_80344890];
             f32 dt = *(f32*)(e + 0x68) - gClockTime;
 
             if (dt < lbl_80346C40) {
@@ -1557,13 +1644,13 @@ void fn_80057024(void)
             s32 st = *(s32*)(q + offsetof(Player, state));
             if (st == 1 || st == 5 || st == 3) {
                 if (lbl_8034489C != 0) {
-                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
+                    ((Player*)q)->quest_state = 0;
                 } else if (towerGetRuneNearStat(i, sMusicTrackHi) != 0) {
-                    *(s32*)(q + offsetof(Player, quest_state)) = 1;
+                    ((Player*)q)->quest_state = 1;
                     lbl_8034489C = 1;
                     lbl_80344898 = z;
                 } else {
-                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
+                    ((Player*)q)->quest_state = 0;
                 }
             }
         }
@@ -1696,6 +1783,7 @@ void PrintWorldMemSizes(void)
     char* fmt = lbl_80112788;
     WorldMemTable* t = (WorldMemTable*)lbl_80257680;
     s32 sum;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in PrintWorldMemSizes at unchanged 368-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[8];
     s32 i;
     WorldMemTable* entry;
@@ -2556,7 +2644,7 @@ extern char lbl_80112788[];            /* string block (+716/+748/+776)     */
 static void ResolveWorldDataPointers(void)
 {
     char* strs = lbl_80112788;
-    u8* lvl;
+    level_data* lvl;
     WorldLevel* level;
     s32 i;
     f32 one;
@@ -2577,7 +2665,7 @@ static void ResolveWorldDataPointers(void)
     one = lbl_80346BE0;
 
     for (i = 0; i < gWorldData->numLevels; i++) {
-        lvl = (u8*)&gWorldData->levels[i];
+        lvl = (level_data*)&gWorldData->levels[i];
         level = (WorldLevel*)lvl;
 
         if (level->cameraIdx < 0) {
@@ -2627,72 +2715,72 @@ static void ResolveWorldDataPointers(void)
             /* per-level float tuning block, level_data 0xA8..0xDC
              * (difficulty..trap_damage) - stride/order confirmed by this
              * loop's exact offsets against every field in that span. */
-            if (sent == *(f32*)(lvl + offsetof(level_data, difficulty))) {
-                *(f32*)(lvl + offsetof(level_data, difficulty)) = one;
+            if (sent == lvl->difficulty) {
+                lvl->difficulty = one;
             }
-            d = *(f32*)(lvl + offsetof(level_data, difficulty));
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_health))) {
-                *(f32*)(lvl + offsetof(level_data, ene_health)) = d;
+            d = lvl->difficulty;
+            if (sent == lvl->ene_health) {
+                lvl->ene_health = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_speed))) {
-                *(f32*)(lvl + offsetof(level_data, ene_speed)) = d;
+            if (sent == lvl->ene_speed) {
+                lvl->ene_speed = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_visrad))) {
-                *(f32*)(lvl + offsetof(level_data, ene_visrad)) = d;
+            if (sent == lvl->ene_visrad) {
+                lvl->ene_visrad = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_attack))) {
-                *(f32*)(lvl + offsetof(level_data, ene_attack)) = d;
+            if (sent == lvl->ene_attack) {
+                lvl->ene_attack = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_damage))) {
-                *(f32*)(lvl + offsetof(level_data, ene_damage)) = d;
+            if (sent == lvl->ene_damage) {
+                lvl->ene_damage = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_mrate))) {
-                *(f32*)(lvl + offsetof(level_data, ene_mrate)) = d;
+            if (sent == lvl->ene_mrate) {
+                lvl->ene_mrate = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_mspeed))) {
-                *(f32*)(lvl + offsetof(level_data, ene_mspeed)) = one;
+            if (sent == lvl->ene_mspeed) {
+                lvl->ene_mspeed = one;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, ene_macc))) {
-                *(f32*)(lvl + offsetof(level_data, ene_macc)) = d;
+            if (sent == lvl->ene_macc) {
+                lvl->ene_macc = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, gen_health))) {
-                *(f32*)(lvl + offsetof(level_data, gen_health)) = d;
+            if (sent == lvl->gen_health) {
+                lvl->gen_health = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, gen_rate))) {
-                *(f32*)(lvl + offsetof(level_data, gen_rate)) = d;
+            if (sent == lvl->gen_rate) {
+                lvl->gen_rate = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, gen_max))) {
-                *(f32*)(lvl + offsetof(level_data, gen_max)) = d;
+            if (sent == lvl->gen_max) {
+                lvl->gen_max = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, trap_rate))) {
-                *(f32*)(lvl + offsetof(level_data, trap_rate)) = d;
+            if (sent == lvl->trap_rate) {
+                lvl->trap_rate = d;
             }
-            if (sent == *(f32*)(lvl + offsetof(level_data, trap_damage))) {
-                *(f32*)(lvl + offsetof(level_data, trap_damage)) = d;
+            if (sent == lvl->trap_damage) {
+                lvl->trap_damage = d;
             }
             {
                 gp = (f32*)((u8*)lbl_8011C748 +
                             ((OptsView*)optionsAudioAndPrefs30)->vol * 4);
                 gain = *gp;
-                *(f32*)(lvl + offsetof(level_data, difficulty)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_speed)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_visrad)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_attack)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_mrate)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, ene_macc)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, gen_rate)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, gen_max)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, trap_rate)) *= gain;
-                *(f32*)(lvl + offsetof(level_data, trap_damage)) *= gain;
+                lvl->difficulty *= gain;
+                lvl->ene_speed *= gain;
+                lvl->ene_visrad *= gain;
+                lvl->ene_attack *= gain;
+                lvl->ene_mrate *= gain;
+                lvl->ene_macc *= gain;
+                lvl->gen_rate *= gain;
+                lvl->gen_max *= gain;
+                lvl->trap_rate *= gain;
+                lvl->trap_damage *= gain;
             }
-            *(f32*)(lvl + offsetof(level_data, ene_attack)) =
-                one / *(f32*)(lvl + offsetof(level_data, ene_attack));
-            *(f32*)(lvl + offsetof(level_data, ene_macc)) =
-                one / *(f32*)(lvl + offsetof(level_data, ene_macc));
-            *(f32*)(lvl + offsetof(level_data, ene_mrate)) =
-                one / *(f32*)(lvl + offsetof(level_data, ene_mrate));
-            *(f32*)(lvl + offsetof(level_data, trap_rate)) =
-                one / *(f32*)(lvl + offsetof(level_data, trap_rate));
+            lvl->ene_attack =
+                one / lvl->ene_attack;
+            lvl->ene_macc =
+                one / lvl->ene_macc;
+            lvl->ene_mrate =
+                one / lvl->ene_mrate;
+            lvl->trap_rate =
+                one / lvl->trap_rate;
         }
     }
 
@@ -3062,6 +3150,7 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
         s16 field;
     } WorldRecordView;
     WorldRecordView* view = (WorldRecordView*)record;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 10 words in fn_8005AF98 at unchanged 512-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unusedHigh[8];
     s32 type;
     s32 value;
@@ -3076,6 +3165,7 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     u8** worldRecords;
     s32 count;
     s32 i;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 42 words in fn_8005AF98 at unchanged 512-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unusedLow[8];
 
     if (view->type == -1) {
@@ -3168,6 +3258,7 @@ f32 fn_8005B274(f32* position, f32 bias, f32 radius, f32* direction,
                 f32* resultPosition, Item** resultItem)
 {
     f32 delta[3];
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 17 words in fn_8005B274 at unchanged 740-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[4];
     f32 dot;
     f32 weighted;
@@ -3527,6 +3618,7 @@ s32 fn_8005D0C4(s32 id, f32* position)
     f32 best = sCameraVisibilityRadius;
     s32 best_idx = -1;
     s32 idx;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 7 words in fn_8005D0C4 at unchanged 328-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[16];
     struct {
         u8 pad[8];
@@ -3624,6 +3716,7 @@ void fn_8005E90C(Item* item, s32* inst)
     s32 idx;
     u32 fl;
     s32 t;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005E90C at unchanged 1080-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[24];
 
     idx = *(s16*)&item->data[0];
@@ -3637,7 +3730,7 @@ void fn_8005E90C(Item* item, s32* inst)
     while (row->type == -1) {
         s32 n = row->item.subtype;
         s32 r;
-        t = ((u8*)item - (u8*)sItems) / 240;
+        t = item - sItems;
         if (n != 0) {
             r = ((sItemRandSeed >> 5) + t) % (u32)n;
         } else {
@@ -3777,6 +3870,7 @@ int fn_8005EE18(Item* item, s32 arg)
     int result = 0;
     iteminfo* info = item->info;
     s32* sub = (s32*)info + 1;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005EE18 at unchanged 404-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 _pad[8];
 
     switch (info->type) {
@@ -3902,6 +3996,7 @@ Item* fn_8005EFAC(f32 radius, s32 a2, f32* position, s32 a4, s32 a5)
 
 Item* fn_80062FF0(f32 radius, f32* position, s32 type, f32* out1, f32* out2)
 {
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 7 words in fn_80062FF0 at unchanged 444-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[40];
     Item* item;
     f32 min_flagged = 100000.0f;
@@ -4042,14 +4137,15 @@ void fn_8005BA1C(Item* item, u8* player)
     s32 msg = -1;                                 /* r24: message code     */
     iteminfo* info = item->info;
     s32* sub = (s32*)((u8*)info + 4);
-    s32 rank = *(s32*)(player + 0x3324);          /* accumulated gold rank */
-    s32 mode = *(u32*)(player + 8) & 3;
+    s32 rank = ((Player*)player)->level;          /* character level 1..99 */
+    s32 mode = (u32)((Player*)player)->char_type & 3;
     void* hdr;
     s32 k;
-    u8* world;
-    u8** records;
-    u8* rec;
+    WorldInfo* world;
+    iteminfo** records;
+    iteminfo* rec;
     s32* rsub;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 5 words in fn_8005BA1C at unchanged 1964-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[32];
 
     (void)unused;
@@ -4127,13 +4223,13 @@ void fn_8005BA1C(Item* item, u8* player)
         if (*(s16*)&item->data[0] < 0) {
             break;
         }
-        world = (u8*)&gWorldInfo;
-        records = (u8**)(world + 0x68);
-        rec = *records + *(s16*)&item->data[0] * 0x50;
-        if (*(s32*)rec != 1) {
+        world = &gWorldInfo;
+        records = &world->iteminfo;
+        rec = &(*records)[*(s16*)&item->data[0]];
+        if (rec->type != 1) {
             break;
         }
-        switch (*(s32*)(rec + 4)) {
+        switch (rec->item.subtype) {
         case 2:
             break;
         case 3:
@@ -4143,15 +4239,15 @@ void fn_8005BA1C(Item* item, u8* player)
             if (mode != 2) {
                 break;
             }
-            if (*(s16*)(rec + 0x40) <= -100) {
+            if (rec->item.value <= -100) {
                 if (rank < 0x32) {
                     break;
                 }
                 rec = *records;
-                for (k = 0; k < *(s32*)(world + 0x74); k++, rec += 0x50) {
-                    rsub = (s32*)(rec + 4);
+                for (k = 0; k < world->niteminfos; k++, rec++) {
+                    rsub = &rec->item.subtype;
                     if (strcmp(lbl_80346F10, (char*)rsub + 0x24) == 0 &&
-                        *(s32*)rec == 1 && *rsub == 3) {
+                        rec->type == 1 && *rsub == 3) {
                         goto found_chicken;
                     }
                 }
@@ -4160,15 +4256,15 @@ found_chicken:
                 *(s16*)&item->data[0] = (s16)k;
                 evt = 0x2F;
                 msg = 0x90;
-            } else if (*(s16*)(rec + 0x40) < 0) {
+            } else if (rec->item.value < 0) {
                 if (rank < 0x19) {
                     break;
                 }
                 rec = *records;
-                for (k = 0; k < *(s32*)(world + 0x74); k++, rec += 0x50) {
-                    rsub = (s32*)(rec + 4);
+                for (k = 0; k < world->niteminfos; k++, rec++) {
+                    rsub = &rec->item.subtype;
                     if (strcmp(lbl_80346F18, (char*)rsub + 0x24) == 0 &&
-                        *(s32*)rec == 1 && *rsub == 3) {
+                        rec->type == 1 && *rsub == 3) {
                         goto found_apple;
                     }
                 }
@@ -4183,7 +4279,7 @@ found_apple:
             if (mode != 0) {
                 break;
             }
-            if (*(s16*)(rec + 0x40) > 10) {
+            if (rec->item.value > 10) {
                 break;
             }
             if (rank >= 0x32) {
@@ -4201,11 +4297,11 @@ found_apple:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 200;
                     rec = *records;
-                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec += 0x50) {
-                        rsub = (s32*)(rec + 4);
+                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec++) {
+                        rsub = &rec->item.subtype;
                         if (strcmp(&objects[0x130],
                                    (char*)rsub + 0x24) == 0 &&
-                            *(s32*)rec == 1 && *rsub == 1) {
+                            rec->type == 1 && *rsub == 1) {
                             goto found_gold;
                         }
                     }
@@ -4231,11 +4327,11 @@ found_gold:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 100;
                     rec = *records;
-                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec += 0x50) {
-                        rsub = (s32*)(rec + 4);
+                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec++) {
+                        rsub = &rec->item.subtype;
                         if (strcmp(&objects[0x13C],
                                    (char*)rsub + 0x24) == 0 &&
-                            *(s32*)rec == 1 && *rsub == 1) {
+                            rec->type == 1 && *rsub == 1) {
                             goto found_silver;
                         }
                     }
@@ -4301,7 +4397,7 @@ found_silver:
                     item->objgrp.node = 0;
                 }
                 item->active = -1;
-                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                k = item - sItems;
                 if (k < gNextItemIdx) {
                     gNextItemIdx = k;
                 }
@@ -4363,12 +4459,14 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     f32 Rsum;
     f32 dist;
     f32 cx, cz;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 10 words in fn_8005F0F4 at unchanged 2640-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     f32 unused2[4];
     f32 nv[3];
     f32 mv[3];
     f32 norm[3];
     f32 hitpt[3];
     f32 f1, f2, f3, f4;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it (with its (void) reference) moves 85 words in fn_8005F0F4 at unchanged 2640-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     f32 unused[6];
 
     (void)unused;
@@ -4926,6 +5024,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
         gCurLevel->plevel > sItemZero) {
         f32 mult;
         f32 ramp = gCurLevel->plevel;
+        // lint-allow-next-line FM007: 0x335C is the Player stride and 0x3324 is Player.level (game/player.h, GC-verified there); gPlayers[owner].level is NOT byte-neutral here - it moves 6 words in fn_8005C1DC at unchanged 3696-byte size - so the indexed form stays raw while the field is named in this comment.
         f32 gold = (f32)*(s32*)((u8*)gPlayers + owner * 0x335C + 0x3324);
 
         if (gold < ramp) {
@@ -5001,7 +5100,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
                     item->objgrp.node = 0;
                 }
                 item->active = -1;
-                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                k = item - sItems;
                 if (k < gNextItemIdx) {
                     gNextItemIdx = k;
                 }
@@ -5052,6 +5151,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
         if ((flags & 0x400) != 0 && power >= lbl_80346F68) {
             StartFXMat(0x20, &item->objgrp);
             StartFXMat(0x21, &item->objgrp);
+            // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
             MBOX_NewObject(&objects[0x14C], item->objgrp.node,
                            *(s32*)((u8*)item->objgrp.node + 0x74), 0x80800);
             if (item->info->type == 1 && *(Item**)&item->data[0xC] != 0) {
@@ -5069,7 +5169,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
                 item->objgrp.node = 0;
             }
             item->active = -1;
-            k = ((u8*)item - (u8*)sItems) / 0xF0;
+            k = item - sItems;
             if (k < gNextItemIdx) {
                 gNextItemIdx = k;
             }
@@ -5100,15 +5200,17 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             rec = (u8*)gWorldInfo.iteminfo + *(s16*)&item->data[0] * 0x50;
         }
         if (rec != 0 && (flags & 0x200) != 0 &&
-            EnemyDescType((char*)(rec + 0x28)) == 0x1E && *sub != 0x2B) {
+            EnemyDescType(((iteminfo*)rec)->item.desc) == 0x1E && *sub != 0x2B) {
             /* enemy chest converts to an apple generator */
             *sub = 1;
             rec = (u8*)gWorldInfo.iteminfo;
+            // lint-begin FM001: this is gWorldInfo.niteminfos; writing it as the plain member moves 549 words and shrinks fn_8005C1DC 3696 -> 3692 bytes, because the target keeps a separate base register for the count. Measured, not assumed.
             for (k = 0; k < *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, niteminfos)); k++) {
-                s32* rec_sub = (s32*)(rec + 4);
+                // lint-end FM001
+                s32* rec_sub = &((iteminfo*)rec)->item.subtype;
 
-                if (strcmp(lbl_80346F18, (char*)(rec_sub + 9)) == 0 &&
-                    *(s32*)rec == 1 && *rec_sub == 3) {
+                if (strcmp(lbl_80346F18, ((iteminfodata*)rec_sub)->desc) == 0 &&
+                    ((iteminfo*)rec)->type == 1 && *rec_sub == 3) {
                     goto found_gen;
                 }
                 rec += 0x50;
@@ -5136,16 +5238,18 @@ found_gen:
                 item->active |= 1;
                 fn_8005E90C(item, 0);
             } else {
-                if (rec != 0 && EnemyDescType((char*)(rec + 0x28)) == 0x1E) {
+                if (rec != 0 && EnemyDescType(((iteminfo*)rec)->item.desc) == 0x1E) {
                     fn_8005E90C(item, 0);
                 }
                 StartFXMat(0x1F, &item->objgrp);
                 StartFXMat(0x21, &item->objgrp);
                 if (*sub == 0x30) {
+                    // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                     MBOX_NewObject(&objects[0x164], item->objgrp.node,
                                    *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
                 } else {
+                    // lint-allow-next-line FM001, FM007: 0x74 off Item.objgrp.node is mbnode.parent (Xbox misc.h struct mbnode Id=3249: struct mbnode *parent at 0x74); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
                     MBOX_NewObject(&objects[0x170], item->objgrp.node,
                                    *(s32*)((u8*)item->objgrp.node + 0x74),
                                    0x80800);
@@ -5165,7 +5269,7 @@ found_gen:
                     item->objgrp.node = 0;
                 }
                 item->active = -1;
-                k = ((u8*)item - (u8*)sItems) / 0xF0;
+                k = item - sItems;
                 if (k < gNextItemIdx) {
                     gNextItemIdx = k;
                 }
@@ -5238,7 +5342,7 @@ found_gen:
                         item->objgrp.node = 0;
                     }
                     item->active = -1;
-                    k = ((u8*)item - (u8*)sItems) / 0xF0;
+                    k = item - sItems;
                     if (k < gNextItemIdx) {
                         gNextItemIdx = k;
                     }
@@ -5262,8 +5366,8 @@ found_gen:
             AudioGeneratorDies(&v[1], *generator);
             enemy_count = gNumEnemies;
             for (k = 0; k < enemy_count; k++) {
-                if (*(Item**)((u8*)gEnemies + k * 0x394 + offsetof(Enemy, generator)) == item) {
-                    *(Item**)((u8*)gEnemies + k * 0x394 + offsetof(Enemy, generator)) = 0;
+                if (gEnemies[k].generator == (struct Item*)item) {
+                    gEnemies[k].generator = 0;
                 }
             }
         } else {
@@ -5343,7 +5447,7 @@ found_gen:
                 item->objgrp.node = 0;
             }
             item->active = -1;
-            k = ((u8*)item - (u8*)sItems) / 0xF0;
+            k = item - sItems;
             if (k < gNextItemIdx) {
                 gNextItemIdx = k;
             }
@@ -5368,6 +5472,7 @@ found_gen:
     if (alive != 0) {
         k = fn_80094440(&v[1], flags, destroyed);
         if (k >= 0) {
+            // lint-allow-next-line FM001, FM007: 0xF0 is the Effect stride and the member is Effect.node; Effects[k].node moves 3 words in fn_8005C1DC at unchanged size, so the raw indexed form stays.
             MBTreeSetZsortAdd(*(void**)((u8*)Effects + k * 0xF0 + offsetof(Effect, node)),
                               (s32)(lbl_80346FA8 * info->item.radius), 1);
         }
@@ -5403,6 +5508,7 @@ s32 fn_8005D730(Player* player, Item* item)
     iteminfodata* data;
     f32 playerPos[3];
     f32 itemPos[3];
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 23 words in fn_8005D730 at unchanged 1820-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[28];
 
     result = 0;
@@ -5559,6 +5665,7 @@ s32 fn_8005D730(Player* player, Item* item)
             }
             if ((flags & 0x30) != 0) {
                 f32 direction[3];
+                // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 27 words in fn_8005D730 at unchanged 1820-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
                 u8 directionPad[24];
 
                 direction[0] =
@@ -5752,6 +5859,7 @@ void fn_8005DE50(Player* a, Item* b)
     iteminfodata* it;
     s32 ret;
     s32 flag;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 15 words in fn_8005DE50 at unchanged 2748-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[8];
 
     ret = 0;
@@ -5777,7 +5885,7 @@ process_item:
         }
         fn_8009CFA8(a->index, *(s32*)&b->data[4]);
         add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
-        *(s16*)((u8*)a + 0x95C) = 1;
+        a->speak_kind = 1;
         if (sMusicTrackHi == 12) {
             if (towerAwardWorldRunes() != 0) {
                 s32 h = fn_8009FB30();
@@ -5809,7 +5917,7 @@ process_item:
                 fn_8009F748(op, a->index);
             fn_8009CDF8(a->index);
             add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
             ret = 1;
         } else if (a->item_body_lo < lbl_803448A4) {
             s32 room = lbl_803448A4 - a->item_body_lo;
@@ -5821,7 +5929,7 @@ process_item:
             *(s32*)&b->data[4] -= room;
             fn_8009CDF8(a->index);
             add_got_it(a->index, it->subtype, *(s32*)&b->data[4]);
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
         } else {
             msgPost(4, a->index, (char*)a->col_pos);
         }
@@ -5849,7 +5957,7 @@ process_item:
                 fn_8009F748(op, a->index);
             fn_8009D038(a->index);
             add_got_it(a->index, it->subtype, 0);
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
             ret = 1;
         } else {
             msgPost(3, a->index, (char*)a->col_pos);
@@ -5880,11 +5988,11 @@ process_item:
             fn_8009F748(op, a->index);
         add_got_it(a->index, it->subtype, (s32)amt);
         if (amt < sZeroDouble) {
-            *(s16*)((u8*)a + 0x95C) = 3;
+            a->speak_kind = 3;
             AudioPlayerSeverePain(a->index);
         } else {
             s32 kind = 0;
-            *(s16*)((u8*)a + 0x95C) = 1;
+            a->speak_kind = 1;
             if (strcmp(it->desc, lbl_80112C5C) == 0)
                 kind = 3;
             else if (strcmp(it->desc, lbl_80346F18) == 0)
@@ -6005,7 +6113,7 @@ process_item:
             msgPost(snd, a->index, (char*)a->col_pos);
         fn_8009CEE0(a->index, it->subtype, flags220);
         add_got_it(a->index, it->subtype, 0);
-        *(s16*)((u8*)a + 0x95C) = 1;
+        a->speak_kind = 1;
         ret = 1;
         break;
     }
@@ -6289,6 +6397,7 @@ void fn_800606FC(void)
     f32 gpos[3];
     f32 gypr[3];
     u8* rt = sItemRuntime;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 99 words in fn_800606FC at unchanged 8872-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[120];
 
     if (gGameMode == MA_FLYBY) {
@@ -6328,9 +6437,11 @@ void fn_800606FC(void)
         }
         vis = MBWorldSphereVisible3(it->objgrp.attn_pos, it->visrad);
         if (vis != 0 && lbl_80344A6C != NULL && (u32)(lbl_80344A80 - 1) <= 1) {
+            // lint-begin FM001, FM007, FM009: lbl_80344A6C is the live NEWCAM camera and 0xA4/0xA8/0xAC are its Vec3 attention point, recovered and named in src/game/world/newcam.c (NcCamera.attention, offset 0x0A4, newcam.c:135) and consistent with the f32 triple read here; that type is a file-local view inside newcam.c and this run makes no header edits, so the three loads stay raw until NcCamera is promoted to a shared header.
             f32 dy = *(f32*)(lbl_80344A6C + 0xA8) - it->objgrp.attn_pos[1];
             f32 dx = *(f32*)(lbl_80344A6C + 0xA4) - it->objgrp.attn_pos[0];
             f32 dz = *(f32*)(lbl_80344A6C + 0xAC) - it->objgrp.attn_pos[2];
+            // lint-end FM001, FM007, FM009
             f32 d2 = dy * dy;
             d2 = dx * dx + d2;
             d2 = dz * dz + d2;
@@ -6426,14 +6537,14 @@ void fn_800606FC(void)
             continue;
         }
         if (*(void**)it->atree != NULL) {
-            u8* anim = it->atree + 4;
+            animinfo* anim = &((atree*)it->atree)->animinfo;
             s32 mode = 2;
             s32 t;
             s32 w;
             s32 res;
             if (it->activetime <= 0) {
                 if (a & 4) {
-                    if ((s8)(it->daction += 1) >= *(s16*)(anim + 0xC)) {
+                    if ((s8)(it->daction += 1) >= anim->numseqs) {
                         if (it->active & 2) {
                             it->daction--;
                         } else {
@@ -6462,9 +6573,9 @@ void fn_800606FC(void)
                     }
                 }
                 w = (s32)(sArrowFloorYOffset +
-                          (f32)*(s16*)(anim + 0x10) * *(f32*)(anim + 0x2C))
+                          (f32)anim->numframes * anim->seqscale)
                     << 1;
-                if (it->info->type == 8 && *(s16*)(anim + 0xC) > 4 && t < 0) {
+                if (it->info->type == 8 && anim->numseqs > 4 && t < 0) {
                     t = 0;
                     w = 0;
                 }
@@ -6532,7 +6643,7 @@ void fn_800606FC(void)
         if ((s8)it->minoff != 0) {
             continue;
         }
-        if (!((type == 3 && (s8)it->data[7] == 0xF) ||
+        if (!((type == 3 && ((gendata*)it->data)->ai == 0xF) ||
               (type == 0xC && it->info->item.subtype == 2) ||
               (it->active & 0x40) || (it->active & 0x4000))) {
             continue;
@@ -6586,7 +6697,7 @@ void fn_800606FC(void)
             }
             break;
         case 3: {
-            u8* gen = it->data;
+            gendata* gen = (gendata*)it->data;
             s32 max;
             s32 visflag;
             if (*(s32*)(gGameOptions + 8) <= 1) {
@@ -6595,19 +6706,19 @@ void fn_800606FC(void)
             if (*(s32*)(gGameOptions + 8) == 2) {
                 break;
             }
-            if ((s8)gen[6] <= 0) {
+            if (gen->strength <= 0) {
                 break;
             }
-            if (*(s16*)&gen[0] == -1) {
+            if (gen->etype == -1) {
                 break;
             }
             visflag = it->active & 0x4000;
-            max = (s8)gen[3];
-            if ((s8)gen[7] == 0xF) {
+            max = gen->maxenemies;
+            if (gen->ai == 0xF) {
                 generate_single_80063444(it, 0xF, 0);
                 break;
             }
-            if ((s8)gen[2] >= max) {
+            if (gen->numenemies >= max) {
                 break;
             }
             gpos[0] = it->objgrp.coll_pos[0];
@@ -6620,80 +6731,79 @@ void fn_800606FC(void)
                 gypr[0] = it->objgrp.worldmat[2][0];
                 gypr[1] = it->objgrp.worldmat[2][1];
                 gypr[2] = it->objgrp.worldmat[2][2];
-                if ((s8)gen[7] == 0xC && (s8)gen[4] >= 3) {
-                    gen[4] -= 3;
-                    gen[0xA] = 0;
+                if (gen->ai == 0xC && gen->num_generated >= 3) {
+                    gen->num_generated -= 3;
+                    gen->flags = 0;
                 }
                 if (visflag != 0) {
                     imp = 0;
                 } else {
                     imp = -1;
                 }
-                slot = generate_enemy(gpos, *(s16*)&gen[0], (s8)gen[6], gypr,
-                                      (s8)gen[7], (s32)it, imp, rad);
+                slot = generate_enemy(gpos, gen->etype, gen->strength, gypr,
+                                      gen->ai, (s32)it, imp, rad);
                 if (slot < 0) {
                     break;
                 }
                 {
-                    u8* e = (u8*)gEnemies + slot * 0x394;
+                    Enemy* e = &gEnemies[slot];
                     s32 wob;
-                    f32 fa = sItemFloorRadius + *(f32*)&it->data[0xC];
+                    f32 fa = sItemFloorRadius + ((gendata*)it->data)->genratio;
                     f32 rate = sItemFloorRadius /
                                (f32)(sCameraVisibilityRadius * (f32)max);
-                    wob = (s32)((f32)(lbl_80347050 * (f32)(u8)gen[0xB]) * fa);
-                    *(s16*)&it->data[8] = (s16)wob;
+                    wob = (s32)((f32)(lbl_80347050 * (f32)gen->interval) * fa);
+                    ((gendata*)it->data)->counter = (s16)wob;
+                    // lint-begin FM007: Item.data+0xC is gendata.genratio, but converting this accumulate-and-wrap pair to ((gendata*)it->data)->genratio is NOT byte-neutral: the pair together moves 1538 words and grows the function 8872 -> 8876 bytes, the accumulate alone moves 37 words at unchanged size; the target keeps a raw base+0xE8 web here, so the two statements stay raw and typed recovery is recorded instead.
                     *(f32*)&it->data[0xC] =
                         *(f32*)&it->data[0xC] + rate;
                     if (*(f32*)&it->data[0xC] > sItemFloorRadius) {
                         *(f32*)&it->data[0xC] = sItemZero;
                     }
-                    *(s16*)(e + 0x2D8) = 0;
-                    *(f32*)(e + 0x24C) =
-                        *(f32*)&it->data[0x10] + *(f32*)(e + 0x258);
-                    WRAP_ANGLE(*(f32*)(e + 0x24C));
-                    *(f32*)(e + 0x250) = *(f32*)(e + 0x24C);
-                    *(f32*)(e + 0x2EC) = *(f32*)(e + 0x34);
-                    *(f32*)(e + 0x2F0) = *(f32*)(e + 0x38);
-                    *(f32*)(e + 0x2F4) = *(f32*)(e + 0x3C);
-                    *(f32*)(e + 0x240) = sItemZero;
-                    *(f32*)(e + 0x244) = *(f32*)(e + 0x24C);
-                    *(f32*)(e + 0x248) = sItemZero;
-                    if ((s8)gen[7] == 0xC) {
+                    // lint-end FM007
+                    e->birth_style = 0;
+                    e->ang = ((gendata*)it->data)->ang + e->genang_offset;
+                    WRAP_ANGLE(e->ang);
+                    e->angbak = e->ang;
+                    e->birth_pos[0] = e->objgrp.worldmat[3][0];
+                    e->birth_pos[1] = e->objgrp.worldmat[3][1];
+                    e->birth_pos[2] = e->objgrp.worldmat[3][2];
+                    e->pyr[0] = sItemZero;
+                    e->pyr[1] = e->ang;
+                    e->pyr[2] = sItemZero;
+                    if (gen->ai == 0xC) {
                         place_logic12_800631AC((s8*)gen, slot);
                         break;
                     }
-                    if ((s8)gen[7] == 0xD) {
-                        if ((s8)gen[5] < 0) {
-                            *(s32*)(e + 0x334) = -1;
+                    if (gen->ai == 0xD) {
+                        if (gen->tail < 0) {
+                            e->prev_enemy = -1;
                         } else {
-                            u8* prev = (u8*)gEnemies + (s8)gen[5] * 0x394;
-                            *(s32*)(prev + 0x338) = slot;
-                            *(s32*)(e + 0x334) = (s8)gen[5];
+                            Enemy* prev = &gEnemies[gen->tail];
+                            prev->next_enemy = slot;
+                            e->prev_enemy = gen->tail;
                         }
-                        *(s32*)(e + 0x338) = -1;
-                        gen[5] = (s8)slot;
-                        gen[2]++;
-                        gen[4]++;
+                        e->next_enemy = -1;
+                        gen->tail = (s8)slot;
+                        gen->numenemies++;
+                        gen->num_generated++;
                         break;
                     }
-                    if ((s8)gen[7] == 0xE) {
-                        if (gen[4] & 1) {
-                            *(f32*)(e + 0x24C) =
-                                (f32)(*(f32*)(e + 0x24C) - lbl_80347058);
-                            *(s32*)(e + 0x31C) = -1;
+                    if (gen->ai == 0xE) {
+                        if (gen->num_generated & 1) {
+                            e->ang = (f32)(e->ang - lbl_80347058);
+                            e->flag1 = -1;
                         } else {
-                            *(f32*)(e + 0x24C) =
-                                (f32)(*(f32*)(e + 0x24C) + lbl_80347058);
-                            *(s32*)(e + 0x31C) = 1;
+                            e->ang = (f32)(e->ang + lbl_80347058);
+                            e->flag1 = 1;
                         }
-                        WRAP_ANGLE(*(f32*)(e + 0x24C));
-                        *(f32*)(e + 0x250) = *(f32*)(e + 0x24C);
-                        gen[2]++;
-                        gen[4]++;
+                        WRAP_ANGLE(e->ang);
+                        e->angbak = e->ang;
+                        gen->numenemies++;
+                        gen->num_generated++;
                         break;
                     }
-                    gen[2]++;
-                    gen[4]++;
+                    gen->numenemies++;
+                    gen->num_generated++;
                 }
             }
             break;
@@ -6710,6 +6820,7 @@ void fn_800606FC(void)
                 f32 dx = gCameras[0].attn[0] - it->objgrp.worldmat[3][0];
                 f32 dz = gCameras[0].attn[2] - it->objgrp.worldmat[3][2];
                 f32 d2 = dy * dy;
+                // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, dropping the volatile moves 1359 words and shrinks fn_800606FC 8872 -> 8864 bytes. Recovering which original local it represents is a source-recovery question; it is not deletable.
                 volatile f32 root;
                 d2 = dx * dx + d2;
                 d2 = dz * dz + d2;
@@ -6769,22 +6880,24 @@ void fn_800606FC(void)
                 it->info->item.subtype != 0x2C) {
                 void* node2 = *(void**)(link + 0x64);
                 if ((s8)it->action < 2) {
-                    u8* anim = it->atree + 4;
+                    animinfo* anim = &((atree*)it->atree)->animinfo;
                     f32 al;
                     if ((s8)it->action == 0) {
                         al = sArrowFloorRadius;
-                    } else if (*(s16*)(anim + 0x10) > 1) {
+                    } else if (anim->numframes > 1) {
                         al = (f32)(lbl_80347090 *
-                                       ((lbl_80346EE8 + *(f32*)(anim + 0x18)) /
-                                        (f64)*(s16*)(anim + 0x10)) +
+                                       ((lbl_80346EE8 + anim->frame) /
+                                        (f64)anim->numframes) +
                                    lbl_80347088);
                     } else {
                         al = sItemFloorRadius;
                     }
                     MBTreeSetFlags(node2, 8, 0);
+                    // lint-begin FM001, FM007: node2 is the linked item's OBJGRP.node and 0x40/0x44/0x48 are mbnode.scale[0..2] (Xbox misc.h struct mbnode Id=3249, float scale[4] at 0x40, matching the three consecutive f32 stores and MBTreeSetFlags on the same handle); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this run makes no header edits.
                     *(f32*)((u8*)node2 + 0x40) = al;
                     *(f32*)((u8*)node2 + 0x44) = al;
                     *(f32*)((u8*)node2 + 0x48) = al;
+                    // lint-end FM001, FM007
                 } else {
                     MBTreeClearFlags(node2, 8, 0);
                 }
@@ -6808,12 +6921,12 @@ void fn_800606FC(void)
                 {
                     s32 n;
                     for (n = 0; n < 25; n++) {
-                        u8* e = (u8*)gEnemies + n * 0x394;
-                        s32* genid = (s32*)(e + 0x340);
+                        Enemy* e = &gEnemies[n];
+                        s32* genid = &e->guard_closest;
                         if (n == *genid) {
-                            *(s32*)(e + 0x33C) = 0;
+                            e->guard_mode = 0;
                             *genid = -1;
-                            *(f32*)(e + 0x344) = lbl_80347000;
+                            e->guard_dist = lbl_80347000;
                         }
                     }
                 }
@@ -6824,7 +6937,7 @@ void fn_800606FC(void)
             fn_80060114(it, gpos, gypr);
             break;
         case 5: {
-            u8* tgt;
+            WorldObj* tgt;
             s16 flags;
             s32 mask;
             s32 pdact;
@@ -6835,14 +6948,16 @@ void fn_800606FC(void)
             if (it->active & 0x400) {
                 break;
             }
+            // lint-begin FM007: Item.data+0x10 is triggerdata.idletime and +4 is triggerdata.flags, but neither converts byte-neutrally here: the idletime countdown alone moves 1128 words and grows fn_800606FC 8872 -> 8876 bytes, and this first flags read alone moves 1757 words and grows it 8872 -> 8884, while the same two fields DO convert identically at their later reads below. The target keeps a raw base+disp web across this prologue, so these two stay raw.
             if (*(s16*)&it->data[0x10] > 0) {
                 *(s16*)&it->data[0x10] -= gFrameTicks;
             }
             flags = *(s16*)&it->data[4];
-            tgt = *(u8**)&it->data[0];
+            // lint-end FM007
+            tgt = ((triggerdata*)it->data)->target;
             if (flags & 0x40) {
                 Item* p2;
-                s32 lvl = (s8)it->data[6];
+                s32 lvl = ((triggerdata*)it->data)->id;
                 if (lvl < 100) {
                     if (it->playermask != 0 &&
                         towerAllPlayersMetBossReq(lvl) == 0) {
@@ -6860,20 +6975,21 @@ void fn_800606FC(void)
                         it->playermask = 0;
                     }
                 }
-                for (p2 = it; p2 != NULL; p2 = *(Item**)&p2->data[8]) {
+                for (p2 = it; p2 != NULL;
+                     p2 = ((triggerdata*)p2->data)->next) {
                     p2->playermask = it->playermask;
                 }
             }
             if (it->playermask != 0) {
-                if (*(s16*)&it->data[4] & 0x100) {
+                if (((triggerdata*)it->data)->flags & 0x100) {
                     u32 m = 0xFFFFFFF0;
                     s32 b;
                     for (b = 0; b < 4; b++) {
                         Player* p = &gPlayers[b];
                         if (p->state == 1 &&
-                            (p->floor_name2 == (WorldObj*)tgt ||
+                            (p->floor_name2 == tgt ||
                              (p->floor_name2 != NULL &&
-                              *(u8**)((u8*)p->floor_name2 + 0x18) == tgt))) {
+                              p->floor_name2->parent == tgt))) {
                             m |= 1 << b;
                         }
                     }
@@ -6881,30 +6997,30 @@ void fn_800606FC(void)
                 }
                 mask = it->playermask;
             }
-            flags = *(s16*)&it->data[4];
+            flags = ((triggerdata*)it->data)->flags;
             if (flags & 0x400) {
                 if (mask != lbl_803447E0) {
                     it->playermask = 0;
                     mask = 0;
                     if (tgt != NULL) {
-                        *(u32*)(tgt + 0x10) &= ~0x4000000;
+                        tgt->flags &= ~0x4000000;
                     }
                 } else {
                     if (tgt != NULL) {
-                        *(u32*)(tgt + 0x10) |= 0x4000000;
+                        tgt->flags |= 0x4000000;
                     }
                 }
             }
             if (tgt != NULL) {
                 if (flags & 1) {
                     if (mask != 0) {
-                        if (((s8)tgt[0x16] & ~0xF) == 0x20) {
-                            tgt[0x16] &= 0xF;
+                        if ((tgt->triggerstate & ~0xF) == 0x20) {
+                            tgt->triggerstate &= 0xF;
                         }
                         it->daction = 2;
                     } else {
                         s32 d;
-                        if (tgt[0x16] & 0x20) {
+                        if (tgt->triggerstate & 0x20) {
                             d = 0;
                         } else {
                             d = 2;
@@ -6913,14 +7029,14 @@ void fn_800606FC(void)
                     }
                 } else if (flags & 2) {
                     if (mask != 0) {
-                        if (((s8)tgt[0x16] & ~0xF) == 0) {
-                            tgt[0x16] &= 0xF;
-                            tgt[0x16] |= 0x20;
+                        if ((tgt->triggerstate & ~0xF) == 0) {
+                            tgt->triggerstate &= 0xF;
+                            tgt->triggerstate |= 0x20;
                         }
                         it->daction = 2;
                     } else {
                         s32 d;
-                        if (tgt[0x16] & 0x20) {
+                        if (tgt->triggerstate & 0x20) {
                             d = 2;
                         } else {
                             d = 0;
@@ -6933,16 +7049,16 @@ void fn_800606FC(void)
                 } else if (flags & 4) {
                     if (mask != 0) {
                         s32 doset = 1;
-                        s32 low = (s8)tgt[0x16] & 0xF;
-                        if (((s8)tgt[0x16] & 0x10) == 0) {
+                        s32 low = tgt->triggerstate & 0xF;
+                        if ((tgt->triggerstate & 0x10) == 0) {
                             if (low < (low | mask)) {
-                                tgt[0x16] &= ~0xF;
-                                tgt[0x16] |= mask;
+                                tgt->triggerstate &= ~0xF;
+                                tgt->triggerstate |= mask;
                             }
                             if (*(s16*)&it->data[0x10] <= 0) {
-                                tgt[0x16] ^= 0x20;
-                                tgt[0x16] &= ~0xF;
-                                tgt[0x16] |= mask;
+                                tgt->triggerstate ^= 0x20;
+                                tgt->triggerstate &= ~0xF;
+                                tgt->triggerstate |= mask;
                             } else {
                                 doset = 0;
                             }
@@ -6962,12 +7078,12 @@ void fn_800606FC(void)
                     }
                 } else {
                     if (mask != 0) {
-                        tgt[0x16] = (s8)mask;
-                        tgt[0x16] |= 0x20;
+                        tgt->triggerstate = (s8)mask;
+                        tgt->triggerstate |= 0x20;
                         it->daction = 2;
                     } else {
                         s32 d;
-                        if (tgt[0x16] & 0x20) {
+                        if (tgt->triggerstate & 0x20) {
                             d = 2;
                         } else {
                             d = 0;
@@ -7020,22 +7136,22 @@ void fn_800606FC(void)
         }
         case 0xC: {
             s32 sub = it->info->item.subtype;
-            u8* tgt = *(u8**)&it->data[0];
+            WorldObj* tgt = *(WorldObj**)&it->data[0];
             if (sub == 0) {
                 f32 ang;
                 if (tgt == NULL) {
                     break;
                 }
-                if (lbl_80344500 != 0 && (*(u32*)(tgt + 0x10) & 4)) {
+                if (lbl_80344500 != 0 && (tgt->flags & 4)) {
                     break;
                 }
                 ang = *(f32*)&it->data[4] * (f32)(u32)gFrameTicks;
                 it->daction = 2;
-                if (*(u8**)(tgt + 0x28) == NULL) {
+                if (tgt->nodeptr == NULL) {
                     break;
                 }
-                *(u32*)(tgt + 0x10) &= ~1;
-                YawMat3(*(f32**)(tgt + 0x28), ang);
+                tgt->flags &= ~1;
+                YawMat3((f32*)tgt->nodeptr, ang);
             } else if (sub == 2) {
                 if (tgt == NULL) {
                     break;
@@ -7050,18 +7166,18 @@ void fn_800606FC(void)
                      *(f32*)&it->data[0xC] >= *(f32*)&it->data[8]) ||
                     (*(f32*)&it->data[4] < sItemZero &&
                      *(f32*)&it->data[0xC] <= -*(f32*)&it->data[8])) {
-                    fn_8009D7E4(2, (f32*)(*(u8**)(tgt + 0x28) + 0x30));
+                    fn_8009D7E4(2, (f32*)((u8*)tgt->nodeptr + 0x30));
                     it->active |= 0x1000;
                     it->daction = 2;
                 } else {
                     f32 ang;
-                    fn_8009D7E4(0, (f32*)(*(u8**)(tgt + 0x28) + 0x30));
+                    fn_8009D7E4(0, (f32*)((u8*)tgt->nodeptr + 0x30));
                     ang = *(f32*)&it->data[4] * (f32)(u32)gFrameTicks;
                     *(f32*)&it->data[0xC] = *(f32*)&it->data[0xC] + ang;
                     it->daction = 2;
-                    if (*(u8**)(tgt + 0x28) != NULL) {
-                        *(u32*)(tgt + 0x10) &= ~1;
-                        YawMat3(*(f32**)(tgt + 0x28), ang);
+                    if (tgt->nodeptr != NULL) {
+                        tgt->flags &= ~1;
+                        YawMat3((f32*)tgt->nodeptr, ang);
                     }
                 }
             } else if (sub == 1 && tgt != NULL) {
@@ -7299,6 +7415,7 @@ void fn_800606FC(void)
                             f32 dx = it->objgrp.coll_pos[0] - p->pos[0];
                             f32 dz = it->objgrp.coll_pos[2] - p->pos[2];
                             f32 d2 = dy * dy;
+                            // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, dropping the volatile moves 315 words and shrinks fn_800606FC 8872 -> 8864 bytes. Recovering which original local it represents is a source-recovery question; it is not deletable.
                             volatile f32 root;
                             d2 = dx * dx + d2;
                             d2 = dz * dz + d2;
@@ -7603,6 +7720,7 @@ s32 fn_8005A738(s32 player)
     Player* p = &gPlayers[player];
     s32 ret = 0;
     s16 t;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 5 words in fn_8005A738 at unchanged 304-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 _spare[8];
 
     if (*(u32*)(gGameOptions + 44) & 1) {
@@ -7762,6 +7880,7 @@ extern f64 sNewtonThree;
 extern s32 damage_enemy(u8* e, f32 amount, s32 dtype, s32 knock, s32 srcflags,
                         s32 arg6, s32 arg7);
 
+// lint-begin FM001, FM009: `wobj` is an Item and `hdr` is its iteminfo, so every offset here is a named field: hdr+16 = iteminfo.item.height, wobj+220/222/226 = Item.data read as the variant info->type selects (obsticledata.strength s16@0x02 for type 10, gendata.etype s16@0x00 and gendata.ai s8@0x06 for type 3; Xbox misc.h Id=3332 and Id=3328). Typing all four is NOT byte-neutral in this dont_inline function: it moves 74 words and grows it 496 -> 500 bytes, the same whole-body sensitivity its sibling fn_8005D20C shows, so the offsets stay raw with the fields named here.
 s32 fn_8005D3D8(s32 index, u8* wobj)
 {
     u8* hdr = *(u8**)wobj;
@@ -7772,7 +7891,7 @@ s32 fn_8005D3D8(s32 index, u8* wobj)
     s32 bval;
 
     if (index >= 0) {
-        e = (u8*)gEnemies + index * 916;
+        e = (u8*)&gEnemies[index];
     } else {
         e = 0;
     }
@@ -7944,6 +8063,7 @@ s32 fn_8005D5C8(u8* pl, u8* wobj)
     }
     return ret;
 }
+// lint-end FM001, FM009
 
 extern f64 sArrowFloorYOffset;
 extern f64 sZeroDouble;
@@ -7955,7 +8075,8 @@ extern f64 lbl_80346FB8;
 #pragma dont_inline on
 s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
 {
-    u8* e = (u8*)gEnemies + index * 916;
+    // lint-begin FM001, FM009: every offset off `e` here is a named Enemy field (game/enemy.h): 568=rad, 652=coll_ip (the cached blocking item), 812=skip_itemcol (the rescan countdown), 184=atts.invspeed. None of them converts byte-neutrally in this dont_inline function: all four typed moves 108 words and grows it 460 -> 468 bytes, dropping only coll_ip still moves 82 words at 460 -> 464, and skip_itemcol alone moves 82 words at 460 -> 464. The target holds one raw byte cursor across the whole body, so the offsets stay raw and the names live in this comment.
+    u8* e = (u8*)&gEnemies[index];
     u32 obj;
     s32 blocked;
     f32 rad;
@@ -7996,6 +8117,7 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
     } else {
         *(s32*)(e + 652) = 0;
     }
+    // lint-end FM001, FM009
     return blocked;
 }
 #pragma dont_inline off
@@ -8096,34 +8218,35 @@ typedef struct ItemWobjRuntime {
 void ActivateSpecialTrigger(s32 type, s32 flag)
 {
     s32 i;
-    u8* it;
-    u8* w;
-    u8* obj;
+    Item* it;
+    Item* w;
+    WorldObj* obj;
     u8* entry;
     s32 n;
     s32 j;
     ItemWobjRuntime* rt;
 
-    it = (u8*)sItems;
+    it = sItems;
     rt = (ItemWobjRuntime*)sItemRuntime;
-    for (i = 0; i < sNumItems; i++, it += 240) {
-        if (*(s16*)(it + 196) != -1 && (*(s16*)(it + 196) & 0x8100) == 0 &&
-            *(s32*)*(u32**)it == 5 && *(u8*)(it + 226) == type) {
+    for (i = 0; i < sNumItems; i++, it++) {
+        if (it->active != -1 && (it->active & 0x8100) == 0 &&
+            it->info->type == 5 &&
+            (u8)((triggerdata*)it->data)->id == type) {
             w = it;
             while (w != 0) {
-                *(s16*)(w + 196) |= 0x400;
-                *(s8*)(w + 200) = 2;
-                *(s8*)(w + 202) = 2;
-                obj = *(u8**)(w + 220);
+                w->active |= 0x400;
+                w->action = 2;
+                w->daction = 2;
+                obj = ((triggerdata*)w->data)->target;
                 if (obj != 0) {
-                    *(s8*)(obj + 22) = 47;
-                    if (*(u32*)(obj + 16) & 0x2000000) {
+                    obj->triggerstate = 47;
+                    if (obj->flags & 0x2000000) {
                         s16* wa = FindWobjWanim(obj);
-                        *(s8*)(obj + 23) = 47;
-                        *(s8*)(obj + 22) = 47;
-                        *(u32*)(obj + 16) |= 0x200000;
+                        obj->ptriggerstate = 47;
+                        obj->triggerstate = 47;
+                        obj->flags |= 0x200000;
                         if (flag != 0) {
-                            *(u32*)(obj + 16) |= 0x800000;
+                            obj->flags |= 0x800000;
                             if (wa != 0) {
                                 *(f32*)(wa + 4) = wa[1] - 1;
                             }
@@ -8134,7 +8257,7 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
                             for (j = 0; j < n; j++) {
                                 entry = (u8*)rt;
                                 entry += j * 4;
-                                if (*(u32*)(entry + 29216) == (u32)obj) {
+                                if (*(WorldObj**)(entry + 29216) == obj) {
                                     break;
                                 }
                             }
@@ -8145,14 +8268,14 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
                                 entry += j * 4;
                                 v = *(f32*)(entry + 1800);
                                 rt->y[j] = v;
-                                *(f32*)(*(u32*)(obj + 40) + 52) = v;
+                                *(f32*)((u8*)obj->nodeptr + 52) = v;
                             }
                         }
                     }
                 } else {
                     ErrorPrintf(lbl_80112C84);
                 }
-                w = *(u8**)(w + 228);
+                w = ((triggerdata*)w->data)->next;
             }
         }
     }
@@ -8209,8 +8332,8 @@ void fn_80062A00(void)
 {
     u8* rt;
     u8* row;
-    u8* w;
-    u8* node;
+    WorldObj* w;
+    void* node;
     s32 heard;
     s32 i;
     s32 off;
@@ -8245,18 +8368,23 @@ void fn_80062A00(void)
     heard = 0;
     i = 0;
     off = 0;
+    // lint-begin FM009: `row` walks the sItemRuntime parallel columns declared above as ItemWobjRuntime (y +0, initialY +600, openY +1200, closedY +1800, dist +2400, object +29216). Replacing the byte cursor with rt->y[i]/rt->object[i] indexing is NOT byte-neutral: 57 differing words at unchanged function size. The target really does keep one base register plus these fixed displacements - a single base relocation, not six separate array symbols - so the raw cursor is the faithful form and the recovered column names stay in the ItemWobjRuntime declaration.
     for (; i < sNumItemWobjs; i++, off += 4) {
         row = rt + off;
-        w = *(u8**)(row + 29216);
-        st = (s8)*(u8*)(w + 22);
-        prev = (s8)*(u8*)(w + 23);
+        w = *(WorldObj**)(row + 29216);
+        // lint-end FM009
+        st = w->triggerstate;
+        prev = w->ptriggerstate;
         gen = did_generate(w, 1);
-        pos[0] = *(f32*)(*(u8**)(w + 40) + 48);
-        pos[1] = *(f32*)(*(u8**)(w + 40) + 52);
-        pos[2] = *(f32*)(*(u8**)(w + 40) + 56);
+        // lint-begin FM001: 48/52/56 off WorldObj.nodeptr are mbnode.mat[3][0..2], the node's world translation row (Xbox misc.h struct mbnode Id=3249: float mat[4][4] at 0x00); no shared header declares mbnode's body (only a file-local view in src/game/sfx/sfx.c:122) and this run makes no header edits.
+        pos[0] = *(f32*)((u8*)w->nodeptr + 48);
+        pos[1] = *(f32*)((u8*)w->nodeptr + 52);
+        pos[2] = *(f32*)((u8*)w->nodeptr + 56);
+        // lint-end FM001
+        // lint-begin FM009: `row` walks the sItemRuntime parallel columns declared above as ItemWobjRuntime (y +0, initialY +600, openY +1200, closedY +1800, dist +2400, object +29216). Replacing the byte cursor with rt->y[i]/rt->object[i] indexing is NOT byte-neutral: 57 differing words at unchanged function size. The target really does keep one base register plus these fixed displacements - a single base relocation, not six separate array symbols - so the raw cursor is the faithful form and the recovered column names stay in the ItemWobjRuntime declaration.
         dcur = *(f32*)(row + 2400);
-        kind = *(s16*)(w + 20) & 0xFF;
-        flags8 = (*(s16*)(w + 20) >> 8) & 0xFF;
+        kind = w->triggertype & 0xFF;
+        flags8 = (w->triggertype >> 8) & 0xFF;
         if (dcur >= zero && lbl_80344A28 == 0 && lbl_803447B8 == 0) {
             if (kind == 20 || kind == 22) {
                 if ((st ^ prev) & 0x20) {
@@ -8269,7 +8397,7 @@ void fn_80062A00(void)
             } else if (dcur >= dist) {
                 if (kMoving == dcur) {
                     if ((st & 0x20) && !(prev & 0x20) &&
-                        (*(u32*)(w + 16) & 0x00C00000)) {
+                        (w->flags & 0x00C00000)) {
                         AudioWorldObjectMotion(pos, (s32)(dcur - dist));
                     }
                 } else if ((st ^ prev) & 0x10) {
@@ -8285,9 +8413,9 @@ void fn_80062A00(void)
                 }
             }
         }
-        *(u8*)(w + 23) = st;
-        *(u8*)(w + 53) = 0;
-        fl16 = *(u32*)(w + 16);
+        w->ptriggerstate = st;
+        w->nocol = 0;
+        fl16 = w->flags;
         if (fl16 & 0x800) {
             act = 0;
             if (st & 0x20) {
@@ -8305,14 +8433,15 @@ void fn_80062A00(void)
                     on = 1;
                 }
             }
-            *(s8*)(w + 53) = (s8)(on != 0 ? 255 : 0);
+            w->nocol = (s8)(on != 0 ? 255 : 0);
             act = 0;
-            node = *(void**)(w + 40);
+            node = w->nodeptr;
             if (node == NULL) {
                 goto tail;
             }
-            if (*(u32*)(node + 96) & 0x200) {
-                a = 255 - *(u8*)(node + 83);
+            if (*(u32*)((u8*)node + 96) & 0x200) {
+                // lint-allow-next-line FM001: 83 off this node is mbnode.alpha (Xbox misc.h struct mbnode Id=3249, unsigned char alpha at 0x53); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
+                a = 255 - *(u8*)((u8*)node + 83);
             } else {
                 a = 0;
             }
@@ -8327,10 +8456,10 @@ void fn_80062A00(void)
                 }
                 if (a >= 248) {
                     MBTreeSetFlags(node, 2, 0);
-                    MBTreeSetAlpha(*(void**)(w + 40), 255, 1);
+                    MBTreeSetAlpha(w->nodeptr, 255, 1);
                 } else {
                     MBTreeClearFlags(node, 2, 0);
-                    MBTreeSetAlpha(*(void**)(w + 40), a, 1);
+                    MBTreeSetAlpha(w->nodeptr, a, 1);
                     act = 1;
                 }
             } else {
@@ -8349,33 +8478,33 @@ void fn_80062A00(void)
                 } else {
                     act = 1;
                 }
-                MBTreeSetAlpha(*(void**)(w + 40), a, 1);
+                MBTreeSetAlpha(w->nodeptr, a, 1);
             }
         } else if (fl16 & 0x02000000) {
             if (!(flags8 & 8) && gen >= 2) {
-                *(u32*)(w + 16) = fl16 | 0x00300000;
-                *(u8*)(w + 22) = *(u8*)(w + 22) & ~0x10;
+                w->flags = fl16 | 0x00300000;
+                w->triggerstate = w->triggerstate & ~0x10;
                 goto next;
             }
             act = 1;
             if (flags8 & 0x20) {
                 if (st & 0xF) {
-                    *(u32*)(w + 16) &= ~0x00300000;
+                    w->flags &= ~0x00300000;
                     st |= 48;
                 } else if (fl16 & 0x00800000) {
-                    *(u32*)(w + 16) |= 0x00300000;
+                    w->flags |= 0x00300000;
                     st &= ~0x30;
                     act = 0;
                 }
             } else {
                 if (st & 0x20) {
-                    *(u32*)(w + 16) |= 0x00200000;
-                    *(u32*)(w + 16) &= ~0x00100000;
+                    w->flags |= 0x00200000;
+                    w->flags &= ~0x00100000;
                 } else {
-                    *(u32*)(w + 16) |= 0x00100000;
-                    *(u32*)(w + 16) &= ~0x00200000;
+                    w->flags |= 0x00100000;
+                    w->flags &= ~0x00200000;
                 }
-                fl = *(u32*)(w + 16);
+                fl = w->flags;
                 if (((fl & 0x00100000) && (fl & 0x00400000)) ||
                     ((fl & 0x00200000) && (fl & 0x00800000))) {
                     act = 0;
@@ -8383,7 +8512,8 @@ void fn_80062A00(void)
             }
         } else {
             if (!(flags8 & 8) && gen >= 2) {
-                *(f32*)(*(u8**)(w + 40) + 52) =
+                // lint-allow-next-line FM001: 52 off WorldObj.nodeptr is mbnode.mat[3][1] (Xbox misc.h struct mbnode Id=3249); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
+                *(f32*)((u8*)w->nodeptr + 52) =
                     *(f32*)(row + 600) + *(f32*)row;
                 goto next;
             }
@@ -8411,24 +8541,25 @@ void fn_80062A00(void)
             }
             if (act != 0) {
                 *(f32*)row = *(f32*)row + delta;
-                *(u32*)(w + 16) |= 0x08000000;
+                w->flags |= 0x08000000;
             } else {
-                *(u32*)(w + 16) &= ~0x08000000;
+                w->flags &= ~0x08000000;
             }
-            *(f32*)(*(u8**)(w + 40) + 52) = *(f32*)(row + 600) + *(f32*)row;
+            // lint-allow-next-line FM001: 52 off WorldObj.nodeptr is mbnode.mat[3][1] (Xbox misc.h struct mbnode Id=3249); no shared header declares mbnode's body - only a file-local view in src/game/sfx/sfx.c:122 - and this lane makes no header edits, so the access stays raw with the field named here.
+            *(f32*)((u8*)w->nodeptr + 52) = *(f32*)(row + 600) + *(f32*)row;
         }
     tail:
         if (act != 0) {
             if (!(flags8 & 8)) {
-                *(u8*)(w + 53) = 1;
+                w->nocol = 1;
             }
             if (!(st & 0x10)) {
                 st |= 0x10;
             }
-            *(u32*)(w + 16) |= 0x20000000;
+            w->flags |= 0x20000000;
         } else {
             st &= ~0x30;
-            *(u32*)(w + 16) &= ~0x20000000;
+            w->flags &= ~0x20000000;
         }
         if (!(flags8 & 71)) {
             if (flags8 & 0x10) {
@@ -8439,9 +8570,10 @@ void fn_80062A00(void)
                 st = 0;
             }
         }
-        *(s8*)(w + 22) = (s8)st;
+        w->triggerstate = (s8)st;
     next:;
     }
+    // lint-end FM009
     if (heard == 0) {
         fn_8009D694(-1, 0, 0);
     }
@@ -8451,19 +8583,20 @@ void fn_80062A00(void)
  * generated enemy once it becomes visible, then retire the item slot. */
 void fn_80060114(Item* item, f32* pos, f32* dir)
 {
-    u8* it = (u8*)item;
-    u8* sp;
+    Item* it = item;
+    enemydata* sp;
     s32 kind;
-    u8* crit;
-    u8* e;
+    Critter* crit;
+    Enemy* e;
     s32 g;
     s32 idx;
     f32 root;
     f32 d2;
+    // lint-allow-next-line FM003: this stands for an unrecovered original local, not inert filler - measured through the real Ninja edge against the banked object, deleting it moves 8 words in fn_80060114 at unchanged 1496-byte size. Recovering which original local it represents is a source-recovery question; it is not deletable.
     u8 unused[40];
 
-    sp = it + 220;
-    kind = *(s16*)(it + 220);
+    sp = (enemydata*)it->data;
+    kind = sp->etype;
     if (kind < 0) {
         return;
     }
@@ -8477,17 +8610,17 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     if (*(s32*)(gGameOptions + 8) == 0) {
         return;
     }
-    if (MBWorldSphereVisible3((f32*)(it + 52),
-                              lbl_80347014 * *(f32*)(it + 212)) == 0) {
+    if (MBWorldSphereVisible3(it->objgrp.worldmat[3],
+                              lbl_80347014 * it->visrad) == 0) {
         return;
     }
-    if (*(s16*)(it + 220) == 31 && gNumPlayers <= 1) {
+    if (((enemydata*)it->data)->etype == 31 && gNumPlayers <= 1) {
         return;
     }
     {
-        f32 dy = *(f32*)((u8*)gCameras + offsetof(Camera, attn) + 4) - *(f32*)(it + 56);
-        f32 dx = *(f32*)((u8*)gCameras + offsetof(Camera, attn)) - *(f32*)(it + 52);
-        f32 dz = *(f32*)((u8*)gCameras + offsetof(Camera, attn) + 8) - *(f32*)(it + 60);
+        f32 dy = gCameras[0].attn[1] - it->objgrp.worldmat[3][1];
+        f32 dx = gCameras[0].attn[0] - it->objgrp.worldmat[3][0];
+        f32 dz = gCameras[0].attn[2] - it->objgrp.worldmat[3][2];
         d2 = dy * dy;
         d2 = dx * dx + d2;
         d2 = dz * dz + d2;
@@ -8509,133 +8642,131 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
         }
     }
     if (kind == 29 || kind == 30 || kind == 32) {
-        if (lbl_80346EE8 != (f64)lbl_803447D8 && *(void**)(it + 100) != NULL) {
-            MBTreeSetScale(*(void**)(it + 100), lbl_803447D8, lbl_803447D8,
+        if (lbl_80346EE8 != (f64)lbl_803447D8 && it->objgrp.node != NULL) {
+            MBTreeSetScale(it->objgrp.node, lbl_803447D8, lbl_803447D8,
                            lbl_803447D8);
         }
-        if (!(*(u32*)(it + 228) & 1)) {
+        if (!(((enemydata*)it->data)->flags & 1)) {
             return;
         }
-        if (!(*(s16*)(it + 196) & 1)) {
-            *(s16*)(it + 196) |= 1;
-            *(u8*)(it + 202) = 1;
+        if (!(it->active & 1)) {
+            it->active |= 1;
+            it->daction = 1;
             return;
         }
-        if (*(s16*)(it + 198) > 0) {
+        if (it->activetime > 0) {
             return;
         }
     }
     crit = 0;
-    pos[0] = *(f32*)(it + 84);
-    pos[1] = *(f32*)(it + 88);
-    pos[2] = *(f32*)(it + 92);
-    dir[0] = *(f32*)(it + 36);
-    dir[1] = *(f32*)(it + 40);
-    dir[2] = *(f32*)(it + 44);
+    pos[0] = it->objgrp.coll_pos[0];
+    pos[1] = it->objgrp.coll_pos[1];
+    pos[2] = it->objgrp.coll_pos[2];
+    dir[0] = it->objgrp.worldmat[2][0];
+    dir[1] = it->objgrp.worldmat[2][1];
+    dir[2] = it->objgrp.worldmat[2][2];
     switch (kind) {
     case 29:
-        crit = CritterNewInst(3, 0, it + 4);
+        crit = (Critter*)CritterNewInst(3, 0, &it->objgrp);
         break;
     case 33:
-        crit = CritterNewInst(8, 0, it + 4);
+        crit = (Critter*)CritterNewInst(8, 0, &it->objgrp);
         break;
     case 32:
-        crit = CritterNewInst(7, 0, it + 4);
+        crit = (Critter*)CritterNewInst(7, 0, &it->objgrp);
         break;
     }
     if (crit != NULL) {
-        if (*(u32*)(it + 108) != 0) {
-            AtreeDelete(it + 108);
-            *(s32*)(it + 108) = 0;
+        if (*(u32*)it->atree != 0) {
+            AtreeDelete(it->atree);
+            *(s32*)it->atree = 0;
         }
-        if (*(void**)(it + 100) != NULL) {
-            MBRemoveNode(*(void**)(it + 100), 0);
-            *(s32*)(it + 100) = 0;
+        if (it->objgrp.node != NULL) {
+            MBRemoveNode(it->objgrp.node, 0);
+            it->objgrp.node = NULL;
         }
-        *(s16*)(it + 196) = -1;
-        idx = (s32)(it - (u8*)sItems) / 240;
+        it->active = -1;
+        idx = it - sItems;
         if (idx < gNextItemIdx) {
             gNextItemIdx = idx;
         }
-        if (*(f32*)(sp + 12) > sZeroDouble) {
-            *(f32*)(crit + 2768) =
-                *(f32*)(sp + 12) * gCurLevel->ene_visrad;
+        if (sp->rad > sZeroDouble) {
+            crit->visrad = sp->rad * gCurLevel->ene_visrad;
         }
-        if (*(s16*)(sp + 18) >= 0) {
-            *(u8**)(crit + 2764) =
-                (u8*)sItems + *(s16*)(sp + 18) * 240;
+        if (sp->pickup >= 0) {
+            crit->gotitem = (struct item *)&sItems[sp->pickup];
         }
         return;
     }
-    g = generate_enemy(pos, kind, (s8)*(u8*)(sp + 2), dir, (s8)*(u8*)(sp + 3),
+    g = generate_enemy(pos, kind, sp->strength, dir, sp->ai,
                        0, 1, sItemFloorRadius);
     if (g >= 0) {
         f64 yaw;
-        e = (u8*)gEnemies + g * 916;
-        *(s16*)(e + 728) = 1;
-        *(s16*)(e + 724) = 1;
-        *(f32*)(e + 588) = atan2(dir[0], *(f32*)((u8*)dir + 32));
-        yaw = *(f32*)(e + 588);
+        e = &gEnemies[g];
+        e->birth_style = 1;
+        e->endurance = 1;
+        // lint-allow-next-line FM001: the target reads 32 bytes past `dir`, which fn_800606FC supplies as a 3-float stack array; this out-of-range read of the neighbouring frame slot is the game's own behaviour and is reproduced, not repaired.
+        e->ang = atan2(dir[0], *(f32*)((u8*)dir + 32));
+        yaw = e->ang;
         if (yaw > sPi) {
             yaw = yaw - sTwoPi;
         } else if (yaw <= sNegativePi) {
             yaw = sTwoPi + yaw;
         }
-        *(f32*)(e + 588) = yaw;
-        *(f32*)(e + 592) = *(f32*)(e + 588);
-        *(f32*)(e + 580) = *(f32*)(e + 588);
+        e->ang = yaw;
+        e->angbak = e->ang;
+        e->pyr[1] = e->ang;
         {
             f32 mtx[12];
-            CreateYPRMatrix(mtx, (f32*)(e + 576));
-            CopyMat3(mtx, e + 4);
+            CreateYPRMatrix(mtx, e->pyr);
+            CopyMat3(mtx, &e->objgrp);
         }
-        UpdateObjWorldMat((OBJGRP*)(e + 4));
-        *(f32*)(e + 748) = *(f32*)(e + 52);
-        *(f32*)(e + 752) = *(f32*)(e + 56);
-        *(f32*)(e + 756) = *(f32*)(e + 60);
-        if (*(s32*)e != 31 && *(s32*)e != 30 && (s8)*(u8*)(sp + 2) == 0) {
-            *(s32*)(e + 180) = 6;
-        } else if ((s8)*(u8*)(sp + 2) < 4) {
-            *(s32*)(e + 524) = 30;
+        UpdateObjWorldMat(&e->objgrp);
+        e->birth_pos[0] = e->objgrp.worldmat[3][0];
+        e->birth_pos[1] = e->objgrp.worldmat[3][1];
+        e->birth_pos[2] = e->objgrp.worldmat[3][2];
+        if (e->type != 31 && e->type != 30 && sp->strength == 0) {
+            e->state = 6;
+        } else if (sp->strength < 4) {
+            e->stun_timer = 30;
         }
-        if (*(s32*)e == 30) {
-            *(f32*)(e + 768) = sNoNearbyPlayerDistance;
-        } else if (*(f32*)(sp + 12) > sZeroDouble) {
-            *(f32*)(e + 768) =
-                *(f32*)(sp + 12) * gCurLevel->ene_visrad;
+        if (e->type == 30) {
+            e->sight = sNoNearbyPlayerDistance;
+        } else if (sp->rad > sZeroDouble) {
+            e->sight = sp->rad * gCurLevel->ene_visrad;
         }
-        if (*(s16*)(sp + 16) > 0) {
-            if (*(s16*)(sp + 16) == 1) {
-                *(f32*)(e + 888) = sItemZero;
+        if (sp->interval > 0) {
+            if (sp->interval == 1) {
+                e->idle_time = sItemZero;
             } else {
-                *(f32*)(e + 888) =
-                    (f32)(sItemFloorYOffset * (f64)*(s16*)(sp + 16));
+                e->idle_time =
+                    (f32)(sItemFloorYOffset * (f64)sp->interval);
             }
         }
-        if (*(s16*)(sp + 18) >= 0) {
-            *(u8**)(e + 900) = (u8*)sItems + *(s16*)(sp + 18) * 240;
+        if (sp->pickup >= 0) {
+            e->gotitem = (struct Item*)&sItems[sp->pickup];
         }
     } else if (g > -99) {
-        if ((s8)*(u8*)(sp + 2) >= 4 || *(s32*)e > 1) {
+        if (sp->strength >= 4 || e->type > 1) {
             if (g == -5) {
                 ErrorPrintf(lbl_80112CA4, lbl_8011B578[kind],
-                            (s8)*(u8*)(sp + 2));
+                            sp->strength);
             } else {
                 ErrorPrintf(lbl_80112CD4, lbl_8011B578[kind],
-                            (s8)*(u8*)(sp + 3), lbl_8011C8F0[-(g + 1)]);
+                            sp->ai, lbl_8011C8F0[-(g + 1)]);
             }
         }
     }
-    if (*(u32*)(it + 108) != 0) {
-        AtreeDelete(it + 108);
-        *(s32*)(it + 108) = 0;
+    if (*(u32*)it->atree != 0) {
+        AtreeDelete(it->atree);
+        *(s32*)it->atree = 0;
     }
-    if (*(void**)(it + 100) != NULL) {
-        MBRemoveNode(*(void**)(it + 100), 0);
-        *(s32*)(it + 100) = 0;
+    if (it->objgrp.node != NULL) {
+        MBRemoveNode(it->objgrp.node, 0);
+        it->objgrp.node = NULL;
     }
-    *(s16*)(it + 196) = -1;
-    idx = (s32)(it - (u8*)sItems) / 240;
+    it->active = -1;
+    idx = it - sItems;
     if (idx < gNextItemIdx) {
         gNextItemIdx = idx;
     }

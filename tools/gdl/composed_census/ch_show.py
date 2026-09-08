@@ -1,6 +1,18 @@
+"""Print the closable-but-unshipped rules from the ch_sweep26 census artifact.
+
+Reads build/GUNE5D/composed_census/ch_sweep26.json. That artifact is
+RULE-ERA: its producer chain ends at ch_shipped.py, which reads the retired
+config/GUNE5D/webfrank.json, so it cannot be regenerated on a native-only
+tree and this tool refuses there rather than reading a stale copy.
+"""
 import json, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
-rows = json.load(open(os.path.join(HERE, "ch_sweep26.json")))
+sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.dirname(HERE))
+import cliscreen  # noqa: E402
+cliscreen.help_only(__doc__)  # the artifact load below runs at import time
+import cc_artifact  # noqa: E402
+rows = cc_artifact.load_artifact("ch_sweep26.json", "ch_show.py")
 for r in rows:
     if r["closes"] and not r["shipped"]:
         print(f"=== {r['unit']}::{r['function']}  owned={r['owned']}  window {r['lo']}..{r['hi']}")

@@ -1201,21 +1201,17 @@ void end_inventory_panel(int player)
     int i;
     int off48;
 
-    p = (void**)(base + player * 16);
-    p = (void**)((u8*)p + 928);
+    p = (void**)(base + player * 16 + 928);
     for (i = 0; i < 4; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
     off48 = player * 48;
-    p = (void**)(base + off48);
-    p = (void**)((u8*)p + 992);
+    p = (void**)(base + off48 + 992);
     for (i = 0; i < 12; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
-    p = (void**)(base + off48);
-    p = (void**)((u8*)p + 736);
+    p = (void**)(base + off48 + 736);
     for (i = 0; i < 12; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 
-    p = (void**)(base + player * 36);
-    p = (void**)((u8*)p + 592);
+    p = (void**)(base + player * 36 + 592);
     for (i = 0; i < 9; i++) { if (*p) { MBRemoveBlit(*p); } *p = 0; p++; }
 }
 #pragma opt_common_subs reset

@@ -159,6 +159,17 @@ docstring omitted it — the flags below all work):
                      like a verdict line and exited 0, and was read as a score
                      of the banked state twice.
   --no-bank          score without banking (diagnostic probes)
+  --no-build         READ the object already on disk: no build, and no bank
+                     of any kind (BEST anchor, source snapshot, session
+                     baseline) — the object may have been built from bytes
+                     that are no longer in the tree, so nothing here can be
+                     anchored to the current source. The flag used to be
+                     accepted and IGNORED: probe built anyway and banked the
+                     result, so a lane reading an experimental variant with
+                     `--ops --no-build` anchored the session to the
+                     experiment and saw the next probe on HEAD — a revert —
+                     announced as IMPROVED (run-62 item 3c). It warns when
+                     the source is newer than the object it scored.
   --raw              score active compiler output before Frank/WebFrank/P6.
                      THE PINNED BACKLOG'S WHOLE LOOP IS THIS ONE FLAG
                      (run-48 item 1): the verdict now carries the RAW
@@ -1851,6 +1862,44 @@ def baseline_bank_decision(kind, base_exists, rebaseline=False,
         " FIRST bank on this unit, and the rolling revert point moves with"
         " later NEUTRAL probes while this one does not. --revert-baseline"
         " restores THIS state.]")
+
+
+def banking_disabled(argv):
+    """Does this invocation decline to bank anything at all?
+
+    RUN-62 ITEM 3c. `--no-build` was in KNOWN_FLAGS and changed NOTHING:
+    probe built the object anyway and, on a function with no anchor yet,
+    banked a BEST plus a session baseline plus a source snapshot from it.
+    So a lane that ran
+
+        python tools/gdl/probe.py <unit> <fn> --ops --no-build
+
+    over an EXPERIMENTAL variant — believing, from the flag, that it was
+    reading — anchored the session to the experiment. The next probe, after
+    discarding the experiment and returning to HEAD, then scored the
+    RESTORED state against the experiment's number and announced IMPROVED:
+    a revert reported as a win.
+
+    REPRODUCED at 6038ec628 on game/enemy/enemy::do_ai with an up-to-date
+    tree, so the build was a no-op and the call really was a read:
+
+        probe.py game/enemy/enemy do_ai --reset
+        probe.py game/enemy/enemy do_ai --ops --no-build
+        -> BASELINE real 0 (insns T192/O192, multiset 0t)
+           [session baseline banked: probe.py --revert-baseline restores THIS]
+        -> build/GUNE5D/gate/probe_game_enemy_enemy_do_ai.json,
+           snap_game_enemy_enemy.c, snap_game_enemy_enemy____best_do_ai.c
+
+    `--no-build` now means what it says: no build, and no bank. It is not
+    the same claim as `--no-bank` (which still builds and still measures the
+    tree) and it is weaker than `--stateless` (which reads no state and
+    forms no verdict at all), so all three keep their own spelling. `--ops`
+    ALONE is unchanged: it is a scoring probe of a state you just built, and
+    it banks like every other scoring probe.
+
+    Pure over an argument list.
+    """
+    return "--no-bank" in argv or "--no-build" in argv
 
 
 def readout_banks_baseline(snapshot_exists, has_source, no_bank):
@@ -5775,15 +5824,31 @@ def main():
         print(f"[--raw: building {object_target} — the compiler's own"
               " output, WITHOUT driving the WEBFRANK edge, so a stale pin"
               " cannot block this score]")
-    build = subprocess.run(
-        ["ninja", object_target], capture_output=True, text=True,
-    )
-    if build.returncode != 0:
-        if coupled_scope:
-            print(COUPLED_SCOPE_BUILD_NOTE)
-        print("BUILD FAILED:")
-        print((build.stdout + build.stderr).strip()[-1500:])
-        return 1
+    if "--no-build" in sys.argv:
+        # RUN-62 ITEM 3c. The flag was accepted and ignored: probe built
+        # anyway. It now means what it says, and BECAUSE the object need
+        # not correspond to the working tree, this call banks nothing.
+        stale = ""
+        try:
+            if (source is not None and Path(object_target).stat().st_mtime
+                    < Path(source).stat().st_mtime):
+                stale = ("  WARNING: the source is NEWER than this object,"
+                         " so the number below describes an earlier state.")
+        except OSError:
+            stale = "  (object or source unreadable; freshness unknown)"
+        print(f"[--no-build: scoring {object_target} exactly as it is on"
+              " disk. Nothing is built and NOTHING is banked — no BEST"
+              " anchor, no snapshot, no session baseline." + stale + "]")
+    else:
+        build = subprocess.run(
+            ["ninja", object_target], capture_output=True, text=True,
+        )
+        if build.returncode != 0:
+            if coupled_scope:
+                print(COUPLED_SCOPE_BUILD_NOTE)
+            print("BUILD FAILED:")
+            print((build.stdout + build.stderr).strip()[-1500:])
+            return 1
 
     raw_flag = ["--raw"] if raw else []
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
@@ -5910,7 +5975,8 @@ def main():
         # already paid for. Bank ONLY in that case; still no verdict, and
         # the BEST anchor is still untouched.
         first_bank = snap is not None and readout_banks_baseline(
-            snap.exists(), source is not None, "--no-bank" in sys.argv)
+            snap.exists(), source is not None,
+            banking_disabled(sys.argv))
         tok = (f", multiset {multiset_tokens}t"
                if multiset_tokens is not None else "")
         banked_note = ("no verdict computed; no revert point existed, so"
@@ -5992,7 +6058,7 @@ def main():
                               accept_fuzzy_loss=accept_fuzzy_loss,
                               head=head_now, tu_at_head=tu_at_head,
                               extab=extab_rows,
-                              no_bank="--no-bank" in sys.argv)
+                              no_bank=banking_disabled(sys.argv))
     # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
     # provisional whenever it would move the BEST anchor: a real+multiset
     # win can still be a fuzzy LOSS, and banking one poisons every later
@@ -6029,7 +6095,12 @@ def main():
         if banks_best(verdict) and raw_words is not None:
             state["best_words"] = raw_words
     elif (banks_best(verdict) and cached_fuzzy is None
-            and "--no-fuzzy-gate" not in sys.argv):
+            and "--no-fuzzy-gate" not in sys.argv
+            and not banking_disabled(sys.argv)):
+        # The gate exists to price a bank. With banking off there is no bank
+        # to price, and its report build is a full link this call did not
+        # ask for (run-62 item 3c: a read must not pay for, or announce, a
+        # bank that cannot happen).
         print(f"[fuzzy gate: {verdict.split()[0]} would bank a new BEST —"
               " measuring this state's fresh objdiff fuzzy FIRST (report"
               " build; --no-fuzzy-gate skips it)]")
@@ -6053,7 +6124,7 @@ def main():
                                   accept_fuzzy_loss=accept_fuzzy_loss,
                                   head=head_now, tu_at_head=tu_at_head,
                                   extab=extab_rows,
-                                  no_bank="--no-bank" in sys.argv)
+                                  no_bank=banking_disabled(sys.argv))
         if fresh is not None:
             cached_fuzzy = fresh
             state["last_fuzzy"] = fresh
@@ -6344,8 +6415,8 @@ def main():
               " slot that is supposed to hold the state you came back to."
               " The snapshot, the session baseline and the BEST anchor are"
               " all unchanged by this call.]")
-    if source is not None and not restoring and "--no-bank" not in sys.argv \
-            and (
+    if source is not None and not restoring \
+            and not banking_disabled(sys.argv) and (
             verdict.startswith("BASELINE")
             or verdict.startswith("IMPROVED")
             or (verdict.startswith("NEUTRAL")
@@ -6433,12 +6504,19 @@ def main():
         # the revert discarded.
         state[SNAPSHOT_ANCHOR] = anchor_of(state)
         state_file.write_text(json.dumps(state), encoding="utf-8")
-    elif source is not None and "--no-bank" in sys.argv:
-        print("[--no-bank: snapshot NOT updated AND the BEST anchor NOT"
-              " moved — hand-revert this edit. Because the anchor did not"
-              " move, a first probe on a function still has none afterwards,"
-              " so the NEXT probe is another BASELINE rather than a verdict"
-              " against the state you declined to bank.]")
+    elif source is not None and banking_disabled(sys.argv):
+        if "--no-build" in sys.argv:
+            print("[--no-build: snapshot NOT updated AND the BEST anchor NOT"
+                  " moved. This call scored the object already on disk,"
+                  " which need not have been built from the current source"
+                  " at all, so nothing here can be anchored to the tree."
+                  " Build and probe again to bank a verdict.]")
+        else:
+            print("[--no-bank: snapshot NOT updated AND the BEST anchor NOT"
+                  " moved — hand-revert this edit. Because the anchor did"
+                  " not move, a first probe on a function still has none"
+                  " afterwards, so the NEXT probe is another BASELINE rather"
+                  " than a verdict against the state you declined to bank.]")
 
     # A failed probe almost always needs the ops view next — print it
     # unasked (the multiset pass above already fetched it).
