@@ -344,8 +344,8 @@ typedef struct PlayerSaveAttributes {
 typedef struct PlayerSave {
     /* 0x0000 */ char name[8];
     /* 0x0008 */ s16 last_alttype;
-    /* 0x000A */ u8 last_color;
-    /* 0x000B */ u8 saved;
+    /* 0x000A */ s8 last_color;
+    /* 0x000B */ s8 saved;
     /* 0x000C */ u16 class_unlock;
     /* 0x000E */ u16 leveltot;
     /* 0x0010 */ PlayerSaveAttributes atts[16];
@@ -416,7 +416,8 @@ typedef struct Player {
     /* 0x012C */ s32 field_12C;
     /* 0x0130 */ PlayerPowerup powerup[11];  /* active powerup slots [player.c] */
     /* 0x01E0 */ u8  powerup_state[11];      /* 1 fresh, 2 use-requested, 3 used [player.c] */
-    /* 0x01EB */ u8  pad_01EB[5];
+    /* 0x01EB */ u8  pad_01EB;
+    /* 0x01EC */ s32 npowerups;      /* live powerup count; saved as PlayerCharSave.npowerups [player.c] */
     /* 0x01F0 */ s16 timer_1F0;      /* generic countdowns, dec by frame delta [player.c] */
     /* 0x01F2 */ s16 field_1F2;      /* cleared when the motion driver forces state 4 and
                                       * at both DoExit resets [pmotion.c] */
@@ -455,7 +456,7 @@ typedef struct Player {
     /* 0x0738 */ s32 death_effect;      /* StartDeathFX effect id, < 0 when off [player.c] */
     /* 0x073C */ void* field_73C;    /* node handle, MBRemoveNode-cleaned (VERIFIED: not padding -- remove_player_geo teardown) [player.c] */
     /* 0x0740 */ void* marker_object;   /* overhead marker model [player.c] */
-    /* 0x0744 */ u8  pad_0744[4];
+    /* 0x0744 */ s32 field_744;      /* cleared with the attachment nodes in load_player_geo [player.c] */
     /* 0x0748 */ void* field_748;    /* atree handle, AtreeDelete-cleaned (VERIFIED: not padding -- remove_player_geo teardown) [player.c] */
     /* 0x074C */ u8  pad_074C[0x44];
     /* 0x0790 */ void* atree;        /* familiar/overlay atree handle [pmotion.c/player.c] */
@@ -464,7 +465,9 @@ typedef struct Player {
     /* 0x079C */ u8  pad_079C[4];
     /* 0x07A0 */ s16 field_7A0;      /* familiar anim gate counter [player.c] */
     /* 0x07A2 */ s16 field_7A2;      /* familiar transition lock [player.c] */
-    /* 0x07A4 */ u8  pad_07A4[0x50];
+    /* 0x07A4 */ u8  pad_07A4[0x38];
+    /* 0x07DC */ f32 skinfx_timer;   /* SetSkinFX/ProcessSkinFX state head [player.c] */
+    /* 0x07E0 */ u8  pad_07E0[0x14];
     /* 0x07F4 */ s32 geo_handle;     /* loaded model/geo handle (load_player_model) [player.c] */
     /* 0x07F8 */ s32 texmod_id;      /* AddSpecialTexmod result, -1 when none [player.c] */
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
@@ -564,16 +567,16 @@ typedef struct Player {
                                       * object's position, then floor-collided and used as the
                                       * warp target by DoTransporter [pmotion.c] */
     /* 0x0950 */ s16 idle_timer;     /* idle speech timer [player.c do_players] */
-    /* 0x0952 */ u8  pad_0952[2];
-    /* 0x0954 */ s16 speak_timer;    /* idle speech timer [player.c/pmotion.c] */
+    /* 0x0952 */ s16 field_952;      /* cleared in load_player [player.c] */
+    /* 0x0954 */ u16 speak_timer;    /* idle speech timer [player.c/pmotion.c] */
     /* 0x0956 */ s16 field_956;      /* magic/throw request bitmask: reset to 0x10, ORed with
                                       * 2 on a queued cast, tested for 2, and set to 128 once
                                       * start_magic has run [pmotion.c/player.c] */
     /* 0x0958 */ s16 throw_str;      /* potion-throw strength [player.c start_magic] */
-    /* 0x095A */ u8  pad_095A[2];
+    /* 0x095A */ s16 skinfx_on;      /* 1 while skinfx_timer > 0 [player.c] */
     /* 0x095C */ s16 speak_kind;     /* queued speech category [pmotion.c] */
     /* 0x095E */ s16 speak_done;     /* speech-already-played guard [pmotion.c/player.c] */
-    /* 0x0960 */ u8  pad_0960[2];
+    /* 0x0960 */ s16 field_960;      /* mirrors flags & 8 each frame [player.c] */
     /* 0x0962 */ s16 grab_flags;     /* grab variant flags [pmotion.c/player.c] */
     /* 0x0964 */ s16 hud_flags;      /* 0x20 = attached (lha in target) [player.c] */
     /* 0x0966 */ s16 hud_flags2;     /* 1 = info written, 2 = runes written [player.c] */
@@ -625,7 +628,9 @@ typedef struct Player {
                                       * hand_of_death_flag) [player.c] */
     /* 0x0A20 */ s16 field_A20;      /* gem-object latch, flags 0x400000 (Xbox analogue slot:
                                       * health_vamp_flag) [player.c] */
-    /* 0x0A22 */ u8  pad_0A22[0x0A];
+    /* 0x0A22 */ u8  pad_0A22[2];
+    /* 0x0A24 */ s32 field_A24;      /* cleared in load_player [player.c] */
+    /* 0x0A28 */ f32 field_A28;      /* cleared in load_player [player.c] */
     /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
     /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
     /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
@@ -656,7 +661,7 @@ typedef struct Player {
     /* 0x1EC8 */ u16 runes;          /* active-character rune count (documented) */
     /* 0x1ECA */ u16 shards;         /* active-character shard count (documented) */
     /* 0x1ECC */ PlayerSave save_backup; /* checkpoint copy of save */
-    /* 0x3300 */ u8  pad_3300[0x24];   /* non-shadow bytes before level */
+    /* 0x3300 */ s32 potion_type[9];   /* icon index per carried potion, 1-based by item_body_hi [player.c] */
     /* 0x3324 */ s32 level;          /* character level 1..99 [player.c] */
     /* 0x3328 */ s32 intower;        /* set while active in tower [player.c] */
     /* 0x332C */ s32 world_text_active; /* overhead text state [gauntworld] */

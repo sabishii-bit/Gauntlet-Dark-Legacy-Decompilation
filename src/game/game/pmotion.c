@@ -1201,7 +1201,7 @@ void PlayerMotion(Player* p) {
             if (anim == 137) {
                 hitKind = 1;
             }
-            if (PF(p, 0x954, u16) > 60) {
+            if (p->speak_timer > 60) {
                 lbl_80344B24 = otherIndex;
                 gPlayers[otherIndex].speak_timer = 1;
                 p->speak_timer = 0;
@@ -1211,8 +1211,8 @@ void PlayerMotion(Player* p) {
             }
         }
     }
-    if (PF(p, 0x954, u16) != 0) {
-        p->speak_timer = (u16)(PF(p, 0x954, u16) + gFrameTicks);
+    if (p->speak_timer != 0) {
+        p->speak_timer += gFrameTicks;
     }
 
     oldpos[1] = (f32)((f64)oldpos[1] + lbl_80347BD0);
@@ -2835,8 +2835,7 @@ store_motion_state:
                 if (p->item_body_hi > 0) {
                     p->item_body_hi--;
                     start_magic(index, (f32*)(motion + 0x30),
-                                PF(p, 0x3300 +
-                                      p->item_body_hi * 4, u32),
+                                p->potion_type[p->item_body_hi],
                                 magicMode, 1.0f);
                 } else {
                     start_magic(index, (f32*)(motion + 0x30),
