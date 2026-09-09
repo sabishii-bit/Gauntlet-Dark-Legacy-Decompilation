@@ -3942,12 +3942,13 @@ s32 activate_player(s32 i) {
     }
     if (lbl_803447B4 != 0 || lbl_803447D0 >= 10 || gGameMode == MG_STATS) {
         for (j = 0; j < 4; j++) {
-            Player* other = (Player*)(tab + j * PREC_STRIDE + 0xC40);
-            s32 state = other->state;
+            u8* orec = tab + j * PREC_STRIDE;
+            s32 state = PF(orec, 0xC40 + offsetof(Player, state), s32);
 
             if (lbl_803447B4 != 0 || state == 5) {
                 if (state - 4U <= 1) {
-                    PF(p, offsetof(Player, exit_dest), s32) = PF(other, offsetof(Player, exit_dest), s32);
+                    PF(p, offsetof(Player, exit_dest), s32) =
+                        PF(orec, 0xC40 + offsetof(Player, exit_dest), s32);
                 }
                 p->state = 5;
             }
