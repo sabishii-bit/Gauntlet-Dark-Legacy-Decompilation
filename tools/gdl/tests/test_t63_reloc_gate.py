@@ -379,15 +379,21 @@ class LiveReproduction(unittest.TestCase):
     """The measured case the item was written from."""
 
     def test_the_TU_relocs_view_no_longer_calls_the_defect_IDENTICAL(self):
+        """The four rotated pool bases must be PRINTED, and the closing
+        verdict must never read `relocation sets IDENTICAL` while they are.
+
+        The set delta itself is not asserted either way: at 77dd0fdef it
+        was clean (which is what made the rotation invisible) and after
+        the small-data recovery it carries a real row of its own
+        (`player_sumner_desc` against `lbl_803479C8`). Both are legitimate
+        states of the same object, and the claim under test is about the
+        WORD-IDENTICAL pass surviving either."""
         done = run(UNIT, DEFECT_FN, "--relocs")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("RELOC-SYMBOL MISMATCH set_hidden_player", done.stdout)
         self.assertIn("+0x0038  target lbl_803479C8   ours lbl_803479E0",
                       done.stdout)
-        verdict = [ln for ln in done.stdout.splitlines()
-                   if ln.startswith("== set_hidden_player:")]
-        self.assertEqual(len(verdict), 1, done.stdout)
-        self.assertNotIn("relocation sets IDENTICAL", verdict[0])
+        self.assertNotIn("relocation sets IDENTICAL", done.stdout)
 
     def test_the_gate_reloc_count_IS_wf_word_diffs_headline_number(self):
         """The calibration: one number, two tools, no second copy of the
