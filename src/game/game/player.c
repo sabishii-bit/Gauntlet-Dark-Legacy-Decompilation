@@ -598,6 +598,17 @@ static const s32 lbl_80113E18[4] = { 1, 15, 37, 51 };
 
 static u32 player_pal[4] = { 0x00FFFF80, 0x0087CEEB, 0x00FFC0E0, 0x0080FF80 };
 static u32 player_rgb[4] = { 0x00787800, 0x001E1E78, 0x00780000, 0x00006400 };
+/* 0x80120238, 16 B, ONE object.  The Xbox PDB names `box_lx` (0x80120238)
+ * and `box_cx` (0x80120240); on GameCube they cannot be two objects, because
+ * MWCC places every initialised object of 8 bytes or less in .sdata and the
+ * DOL keeps both inside the .data run.  The target agrees: player.s
+ * materialises 0x80120238 five times with a full lis/addi pair and never
+ * names 0x80120240, which message.c reaches as this object's second row. */
+u16 box_x[2][4] = {
+    { 0x0, 0x80, 0x100, 0x180 },    /* Xbox PDB box_lx */
+    { 0x40, 0xC0, 0x140, 0x1C0 },   /* Xbox PDB box_cx */
+};
+
 static u32 player_inactive_rgb[4] = { 0x005A5A1E, 0x001E1E69, 0x00642828, 0x001E4B1E };
 
 static f32 player_light_color[4][4] = {
@@ -756,8 +767,6 @@ extern s32 lbl_80124C70[];   /* crystal totals per color {0,15,100,...,250} */
 extern char lbl_80124C94[];  /* crystal color names, 8-byte entries "TOWER".. */
 extern s32 lbl_80124CDC[];   /* boss-item totals {12,20,28} */
 extern char lbl_80124CE8[];  /* boss item names, 0xE entries "FANGS".. */
-extern u16 lbl_80120238[];   /* per-player HUD left x */
-extern u16 lbl_80120240[];   /* per-player HUD right x (drawn as -x) */
 extern s32 lbl_80126C68[];   /* action-init bank table (InitActions 3rd arg) */
 /* The HUD name/flag tables (0x801200B0..0x80120598) sit inside the
  * tb_info .data blob; the original code addressed them off the blob
@@ -1194,7 +1203,7 @@ void WritePlayerInfo(s32 pnum) {
                 it_blit = NULL;
             }
             if (lbl_80344B24 >= 0 && (lbl_80344824 & (1 << lbl_80344B24))) {
-                it_blit = MBNewBlit("IT", lbl_80120238[lbl_80344B24] + 0x22, -349);
+                it_blit = MBNewBlit("IT", box_x[0][lbl_80344B24] + 0x22, -349);
                 mbBlitProject(it_blit, 0x20, 0x20);
                 mbBlitCvtCoord(it_blit, 64000.0f);
             }
@@ -1246,12 +1255,12 @@ static void show_crystals(Player* p) {
         }
         tbuf[14] = 0;
         tex = MBOX_FindTexture(tbuf, NULL);
-        MBNewTempBlit(tex, lbl_80120238[i] + 0x1C, 0x120, 0x10, 0x10);
+        MBNewTempBlit(tex, box_x[0][i] + 0x1C, 0x120, 0x10, 0x10);
         if (cnt < 0) {
             cnt = total;
         }
         sprintf(tbuf, "%d/%d", cnt, total);
-        DrawTextKeepScale(1.5f, lbl_80120238[i] + 0x30, 0x124, 1, 0xFFFFFF, tbuf);
+        DrawTextKeepScale(1.5f, box_x[0][i] + 0x30, 0x124, 1, 0xFFFFFF, tbuf);
     }
 }
 
@@ -1515,7 +1524,7 @@ static void debug_player_pos(s32 i) {
         }
         oldflags = MBSetFontFlags(0x40000);
         work.y = 330.0f;
-        x = &lbl_80120238[i];
+        x = &box_x[0][i];
         // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, name);
         work.y += 10.0f;
@@ -1547,7 +1556,7 @@ static void write_gold(s32 i, s32 show) {
         if (show != 0) {
             sprintf(buf, "%d", p->gold);
             w = DrawNormalText(1.0f, buf, 4);
-            x = (lbl_80120238[i] + 0x3C) - w;
+            x = (box_x[0][i] + 0x3C) - w;
             DrawText(x, 0x167, 4,
                      player_pal[p->class_id], buf);
             mbBlitInit3414(frame_blit[i][4], 0);
@@ -6710,7 +6719,7 @@ static void do_got_it_8007FC80(void) {
             break;
         case 1:
             /* create the pair */
-            x = lbl_80120238[player];
+            x = box_x[0][player];
             sprintf(buf, "S3");
             switch (g->type) {
             case 2:
