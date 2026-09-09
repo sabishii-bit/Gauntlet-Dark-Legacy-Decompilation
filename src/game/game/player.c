@@ -5139,6 +5139,8 @@ static void create_player_blits(s32 i) {
     u16* lx = (u16*)(tab + i * 2);
     u16* rx;
     u32 tex;
+    s32 box_lx;
+    s32 box_cy;
     s32 j;
 
     frame_blit[i][0] = MBCreateBlit(0, 0, *(lx += 760), 0x130, 0x80, -1);
@@ -5190,17 +5192,19 @@ static void create_player_blits(s32 i) {
     player = PT(i);
     player->meter_flash = 0;
     rx = (u16*)(tab + i * 2) + 764;
+    box_lx = *rx - 0x40;
+    box_cy = 0x143;
     lbl_802757E0[i].sel = -1;
     lbl_802757E0[i].slide = -1;
     lbl_802757E0[i].state = 0;
-    lbl_802757E0[i].x_right = *rx - 0x34;
+    lbl_802757E0[i].x_right = box_lx + 12;
     lbl_802757E0[i].y_top = 0x14F;
-    lbl_802757E0[i].x_left = *rx - 0x40;
-    lbl_802757E0[i].y_box = 0x143;
+    lbl_802757E0[i].x_left = box_lx;
+    lbl_802757E0[i].y_box = box_cy;
     lbl_802757E0[i].tex1 = 0xF9F1;
     lbl_802757E0[i].tex2 = 0xF9F2;
     lbl_802757E0[i].label = NULL;
-    rune13_blit[i] = MBCreateBlit(0, 0, *rx - 0xE, -0x143, -1, -1);
+    rune13_blit[i] = MBCreateBlit(0, 0, *rx - 0xE, -box_cy, -1, -1);
     tex = (u32)MBOX_FindTexture_Err("BTMBK_LEVL", NULL, 1);
     mbInitBlitEntry(rune13_blit[i], tex, 0);
     mbBlitInit3414(rune13_blit[i], 1);
