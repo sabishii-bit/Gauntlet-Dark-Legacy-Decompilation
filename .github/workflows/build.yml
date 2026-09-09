@@ -160,7 +160,15 @@ jobs:
     # suites. Keep the private compiler container focused on Python analysis;
     # pnpm's action-provided executable is not visible inside this container.
     - name: Analysis tool tests
-      run: python -m unittest discover tools/gdl/tests -b
+      env:
+        HOME: /tmp
+        WINEPREFIX: /tmp/.wine
+      run: |
+        # objneutral's live freshness tests use a source-built NonMatching TU.
+        # The default DOL links its extracted fallback, so a restored cache can
+        # contain a stale source object that the normal build never refreshes.
+        ninja build/GUNE5D/src/game/enemy/critter.o
+        python -m unittest discover tools/gdl/tests -b
 
     - name: Reconstruction diagnostics
       env:
