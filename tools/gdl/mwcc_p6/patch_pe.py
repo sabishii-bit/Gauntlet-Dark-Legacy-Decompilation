@@ -21,19 +21,49 @@ INPUTS = {
     "ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c": "GC/1.2.5n",
 }
 EXPECTED_OUTPUTS = {
-    "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914": "7cbeb085205df54bca3fb89ff7a19d323003c1a63a14a942e12ef06cec7c3a31",
-    "ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c": "5a4d1e1715954ddefc87a5a0dfbe38b6c3916e22214957b21af3bd147a760667",
+    "0443b5c02b1aa7b575b61e0e24c4d5ad6bed8fd54cc42de5a2204a5216001914": "67d65dcb09f40823a55284e823c65e135a6c01ec8c61a7664d5c61d20ecad870",
+    "ccf4b465cec73b5aae9c5c5543dcf8cda8a62aba246f89e2e0b200d742f2e55c": "96c858461ed60bb348ba9f1551c98364e0d6b5914305b8ca4541a3dae536841a",
 }
 
-PAYLOAD_SHA256 = "fc280690e5eef8246401baf7940d89b47f25bbaa6b293666a4c4ba2498085477"
+PAYLOAD_SHA256 = "966c72419f83e9c6da9fbc508d784adda2b326b07f2fa8e0bdff8a36176ae34d"
 CALL_VA = 0x00435AFA
 ORIGINAL_CALLSITE = bytes.fromhex("e8 f1 75 06 00")
+DEAD_REMOVE_CALL_VA = 0x00530AFF
+ORIGINAL_DEAD_REMOVE_CALLSITE = bytes.fromhex("e8 0c c5 f6 ff")
+DEAD_REMOVE_ENTRY_OFFSET = 0x20
+ABSOLUTE_OPERANDS = {
+    0x03: 0x00587C74,
+    0x13: 0x0049D0F0,
+    0x67: 0x0049D010,
+}
 SECTION_NAME = b".p6fix\0\0"
 SECTION_CHARACTERISTICS = 0x60000020  # code | execute | read
 
 
 def align(value: int, boundary: int) -> int:
     return (value + boundary - 1) & -boundary
+
+
+def patch_call(
+    image: bytearray,
+    offset: int,
+    call_va: int,
+    target_va: int,
+    expected: bytes,
+    label: str,
+) -> None:
+    """Verify and replace one five-byte i386 near call."""
+    if image[offset : offset + 5] != expected:
+        raise ValueError(f"{label} call insertion bytes do not match")
+    displacement = target_va - (call_va + 5)
+    image[offset : offset + 5] = b"\xE8" + struct.pack("<i", displacement)
+
+
+def validate_payload_operands(payload: bytes) -> None:
+    """Reject a payload whose reviewed absolute references have moved."""
+    for offset, value in ABSOLUTE_OPERANDS.items():
+        if payload[offset : offset + 4] != struct.pack("<I", value):
+            raise ValueError("payload entry absolute operands moved")
 
 
 def parse_headers(image: bytearray) -> dict[str, int]:
@@ -133,8 +163,8 @@ def main() -> None:
 
     call_rva = CALL_VA - h["image_base"]
     call_off = rva_to_offset(call_rva, table)
-    if image[call_off : call_off + 5] != ORIGINAL_CALLSITE:
-        raise SystemExit("call insertion bytes do not match")
+    dead_remove_call_rva = DEAD_REMOVE_CALL_VA - h["image_base"]
+    dead_remove_call_off = rva_to_offset(dead_remove_call_rva, table)
 
     new_rva = align(h["size_image"], h["section_alignment"])
     new_raw = align(len(image), h["file_alignment"])
@@ -142,15 +172,32 @@ def main() -> None:
         raise SystemExit("unexpected unaligned input end")
     raw_size = align(len(payload), h["file_alignment"])
     new_va = h["image_base"] + new_rva
-    displacement = new_va - (CALL_VA + 5)
-    image[call_off : call_off + 5] = b"\xE8" + struct.pack("<i", displacement)
+    try:
+        patch_call(
+            image, call_off, CALL_VA, new_va, ORIGINAL_CALLSITE, "P6 layout"
+        )
+        patch_call(
+            image,
+            dead_remove_call_off,
+            DEAD_REMOVE_CALL_VA,
+            new_va + DEAD_REMOVE_ENTRY_OFFSET,
+            ORIGINAL_DEAD_REMOVE_CALLSITE,
+            "dead-removal",
+        )
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
 
-    # Append relocations for the payload's two absolute operands.  Verify their
+    # Append relocations for the payload's three absolute operands.  Verify their
     # exact locations instead of discovering arbitrary immediates.
-    if payload[3:7] != struct.pack("<I", 0x00587C74) or payload[0x13:0x17] != struct.pack("<I", 0x0049D0F0):
-        raise SystemExit("payload entry absolute operands moved")
+    try:
+        validate_payload_operands(payload)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     reloc_append = int(reloc["raw"]) + h["reloc_size"]
-    reloc_block = struct.pack("<IIHH", new_rva, 12, 0x3003, 0x3013)
+    reloc_block = struct.pack(
+        "<IIHHHH", new_rva, 16,
+        *(0x3000 | offset for offset in ABSOLUTE_OPERANDS), 0x0000
+    )
     if reloc_append + len(reloc_block) > int(reloc["raw"]) + int(reloc["raw_size"]):
         raise SystemExit("insufficient relocation-section tail padding")
     if any(image[reloc_append : reloc_append + len(reloc_block)]):
@@ -192,8 +239,16 @@ def main() -> None:
             temporary.unlink(missing_ok=True)
     print(f"input={INPUTS[input_hash]} sha256={input_hash}")
     print(f"call VA={CALL_VA:#010x} file={call_off:#x} -> section VA={new_va:#010x}")
+    print(
+        f"dead-removal call VA={DEAD_REMOVE_CALL_VA:#010x} "
+        f"file={dead_remove_call_off:#x} -> "
+        f"section VA={new_va + DEAD_REMOVE_ENTRY_OFFSET:#010x}"
+    )
     print(f"section header={new_header:#x} raw={new_raw:#x}+{raw_size:#x} payload={len(payload):#x}")
-    print(f"new HIGHLOW relocation RVAs={new_rva+3:#x},{new_rva+0x13:#x}")
+    print(
+        "new HIGHLOW relocation RVAs="
+        f"{new_rva+3:#x},{new_rva+0x13:#x},{new_rva+0x67:#x}"
+    )
     print(f"output sha256={output_hash}")
 
 

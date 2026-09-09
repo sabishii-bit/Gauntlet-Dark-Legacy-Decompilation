@@ -25,6 +25,7 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(bp.compiler_class("GC/1.2.5"), "stock_configured")
         self.assertEqual(bp.compiler_class("GC\\1.2.5n"), "derived_configured")
         self.assertEqual(bp.compiler_class("GC/1.2.5s"), "derived_configured")
+        self.assertEqual(bp.compiler_class("GC/1.2.5sn"), "derived_configured")
         self.assertEqual(bp.compiler_class("GC/new"), "unknown")
 
     def test_ninja_deps_preserves_stale_and_spaces(self):

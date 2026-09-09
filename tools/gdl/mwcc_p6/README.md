@@ -1,13 +1,21 @@
 # Experimental GC/1.2.5s compiler extension
 
-This directory contains an opt-in compiler patch experiment for one recovered
-MWCC PCode block-layout rule. It is not part of the normal build yet.
+This directory contains an opt-in compiler patch experiment for two recovered
+MWCC PCode scheduling/layout rules. It is not part of the normal build yet.
 
 The patch recognizes a semantic control-flow carrier before MWCC constructs
 predecessor lists. It does not inspect function names, target objects, target
 hashes, PowerPC instruction bytes, or retail addresses. A function changes only
 when exactly one candidate satisfies every graph and idempotence proof; zero or
 multiple candidates leave the function unchanged.
+
+The second hook is at the `SpillCode_MarkLastUses` call to the generic PCode
+instruction remover. Live tracing established that the remover clears the
+block's already-scheduled flag even when `MarkLastUses` has proved a dead
+`LI vreg, 0`; the later physical scheduler then needlessly reorders the seven
+remaining instructions. The extension retains the existing schedule only for
+the confirmed eight-instruction block and dead-LI operand shape. Every other
+removal, caller, opcode, immediate and block size follows stock behavior.
 
 The recipe contains no Metrowerks code. It derives a new, separately named
 compiler from a user-supplied executable whose SHA-256 is either:
@@ -42,46 +50,68 @@ writes the derived executable atomically.
 
 ```powershell
 python patch_pe.py `
-  ..\..\..\build\compilers\GC\1.2.5n\mwcceppc.exe `
+  ..\..\..\build\compilers\GC\1.2.5\mwcceppc.exe `
   build\payload.bin `
   build\mwcceppc-125s.exe
 ```
 
-Expected derived SHA-256 values:
+Expected derived SHA-256 values for the current two-hook payload:
 
-- GC/1.2.5: `7cbeb085205df54bca3fb89ff7a19d323003c1a63a14a942e12ef06cec7c3a31`
-- GC/1.2.5n: `5a4d1e1715954ddefc87a5a0dfbe38b6c3916e22214957b21af3bd147a760667`
+- GC/1.2.5: `67d65dcb09f40823a55284e823c65e135a6c01ec8c61a7664d5c61d20ecad870`
+- GC/1.2.5n: `96c858461ed60bb348ba9f1551c98364e0d6b5914305b8ca4541a3dae536841a`
 
-To try the compiler on `registry.c`, install the derived executable beside a
-copy of the original license DLL and select the explicit profile:
+The stock-derived executable is named `GC/1.2.5s` and is selected for
+`gamemain.c`. The 1.2.5n-derived executable is named `GC/1.2.5sn` and preserves
+the earlier registry experiment. Install both beside the license DLL from
+their respective base compiler, then select the explicit profile:
 
 ```powershell
 New-Item -ItemType Directory -Force `
   ..\..\..\build\compilers\GC\1.2.5s | Out-Null
 Copy-Item build\mwcceppc-125s.exe `
   ..\..\..\build\compilers\GC\1.2.5s\mwcceppc.exe
-Copy-Item ..\..\..\build\compilers\GC\1.2.5n\lmgr326b.dll `
+Copy-Item ..\..\..\build\compilers\GC\1.2.5\lmgr326b.dll `
   ..\..\..\build\compilers\GC\1.2.5s\lmgr326b.dll
+New-Item -ItemType Directory -Force `
+  ..\..\..\build\compilers\GC\1.2.5sn | Out-Null
+python patch_pe.py `
+  ..\..\..\build\compilers\GC\1.2.5n\mwcceppc.exe `
+  build\payload.bin `
+  build\mwcceppc-125sn.exe
+Copy-Item build\mwcceppc-125sn.exe `
+  ..\..\..\build\compilers\GC\1.2.5sn\mwcceppc.exe
+Copy-Item ..\..\..\build\compilers\GC\1.2.5n\lmgr326b.dll `
+  ..\..\..\build\compilers\GC\1.2.5sn\lmgr326b.dll
 cd ..\..\..
 python configure.py --experimental-p6-compiler
 ninja
 ```
 
-The `s` suffix denotes this control-flow scheduling/layout derivative. The
-configuration verifies the derived executable hash and then compiles
-`registry.c` directly, without P6Frank. Without the flag, the normal exact
-build remains unchanged.
+The `s` suffix denotes this control-flow scheduling/layout derivative; `sn`
+denotes the same payload layered on the Ninji epilogue derivative. The
+configuration verifies both executable hashes, compiles `gamemain.c` with the
+stock-derived profile, and retains the 1.2.5n-derived profile for `registry.c`.
+No object postprocessor is involved. Without the flag, the normal extracted-
+fallback build remains unchanged.
 
 ## Evidence and policy
 
-The final 1.2.5n derivative compiled all 94 exact Ninja commands currently
-using that compiler. Ninety-three whole objects were byte-identical to stock.
-Only `game/sys/registry.c` changed, and its result was byte-identical to the
-independent P6Frank and live-debugger result. A synthetic corpus verified that
-zero-candidate, multiple-candidate, nonzero-assignment, and side-effecting near
-misses remain unchanged.
+The original layout hook was validated against all 94 exact 1.2.5n Ninja
+commands: 93 whole objects were byte-identical and only `game/sys/registry.c`
+changed, matching the independent live-debugger result. A synthetic corpus
+verified that zero-candidate, multiple-candidate, nonzero-assignment and
+side-effecting near misses remain unchanged.
 
-This remains an experimental compiler profile selected only for `registry.c`.
+For the schedule-retention hook, a debugger counterfactual changed only the two
+adjacent `game_main` words (plus the object checksum) and made all 28 retail
+function bodies exact. An incremental 93-command 1.2.5n corpus produced zero
+changes from the prior layout-only derivative. Among the 142 other stock
+1.2.5 commands, four objects contain the same guarded shape; the opt-in build
+does not select 1.2.5s for those TUs. With 1.2.5s selected only for
+`gamemain.c`, a fresh full link passes `build/GUNE5D/main.dol: OK`, including
+linked data, relocations and exception metadata.
+
+These remain experimental compiler profiles selected only for the reviewed TUs.
 Keep independent exact-object/DOL gates and keep mod builds free of all
 target-dependent object postprocessors. A derived compiler match must be
 reported distinctly from raw stock-compiler and postprocessed matches.

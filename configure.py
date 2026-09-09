@@ -137,7 +137,7 @@ parser.add_argument(
 parser.add_argument(
     "--experimental-p6-compiler",
     action="store_true",
-    help="use the reviewed GC/1.2.5s compiler for registry.c",
+    help="use the reviewed GC/1.2.5s compiler for recovered scheduler cases",
 )
 parser.add_argument(
     "--warn",
@@ -175,25 +175,33 @@ if not is_windows():
 if not config.non_matching:
     config.asm_dir = None
 
-p6_compiler_version = "GC/1.2.5n"
+registry_compiler_version = "GC/1.2.5n"
+gamemain_compiler_version = "GC/1.2.5"
 if args.experimental_p6_compiler:
     compiler_root = args.compilers or args.build_dir / "compilers"
-    p6_compiler = compiler_root / "GC" / "1.2.5s" / "mwcceppc.exe"
-    expected_p6_sha256 = (
-        "5a4d1e1715954ddefc87a5a0dfbe38b6c3916e22214957b21af3bd147a760667"
-    )
-    if not p6_compiler.is_file():
-        sys.exit(
-            f"Experimental compiler not found: {p6_compiler}\n"
-            "See tools/gdl/mwcc_p6/README.md to derive it from GC/1.2.5n."
-        )
-    actual_p6_sha256 = hashlib.sha256(p6_compiler.read_bytes()).hexdigest()
-    if actual_p6_sha256 != expected_p6_sha256:
-        sys.exit(
-            f"Experimental compiler hash mismatch: {actual_p6_sha256}\n"
-            f"Expected: {expected_p6_sha256}"
-        )
-    p6_compiler_version = "GC/1.2.5s"
+    experimental_compilers = {
+        "1.2.5s": (
+            "67d65dcb09f40823a55284e823c65e135a6c01ec8c61a7664d5c61d20ecad870"
+        ),
+        "1.2.5sn": (
+            "96c858461ed60bb348ba9f1551c98364e0d6b5914305b8ca4541a3dae536841a"
+        ),
+    }
+    for version, expected_sha256 in experimental_compilers.items():
+        compiler = compiler_root / "GC" / version / "mwcceppc.exe"
+        if not compiler.is_file():
+            sys.exit(
+                f"Experimental compiler not found: {compiler}\n"
+                "See tools/gdl/mwcc_p6/README.md to derive it."
+            )
+        actual_sha256 = hashlib.sha256(compiler.read_bytes()).hexdigest()
+        if actual_sha256 != expected_sha256:
+            sys.exit(
+                f"Experimental compiler hash mismatch: {actual_sha256}\n"
+                f"Expected: {expected_sha256}"
+            )
+    registry_compiler_version = "GC/1.2.5sn"
+    gamemain_compiler_version = "GC/1.2.5s"
 
 # Tool versions
 config.binutils_tag = "2.42-2"
@@ -450,7 +458,7 @@ config.libs = [
             Object(Matching, "game/ps2/ml_fmath.c", cflags=cflags_demo),
             Object(Matching, "game/g3d/sndvoice.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/g3d/gpads.c", mw_version="GC/1.2.5n"),
-            Object(NonMatching, "game/sys/registry.c", mw_version=p6_compiler_version),
+            Object(NonMatching, "game/sys/registry.c", mw_version=registry_compiler_version),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/texPalette.c", mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
@@ -511,7 +519,12 @@ config.libs = [
             Object(Matching, "game/mb/mb_objects.c", cflags=cflags_demo),
             # Deferred codegen + recovered definition order reproduce gamemain's
             # retail text order, BSS layout and complete 0x130-byte sdata2 pool.
-            Object(NonMatching, "game/game/gamemain.c", cflags=cflags_demo + ["-inline auto,deferred"]),
+            Object(
+                Matching if args.experimental_p6_compiler else NonMatching,
+                "game/game/gamemain.c",
+                cflags=cflags_demo + ["-inline auto,deferred"],
+                mw_version=gamemain_compiler_version,
+            ),
             Object(NonMatching, "game/game/controls.c", cflags=cflags_demo),
             Object(NonMatching, "game/enemy/critter.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/player.c", cflags=cflags_demo),

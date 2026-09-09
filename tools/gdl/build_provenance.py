@@ -90,7 +90,7 @@ class RecordingWriter(ninja_syntax.Writer):
 
 def compiler_class(version):
     version = key(version)
-    if version in {"GC/1.2.5n", "GC/1.2.5s", "GC/1.2.5e"}:
+    if version in {"GC/1.2.5n", "GC/1.2.5s", "GC/1.2.5sn", "GC/1.2.5e"}:
         return "derived_configured"
     if version in {"GC/1.2.5", "GC/1.1p1"}:
         return "stock_configured"

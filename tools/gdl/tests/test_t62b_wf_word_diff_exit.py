@@ -47,7 +47,7 @@ UNIT = "game/audio/dcsdrv"
 RESIDUAL_FN = "dcsHandleRequest"
 EXACT_FN = "dcsInit"
 #: A count-asymmetric function: a determinate answer with no word residual.
-ASYM_UNIT, ASYM_FN = "game/game/gamemain", "game_main"
+ASYM_UNIT, ASYM_FN = "game/game/pmotion", "PlayerMotion"
 LIVE = (ROOT / "build/GUNE5D/src" / (UNIT + ".o")).is_file()
 
 
@@ -160,7 +160,7 @@ class LiveExitContract(unittest.TestCase):
 
 @unittest.skipUnless(
     (ROOT / "build/GUNE5D/src" / (ASYM_UNIT + ".o")).is_file(),
-    "needs gamemain built")
+    "needs pmotion built")
 class CountAsymmetryIsNotAResidual(unittest.TestCase):
     def test_it_exits_zero(self):
         done = run(ASYM_UNIT, ASYM_FN)

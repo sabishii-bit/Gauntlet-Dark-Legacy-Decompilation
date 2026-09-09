@@ -65,6 +65,7 @@ FUNCTIONS = [
     (0x0045FA80, "MWCC_IRO_LoopUnroller", "confirmed IRO pass wrapper"),
     (0x00461040, "MWCC_IRO_FindLoops", "confirmed by self-naming trace"),
     (0x0049CF70, "MWCC_Operands_PropagateFlags", "inferred exact flag-propagation helper"),
+    (0x0049D010, "MWCC_PCode_RemoveInstruction", "confirmed list unlink/count decrement and generic schedule invalidation helper"),
     (0x0049D0B0, "MWCC_PCode_RemoveUnreachable", "inferred initial PCode cleanup"),
     (0x0049D0F0, "MWCC_PCode_BuildPredecessors", "inferred predecessor construction"),
     (0x0049D1B0, "MWCC_PCode_NewBasicBlock", "live-observed basic-block constructor"),
@@ -155,7 +156,9 @@ GLOBALS = [
     (0x0058845C, "MWCC_gInitialObjectFPRLast", "u16", "initial-object FPR end snapshot"),
     (0x0058849A, "MWCC_gUsedVirtualRegistersVR", "u16", "vector virtual-register counter"),
     (0x00584224, "MWCC_gProcessorModel", "u8", "processor model byte; -proc gekko stores 8"),
+    (0x00584225, "MWCC_gSchedulingMode", "u8", "live value 2 enables both the virtual and physical scheduling passes"),
     (0x00584230, "MWCC_gSchedulerModelOverride", "u8", "nonzero forces the CPU-7 scheduler model path"),
+    (0x005842E1, "MWCC_gOptimizationLevel", "u8", "live value 4; values below 1 bypass backend dead-definition deletion"),
     (0x00587648, "MWCC_gVirtualRegistersActive", "u32", "nonzero enables virtual-register-sized scheduler tables and descriptor tie-break"),
 ]
 
@@ -234,6 +237,21 @@ SPECIAL_SITES = [
         0x00435AFF,
         "MWCC_P6_InitialPCodeBoundary",
         "Return from predecessor construction and exact initial-PCode capture point.",
+    ),
+    (
+        0x0049D049,
+        "MWCC_RemoveInstruction_ScheduleInvalidation",
+        "The generic remover clears PCodeBlock.flags bit 0x8 after unlinking. "
+        "This forces the later physical scheduler to revisit a block whose "
+        "first schedule was otherwise still valid after a proven-dead LI removal.",
+    ),
+    (
+        0x00530AFF,
+        "MWCC_MarkLastUses_DeadRemoveHookBoundary",
+        "MarkLastUses has already accepted the instruction through "
+        "SpillCode_IsDeadInstruction. The 1.2.5s extension wraps only this "
+        "RemoveInstruction call and retains an existing schedule for the "
+        "reviewed dead-LI/eight-instruction block shape.",
     ),
     (
         0x00456670,

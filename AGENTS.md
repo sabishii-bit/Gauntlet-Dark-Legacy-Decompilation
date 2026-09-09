@@ -422,7 +422,8 @@ its dependent TUs to NonMatching (2026-09-07). This baseline reset does not
 establish native equivalence. Do not re-enable WebFrank, P6Frank, Frank, ELF
 symbol promotion, runtime layout rewriting, assembly-object fixups or retail
 DOL byte splicing. The generator and provenance audit enforce this boundary.
-GC 1.2.5n and optional 1.2.5s are still derived compilers, separately disclosed;
+GC 1.2.5n and optional 1.2.5s/1.2.5sn are still derived compilers,
+separately disclosed;
 removing postprocessing does not establish historical compiler identity.
 
 Former rules and proof notes remain recoverable in Git history at 1c9273631.

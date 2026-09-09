@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $sourceDir = $PSScriptRoot
 $buildDir = Join-Path $sourceDir 'build'
-$expected = 'FC280690E5EEF8246401BAF7940D89B47F25BBAA6B293666A4C4BA2498085477'
+$expected = '966C72419F83E9C6DA9FBC508D784ADDA2B326B07F2FA8E0BDFF8A36176AE34D'
 
 New-Item -ItemType Directory -Force $buildDir | Out-Null
 & $Clang --target=i686-pc-windows-msvc -Os -ffreestanding -fno-builtin `
