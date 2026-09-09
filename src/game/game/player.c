@@ -3945,7 +3945,7 @@ s32 activate_player(s32 i) {
  */
 void load_player(s32 i) {
     Player* cp = P(i);
-    Player* p = (Player*)((u8*)cp);
+    Player* p = P(i);
     s32 lvl;
     s32 exp;
     s32 product;
@@ -4071,7 +4071,7 @@ void load_player(s32 i) {
     p->got_timer = -1.0f;
     p->got_count = 0;
     for (j = 0; j < 5; j++) {
-        PF(p, 0xA34 + j * 4, s32) = -1;
+        p->milestone[j] = -1;
     }
     p->field_11C = 0;
     p->shield_flags = 0;
