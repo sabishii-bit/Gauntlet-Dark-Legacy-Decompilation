@@ -23,6 +23,12 @@ symmetric rows are at an edge (still a guess), so neither half of that
 split follows from the other.
 
 The demoted rows are still printed in full, under a CANDIDATE banner.
+
+RUN-63 ITEM 4 folds lane P7's `build/p7_lane/p7_pooldefect.py` in as
+`LiveCritter.carriers`: the scan that finds which functions still print BOTH
+banners, so the day a lane closes the carrier this file uses the suite names
+the replacements instead of leaving the next lane to rediscover them. Over
+the three units the claims rest on it costs 2.1 s in a cold process.
 """
 import io
 import sys
@@ -170,6 +176,12 @@ class Banner(unittest.TestCase):
 
 LIVE = (ROOT / "build/GUNE5D/obj/game/enemy/critter.o").is_file()
 
+# The units lane P7's scan covered when it replaced the closed carrier. Not
+# every configured unit: a whole-image sweep costs minutes, and these three
+# are the ones whose pool rows this file's claims rest on.
+CARRIER_UNITS = ("game/game/player", "game/enemy/critter",
+                 "game/world/gauntworld")
+
 
 @unittest.skipUnless(LIVE, "needs the split target objects and a built tree")
 class LiveCritter(unittest.TestCase):
@@ -210,6 +222,59 @@ class LiveCritter(unittest.TestCase):
         self.assertIn("POOL-DEFECT fn_800606FC", text)
         self.assertIn("POOL-DEFECT CANDIDATE fn_800606FC", text)
         self.assertIn("VALUES DIFFER", text)
+
+    def carriers(self, units=CARRIER_UNITS):
+        """{unit::function: (loud, candidate)} for every both-banner shape.
+
+        Lane P7's `build/p7_lane/p7_pooldefect.py`, folded in (run-63 item
+        4). It is the scan that FOUND the carrier the test above uses, after
+        0e4963268 closed the previous one; keeping it in a scratch file left
+        the next lane to rediscover it. Measured at c7b44b61d it costs 2.1 s
+        over these three units, which is why it is a test rather than a
+        comment.
+        """
+        found = {}
+        for unit in units:
+            if not (ROOT / ("build/%s/obj/%s.o" % (fndiff.VERSION,
+                                                   unit))).is_file():
+                continue
+            ours, _raw = fndiff.ours_object_path(unit)
+            if not Path(ours).is_file():
+                continue
+            target = fndiff.parse(Path("build/%s/obj/%s.o"
+                                       % (fndiff.VERSION, unit)))
+            mine = fndiff.parse(ours)
+            for function in target:
+                if function not in mine:
+                    continue
+                text = self.clean(unit, function)
+                loud = "POOL-DEFECT %s" % function in text
+                candidate = "POOL-DEFECT CANDIDATE %s" % function in text
+                if loud or candidate:
+                    found["%s::%s" % (unit, function)] = (loud, candidate)
+        return found
+
+    def test_the_carrier_the_live_tests_use_is_still_the_one_the_scan_finds(self):
+        """Two-sided over the SAME census: at least one function must keep
+        the loud banner (or the interior-row half of the rule has no live
+        witness at all), and the demoted half must still have one too. The
+        failure message names the whole census so a lane that closes a
+        carrier can repoint rather than rediscover it."""
+        census = self.carriers()
+        loud = sorted(name for name, (is_loud, _cand) in census.items()
+                      if is_loud)
+        demoted = sorted(name for name, (is_loud, cand) in census.items()
+                         if cand and not is_loud)
+        self.assertTrue(loud, "no both-banner carrier survives in %s; the"
+                              " interior-row rule has no live witness"
+                              % (CARRIER_UNITS,))
+        self.assertTrue(demoted, "no demoted candidate survives in %s"
+                                 % (CARRIER_UNITS,))
+        self.assertIn("game/world/gauntworld::fn_800606FC", loud,
+                      "the carrier this file's live test uses has been"
+                      " closed; the current census is loud=%s demoted=%s"
+                      % (loud, demoted))
+        self.assertIn("game/enemy/critter::CritterCollidePlayers", demoted)
 
 
 if __name__ == "__main__":
