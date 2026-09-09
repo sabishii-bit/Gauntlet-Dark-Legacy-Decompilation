@@ -3346,8 +3346,14 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                               ? red - 6.283185308
                               : (red <= -3.141592654 ? red + 6.283185308
                                                      : red);
-                    if ((f32)red > -1.570796327 &&
-                        (f32)red < 1.570796327) {
+                    /*
+                     * The retail arc test compares against +pi/2 first and
+                     * -pi/2 second (0x80078828 / 0x80078834), so the guard
+                     * is `> +pi/2 && < -pi/2` and can never hold: the back
+                     * arc never zeroes the damage. Reproduced as shipped.
+                     */
+                    if ((f32)red > 1.570796327 &&
+                        (f32)red < -1.570796327) {
                         reduced_dmg = 0.0f;
                     } else {
                         reduced_dmg = dam * 0.25;
