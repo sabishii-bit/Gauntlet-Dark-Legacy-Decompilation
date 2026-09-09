@@ -4073,8 +4073,8 @@ void load_player(s32 i) {
     p->field_952 = 0;
     p->count_91C = p->count_920;
     p->collision_item = NULL;
-    p->field_A24 = 0;
-    p->field_A28 = 0.0f;
+    p->num_approaching = 0;
+    p->dist_offset = 0.0f;
     p->field_A68 = 0;
     p->field_93C = 0;
     p->field_940 = 0;
