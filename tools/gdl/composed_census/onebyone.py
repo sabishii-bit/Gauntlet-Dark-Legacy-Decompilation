@@ -28,6 +28,13 @@ loop, once, with the lessons built in:
   edge for the object and is judged by its exit code plus any FAILED line.
   A COMPILE-FAIL is a distinct verdict, never a silent NEUTRAL.
 
+  WIBO TIMESTAMP SETTLING. On Linux, Wibo can finalize the MWCC output after
+  Ninja records its first output timestamp. An immediate `ninja -n` then
+  schedules the same edge again even though the compile succeeded. The driver
+  detects that positive pending-work signal, runs the real edge once more and
+  refuses if the second dry run still does not settle. Freshness is never
+  assumed from the compiler's exit code alone.
+
   RESTORE IN A `finally`. Interrupt, exception, ninja crash: the files go
   back. The tool also REFUSES to start when any file it would touch is dirty,
   because "the committed content" is what it restores to, and it will not
@@ -279,13 +286,46 @@ def object_target(unit):
 
 
 def rebuild(target, ninja="ninja", jobs=2):
-    """(ok, message) from the REAL build edge, judged by the exit code."""
-    done = subprocess.run([ninja, "-j%d" % jobs, target], cwd=str(REPO),
-                          capture_output=True, text=True)
-    failed = [line for line in (done.stdout + done.stderr).splitlines()
-              if line.startswith("FAILED:")]
-    text = " ".join((done.stdout + "\n" + done.stderr).split())
-    return (done.returncode == 0 and not failed), text[-400:]
+    """(ok, message) from the real edge after Ninja sees it as settled.
+
+    Wibo can expose a Linux-only timestamp race: the first compile exits zero,
+    but Ninja recorded an object mtime from just before Wibo finalized the
+    file, so an immediate dry run schedules the same edge again. Retry exactly
+    once on that positive signal. Persistent pending work is a refusal, never
+    a silently accepted stale comparison.
+    """
+    command = [ninja, "-j%d" % jobs, target]
+
+    def invoke():
+        return subprocess.run(command, cwd=str(REPO), capture_output=True,
+                              text=True)
+
+    def result(done):
+        failed = [line for line in (done.stdout + done.stderr).splitlines()
+                  if line.startswith("FAILED:")]
+        text = " ".join((done.stdout + "\n" + done.stderr).split())
+        return done.returncode == 0 and not failed, text[-400:]
+
+    done = invoke()
+    ok, message = result(done)
+    if not ok:
+        return False, message
+    dry = subprocess.run([ninja, "-n", target], cwd=str(REPO),
+                         capture_output=True, text=True)
+    if objneutral.dry_run_verdict(dry.stdout, dry.returncode) != "out-of-date":
+        return True, message
+    retry = invoke()
+    ok, retry_message = result(retry)
+    if not ok:
+        return False, retry_message
+    settled = subprocess.run([ninja, "-n", target], cwd=str(REPO),
+                             capture_output=True, text=True)
+    if objneutral.dry_run_verdict(
+            settled.stdout, settled.returncode) == "out-of-date":
+        detail = " ".join((settled.stdout + "\n" + settled.stderr).split())
+        return False, ("rebuild remained pending after one Wibo timestamp"
+                       " retry: " + detail)[-400:]
+    return True, retry_message
 
 
 def probe(unit, candidate, saved, tag, ninja="ninja", jobs=2):

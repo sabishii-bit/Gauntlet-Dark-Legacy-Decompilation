@@ -31,6 +31,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 TOOLS = Path(__file__).resolve().parents[1]
 ROOT = TOOLS.parents[1]
@@ -128,6 +129,50 @@ class Substitution(unittest.TestCase):
         self.assertEqual(text, "OFF ... RESET")
         self.assertEqual(counts, [1, 1])
 
+
+class RebuildSettling(unittest.TestCase):
+    """Wibo's first output timestamp may need one real Ninja retry."""
+
+    @staticmethod
+    def completed(returncode=0, stdout="", stderr=""):
+        return subprocess.CompletedProcess([], returncode, stdout, stderr)
+
+    def test_a_settled_first_build_is_not_repeated(self):
+        responses = [
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+            self.completed(stdout="ninja: no work to do.\n"),
+        ]
+        with mock.patch.object(onebyone.subprocess, "run",
+                               side_effect=responses) as run:
+            ok, _message = onebyone.rebuild("x.o")
+        self.assertTrue(ok)
+        self.assertEqual(run.call_count, 2)
+
+    def test_one_pending_dry_run_gets_one_real_retry(self):
+        responses = [
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+            self.completed(stdout="ninja: no work to do.\n"),
+        ]
+        with mock.patch.object(onebyone.subprocess, "run",
+                               side_effect=responses) as run:
+            ok, _message = onebyone.rebuild("x.o")
+        self.assertTrue(ok)
+        self.assertEqual(run.call_count, 4)
+
+    def test_persistent_pending_work_fails_closed(self):
+        responses = [
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+            self.completed(stdout="[1/1] MWCC x.o\n"),
+        ]
+        with mock.patch.object(onebyone.subprocess, "run",
+                               side_effect=responses):
+            ok, message = onebyone.rebuild("x.o")
+        self.assertFalse(ok)
+        self.assertIn("remained pending", message)
 
 class SourceIO(unittest.TestCase):
     def setUp(self):
