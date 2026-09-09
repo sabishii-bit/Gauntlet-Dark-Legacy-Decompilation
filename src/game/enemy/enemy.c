@@ -167,8 +167,8 @@ extern void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 extern void fn_80046140(s32 index);                 /* generator-contact retreat */
 extern s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2,
                        f32 rad, f32 hht, s32* hitWorld);  /* enemy-vs-enemy probe */
-extern s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc,
-                       f32* newc);                  /* generator-contact probe */
+extern s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad,
+                       f32 hht);                    /* generator-contact probe */
 s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
 void fn_8004D030(s32 index, s32 ticks);             /* set dead_end/turn timer */
 void fn_8004DB3C(Enemy* enemy, s32 delta);           /* fade enemy tree alpha */
@@ -673,7 +673,7 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold, f32* oldPosition
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 void fn_80046140(s32 index);
 s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht, s32* hitWorld);
-s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc);
+s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad, f32 hht);
 s32 do_ai(s32 index);
 static f32 fabsf_(f32 x);
 void move_logic00(s32 index);
@@ -878,7 +878,7 @@ void do_enemy_move(s32 index)
 
     /* generator contact: full revert + retreat toward the generator */
     if (e->visactive != 0) {
-        e->coll_pnum = fn_80046680((f32)(0.5 + rad), hht, index, 0, oldc, newc);
+        e->coll_pnum = fn_80046680(index, 0, oldc, newc, (f32)(0.5 + rad), hht);
     } else {
         e->coll_pnum = -1;
     }
@@ -1910,40 +1910,36 @@ __declspec(weak) f32 fn_80034C88(f32 x)
 #pragma dont_inline reset
 #endif
 
-/* Search stage of fn_80046680, factored as an inline helper. This is a
- * reconstruction choice, not an independently recovered retail function. */
-static inline void enemy_nearest_live_player(u8* e, f32 best1, u8* p, s32* nearest)
+/* The Xbox symbols retain this helper as get_actual_closest_player(Enemy*).
+ * GC MWCC inlines the same search into EnemyCollidePlayer. */
+static inline void get_actual_closest_player(Enemy* e, s32* nearest)
 {
     s32 i;
+    Player* p = (Player*)gPlayerWords;
+    f32 best = 100000.0f;
     f32 d;
     f32 dy;
     f32 dx;
     f32 dz;
+
     *nearest = -1;
-    /* Keep the literal stride used by the original traversal. */
-    for (i = 0; i < 4; i++, p += PLAYER_STRIDE) {
-        if (((Player *)p)->state == 1) {
+    for (i = 0; i < 4; i++, p++) {
+        if (p->state == 1) {
             /* A live mikey supplies its collision position instead of
              * the player's own effectpos. */
-            if (((Player *)p)->field_A1C > 2) {
-                dx = ((Enemy *)e)->objgrp.coll_pos[0] -
-                     ((Player *)p)->mikey_coll_pos[0];
-                dy = ((Enemy *)e)->objgrp.coll_pos[1] -
-                     ((Player *)p)->mikey_coll_pos[1];
-                dz = ((Enemy *)e)->objgrp.coll_pos[2] -
-                     ((Player *)p)->mikey_coll_pos[2];
+            if (p->field_A1C > 2) {
+                dx = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
+                dy = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
+                dz = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
                 d = fn_80034C88(dx * dx + dy * dy + dz * dz);
             } else {
-                dx = ((Enemy *)e)->objgrp.coll_pos[0] -
-                     ((Player *)p)->effectpos[0];
-                dy = ((Enemy *)e)->objgrp.coll_pos[1] -
-                     ((Player *)p)->effectpos[1];
-                dz = ((Enemy *)e)->objgrp.coll_pos[2] -
-                     ((Player *)p)->effectpos[2];
+                dx = e->objgrp.coll_pos[0] - p->effectpos[0];
+                dy = e->objgrp.coll_pos[1] - p->effectpos[1];
+                dz = e->objgrp.coll_pos[2] - p->effectpos[2];
                 d = fn_80034C88(dx * dx + dy * dy + dz * dz);
             }
-            if (d < best1) {
-                best1 = d;
+            if (d < best) {
+                best = d;
                 *nearest = i;
             }
         }
@@ -1952,11 +1948,11 @@ static inline void enemy_nearest_live_player(u8* e, f32 best1, u8* p, s32* neare
 
 /* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
  * b==0 restricts the sweep to the nearest live player. */
-s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
+s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad, f32 hht)
 {
     s32 last;
     s32 j;
-    u8* q;
+    Player* q;
     u8* e = (u8*)gEnemies + index * 916;
     s32 ret = -1;
     s32 start;
@@ -1973,15 +1969,15 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
         if (((Enemy *)e)->closest < 0) {
             return -1;
         }
-        enemy_nearest_live_player(e, best, (u8*)gPlayerWords, &last);
+        get_actual_closest_player((Enemy*)e, &last);
         start = last;
     }
-    q = (u8*)gPlayerWords + start * PLAYER_STRIDE;
-    for (j = start; j <= last; j++, q += PLAYER_STRIDE) {
-        if (((Player *)q)->state == 1) {
-            if (LineCylinderCollide((f32*)(q + offsetof(Player, effectpos[0])),
-                                    rad + ((Player *)q)->col_radius,
-                                    hht + ((Player *)q)->col_height,
+    q = (Player*)gPlayerWords + start;
+    for (j = start; j <= last; j++, q++) {
+        if (q->state == 1) {
+            if (LineCylinderCollide(q->effectpos,
+                                    rad + q->col_radius,
+                                    hht + q->col_height,
                                     oldc, newc, hit, 1) != 0) {
                 d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
                 if (d < best) {
@@ -7354,7 +7350,7 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
         e->objgrp.worldmat[3][1] = floorY;
     }
     fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
-    if (fn_80046680(rad, hht, slot, 1, start, pos) >= 0) {
+    if (fn_80046680(slot, 1, start, pos, rad, hht) >= 0) {
         return 0;
     }
     half = 0.5 * rad;
@@ -8763,12 +8759,12 @@ void fn_80051C78(void)
 
     {
         f32 bestDist = 100000.0f;
-        u8* m = sMilestones;
+        MilestoneParam* m = (MilestoneParam*)sMilestones;
 
-        for (i = 0; i < sNumMilestones; i++, m += 0x68) {
-            f32 dx = gDefaultPlayerPosition[0] - ((MilestoneParam *)m)->matrix[12];
-            f32 dy = gDefaultPlayerPosition[1] - ((MilestoneParam *)m)->matrix[13];
-            f32 dz = gDefaultPlayerPosition[2] - ((MilestoneParam *)m)->matrix[14];
+        for (i = 0; i < sNumMilestones; i++, m++) {
+            f32 dx = gDefaultPlayerPosition[0] - m->matrix[12];
+            f32 dy = gDefaultPlayerPosition[1] - m->matrix[13];
+            f32 dz = gDefaultPlayerPosition[2] - m->matrix[14];
             f32 d2 = dz * dz + (dx * dx + dy * dy);
             if (d2 > 0.0f) {
                 volatile f32 tmp;
