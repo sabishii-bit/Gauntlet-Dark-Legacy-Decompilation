@@ -40,6 +40,50 @@ whole point:
               nothing to cancel against: measured over the 92 game/ unit
               pairs in this tree, set-delta rows go 238 -> 6844 and every
               real row is buried.
+  WORD-IDENTICAL
+              run-63 item 1. The POSITIONAL pass above needs the WHOLE
+              instruction stream to agree, and the SET pass collapses pool
+              symbols, so a function with any text residual got NEITHER.
+              Reproduced at 77dd0fdef on game/game/player:
+
+                fndiff game/game/player --relocs
+                  == set_hidden_player: relocation sets IDENTICAL (111
+                     reloc(s), addresses resolved)
+                wf_word_diff game/game/player set_hidden_player --decode
+                  RELOC-SYMBOL MISMATCH = 4
+                    +0x0038 target lbl_803479C8  ours lbl_803479E0
+                    +0x0054 target lbl_803479D0  ours lbl_803479C8
+                    +0x006c target lbl_803479D8  ours lbl_803479D0
+                    +0x0084 target lbl_803479E0  ours lbl_803479D8
+
+              — a four-way rotation of the .sdata2 pool bases, set-identical
+              by construction and therefore invisible to both older passes.
+              A declaration sweeper gating on the TU-wide `--relocs` count
+              accepts exactly this defect (lane P2 committed and reverted
+              one on load_player_model_sub; lane B's SetItem 516w -> 502w is
+              the same trap). This third pass pairs by INSTRUCTION INDEX and
+              reports a row only where the two instruction WORDS at that
+              index are identical and the relocation TYPES agree, so it
+              survives a diverged stream. It is computed by
+              composed_census/wf_word_diff's own discriminators — imported,
+              not re-implemented — so its count IS that tool's
+              `RELOC-SYMBOL MISMATCH` line by construction.
+
+--gate is the sweeper gate (run-63 item 1). It needs a unit AND a function:
+
+  python tools/gdl/fndiff.py <unit> <fn> --gate
+      GATE: words N mnem M reloc R real X
+  python tools/gdl/fndiff.py <unit> <fn> --gate --save-baseline <path>
+  python tools/gdl/fndiff.py <unit> <fn> --gate --baseline <path>
+
+`words`/`mnem`/`reloc` are wf_word_diff's DIFFERING WORDS, MNEMONIC
+DIVERGENCE and RELOC-SYMBOL MISMATCH for that function; `real` is --clean's
+real diff lines. With --baseline the run exits 1 when `mnem` or `reloc`
+ROSE against the capture (a `GATE FAILED:` line names which), and 0
+otherwise — a `words`/`real` rise alone does not fail it, because a sweeper
+ranks on those and is expected to see them move both ways. Exit 2 is a
+REFUSAL (no such function, missing object, count-asymmetric against a
+measured baseline): the measurement did not happen, which is not a pass.
 
 --clean is the recommended iteration view: pool-name reloc noise (@N vs lbl_
 for identical constants) is normalized away, every function ALWAYS ends with
@@ -142,6 +186,7 @@ is newer (pass --no-build to skip). This prevents analyzing stale objects.
 
 IMPORTABLE CORE: objdump, unit_key, parse, strip_dtk_suffix,
 resolve_function_name, dtk_name_reducer, classify_function, count_real,
+clean_real_count, word_identical_reloc_screen, gate_metrics,
 instruction_lines, opcode_multiset_signature, pool_row_findings,
 datum_screen_from_lines, datum_multiset_screen, object_sections,
 object_datum_table, object_relocation_offsets, datum_is_relocated,
@@ -155,6 +200,7 @@ the convention is documented in AGENTS.md).
 
 from collections import Counter
 import difflib
+import json
 import re
 import struct
 import subprocess
@@ -2018,6 +2064,161 @@ def print_datum_screen(name, result):
               f"   {result['labels'].get(key)}")
 
 
+_WORD_DIFF_MODULE = []          # [] unattempted, [None] failed, [module] ok
+_WORD_DIFF_ERROR = ""
+
+
+def word_diff_module():
+    """`composed_census/wf_word_diff`, imported LAZILY, or None.
+
+    Run-63 item 1. The word-identical relocation screen and `--gate` quote
+    wf_word_diff's DIFFERING WORDS / MNEMONIC DIVERGENCE / RELOC-SYMBOL
+    MISMATCH, and they quote them by CALLING that tool rather than by
+    reproducing its discriminators here. Its own docstring states the rule
+    ("a second, worse copy of a discriminator is how two lanes end up
+    quoting different numbers for the same question"): its mnemonic
+    comparison masks the A-form 5-bit XO primaries through
+    unabsorbed.opcode_key, which an objdump-mnemonic comparison over
+    fndiff's parsed text does NOT reproduce (objdump prints `mr` for
+    `or rA,rS,rS`), and its relocation screen already carries the
+    anonymous-pool value fallback and the local-alignment marking.
+
+    The import is lazy and never at module scope: wf_word_diff imports
+    fndiff, so a module-level import here would be a cycle. At call time
+    there is none — fndiff is fully initialized, and under `__main__` the
+    child simply gets its own second copy of this module's caches.
+    Measured at 77dd0fdef: 0.05 s, no output, no file written.
+
+    Returns None (and leaves the reason in `_WORD_DIFF_ERROR`) when the
+    import fails, so `--relocs` keeps its two older passes instead of
+    dying — an absent third pass is reported, never silently skipped.
+    """
+    global _WORD_DIFF_ERROR
+    if _WORD_DIFF_MODULE:
+        return _WORD_DIFF_MODULE[0]
+    here = Path(__file__).resolve().parent
+    for entry in (str(here), str(here / "composed_census")):
+        if entry not in sys.path:
+            sys.path.insert(0, entry)
+    try:
+        import wf_word_diff
+    except Exception as error:                       # pragma: no cover
+        _WORD_DIFF_ERROR = f"{type(error).__name__}: {error}"
+        _WORD_DIFF_MODULE.append(None)
+        return None
+    _WORD_DIFF_MODULE.append(wf_word_diff)
+    return wf_word_diff
+
+
+def word_identical_reloc_screen(unit, name):
+    """The third `--relocs` pass, as a dict, for ONE function.
+
+    {'rows': [(offset, target_symbol, ours_symbol, locally_aligned)],
+     'anon': [...], 'mnem': int, 'words': int, 'insns': int,
+     'reason': ''} — or every measurement key None and a non-empty
+    `reason` when the screen could not run (unknown function, missing
+    object, count-asymmetric bodies).
+
+    `rows` is wf_word_diff's RELOC-SYMBOL MISMATCH set: instructions whose
+    WORD is identical in both streams and whose relocation TYPES agree but
+    whose SYMBOLS resolve to different addresses. Two spellings of one
+    datum cancel there; an anonymous-pool row the NAME screen cannot decide
+    is decided by VALUE and lands in `anon` instead.
+
+    THE NAME JOIN. `parse` reduces a file-local symbol's dtk address suffix
+    (`gendir_8004FBC8` -> `gendir`) while wf_word_diff takes the ELF name,
+    so the reduced name a `--relocs` sweep holds must be mapped back before
+    the call. `resolve_function_name` is that one resolver and it works in
+    both directions; without it every dtk-suffixed function would answer
+    "not comparable" and its relocation class would go UNSCREENED — the
+    exact blind spot wf_word_diff's own `parsed_lines` was written to fix.
+    """
+    blank = {"rows": None, "anon": None, "mnem": None, "words": None,
+             "insns": None, "asymmetric": False}
+    module = word_diff_module()
+    if module is None:
+        return dict(blank, reason=f"wf_word_diff unavailable"
+                                  f" ({_WORD_DIFF_ERROR})")
+    try:
+        elf_name = _elf_function_name(module, unit, name)
+    except SystemExit as refusal:
+        return dict(blank, reason=str(refusal))
+    if elf_name is None:
+        return dict(blank, reason=f"no ELF symbol resolves {name!r} in"
+                                  f" {unit}'s objects")
+    try:
+        _kind, ours, tgt = module.word_streams(unit, elf_name)
+    except module.CountAsymmetric as gap:
+        return dict(blank, asymmetric=True,
+                    reason=f"COUNT-ASYMMETRIC — target {gap.target}, ours"
+                           f" {gap.ours} insns; the two streams have no"
+                           " index pairing, so no relocation row here is"
+                           " positionally decidable")
+    except SystemExit as refusal:
+        # word_streams REFUSES with SystemExit (its CountAsymmetric is a
+        # SystemExit subclass too). An `except Exception` handler does not
+        # catch it, so the documented refusal is handled explicitly here
+        # rather than escaping as a bare process exit out of a sweep.
+        return dict(blank, reason=str(refusal))
+    except KeyError as missing:
+        return dict(blank, reason=f"no symbol {missing.args[0]!r} in"
+                                  f" {unit}'s object")
+    rows = module.reloc_symbol_mismatches(unit, elf_name, ours, tgt)
+    if rows is None:
+        return dict(blank, reason="relocation tables not comparable"
+                                  " (instruction counts disagree)")
+    anon, _tally = module.anonymous_datum_rows(unit, elf_name, ours, tgt)
+    words = sum(1 for offset in range(0, len(ours), 4)
+                if module.wf._u32(ours, offset)
+                != module.wf._u32(tgt, offset))
+    return {"rows": rows, "anon": anon, "asymmetric": False,
+            "mnem": module.mnemonic_divergence(ours, tgt),
+            "words": words, "insns": len(ours) // 4, "reason": ""}
+
+
+_ELF_NAME_CACHE = {}
+
+
+def _elf_function_name(module, unit, name):
+    """`name` spelled the way the extracted object spells it, or None."""
+    table = _ELF_NAME_CACHE.get(unit)
+    if table is None:
+        table = dict.fromkeys(
+            module.unit_bodies(module.target_object(unit)))
+        table.update(dict.fromkeys(
+            module.unit_bodies(module.our_object(unit)[0])))
+        _ELF_NAME_CACHE[unit] = table
+    return resolve_function_name(table, name)
+
+
+def print_word_identical_screen(name, screen):
+    """The WORD-IDENTICAL block. Returns True when it printed rows."""
+    rows = screen.get("rows") or []
+    anon = screen.get("anon") or []
+    if not rows and not anon:
+        return False
+    aligned = sum(1 for row in rows if row[3])
+    parts = []
+    if rows:
+        parts.append(f"{len(rows)} by NAME ({aligned} index-aligned)")
+    if anon:
+        parts.append(f"{len(anon)} by anonymous-pool VALUE")
+    print(f"RELOC-SYMBOL MISMATCH {name}  ({' + '.join(parts)}"
+          " instruction(s) whose WORD is identical in both streams relocate"
+          f" a DIFFERENT datum; MNEMONIC DIVERGENCE {screen['mnem']},"
+          f" differing words {screen['words']})")
+    for offset, t_sym, o_sym, locally_aligned in rows:
+        mark = "" if locally_aligned else ("   [PAIRING UNRELIABLE: the"
+                                           " mnemonics disagree within 4"
+                                           " instructions of this offset]")
+        print(f"    +{offset:#06x}  target {t_sym}   ours {o_sym}{mark}")
+    for offset, t_sym, o_sym, verdict, locally_aligned in anon:
+        mark = "" if locally_aligned else "   [PAIRING UNRELIABLE]"
+        print(f"    +{offset:#06x}  target {t_sym}   ours {o_sym}"
+              f"  ANON-POOL {verdict}{mark}")
+    return True
+
+
 def positional_reloc_rows(target_lines, ours_lines, resolve=None):
     """(rows, reason) — the positional relocation-identity pass.
 
@@ -2075,7 +2276,7 @@ def cancel_proven_rows(ours_rows, positional):
 
 
 def relocs_diff(name, target_rows, ours_rows, resolve=None,
-                target_lines=None, ours_lines=None):
+                target_lines=None, ours_lines=None, screen=None):
     """Print the positional relocation-identity pass and the set delta.
 
     TWO PASSES, DIFFERENT RESOLVERS ON PURPOSE. The positional pass
@@ -2083,6 +2284,13 @@ def relocs_diff(name, target_rows, ours_rows, resolve=None,
     view in this tool that can decide a wrong pool CONSTANT; the set pass
     keeps them collapsed to <local>, because naming a pool constant must
     never change a score.
+
+    `screen` is `word_identical_reloc_screen`'s dict — the THIRD pass, the
+    only one that survives a diverged instruction stream (run-63 item 1).
+    When it carries rows, the closing verdict says so instead of printing
+    `relocation sets IDENTICAL`: on set_hidden_player at 77dd0fdef that
+    line stood over a four-way rotation of the .sdata2 pool bases, and a
+    sweeper reading it accepted the transposition.
     """
     positional, skipped = [], ""
     if target_lines is not None and ours_lines is not None:
@@ -2101,11 +2309,22 @@ def relocs_diff(name, target_rows, ours_rows, resolve=None,
               f"  — one datum (0x{t_at:08X}), two spellings")
     if skipped:
         print(f"    [positional pass: {skipped}]")
+    word_rows = 0
+    if screen is not None:
+        if screen["reason"] and not screen.get("asymmetric"):
+            print(f"    [word-identical pass: {screen['reason']}]")
+        elif print_word_identical_screen(name, screen):
+            word_rows = len(screen["rows"] or []) + len(screen["anon"] or [])
     target_only, ours_only, common = reloc_set_delta(
         target_rows, cancel_proven_rows(ours_rows, positional),
         resolve=resolve)
     if not target_only and not ours_only:
-        if not wrong and not drift:
+        if word_rows:
+            print(f"== {name}: relocation SETS identical ({common} reloc(s))"
+                  f" but {word_rows} WORD-IDENTICAL row(s) relocate a"
+                  " DIFFERENT symbol — see above; the set delta is blind to"
+                  " a transposition by construction")
+        elif not wrong and not drift:
             print(f"== {name}: relocation sets IDENTICAL ({common} reloc(s),"
                   " addresses resolved)")
         else:
@@ -2617,6 +2836,127 @@ def frame_size(lines):
     return None
 
 
+def diff_row_count(diff):
+    """The +/- rows of a unified diff, excluding its two file headers."""
+    return sum(1 for line in diff
+               if line[:1] in "+-" and line[:3] not in ("+++", "---"))
+
+
+def clean_real_count(t, b):
+    """`--clean`'s `real` for one function, WITHOUT printing the diff.
+
+    Run-63 item 1: `--gate` quotes this number and `--clean` prints it, and
+    they must be the same number. Factored out of `clean_diff` (which now
+    calls `diff_row_count` on the very list it prints) rather than
+    reproduced, because `real` is a normalized-lines count with specific
+    context and header rules — two copies of that expression are how
+    `--count`'s `real 1177` and `--clean`'s `1189 real diff lines` came to
+    describe one function in the first place.
+    """
+    return diff_row_count(difflib.unified_diff(
+        normalized_reloc_lines(t), normalized_reloc_lines(b),
+        "target", "base", lineterm="", n=2))
+
+
+GATE_OK, GATE_FAILED, GATE_REFUSED = 0, 1, 2
+
+
+def gate_metrics(unit, name, target_lines, ours_lines):
+    """The four gate numbers for ONE function, as a dict.
+
+    {'unit','function','words','mnem','reloc','anon','real','insns',
+     'asymmetric','reason'} — `words`/`mnem`/`reloc` are None when the
+    word-identical screen could not run, and `reason` says why.
+
+    `reloc` is the RELOC-SYMBOL MISMATCH count and `anon` the anonymous-pool
+    datum rows the name screen cannot decide; BOTH are gated, because the
+    trap this exists for appears in either class. Lane B's
+    items::SetItem 516w -> 502w raised two transposed R_PPC_ADDR16_HA, and
+    lane P2's load_player_model_sub 55w -> 44w raised two ADDR16 rows plus
+    five mnemonic divergences while the TU-wide `--relocs` count it was
+    gating on stayed at 0.
+    """
+    screen = word_identical_reloc_screen(unit, name)
+    rows, anon = screen["rows"], screen["anon"]
+    return {
+        "unit": unit, "function": name,
+        "words": screen["words"], "mnem": screen["mnem"],
+        "reloc": None if rows is None else len(rows),
+        "anon": None if anon is None else len(anon),
+        "insns": screen["insns"], "asymmetric": screen["asymmetric"],
+        "real": clean_real_count(target_lines, ours_lines),
+        "reason": screen["reason"],
+    }
+
+
+def _gate_field(value):
+    return "n/a" if value is None else str(value)
+
+
+def gate_verdict(current, baseline):
+    """(exit_code, [message]) for `current` against a `baseline` dict.
+
+    FAILS on a RISE in `mnem`, `reloc` or `anon` — never on `words` or
+    `real`, which a sweeper ranks on and expects to move in both
+    directions. REFUSES (exit 2) when either side lacks a comparable
+    measurement, because "the measurement did not happen" is not a pass:
+    that conflation is what let a run-50 census read ten
+    NativeCommandError blocks as clean rows.
+    """
+    if baseline is None:
+        return GATE_OK, []
+    messages, unmeasured, failed = [], [], False
+    for field in ("mnem", "reloc", "anon"):
+        now, before = current.get(field), baseline.get(field)
+        if now is None or before is None:
+            unmeasured.append(field)
+            continue
+        if now > before:
+            failed = True
+            messages.append(f"{field} ROSE {before} -> {now}")
+    if unmeasured:
+        # ONE line for the whole unmeasured set: the reason is a property of
+        # the FUNCTION, not of each field, and repeating a 200-character
+        # COUNT-ASYMMETRIC explanation three times buries the verdict.
+        messages.append(
+            "not comparable: " + ", ".join(unmeasured)
+            + (f" ({current['reason']})" if current.get("reason")
+               else " (no measurement on one side)"))
+    refused = bool(unmeasured)
+    if failed:
+        return GATE_FAILED, messages
+    if refused:
+        return GATE_REFUSED, messages
+    return GATE_OK, messages
+
+
+def print_gate(current, baseline=None):
+    """Print the pinned GATE line (+ detail) and return the exit code."""
+    print("GATE: words {} mnem {} reloc {} real {}".format(
+        _gate_field(current["words"]), _gate_field(current["mnem"]),
+        _gate_field(current["reloc"]), _gate_field(current["real"])))
+    if current.get("anon"):
+        print(f"GATE-ANON: {current['anon']} anonymous-pool datum row(s)"
+              " compared by VALUE; a rise here fails the gate too")
+    if current["reason"]:
+        print(f"GATE-NOTE: {current['reason']}")
+    code, messages = gate_verdict(current, baseline)
+    if baseline is not None:
+        base_line = "GATE-BASELINE: words {} mnem {} reloc {} real {}".format(
+            _gate_field(baseline.get("words")),
+            _gate_field(baseline.get("mnem")),
+            _gate_field(baseline.get("reloc")),
+            _gate_field(baseline.get("real")))
+        print(base_line)
+    if code == GATE_FAILED:
+        print("GATE FAILED: " + "; ".join(messages))
+    elif code == GATE_REFUSED:
+        print("GATE REFUSED: " + "; ".join(messages))
+    elif baseline is not None:
+        print("GATE PASSED: mnem and reloc did not rise")
+    return code
+
+
 def count_real(raw_rows):
     """`--count`'s `real`: raw diff rows with every reloc line dropped.
 
@@ -2717,7 +3057,7 @@ def clean_diff(name, t, b, ours_object=None):
     raw = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
            if l[:1] in "+-" and l[:3] not in ("+++", "---")]
     diff = list(difflib.unified_diff(tn, bn, "target", "base", lineterm="", n=2))
-    real = sum(1 for l in diff if l[:1] in "+-" and l[:3] not in ("+++", "---"))
+    real = diff_row_count(diff)
     noise = len(raw) - real if len(raw) > real else 0
 
     if real:
@@ -3019,8 +3359,29 @@ except ImportError:        # imported as tools.gdl.<module>
 def main():
     cliscreen.help_only(__doc__)
     flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean",
-             "--raw", "--relocs", "--datum", "--resolve-lbl")
-    args = [a for a in sys.argv[1:] if a not in flags]
+             "--raw", "--relocs", "--datum", "--resolve-lbl", "--gate")
+    valued = ("--baseline", "--save-baseline")
+    argv = sys.argv[1:]
+    gate_only = "--gate" in argv
+    baseline_path = save_baseline_path = None
+    args = []
+    skip = False
+    for index, item in enumerate(argv):
+        if skip:
+            skip = False
+            continue
+        if item in valued:
+            if index + 1 >= len(argv):
+                print(f"{item} needs a path")
+                return GATE_REFUSED
+            if item == "--baseline":
+                baseline_path = Path(argv[index + 1])
+            else:
+                save_baseline_path = Path(argv[index + 1])
+            skip = True
+            continue
+        if item not in flags:
+            args.append(item)
     list_only = "-l" in sys.argv
     ops_only = "--ops" in sys.argv
     count_only = "--count" in sys.argv
@@ -3095,6 +3456,56 @@ def main():
         set(target) | set(base), key=lambda n: list(target).index(n) if n in target else 999
     )
 
+    if gate_only:
+        # ONE function per invocation. A gate that silently averaged a TU
+        # would pass a sweep that regressed one body and improved another.
+        if len(names) != 1 or not args[1:]:
+            print("GATE REFUSED: --gate needs exactly one function name"
+                  f" (got {len(args[1:])})")
+            return GATE_REFUSED
+        name = names[0]
+        t, b = target.get(name), base.get(name)
+        if t is None or b is None:
+            side = "target" if t is None else "ours"
+            print(f"GATE REFUSED: {name} is absent from the {side} object")
+            return GATE_REFUSED
+        current = gate_metrics(unit, name, t, b)
+        baseline = None
+        if baseline_path is not None:
+            if not baseline_path.exists():
+                print(f"GATE REFUSED: no baseline capture at {baseline_path};"
+                      " write one with --save-baseline first")
+                return GATE_REFUSED
+            # utf-8-SIG: a capture edited or regenerated through PowerShell
+            # (`Out-File -Encoding utf8`, `ConvertTo-Json`) carries a BOM,
+            # and a plain utf-8 read raises JSONDecodeError out of main() as
+            # a traceback and exit 1 — the code a REGRESSION means. A gate
+            # whose refusal is indistinguishable from its failure is worse
+            # than no gate.
+            try:
+                baseline = json.loads(
+                    baseline_path.read_text(encoding="utf-8-sig"))
+            except (ValueError, OSError) as error:
+                print(f"GATE REFUSED: unreadable baseline {baseline_path}"
+                      f" ({type(error).__name__}: {error})")
+                return GATE_REFUSED
+            if not isinstance(baseline, dict):
+                print(f"GATE REFUSED: baseline {baseline_path} is not a"
+                      " capture object")
+                return GATE_REFUSED
+            if baseline.get("function") not in (None, name):
+                print("GATE REFUSED: baseline is for"
+                      f" {baseline.get('function')}, not {name}")
+                return GATE_REFUSED
+        code = print_gate(current, baseline)
+        if save_baseline_path is not None:
+            save_baseline_path.parent.mkdir(parents=True, exist_ok=True)
+            save_baseline_path.write_text(
+                json.dumps(current, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8")
+            print(f"GATE-SAVED: {save_baseline_path}")
+        return code
+
     for name in names:
         t, b = target.get(name), base.get(name)
         if t is None or b is None:
@@ -3125,7 +3536,8 @@ def main():
             # view here.
             relocs_diff(name, reloc_rows_from_lines(t),
                         reloc_rows_from_lines(b),
-                        target_lines=t, ours_lines=b)
+                        target_lines=t, ours_lines=b,
+                        screen=word_identical_reloc_screen(unit, name))
             continue
         if t == b:
             if classify_only:
