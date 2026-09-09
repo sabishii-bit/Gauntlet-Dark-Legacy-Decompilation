@@ -4655,8 +4655,8 @@ model_ready:
 s32 set_hidden_player(void* vp) {
     Player* p = vp;
     u8* data = (u8*)tb_info;
-    char* access_options[2];
     char* access_one[1];
+    char* access_options[2];
     char* fly_options[2];
     char* unlimited_options[2];
     char* nodamage_options[2];
@@ -4672,9 +4672,9 @@ s32 set_hidden_player(void* vp) {
     char* all_runes_options[2];
     char* all_cheats_options[2];
     s32 pick = -1;
-    u32 pups = 0;
     s32 match = 0;
     s32 prompt_ok;
+    u32 pups = 0;
     s32 j;
     s32 k;
 
