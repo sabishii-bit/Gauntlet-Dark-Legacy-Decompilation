@@ -789,7 +789,7 @@ config.libs = [
         "progress_category": "sdk",
         "objects": [
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/mem_TRK.c"),
-            Object(NonMatching, "TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s"),
+            Object(Matching, "TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/mainloop.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/nubevent.c"),
             Object(Matching, "TRK_MINNOW_DOLPHIN/Portable/nubinit.c"),
