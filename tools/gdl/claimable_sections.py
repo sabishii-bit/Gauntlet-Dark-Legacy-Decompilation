@@ -101,6 +101,16 @@ IMPORTABLE CORE: candidate_bases, pool_base_sites, proven_alignment,
 claim_containing, gap_inventory, describe_bytes, elect_base, score_base,
 boundary_of, section_result, rank_units -- pure over rows/bytes already
 read, no subprocess, no build.
+
+ALSO IMPORTABLE, one objdump or one DOL read each and still no build and no
+printing: object_symbols, section_sizes, undefined_symbols, parse_splits,
+claimed_intervals, census. `census(unit, splits, intervals,
+defined=None)` is the per-unit measurement `main` renders; passing
+`defined=None` skips the orphan-extern screen, which is its expensive half.
+composed_census/dispdelta.py reads FRONT DEFICITS out of it and both
+objects' symbol tables out of `object_symbols`, rather than re-deriving
+either (run-63 item 3); composed_census/secbind.py renders `gap_inventory`
+(run-63 item 4).
 """
 
 import argparse
