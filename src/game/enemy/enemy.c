@@ -456,6 +456,15 @@ extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
 #define MILESTONE_POS_X  0x30
 #define MILESTONE_POS_Y  0x34
 #define MILESTONE_POS_Z  0x38
+typedef struct MilestoneParam {
+    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
+    f32 pos[3];       /* 0x40 */
+    u8  _pad4C[4];
+    f32 saved_pos[3]; /* 0x50 */
+    u8  _pad5C[4];
+    s32 handle;       /* 0x60 */
+    s32 active;       /* 0x64 */
+} MilestoneParam;
 /* Item record (include/game/item.h, 0xF0): active @0xC4, minoff @0xCD. */
 #define ITEM_ACTIVE      0xC4
 #define ITEM_MINOFF      0xCD
@@ -4888,16 +4897,16 @@ void move_logic22(s32 index)
     }
     switch (e->mode1) {
     case 0: {
-        u8* node;
+        MilestoneParam* node;
         s32 i;
         s32 best_idx = -1;
         f32 best_dist = 100000.0f;
 
-        for (node = sMilestones, i = 0; i < sNumMilestones;
-             i++, node += 104) {
-            f32 dx = e->objgrp.worldmat[3][0] - *(f32*)(node + MILESTONE_POS_X);
-            f32 dy = e->objgrp.worldmat[3][1] - *(f32*)(node + MILESTONE_POS_Y);
-            f32 dz = e->objgrp.worldmat[3][2] - *(f32*)(node + MILESTONE_POS_Z);
+        for (node = (MilestoneParam*)sMilestones, i = 0;
+             i < sNumMilestones; i++, node++) {
+            f32 dx = e->objgrp.worldmat[3][0] - node->matrix[12];
+            f32 dy = e->objgrp.worldmat[3][1] - node->matrix[13];
+            f32 dz = e->objgrp.worldmat[3][2] - node->matrix[14];
             f32 d;
             if ((d = dx * dx + dy * dy + dz * dz) > 0.0f) {
                 f64 y = __frsqrte(d);
@@ -6582,13 +6591,16 @@ void enemy_update(void)
     }
 }
 
-/* Scale the enemy's melee damage by its remaining health band.  Written as a
- * helper so the two early exits lower as the target's unfused `bne ->calc /
- * b ->store` pair (claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-
- * by-a-goto.20260903.v3); inlined back into damage_enemy. */
-static inline f32 scale_fight_damage(f32 fight, f32 health, f32 upper,
-                                     f32 lower, s32 type)
+/* The Xbox PDB names this helper get_enemy_fight(type, health), and the Xbox
+ * executable computes both the base fight value and its health thresholds in
+ * the helper.  The GameCube compiler inlines it into damage_enemy. */
+static inline f32 get_enemy_fight(e_e_tpye type, f32 health)
 {
+    f32 fight = gCurLevel->ene_damage * lbl_8011B900[type];
+    f32 l3 = gCurLevel->ene_health * lbl_8011BA10[type];
+    f32 lower = (f32)(0.333 * l3);
+    f32 upper = (f32)(0.667 * l3);
+
     if (health > upper) {
         goto done;
     }
@@ -6778,16 +6790,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         e->health = (f32)((f64)e->health - applied);
     }
 
-    {
-        f32 threshold = gCurLevel->ene_health * lbl_8011BA10[e->type];
-        f32 lower = (f32)(0.333 * threshold);
-        f32 upper = (f32)(0.667 * threshold);
-
-        e->atts.fight = scale_fight_damage(
-            gCurLevel->ene_damage * lbl_8011B900[e->type], e->health,
-            upper, lower,
-            e->type);
-    }
+    e->atts.fight = get_enemy_fight(e->type, e->health);
 
     if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
         ((u8*)e->generator)[0xE6] = 7;
@@ -7582,15 +7585,6 @@ typedef struct Row36 {
     s32 f14;     /* 0x14       */
     s32 _b[3];   /* 0x18       */
 } Row36;
-typedef struct MilestoneParam {
-    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
-    f32 pos[3];       /* 0x40 */
-    u8  _pad4C[4];
-    f32 saved_pos[3]; /* 0x50 */
-    u8  _pad5C[4];
-    s32 handle;       /* 0x60 */
-    s32 active;       /* 0x64 */
-} MilestoneParam;
 typedef struct MilestonePool {
     u8 _000[0xF4];
     s32 slots[128];
