@@ -3695,7 +3695,7 @@ void load_player(s32 i) {
     p->got_timer = -1.0f;
     p->got_count = 0;
     for (j = 0; j < 5; j++) {
-        ((s32*)((u8*)p + 0xA34))[j] = -1;
+        PF(p, 0xA34 + j * 4, s32) = -1;
     }
     p->field_11C = 0;
     p->shield_flags = 0;
