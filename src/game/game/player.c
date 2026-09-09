@@ -3852,11 +3852,12 @@ void player_get_from_save(void* vp, s32 type) {
     Player* p;
     s32 character;
     s32 offset;
+    s32 stat_offset;
     s32 exp;
     f32 cap;
     s32 t;
     s32 lv;
-    u8 unused[16];
+    u8 unused[8];
 
     p = vp;
     player = p->index;
@@ -3918,7 +3919,8 @@ void player_get_from_save(void* vp, s32 type) {
     p->item_body_lo = PF(p, offset + 0xDD2, s16);
     p->runes = PF(p, offset + 0xDD4, u16);
     p->shards = PF(p, offset + 0xDD6, u16);
-    if (*(f32*)&CHAR_STATS(p, type)[1] == 0.0f) {
+    stat_offset = type * 0x18;
+    if (PF(p, stat_offset + 0xA94, f32) == 0.0f) {
         clear_player(p->index, 0);
     }
     p->character = type;
