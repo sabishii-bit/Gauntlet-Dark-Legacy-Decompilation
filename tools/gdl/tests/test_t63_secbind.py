@@ -6,27 +6,39 @@ first symbol, a PDB hypothesis — and reports the raw EQUAL PREFIX, the
 DOL-side gaps and the section-END verdict there.
 
 TWO NUMBERS, ONE SECTION, AND BOTH ARE TRUE. Measured at 6da714b06 on
-`game/game/player` `.rodata` (0x20E bytes):
+`game/game/player` `.rodata` when it was still 0x20E bytes and unclaimed:
 
     bound at 0x80113AE0   EQUAL PREFIX 0x0, 0 of 131 words equal
     bound at 0x80113E28   EQUAL PREFIX 0x44, 131/131 after 3 insertions
 
-0x80113AE0 is the front of a block our source does not have (the 0x348
-FRONT DEFICIT); 0x80113E28 is where what we DO have starts. A tool that
-printed only one of them would size the recovery wrongly, in opposite
-directions, so both are tested here.
+0x80113AE0 was the front of a block the source did not have (a 0x348 FRONT
+DEFICIT); 0x80113E28 was where what we DID have started. A tool printing
+only one of those would size the recovery wrongly, in opposite directions.
 
-THE WINDOW DEFECT, found while writing this and fixed before the commit:
-reading only `len(section)` DOL bytes left `gap_inventory` no room to look
-ahead for an insertion, and the SAME section then read `88/131` resynced-
-equal here against claimable_sections' `131/131` — two numbers for one
-section, which is precisely what importing that tool's aligner was meant to
-prevent. `test_the_derived_base_agrees_with_claimable_sections_exactly` is
-the regression.
+That section has since been RECOVERED and claimed (0x80113AE0..0x80114220,
+0x73E bytes) and now binds byte-for-byte at 0x80113AE0, so the live tests
+below moved with it: `.rodata` exercises the CLAIM path and a byte-perfect
+binding, and `.sdata2` — still open — exercises the ELECTION path, the gap
+inventory and a straddled section end.
 
-TWO-SIDED. Positive: the two live bindings and the synthetic prefix cases.
-Negative: an absent section, an address outside the DOL, a non-hex address,
-and a prefix that must NOT round up past a partially-agreeing word.
+TWO DEFECTS THIS SUITE PINS, both found by re-measuring after that merge:
+
+  THE WINDOW. Reading only `len(section)` DOL bytes left `gap_inventory`
+  no room to look ahead for an insertion, and the same section then read
+  `88/131` resynced-equal here against claimable_sections' `131/131` — two
+  numbers for one section, which is precisely what importing that tool's
+  aligner was meant to prevent.
+
+  THE PARTIAL TAIL. With `first_difference` gated on `len(ours)` rather
+  than on the word-aligned limit, the recovered 0x73E-byte `.rodata`
+  reported `first differing word at +0x73C` whose two sides both printed
+  `5900` — a difference that did not exist, on a byte-perfect section.
+
+TWO-SIDED. Positive: the live claim binding, the live election binding, and
+the synthetic prefix cases. Negative: one WORD off the claim collapsing the
+prefix to 0, a BSS section (no DOL bytes at all), an absent section, an
+address outside the DOL, a non-hex address, and a prefix that must NOT
+round up past a partially-agreeing word.
 """
 import subprocess
 import sys
@@ -84,29 +96,67 @@ class TextRendering(unittest.TestCase):
 
 
 @unittest.skipUnless(LIVE, "needs a built game/game/player object")
-class LiveBinding(unittest.TestCase):
-    def test_binding_at_the_front_block_shows_NOTHING_binds_there(self):
+class LiveClaimedSection(unittest.TestCase):
+    """`.rodata`, which the project has RECOVERED and claimed."""
+
+    def test_the_derived_base_is_this_units_own_split_claim(self):
+        """claimable_sections stops censusing a section once it is claimed,
+        so an election-only derivation refused on every section the project
+        had already recovered."""
+        record = secbind.bind(UNIT, SECTION)
+        self.assertIn("splits.txt claim", record["base_source"])
+        self.assertEqual(record["base"], FRONT_BLOCK)
+
+    def test_a_recovered_section_binds_byte_for_byte(self):
         record = secbind.bind(UNIT, SECTION, FRONT_BLOCK)
+        self.assertEqual(record["equal_prefix"], record["aligned_size"])
+        self.assertEqual(record["words_equal_raw"], record["words"])
+        self.assertIsNone(record["first_difference"])
+
+    def test_a_trailing_PARTIAL_word_is_compared_and_not_mis_reported(self):
+        """The defect this pins: with `first_difference` gated on
+        len(ours) rather than on the WORD-ALIGNED limit, a 0x73E-byte
+        section reported `first differing word at +0x73C` whose two sides
+        both printed `5900` — a difference that did not exist, on a
+        section that was byte-perfect."""
+        record = secbind.bind(UNIT, SECTION, FRONT_BLOCK)
+        self.assertEqual(record["size"] - record["aligned_size"],
+                         record["tail"]["bytes"])
+        self.assertTrue(record["tail"]["bytes"])
+        self.assertTrue(record["tail"]["equal"])
+        self.assertIsNone(record["first_difference"])
+
+    def test_ONE_WORD_off_the_claim_collapses_the_prefix_to_zero(self):
+        """The negative control: the prefix measures a binding, not a
+        coincidence."""
+        record = secbind.bind(UNIT, SECTION, FRONT_BLOCK + 4)
         self.assertEqual(record["equal_prefix"], 0)
         self.assertEqual(record["words_equal_raw"], 0)
-        self.assertEqual(record["base_source"], "given on the command line")
-        self.assertIn("16_%sCOIN", record["first_difference"]["ours_text"])
+        self.assertIsNotNone(record["first_difference"])
 
-    def test_binding_at_the_derived_base_shows_what_we_DO_have(self):
-        record = secbind.bind(UNIT, SECTION)
+
+@unittest.skipUnless(LIVE, "needs a built game/game/player object")
+class LiveUnclaimedSection(unittest.TestCase):
+    """`.sdata2`, which is still open, so the election path is exercised."""
+
+    SECTION = ".sdata2"
+
+    def test_the_base_comes_from_claimable_sections_election(self):
+        record = secbind.bind(UNIT, self.SECTION)
         self.assertIn("claimable_sections", record["base_source"])
         self.assertGreater(record["equal_prefix"], 0)
-        self.assertGreater(record["words_equal_raw"], 0)
 
-    def test_the_derived_base_agrees_with_claimable_sections_exactly(self):
-        """The regression for the DOL-window defect: a short window made
-        this report 88/131 resynced-equal against that tool's 131/131."""
-        record = secbind.bind(UNIT, SECTION)
+    def test_the_inventory_agrees_with_claimable_sections_EXACTLY(self):
+        """The regression for the DOL-window defect: reading only
+        len(section) DOL bytes left `gap_inventory` no room to look ahead
+        for an insertion, and the same section then read 88/131 resynced-
+        equal here against that tool's 131/131."""
+        record = secbind.bind(UNIT, self.SECTION)
         splits = cs.parse_splits(ROOT / "config" / "GUNE5D" / "splits.txt")
         row = cs.census(UNIT, splits, cs.claimed_intervals(splits),
                         defined=None)
         theirs = [found for found in row["sections"]
-                  if found["section"] == SECTION][0]
+                  if found["section"] == self.SECTION][0]
         self.assertEqual(int(theirs["base"], 16), record["base"])
         self.assertEqual(theirs["inventory"]["resynced_equal"],
                          record["inventory"]["resynced_equal"])
@@ -115,26 +165,31 @@ class LiveBinding(unittest.TestCase):
         self.assertEqual(theirs["inventory"]["gap_bytes"],
                          record["inventory"]["gap_bytes"])
 
-    def test_the_gaps_carry_an_address_a_size_and_decoded_content(self):
-        record = secbind.bind(UNIT, SECTION)
-        gap = record["inventory"]["gaps"][0]
-        self.assertEqual(gap["address"], 0x80113E6C)
-        self.assertEqual(gap["size"], 0x2C)
-        self.assertIn("NO FLOOR", gap["content"])
+    def test_every_gap_carries_an_address_a_size_and_decoded_content(self):
+        record = secbind.bind(UNIT, self.SECTION)
+        self.assertTrue(record["inventory"]["gaps"])
+        for gap in record["inventory"]["gaps"]:
+            self.assertGreaterEqual(gap["address"], record["base"])
+            self.assertTrue(gap["size"] % 4 == 0 and gap["size"] > 0)
+            self.assertTrue(gap["content"])
 
     def test_the_section_end_verdict_names_the_straddled_symbol(self):
-        record = secbind.bind(UNIT, SECTION)
+        record = secbind.bind(UNIT, self.SECTION)
         end = record["end_verdict"]
         self.assertEqual(end["end"], record["base"] + record["size"])
         self.assertEqual(end["boundary"], "inside")
-        self.assertEqual(end["straddled"]["symbol"], "lbl_80113FA0")
+        self.assertIsNotNone(end["straddled"])
+        self.assertLess(end["straddled"]["start"], end["end"])
+        self.assertGreater(end["straddled"]["end"], end["end"])
         self.assertGreater(end["next_symbol_start"], end["end"])
 
-    def test_the_two_bindings_disagree_which_is_the_whole_point(self):
-        front = secbind.bind(UNIT, SECTION, FRONT_BLOCK)
-        derived = secbind.bind(UNIT, SECTION)
-        self.assertNotEqual(front["base"], derived["base"])
-        self.assertLess(front["words_equal_raw"], derived["words_equal_raw"])
+
+@unittest.skipUnless(LIVE, "needs a built game/game/player object")
+class LiveBssRefusal(unittest.TestCase):
+    def test_a_BSS_section_says_there_are_no_DOL_bytes_to_bind(self):
+        with self.assertRaises(SystemExit) as caught:
+            secbind.bind(UNIT, ".bss")
+        self.assertIn("no bytes in the DOL", str(caught.exception))
 
 
 class Refusals(unittest.TestCase):
@@ -178,12 +233,26 @@ class Refusals(unittest.TestCase):
         self.assertIn("run ninja first", done.stdout)
 
     @unittest.skipUnless(LIVE, "needs a built game/game/player object")
-    def test_the_front_block_run_exits_zero_and_prints_both_sides(self):
+    def test_the_claim_run_exits_zero_and_prints_the_whole_report(self):
         done = self.run_tool(UNIT, SECTION, "0x80113AE0")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("EQUAL PREFIX 0x0", done.stdout)
+        self.assertIn("EQUAL PREFIX", done.stdout)
+        self.assertIn("PARTIAL word", done.stdout)
+        self.assertIn("byte-identical at this address", done.stdout)
         self.assertIn("SECTION END", done.stdout)
         self.assertIn("not ownership of the target extent", done.stdout)
+
+    @unittest.skipUnless(LIVE, "needs a built game/game/player object")
+    def test_one_word_off_the_claim_prints_a_zero_prefix(self):
+        done = self.run_tool(UNIT, SECTION, "0x80113AE4")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("EQUAL PREFIX 0x0", done.stdout)
+
+    @unittest.skipUnless(LIVE, "needs a built game/game/player object")
+    def test_a_BSS_section_REFUSES_through_the_CLI_too(self):
+        done = self.run_tool(UNIT, ".bss")
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("no bytes in the DOL", done.stdout)
 
 
 if __name__ == "__main__":

@@ -40,35 +40,41 @@ allowed to insert. The prefix is the honest "how far do the bytes agree
 literally", and a lane that reads only one of the two will mis-size the
 recovery.
 
-LIVE, measured at 6da714b06 in W:/Repositories/GDL-Claude-P5.
-`game/game/player` `.rodata` is 0x20E bytes. Bound at the target's own
-front-block address 0x80113AE0:
+LIVE, measured in W:/Repositories/GDL-Claude-P5 on `game/game/player`, on
+BOTH sides of the merge that landed that unit's recovered `.rodata` — which
+is the best demonstration of what this tool is for.
 
-    EQUAL PREFIX 0x0 byte(s) of 0x20E; 0 of 131 words equal
-    first differing word at +0x0 (0x80113AE0)
-        ours  31365f2573434f494e000000  '16_%sCOIN...'
-        dol   7472626f5f66756c6c5f6e6577  'trbo_full_new'
+BEFORE (6da714b06, `.rodata` 0x20E bytes, unclaimed):
 
-Bound instead at the base claimable_sections elects, 0x80113E28:
+    at 0x80113AE0   EQUAL PREFIX 0x0 of 0x20E; 0 of 131 words equal
+                      ours  31365f2573434f494e  '16_%sCOIN'
+                      dol   7472626f5f66756c6c  'trbo_full'
+    at 0x80113E28   EQUAL PREFIX 0x44; 19 of 131 words equal raw
+                    131/131 after resync, 3 gaps totalling 0x1E8 B
+                    SECTION END 0x80114036 falls INSIDE lbl_80113FA0
 
-    EQUAL PREFIX 0x44 byte(s); 19 of 131 words equal position-for-position
-    DOL INVENTORY: 131/131 word(s) equal after resync, 0 mismatched,
-                   3 DOL-side gap(s) totalling 0x1E8 byte(s)
-      GAP after our +0x0044: 0x80113E6C..0x80113E98 (0x2C B) "NO FLOOR" ...
-    SECTION END 0x80114036 falls INSIDE lbl_80113FA0
+Both true, answering different questions: 0x80113AE0 was the front of a
+block the source did not have (a 0x348 FRONT DEFICIT), so nothing bound
+there, while 0x80113E28 was where what we DID have started, right to the
+word once three missing interior datums were allowed for. Reading only one
+of the two would have sized the recovery wrongly, in opposite directions.
 
-Every one of those numbers is true and they answer different questions.
-0x80113AE0 is the front of a block our source does not have (the 0x348
-FRONT DEFICIT), so nothing binds there; 0x80113E28 is where what we DO
-have starts, and there every word is right once three missing interior
-datums are allowed for. Reading only the raw percentage at either address
-would size the recovery wrongly in opposite directions.
+AFTER (133e9eecd, `.rodata` 0x73E bytes, claimed 0x80113AE0..0x80114220):
 
-Lane P3 measured that front block at 0x32C byte-exact of 0x348 with its
-`i_tables.c` `.data` recovery APPLIED — a modified tree, not this one, and
-its 0x1C remainder was "MIKEYPUP" plus a 0x10 const. Quote that number only
-against the tree that produced it; this tool prints what the object in
-front of it binds, which is the point of having it.
+    bound at 0x80113AE0 — this unit's splits.txt claim
+    EQUAL PREFIX 0x73C byte(s) of 0x73E; 463 of 463 word(s) equal
+    the last 0x2 byte(s) are a PARTIAL word, compared separately: EQUAL
+    the whole section is byte-identical at this address
+    0 DOL-side gap(s)
+
+One WORD off (0x80113AE4) it collapses to EQUAL PREFIX 0x0 of 0x73E — the
+negative control that says the prefix is measuring a binding and not a
+coincidence.
+
+Lane P3 measured that front block at 0x32C byte-exact of 0x348 against its
+own modified tree, with a 0x1C remainder of "MIKEYPUP" plus a 0x10 const.
+Quote a number only against the tree that produced it; this tool prints
+what the object in front of it binds, which is the point of having it.
 
 EXIT 0 when the binding was measured, 2 when it could not be (no such
 section, address outside the DOL, missing object).
@@ -110,11 +116,26 @@ def text_of(data):
 
 
 def derive_base(unit, section):
-    """(address, why) from claimable_sections' election, or (None, why)."""
+    """(address, why), from this unit's SPLIT CLAIM or, failing that, from
+    claimable_sections' election. (None, why) when neither exists.
+
+    The claim comes first because it is the stronger fact: once a section
+    is claimed in splits.txt, `claimable_sections` stops censusing it (it
+    reports UNCLAIMED sections and this unit's own too-short claims), so
+    an election-only derivation REFUSED on every section the project had
+    already recovered — measured on `game/game/player` `.rodata` the day
+    the claim landed.
+    """
     splits_path = os.path.join(ROOT, "config", "GUNE5D", "splits.txt")
     if not os.path.exists(splits_path):
         return None, "no config/GUNE5D/splits.txt to derive a base from"
     splits = cs.parse_splits(splits_path)
+    claims = (splits.get(unit + ".c") or splits.get(unit + ".cpp")
+              or splits.get(unit) or {})
+    claim = claims.get(section)
+    if claim:
+        return claim[0], ("this unit's splits.txt claim"
+                          " 0x%08X..0x%08X" % (claim[0], claim[1]))
     row = cs.census(unit, splits, cs.claimed_intervals(splits), defined=None)
     for found in row.get("sections", []):
         if found["section"] != section:
@@ -153,6 +174,11 @@ def bind(unit, section, base=None, object_path=None):
     if not os.path.exists(ours_object):
         raise SystemExit("secbind: no object at %s; run ninja first"
                          % ours_object)
+    if section in cs.BSS_SECTIONS:
+        raise SystemExit(
+            "secbind: %s is a BSS section — it occupies no bytes in the DOL,"
+            " so there is nothing to bind. claimable_sections reports those"
+            " as `claimable-bss` on relocation consensus alone." % section)
     sizes = cs.section_sizes(ours_object)
     if not sizes.get(section):
         # objdump -j on an absent section EXITS 1, which fndiff turns into
@@ -189,13 +215,22 @@ def bind(unit, section, base=None, object_path=None):
     theirs = exact
 
     prefix = equal_prefix(ours, theirs)
+    # The word-aligned limit, NOT len(ours). A 0x73E-byte section has 0x73C
+    # comparable bytes and a 2-byte tail; comparing `prefix >= len(ours)`
+    # reported a "first differing word at +0x73C" whose two sides both
+    # printed `5900` — a difference that did not exist, on a section that
+    # was byte-perfect. Measured on game/game/player .rodata the day its
+    # 0x73E bytes landed.
+    aligned = min(len(ours), len(theirs)) // 4 * 4
+    tail = {"bytes": len(ours) - aligned,
+            "equal": ours[aligned:] == theirs[aligned:len(ours)]}
     relocated = cs.relocated_offsets(ours_object).get(section, set())
     inventory = cs.gap_inventory(ours, relocated, window or theirs, base)
     return {
         "unit": unit, "section": section, "object": ours_object,
         "base": base, "base_source": why, "size": len(ours),
-        "equal_prefix": prefix,
-        "first_difference": None if prefix >= len(ours) else {
+        "equal_prefix": prefix, "aligned_size": aligned, "tail": tail,
+        "first_difference": None if prefix >= aligned else {
             "our_offset": prefix, "address": base + prefix,
             "ours": ours[prefix:prefix + 16].hex(),
             "dol": theirs[prefix:prefix + 16].hex(),
@@ -221,9 +256,17 @@ def render(record):
           " position-for-position (NO resync)"
           % (record["equal_prefix"], record["size"],
              record["words_equal_raw"], record["words"]))
+    tail = record["tail"]
+    if tail["bytes"]:
+        print("   the last 0x%X byte(s) are a PARTIAL word, compared"
+              " separately: %s"
+              % (tail["bytes"], "EQUAL" if tail["equal"] else "DIFFER"))
     first = record["first_difference"]
     if first is None:
-        print("   the whole section is byte-identical at this address")
+        if tail["bytes"] and not tail["equal"]:
+            print("   every whole word agrees; only the partial tail differs")
+        else:
+            print("   the whole section is byte-identical at this address")
     else:
         print("   first differing word at +0x%X (0x%08X)"
               % (first["our_offset"], first["address"]))

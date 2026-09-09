@@ -378,11 +378,18 @@ class CommandLine(unittest.TestCase):
 
     @unittest.skipUnless(LIVE, "needs a built game/game/player object")
     def test_list_blocks_reads_the_live_capped_function(self):
+        """The COUNT is deliberately not asserted: it was 11 declarations
+        at a737babb2 and 10 after `fmt = (u8*) lbl_80113AE0` became a real
+        recovered datum, and it will keep moving as the campaign runs. The
+        block being the function's own leading run, and still holding the
+        two competing data-base pointers, is what has to stay true."""
         done = self.run_tool("game/game/player", "load_player_model_sub",
                              "--list-blocks")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("11 declaration(s)", done.stdout)
+        self.assertIn("block 0", done.stdout)
+        self.assertIn("depth 0", done.stdout)
         self.assertIn("u8* pot = (u8*) lbl_80274EA0;", done.stdout)
+        self.assertIn("u8* tab = (u8*) tb_info;", done.stdout)
 
     @unittest.skipUnless(LIVE, "needs a built game/game/player object")
     def test_list_blocks_finds_the_nested_runs_b_hand_needed_by_hand(self):

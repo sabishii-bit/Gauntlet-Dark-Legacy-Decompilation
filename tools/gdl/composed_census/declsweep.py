@@ -57,12 +57,12 @@ in-process precisely so it does not (three subprocesses per candidate — one
 `wf_word_diff`, one `fndiff --clean`, one `fndiff --relocs` — is what lane
 P2's predecessor paid, and it is several times the compile).
 
-MEASURED 2026-09-08 in W:/Repositories/GDL-Claude-P5 at a737babb2 on
-`game/game/player` (6.7k lines, 92 functions): one bare
+MEASURED 2026-09-08 in W:/Repositories/GDL-Claude-P5 on `game/game/player`
+(7k lines, 92 functions): one bare
 `ninja -j2 build/GUNE5D/src/game/game/player.o` after touching the source is
-0.26 s, and the full 100-candidate sweep below took 32 s, i.e. **0.32 s per
-candidate**. The candidate count is at most n*(n-1) for a block of n
-declarations, before duplicate orders are removed:
+0.26 s, and the two full sweeps below took 32 s for 100 candidates and 28 s
+for 81, i.e. **~0.3 s per candidate**. The candidate count is at most
+n*(n-1) for a block of n declarations, before duplicate orders are removed:
 
     n =  4    12 candidates      n = 11   100 candidates   (~32 s here)
     n =  6    30                 n = 15   210              (~70 s here)
@@ -82,32 +82,38 @@ when the source file has uncommitted TRACKED changes, so a kill always
 leaves a tree `git checkout -- <source>` restores exactly. The recovery
 command is printed at the top of every run.
 
-LIVE PROOF, verbatim, 2026-09-08 in W:/Repositories/GDL-Claude-P5 at
-a737babb2. `game/game/player::load_player_model_sub` is the function lane P2
-capped as RELOCATION-TRANSPOSITION, so NO CHANGE is the expected answer:
+LIVE PROOF, verbatim, 2026-09-08 in W:/Repositories/GDL-Claude-P5.
+`game/game/player::load_player_model_sub` is the function lane P2 capped as
+RELOCATION-TRANSPOSITION, so NO CHANGE is the expected answer. Run TWICE,
+either side of the merge that landed player's recovered `.rodata`:
 
-    python tools/gdl/composed_census/declsweep.py \
-        game/game/player load_player_model_sub
-
-    declsweep game/game/player::load_player_model_sub block 0
-        (11 declaration(s), depth 0, line 4619)
-      RECOVERY after a kill: git checkout -- src/game/game/player.c
+  at a737babb2 (11 declarations, `fmt`, `tab` and `pot` all pointers):
       baseline: real 110 words 55 mnem 0 reloc 0 anon 0
       round 0: 100 candidate(s)
-      ...
       CAPPED at real 110 words 55  [20 gate-rejected: mnem 12, reloc 20]
       (32s, 100 candidate(s) built, 0.3s each)
 
-`git status --short src/game/game/player.c` was empty afterwards, and the
-rebuilt object hashed identically to the pre-sweep one
-(A333712462DBA9DA...), so the `finally` restored the tree exactly.
+  at 133e9eecd, after `fmt = (u8*) lbl_80113AE0` became a real datum:
+      declsweep game/game/player::load_player_model_sub block 0
+          (10 declaration(s), depth 0, line 5004)
+        RECOVERY after a kill: git checkout -- src/game/game/player.c
+        baseline: real 110 words 55 mnem 0 reloc 0 anon 0
+        round 0: 81 candidate(s)
+        CAPPED at real 110 words 55  [9 gate-rejected: mnem 9, reloc 9]
+        (28s, 81 candidate(s) built, 0.3s each)
 
-TWENTY REJECTIONS is the number to read, not the CAPPED verdict: lane P2
-measured this same block by hand and found "20 word-reducing candidates and
-every single one transposes the same two relocations". Its predecessor,
-gating on the TU-wide count, accepted one of those 20 and it had to be
-reverted. This rejects all 20, and the agreement of the two independent
-counts is the calibration.
+`git status --short src/game/game/player.c` was empty after both, and at
+a737babb2 the rebuilt object hashed identically to the pre-sweep one
+(A333712462DBA9DA...), so the `finally` restores the tree exactly.
+
+THE REJECTION COUNT is the number to read, not the CAPPED verdict. Lane P2
+measured the 11-declaration block by hand and found "20 word-reducing
+candidates and every single one transposes the same two relocations"; this
+rejected exactly 20, and the agreement of two independent counts is the
+calibration. The drop to 9 after the merge is the same fact getting
+smaller: `fmt`, `tab` and `pot` pointed at three different data objects and
+recovering one of them removed a whole rank of transposable orders. The
+verdict did not move, because the remaining two still compete.
 """
 import argparse
 import io

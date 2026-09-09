@@ -22,8 +22,15 @@ gets a test below:
                          as the `.bss` rows, so one number stood for two
                          unrelated facts.
 
-TWO-SIDED. Positive: the live `.bss` (+12, -768), `.rodata` front-deficit
-(+840) and section-size (+3136) families on game/game/player, and the
+A FAMILY THAT CLOSED, which is the point of naming them. At 6da714b06 this
+unit had a `+840` family bound to `.rodata`'s 0x348 FRONT DEFICIT. The
+section was then recovered and claimed, the deficit went away, and the
+family went with it. `test_a_front_deficit_and_its_family_agree_in_BOTH_
+directions` pins the CAUSAL LINK as an invariant instead of pinning 840 as
+a constant, so it keeps holding as the campaign closes the rest.
+
+TWO-SIDED. Positive: the live `.bss` (+12, -768) and section-size (+3136)
+families on game/game/player, the front-deficit invariant above, and the
 synthetic displacement family below. Negative: the four refusals, a delta
 with no matching fact reported as `unexplained` rather than attached to the
 nearest number, and a `same base` share that says when a family is not one
@@ -226,10 +233,28 @@ class LivePlayer(unittest.TestCase):
         self.assertIn("gDefaultPlayerPosition", row["facts"][0])
         self.assertEqual(row["same_base"], row["rows"])
 
-    def test_the_plus_840_family_is_the_rodata_front_deficit(self):
-        row = self.by_delta[840]
-        self.assertIn("FRONT DEFICIT", row["facts"][0])
-        self.assertIn(".rodata", row["facts"][0])
+    def test_a_family_matching_a_live_front_deficit_is_BOUND_to_it(self):
+        """The causal claim, as an invariant rather than as the constant
+        840 (which has since closed).
+
+        NOT the converse. A front deficit does NOT have to produce a
+        family: it only surfaces as one where code actually reads ACROSS
+        the missing bytes in a paired STRUCTURAL row. Measured here after
+        the merge — `.data` is short 4 bytes at the front and there is no
+        `+4` family at all — so asserting that direction would fail on a
+        true state of the tree."""
+        deficits = set(self.record["section_front_deficits"].values())
+        for delta in deficits & set(self.by_delta):
+            facts = self.by_delta[delta]["facts"]
+            self.assertTrue(any("FRONT DEFICIT" in fact for fact in facts),
+                            "delta %+d equals a live front deficit and the"
+                            " binder did not name it: %s" % (delta, facts))
+
+    def test_no_family_INVENTS_a_front_deficit_that_does_not_exist(self):
+        deficits = set(self.record["section_front_deficits"].values())
+        for delta, row in self.by_delta.items():
+            if any("FRONT DEFICIT" in fact for fact in row["facts"]):
+                self.assertIn(delta, deficits)
 
     def test_the_plus_3136_family_is_our_whole_bss_size(self):
         row = self.by_delta[3136]
