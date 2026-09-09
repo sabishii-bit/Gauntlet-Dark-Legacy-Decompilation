@@ -2340,14 +2340,14 @@ typedef struct HiddenChar {
 } HiddenChar;
 extern HiddenChar Hidden[27];
 
-/* powerup-cheat table (0x801209E4, stride 0x14, 27 entries) */
+/* powerup-cheat table (0x801209E4, stride 0x14, 18 entries) */
 typedef struct PupCheat {
     /* 0x00 */ char name[8];
     /* 0x08 */ s32 type;
     /* 0x0C */ f32 value;
     /* 0x10 */ u32 mask;
 } PupCheat;
-extern PupCheat Cheats[27];
+extern PupCheat Cheats[18];
 
 /* mini-inventory label table (0x8011FCE8, stride 0xC) */
 extern s32 mini_inv_items[];    /* [i*3+0] type, [i*3+1] mask, [i*3+2] name ptr */
