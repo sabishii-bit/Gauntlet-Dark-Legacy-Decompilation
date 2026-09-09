@@ -10,6 +10,346 @@
 /* item.h is included at the loading/targeting tail, after the existing
  * byte-walk code. The Item pointer is forward-declared for that earlier use. */
 
+/* ENEMY.OBJ owns the parallel type tables at 0x8011AF48..0x8011BFF8.
+ * The Xbox PDB corroborates the 36-byte type/desc/prefix record and the
+ * 34-entry attribute arrays. GameCube values, ordering and pointer targets
+ * come from its .data; its 45 name pointers precede 11 state-name pointers.
+ * Existing exported labels stay stable for other TUs while their declarations
+ * are recovered. These are separate globals, not members of one large struct. */
+typedef struct EnemyTypeName {
+    e_e_tpye type;
+    char desc[16];
+    char prefix[16];
+} EnemyTypeName;
+
+EnemyTypeName lbl_8011AF48[44] = {
+    { E_READY, "sco", "SCO" },
+    { E_START, "tro", "TRO" },
+    { E_TAUNT, "dem", "DEM" },
+    { E_WALK, "rat", "RAT" },
+    { E_RUN, "gru", "GRU" },
+    { E_FLY, "kni", "KNI" },
+    { E_HOVER, "sna", "SNA" },
+    { E_LANDING, "sor", "SOR" },
+    { E_WALKTOREADY, "mum", "MUM" },
+    { E_READYTOWALK, "spi", "SPI" },
+    { E_RUNTOREADY, "liz", "LIZ" },
+    { E_READYTORUN, "tre", "TRE" },
+    { E_ATTACK, "mag", "MAG" },
+    { E_ATTACK_R, "zom", "ZOM" },
+    { E_ATTACK2, "pla", "PLA" },
+    { E_ATTACK2_R, "wol", "WOL" },
+    { E_ATTACK_PWR, "ice", "ICE" },
+    { E_ATTACK_PWR_R, "wrm", "WRM" },
+    { E_ATTACK4, "dog", "DOG" },
+    { E_ATTACK4_R, "ske", "SKE" },
+    { E_ATTACK5, "gho", "GHO" },
+    { E_ATTACK5_R, "aci", "ACI" },
+    { E_RUNATTACK, "han", "HAN" },
+    { E_RUNATTACK2, "imp", "IMP" },
+    { E_THROW, "war", "WAR" },
+    { E_THROW2, "sky", "SKY" },
+    { E_THROW_FINISH, "wind", "WIND" },
+    { E_THROWTOREADY, "grm", "GRM" },
+    { E_HIT_REACT2, "golem", "GOLEM" },
+    { E_HIT_REACT3, "death", "DEATH" },
+    { E_GETUP, "it", "IT" },
+    { E_DYING, "gar", "GAR" },
+    { E_NACTIONS, "general", "GEN" },
+    { E_DRAGON, "dragon", "DRAGON" },
+    { E_CHIMERA, "chimera", "CHIM" },
+    { E_DJINN, "djinn", "DJINN" },
+    { E_DRIDER, "drider", "DRIDER" },
+    { E_PBOSS, "pboss", "PBOSS" },
+    { E_YETI, "yeti", "YETI" },
+    { E_WRAITH, "wraith", "WRAITH" },
+    { E_LICH, "lich", "LICH" },
+    { E_SKORNE1, "skorne1", "SKORNE" },
+    { E_SKORNE2, "skorne2", "SKORNE" },
+    { E_GARM, "garm", "GARM1" },
+};
+
+extern u8 lbl_80112370[];
+DECL_SECT(".sdata2") extern const char lbl_803466D0[];
+DECL_SECT(".sdata2") extern const char lbl_803466D8[];
+DECL_SECT(".sdata2") extern const char lbl_803466E0[];
+DECL_SECT(".sdata2") extern const char lbl_803466E4[];
+DECL_SECT(".sdata2") extern const char lbl_803466EC[];
+DECL_SECT(".sdata2") extern const char lbl_803466F4[];
+extern const char lbl_8011237C[];
+DECL_SECT(".sdata2") extern const char lbl_803466FC[];
+DECL_SECT(".sdata2") extern const char lbl_80346704[];
+extern const char lbl_80112388[];
+extern const char lbl_80112394[];
+DECL_SECT(".sdata2") extern const char lbl_8034670C[];
+DECL_SECT(".sdata2") extern const char lbl_80346714[];
+DECL_SECT(".sdata2") extern const char lbl_8034671C[];
+DECL_SECT(".sdata2") extern const char lbl_80346724[];
+extern const char lbl_801123A0[];
+extern const char lbl_801123AC[];
+DECL_SECT(".sdata2") extern const char lbl_8034672C[];
+extern const char lbl_801123B8[];
+DECL_SECT(".sdata2") extern const char lbl_80346730[];
+DECL_SECT(".sdata2") extern const char lbl_80346738[];
+DECL_SECT(".sdata2") extern const char lbl_80346740[];
+DECL_SECT(".sdata2") extern const char lbl_80346748[];
+DECL_SECT(".sdata2") extern const char lbl_8034674C[];
+DECL_SECT(".sdata2") extern const char lbl_80346754[];
+extern const char lbl_801123C4[];
+DECL_SECT(".sdata2") extern const char lbl_80346758[];
+DECL_SECT(".sdata2") extern const char lbl_80346760[];
+DECL_SECT(".sdata2") extern const char lbl_80346768[];
+DECL_SECT(".sdata2") extern const char lbl_80346770[];
+extern const char lbl_801123D0[];
+DECL_SECT(".sdata2") extern const char lbl_80346774[];
+DECL_SECT(".sdata2") extern const char lbl_8034677C[];
+DECL_SECT(".sdata2") extern const char lbl_80346784[];
+DECL_SECT(".sdata2") extern const char lbl_8034678C[];
+DECL_SECT(".sdata2") extern const char lbl_80346794[];
+DECL_SECT(".sdata2") extern const char lbl_8034679C[];
+DECL_SECT(".sdata2") extern const char lbl_803467A4[];
+DECL_SECT(".sdata2") extern const char lbl_803467AC[];
+DECL_SECT(".sdata2") extern const char lbl_803467B4[];
+DECL_SECT(".sdata2") extern const char lbl_803467BC[];
+DECL_SECT(".sdata2") extern const char lbl_803467C4[];
+DECL_SECT(".sdata2") extern const char lbl_803467CC[];
+extern const char lbl_801123DC[];
+DECL_SECT(".sdata2") extern const char lbl_803467D4[];
+DECL_SECT(".sdata2") extern const char lbl_803467DC[];
+DECL_SECT(".sdata2") extern const char lbl_803467E4[];
+extern const char lbl_801123E8[];
+DECL_SECT(".sdata2") extern const char lbl_803467EC[];
+extern const char lbl_801123F8[];
+DECL_SECT(".sdata2") extern const char lbl_803467F4[];
+extern const char lbl_80112404[];
+DECL_SECT(".sdata2") extern const char lbl_803467FC[];
+DECL_SECT(".sdata2") extern const char lbl_80346804[];
+
+char* lbl_8011B578[45] = {
+    (char*)lbl_80112370,
+    (char*)lbl_803466D0,
+    (char*)lbl_803466D8,
+    (char*)lbl_803466E0,
+    (char*)lbl_803466E4,
+    (char*)lbl_803466EC,
+    (char*)lbl_803466F4,
+    (char*)lbl_8011237C,
+    (char*)lbl_803466FC,
+    (char*)lbl_80346704,
+    (char*)lbl_80112388,
+    (char*)lbl_80112394,
+    (char*)lbl_8034670C,
+    (char*)lbl_80346714,
+    (char*)lbl_8034671C,
+    (char*)lbl_80346724,
+    (char*)lbl_801123A0,
+    (char*)lbl_801123AC,
+    (char*)lbl_8034672C,
+    (char*)lbl_801123B8,
+    (char*)lbl_80346730,
+    (char*)lbl_80346738,
+    (char*)lbl_80346740,
+    (char*)lbl_80346748,
+    (char*)lbl_8034674C,
+    (char*)lbl_80346754,
+    (char*)lbl_801123C4,
+    (char*)lbl_80346758,
+    NULL,
+    (char*)lbl_80346760,
+    (char*)lbl_80346768,
+    (char*)lbl_80346770,
+    (char*)lbl_801123D0,
+    (char*)lbl_80346774,
+    (char*)lbl_8034677C,
+    (char*)lbl_80346784,
+    (char*)lbl_8034678C,
+    (char*)lbl_80346794,
+    (char*)lbl_8034679C,
+    (char*)lbl_803467A4,
+    (char*)lbl_803467AC,
+    (char*)lbl_803467B4,
+    (char*)lbl_803467BC,
+    (char*)lbl_803467C4,
+    (char*)lbl_803467CC,
+};
+
+char* state_tab[11] = {
+    (char*)lbl_801123DC,
+    (char*)lbl_803467D4,
+    (char*)lbl_803467DC,
+    (char*)lbl_803467E4,
+    (char*)lbl_801123E8,
+    (char*)lbl_803467EC,
+    (char*)lbl_801123F8,
+    (char*)lbl_803467F4,
+    (char*)lbl_80112404,
+    (char*)lbl_803467FC,
+    (char*)lbl_80346804,
+};
+
+f32 ene_height[34] = {
+    3.0f, 6.0f, 6.0f, 3.0f, 6.0f, 6.0f,
+    3.0f, 6.0f, 6.0f, 3.0f, 6.0f, 6.0f,
+    3.0f, 6.0f, 6.0f, 3.0f, 6.0f, 6.0f,
+    3.0f, 6.0f, 6.0f, 3.0f, 3.0f, 6.0f,
+    6.0f, 6.0f, 6.0f, 10.0f, -1.0f, 12.0f,
+    6.0f, 5.0f, 10.0f, 6.0f,
+};
+
+f32 ene_width[34] = {
+    1.5f, 1.5f, 1.79999995f, 1.5f, 1.5f, 1.79999995f,
+    1.5f, 1.5f, 1.79999995f, 1.5f, 1.5f, 1.79999995f,
+    1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.79999995f,
+    1.5f, 1.5f, 1.79999995f, 0.75f, 0.75f, 2.0f,
+    2.0f, 2.0f, 2.0f, 4.0f, -1.0f, 3.0f,
+    1.5f, 1.5f, 6.0f, 2.0f,
+};
+
+f32 ene_attn[34] = {
+    2.0f, 3.79999995f, 3.79999995f, 2.0f, 3.79999995f, 3.79999995f,
+    2.0f, 3.79999995f, 3.79999995f, 2.0f, 3.79999995f, 3.79999995f,
+    2.0f, 3.79999995f, 3.79999995f, 2.0f, 3.79999995f, 3.79999995f,
+    2.0f, 3.79999995f, 3.79999995f, 0.5f, 0.5f, 3.79999995f,
+    3.79999995f, 3.79999995f, 3.79999995f, 3.79999995f, -1.0f, 5.0f,
+    3.0f, 3.0f, 5.0f, 4.0f,
+};
+
+f32 ene_coll[34] = {
+    1.5f, 3.0f, 3.0f, 1.5f, 3.0f, 3.0f,
+    1.5f, 3.0f, 3.0f, 1.5f, 3.0f, 3.0f,
+    1.5f, 3.0f, 3.0f, 1.5f, 3.0f, 3.0f,
+    1.5f, 3.0f, 3.0f, 1.5f, 1.5f, 3.0f,
+    3.0f, 3.0f, 3.0f, 4.0f, -1.0f, 4.0f,
+    3.0f, 3.0f, 3.0f, 3.0f,
+};
+
+f32 lbl_8011B878[34] = {
+    0.100000001f, 0.100000001f, 0.119999997f, 0.100000001f, 0.100000001f, 0.100000001f,
+    0.100000001f, 0.100000001f, 0.100000001f, 0.100000001f, 0.100000001f, 0.100000001f,
+    0.100000001f, 0.100000001f, 0.100000001f, 0.100000001f, 0.100000001f, 0.100000001f,
+    0.100000001f, 0.100000001f, 0.100000001f, 0.0199999996f, 0.0500000007f, 0.100000001f,
+    0.100000001f, 0.100000001f, 0.100000001f, 0.100000001f, -1.0f, 0.0900000036f,
+    0.125f, 0.100000001f, 0.100000001f, 0.0900000036f,
+};
+
+f32 lbl_8011B900[34] = {
+    12.0f, 15.0f, 18.0f, 12.0f, 15.0f, 18.0f,
+    12.0f, 15.0f, 18.0f, 12.0f, 15.0f, 18.0f,
+    12.0f, 15.0f, 15.0f, 12.0f, 15.0f, 18.0f,
+    12.0f, 15.0f, 18.0f, 12.0f, 12.0f, 15.0f,
+    15.0f, 15.0f, 15.0f, 20.0f, 0.0f, 20.0f,
+    1.0f, 0.0f, 30.0f, 20.0f,
+};
+
+f32 enemy_armor[34] = {
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    1.0f, 0.0f, 0.0f, 0.0f,
+};
+
+f32 lbl_8011BA10[34] = {
+    21.0f, 30.0f, 46.0f, 21.0f, 30.0f, 46.0f,
+    21.0f, 30.0f, 46.0f, 21.0f, 30.0f, 46.0f,
+    21.0f, 30.0f, 30.0f, 21.0f, 30.0f, 46.0f,
+    21.0f, 30.0f, 46.0f, 21.0f, 21.0f, 30.0f,
+    46.0f, 46.0f, 46.0f, 100.0f, 0.0f, 200.0f,
+    100.0f, 9999.0f, 500.0f, 200.0f,
+};
+
+f32 generator_armor[34] = {
+    3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f,
+    3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f,
+    3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f,
+    3.0f, 3.0f, 3.0f, 3.0f, 3.0f, 3.0f,
+    3.0f, 3.0f, 3.0f, 3.0f, 0.0f, 3.0f,
+    0.0f, 0.0f, 0.0f, 3.0f,
+};
+
+s32 lbl_8011BB20[34] = {
+    1, 2, 3, 1, 2, 3,
+    1, 2, 3, 1, 2, 3,
+    1, 2, 2, 1, 2, 3,
+    1, 2, 3, 1, 1, 2,
+    3, 3, 3, 1, 0, 2,
+    1, 1, 2, 2,
+};
+
+s32 lbl_8011BBA8[34] = {
+    1, 2, 3, 1, 2, 3,
+    1, 2, 3, 1, 2, 3,
+    1, 2, 2, 1, 2, 3,
+    1, 2, 3, 1, 1, 2,
+    3, 3, 3, 15, 0, 30,
+    1, 2, 300, 30,
+};
+
+s32 lbl_8011BC30[34] = {
+    2, 4, 6, 2, 4, 6,
+    2, 4, 6, 2, 4, 6,
+    2, 4, 4, 2, 4, 6,
+    2, 4, 6, 2, 2, 4,
+    6, 6, 6, 2, 0, 4,
+    1, 3, 4, 4,
+};
+
+s32 lbl_8011BCB8[34] = {
+    2, 4, 6, 2, 4, 6,
+    2, 4, 6, 2, 4, 6,
+    2, 4, 4, 2, 4, 6,
+    2, 4, 6, 2, 2, 4,
+    6, 6, 6, 20, 0, 40,
+    1, 4, 300, 40,
+};
+
+s32 sEnemyDefaultAlgorithm[34] = {
+    2, 7, 7, 2, 7, 7,
+    7, 7, 7, 7, 7, 7,
+    2, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 0, 19,
+    3, 27, 7, 7,
+};
+
+s32 enemy_damagetype[34] = {
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0,
+};
+
+s32 enemy_armortype[34] = {
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0,
+};
+
+f32 lbl_8011BED8[34] = {
+    0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f,
+    0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f,
+    0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f,
+    0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f,
+    0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0f, 0.0490873866f,
+    0.0490873866f, 0.0490873866f, 0.0490873866f, 0.0490873866f,
+};
+
+f32 lbl_8011BF60[38] = {
+    0.0872664601f, -0.0872664601f, 0.17453292f, -0.17453292f, 0.261799395f, -0.261799395f,
+    0.34906584f, -0.34906584f, 0.436332315f, -0.436332315f, 0.52359879f, -0.52359879f,
+    0.610865235f, -0.610865235f, 0.69813168f, -0.69813168f, 0.785398185f, -0.785398185f,
+    0.87266463f, -0.87266463f, 0.959931076f, -0.959931076f, 1.04719758f, -1.04719758f,
+    1.13446403f, -1.13446403f, 1.22173047f, -1.22173047f, 1.30899692f, -1.30899692f,
+    1.39626336f, -1.39626336f, 1.48352981f, -1.48352981f, 1.57079637f, -1.57079637f,
+    1.65806282f, -1.65806282f,
+};
+
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 #endif
@@ -19,10 +359,9 @@
  * ENEMY.OBJ is a single very large translation unit.  On the GameCube build it
  * occupies one contiguous .text run, 0x800444C0 - 0x800520CC, sitting between
  * dynobjgrid.c (ends 0x800444C0) and gamemain.c (starts 0x800520CC).  This file
- * is linked Matching as of R63 (2026-09-05): all 84 target functions are exact
- * after 25 audited WebFrank rules, including do_enemy_move's three-word address
- * fold. `ninja` verifies the complete linked DOL; `--non-matching` bypasses the
- * rules for editable-source builds. This is not an all-raw-compiler match.
+ * remains NonMatching while native instruction differences are reconstructed.
+ * The default build links the extracted fallback object. Postprocessing is
+ * retired; promotion requires exact native code, data, relocations and EH.
  *
  * Data used throughout:
  *   gEnemies        0x80251C18  active enemy records, stride 0x394 (916) bytes.
@@ -322,32 +661,13 @@ static void enemy_bss_order(void)
  * emit storage, so the compiler sees the same declaration sequence as before.
  * --------------------------------------------------------------------------- */
 
-extern u8 lbl_8011AF48[];       /* enemy.c .data anchor (turn tables at +4444/+4412...) */
 
-/* ----------------------------------------------------------------------------
- * Per-enemy-type attribute tables inside the lbl_8011AF48 .data blob.
- *
- * The blob holds a structure-of-arrays block: a run of parallel 34-entry f32
- * arrays, each indexed by the enemy's e_e_tpye, so a lookup is always
- * `*(f32*)(lbl_8011AF48 + type * 4 + <array base>)`.  The array bases below are
- * named from what each value is stored into at its consumers; the raw
- * displacements stay inside a single additive expression per
- * claim.law.offsetof-rename-preserves-protected-web (respelling the constant is
- * neutral, restructuring the expression is not - see init_enemy).
- *
- * Evidence:
- *   +1808 (elem 452) -> Enemy.hht     via init_enemy_vars
- *   +1944 (elem 486) -> Enemy.rad     via init_enemy_vars
- *   +2080 (elem 520) -> Enemy.attn_offset[1]  (init_enemy, `lfs f0,2080(r8)`)
- *   +2216 (elem 554) -> Enemy.coll_offset[1]  (init_enemy, `lfs f0,2216(r8)`)
- *   +2760 (elem 690) -> base health, scaled by gCurLevel->ene_health in BOTH
- *                       init_enemy (`lfs f31,2760(r3)`) and init_enemy_vars,
- *                       which reads the identical element as ((f32*)row)[690].
- * The 136-byte (34-element) spacing between consecutive bases is what makes the
- * SoA reading concrete; see
- * claim.law.table-lookup-pre-keyed-on-segment-cast-repetition for why the
- * addressing form here is not source-shape-controllable at every site.
- * -------------------------------------------------------------------------- */
+/* Legacy consumers still address the separate attribute arrays through the
+ * .data base at lbl_8011AF48. The definitions above and GameCube accesses prove
+ * these offsets: ene_attn +2080, ene_coll +2216, base health +2760. Convert each
+ * remaining consumer to its actual array while checking complete native output;
+ * the unchanged byte-walk forms are reconstruction debt, not a recovered struct.
+ */
 #define ETYPE_ATTN_Y      2080 /* f32[34] attention-point height per type */
 #define ETYPE_COLL_Y      2216 /* f32[34] collision-point height per type */
 #define ETYPE_BASE_HEALTH 2760 /* f32[34] unscaled hit points per type    */
@@ -554,7 +874,6 @@ extern s32 gBossDying;
 extern s32 gGameMode;      /* current game mode; see enum e_mode */
 extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
-extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
 extern u32 jumptable_8011C25C[];
 
 typedef struct EnemyGeneratorInfo {
@@ -647,7 +966,6 @@ extern void* CritterMoveNodeCol(f32 rad, f32 zero, f32* from, f32* to,
                                 void* hit, s32 a, s32 b);
 extern s32 NextGridItem(void);
 
-extern u8 lbl_8011AF48[];
 extern f32 lbl_80344880;
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
 /* SetEnemyObj's full prototype is declared down at init_enemy, not here: the
@@ -6574,10 +6892,14 @@ void enemy_update(void)
  * the helper.  The GameCube compiler inlines it into damage_enemy. */
 static inline f32 get_enemy_fight(e_e_tpye type, f32 health)
 {
-    f32 fight = gCurLevel->ene_damage * lbl_8011B900[type];
-    f32 l3 = gCurLevel->ene_health * lbl_8011BA10[type];
-    f32 lower = (f32)(0.333 * l3);
-    f32 upper = (f32)(0.667 * l3);
+    f32 fight;
+    f32 l3;
+    f32 lower;
+    f32 upper;
+    fight = gCurLevel->ene_damage * lbl_8011B900[type];
+    l3 = gCurLevel->ene_health * lbl_8011BA10[type];
+    upper = (f32)(0.667 * l3);
+    lower = (f32)(0.333 * l3);
 
     if (health > upper) {
         goto done;
@@ -7039,7 +7361,7 @@ typedef struct EnemySpawnPoolView {
 s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
                    struct Item* gen, s32 imp, f32 ang)
 {
-    u8* tbl = lbl_8011AF48;
+    u8* tbl = (u8*)lbl_8011AF48;
     EnemySpawnPoolView* pool = (EnemySpawnPoolView*)lbl_80250E00;
     Enemy* e;
     s32 slot;
@@ -7659,21 +7981,6 @@ static inline s32 enemy_health_tier(f32 scale, f32 hi, f32 lo, f32 z2)
     return tier;
 }
 
-/* The inlined early return preserves the retail branch pair at +0x2c8.
- * The surrounding caller guard still handles the highest-health tier. */
-static inline f32 enemy_tier_damage(s32 type, f32 health, f32 low, f32 damage)
-{
-    if (type == 30) {
-        return damage;
-    }
-    if (health > low) {
-        damage = (f32)(0.667 * damage);
-    } else {
-        damage = (f32)(0.333 * damage);
-    }
-    return damage;
-}
-
 void init_enemy_vars(s32 slot, s32 spew, f32 scale)
 {
     /* Retail reserves eight more bytes below its save area. Their original
@@ -7681,27 +7988,18 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     u8 unrecovered_locals[8];
     u8* e;
     Enemy* enemy;
-    u8* tbl;
     s32 i4;
     f32 z;
     f32 z2;
     f32 t;
     f32 hi;
     f32 lo;
-    f32 spd;
-    f32 ht;
-    f32 t2;
-    f32 hi2;
-    f32 lo2;
     s32 tier;
-    s32 ty;
-    u8* row;
     f32 fv;
     s16 sv;
 
     e = (u8*)gEnemies + slot * 916;
     enemy = (Enemy*)e;
-    tbl = (u8*)((Row36*)lbl_8011AF48);
     z = 0.0f;
     enemy->skinfx.nframes = z;
     enemy->next_enemy = -1;
@@ -7715,10 +8013,8 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     fv = 1.0f;
     enemy->close_dist = fv;
     enemy->actual_dist = fv;
-    row = tbl + *(s32*)e * 4;
-    enemy->hht = (f32)(0.5 * ((f32*)row)[452]);
-    row = tbl + *(s32*)e * 4;
-    enemy->rad = ((f32*)row)[486];
+    enemy->hht = (f32)(0.5 * ene_height[enemy->type]);
+    enemy->rad = ene_width[enemy->type];
     enemy->area = 0;
     enemy->coll_pnum = -1;
     enemy->coll_enenum = -1;
@@ -7750,10 +8046,9 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->idle_secs = z2;
     enemy->idle_frac = z2;
     enemy->damage_count = 0;
-    row = tbl + *(s32*)e * 4;
-    t = gCurLevel->ene_health * ((f32*)row)[690];
-    hi = (f32)(0.667 * t);
+    t = gCurLevel->ene_health * lbl_8011BA10[enemy->type];
     lo = (f32)(0.333 * t);
+    hi = (f32)(0.667 * t);
     tier = enemy_health_tier(scale, hi, lo, z2);
     enemy->org_lvl = (s16)tier;
     enemy->mode2 = 0;
@@ -7780,8 +8075,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
         spew = 7;
     }
     if (spew < 0 || spew > 31) {
-        row = tbl + *(s32*)e * 4;
-        enemy->algorithm = (s16)((s32*)row)[894];
+        enemy->algorithm = (s16)sEnemyDefaultAlgorithm[enemy->type];
     } else {
         enemy->algorithm = (s16)spew;
     }
@@ -7790,25 +8084,11 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->prev_ai = sv;
     /* Retail keeps the incoming slot in r3 through this call (+0x254). */
     format_brain(slot);
-    row = tbl + *(s32*)e * 4;
-    enemy->atts.invspeed = (f32)(1.0 / ((f32*)row)[588]);
-    ty = *(s32*)e;
-    row = tbl + ty * 4;
-    t2 = gCurLevel->ene_health * ((f32*)row)[690];
-    ht = enemy->health;
-    hi2 = (f32)(0.667 * t2);
-    lo2 = (f32)(0.333 * t2);
-    spd = gCurLevel->ene_damage * ((f32*)row)[622];
-    if (!(ht > hi2)) {
-        spd = enemy_tier_damage(ty, ht, lo2, spd);
-    }
-    enemy->atts.fight = spd;
-    row = tbl + *(s32*)e * 4;
-    enemy->atts.armor = ((f32*)row)[656];
-    row = tbl + *(s32*)e * 4;
-    enemy->atts.damagetype = ((s32*)row)[928];
-    row = tbl + *(s32*)e * 4;
-    enemy->atts.armortype = ((s32*)row)[962];
+    enemy->atts.invspeed = (f32)(1.0 / lbl_8011B878[enemy->type]);
+    enemy->atts.fight = get_enemy_fight(enemy->type, enemy->health);
+    enemy->atts.armor = enemy_armor[enemy->type];
+    enemy->atts.damagetype = enemy_damagetype[enemy->type];
+    enemy->atts.armortype = enemy_armortype[enemy->type];
 }
 
 #pragma opt_propagation reset
