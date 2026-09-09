@@ -8521,7 +8521,10 @@ void fn_80051164(void)
 #pragma opt_propagation off
 s32 fn_800511D0(s32 milestone, f32 tolerance)
 {
-    u8 unusedHi[12];
+    /* find_next_milestone's Xbox locals include temp and cpos vectors.
+     * The GC distance calculation keeps temp in registers; pos escapes to
+     * get_yaw. Recover the real delta vector instead of the old 12-byte pad. */
+    f32 temp[3];
     f32 pos[3];
     f32 ad;
     volatile f32 tmp;
@@ -8538,7 +8541,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     f64 k2Pi;
     f64 kNegPi;
     f64 kPi;
-    u8* m;
+    MilestoneParam* m;
     s32 i;
     s32 best;
     s32 second;
@@ -8554,13 +8557,13 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         return milestone;
     }
 
-    m = sMilestones + milestone * 104;
-    pos[0] = ((MilestoneParam *)m)->matrix[12];
-    pos[1] = ((MilestoneParam *)m)->matrix[13];
-    pos[2] = ((MilestoneParam *)m)->matrix[14];
+    m = (MilestoneParam*)sMilestones + milestone;
+    pos[0] = m->matrix[12];
+    pos[1] = m->matrix[13];
+    pos[2] = m->matrix[14];
     {
-        f32 x = ((MilestoneParam *)m)->matrix[10];
-        f32 r = atan2(((MilestoneParam *)m)->matrix[8], x);
+        f32 x = m->matrix[10];
+        f32 r = atan2(m->matrix[8], x);
         f64 p = 3.141592654;
         f32 a = (f32)(p + r);
         f64 t;
@@ -8581,21 +8584,18 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     k2Pi = 6.283185308;
     kPi = 3.141592654;
     {
-        u8* m0 = sMilestones;
+        MilestoneParam* m0 = (MilestoneParam*)sMilestones;
         m = m0;
     }
-    for (i = 0; i < sNumMilestones; i++, m += 104) {
+    for (i = 0; i < sNumMilestones; i++, m++) {
         f32 d;
         f64 nd;
-        f32 dx;
-        f32 dy;
-        f32 dz;
         f32 dist;
 
         if (i == milestone) {
             continue;
         }
-        d = get_yaw((f32*)(m + 48), pos) - base;
+        d = get_yaw(&m->matrix[12], pos) - base;
         if (d > kPi) {
             nd = d - k2Pi;
         } else if (d <= kNegPi) {
@@ -8606,10 +8606,11 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         ad = (f32)nd;
         *(u32*)&ad &= 0x7FFFFFFF;
         if (ad <= tolerance) {
-            dy = ((MilestoneParam *)m)->matrix[13] - pos[1];
-            dx = ((MilestoneParam *)m)->matrix[12] - pos[0];
-            dz = ((MilestoneParam *)m)->matrix[14] - pos[2];
-            dist = dz * dz + (dist = dx * dx + dy * dy);
+            temp[0] = m->matrix[12] - pos[0];
+            temp[1] = m->matrix[13] - pos[1];
+            temp[2] = m->matrix[14] - pos[2];
+            dist = temp[2] * temp[2] +
+                   (dist = temp[0] * temp[0] + temp[1] * temp[1]);
             if (dist > kZero) {
                 f64 y = __frsqrte(dist);
                 y = kHalf * y * (kThree - y * y * dist);
@@ -8619,7 +8620,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
                 dist = tmp;
             }
             if (dist < bestDist) {
-                t1 = dy;
+                t1 = temp[1];
                 secondDist = bestDist;
                 second = best;
                 secondDy = bestDy;
@@ -8628,7 +8629,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
                 best = i;
                 bestDy = t1;
             } else if (dist < secondDist) {
-                t2 = dy;
+                t2 = temp[1];
                 secondDist = dist;
                 second = i;
                 *(u32*)&t2 &= 0x7FFFFFFF;
