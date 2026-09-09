@@ -21,6 +21,26 @@ class CiSpecialCompilerTests(unittest.TestCase):
         self.assertRegex(workflow, r"(?m)^    needs: compiler_payload$")
         self.assertEqual(workflow.count("pnpm install --frozen-lockfile"), 1)
 
+    def test_ci_refreshes_the_live_objneutral_fixture(self):
+        workflow = (ROOT / ".github/workflows/build.yml").read_text(
+            encoding="utf-8"
+        )
+        fixture = "ninja build/GUNE5D/src/game/enemy/critter.o"
+        tests = "python -m unittest discover tools/gdl/tests -b"
+        self.assertIn(fixture, workflow)
+        self.assertIn(tests, workflow)
+        self.assertLess(workflow.index(fixture), workflow.index(tests))
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Analysis tool tests\n"
+            r"\s+env:\n"
+            r"\s+HOME: /tmp\n"
+            r"\s+WINEPREFIX: /tmp/\.wine\n"
+            r"\s+run: \|.*?"
+            r"ninja build/GUNE5D/src/game/enemy/critter\.o.*?"
+            r"python -m unittest discover tools/gdl/tests -b",
+        )
+
     def test_ci_payload_hash_matches_the_patcher_contract(self):
         script = (ROOT / "tools/gdl/mwcc_p6/build_payload.sh").read_text(
             encoding="utf-8"
