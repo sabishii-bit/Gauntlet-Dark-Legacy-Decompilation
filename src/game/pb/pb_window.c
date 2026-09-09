@@ -7,7 +7,6 @@
 #include "types.h"
 #include "game/pbwindow.h"
 
-#pragma dont_inline on
 
 typedef float f32;
 
@@ -284,7 +283,6 @@ static f32 pbAspectRatio(f32 w, f32 h)
     return ratio;
 }
 
-#pragma dont_inline off
 /* debug zoom: shrinks the port rect / clip size (inlined into pbProjCalc) */
 static inline void debugZoomAdjust(volatile f32* l, volatile f32* r, volatile f32* t,
                                    volatile f32* b, volatile f32* w, volatile f32* h)
@@ -779,7 +777,6 @@ void pbWinSetup(void)
     setupClipMtxPkt(ws, p);
     lbl_80343F38 = 0;
 }
-#pragma dont_inline on
 
 /* 0x800C92B8 */
 static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2)
@@ -815,7 +812,6 @@ static void setupMatrices(MTXPACKET2* p0, MTXPACKET* p1, MTXPACKET* p2)
 
 
 /* 0x800C9448: positional light packets + camera pitch/yaw */
-#pragma dont_inline off
 static inline f32 pbAtan2Ordered(f32 x, f32 z)
 {
     return atan2(x, z);

@@ -373,7 +373,6 @@ static inline void AtreeSetEmptySub(void)
 
 /* ---------------- atree-list slot save / restore ---------------- */
 
-#pragma dont_inline on
 void AtreeInitLists(int slot)
 {
     int i;
@@ -390,7 +389,6 @@ void AtreeInitLists(int slot)
     AnimDataList = atreelist_save.datalist[slot];
     AtreeSetEmpty();
 }
-#pragma dont_inline reset
 
 void AtreeListLock(int slot)
 {

@@ -457,7 +457,6 @@ u32 ReadF32LE(u8* p);
 
 /* --- VQ decode / GX present / file-stream bodies (parked NonMatching) --- */
 
-#pragma dont_inline on
 void fn_800D860C(u32 param_1, u8* param_2, int param_3) {
     u8* out;
     int i;
@@ -509,7 +508,6 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
     }
 }
 
-#pragma dont_inline off
 
 /* Release one movie allocation and clear the owning slot.
  *
@@ -1771,7 +1769,6 @@ void __dl__FPv(void* p);
 void __dla__FPv(void* p);
 
 #pragma cplusplus on
-#pragma dont_inline on
 extern "C" void fn_800DA60C(register u8* m)
 {
     register u8* strm;
@@ -1795,7 +1792,6 @@ extern "C" void fn_800DA60C(register u8* m)
     }
     *(s32*)(self + offsetof(MovieState, fd)) = 0;
 }
-#pragma dont_inline off
 #pragma cplusplus off
 
 /* Advance the VQ stream by one presentation interval and prime its audio. */
@@ -2246,7 +2242,6 @@ u32* __ct__11MoviePlayerFv(u32* volatile p) {
  * deleting branch, which is how the target's dtor body is shaped. */
 #pragma cplusplus on
 
-#pragma dont_inline on
 void operator delete[](void* p) throw() {
     if (p != NULL) {
         gMovieAllocCount--;
@@ -2255,7 +2250,6 @@ void operator delete[](void* p) throw() {
         }
     }
 }
-#pragma dont_inline off
 
 void operator delete(void* p) throw() {
     if (p != NULL) {

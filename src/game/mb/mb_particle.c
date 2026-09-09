@@ -2955,7 +2955,6 @@ extern MBObject* gSceneRoot;
 extern f64 lbl_80349298;        /* firework rate divisor */
 extern f64 lbl_80349210;        /* firework power scale  */
 
-#pragma dont_inline on
 MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
                          f32 rate, f32 power, f32 sc0, f32 sc1, f32 sc2) {
     u8* pi = (u8*)psysInfo;
@@ -2986,7 +2985,6 @@ MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
     }
     return node;
 }
-#pragma dont_inline off
 
 /* 0x800CF8EC - flame preset */
 extern f32 lbl_80349220;         /* 10.0f */
@@ -2998,7 +2996,6 @@ extern const f64 lbl_803491F0;   /* 0.1   */
 extern const f64 lbl_80349288;   /* 0.94  */
 extern const f64 lbl_80349290;   /* 1.06  */
 
-#pragma dont_inline on
 MBObject* MBPsysFlame(f32 f1, f32 f2, f32 f3, s32 a, s32 tex, f32* verts) {
     u8* pi = (u8*)psysInfo;
     f32 w;
@@ -3068,7 +3065,6 @@ MBObject* MBPsysFlame(f32 f1, f32 f2, f32 f3, s32 a, s32 tex, f32* verts) {
     }
     return MBNewPsysDescrip(a, tex, 0, (void*)(pi + PSYSINFO_DESCRIP_FLAME));
 }
-#pragma dont_inline off
 
 /* 0x800D079C - default psys node (no descriptor), stores render flags */
 MBObject* MBNewPsysDefault(void* matrix, MBObject* parent, s32 flags,
@@ -3404,7 +3400,6 @@ extern const f32 lbl_80343FE8;   /* 0.1f  */
 extern const f32 lbl_80343FEC;   /* 0.28f */
 extern const f32 lbl_80343FF0;   /* 2.0f  */
 
-#pragma dont_inline on
 void MBPsysStartFrame(void) {
     u8 unused[8];
     u8* pi = (u8*)psysInfo;
@@ -3496,7 +3491,6 @@ void MBPsysStartFrame(void) {
         lbl_8034518C = 0;
     }
 }
-#pragma dont_inline off
 
 /* 0x800D12F0 - MBRemovePsys: mark a psys node for removal */
 void MBRemovePsys(MBObject* node) {
@@ -3772,7 +3766,6 @@ static void initPresetList(void) {
 extern f32 lbl_80349154;
 extern u8 lbl_802C9D30[];
 
-#pragma dont_inline on
 void MBInitPsys(void) {
     u8* pi = (u8*)psysInfo;
     s32* psize = (s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.free_bytes));
@@ -3818,4 +3811,3 @@ void MBInitPsys(void) {
     memset(*(void**)(m + offsetof(PsysInfoRuntimeView, positionUsage)), 0, size);
     initPresetList();
 }
-#pragma dont_inline off

@@ -868,7 +868,6 @@ s32 WorldExplosion(s32 arg0)
 }
 
 /* 0x80055F68 -- asynchronous world/model/atree/critter load state machine. */
-#pragma dont_inline on
 s32 fn_80055F68(s32 arg0, s32 arg1)
 {
     register u8* table = (u8*)lbl_80257680;
@@ -1055,7 +1054,6 @@ invalid:
 done:
     return 0;
 }
-#pragma dont_inline reset
 
 /* 0x8005636C -- advance a two-field counter unless it is parked at 2. */
 void fn_8005636C(s32* s)
@@ -7960,7 +7958,6 @@ extern f64 lbl_80346FB8;
 
 /* 0x8005D20C - track/find the world object ahead of an enemy (cached in
  * e+652 with a rescan timer at e+812) */
-#pragma dont_inline on
 s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
 {
     u8* e = (u8*)&gEnemies[index];
@@ -8006,7 +8003,6 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
     }
     return blocked;
 }
-#pragma dont_inline off
 
 extern char lbl_80112C68[];            /* "COL OBJECT Item: idx < 0" */
 extern f32 lbl_8023F7E8[3];

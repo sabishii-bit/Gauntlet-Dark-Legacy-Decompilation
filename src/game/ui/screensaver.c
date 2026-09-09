@@ -1231,7 +1231,6 @@ void end_inventory_panel(int player)
  * handles into the arrG/arrH tables. Suppressed while a wipe is active.
  */
 void* disp_piece(u32* piece, s32 xoff, u32 mode);
-#pragma dont_inline on
 #pragma opt_lifetimes off
 void draw_panels(void)
 {
@@ -1310,7 +1309,6 @@ void draw_panels(void)
     lbl_80344A44 = 1;
 }
 #pragma opt_lifetimes reset
-#pragma dont_inline reset
 
 /* Position and fade one inventory-panel piece during its enter/leave phase. */
 void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
