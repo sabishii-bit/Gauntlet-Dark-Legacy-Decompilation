@@ -193,12 +193,23 @@ class LiveCritter(unittest.TestCase):
         self.assertIn("CANDIDATES only", text)
 
     def test_an_interior_row_elsewhere_is_still_reported_as_a_defect(self):
-        # game/game/player::set_hidden_player carries three interior rows
-        # (runs of 36 lines) and one edge row -- both banners, one function.
-        text = self.clean("game/game/player", "set_hidden_player")
-        self.assertIn("POOL-DEFECT set_hidden_player", text)
-        self.assertIn("POOL-DEFECT CANDIDATE set_hidden_player", text)
-        self.assertIn("ADDRESSES DIFFER", text)
+        # The carrier was game/game/player::set_hidden_player (three
+        # interior rows and one edge row -- both banners, one function)
+        # until 0e4963268 recovered the target's cheat-name order and
+        # closed its four rotated .sdata2 bases, leaving it with no loud
+        # row at all. A scan of the configured units for the same shape
+        # (build/p7_lane/p7_pooldefect.py) found the loud banner surviving
+        # in exactly two functions, game/world/gauntworld::fn_800606FC and
+        # game/game/player::damage_player; the gauntworld one is used here
+        # because damage_player is under active repair. Its rows are the
+        # VALUES-DIFFER class rather than set_hidden_player's ADDRESSES-
+        # DIFFER one -- incidental to the claim, which is that an interior
+        # row keeps the loud banner while an edge row in the same function
+        # is demoted.
+        text = self.clean("game/world/gauntworld", "fn_800606FC")
+        self.assertIn("POOL-DEFECT fn_800606FC", text)
+        self.assertIn("POOL-DEFECT CANDIDATE fn_800606FC", text)
+        self.assertIn("VALUES DIFFER", text)
 
 
 if __name__ == "__main__":
