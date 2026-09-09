@@ -5132,7 +5132,7 @@ void init_players(void) {
 /* Create every per-player HUD blit set (portrait frames, runes,       */
 /* crystals, keys, power meter, rune13, HOD, quest, lbl_802757E0).          */
 static void create_player_blits(s32 i) {
-    Player* player;
+    u8* prec;
     u8* tab = (u8*)tb_info;
     u16* lx = (u16*)(tab + i * 2);
     u16* rx;
@@ -5187,8 +5187,8 @@ static void create_player_blits(s32 i) {
         mbBlitCvtCoord(pm_blit[i][j],
                        (f32)*(s32*)(tab + j * 20 + 16));
     }
-    player = PT(i);
-    player->meter_flash = 0;
+    prec = (u8*)lbl_80274EA0 + i * PREC_STRIDE;
+    PF(prec, 0xC40 + offsetof(Player, meter_flash), s32) = 0;
     rx = (u16*)(tab + i * 2) + 764;
     box_lx = *rx - 0x40;
     box_cy = 0x143;
@@ -5210,7 +5210,7 @@ static void create_player_blits(s32 i) {
     if (lbl_803447C0 != 0) {
         mbBlitUpdateEntry(rune13_blit[i], -1, 0x100);
     }
-    player->speak_timer = 0;
+    PF(prec, 0xC40 + offsetof(Player, speak_timer), s16) = 0;
     hod_blit[i] = MBCreateBlit(0, 0, *lx + 8, 0x154, 0x10, 0x10);
     tex = (u32)MBOX_FindTexture_Err("RUNE13", NULL, 1);
     mbInitBlitEntry(hod_blit[i], tex, 0);
@@ -5219,8 +5219,8 @@ static void create_player_blits(s32 i) {
     quest_blit[i] = MBCreateBlit(0, 0, *lx + 0x68, 0x152, 0x10, 0x10);
     mbBlitInit3414(quest_blit[i], 1);
     mbBlitCvtCoord(quest_blit[i], 64000.0f);
-    player->node = NULL;
-    player->index = i;
+    PF(prec, 0xC40 + offsetof(Player, node), void*) = NULL;
+    PF(prec, 0xC40 + offsetof(Player, index), s32) = i;
 }
 
 /* Wipe all four records (keeps index + controller binding).           */
