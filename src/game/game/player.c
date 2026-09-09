@@ -4577,12 +4577,12 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     char** sfx_buf;
     s32* sfx_remap;
     u32* arena;
-    s32 prod;
     u8* q;
     s32 cls;
     s32 ret;
     s32 t;
     s32 raw;
+    s32 prod;
 
     prod = i * 76;
     record = PT(i);
