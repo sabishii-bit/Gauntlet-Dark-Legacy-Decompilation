@@ -187,7 +187,6 @@ jobs:
         ninja -d explain -n build/GUNE5D/src/game/enemy/critter.o || true
         ninja -t deps build/GUNE5D/src/game/enemy/critter.o | head -n 3 || true
         ls -l --time-style=full-iso build/GUNE5D/src/game/enemy/critter.o src/game/enemy/critter.c build.ninja build/GUNE5D/include 2>/dev/null | head -n 8 || true
-        date --iso-8601=seconds
         python -m unittest discover tools/gdl/tests -b
 
     - name: Reconstruction diagnostics

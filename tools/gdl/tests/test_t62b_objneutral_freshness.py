@@ -323,8 +323,22 @@ class LiveFreshnessAndLimit(unittest.TestCase):
     def setUp(self):
         self.object_path, self.meta_path = objneutral.bank_paths(UNIT, self.TAG)
         self.addCleanup(self.cleanup)
+        # The fixture is refreshed by CI before the suite, but any test that
+        # runs before this module can dirty it again (CI measured exactly
+        # that: `ninja -n` clean right after the rebuild, STALE at bank
+        # time). Refresh it here so freshness is measured when it matters,
+        # and let a refusal carry ninja's own explanation.
+        target = OBJECT.relative_to(ROOT).as_posix()
+        subprocess.run(["ninja", target], cwd=str(ROOT),
+                       capture_output=True, text=True)
         done = self.run_tool("bank", "--tag", self.TAG)
-        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        if done.returncode != 0:
+            explain = subprocess.run(["ninja", "-d", "explain", "-n", target],
+                                     cwd=str(ROOT), capture_output=True,
+                                     text=True)
+            self.fail(done.stdout + done.stderr
+                      + "\n--- ninja -d explain -n ---\n"
+                      + explain.stdout + explain.stderr)
 
     def cleanup(self):
         for path in (self.object_path, self.meta_path):
