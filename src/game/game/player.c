@@ -2690,25 +2690,22 @@ s32 do_players(void) {
 /* ================================================================== */
 
 /* extern data (back slice) */
-extern f32 lbl_803477AC;
-extern f32 lbl_803477B4;
-extern f64 lbl_803477D0;
-extern f32 lbl_803477D8;
-extern f64 lbl_803478B0;
-extern f64 lbl_80347A40;
-extern f64 lbl_80347838;
-extern f64 lbl_803478F8;
-extern f32 lbl_80347920;
-extern f64 lbl_80347930;
-extern f32 lbl_80347A50;
-extern f32 lbl_80347A54;
-extern f64 lbl_80347A58;
-extern f64 lbl_80347A60;
-extern f32 lbl_80347A88;
-extern f32 lbl_803478E4;
-extern f32 lbl_80347778;
-extern f32 lbl_80347770;
-extern f32 lbl_80347790;
+/* .sdata2 placeholders whose literal form is NOT codegen-neutral, measured
+ * one conversion at a time against the object built before it: 0x803477AC
+ * (0.0f), 0x803478B0 (0.5) and 0x80347A40 (3.0) each rewrite ClosestChest
+ * from +0xb, and 0x80347A54 (95.0f) rewrites PlayerProcessPowerups from
+ * +0x443 and drops three of its instructions. The DOL values are known and
+ * are stated here; only the source form is unrecovered.
+ *
+ * 0x80347A40 is 3.0 and the three PlayerProcessPowerups comparisons below
+ * DO take the literal neutrally, so they were converted; the one remaining
+ * reference is ClosestChest's `three = lbl_80347A40`, which does not. One
+ * target datum therefore has two source spellings until that site is
+ * recovered. */
+extern f32 lbl_803477AC; /* 0.0f  */
+extern f64 lbl_803478B0; /* 0.5   */
+extern f64 lbl_80347A40; /* 3.0   */
+extern f32 lbl_80347A54; /* 95.0f */
 extern f64 __frsqrte(f64 value);
 extern f64 __sin(f64 value);
 extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
@@ -5361,7 +5358,7 @@ void PlayerProcessPowerups(void* vp) {
     s32 i;
 
     weapon_time = alpha_time = 0.0f;
-    familiar_time = shield_time = lbl_80347920;
+    familiar_time = shield_time = -1.0f;
 
     p->stat_damage = player_scale_att(&p->att_fight, lbl_80343D7C);
     p->stat_armor = player_scale_att(&p->att_armor, lbl_80343D84);
@@ -5460,7 +5457,7 @@ void PlayerProcessPowerups(void* vp) {
             }
             if (flags & 0x7004F1) {
                 if (timeleft < 0.0) {
-                    familiar_time = lbl_80347A50;
+                    familiar_time = 99999.0f;
                 } else if (timeleft > familiar_time) {
                     familiar_time = timeleft;
                 }
@@ -5502,10 +5499,10 @@ void PlayerProcessPowerups(void* vp) {
             MBTreeSetAlpha(p->node, (s32)lbl_80347A54, 1);
         } else if (p->flags & 4) {
             f32 player_alpha;
-            if (alpha_time < 0.0f || alpha_time > lbl_80347A40 ||
-                (((s32)(lbl_80347A58 * alpha_time) & 1) != 0)) {
+            if (alpha_time < 0.0f || alpha_time > 3.0 ||
+                (((s32)(8.0 * alpha_time) & 1) != 0)) {
                 player_alpha = 160 +
-                    (s32)(lbl_80347A60 * __sin(lbl_80347930 * alpha_time));
+                    (s32)(16.0 * __sin(6.283185308 * alpha_time));
             } else {
                 player_alpha = 0.0f;
             }
@@ -5518,14 +5515,14 @@ void PlayerProcessPowerups(void* vp) {
         }
 
         if (p->shield_flags & 0x100000) {
-            if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
-                (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
+            if (weapon_time < 0.0f || weapon_time > 3.0 ||
+                (((s32)(8.0 * weapon_time) & 1) != 0)) {
                 s32 skin = lbl_80344BF0;
                 SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC), skin, 1, 1);
             }
         } else if (p->shield_flags & 0x10000) {
-            if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
-                (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
+            if (weapon_time < 0.0f || weapon_time > 3.0 ||
+                (((s32)(8.0 * weapon_time) & 1) != 0)) {
                 s32 skin = lbl_80344BF4;
                 SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC), skin, 1, 1);
             }
@@ -5855,9 +5852,9 @@ void PlayerProcessPowerups(void* vp) {
             transition = 2;
         }
         AnimateATree(&p->atree, anim, transition);
-        if (familiar_time >= 0.0 && familiar_time < lbl_80347838) {
+        if (familiar_time >= 0.0 && familiar_time < 1.0) {
             s32 familiar_alpha =
-                (s32)(lbl_803478F8 * (lbl_80347838 - familiar_time));
+                (s32)(255.0 * (1.0 - familiar_time));
             MBTreeSetAlpha(*(void**)p->atree, familiar_alpha, 1);
         }
     }
@@ -5903,15 +5900,15 @@ void PlayerProcessPowerups(void* vp) {
     }
 
     if (p->character == 12) {
-        MBTreeSetScale(lbl_803478E4, lbl_803478E4, lbl_803478E4, p->node);
+        MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
     } else if (p->flags & 0x100) {
-        MBTreeSetScale(lbl_80347A88, lbl_80347A88, lbl_80347A88, p->node);
+        MBTreeSetScale(1.3f, 1.3f, 1.3f, p->node);
     } else if (p->level >= 99) {
-        MBTreeSetScale(lbl_80347778, lbl_80347778, lbl_80347778, p->node);
+        MBTreeSetScale(1.2f, 1.2f, 1.2f, p->node);
     } else {
         f32 scale;
         MBTreeClearFlags(p->node, 8, 0);
-        scale = lbl_80347790;
+        scale = 1.0f;
         *(f32*)((u8*)p->node + 0x40) = scale;
         *(f32*)((u8*)p->node + 0x44) = scale;
         *(f32*)((u8*)p->node + 0x48) = scale;
@@ -5925,7 +5922,7 @@ void PlayerProcessPowerups(void* vp) {
     if (p->level >= 99) {
         f32 scale;
         MBTreeSetFlags(p->weapon_node, 8, 0);
-        scale = lbl_80347770;
+        scale = 1.5f;
         *(f32*)((u8*)p->weapon_node + 0x40) = scale;
         *(f32*)((u8*)p->weapon_node + 0x44) = scale;
         *(f32*)((u8*)p->weapon_node + 0x48) = scale;
@@ -6347,7 +6344,7 @@ static s32 ClosestChest(void* vp) {
     volatile f32 root;
     u8 rootPad[4];
 
-    best = lbl_803477B4;
+    best = 10.0f;
     StartEnemyGrid(p->pos, best);
     zero = lbl_803477AC;
     half = lbl_803478B0;
