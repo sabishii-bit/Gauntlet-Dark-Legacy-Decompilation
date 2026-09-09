@@ -2983,11 +2983,9 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             }
             if (dmg - reduced_dmg > 0.5 && p->timer_1FE <= 0) {
                 f32 clank = (f32)(0.75 * reduced_dmg);
-                if (clank < 0.1) {
-                    clank = 0.1;
-                } else if (clank > 1.0) {
-                    clank = 1.0;
-                }
+
+                clank = (f32)(clank < 0.1 ? 0.1
+                                          : (clank > 1.0 ? 1.0 : clank));
                 StartBlockFX(clank, p->index);
                 p->timer_1FE = (s16)(s32)(5.0 * clank);
                 p->hud_flags |= 0x2000;
