@@ -63,6 +63,16 @@ WF = "tools/gdl/composed_census/wf_word_diff.py"
 #: 604 words, so it exercises the exact combination both older passes miss.
 UNIT = "game/game/player"
 DEFECT_FN = "set_hidden_player"
+#: The LIVE carrier of the word-identical pass. `set_hidden_player`'s four
+#: rotated `.sdata2` bases were the original one; 0e4963268 recovered the
+#: target's cheat-name order and closed them, so its `--relocs` view is clean
+#: and cannot demonstrate the pass any more. `damage_player` is the same
+#: combination on the same object -- a diverged stream (MNEMONIC DIVERGENCE 2,
+#: 9 differing words, so the positional pass refuses) that still carries
+#: word-identical relocation rows, here of the anonymous-pool VALUE class
+#: rather than the NAME class. It is a live function under repair: when it
+#: closes, repoint this at whatever `fndiff.py <unit> --relocs` still lists.
+RELOC_ROW_FN = "damage_player"
 EXACT_FN = "PlayerAttacking"
 #: A count-asymmetric body: a determinate answer, not a measurement.
 ASYM_FN = "setup_player_display"
@@ -379,20 +389,27 @@ class LiveReproduction(unittest.TestCase):
     """The measured case the item was written from."""
 
     def test_the_TU_relocs_view_no_longer_calls_the_defect_IDENTICAL(self):
-        """The four rotated pool bases must be PRINTED, and the closing
-        verdict must never read `relocation sets IDENTICAL` while they are.
+        """Word-identical relocation rows must be PRINTED on a real object
+        whose stream has diverged, and the closing verdict must never read
+        `relocation sets IDENTICAL` while they are.
 
-        The set delta itself is not asserted either way: at 77dd0fdef it
-        was clean (which is what made the rotation invisible) and after
-        the small-data recovery it carries a real row of its own
-        (`player_sumner_desc` against `lbl_803479C8`). Both are legitimate
-        states of the same object, and the claim under test is about the
-        WORD-IDENTICAL pass surviving either."""
-        done = run(UNIT, DEFECT_FN, "--relocs")
+        The set delta itself is not asserted either way: at 77dd0fdef
+        `set_hidden_player`'s was clean (which is what made the rotation
+        invisible) and after the small-data recovery it carried a real row
+        of its own. Both are legitimate states of one object, and the claim
+        under test is about the WORD-IDENTICAL pass surviving either.
+
+        The carrier moved off `set_hidden_player` at 0e4963268, which
+        recovered the target's cheat-name order and closed all four rotated
+        rows; the rule itself is still pinned on the exact original rows by
+        `SyntheticRelocsView.test_a_transposition_replaces_the_IDENTICAL_
+        verdict`. Neither our anonymous pool index nor the instruction
+        offset is asserted here: both move whenever the `.sdata2` pool or
+        the body changes, and neither is part of the claim."""
+        done = run(UNIT, RELOC_ROW_FN, "--relocs")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("RELOC-SYMBOL MISMATCH set_hidden_player", done.stdout)
-        self.assertIn("+0x0038  target lbl_803479C8   ours lbl_803479E0",
-                      done.stdout)
+        self.assertIn("RELOC-SYMBOL MISMATCH " + RELOC_ROW_FN, done.stdout)
+        self.assertIn("ANON-POOL VALUE-DIFFERS", done.stdout)
         self.assertNotIn("relocation sets IDENTICAL", done.stdout)
 
     def test_the_gate_reloc_count_IS_wf_word_diffs_headline_number(self):
