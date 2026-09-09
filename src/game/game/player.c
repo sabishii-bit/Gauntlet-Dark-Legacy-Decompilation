@@ -4678,14 +4678,14 @@ s32 set_hidden_player(void* vp) {
     s32 j;
     s32 k;
 
-    if (strncmp(p->save.name, lbl_803479E0, 6) == 0) {
+    if (strncmp(p->save.name, lbl_803479C8, 6) == 0) {
         pick = 0x10;
         match = 1;
     }
     /* the interactive cheat menu (start+trigger names) */
-    if ((strncmp(p->save.name, lbl_803479C8, 6) == 0 ||
-         strncmp(p->save.name, lbl_803479D0, 6) == 0 ||
-         strncmp(p->save.name, lbl_803479D8, 6) == 0) &&
+    if ((strncmp(p->save.name, lbl_803479D0, 6) == 0 ||
+         strncmp(p->save.name, lbl_803479D8, 6) == 0 ||
+         strncmp(p->save.name, lbl_803479E0, 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
         access_options[0] = lbl_80347734;
         access_one[0] = lbl_80347740;
