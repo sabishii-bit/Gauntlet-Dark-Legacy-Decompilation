@@ -241,35 +241,45 @@ class LiveUnitTests(unittest.TestCase):
         self.assertEqual(len(row["our_string_segment_matches"]), 0)
         self.assertEqual(row["our_string_segments_matched"], 0)
 
-    def test_enemy_claims_its_sdata2_run_refuting_the_unclaimed_premise(self):
+    def test_enemy_claims_its_recovered_name_format_and_numeric_pools(self):
         result = po.analyze("game/enemy/enemy")
         self.assertEqual(result["claimed_pool_extent"], [{
-            "section": ".sdata2", "start": "0x80346810", "end": "0x80346AAC",
-            "size": 668, "named_datums_in_symbols": 96,
-            "target_section_bytes": 668}])
+            "section": ".rodata", "start": "0x80112370", "end": "0x80112538",
+            "size": 456, "named_datums_in_symbols": 28,
+            "target_section_bytes": 456}, {
+            "section": ".sdata", "start": "0x80343BF8", "end": "0x80343C00",
+            "size": 8, "named_datums_in_symbols": 1,
+            "target_section_bytes": 8}, {
+            "section": ".sdata2", "start": "0x803466D0", "end": "0x80346AAC",
+            "size": 988, "named_datums_in_symbols": 138,
+            "target_section_bytes": 988}])
         own = [d for d in result["datums"] if d["owned_by_this_unit"]]
-        self.assertEqual(len(own), 96)
+        self.assertEqual(len(own), 102)
         self.assertTrue(all(d["owner"] == "game/enemy/enemy" for d in own))
 
-    def test_every_enemy_owned_datum_has_an_equal_value_entry_in_our_object(self):
+    def test_every_enemy_owned_literal_has_an_equal_value_entry_in_our_object(self):
         result = po.analyze("game/enemy/enemy")
-        own = [d for d in result["datums"] if d["owned_by_this_unit"]]
+        # The declared mutable ABSF suffix map is not an anonymous literal.
+        own = [d for d in result["datums"] if d["owned_by_this_unit"]
+               and d["disposition"] == "POOL"]
         self.assertEqual([d["name"] for d in own if not d["our_equal_value_count"]], [])
         first = next(d for d in own if d["name"] == "lbl_80346810")
         self.assertEqual(first["value"]["f64"], 1.0)
-        self.assertEqual(first["our_equal_value_entries"][0]["offset"], 0)
+        self.assertEqual(first["our_equal_value_entries"][0]["offset"], 0x140)
 
-    def test_enemy_reads_six_datums_from_outside_any_claimed_run(self):
+    def test_enemy_no_longer_reads_unclaimed_name_or_format_datums(self):
         result = po.analyze("game/enemy/enemy")
-        self.assertEqual(result["referenced_unclaimed"], 6)
+        self.assertEqual(result["referenced_unclaimed"], 0)
         outside = [d["name"] for d in result["datums"] if d["owner"] == "UNCLAIMED"]
-        self.assertIn("lbl_80346770", outside)  # below enemy's own .sdata2 run
+        self.assertEqual(outside, [])
 
     def test_enemy_pool_order_disagrees_and_implies_an_earlier_read(self):
         prediction = po.analyze("game/enemy/enemy")["first_use_prediction"]
         self.assertFalse(prediction["orders_agree"])
-        self.assertEqual(prediction["first_disagreement_index"], 22)
-        self.assertEqual(prediction["first_disagreement"]["actual"], "lbl_803468B8")
+        # The text-only first-use model cannot see the earlier enemy_names
+        # initializer referencing "IT". This hint is not missing-source proof.
+        self.assertEqual(prediction["first_disagreement_index"], 0)
+        self.assertEqual(prediction["first_disagreement"]["actual"], "lbl_80346770")
         self.assertTrue(prediction["first_disagreement"]["implied_missing_early_reference"])
 
     def test_a_unit_with_no_claimed_pool_says_so(self):
@@ -307,7 +317,7 @@ class LiveUnitTests(unittest.TestCase):
                  ("game/sys/ml_mem", "game/enemy/enemy", "game/game/gamemain")}
         self.assertEqual(len(set(pages.values())), 3)
         self.assertIn("agrees with the address order", pages["game/sys/ml_mem"])
-        self.assertIn("DISAGREES at index 22", pages["game/enemy/enemy"])
+        self.assertIn("DISAGREES at index 0", pages["game/enemy/enemy"])
 
     def test_the_json_report_round_trips(self):
         proc = run_cli("game/sys/ml_mem", "--json")

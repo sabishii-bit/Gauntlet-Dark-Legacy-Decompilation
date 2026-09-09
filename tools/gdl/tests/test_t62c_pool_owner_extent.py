@@ -222,27 +222,29 @@ class LiveLaneJInvocation(unittest.TestCase):
 @unittest.skipUnless(
     (ROOT / "build/GUNE5D/obj/game/enemy/enemy.o").exists(),
     "target objects are not split in this checkout")
-class LiveSingleExtentIsUnchanged(unittest.TestCase):
-    """enemy owns exactly one pool run, so its recorded result must stand."""
+class LiveRecoveredEnemyExtents(unittest.TestCase):
+    """The recovered strings and suffix map are separate from numeric literals."""
 
-    def test_enemy_still_disagrees_at_index_22_in_its_own_run(self):
+    def test_enemy_text_first_use_cannot_see_the_name_table_initializer(self):
         prediction = po.analyze("game/enemy/enemy")["first_use_prediction"]
-        self.assertEqual(len(prediction["extents"]), 1)
-        extent = prediction["extents"][0]
+        self.assertEqual(len(prediction["extents"]), 3)
+        extent = next(row for row in prediction["extents"]
+                      if row["section"] == ".sdata2")
         self.assertEqual((extent["section"], extent["start"]),
-                         (".sdata2", "0x80346810"))
-        self.assertEqual(extent["first_disagreement_index"], 22)
+                         (".sdata2", "0x803466D0"))
+        self.assertEqual(extent["first_disagreement_index"], 0)
         self.assertEqual(extent["first_disagreement"]["actual"],
-                         "lbl_803468B8")
+                         "lbl_80346770")
         self.assertTrue(extent["first_disagreement"]
                         ["implied_missing_early_reference"])
 
     def test_the_derivation_confirms_enemys_own_claim_start(self):
         result = po.analyze("game/enemy/enemy")
-        self.assertEqual(result["derived_section_bases"].get(".sdata2"),
-                         "0x80346810")
-        self.assertIsNone(
-            result["first_use_prediction"]["extents"][0]["base_disagreement"])
+        self.assertEqual(result["derived_section_bases"], {
+            ".rodata": "0x80112370", ".sdata": "0x80343BF8",
+            ".sdata2": "0x803466D0"})
+        for extent in result["first_use_prediction"]["extents"]:
+            self.assertIsNone(extent["base_disagreement"])
 
 
 if __name__ == "__main__":

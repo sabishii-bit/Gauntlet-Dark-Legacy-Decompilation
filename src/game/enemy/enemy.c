@@ -7,8 +7,6 @@
 #include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/player.h"
-/* item.h is included at the loading/targeting tail, after the existing
- * byte-walk code. The Item pointer is forward-declared for that earlier use. */
 
 /* ENEMY.OBJ owns the parallel type tables at 0x8011AF48..0x8011BFF8.
  * The Xbox PDB corroborates the 36-byte type/desc/prefix record and the
@@ -23,39 +21,39 @@ typedef struct EnemyTypeName {
 } EnemyTypeName;
 
 EnemyTypeName lbl_8011AF48[44] = {
-    { E_READY, "sco", "SCO" },
-    { E_START, "tro", "TRO" },
-    { E_TAUNT, "dem", "DEM" },
-    { E_WALK, "rat", "RAT" },
-    { E_RUN, "gru", "GRU" },
-    { E_FLY, "kni", "KNI" },
-    { E_HOVER, "sna", "SNA" },
-    { E_LANDING, "sor", "SOR" },
-    { E_WALKTOREADY, "mum", "MUM" },
-    { E_READYTOWALK, "spi", "SPI" },
-    { E_RUNTOREADY, "liz", "LIZ" },
-    { E_READYTORUN, "tre", "TRE" },
-    { E_ATTACK, "mag", "MAG" },
-    { E_ATTACK_R, "zom", "ZOM" },
-    { E_ATTACK2, "pla", "PLA" },
-    { E_ATTACK2_R, "wol", "WOL" },
-    { E_ATTACK_PWR, "ice", "ICE" },
-    { E_ATTACK_PWR_R, "wrm", "WRM" },
-    { E_ATTACK4, "dog", "DOG" },
-    { E_ATTACK4_R, "ske", "SKE" },
-    { E_ATTACK5, "gho", "GHO" },
-    { E_ATTACK5_R, "aci", "ACI" },
-    { E_RUNATTACK, "han", "HAN" },
-    { E_RUNATTACK2, "imp", "IMP" },
-    { E_THROW, "war", "WAR" },
-    { E_THROW2, "sky", "SKY" },
-    { E_THROW_FINISH, "wind", "WIND" },
-    { E_THROWTOREADY, "grm", "GRM" },
-    { E_HIT_REACT2, "golem", "GOLEM" },
-    { E_HIT_REACT3, "death", "DEATH" },
-    { E_GETUP, "it", "IT" },
-    { E_DYING, "gar", "GAR" },
-    { E_NACTIONS, "general", "GEN" },
+    { E_SCORP, "sco", "SCO" },
+    { E_TROLL, "tro", "TRO" },
+    { E_DEMON, "dem", "DEM" },
+    { E_RAT, "rat", "RAT" },
+    { E_GRUNT, "gru", "GRU" },
+    { E_KNIGHT, "kni", "KNI" },
+    { E_SNAKE, "sna", "SNA" },
+    { E_SORCERER, "sor", "SOR" },
+    { E_MUMMY, "mum", "MUM" },
+    { E_SPIDER, "spi", "SPI" },
+    { E_LIZARDMAN, "liz", "LIZ" },
+    { E_TREEFOLK, "tre", "TRE" },
+    { E_MAGGOT, "mag", "MAG" },
+    { E_ZOMBIE, "zom", "ZOM" },
+    { E_PLAGUE, "pla", "PLA" },
+    { E_WOLF, "wol", "WOL" },
+    { E_ICE, "ice", "ICE" },
+    { E_WORM, "wrm", "WRM" },
+    { E_DOG, "dog", "DOG" },
+    { E_SKELETON, "ske", "SKE" },
+    { E_GHOST, "gho", "GHO" },
+    { E_ACID, "aci", "ACI" },
+    { E_HAND, "han", "HAN" },
+    { E_IMP, "imp", "IMP" },
+    { E_WARLOCK, "war", "WAR" },
+    { E_SKY, "sky", "SKY" },
+    { E_WHIRLWIND, "wind", "WIND" },
+    { E_GARM2, "grm", "GRM" },
+    { E_GOLEM, "golem", "GOLEM" },
+    { E_DEATH, "death", "DEATH" },
+    { E_IT, "it", "IT" },
+    { E_GARGOYLE, "gar", "GAR" },
+    { E_GENERAL, "general", "GEN" },
     { E_DRAGON, "dragon", "DRAGON" },
     { E_CHIMERA, "chimera", "CHIM" },
     { E_DJINN, "djinn", "DJINN" },
@@ -69,122 +67,70 @@ EnemyTypeName lbl_8011AF48[44] = {
     { E_GARM, "garm", "GARM1" },
 };
 
-extern u8 lbl_80112370[];
-DECL_SECT(".sdata2") extern const char lbl_803466D0[];
-DECL_SECT(".sdata2") extern const char lbl_803466D8[];
-DECL_SECT(".sdata2") extern const char lbl_803466E0[];
-DECL_SECT(".sdata2") extern const char lbl_803466E4[];
-DECL_SECT(".sdata2") extern const char lbl_803466EC[];
-DECL_SECT(".sdata2") extern const char lbl_803466F4[];
-extern const char lbl_8011237C[];
-DECL_SECT(".sdata2") extern const char lbl_803466FC[];
-DECL_SECT(".sdata2") extern const char lbl_80346704[];
-extern const char lbl_80112388[];
-extern const char lbl_80112394[];
-DECL_SECT(".sdata2") extern const char lbl_8034670C[];
-DECL_SECT(".sdata2") extern const char lbl_80346714[];
-DECL_SECT(".sdata2") extern const char lbl_8034671C[];
-DECL_SECT(".sdata2") extern const char lbl_80346724[];
-extern const char lbl_801123A0[];
-extern const char lbl_801123AC[];
-DECL_SECT(".sdata2") extern const char lbl_8034672C[];
-extern const char lbl_801123B8[];
-DECL_SECT(".sdata2") extern const char lbl_80346730[];
-DECL_SECT(".sdata2") extern const char lbl_80346738[];
-DECL_SECT(".sdata2") extern const char lbl_80346740[];
-DECL_SECT(".sdata2") extern const char lbl_80346748[];
-DECL_SECT(".sdata2") extern const char lbl_8034674C[];
-DECL_SECT(".sdata2") extern const char lbl_80346754[];
-extern const char lbl_801123C4[];
-DECL_SECT(".sdata2") extern const char lbl_80346758[];
-DECL_SECT(".sdata2") extern const char lbl_80346760[];
-DECL_SECT(".sdata2") extern const char lbl_80346768[];
-DECL_SECT(".sdata2") extern const char lbl_80346770[];
-extern const char lbl_801123D0[];
-DECL_SECT(".sdata2") extern const char lbl_80346774[];
-DECL_SECT(".sdata2") extern const char lbl_8034677C[];
-DECL_SECT(".sdata2") extern const char lbl_80346784[];
-DECL_SECT(".sdata2") extern const char lbl_8034678C[];
-DECL_SECT(".sdata2") extern const char lbl_80346794[];
-DECL_SECT(".sdata2") extern const char lbl_8034679C[];
-DECL_SECT(".sdata2") extern const char lbl_803467A4[];
-DECL_SECT(".sdata2") extern const char lbl_803467AC[];
-DECL_SECT(".sdata2") extern const char lbl_803467B4[];
-DECL_SECT(".sdata2") extern const char lbl_803467BC[];
-DECL_SECT(".sdata2") extern const char lbl_803467C4[];
-DECL_SECT(".sdata2") extern const char lbl_803467CC[];
-extern const char lbl_801123DC[];
-DECL_SECT(".sdata2") extern const char lbl_803467D4[];
-DECL_SECT(".sdata2") extern const char lbl_803467DC[];
-DECL_SECT(".sdata2") extern const char lbl_803467E4[];
-extern const char lbl_801123E8[];
-DECL_SECT(".sdata2") extern const char lbl_803467EC[];
-extern const char lbl_801123F8[];
-DECL_SECT(".sdata2") extern const char lbl_803467F4[];
-extern const char lbl_80112404[];
-DECL_SECT(".sdata2") extern const char lbl_803467FC[];
-DECL_SECT(".sdata2") extern const char lbl_80346804[];
-
+/* These literals own .rodata 0x80112370..0x80112538 and the leading
+ * .sdata2 strings at 0x803466D0..0x80346810. MWCC places strings of at most
+ * eight bytes including the terminator in .sdata2; the later debug formats
+ * share this same TU pool. */
 char* lbl_8011B578[45] = {
-    (char*)lbl_80112370,
-    (char*)lbl_803466D0,
-    (char*)lbl_803466D8,
-    (char*)lbl_803466E0,
-    (char*)lbl_803466E4,
-    (char*)lbl_803466EC,
-    (char*)lbl_803466F4,
-    (char*)lbl_8011237C,
-    (char*)lbl_803466FC,
-    (char*)lbl_80346704,
-    (char*)lbl_80112388,
-    (char*)lbl_80112394,
-    (char*)lbl_8034670C,
-    (char*)lbl_80346714,
-    (char*)lbl_8034671C,
-    (char*)lbl_80346724,
-    (char*)lbl_801123A0,
-    (char*)lbl_801123AC,
-    (char*)lbl_8034672C,
-    (char*)lbl_801123B8,
-    (char*)lbl_80346730,
-    (char*)lbl_80346738,
-    (char*)lbl_80346740,
-    (char*)lbl_80346748,
-    (char*)lbl_8034674C,
-    (char*)lbl_80346754,
-    (char*)lbl_801123C4,
-    (char*)lbl_80346758,
+    "SCORPION",
+    "TROLL",
+    "DEMON",
+    "RAT",
+    "GRUNT",
+    "KNIGHT",
+    "SNAKE",
+    "SORCERER",
+    "MUMMY",
+    "SPIDER",
+    "LIZARDMAN",
+    "TREEFOLK",
+    "MAGGOT",
+    "ZOMBIE",
+    "PLAGUE",
+    "WOLF",
+    "ICE GRUNT",
+    "ICE DEMON",
+    "DOG",
+    "SKELETON",
+    "GHOST",
+    "ACID",
+    "HAND",
+    "IMP",
+    "WARLOCK",
+    "SKY",
+    "WHIRLWIND",
+    "GARM2",
     NULL,
-    (char*)lbl_80346760,
-    (char*)lbl_80346768,
-    (char*)lbl_80346770,
-    (char*)lbl_801123D0,
-    (char*)lbl_80346774,
-    (char*)lbl_8034677C,
-    (char*)lbl_80346784,
-    (char*)lbl_8034678C,
-    (char*)lbl_80346794,
-    (char*)lbl_8034679C,
-    (char*)lbl_803467A4,
-    (char*)lbl_803467AC,
-    (char*)lbl_803467B4,
-    (char*)lbl_803467BC,
-    (char*)lbl_803467C4,
-    (char*)lbl_803467CC,
+    "GOLEM",
+    "DEATH",
+    "IT",
+    "GARGOYLE",
+    "GENERAL",
+    "DRAGON",
+    "CHIMERA",
+    "GENIE",
+    "DRIDER",
+    "PBOSS",
+    "YETI",
+    "WRAITH",
+    "LICH",
+    "SKORNE1",
+    "SKORNE2",
+    "GARM",
 };
 
 char* state_tab[11] = {
-    (char*)lbl_801123DC,
-    (char*)lbl_803467D4,
-    (char*)lbl_803467DC,
-    (char*)lbl_803467E4,
-    (char*)lbl_801123E8,
-    (char*)lbl_803467EC,
-    (char*)lbl_801123F8,
-    (char*)lbl_803467F4,
-    (char*)lbl_80112404,
-    (char*)lbl_803467FC,
-    (char*)lbl_80346804,
+    "INACTIVE",
+    "ACTIVE",
+    "SELECT",
+    "ON_EXIT",
+    "ON_NEXT_LEVEL",
+    "SLEEP",
+    "DECORATION",
+    "DYING",
+    "CONTINUE",
+    "ERROR",
+    "UNKNOWN",
 };
 
 f32 ene_height[34] = {
@@ -459,10 +405,7 @@ f32 lbl_8011BF60[38] = {
  * ordinary retention pragma; otherwise mwld removes 192 bytes. This also
  * restores the natural eight-byte input-section alignment, without an ELF
  * alignment patch. Placeholder names remain until their PDB names are known. */
-extern char lbl_80112410[];
-extern char lbl_8011241C[];
-extern char lbl_80112428[];
-char* lbl_8011BFF8[3] = { lbl_80112410, lbl_8011241C, lbl_80112428 };
+char* lbl_8011BFF8[3] = { "SHADOW1L1", "SHADOW2L1", "SHADOW3L1" };
 /* force_active keeps these otherwise unreferenced tables in the image: without
  * it mwld dead-strips them and the DOL shrinks below the target size. It leaves
  * no trace in .text/.data/.symtab, only in .comment. */
@@ -740,7 +683,6 @@ extern f64 __frsqrte(f64 x);
 extern s32 ErrorPrintf(const char* fmt, ...);
 extern s32 sFlags;            /* 0x803445CC packed config flags */
 extern u64 gControllerButtons;      /* 0x803445C8 config-word pair (hi) + sFlags (lo) */
-extern u8 lbl_80112370[];           /* enemy debug string table */
 extern u8 sLookoutParams[];     /* 0x802584A8 prowl-node table (stride 0x6C) */
 extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
 extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
@@ -827,7 +769,6 @@ extern void AtreeDelete(void* atree);               /* free anim tree */
 extern s32 gTriggerCameraState;
 extern s32 lbl_80344734;      /* node-delete reentry guard */
 extern s32 ErrorPrintf(const char* fmt, ...);
-extern char lbl_80112468[];
 
 extern s32 heal_player(EnemyPlayerView* player, f32 amount);
 extern void do_heal_players(void* player, f32* matrix, f32 amount);
@@ -4235,7 +4176,6 @@ void move_logic12(s32 index)
 #pragma opt_propagation off
 void move_logic13(s32 index)
 {
-    u8* strs = lbl_80112370;
     u8* base = (u8*)lbl_80250E00;
     Enemy* e;
     struct Item* gen;
@@ -4288,13 +4228,13 @@ void move_logic13(s32 index)
     }
     if (gControllerButtons & 0x10) {
         if (index == e->prev_enemy) {
-            ErrorPrintf((char*)(strs + 196), index);
+            ErrorPrintf("E%02X==PREV", index);
         }
         if (index == e->next_enemy) {
-            ErrorPrintf((char*)(strs + 208), index);
+            ErrorPrintf("E%02X==NEXT", index);
         }
         if (e->prev_enemy >= 0 && e->prev_enemy == e->next_enemy) {
-            ErrorPrintf((char*)(strs + 220), index, e->prev_enemy);
+            ErrorPrintf("E%02X: prev==next (%02X)", index, e->prev_enemy);
         }
     }
     if (gen == 0 || e->prev_enemy < 0) {
@@ -7306,7 +7246,7 @@ void uncouple_enemy(s32 index) {
                 ((EnemyGenerator*)e->generator)->live_count--;
             }
         } else {
-            ErrorPrintf(lbl_80112468, e->generator);
+            ErrorPrintf("Enemy has non generator generator", e->generator);
         }
         e->generator = 0;
     }
@@ -7894,7 +7834,6 @@ extern f32   gIdentityMatrix[];
 extern void* sGoodWizObj;
 extern char* lbl_8011BFF8[];
 extern u8    lbl_80126EC0[];
-DECL_SECT(".sdata2") extern const char lbl_80346770[];
 extern s32   stricmp(const char* a, const char* b);
 extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
 extern s32   fn_80011BBC(void* model, const char* name, void* atreeOut,
@@ -7905,15 +7844,14 @@ extern void* MBOX_ReallyFindObject(const char* name, s32 type1, s32 type2, s32 e
 extern void* MBNewObject(void* object, f32* matrix, void* parent, u32 flags);
 extern s32   lbl_80344800;
 extern s32   lbl_802577AC[];
-extern char  lbl_801124EC[];
 extern void  InitEnemyMissiles(s32 idx);
 extern s32   fn_8005A1EC(const char* name, void** outData);
 extern s32   LoadModel(const char* name, void** outData, s32 initTexMods, s32 model);
 extern void  FatalErrorf(const char* fmt, ...);
 extern void  InitTexMods(void* tex, s32 arg1);
 extern f32 gDefaultPlayerPosition[3];
-extern char lbl_80112518[];
-extern char lbl_80343BF8[5];
+/* Level variants 4..7 use the retail suffixes A/B/S/F, not a numeric level. */
+char lbl_80343BF8[5] = "ABSF";
 extern void StartEnemyGrid(f32* pos, f32 radius);
 extern s32 NextGridEnemy(void);
 extern void fn_800520C8(void);
@@ -8227,7 +8165,7 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
 
     if (type == 31) {
         enemy->atree.root = (void*)fn_80011BBC(
-            sGoodWizObj, lbl_80346770, &enemy->atree.root, lbl_80346770, 2048);
+            sGoodWizObj, "IT", &enemy->atree.root, "IT", 2048);
         enemy->flooroffset = 3.0f;
     } else if (((void**)gWadAtreeHeaders)[type] != 0) {
         char* name = fn_80051E1C(type, level, 0);
@@ -8306,7 +8244,6 @@ void AllocEnemy(s32 id, s32 model)
 {
     char buf[68];
     u8 unused[4];
-    char* fmt = ((char*)lbl_80112370);
     EnemyTypeName* tbl = lbl_8011AF48;
     s32* pool = lbl_80250E00;
     char* name;
@@ -8314,7 +8251,7 @@ void AllocEnemy(s32 id, s32 model)
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
-        FatalErrorf(fmt + 284, lbl_8034471C, 8);
+        FatalErrorf("%d > MAX:%d ETYPES\n", lbl_8034471C, 8);
     }
     pool[7 + lbl_8034471C] = id;
 
@@ -8327,7 +8264,7 @@ void AllocEnemy(s32 id, s32 model)
         }
         name = 0;
 alloc_fmt1:
-        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s/%s", name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8337,7 +8274,7 @@ alloc_fmt1:
         }
         name = 0;
 alloc_fmt2:
-        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s_%s", name, fn_80057ACC(id));
     } else if (model == 4) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8347,7 +8284,7 @@ alloc_fmt2:
         }
         name = 0;
 alloc_fmt3:
-        sprintf(buf, fmt + 336, name);
+        sprintf(buf, "monsters/%saux", name);
     } else if (model > 10) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8357,7 +8294,7 @@ alloc_fmt3:
         }
         name = 0;
 alloc_fmt4:
-        sprintf(buf, fmt + 352, name, model - 10);
+        sprintf(buf, "monsters/%s%d", name, model - 10);
     } else {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8367,7 +8304,7 @@ alloc_fmt4:
         }
         name = 0;
 alloc_fmt5:
-        sprintf(buf, fmt + 368, name);
+        sprintf(buf, "monsters/%s", name);
     }
 
     id <<= 2;
@@ -8380,7 +8317,6 @@ void LoadEnemy(s32 id, s32 model)
 {
     char buf[68];
     u8 unused[4];
-    char* fmt = ((char*)lbl_80112370);
     EnemyTypeName* tbl = lbl_8011AF48;
     s32* pool = lbl_80250E00;
     char* name;
@@ -8389,7 +8325,7 @@ void LoadEnemy(s32 id, s32 model)
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
-        FatalErrorf(fmt + 284, lbl_8034471C, 8);
+        FatalErrorf("%d > MAX:%d ETYPES\n", lbl_8034471C, 8);
     }
     pool[7 + lbl_8034471C] = id;
 
@@ -8402,7 +8338,7 @@ void LoadEnemy(s32 id, s32 model)
         }
         name = 0;
 load_fmt1:
-        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s/%s", name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8412,7 +8348,7 @@ load_fmt1:
         }
         name = 0;
 load_fmt2:
-        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s_%s", name, fn_80057ACC(id));
     } else if (model == 4) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8422,7 +8358,7 @@ load_fmt2:
         }
         name = 0;
 load_fmt3:
-        sprintf(buf, fmt + 336, name);
+        sprintf(buf, "monsters/%saux", name);
     } else if (model > 10) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8432,7 +8368,7 @@ load_fmt3:
         }
         name = 0;
 load_fmt4:
-        sprintf(buf, fmt + 352, name, model - 10);
+        sprintf(buf, "monsters/%s%d", name, model - 10);
     } else {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8442,7 +8378,7 @@ load_fmt4:
         }
         name = 0;
 load_fmt5:
-        sprintf(buf, fmt + 368, name);
+        sprintf(buf, "monsters/%s", name);
     }
 
     offset = id << 2;
@@ -8454,7 +8390,6 @@ load_fmt5:
 
 void fn_80050DD8(char* buf, s32 id, s32 qty)
 {
-    char* fmt = ((char*)lbl_80112370);
     EnemyTypeName* tbl = lbl_8011AF48;
     char* name;
     s32 i;
@@ -8468,7 +8403,7 @@ void fn_80050DD8(char* buf, s32 id, s32 qty)
         }
         name = 0;
 f1:
-        sprintf(buf, fmt + 304, name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s/%s", name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8478,7 +8413,7 @@ f1:
         }
         name = 0;
 f2:
-        sprintf(buf, fmt + 320, name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s_%s", name, fn_80057ACC(id));
     } else if (qty == 4) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8488,7 +8423,7 @@ f2:
         }
         name = 0;
 f3:
-        sprintf(buf, fmt + 336, name);
+        sprintf(buf, "monsters/%saux", name);
     } else if (qty > 10) {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8498,7 +8433,7 @@ f3:
         }
         name = 0;
 f4:
-        sprintf(buf, fmt + 352, name, qty - 10);
+        sprintf(buf, "monsters/%s%d", name, qty - 10);
     } else {
         for (i = 0; i < 44; i++) {
             if (id == tbl[i].type) {
@@ -8508,7 +8443,7 @@ f4:
         }
         name = 0;
 f5:
-        sprintf(buf, fmt + 368, name);
+        sprintf(buf, "monsters/%s", name);
     }
 }
 
@@ -8529,7 +8464,7 @@ s32 GetEnemyType(s32 w, s32 l)
         }
     }
     if (result == -1) {
-        ErrorPrintf(lbl_801124EC, findWorldName(w), w, l);
+        ErrorPrintf("No enemy loaded: %s (type=%d subtype=%d)", findWorldName(w), w, l);
     }
     return result;
 }
@@ -8707,7 +8642,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     }
     if (best < 0) {
         if ((gControllerButtons & 0x10) != 0) {
-            ErrorPrintf(lbl_80112518, milestone);
+            ErrorPrintf("Next Milestone Not Found (%02X)", milestone);
         }
         best = milestone;
     }
@@ -9069,7 +9004,7 @@ static inline char* enemy_format_world_level(s32 world, s32 lvl)
     case 5:
     case 6:
     case 7:
-        sprintf(buf, "%s%c", findWorldName(world), (&lbl_80343BF8[n])[-4]);
+        sprintf(buf, "%s%c", findWorldName(world), lbl_80343BF8[n - 4]);
         break;
     }
     return buf;
