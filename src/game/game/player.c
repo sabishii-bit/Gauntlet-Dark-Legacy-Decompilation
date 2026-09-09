@@ -4798,7 +4798,7 @@ static void create_player_blits(s32 i) {
     }
     player = PT(i);
     player->meter_flash = 0;
-    rx = &lbl_80120240[i];
+    rx = (u16*)(tab + i * 2) + 764;
     lbl_802757E0[i].sel = -1;
     lbl_802757E0[i].slide = -1;
     lbl_802757E0[i].state = 0;
