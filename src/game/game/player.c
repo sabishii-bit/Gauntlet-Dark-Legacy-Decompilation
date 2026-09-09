@@ -2933,7 +2933,7 @@ extern void ClearPlyrData(s32 player);
 /* per-frame processors                                                */
 /* ------------------------------------------------------------------ */
 
-extern const f64 lbl_803478E8;
+static const f64 lbl_803478E8 = 0.9;
 
 static inline f64 PlayerScaleMultiply(f32 value, const f64* factor)
 {
