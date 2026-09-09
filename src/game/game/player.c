@@ -3307,7 +3307,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
     if (option >= 2) {
         invuln = option;
     } else {
-        if (option >= 1 && dmg != 999999.0f) {
+        if (option >= 1 && dmg != -1.0f) {
             invuln = 1;
         } else {
             invuln = 0;
@@ -3333,7 +3333,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         dmg = 0.0f;
     }
     dam = dmg;
-    if (dam > 0.05f) {
+    if (dam > 1.0f) {
         hf = p->hud_flags;
         if ((hf & 0x600) != 0) {
             f32 reduced_dmg;
