@@ -2339,14 +2339,14 @@ typedef struct HiddenChar {
 } HiddenChar;
 extern HiddenChar Hidden[27];
 
-/* powerup-cheat table (0x801209E4, stride 0x14, 27 entries) */
+/* powerup-cheat table (0x801209E4, stride 0x14, 18 entries) */
 typedef struct PupCheat {
     /* 0x00 */ char name[8];
     /* 0x08 */ s32 type;
     /* 0x0C */ f32 value;
     /* 0x10 */ u32 mask;
 } PupCheat;
-extern PupCheat Cheats[27];
+extern PupCheat Cheats[18];
 
 /* mini-inventory label table (0x8011FCE8, stride 0xC) */
 extern s32 mini_inv_items[];    /* [i*3+0] type, [i*3+1] mask, [i*3+2] name ptr */
@@ -4576,12 +4576,12 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     char** sfx_buf;
     s32* sfx_remap;
     u32* arena;
-    s32 prod;
     u8* q;
     s32 cls;
     s32 ret;
     s32 t;
     s32 raw;
+    s32 prod;
 
     prod = i * 76;
     record = PT(i);

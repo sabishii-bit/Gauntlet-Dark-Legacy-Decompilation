@@ -309,6 +309,9 @@ def mode_actions():
 
 
 def main():
+    if any(arg in ("-h", "--help") for arg in sys.argv[1:]):
+        print(__doc__.strip())
+        return 0
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
     if not os.path.exists(_sjis()):
         print("run me from the REPOSITORY ROOT (build/tools/sjiswrap.exe "
