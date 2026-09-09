@@ -15,6 +15,23 @@ existed — three workers lost a cycle to the mismatch; now both work):
   python tools/gdl/provision_worktree.py --resplit
       Re-extract build/<VERSION>/obj/** from the retail DOL. See below.
 
+  ... --pdb-from <checkout>
+      Also copy `research/xbox_symbols/shell3D.pdb` out of <checkout>.
+      Composes with all three forms above and runs FIRST, so a fresh
+      worktree can be created, given the PDB and built in one command.
+
+`shell3D.pdb` is GITIGNORED (`.gitignore`: `*shell3D.pdb`), so a new
+worktree never has it and `pdb20_dump.py`, `pdb_types.py` and
+`pdb_globals.py` are all unusable there until somebody copies it by hand.
+Three run-63 lanes each repeated that step. The rest of
+`research/xbox_symbols/` IS tracked, which is why this copies one file
+rather than the directory.
+
+It REFUSES rather than overwriting a destination whose bytes differ: a
+research input is not a build artifact, and silently replacing one with
+another checkout's copy would make two lanes disagree about what the PDB
+says with nothing in the tree to show why.
+
 It copies the ignored build inputs from the main checkout (orig/ DOL +
 toolchain caches when present), verifies the retail sha1, runs
 configure.py, and runs the bootstrap ninja — failing loudly at the first
@@ -73,6 +90,58 @@ def copy_tree_merge(src: Path, dst: Path):
             shutil.copy2(path, target)
 
 
+PDB_RELATIVE = Path("research") / "xbox_symbols" / "shell3D.pdb"
+
+
+def copy_pdb(source_checkout: Path, here: Path):
+    """Copy `research/xbox_symbols/shell3D.pdb` from one checkout to another.
+
+    Returns a status string; raises SystemExit through `fail` when the
+    source is missing or the destination already holds DIFFERENT bytes.
+    Both roots are parameters so this is testable against two temporary
+    directories rather than against the live research tree.
+    """
+    source = Path(source_checkout) / PDB_RELATIVE
+    target = here / PDB_RELATIVE
+    if not source.is_file():
+        fail(f"no {PDB_RELATIVE.as_posix()} under {source_checkout}"
+             " — name the checkout that HAS the PDB, not its"
+             " research/ directory")
+    if source.resolve() == target.resolve():
+        return f"{PDB_RELATIVE.as_posix()} is already this checkout's own file"
+    if target.is_file():
+        if target.stat().st_size == source.stat().st_size and \
+                _sha1(target) == _sha1(source):
+            return (f"{PDB_RELATIVE.as_posix()} already present and identical"
+                    f" ({target.stat().st_size} bytes)")
+        fail(f"{target} already exists with DIFFERENT bytes"
+             f" ({target.stat().st_size} vs {source.stat().st_size});"
+             " refusing to replace a research input — delete it yourself"
+             " if that is really what you want")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+    return (f"copied {PDB_RELATIVE.as_posix()} from {source_checkout}"
+            f" ({target.stat().st_size} bytes)")
+
+
+def _sha1(path: Path):
+    digest = hashlib.sha1()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def take_valued_flag(argv, name):
+    """(remaining argv, value or None). `fail`s when the value is missing."""
+    if name not in argv:
+        return list(argv), None
+    index = argv.index(name)
+    if index + 1 >= len(argv) or argv[index + 1].startswith("-"):
+        fail(f"{name} needs a checkout path")
+    return argv[:index] + argv[index + 2:], argv[index + 1]
+
+
 def resplit(here: Path):
     """Force `dtk dol split` to re-extract build/<VERSION>/obj/**.
 
@@ -108,13 +177,16 @@ except ImportError:        # imported as tools.gdl.<module>
 def main():
     # `--help` on the PROVISIONER must not provision.
     cliscreen.help_only(__doc__)
-    args = [a for a in sys.argv[1:] if not a.startswith("-")]
-    if "--resplit" in sys.argv:
+    argv, pdb_from = take_valued_flag(sys.argv[1:], "--pdb-from")
+    args = [a for a in argv if not a.startswith("-")]
+    if "--resplit" in argv:
         if args:
             fail("usage: provision_worktree.py --resplit (no other arguments)")
         here = Path.cwd()
         if not (here / "configure.py").is_file():
             fail(f"run from the worktree root (cwd: {here})")
+        if pdb_from:
+            print(copy_pdb(Path(pdb_from), here))
         resplit(here)
         step = ["ninja", "-j2"]
         print("::", " ".join(step))
@@ -165,6 +237,10 @@ def main():
             fixed = content.replace(f"gitdir: /{m}/", f"gitdir: {m.upper()}:/", 1)
             gitfile.write_text(fixed, encoding="utf-8")
             print("repaired MSYS-form gitdir in .git file")
+    # Before configure/ninja: a lane that asked for the PDB and got a green
+    # build without it would have to run the whole provision again.
+    if pdb_from:
+        print(copy_pdb(Path(pdb_from), here))
     src_orig = MAIN_REPO / "orig" / VERSION
     if not src_orig.is_dir():
         fail(f"main checkout has no {src_orig}")

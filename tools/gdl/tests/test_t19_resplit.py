@@ -73,7 +73,15 @@ class ResplitFlag(unittest.TestCase):
            / "provision_worktree.py").read_text(encoding="utf-8")
 
     def test_the_flag_is_dispatched_before_the_argument_forms(self):
-        self.assertIn('if "--resplit" in sys.argv:', self.SRC)
+        """The PROPERTY, not the spelling: run-63 item 5 added
+        `--pdb-from`, whose value must be lifted out of the argument vector
+        before anything counts positionals, so the dispatch now reads
+        `in argv` rather than `in sys.argv` and this assertion moved with
+        it. What has to stay true is that `--resplit` is decided BEFORE the
+        one- and two-argument forms."""
+        self.assertIn('if "--resplit" in argv:', self.SRC)
+        self.assertLess(self.SRC.index('if "--resplit" in argv:'),
+                        self.SRC.index("if len(args) == 2:"))
 
     def test_it_removes_config_json_rather_than_invoking_dtk_by_hand(self):
         """Re-deriving the rule's arguments is how the recovery path
