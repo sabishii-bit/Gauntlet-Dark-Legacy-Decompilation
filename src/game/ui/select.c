@@ -45,6 +45,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "__va_arg.h"
 #include "game/gamemode.h"
 #include "game/mbobject.h"
@@ -410,7 +411,6 @@ extern s64 gControllerButtons; /* 64-bit; low half aliases sFlags */
 extern s32 gClockStepTicks;
 extern s32 gFrameTicks;
 extern char lbl_80347F40[4]; /* auto-select save name */
-extern u8 lbl_80240E30[];  /* pad states, 4 x 0x3C, buttons at +8 */
 extern void show_optmenu();
 extern s32 do_optmenu(void* menu, s32 serve);
 extern void remove_optmenu(void* menu);
@@ -419,8 +419,8 @@ extern char* strcpy(char* dst, const char* src);
 extern void clear_player(s32 i, s32 mode);
 extern void abort_player(s32 i);
 extern s32 set_hidden_player(u8* pl);
-extern s32 fn_8005AC10(s32 i);  /* name-entry open */
-extern s32 fn_8005A738(s32 i);  /* name-entry serve; 1 = done */
+extern void InitGetName(s32 player);
+extern s32  DoGetName(s32 player);   /* -1 skipped, 1 done */
 extern s32 saveMount(s32 chan, s32 slot, s32 mode);
 extern u8 MemCardCreateGaunt(s32 chan, s32 slot);
 extern void set_directory_refresh_flags(s32 mask);
@@ -1321,11 +1321,11 @@ s32 do_player_select(void)
                 switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
                 case 1:
-                    fn_8005AC10(i);
+                    InitGetName(i);
                     *(s32*)(pl + offsetof(Player, sel_step)) = 2;
                     break;
                 }
-                if (fn_8005A738(i) != 0) {
+                if (DoGetName(i) != 0) {
                     if (set_hidden_player(pl) != 0) {
                         s32 pi = *(s32*)pl;
                         u8* b;
@@ -1552,7 +1552,7 @@ s32 do_player_select(void)
                                   pool + 208);
                 DrawTextKeepScale(1.2f, nx, 0xB2, 0, 0xFFFFFF,
                                   pool + 220);
-                if (*(u32*)(lbl_80240E30 + padoff + 8) & 0x40000) {
+                if (((PLAYERCONTROL*)((u8*)PlayerControl + padoff))->edges & 0x40000) {
                     *(s32*)(pl + offsetof(Player, state)) = 2;
                     *(s32*)(pl + offsetof(Player, motion_state)) = 1;
                     *(s32*)(pl + offsetof(Player, motion_state_save)) = 1;

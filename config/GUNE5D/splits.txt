@@ -166,15 +166,29 @@ game/game/gamemain.c:
 	.sdata2     start:0x80346AB0 end:0x80346BE0
 
 game/world/gauntworld.c:
-	extab       start:0x80006320 end:0x800064C0
-	extabindex  start:0x80009D00 end:0x80009F70
-	.text       start:0x80055CB8 end:0x800631AC
+	extab       start:0x80006320 end:0x800063A0
+	extabindex  start:0x80009D00 end:0x80009DC0
+	.text       start:0x80055CB8 end:0x8005A1EC
+
+game/world/glue.c:
+	extab       start:0x800063A0 end:0x800063D8
+	extabindex  start:0x80009DC0 end:0x80009E14
+	.text       start:0x8005A1EC end:0x8005A738
+	.sdata2     start:0x80346D08 end:0x80346D18
+
+game/world/hiscore.c:
+	extab       start:0x800063D8 end:0x800063E8
+	extabindex  start:0x80009E14 end:0x80009E2C
+	.text       start:0x8005A738 end:0x8005ACE0
+	.data       start:0x8011C848 end:0x8011C8A8
+	.sdata      start:0x80343C38 end:0x80343C48
+	.sdata2     start:0x80346D18 end:0x80346DC0
 
 game/world/items.c:
-	extab       start:0x800064C0 end:0x80006608
-	extabindex  start:0x80009F70 end:0x8000A15C
-	.text       start:0x800631AC end:0x80067904
-	.data       start:0x8011CC84 end:0x8011CD58
+	extab       start:0x800063E8 end:0x80006608
+	extabindex  start:0x80009E2C end:0x8000A15C
+	.text       start:0x8005ACE0 end:0x80067904
+	.data       start:0x8011C9D0 end:0x8011CD58
 
 game/world/lights.c:
 	extab       start:0x80006608 end:0x80006618

@@ -9,7 +9,7 @@
  *    PlayerControls, joyReadPad/joyGetStatus, serve_mtap, MtapOpenPort,
  *    the new_/any_ edge-query family, aiPad* data).  Every function in
  *    0x8003104C-0x80034CFC shares the same statics (lbl_802407xx pad
- *    arrays, lbl_80240E30 per-player structs, lbl_803445xx flag cluster,
+ *    arrays, PlayerControl per-player structs, lbl_803445xx flag cluster,
  *    ctrls_initialized) - one TU.
  *  - InitPlayerMissiles (ends exactly 0x8003101C) references sWeaponsBuf/
  *    sPowerupsBuf (weapons-fx TU); CritterCollideEnemies references gEnemies/
@@ -53,6 +53,7 @@
  * via JoyAng/JoyMag/fn_80034C88/atan2 into the staged F20..FC0 arrays).
  */
 #include "types.h"
+#include "game/controls.h"
 #include "game/player.h"
 
 /* ------------------------------------------------------------------ */
@@ -97,24 +98,7 @@ extern void sysResetService(void);     /* sysResetService */
 /* data                                                                */
 /* ------------------------------------------------------------------ */
 
-/* per-player assembled control state, stride 0x3C (lbl_80240E30) */
-typedef struct CTL {
-    /* 0x00 */ u32 ctl;          /* clear/hold-off countdown           */
-    /* 0x04 */ u32 levels;       /* held buttons                       */
-    /* 0x08 */ u32 edges;        /* new presses (new_* family reads)   */
-    /* 0x0C */ u32 repedges;     /* auto-repeat edges                  */
-    /* 0x10 */ s32 spTimer;   /* special-move cooldown              */
-    /* 0x14 */ s32 spResult;  /* CheckSpecials result this frame    */
-    /* 0x18 */ s32 spLast;    /* last special id                    */
-    /* 0x1C */ f32 lx;           /* analog stick state                 */
-    /* 0x20 */ f32 ly;
-    /* 0x24 */ f32 rx;
-    /* 0x28 */ f32 ry;
-    /* 0x2C */ s32 scheme;       /* control scheme (SpecialData row)   */
-    /* 0x30 */ s32 hasActuator;  /* abHasActuator                      */
-    /* 0x34 */ s32 unk34;
-    /* 0x38 */ s32 unk38;
-} CTL;
+/* per-player assembled control state: PLAYERCONTROL PlayerControl[4] (game/controls.h) */
 
 /* special-move combo program (0x8011A2A8, 0xC8 per record) */
 typedef struct SMOVE {
@@ -466,18 +450,7 @@ static u8 lbl_80240AE8[4][0x68]; /* 0x80240AE8 per-player button records       *
 static f32 lbl_80240C88[7][7];   /* 0x80240C88 JoyAng (7x7 stick angle LUT)    */
 static f32 lbl_80240D4C[7][7];   /* 0x80240D4C JoyMag (7x7 stick magnitude)    */
 static s32 lbl_80240E10[8];      /* 0x80240E10 vibe {active,timer} x 4         */
-static CTL lbl_80240E30[4];      /* 0x80240E30 per-player control structs      */
-static f32 lbl_80240F20[4];      /* 0x80240F20 right-stick angle (staged)      */
-static f32 lbl_80240F30[4];      /* 0x80240F30 right-stick magnitude (staged)  */
-static f32 lbl_80240F40[4];      /* 0x80240F40 left-stick angle (staged)       */
-static f32 lbl_80240F50[4];      /* 0x80240F50 left-stick magnitude (staged)   */
-static u32 lbl_80240F60[4];      /* 0x80240F60 staged levels word 2            */
-static u32 lbl_80240F70[4];      /* 0x80240F70 staged levels                   */
-static u32 lbl_80240F80[4];      /* 0x80240F80                                 */
-static u32 lbl_80240F90[4];      /* 0x80240F90 right-stick old levels          */
-static u32 lbl_80240FA0[4];      /* 0x80240FA0 right-stick repeat edges        */
-static u32 lbl_80240FB0[4];      /* 0x80240FB0 right-stick edges               */
-static u32 lbl_80240FC0[4];      /* 0x80240FC0 right-stick levels              */
+PLAYERCONTROL PlayerControl[4];      /* 0x80240E30 per-player control structs      */
 
 /* --- .sbss --- */
 
@@ -568,7 +541,7 @@ s32 active_player_edge(u32 mask)
     int i;
 
     for (i = 0; i < 4; i++) {
-        if (gPlayers[i].state != 0 && (mask & lbl_80240E30[i].edges) != 0) {
+        if (gPlayers[i].state != 0 && (mask & PlayerControl[i].edges) != 0) {
             return 1;
         }
     }
@@ -582,7 +555,7 @@ s32 new_menu_back(s32 plyr)
 
     if (plyr == -1) {
         ret = and_edges(0x8000000);
-    } else if (lbl_80240E30[plyr].edges & 0x8000000) {
+    } else if (PlayerControl[plyr].edges & 0x8000000) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -657,7 +630,7 @@ s32 new_menu_accept(s32 plyr, s32 allow_start)
     }
     if (plyr == -1) {
         ret = and_edges(mask);
-    } else if (mask & lbl_80240E30[plyr].edges) {
+    } else if (mask & PlayerControl[plyr].edges) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -693,7 +666,7 @@ s32 new_start(s32 plyr)
     lbl_80344600 = 1;
     if (plyr == -1) {
         ret = and_edges(0x40000);
-    } else if (lbl_80240E30[plyr].edges & 0x40000) {
+    } else if (PlayerControl[plyr].edges & 0x40000) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -709,7 +682,7 @@ s32 new_up(s32 plyr)
 
     if (plyr == -1) {
         ret = and_edges(0x2000000C);
-    } else if (lbl_80240E30[plyr].edges & 0x2000000C) {
+    } else if (PlayerControl[plyr].edges & 0x2000000C) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -724,7 +697,7 @@ s32 new_down(s32 plyr)
 
     if (plyr == -1) {
         ret = and_edges(0x10000003);
-    } else if (lbl_80240E30[plyr].edges & 0x10000003) {
+    } else if (PlayerControl[plyr].edges & 0x10000003) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -739,7 +712,7 @@ s32 new_left(s32 plyr)
 
     if (plyr == -1) {
         ret = and_edges(0x800000C0);
-    } else if (lbl_80240E30[plyr].edges & 0x800000C0) {
+    } else if (PlayerControl[plyr].edges & 0x800000C0) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -754,7 +727,7 @@ s32 new_right(s32 plyr)
 
     if (plyr == -1) {
         ret = and_edges(0x40000030);
-    } else if (lbl_80240E30[plyr].edges & 0x40000030) {
+    } else if (PlayerControl[plyr].edges & 0x40000030) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -795,7 +768,7 @@ s32 new_ctrl(u32 mask, s32 plyr)
 
     if (plyr == -1) {
         ret = and_edges(mask);
-    } else if (mask & lbl_80240E30[plyr].edges) {
+    } else if (mask & PlayerControl[plyr].edges) {
         ret = plyr + 1;
     } else {
         ret = 0;
@@ -931,7 +904,7 @@ void vibrators_off(void)
 /* 0x80031938  start a rumble at vibe_inten[inten] for time frames */
 void do_vibe(s32 plyr, s32 inten, s32 time)
 {
-    if (lbl_80240E30[plyr].hasActuator != 0 && inten >= 0) {
+    if (PlayerControl[plyr].rumble != 0 && inten >= 0) {
         f32 v;
         s32 pad;
         s32* pp;
@@ -1254,6 +1227,20 @@ s32 joyReadPad(s32 pad, u8* buf)
     return 1;
 }
 
+/* the staged right/left-stick records are seated after PlayerControl (global,
+ * seated by its first outlined reference in active_player_edge) */
+static f32 lbl_80240F20[4];      /* 0x80240F20 right-stick angle (staged)      */
+static f32 lbl_80240F30[4];      /* 0x80240F30 right-stick magnitude (staged)  */
+static f32 lbl_80240F40[4];      /* 0x80240F40 left-stick angle (staged)       */
+static f32 lbl_80240F50[4];      /* 0x80240F50 left-stick magnitude (staged)   */
+static u32 lbl_80240F60[4];      /* 0x80240F60 staged levels word 2            */
+static u32 lbl_80240F70[4];      /* 0x80240F70 staged levels                   */
+static u32 lbl_80240F80[4];      /* 0x80240F80                                 */
+static u32 lbl_80240F90[4];      /* 0x80240F90 right-stick old levels          */
+static u32 lbl_80240FA0[4];      /* 0x80240FA0 right-stick repeat edges        */
+static u32 lbl_80240FB0[4];      /* 0x80240FB0 right-stick edges               */
+static u32 lbl_80240FC0[4];      /* 0x80240FC0 right-stick levels              */
+
 /* 0x80032778  re-enable player controls (clears everything first) */
 static void reset_player_controls(s32 z, s32 n)
 {
@@ -1292,17 +1279,17 @@ void ClearControls(void)
 
     lbl_803445FC = 0;
     for (i = 0; i < 4; i++) {
-        lbl_80240E30[i].ctl = 0;
-        lbl_80240E30[i].levels = 0;
-        lbl_80240E30[i].edges = 0;
-        lbl_80240E30[i].repedges = 0;
-        lbl_80240E30[i].spResult = 0;
-        lbl_80240E30[i].spLast = 0;
-        lbl_80240E30[i].spTimer = 0;
-        lbl_80240E30[i].lx = 0.0f;
-        lbl_80240E30[i].ly = 0.0f;
-        lbl_80240E30[i].rx = 0.0f;
-        lbl_80240E30[i].ry = 0.0f;
+        PlayerControl[i].inactive = 0;
+        PlayerControl[i].levels = 0;
+        PlayerControl[i].edges = 0;
+        PlayerControl[i].repedges = 0;
+        PlayerControl[i].special = 0;
+        PlayerControl[i].lastspecial = 0;
+        PlayerControl[i].specialdelay = 0;
+        PlayerControl[i].joyang = 0.0f;
+        PlayerControl[i].joymag = 0.0f;
+        PlayerControl[i].fireang = 0.0f;
+        PlayerControl[i].firemag = 0.0f;
         for (j = 0; j < 12; j++) {
             lbl_80240828[i][j] = 0;
             lbl_802408E8[i][j] = 0;
@@ -1329,26 +1316,26 @@ void InitPlayerControls(void)
     lbl_803445FC = 0;
     for (i = 0; i < 4; i++) {
         clear_button_records(lbl_80240AE8[i]);
-        lbl_80240E30[i].ctl = 0;
-        lbl_80240E30[i].levels = 0;
-        lbl_80240E30[i].edges = 0;
-        lbl_80240E30[i].repedges = 0;
-        lbl_80240E30[i].spResult = 0;
-        lbl_80240E30[i].spLast = 0;
-        lbl_80240E30[i].spTimer = 0;
-        lbl_80240E30[i].lx = 0.0f;
-        lbl_80240E30[i].ly = 0.0f;
-        lbl_80240E30[i].rx = 0.0f;
-        lbl_80240E30[i].ry = 0.0f;
+        PlayerControl[i].inactive = 0;
+        PlayerControl[i].levels = 0;
+        PlayerControl[i].edges = 0;
+        PlayerControl[i].repedges = 0;
+        PlayerControl[i].special = 0;
+        PlayerControl[i].lastspecial = 0;
+        PlayerControl[i].specialdelay = 0;
+        PlayerControl[i].joyang = 0.0f;
+        PlayerControl[i].joymag = 0.0f;
+        PlayerControl[i].fireang = 0.0f;
+        PlayerControl[i].firemag = 0.0f;
         for (j = 0; j < 12; j++) {
             lbl_80240828[i][j] = 0;
             lbl_802408E8[i][j] = 0;
         }
         lbl_80240F90[i] = 0;
-        lbl_80240E30[i].scheme = 0;
-        lbl_80240E30[i].hasActuator = 1;
-        lbl_80240E30[i].unk34 = 1;
-        lbl_80240E30[i].unk38 = 1;
+        PlayerControl[i].scheme = 0;
+        PlayerControl[i].rumble = 1;
+        PlayerControl[i].autoaim = 1;
+        PlayerControl[i].autoattack = 1;
     }
     InitJoyAng();
 }
@@ -1373,17 +1360,17 @@ void ClearAllPlayerControls(s32 code)
         code = -code;
     }
     for (i = 0; i < 4; i++) {
-        lbl_80240E30[i].ctl = code;
-        lbl_80240E30[i].levels = 0;
-        lbl_80240E30[i].edges = 0;
-        lbl_80240E30[i].repedges = 0;
-        lbl_80240E30[i].spResult = 0;
-        lbl_80240E30[i].spLast = 0;
-        lbl_80240E30[i].spTimer = 0;
-        lbl_80240E30[i].lx = 0.0f;
-        lbl_80240E30[i].ly = 0.0f;
-        lbl_80240E30[i].rx = 0.0f;
-        lbl_80240E30[i].ry = 0.0f;
+        PlayerControl[i].inactive = code;
+        PlayerControl[i].levels = 0;
+        PlayerControl[i].edges = 0;
+        PlayerControl[i].repedges = 0;
+        PlayerControl[i].special = 0;
+        PlayerControl[i].lastspecial = 0;
+        PlayerControl[i].specialdelay = 0;
+        PlayerControl[i].joyang = 0.0f;
+        PlayerControl[i].joymag = 0.0f;
+        PlayerControl[i].fireang = 0.0f;
+        PlayerControl[i].firemag = 0.0f;
         lbl_80240FC0[i] = 0;
         lbl_80240FB0[i] = 0;
         lbl_80240FA0[i] = 0;
@@ -1397,22 +1384,22 @@ void ClearAllPlayerControls(s32 code)
 /* 0x80032B3C  reset one player's control struct */
 void ClearPlayerControl(s32 plyr, s32 code)
 {
-    lbl_80240E30[plyr].ctl = code;
-    lbl_80240E30[plyr].levels = 0;
-    lbl_80240E30[plyr].edges = 0;
-    lbl_80240E30[plyr].repedges = 0;
-    lbl_80240E30[plyr].spResult = 0;
-    lbl_80240E30[plyr].spLast = 0;
-    lbl_80240E30[plyr].spTimer = 0;
-    lbl_80240E30[plyr].lx = 0.0f;
-    lbl_80240E30[plyr].ly = 0.0f;
-    lbl_80240E30[plyr].rx = 0.0f;
-    lbl_80240E30[plyr].ry = 0.0f;
+    PlayerControl[plyr].inactive = code;
+    PlayerControl[plyr].levels = 0;
+    PlayerControl[plyr].edges = 0;
+    PlayerControl[plyr].repedges = 0;
+    PlayerControl[plyr].special = 0;
+    PlayerControl[plyr].lastspecial = 0;
+    PlayerControl[plyr].specialdelay = 0;
+    PlayerControl[plyr].joyang = 0.0f;
+    PlayerControl[plyr].joymag = 0.0f;
+    PlayerControl[plyr].fireang = 0.0f;
+    PlayerControl[plyr].firemag = 0.0f;
 }
 
 /* 0x80032B84  per-frame controls master (Xbox name: PlayerControls):
  * ReadControls -> ControlsUpdate (edge update) -> vibe timers -> per-player
- * CTL assembly (stick angle/mag from the JoyAng/JoyMag LUT or the staged
+ * PLAYERCONTROL assembly (stick angle/mag from the JoyAng/JoyMag LUT or the staged
  * analog values) -> CheckSpecials -> edge debug print -> serve_memcard. */
 void PlayerControls(void)
 {
@@ -1451,68 +1438,68 @@ void PlayerControls(void)
         for (i = 0; i < 4; i++) {
             s32 pad = lbl_8011A258[i];
 
-            if (pad != -1 && lbl_80240E30[i].ctl == 0) {
+            if (pad != -1 && PlayerControl[i].inactive == 0) {
                 u32 lev = lbl_802407B8[pad];
                 s32 dy, dx;
 
-                lbl_80240E30[i].levels = lev;
-                lbl_80240E30[i].edges = lbl_802407E8[pad];
-                lbl_80240E30[i].repedges = lbl_802407F8[pad];
+                PlayerControl[i].levels = lev;
+                PlayerControl[i].edges = lbl_802407E8[pad];
+                PlayerControl[i].repedges = lbl_802407F8[pad];
                 dy = lbl_8011AE10.dir[(lev >> 4) & 0xF];
                 dx = lbl_8011AE10.dir[lev & 0xF];
                 if (lbl_80240F50[pad] > 0.33) {
-                    lbl_80240E30[i].lx = lbl_80240F40[pad];
-                    lbl_80240E30[i].ly = lbl_80240F50[pad];
+                    PlayerControl[i].joyang = lbl_80240F40[pad];
+                    PlayerControl[i].joymag = lbl_80240F50[pad];
                 } else {
-                    lbl_80240E30[i].lx = lbl_80240C88[dy][dx];
-                    lbl_80240E30[i].ly = lbl_80240D4C[dy][dx];
+                    PlayerControl[i].joyang = lbl_80240C88[dy][dx];
+                    PlayerControl[i].joymag = lbl_80240D4C[dy][dx];
                 }
-                if (lbl_80240E30[i].scheme == 2) {
+                if (PlayerControl[i].scheme == 2) {
                     if (lbl_80240F30[pad] > 0.5) {
-                        lbl_80240E30[i].rx = lbl_80240F20[pad];
-                        lbl_80240E30[i].ry = lbl_80240F30[pad];
+                        PlayerControl[i].fireang = lbl_80240F20[pad];
+                        PlayerControl[i].firemag = lbl_80240F30[pad];
                     } else {
                         u32 lev2 = lbl_802407D8[pad];
 
                         if (lev2 != 0) {
                             dy = lbl_8011AE10.dir[(lev2 >> 4) & 0xF];
                             dx = lbl_8011AE10.dir[lev2 & 0xF];
-                            lbl_80240E30[i].rx = lbl_80240C88[dy][dx];
-                            lbl_80240E30[i].ry = lbl_80240D4C[dy][dx];
+                            PlayerControl[i].fireang = lbl_80240C88[dy][dx];
+                            PlayerControl[i].firemag = lbl_80240D4C[dy][dx];
                         } else {
-                            lbl_80240E30[i].ry = 0.0f;
+                            PlayerControl[i].firemag = 0.0f;
                         }
                     }
                 }
             } else {
-                if (lbl_80240E30[i].ctl != 0) {
-                    lbl_80240E30[i].ctl--;
+                if (PlayerControl[i].inactive != 0) {
+                    PlayerControl[i].inactive--;
                 }
-                lbl_80240E30[i].levels = 0;
-                lbl_80240E30[i].edges = 0;
-                lbl_80240E30[i].repedges = 0;
-                lbl_80240E30[i].lx = 0.0f;
-                lbl_80240E30[i].ly = 0.0f;
-                lbl_80240E30[i].rx = 0.0f;
-                lbl_80240E30[i].ry = 0.0f;
+                PlayerControl[i].levels = 0;
+                PlayerControl[i].edges = 0;
+                PlayerControl[i].repedges = 0;
+                PlayerControl[i].joyang = 0.0f;
+                PlayerControl[i].joymag = 0.0f;
+                PlayerControl[i].fireang = 0.0f;
+                PlayerControl[i].firemag = 0.0f;
             }
-            if (lbl_80240E30[i].spTimer > 0) {
-                lbl_80240E30[i].spResult = 0;
-                lbl_80240E30[i].spTimer--;
+            if (PlayerControl[i].specialdelay > 0) {
+                PlayerControl[i].special = 0;
+                PlayerControl[i].specialdelay--;
             } else {
-                lbl_80240E30[i].spResult = CheckSpecials(i, lbl_80240FC0[i]);
+                PlayerControl[i].special = CheckSpecials(i, lbl_80240FC0[i]);
             }
-            if (lbl_80240E30[i].spResult != 0) {
-                lbl_80240E30[i].spTimer = 10;
-                lbl_80240E30[i].spLast = lbl_80240E30[i].spResult;
+            if (PlayerControl[i].special != 0) {
+                PlayerControl[i].specialdelay = 10;
+                PlayerControl[i].lastspecial = PlayerControl[i].special;
             }
         }
         for (i = 0; i < 4; i++) {
-            if ((s32)lbl_80240E30[i].edges != 0) {
+            if ((s32)PlayerControl[i].edges != 0) {
                 int b;
 
                 for (b = 8; b <= 17; b++) {
-                    if ((1 << b) & lbl_80240E30[i].edges) {
+                    if ((1 << b) & PlayerControl[i].edges) {
                         bulletproof_printf("Control %d has %s pressed.\n", i,
                                            lbl_8011AE10.names[b - 8]);
                     }
@@ -1630,8 +1617,8 @@ void ControlsUpdate(void)
         lev8 = lev & 0xFF;
         if (lev != 0) {
             for (t = 0; t < 10; t++) {
-                u32 spec0 = lbl_8011ACD0[t][lbl_80240E30[plyr].scheme * 2];
-                u32 spec1 = lbl_8011ACD0[t][lbl_80240E30[plyr].scheme * 2 + 1];
+                u32 spec0 = lbl_8011ACD0[t][PlayerControl[plyr].scheme * 2];
+                u32 spec1 = lbl_8011ACD0[t][PlayerControl[plyr].scheme * 2 + 1];
 
                 if ((spec0 & lev) != 0 || (spec1 & lev) != 0) {
                     lev = lev | 1 << (t + 8);
@@ -1924,7 +1911,7 @@ void ReadControls(void)
             }
             bSel = btn_down(&rec[0x2A]);
             if (player_index >= 0) {
-                scheme = lbl_80240E30[player_index].scheme;
+                scheme = PlayerControl[player_index].scheme;
             } else {
                 scheme = 0;
             }

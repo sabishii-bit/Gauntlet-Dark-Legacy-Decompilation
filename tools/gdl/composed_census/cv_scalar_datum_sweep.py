@@ -20,7 +20,7 @@ CONSTANT inside a BYTE-IDENTICAL function: `real` is 0, fuzzy is 100, every
 other arbiter is silent, and the function still loads a value retail never
 loads (claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1).
 Both of run 49's real defects -- CritterNewInst's error string carrying a
-`\\n` retail does not, and fn_8005A868's placeholder name entry -- were
+`\\n` retail does not, and get_initials's placeholder name entry -- were
 found here and were invisible everywhere else.
 
 THE SHAPE THAT MEASURED CLEAN, and every clause of it is load-bearing:

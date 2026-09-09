@@ -41,6 +41,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "game/camera.h"
 #include "game/cameradata.h"
 #include "game/gamemode.h"
@@ -367,7 +368,6 @@ extern s32 lbl_80344A28;
 extern u8* lbl_80344EE8;
 extern f32 gCameraTargetPositions[9][3];
 extern f32 gDefaultPlayerPosition[3];
-extern u8 lbl_80240E30[];
 extern f64 lbl_80345F50;
 extern f64 lbl_80345F88;
 extern f64 lbl_80345F90;
@@ -1533,8 +1533,7 @@ void camera_mode_follow(s32 camIdx)
                     for (scriptedPlayer = 0; scriptedPlayer < 4;
                          scriptedPlayer++) {
                         if (gPlayers[scriptedPlayer].state == 1 &&
-                            (*(u32*)(lbl_80240E30 + scriptedPlayer * 0x3C + 8) &
-                             0x020000FF) != 0) {
+                            (PlayerControl[scriptedPlayer].edges & 0x020000FF) != 0) {
                             gScriptedCameraState = 1;
                         }
                     }
@@ -4843,7 +4842,6 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
 }
 
 /* Initialize or advance the game camera's scripted transition. */
-extern u8 lbl_80240E30[];
 extern f32 lbl_80346138, lbl_80346148;
 extern f64 lbl_80345FE0, lbl_80346140;
 extern s32 gScriptedCameraState;
@@ -4886,7 +4884,7 @@ s32 init_game_cam(s32 camIdx)
             for (i = 0; i < 4; i++) {
                 u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
                 if (PF(player, offsetof(Player, state), s32) == 1 &&
-                    (*(u32*)(lbl_80240E30 + i * 0x3C + 8) & 0x20000FF) != 0) {
+                    (PlayerControl[i].edges & 0x20000FF) != 0) {
                     gScriptedCameraState = 2;
                 }
             }

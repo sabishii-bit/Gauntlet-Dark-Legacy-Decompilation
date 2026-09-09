@@ -68,6 +68,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/player.h"
 #include "game/leveldata.h"
@@ -271,7 +272,6 @@ extern f32 lbl_8034832C;
 extern s32 lbl_80344C0C;
 extern s32 lbl_80343E04;
 extern void DrawGlowText(f32 scale, s32 y, s32 x, char* txt);
-extern struct PadStateView lbl_80240E30[];
 extern void AudioCursorSelect(void);
 extern s32 lbl_803448C4;
 extern s32 lbl_803448C8;
@@ -307,7 +307,7 @@ s32 do_shop(void)
         if (gGameBusy != 0 || lbl_80344A28 != 0) {
             result = 0;
         } else {
-            u8* pads = (u8*)lbl_80240E30;
+            u8* pads = (u8*)PlayerControl;
             u8* pl = (u8*)gPlayers;
             f32 kHalf = lbl_8034832C;
             s32 i;
@@ -373,8 +373,7 @@ s32 do_shop(void)
                 case 2:
                 case 3:
                     if (show_gold(i) == 0) {
-                        if (*(u32*)(pads + *(s32*)pl * 60 + 8) &
-                            0x2000000) {
+                        if (PlayerControl[*(s32*)pl].edges & 0x2000000) {
                             void** q;
                             AudioCursorSelect();
                             q = (void**)(page + o24);
@@ -508,8 +507,7 @@ s32 do_shop(void)
                 case 10:
                     draw_inventory_panel(i);
                     {
-                        u8* playerPad = pads + o60;
-                        if (*(u32*)(playerPad + 8) & 0x2000000) {
+                        if (((PLAYERCONTROL*)(pads + o60))->edges & 0x2000000) {
                             AudioCursorSelect();
                             init_inventory_panel(i);
                             *(s32*)(pl + offsetof(Player, field_A64)) += 1;
@@ -716,8 +714,6 @@ extern s32 lbl_80122F30[];   /* per-player stats x column              */
 extern s32 lbl_80122F40[];   /* per-player stats y column              */
 extern char lbl_80348338[8];  /* "%d" fmt (sdata)                       */
 extern char lbl_80348358[8]; /* "%d Days" fmt (sdata2)                 */
-typedef struct PadStateView { u8 _0[8]; u32 buttons; u8 _c[48]; } PadStateView;
-extern PadStateView lbl_80240E30[]; /* pad states, stride 60, buttons @+8 (CTL in controls.c) */
 extern void AudioCursorSelect(void);
 
 /* Staged end-of-game Final Stats screen: reveals one glowing line per
@@ -813,7 +809,7 @@ static s32 shop_show_final_stats(u8* pl)
         done = 1;
     }
     if (done != 0) {
-        if ((lbl_80240E30[*(s32*)pl].buttons & 0x2000000) != 0) {
+        if ((PlayerControl[*(s32*)pl].edges & 0x2000000) != 0) {
             AudioCursorSelect();
             *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
             return 1;
@@ -1035,7 +1031,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
         done = 1;
     }
     if (done != 0) {
-        if (lbl_80240E30[*(s32*)pl].buttons & 0x2000000) {
+        if (PlayerControl[*(s32*)pl].edges & 0x2000000) {
             AudioCursorSelect();
             *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
             return 1;

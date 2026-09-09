@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/controls.h"
 #include "game/dcs.h"
 
 /*
@@ -101,7 +102,6 @@ extern s32 lbl_80344654;
 extern s32 lbl_80344650;
 extern f32 lbl_8034464C;
 extern f32 lbl_80346470;
-extern s32 lbl_80240E30[];
 
 /* nodes[0x20]/defer and msgbuf are separate bss objects (dtk-labelled) when
  * accessed as top-level arrays (folded own-symbol address). */
@@ -544,7 +544,7 @@ s32 sndSysUpdate(void)
     }
     if (sPending > 0) {
         s->msgbuf[sCount2++] = 0x55af;
-        s->msgbuf[sCount2++] = lbl_80240E30[1];
+        s->msgbuf[sCount2++] = PlayerControl[0].levels;
         if (sndSysFlush() == 0) {
             memset(s->in, 0, 0x20);
             sndSysSync();

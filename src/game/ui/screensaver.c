@@ -41,6 +41,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/mbobject.h"
 #include "game/player.h"
@@ -755,7 +756,6 @@ void ScreenSaverEnd(void)
 int fn_80055F68(int a, int b);
 void DoTexMods(void* seq);
 void PlayerControls(void);
-extern u8 lbl_80240E30[];
 
 /* lbl_80274600+0x240 (576): last-seen owning MB node per weapon slot,
  * immediately after the ScreenSaverWeapon[4] array; used only to detect a
@@ -765,13 +765,6 @@ typedef struct ScreenSaverControlNodes {
     void* node[4];
 } ScreenSaverControlNodes;
 
-/* lbl_80240E30 per-player control state (see controls.c's CTL, stride
- * 0x3C=60): only levels/edges are read in this TU. */
-typedef struct PadCtlView {
-    u8 _pad00[4];
-    u32 levels;
-    u32 edges;
-} PadCtlView;
 
 void ScreenSaver(void)
 {
@@ -786,9 +779,8 @@ void ScreenSaver(void)
         lbl_80344A48 += gClockStepTicks;
         for (i = 0; i < 4; i++) {
             u8* wr = weap + i * 4;
-            u8* pr = lbl_80240E30 + i * 60;
             if (*(void**)(wr + offsetof(ScreenSaverControlNodes, node)) !=
-                *(void**)(pr + offsetof(PadCtlView, levels))) {
+                (void*)PlayerControl[i].levels) {
                 lbl_80344A48 = 0;
             }
         }
@@ -797,10 +789,9 @@ void ScreenSaver(void)
         }
         if ((u32)lbl_80344A48 < 36000) {
             for (i = 0; i < 4; i++) {
-                u8* pr = lbl_80240E30 + i * 60;
                 u8* wr = weap + i * 4;
                 *(void**)(wr + offsetof(ScreenSaverControlNodes, node)) =
-                    *(void**)(pr + offsetof(PadCtlView, levels));
+                    (void*)PlayerControl[i].levels;
             }
         } else {
             ScreenSaverStart();
@@ -815,9 +806,8 @@ void ScreenSaver(void)
                 }
                 PlayerControls();
                 for (i = 0; i < 4; i++) {
-                    u8* pr = lbl_80240E30 + i * 60;
                     u8* wr = weap + i * 4;
-                    if (*(void**)(pr + offsetof(PadCtlView, levels)) !=
+                    if ((void*)PlayerControl[i].levels !=
                         *(void**)(wr +
                                   offsetof(ScreenSaverControlNodes, node))) {
                         exit = 1;
@@ -1787,9 +1777,8 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
                     if ((maskSave & (1 << i)) != 0) {
                         u8* pp = players + i * 13148;
                         if (*(s32*)(pp + offsetof(Player, state)) != 0) {
-                            u8* pb = lbl_80240E30 + i * 60;
                             nbut++;
-                            buttons |= *(u32*)(pb + offsetof(PadCtlView, edges));
+                            buttons |= PlayerControl[i].edges;
                         }
                     }
                 }
