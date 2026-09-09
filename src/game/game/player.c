@@ -2765,7 +2765,9 @@ extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
 extern s32 lbl_803447C0;      /* widescreen/mode flag (rune13 blit) */
 
 
-extern char lbl_80347A38[3];  /* "rb" (sdata2) */
+/* .sdata2 0x80347A38 is "anim" in the DOL, not a stdio mode string: the
+ * second AllocFile/MLMReadFile argument is the asset kind. */
+extern char lbl_80347A38[5];
 DECL_SECT(".sdata2") extern char lbl_803479C8[];
 DECL_SECT(".sdata2") extern char lbl_803479D0[];
 DECL_SECT(".sdata2") extern char lbl_803479D8[];
