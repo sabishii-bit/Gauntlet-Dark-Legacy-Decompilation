@@ -592,6 +592,11 @@ static char* player_rhand[16] = {
  * through R_PPC_EMB_SDA21. */
 static s32 mini_inv_item_count = 75;          /* = mini_inv_items[75] */
 char* player_sumner_desc = "sum";             /* select.c and tower.c read it */
+/* the save-menu answer lists the cheat prompts pass to saveMenuPrompt.
+ * .sdata2 0x80347734 (2 pointers) and 0x80347740; their literals "Yes",
+ * "No" and "Ok!" open the 0x8034772C run.  No attested name. */
+static char* const lbl_80347734 = "Yes", * const lbl_80347738 = "No";
+static char* const lbl_80347740 = "Ok!";
 static f32 player_lightattn = 10.0f;
 static f32 player_lightrad = 20.0f;
 static f32 player_lightdy = 10.0f;
@@ -2764,10 +2769,9 @@ extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
 extern s32 lbl_803447C0;      /* widescreen/mode flag (rune13 blit) */
 
 
-extern char lbl_80347A38[3];  /* "rb" (sdata2) */
-extern char* lbl_80347734;
-extern char* lbl_80347738;
-extern char* lbl_80347740;
+/* .sdata2 0x80347A38 is "anim" in the DOL, not a stdio mode string: the
+ * second AllocFile/MLMReadFile argument is the asset kind. */
+extern char lbl_80347A38[5];
 DECL_SECT(".sdata2") extern char lbl_803479C8[];
 DECL_SECT(".sdata2") extern char lbl_803479D0[];
 DECL_SECT(".sdata2") extern char lbl_803479D8[];
@@ -4673,14 +4677,14 @@ s32 set_hidden_player(void* vp) {
     s32 j;
     s32 k;
 
-    if (strncmp(p->save.name, lbl_803479E0, 6) == 0) {
+    if (strncmp(p->save.name, lbl_803479C8, 6) == 0) {
         pick = 0x10;
         match = 1;
     }
     /* the interactive cheat menu (start+trigger names) */
-    if ((strncmp(p->save.name, lbl_803479C8, 6) == 0 ||
-         strncmp(p->save.name, lbl_803479D0, 6) == 0 ||
-         strncmp(p->save.name, lbl_803479D8, 6) == 0) &&
+    if ((strncmp(p->save.name, lbl_803479D0, 6) == 0 ||
+         strncmp(p->save.name, lbl_803479D8, 6) == 0 ||
+         strncmp(p->save.name, lbl_803479E0, 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
         access_options[0] = lbl_80347734;
         access_one[0] = lbl_80347740;
