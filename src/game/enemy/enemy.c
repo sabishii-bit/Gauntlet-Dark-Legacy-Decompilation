@@ -734,6 +734,7 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew);
 f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
                   f32* offset, s32* enemy_index, s32 flags)
 {
+    s32 item;
     s32 best_index;
     u8 unused_before[4];
     f32 delta[3];
@@ -744,20 +745,18 @@ f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
     f32 best_distance;
     f32 spread;
     f64 maximum_vertical;
-    s32 allow_death;
 
     best_index = -1;
     best_distance = range;
     spread = (1.0 - width) / range;
     StartItemGrid(range, position);
     maximum_vertical = 10.0;
-    allow_death = flags & 0x80000;
-    while ((flags = NextGridItem()) >= 0) {
-        Enemy* enemy = &gEnemies[flags];
+    while ((item = NextGridItem()) >= 0) {
+        Enemy* enemy = &gEnemies[item];
 
         if (enemy->state == ACTIVE || enemy->state == SLEEP) {
             if (enemy->type != E_IT &&
-                (enemy->type != E_DEATH || allow_death != 0)) {
+                (enemy->type != E_DEATH || (flags & 0x80000) != 0)) {
                 f32 vertical;
                 f32 distance;
 
@@ -787,7 +786,7 @@ f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
                         best_x = delta[0];
                         best_y = delta[1];
                         best_z = delta[2];
-                        best_index = flags;
+                        best_index = item;
                     }
                 }
             }
@@ -8326,9 +8325,8 @@ void fn_800510A4(void)
     }
 }
 
-/* Keep the element address explicit across propagation, as in fn_800508A0.
- * This controls the address form; the remaining register allocation is
- * separately checked by the matching build's strict recolor rule. */
+/* ResetEnemies in the Xbox symbols corroborates these as three distinct
+ * 45-entry resource arrays.  GC combines their stores into one counted loop. */
 #pragma opt_propagation off
 void fn_80051164(void)
 {
@@ -8336,9 +8334,9 @@ void fn_80051164(void)
     s32 i;
 
     for (i = 0; i < 45; i++) {
-        p[345 + i] = 0;
-        p[300 + i] = -1;
-        p[255 + i] = 0;
+        gWadAtreeHeaders[i] = 0;
+        lbl_802512B0[i] = -1;
+        lbl_802511FC[i] = 0;
     }
     for (i = 0; i < 8; i++) {
         s32* row = p + i;
@@ -8485,19 +8483,18 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
 s32 fn_80051480(f32* pos)
 {
     u8 unused[16];
+    f32 d;
+    f32 dx;
+    f32 dy;
+    f32 dz;
     s32 best_idx = -1;
     f32 best_dist = 100000.0f;
     u8* node = sMilestones;
     s32 i;
 
     for (i = 0; i < sNumMilestones; i++, node += 104) {
-        f32 d;
-        f32 dx;
-        f32 dy;
-        f32 dz;
-
-        dy = pos[1] - ((MilestoneParam *)node)->matrix[13];
         dx = pos[0] - ((MilestoneParam *)node)->matrix[12];
+        dy = pos[1] - ((MilestoneParam *)node)->matrix[13];
         dz = pos[2] - ((MilestoneParam *)node)->matrix[14];
         d = dx * dx + dy * dy;
         d = dz * dz + d;
