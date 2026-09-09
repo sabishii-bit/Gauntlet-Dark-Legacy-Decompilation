@@ -6888,10 +6888,10 @@ void UpdatePlayerWorldMat(void* vp, s32 anchor) {
 void mini_inventory_update(s32 i) {
     s32* label_table;
     u8* base = (u8*)lbl_80274EA0;
-    Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
     s32 tb_offset;
     TbInfo* tb;
     u32* held;
+    Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
     u8 moved;
     u8* selected_pup;
     u8* entry;
