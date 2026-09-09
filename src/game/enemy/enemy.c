@@ -7057,7 +7057,13 @@ typedef struct EnemySpawnPoolView {
  * validate world/boss state and per-type limits, resolve random types
  * (-2/-3), take a slot, then for generator spawns search the 8 (or 2)
  * directions around the generator for a free position; finish by claiming
- * the grid cell, starting the E_START anim and the generator fx. */
+ * the grid cell, starting the E_START anim and the generator fx.
+ *
+ * The target retains the BSS row address and its advance to the gEnemies
+ * member as one register lifetime.  MWCC's default lifetime split folds the
+ * member offset into a temporary and changes four words; this local pragma
+ * preserves the target's single cursor without changing the TU-wide flags. */
+#pragma opt_lifetimes off
 s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
                    struct Item* gen, s32 imp, f32 ang)
 {
@@ -7072,7 +7078,6 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     s32 start;
     s32 i;
     s32 r;
-    EnemySpawnPoolView* row;
     f32 startv[3];
     f32 out[3];
     f32 v[3];
@@ -7118,9 +7123,9 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         return -2;
     }
     init_enemy(slot, pos, type, level, spew);
-    row = (EnemySpawnPoolView*)((u8*)pool + slot * sizeof(Enemy));
-    row->gEnemies[0].generator = gen;
-    e = row->gEnemies;
+    e = (Enemy*)((u8*)pool + slot * sizeof(Enemy));
+    e = (Enemy*)((u8*)e + offsetof(EnemySpawnPoolView, gEnemies));
+    e->generator = gen;
     if (gen == 0 || type == 30) {
         e->genang_offset = 0.0f;
     } else {
@@ -7217,6 +7222,7 @@ placed:
     }
     return slot;
 }
+#pragma opt_lifetimes reset
 
 /* Resolve the generator/spew class shared by groups of enemy types. */
 s32 fn_8004F87C(s32 type, s32 level, s32 spew)
