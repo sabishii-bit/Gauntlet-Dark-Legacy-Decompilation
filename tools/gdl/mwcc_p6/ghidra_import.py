@@ -140,7 +140,7 @@ GLOBALS = [
     (0x005880CC, "MWCC_gFrameBaseSize", "u32", "linkage/base frame size"),
     (0x00581B7C, "MWCC_gSchedulerTerminatorNode", "pointer", "current scheduling graph terminator node"),
     (0x00581B80, "MWCC_gSchedulerModel", "pointer", "selected SchedulerMachineModel pointer"),
-    (0x00581B84, "MWCC_gSchedulerMaxHeight", "u16", "running maximum critical-path height; not reset between blocks"),
+    (0x00581B84, "MWCC_gSchedulerMaxHeight", "u16", "per-block maximum critical-path height; ScheduleBlock calls ResetBlockState, which clears it at 0x004CDED8 before graph construction"),
     (0x0058846C, "MWCC_gUsedVirtualRegistersFPR", "u16", "FPR virtual-register counter"),
     (0x0058846E, "MWCC_gUsedVirtualRegistersGPR", "u16", "GPR virtual-register counter"),
     (0x0058308C, "MWCC_gCoalescedRegisters", "pointer", "class-local 16-bit coalescing-parent map"),
