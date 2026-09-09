@@ -616,17 +616,6 @@ static const s32 lbl_80113E18[4] = { 1, 15, 37, 51 };
 
 static u32 player_pal[4] = { 0x00FFFF80, 0x0087CEEB, 0x00FFC0E0, 0x0080FF80 };
 static u32 player_rgb[4] = { 0x00787800, 0x001E1E78, 0x00780000, 0x00006400 };
-/* 0x80120238, 16 B, ONE object.  The Xbox PDB names `box_lx` (0x80120238)
- * and `box_cx` (0x80120240); on GameCube they cannot be two objects, because
- * MWCC places every initialised object of 8 bytes or less in .sdata and the
- * DOL keeps both inside the .data run.  The target agrees: player.s
- * materialises 0x80120238 five times with a full lis/addi pair and never
- * names 0x80120240, which message.c reaches as this object's second row. */
-u16 box_x[2][4] = {
-    { 0x0, 0x80, 0x100, 0x180 },    /* Xbox PDB box_lx */
-    { 0x40, 0xC0, 0x140, 0x1C0 },   /* Xbox PDB box_cx */
-};
-
 static u32 player_inactive_rgb[4] = { 0x005A5A1E, 0x001E1E69, 0x00642828, 0x001E4B1E };
 
 static f32 player_light_color[4][4] = {
@@ -634,6 +623,21 @@ static f32 player_light_color[4][4] = {
     { 1.5f, 1.5f, 2.0f, 0.0f },
     { 2.0f, 1.5f, 1.5f, 0.0f },
     { 1.5f, 2.0f, 1.5f, 0.0f },
+};
+
+/* 0x80120238, 16 B, ONE object.  The Xbox PDB names `box_lx` (0x80120238)
+ * and `box_cx` (0x80120240); on GameCube they cannot be two objects, because
+ * MWCC places every initialised object of 8 bytes or less in .sdata and the
+ * DOL keeps both inside the .data run.  The target agrees: player.s
+ * materialises 0x80120238 five times with a full lis/addi pair and never
+ * names 0x80120240, which message.c reaches as this object's second row.
+ * The declaration sits after player_light_color because setup_player_display
+ * reads it at tb_info + 1520 while it reads player_rgb at tb_info + 1424 and
+ * player_inactive_rgb at tb_info + 1440: the three displacements only agree
+ * with the DOL when box_x follows the 0x40-byte colour table. */
+u16 box_x[2][4] = {
+    { 0x0, 0x80, 0x100, 0x180 },    /* Xbox PDB box_lx */
+    { 0x40, 0xC0, 0x140, 0x1C0 },   /* Xbox PDB box_cx */
 };
 
 static char sHANDOFDEATH[15] = "HANDOFDEATHPUP";
