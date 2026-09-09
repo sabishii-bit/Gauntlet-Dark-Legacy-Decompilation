@@ -442,7 +442,9 @@ class LiveRegressionFixtures(unittest.TestCase):
 
     CASES = (
         # unit, section, true bind base, true target section base or None
-        ("game/game/player", ".rodata", 0x80113E28, 0x80113AE0),
+        # player's .rodata was here with a 0x348 front deficit; the block
+        # and its interior literals are recovered, so the deficit is 0 and
+        # the case no longer describes a short section.
         ("game/game/controls", ".rodata", 0x80111F70, None),
         ("game/ui/options", ".rodata", 0x80113A0C, None),
     )
@@ -496,7 +498,6 @@ class LiveRegressionFixtures(unittest.TestCase):
                 self.assertEqual(best, bind, "%s %s" % (unit, section))
                 if section_base is not None:
                     self.assertEqual(pool["section_base"], section_base)
-                    self.assertEqual(best - pool["section_base"], 0x348)
 
     def test_every_word_resyncs_at_the_recorded_base(self):
         from tools.gdl import fndiff
@@ -512,8 +513,7 @@ class LiveRegressionFixtures(unittest.TestCase):
     def test_the_old_vote_bases_do_not_resync(self):
         """The negative half: each wrong base leaves real differences."""
         from tools.gdl import fndiff
-        for unit, section, wrong in (("game/game/player", ".rodata",
-                                      0x80113E54),
+        for unit, section, wrong in (
                                      ("game/game/controls", ".rodata",
                                       0x80111FB8),
                                      ("game/ui/options", ".rodata",
