@@ -140,7 +140,6 @@ void MBClearTexscroll(void)
     }
 }
 
-#pragma dont_inline on
 
 /* 0x800BA0FC */
 void MBTreeClearUVScaleAdd(MBTreeNode* node, s32 index, s32 recurse)
@@ -507,7 +506,6 @@ done:
     return;
 }
 
-#pragma dont_inline off
 
 static inline void MBTreeMoveAfter(MBTreeNode* node, MBTreeNode* after)
 {

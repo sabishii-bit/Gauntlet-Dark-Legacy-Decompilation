@@ -1634,7 +1634,6 @@ s32 AudioIsActive(void)
  * little-endian -> GameCube big-endian) and hand it to the 3D transform
  * builder, then flag the listener slot dirty (+96 |= 1). */
 #ifdef __MWERKS__
-#pragma dont_inline off
 #pragma opt_common_subs off
 #pragma opt_propagation off
 #endif
@@ -1678,5 +1677,4 @@ void AudioSetListenerPos(s32* out, s32 arg, f32* pos)
 }
 #ifdef __MWERKS__
 #pragma opt_common_subs reset
-#pragma dont_inline on
 #endif

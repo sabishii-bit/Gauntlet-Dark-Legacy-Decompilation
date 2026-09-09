@@ -1,7 +1,5 @@
 #include "types.h"
 
-#pragma dont_inline on
-
 /* pb_global.c -- Midway "pb" graphics library global init/reset/close layer
  * (pb_global.obj on Xbox, 4 fns; the GCN build keeps 3 -- pbResetGlobal is
  * deadstripped). .text 0x800C33FC-0x800C3674. Function names from shell3D.pdb.

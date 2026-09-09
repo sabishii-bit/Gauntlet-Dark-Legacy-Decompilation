@@ -194,7 +194,6 @@ void adsPoll(void) {
 /* 0x800D62F0  cooked ring -> ARAM/SPU: ARQPostRequest per block, DCFlushRange,
  * AXSetVoiceAdpcmLoop; prints "DCSERROR: SPU UNDERRUN..." on underrun.
  * Xbox: adsMoveCookedToSpu. */
-#pragma dont_inline on
 s32 adsMoveCookedToSpu(ADSTREAM* stream) {
     u8 unused[8];
     AXPBADPCMLOOP loop;
@@ -288,7 +287,6 @@ s32 adsMoveCookedToSpu(ADSTREAM* stream) {
     }
     return result;
 }
-#pragma dont_inline off
 
 /* 0x800D657C  ARQ last-block completion callback: sets the "voices ready"
  * gate flag (lbl_80345268 = 1).  Xbox: (SPU/ARQ done callback - behavioural). */
@@ -462,12 +460,10 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
 #pragma opt_lifetimes reset
 #pragma opt_propagation reset
 #pragma opt_common_subs reset
-#pragma dont_inline off
 
 /* 0x800D683C  file -> raw ring: FileBufSeek to the SSbd body / loop point,
  * FileBufGet into the raw ring.  Xbox: adsMoveFileToRaw. */
 #pragma opt_propagation off
-#pragma dont_inline on
 s32 adsMoveFileToRaw(ADSTREAM* stream) {
     s32 result;
     u32 isEmpty;
@@ -520,7 +516,6 @@ s32 adsMoveFileToRaw(ADSTREAM* stream) {
     }
     return result;
 }
-#pragma dont_inline off
 #pragma opt_propagation reset
 
 /* 0x800D69B8  pump one pipeline cycle: cooked->spu, file->raw, raw->cooked,
@@ -558,7 +553,6 @@ s32 adsFeed(ADSTREAM* stream) {
  * (lbl_80345274), walks the voices (dcsMemLockOwner / AXSetVoiceState) and
  * dispatches start/stop/loop by stream state (+0x50: 0/0x1000/0x2000).
  * Xbox: _AdsThread (no real thread on GCN - runs synchronously). */
-#pragma dont_inline on
 s32 _AdsThread(void) {
     ADSTREAM* s;
     s32 v;
@@ -655,7 +649,6 @@ s32 _AdsThread(void) {
     }
     return 0;
 }
-#pragma dont_inline off
 
 /* 0x800D6D80  return stream->status (+0x50).  Xbox: AdsGetStatus. */
 s32 AdsGetStatus(ADSTREAM* s) {
@@ -727,7 +720,6 @@ void AdsSetVolume(ADSTREAM* s, s32 vol) {
 /* 0x800D6F30  set up each AX voice from the SShd header: sample-rate ratio
  * (AXSetVoiceSrc), ADPCM coefficients/gain/loop (AXSetVoiceAdpcm),
  * AXSetVoiceAddr/SrcType/Type.  Xbox: adsInitFromHeader. */
-#pragma dont_inline on
 void adsInitFromHeader(ADSTREAM* stream) {
     u32 k48;
     u32 cur;
@@ -798,7 +790,6 @@ void adsInitFromHeader(ADSTREAM* stream) {
         aram += sizeVoiceLoop;
     }
 }
-#pragma dont_inline off
 
 /* 0x800D719C  if playing (status==0x1000) reset the voice-keying counters and
  * bump the loop counter.  Xbox: AdsKeyVoices (behavioural mapping). */

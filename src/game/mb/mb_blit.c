@@ -369,7 +369,6 @@ void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale) {
     }
 }
 
-#pragma dont_inline on
 void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
     MBWindow* window = gWinGlobals;
 
@@ -392,7 +391,6 @@ void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
         *height = value;
     }
 }
-#pragma dont_inline off
 
 s32 mbBlitReset33F8(MBBLIT* b) {
     if ((b->flags & 1) != 0) {

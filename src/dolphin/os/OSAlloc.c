@@ -66,7 +66,6 @@ static struct Cell* DLExtract(struct Cell* list, struct Cell* cell) {
     return list;
 }
 
-#pragma dont_inline on
 static struct Cell* DLInsert(struct Cell* list, struct Cell* cell) {
     struct Cell* prev;
     struct Cell* next;
@@ -103,7 +102,6 @@ static struct Cell* DLInsert(struct Cell* list, struct Cell* cell) {
     }
     return cell;
 }
-#pragma dont_inline off
 
 static int DLOverlap(struct Cell* list, void* start, void* end) {
     struct Cell* cell = list;

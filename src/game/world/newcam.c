@@ -1921,7 +1921,6 @@ void DebugCamInit(void) {
     lbl_80344A7C = 1;
 }
 
-#pragma dont_inline on
 
 /*
  * CamReset -- reset a camera object to its default working state.  Zeroes the
@@ -1991,4 +1990,3 @@ void CamReset(NcCamera* cam) {
     lbl_80344A78 = 0;
 }
 
-#pragma dont_inline off

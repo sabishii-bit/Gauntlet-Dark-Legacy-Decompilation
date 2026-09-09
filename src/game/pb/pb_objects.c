@@ -1,7 +1,5 @@
 #include "types.h"
 
-#pragma dont_inline on
-
 /* pb_objects.c -- Midway "pb" graphics library object layer (pb_objects.obj on
  * Xbox). .text 0x800C3674-0x800C3F58. Sits between pb_global.c (below) and
  * pb_objregs.c (above) in the PB C++ library run; compiled cflags_demo

@@ -540,7 +540,6 @@ static inline void get_path_inline(char* out, char* wad, char* name)
     strcat(out, tmp);
 }
 
-#pragma dont_inline on
 int FileMap(char* wad, char* name, char* dst, s32 n, u32* handle, s32* sizeOut)
 {
     char full[260];
@@ -566,7 +565,6 @@ int FileMap(char* wad, char* name, char* dst, s32 n, u32* handle, s32* sizeOut)
     }
     return 0;
 }
-#pragma dont_inline off
 
 int FileSize(char* wad, char* name)
 {

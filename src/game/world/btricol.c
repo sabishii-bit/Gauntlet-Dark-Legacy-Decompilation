@@ -603,7 +603,6 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
 /* Shortest distance between two 3D line segments; closest points are  */
 /* returned in *outA / *outB.                                          */
 /* ------------------------------------------------------------------ */
-#pragma dont_inline on
 #pragma opt_propagation off
 static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                         Vec* pointA, Vec* dirA, f32 lenB, f32 lenA) {
@@ -853,7 +852,6 @@ done:
     return dB2;
 }
 #pragma opt_propagation reset
-#pragma dont_inline off
 
 /* ------------------------------------------------------------------ */
 /* 2D (xz-plane) distance from the segment [p0,p1] to a point, writing */

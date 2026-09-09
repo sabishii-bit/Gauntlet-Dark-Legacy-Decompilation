@@ -356,7 +356,6 @@ void G3DUpdatePadStatus(void) {
  * One-time pad init: VIGetTvFormat, PADRecalibrate + PADReset on all pads, and
  * G3DInitStickCurve() to build the analog response table.
  */
-#pragma dont_inline on
 void G3DInitPadStatus(u32 mask, s32 recalibrate) {
     u32 resetMask;
 
@@ -380,4 +379,3 @@ void G3DInitPadStatus(u32 mask, s32 recalibrate) {
     }
     G3DInitStickCurve();
 }
-#pragma dont_inline off
