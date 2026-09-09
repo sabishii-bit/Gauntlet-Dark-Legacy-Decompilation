@@ -73,6 +73,16 @@ DEFECT_FN = "set_hidden_player"
 #: rather than the NAME class. It is a live function under repair: when it
 #: closes, repoint this at whatever `fndiff.py <unit> --relocs` still lists.
 RELOC_ROW_FN = "damage_player"
+#: Lane P11 (integration 64-2) closed damage_player's anonymous-pool rows
+#: too and swept every open player.c function: none carries a word-
+#: identical relocation row any more. The live carrier therefore moves to
+#: another NonMatching unit -- gauntworld::fn_8005FB48, a NAME-class row on
+#: a diverged stream (MNEMONIC DIVERGENCE 2, 22 differing words). The
+#: VALUE-class wording is pinned synthetically; the live case asserts the
+#: pass, not the row class. Repoint again when that function closes.
+RELOC_ROW_UNIT = "game/world/gauntworld"
+RELOC_ROW_LIVE_FN = "fn_8005FB48"
+RELOC_ROW_LIVE = (ROOT / "build/GUNE5D/src" / (RELOC_ROW_UNIT + ".o")).is_file()
 EXACT_FN = "PlayerAttacking"
 #: A count-asymmetric body: a determinate answer, not a measurement.
 ASYM_FN = "setup_player_display"
@@ -406,10 +416,12 @@ class LiveReproduction(unittest.TestCase):
         verdict`. Neither our anonymous pool index nor the instruction
         offset is asserted here: both move whenever the `.sdata2` pool or
         the body changes, and neither is part of the claim."""
-        done = run(UNIT, RELOC_ROW_FN, "--relocs")
+        if not RELOC_ROW_LIVE:
+            self.skipTest("needs a built %s object" % RELOC_ROW_UNIT)
+        done = run(RELOC_ROW_UNIT, RELOC_ROW_LIVE_FN, "--relocs")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        self.assertIn("RELOC-SYMBOL MISMATCH " + RELOC_ROW_FN, done.stdout)
-        self.assertIn("ANON-POOL VALUE-DIFFERS", done.stdout)
+        self.assertIn("RELOC-SYMBOL MISMATCH " + RELOC_ROW_LIVE_FN, done.stdout)
+        self.assertIn("MNEMONIC DIVERGENCE", done.stdout)
         self.assertNotIn("relocation sets IDENTICAL", done.stdout)
 
     def test_the_gate_reloc_count_IS_wf_word_diffs_headline_number(self):

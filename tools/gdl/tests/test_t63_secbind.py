@@ -173,14 +173,25 @@ class LiveUnclaimedSection(unittest.TestCase):
             self.assertTrue(gap["size"] % 4 == 0 and gap["size"] > 0)
             self.assertTrue(gap["content"])
 
-    def test_the_section_end_verdict_names_the_straddled_symbol(self):
+    def test_the_section_end_verdict_reports_the_live_boundary(self):
+        """Before lane P11's damage_player literal values the recovered
+        .sdata2 ended INSIDE lbl_80347AE0 (the straddled case); since
+        integration 64-2 it ends exactly on lbl_80347AF4, so the live
+        verdict is the exact-boundary case. Both shapes are legitimate
+        states of one object; the claim is that the verdict names the
+        boundary it measures. The straddled rendering is pinned by the
+        synthetic cases."""
         record = secbind.bind(UNIT, self.SECTION)
         end = record["end_verdict"]
         self.assertEqual(end["end"], record["base"] + record["size"])
-        self.assertEqual(end["boundary"], "inside")
-        self.assertIsNotNone(end["straddled"])
-        self.assertLess(end["straddled"]["start"], end["end"])
-        self.assertGreater(end["straddled"]["end"], end["end"])
+        self.assertIn(end["boundary"], ("inside", "exact"))
+        if end["boundary"] == "inside":
+            self.assertIsNotNone(end["straddled"])
+            self.assertLess(end["straddled"]["start"], end["end"])
+            self.assertGreater(end["straddled"]["end"], end["end"])
+        else:
+            self.assertEqual(end["boundary_symbol"], "lbl_80347AF4")
+            self.assertIsNone(end["straddled"])
         self.assertGreater(end["next_symbol_start"], end["end"])
 
 

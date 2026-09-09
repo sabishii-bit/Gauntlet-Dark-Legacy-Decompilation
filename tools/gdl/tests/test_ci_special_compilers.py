@@ -81,7 +81,8 @@ class CiSpecialCompilerTests(unittest.TestCase):
                      "game/game/controls", "game/enemy/enemy",
                      "game/audio/dcsdrv", "game/sound/sounds",
                      "game/movie/movieplayer", "game/ui/btext",
-                     "game/pb/pb_diag", "game/anim/atree"):
+                     "game/pb/pb_diag", "game/anim/atree",
+                     "game/world/gauntworld"):
             self.assertIn(f"build/GUNE5D/src/{unit}.o", step)
         self.assertIn("ninja all_source", step)
         self.assertLess(step.index("rm -f build/GUNE5D/src/"),

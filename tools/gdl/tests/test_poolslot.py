@@ -174,7 +174,10 @@ class LivePlayerTests(unittest.TestCase):
                                for row in self.record["gaps"]]))
 
     def test_the_run_and_its_attribution_are_reported(self):
-        self.assertEqual(self.record["run"], [0x80347608, 0x80347D24])
+        # The run end follows our object's recovered .sdata2 extent: it was
+        # 0x80347C6C before P10's literals, 0x80347D24 after them and
+        # 0x80347D34 after P11's damage_player values (integration 64-2).
+        self.assertEqual(self.record["run"], [0x80347608, 0x80347D34])
         self.assertEqual(self.record["module"], ".\\Release\\PLAYER.OBJ")
         self.assertEqual(len(self.record["gaps"]), 3)
 

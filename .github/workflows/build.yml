@@ -146,7 +146,7 @@ jobs:
               build/GUNE5D/src/game/movie/movieplayer.o \
               build/GUNE5D/src/game/ui/btext.o \
               build/GUNE5D/src/game/pb/pb_diag.o \
-              build/GUNE5D/src/game/anim/atree.o
+              build/GUNE5D/src/game/anim/atree.o \n              build/GUNE5D/src/game/world/gauntworld.o
         ninja build/GUNE5D/src/game/enemy/critter.o
         ninja all_source
         # Freshness diagnostics for the live objneutral tests: what ninja
