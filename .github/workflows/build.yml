@@ -23,38 +23,6 @@ jobs:
         path: tools/gdl/mwcc_p6/build/payload.bin
         if-no-files-found: error
 
-  source_lint:
-    name: Reconstruction source lint
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-    - uses: pnpm/action-setup@v4
-      with:
-        version: '10.25.0'
-    - name: Install pinned lint dependencies
-      run: pnpm install --frozen-lockfile
-    - name: Test structural rules and reporting policy
-      run: |
-        pnpm run test:lint
-        pnpm run test:lint:integration
-    # Outstanding review debt deliberately fails this job. Keep this distinct
-    # from the DOL build: do not weaken matching guards to make lint green.
-    - name: Scan all reconstructed source and headers
-      run: pnpm run lint:decomp --format github --limit 50
-    - name: Upload reconstruction lint findings
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: reconstruction_source_lint
-        path: build/fakematch_lint.json
-        if-no-files-found: error
-
   build:
     name: Build GUNE5D
     needs: compiler_payload
@@ -156,9 +124,9 @@ jobs:
           exit 1
         fi
 
-    # The host-native source_lint job owns the ast-grep and lint-integration
-    # suites. Keep the private compiler container focused on Python analysis;
-    # pnpm's action-provided executable is not visible inside this container.
+    # The separate reconstruction-lint workflow owns the ast-grep and lint-
+    # integration suites. Keep this private compiler container focused on
+    # Python analysis; pnpm's executable is not visible inside the container.
     - name: Analysis tool tests
       env:
         WINEPREFIX: /tmp/.wine

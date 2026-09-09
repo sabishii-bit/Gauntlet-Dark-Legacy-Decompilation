@@ -19,7 +19,28 @@ class CiSpecialCompilerTests(unittest.TestCase):
         self.assertIn("--gdl-special-compilers", workflow)
         self.assertIn("--experimental-p6-compiler", workflow)
         self.assertRegex(workflow, r"(?m)^    needs: compiler_payload$")
-        self.assertEqual(workflow.count("pnpm install --frozen-lockfile"), 1)
+        self.assertNotIn("pnpm install --frozen-lockfile", workflow)
+
+    def test_report_workflow_is_not_failed_by_expected_lint_debt(self):
+        """decomp.dev advances from the report-producing build workflow.
+
+        Reconstruction debt is intentionally still nonzero, so that failing
+        check must remain visible in a separate workflow rather than making
+        every otherwise valid report-producing run conclude as a failure.
+        """
+        build = (ROOT / ".github/workflows/build.yml").read_text(
+            encoding="utf-8"
+        )
+        lint = (ROOT / ".github/workflows/reconstruction-lint.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("name: GUNE5D_report", build)
+        self.assertNotIn("source_lint:", build)
+        self.assertNotIn("pnpm run lint:decomp", build)
+        self.assertIn("source_lint:", lint)
+        self.assertEqual(lint.count("pnpm install --frozen-lockfile"), 1)
+        self.assertIn("pnpm run lint:decomp --format github --limit 50", lint)
+        self.assertIn("name: reconstruction_source_lint", lint)
 
     def test_ci_refreshes_the_live_objneutral_fixture(self):
         workflow = (ROOT / ".github/workflows/build.yml").read_text(
