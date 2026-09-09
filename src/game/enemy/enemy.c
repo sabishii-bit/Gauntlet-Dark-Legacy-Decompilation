@@ -7878,13 +7878,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 #pragma opt_propagation reset
 
 /* Enemy loading, targeting and milestone tail: recovered TU ownership. */
-typedef struct Row36 {
-    s32 f0;      /* 0x00 key   */
-    s32 f4;      /* 0x04       */
-    s32 _a[3];   /* 0x08       */
-    s32 f14;     /* 0x14       */
-    s32 _b[3];   /* 0x18       */
-} Row36;
 typedef struct MilestonePool {
     u8 _000[0xF4];
     s32 slots[128];
@@ -7948,19 +7941,15 @@ static s32 PlayersAverageLevel(void)
     return totalLevel / activePlayers;
 }
 
-typedef struct EnemyNameRow {
-    s32  type;      /* 0x00 */
-    char name[32];  /* 0x04 */
-} EnemyNameRow;
 
 static char* findWorldName(s32 world)
 {
-    EnemyNameRow* tbl = (EnemyNameRow*)lbl_8011AF48;
+    EnemyTypeName* tbl = lbl_8011AF48;
     s32 i;
 
     for (i = 0; i < 44; i++) {
         if (world == tbl[i].type) {
-            return tbl[i].name;
+            return tbl[i].desc;
         }
     }
     return 0;
@@ -7986,7 +7975,6 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     /* Retail reserves eight more bytes below its save area. Their original
      * local identities are unrecovered; this is a frame reservation only. */
     u8 unrecovered_locals[8];
-    u8* e;
     Enemy* enemy;
     s32 i4;
     f32 z;
@@ -7998,8 +7986,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     f32 fv;
     s16 sv;
 
-    e = (u8*)gEnemies + slot * 916;
-    enemy = (Enemy*)e;
+    enemy = &gEnemies[slot];
     z = 0.0f;
     enemy->skinfx.nframes = z;
     enemy->next_enemy = -1;
@@ -8320,7 +8307,7 @@ void AllocEnemy(s32 id, s32 model)
     char buf[68];
     u8 unused[4];
     char* fmt = ((char*)lbl_80112370);
-    Row36* tbl = ((Row36*)lbl_8011AF48);
+    EnemyTypeName* tbl = lbl_8011AF48;
     s32* pool = lbl_80250E00;
     char* name;
     s32 i;
@@ -8333,8 +8320,8 @@ void AllocEnemy(s32 id, s32 model)
 
     if (id == E_GOLEM || id == E_GENERAL) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto alloc_fmt1;
             }
         }
@@ -8343,8 +8330,8 @@ alloc_fmt1:
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto alloc_fmt2;
             }
         }
@@ -8353,8 +8340,8 @@ alloc_fmt2:
         sprintf(buf, fmt + 320, name, fn_80057ACC(id));
     } else if (model == 4) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto alloc_fmt3;
             }
         }
@@ -8363,8 +8350,8 @@ alloc_fmt3:
         sprintf(buf, fmt + 336, name);
     } else if (model > 10) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto alloc_fmt4;
             }
         }
@@ -8373,8 +8360,8 @@ alloc_fmt4:
         sprintf(buf, fmt + 352, name, model - 10);
     } else {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto alloc_fmt5;
             }
         }
@@ -8394,7 +8381,7 @@ void LoadEnemy(s32 id, s32 model)
     char buf[68];
     u8 unused[4];
     char* fmt = ((char*)lbl_80112370);
-    Row36* tbl = ((Row36*)lbl_8011AF48);
+    EnemyTypeName* tbl = lbl_8011AF48;
     s32* pool = lbl_80250E00;
     char* name;
     s32 i;
@@ -8408,8 +8395,8 @@ void LoadEnemy(s32 id, s32 model)
 
     if (id == E_GOLEM || id == E_GENERAL) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto load_fmt1;
             }
         }
@@ -8418,8 +8405,8 @@ load_fmt1:
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto load_fmt2;
             }
         }
@@ -8428,8 +8415,8 @@ load_fmt2:
         sprintf(buf, fmt + 320, name, fn_80057ACC(id));
     } else if (model == 4) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto load_fmt3;
             }
         }
@@ -8438,8 +8425,8 @@ load_fmt3:
         sprintf(buf, fmt + 336, name);
     } else if (model > 10) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto load_fmt4;
             }
         }
@@ -8448,8 +8435,8 @@ load_fmt4:
         sprintf(buf, fmt + 352, name, model - 10);
     } else {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto load_fmt5;
             }
         }
@@ -8468,14 +8455,14 @@ load_fmt5:
 void fn_80050DD8(char* buf, s32 id, s32 qty)
 {
     char* fmt = ((char*)lbl_80112370);
-    Row36* tbl = ((Row36*)lbl_8011AF48);
+    EnemyTypeName* tbl = lbl_8011AF48;
     char* name;
     s32 i;
 
     if (id == E_GOLEM || id == E_GENERAL) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto f1;
             }
         }
@@ -8484,8 +8471,8 @@ f1:
         sprintf(buf, fmt + 304, name, fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto f2;
             }
         }
@@ -8494,8 +8481,8 @@ f2:
         sprintf(buf, fmt + 320, name, fn_80057ACC(id));
     } else if (qty == 4) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto f3;
             }
         }
@@ -8504,8 +8491,8 @@ f3:
         sprintf(buf, fmt + 336, name);
     } else if (qty > 10) {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto f4;
             }
         }
@@ -8514,8 +8501,8 @@ f4:
         sprintf(buf, fmt + 352, name, qty - 10);
     } else {
         for (i = 0; i < 44; i++) {
-            if (id == tbl[i].f0) {
-                name = (char*)&tbl[i].f4;
+            if (id == tbl[i].type) {
+                name = tbl[i].desc;
                 goto f5;
             }
         }
@@ -9110,8 +9097,8 @@ void* EnemyTypePrefix(s32 id)
     s32 i;
 
     for (i = 0; i < 44; i++) {
-        if (((Row36*)lbl_8011AF48)[i].f0 == id) {
-            return &((Row36*)lbl_8011AF48)[i].f14;
+        if (lbl_8011AF48[i].type == id) {
+            return lbl_8011AF48[i].prefix;
         }
     }
     return 0;
@@ -9122,8 +9109,8 @@ void* EnemyTypeDesc(s32 id)
     s32 i;
 
     for (i = 0; i < 44; i++) {
-        if (((Row36*)lbl_8011AF48)[i].f0 == id) {
-            return &((Row36*)lbl_8011AF48)[i].f4;
+        if (lbl_8011AF48[i].type == id) {
+            return lbl_8011AF48[i].desc;
         }
     }
     return 0;
@@ -9141,8 +9128,8 @@ s32 EnemyDescType(const char* name)
         return -1;
     }
     for (i = 0; i < 44; i++) {
-        if (stricmp(name, (char*)&((Row36*)lbl_8011AF48)[i].f4) == 0) {
-            return ((Row36*)lbl_8011AF48)[i].f0;
+        if (stricmp(name, lbl_8011AF48[i].desc) == 0) {
+            return lbl_8011AF48[i].type;
         }
     }
     return -1;
