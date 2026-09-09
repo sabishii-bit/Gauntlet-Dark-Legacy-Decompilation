@@ -3738,7 +3738,7 @@ out:
 extern f64 lbl_80346318, lbl_80346320;
 extern f32 lbl_8034632C, lbl_80346330, lbl_80346334, lbl_80346338;
 
-void ModifyDamage(f32 armor, f32* damage, u32* damageType, u32 shield)
+void ModifyDamage(f32* damage, u32* damageType, u32 shield, f32 armor)
 {
     f32 value = *damage;
     u32 type = *damageType;
