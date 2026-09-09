@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/options.h"
 #include "game/item.h"
 #include "game/enemy.h"
 #include "game/gamemode.h"
@@ -164,7 +165,6 @@ extern void*           sChestAtree;
 extern u32            pbLoad;
 extern s32            gNumPlayers;
 extern s32            gGameMode;
-extern s32            gGameOptions[12];
 extern char           sMaxItemsError[];
 extern s32            gNumType7Items;
 extern s32            gDemoMode;
@@ -2843,7 +2843,7 @@ s32 fn_8005D730(Player* player, Item* item)
             if (player->item_body_lo > 0) {
                 player->item_body_lo--;
                 allow = -1;
-            } else if ((gGameOptions[1] & 1) != 0) {
+            } else if ((gGameOptions.unlimited & 1) != 0) {
                 allow = -1;
             } else {
                 allow = 0;
@@ -2911,7 +2911,7 @@ s32 fn_8005D730(Player* player, Item* item)
                 if (player->item_body_lo > 0) {
                     player->item_body_lo--;
                     allow = -1;
-                } else if ((gGameOptions[1] & 1) != 0) {
+                } else if ((gGameOptions.unlimited & 1) != 0) {
                     allow = -1;
                 } else {
                     allow = 0;
@@ -3523,17 +3523,6 @@ extern f64   lbl_80347018;
 extern f32   lbl_80127D00[4];
 extern f32   lbl_8011C904[8];
 
-/* typed view over gGameOptions so the option words load as base+displacement
- * (the retail world_update keeps the base in a register; flat byte-offset
- * casts get re-associated into derived pointers) */
-typedef struct GameOptionsView {
-    s32 unk0;     /* 0x00 */
-    s32 unk4;     /* 0x04 */
-    s32 unk8;     /* 0x08 */
-    s32 unkC;     /* 0x0C */
-    s32 unk10;    /* 0x10 */
-} GameOptionsView;
-#define GAMEOPTS ((GameOptionsView*)gGameOptions)
 
 /* world_update's original source wrote these as raw literal constants, not
  * named globals: MWCC pooled them in .sdata2 and cached them in callee-saved
@@ -3678,10 +3667,10 @@ void fn_800606FC(void)
             s8 mo = it->minoff;
             if (mo == 1 ||
                 (mo == 2 &&
-                 (isopen || GAMEOPTS->unk10 != 0 ||
-                  GAMEOPTS->unkC != 0))) {
-                if (vis == 0 || isopen || GAMEOPTS->unk10 != 0 ||
-                    GAMEOPTS->unkC != 0) {
+                 (isopen || gGameOptions.items != 0 ||
+                  gGameOptions.players != 0))) {
+                if (vis == 0 || isopen || gGameOptions.items != 0 ||
+                    gGameOptions.players != 0) {
                     if (ItemVisible(it) == 0) {
                         continue;
                     }
@@ -3699,8 +3688,8 @@ void fn_800606FC(void)
                     continue;
                 }
                 if (ItemVisible(it) == 0) {
-                    if (vis == 0 || GAMEOPTS->unk10 != 0 ||
-                        GAMEOPTS->unkC != 0) {
+                    if (vis == 0 || gGameOptions.items != 0 ||
+                        gGameOptions.players != 0) {
                         it->minoff = 1;
                         MBTreeSetFlags(it->objgrp.node, 2, 0);
                         continue;
@@ -3913,10 +3902,10 @@ void fn_800606FC(void)
             gendata* gen = &it->data.gen;
             s32 max;
             s32 visflag;
-            if (gGameOptions[2] <= 1) {
+            if (gGameOptions.gen_active <= 1) {
                 break;
             }
-            if (gGameOptions[2] == 2) {
+            if (gGameOptions.gen_active == 2) {
                 break;
             }
             if (gen->strength <= 0) {
@@ -5453,7 +5442,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     if (lbl_8034488C == 0) {
         return;
     }
-    if (gGameOptions[2] == 0) {
+    if (gGameOptions.gen_active == 0) {
         return;
     }
     if (MBWorldSphereVisible3(it->objgrp.worldmat[3],
@@ -6469,8 +6458,8 @@ s32 ItemVisible(Item* it)
         useEq = 1;
         minp -= 10;
     }
-    if (gGameOptions[4] > 0) {
-        val = gGameOptions[4];
+    if (gGameOptions.items > 0) {
+        val = gGameOptions.items;
         useEq = 1;
     }
     if (useEq) {
@@ -6800,7 +6789,7 @@ keyring_found:
         DATA_F32(12) =
             instance != NULL ? *(f32*)&params[4] : 0.0;
         DATA_S16(16) = PARAM_S16(8, 0);
-        if (gGameOptions[10] != 0 || DATA_S8(3) < 0) {
+        if (gGameOptions.testai != 0 || DATA_S8(3) < 0) {
             DATA_S8(3) = (s8)sEnemyDefaultAlgorithm[DATA_S16(0)];
         }
         attach_geometry = 0;
@@ -7045,7 +7034,7 @@ low_item_found:
                 item->info = &(*infos)[found];
             }
         }
-        if (gGameOptions[10] != 0 || DATA_S8(7) < 0) {
+        if (gGameOptions.testai != 0 || DATA_S8(7) < 0) {
             DATA_S8(7) = (s8)sEnemyDefaultAlgorithm[DATA_S16(0)];
         }
         DATA_S8(6) = (s8)PARAM_S16(0, 1);
@@ -7927,7 +7916,7 @@ void AddLocatorInstList(void)
         }
     }
 
-    ShowCameras(gGameOptions[5]);
+    ShowCameras(gGameOptions.showcam);
     selected = 0;
     if (selected > sLastPlayerStart) {
         selected = 0;

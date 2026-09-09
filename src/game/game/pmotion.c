@@ -15,6 +15,7 @@
  */
 
 #include "types.h"
+#include "game/options.h"
 #include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/player.h"
@@ -111,7 +112,6 @@ typedef struct PlayerActionMotionView {
 extern f32 sMusicFadeBase; /* sMusicFadeBase */
 extern s64 gControllerButtons;
 extern s32 sFlags;
-extern s32 gGameOptions[];
 extern f32 gClockFrameStep;
 extern u8* lbl_80344EE8;
 extern s32 lbl_8034489C;
@@ -2015,7 +2015,7 @@ store_motion_state:
             case 25:
             case 26:
                 if (p->item_body_hi != 0 ||
-                    (gGameOptions[1] & 2) != 0) {
+                    (gGameOptions.unlimited & 2) != 0) {
                     if (motionState == 25) {
                         p->anim_20C = 117;
                     } else if (motionState == 26) {
@@ -4612,7 +4612,7 @@ s32 fn_80088938(Player* p, f32 angle) {
         ctl->levels |= 0x200;
     }
 
-    if ((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) {
+    if ((gControllerButtons & 0x10) != 0 || gGameOptions.fly != 0) {
         if ((ctl->edges & 0x2000) != 0) {
             ctl->edges &= ~0x2000;
             ctl->edges |= 0x800;
@@ -4626,7 +4626,7 @@ s32 fn_80088938(Player* p, f32 angle) {
         action = 0x26;
     } else if ((p->hud_flags & 0x80) != 0) {
         action = 0x17;
-    } else if (((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) &&
+    } else if (((gControllerButtons & 0x10) != 0 || gGameOptions.fly != 0) &&
                (ctl->levels & 0x08000000) != 0) {
         action = 0x1D;
     }

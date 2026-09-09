@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/options.h"
 #include "game/controls.h"
 #include "game/critter.h"
 #include "game/enemy.h"
@@ -37,7 +38,6 @@
  * selected until complete source-linked code/data/EH verification succeeds. */
 
 extern level_data* gCurLevel;
-extern s32 gGameOptions[];
 extern s32 lbl_80257640[];
 extern void* lbl_80257630[4];
 
@@ -1045,7 +1045,7 @@ void fn_80054E78(void)
             lbl_80344818 = 0.0f;
             active = 0;
             if ((gControllerButtons & 0x10) != 0 &&
-                (gGameOptions[9] >> 8) == 12) {
+                (gGameOptions.startwave >> 8) == 12) {
                 s32 player_index;
                 Player* player;
 
@@ -1121,7 +1121,7 @@ s32 next_world(void)
         world = lbl_80344B84;
         forced = 1;
     } else if (sLastWorldLevel < 0) {
-        selected = gGameOptions[9];
+        selected = gGameOptions.startwave;
         world = selected;
         if ((selected >> 8) >= NUMWORLDS) {
             world = sFirstWorldId;
@@ -1350,7 +1350,7 @@ void game_main(void)
         }
         break;
     case MG_PLAYER_SELECT:
-        if (!(gGameOptions[11] & 1)) {
+        if (!(gGameOptions.skip & 1)) {
             WritePlayerInfo(-1);
         }
         if (gGameBusy) {
@@ -2251,7 +2251,7 @@ void default_options(void)
     s32 zero;
 
     zero = 0;
-    options = &gGameOptions[zero];
+    options = (s32*)&gGameOptions + zero;
     options[0] = zero;
     options[1] = zero;
     options[2] = 3;

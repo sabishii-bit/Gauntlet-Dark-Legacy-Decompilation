@@ -173,6 +173,7 @@
  */
 
 #include "types.h"
+#include "game/options.h"
 #include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/player.h"
@@ -833,7 +834,6 @@ extern f32 lbl_80240E50[];
 
 /* game/world state (.sbss/.sdata) */
 extern s32 gGameMode;   /* game state */
-extern s32 gGameOptions[];
 extern s32 options_state;
 extern s32 lbl_80344298;
 extern s32 lbl_80344824;   /* active-player mask */
@@ -1389,7 +1389,7 @@ static void write_health_and_items(s32 i) {
     p = PTA(i);
     mini_inventory_update(i);
     oldz = MBSetFontZ(63990.0f);
-    if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
+    if (lbl_80344A28 != 0 || gGameOptions.showpos != 0) {
         hidden = 1;
     }
     if (gGameMode == MG_PLAY && lbl_80344760 > 0 && p->state == 0xB &&
@@ -1443,9 +1443,9 @@ static void write_health_and_items(s32 i) {
         break;
     case 1:
     case 2:
-        if (gGameOptions[8] != 0 && p->state == 1) {
+        if (gGameOptions.showpos != 0 && p->state == 1) {
             hidden = 1;
-            if (gGameOptions[8] == 1) {
+            if (gGameOptions.showpos == 1) {
                 debug_player_pos(i);
             } else {
                 DrawText(((u16*)(tab + 1520))[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
@@ -2518,7 +2518,7 @@ s32 do_players(void) {
                 }
                 update_player_milestone(p);
                 PlayerProcessPowerups(p);
-                if ((gControllerButtons & 0x10) && gGameOptions[8] != 0 &&
+                if ((gControllerButtons & 0x10) && gGameOptions.showpos != 0 &&
                     i == 0 && gBossType < 0) {
                     fn_8005ACE0(p->pos);
                 }
@@ -2624,7 +2624,7 @@ s32 do_players(void) {
                 if (MBBackgroundLoading() == 0 && gGameMode != MG_LEVEL_ADVANCE &&
                     gGameMode != MG_GWIZ_SPEECH) {
                     activate_player(i);
-                } else if (gGameOptions[11] == 0 ||
+                } else if (gGameOptions.skip == 0 ||
                            (gGameMode != MG_PLAYER_SELECT && gGameMode != MG_WORLD_SELECT &&
                             gGameMode != MG_MAPSCREEN && gGameMode != MG_STATS)) {
                     update_class_spec(i);
@@ -3313,7 +3313,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         return 0;
     }
 
-    option = gGameOptions[0];
+    option = gGameOptions.no_damage;
     if (option >= 2) {
         invuln = option;
     } else {
@@ -4084,7 +4084,7 @@ void load_player(s32 i) {
         }
     }
     p->floor_name2 = NULL;
-    if ((gGameOptions[11] & 1) == 0 || gGameMode != MG_PLAYER_SELECT) {
+    if ((gGameOptions.skip & 1) == 0 || gGameMode != MG_PLAYER_SELECT) {
         setup_player_display(i);
     }
     if (lbl_80344DA4 != 0) {
@@ -4675,7 +4675,7 @@ s32 set_hidden_player(Player* p) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                gGameOptions[6] = 1;
+                gGameOptions.fly = 1;
             }
             unlimited_options[0] = (char*)lbl_80347734;
             unlimited_options[1] = (char*)lbl_80347738;
@@ -4686,7 +4686,7 @@ s32 set_hidden_player(Player* p) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                gGameOptions[1] = 3;
+                gGameOptions.unlimited = 3;
             }
             nodamage_options[0] = (char*)lbl_80347734;
             nodamage_options[1] = (char*)lbl_80347738;
@@ -4697,7 +4697,7 @@ s32 set_hidden_player(Player* p) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                gGameOptions[0] = 1;
+                gGameOptions.no_damage = 1;
             }
             shards_options[0] = (char*)lbl_80347734;
             shards_options[1] = (char*)lbl_80347738;
@@ -4806,7 +4806,7 @@ s32 set_hidden_player(Player* p) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                gGameOptions[6] = 1;
+                gGameOptions.fly = 1;
             }
             all_unlimited_options[0] = (char*)lbl_80347734;
             all_unlimited_options[1] = (char*)lbl_80347738;
@@ -4817,7 +4817,7 @@ s32 set_hidden_player(Player* p) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                gGameOptions[1] = 3;
+                gGameOptions.unlimited = 3;
             }
             all_nodamage_options[0] = (char*)lbl_80347734;
             all_nodamage_options[1] = (char*)lbl_80347738;
@@ -4828,7 +4828,7 @@ s32 set_hidden_player(Player* p) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                gGameOptions[0] = 1;
+                gGameOptions.no_damage = 1;
             }
             all_shards_options[0] = (char*)lbl_80347734;
             all_shards_options[1] = (char*)lbl_80347738;

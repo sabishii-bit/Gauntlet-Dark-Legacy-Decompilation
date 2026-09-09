@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/options.h"
 
 /* Gauntlet Dark Legacy attract-mode / front-end sequencer.
  *
@@ -946,7 +947,6 @@ extern int lbl_80344200;
 extern int lbl_80344A2C;
 extern int lbl_80343B00;
 extern int lbl_80345030;
-extern u8 gGameOptions[];
 extern unsigned char lbl_8034421C;
 extern int lbl_80344288;
 extern char lbl_803458F0[4];
@@ -1054,7 +1054,7 @@ int init_attract_mode(int screen) {
         case 0x8003:
         case 0x8008:
             if (lbl_80344A2C != 0 || lbl_80343B00 < 0) {
-                lbl_80343B00 = *(s32*)(gGameOptions + 36);
+                lbl_80343B00 = gGameOptions.startwave;
             } else if ((ATTRACT_FLAGS64 & 0x80) == 0) {
                 lbl_80343B00 = NextAttractWave();
             }
@@ -1062,7 +1062,7 @@ int init_attract_mode(int screen) {
         }
     }
     if (lbl_80343B00 < 0) {
-        lbl_80343B00 = *(s32*)(gGameOptions + 36);
+        lbl_80343B00 = gGameOptions.startwave;
     }
     lbl_80343B0C = -1;
     switch ((u32)lbl_80344290) {

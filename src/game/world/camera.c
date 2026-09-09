@@ -41,6 +41,7 @@
  */
 
 #include "types.h"
+#include "game/options.h"
 #include "game/controls.h"
 #include "game/camera.h"
 #include "game/cameradata.h"
@@ -327,7 +328,6 @@ extern f64 lbl_80346050;
 extern f64 lbl_80346060;
 extern f64 lbl_80346068;
 extern f32 lbl_80346058;
-extern s32 gGameOptions[];
 extern u8 sTriggerCameras[];
 extern Player gPlayers[4];   /* game/player.h; stride 0x335C verified */
 extern level_data* gCurLevel;
@@ -2472,7 +2472,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
                     lbl_80344508 = lbl_80344510;
                     lbl_80344470 = 120;
                 }
-                if ((gCameraTargetCount > 1 || gGameOptions[3] >= 2) &&
+                if ((gCameraTargetCount > 1 || gGameOptions.players >= 2) &&
                     lbl_80344530 < lbl_80344524) {
                     lbl_80344530 = lbl_80344524;
                 }
@@ -2498,7 +2498,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
                     lbl_80344508 = lbl_8034450C;
                     lbl_80344470 = 120;
                 }
-                if ((gCameraTargetCount > 1 || gGameOptions[3] >= 2) &&
+                if ((gCameraTargetCount > 1 || gGameOptions.players >= 2) &&
                     lbl_80344530 < lbl_80344524) {
                     lbl_80344530 = lbl_80344524;
                 }
