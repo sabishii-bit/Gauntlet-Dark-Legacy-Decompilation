@@ -363,20 +363,21 @@ typedef struct BigapePowerupSpawn {
 } BigapePowerupSpawn;
 
 /* 0x80120618, PDB Hidden, 27 x 0x24. */
+/* 0x80120638, PDB Hidden, 27 x 0x24; the PDB field names. */
 typedef struct HiddenChar {
-    /* 0x00 */ s32 class_id;
-    /* 0x04 */ s32 char_type;
+    /* 0x00 */ s32 color;      /* class_id given to the player */
+    /* 0x04 */ s32 type;       /* character given to the player */
     /* 0x08 */ char name[8];   /* 6-char cheat name ("ICE600"..) */
-    /* 0x10 */ char code[16];  /* model/dir override tag */
-    /* 0x20 */ s32 unlocked;   /* available without cheat */
+    /* 0x10 */ char dir[16];   /* model/dir override tag */
+    /* 0x20 */ s32 disable;    /* 0 = available without the cheat */
 } HiddenChar;
 
-/* 0x801209E4, PDB Cheats, 18 x 0x14. */
+/* 0x801209E4, PDB Cheats, 18 x 0x14; the PDB field names. */
 typedef struct PupCheat {
     /* 0x00 */ char name[8];
     /* 0x08 */ s32 type;
-    /* 0x0C */ f32 value;
-    /* 0x10 */ u32 mask;
+    /* 0x0C */ f32 add;
+    /* 0x10 */ u32 flags;
 } PupCheat;
 
 static BlitSetup tb_info[7] = {
@@ -993,7 +994,7 @@ void kill_player(s32 player);
 void clear_player(s32 player, s32 full);
 void load_player(s32 player);
 void load_player_geo(s32 player, void* p);
-s32 set_hidden_player(void* p);
+s32 set_hidden_player(Player* p);
 s32 load_player_model(s32 player, void* p, s32 alt, char* name);
 s32 load_player_model_sub(s32 player, void* p, s32 cls, char* name, void* slot);
 void player_get_from_save(void* p, s32 chartype);
@@ -1006,7 +1007,7 @@ void PlayerProcessMikeyPUP(void* p);
 void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags);
 static void do_see_thru(void* p);
 static s32 ClosestChest(void* p);
-void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type, u32 mask);
+void PlayerAddPowerup(f32 duration, void* p, s32 type, u32 mask, f32 strength);
 void kill_got_it(s32 player);
 void SetPlayerWindows(s32 on);
 void PlayerRestoreState(s32 player);
@@ -3916,7 +3917,7 @@ s32 activate_player(s32 i) {
     }
     load_player(i);
     if (lbl_803447B8 == 0) {
-        PlayerAddPowerup(0.0f, 5.0f, p, 9, 4);
+        PlayerAddPowerup(0.0f, p, 9, 4, 5.0f);
     }
     for (j = 0; j < gNumEnemies; j++) {
         gEnemies[j].skip_itemcol = 0;
@@ -4632,8 +4633,7 @@ model_ready:
  * character table ("ICE600".."Rand??") and the 27-entry powerup-cheat
  * table ("INVULN"..); sets p->hidden_code + class/char on a match.
  */
-s32 set_hidden_player(void* vp) {
-    Player* p = vp;
+s32 set_hidden_player(Player* p) {
     u8* data = (u8*)tb_info;
     char* access_one[1];
     char* access_options[2];
@@ -4651,16 +4651,17 @@ s32 set_hidden_player(void* vp) {
     char* all_shards_options[2];
     char* all_runes_options[2];
     char* all_cheats_options[2];
-    s32 pick = -1;
-    s32 match = 0;
-    s32 prompt_ok;
     u32 pups = 0;
+    s32 match = 0;
+    s32 pick = -1;
+    s32 prompt_ok;
     s32 j;
     s32 k;
+    s32 i;
 
     if (strncmp(p->save.name, "DBRNKR", 6) == 0) {
-        pick = 0x10;
         match = 1;
+        pick = 0x10;
     }
     /* the interactive cheat menu (start+trigger names) */
     if ((strncmp(p->save.name, "MNTHRX", 6) == 0 ||
@@ -4781,14 +4782,14 @@ s32 set_hidden_player(void* vp) {
             if (prompt_ok != 0) {
                 for (j = 0; j < 16; j++) {
                     for (k = 0; k < 14; k++) {
-                        *((u8*)p + 0x1CD0 + p->character * 14 + k) = 0xFF;
+                        p->save.waves[p->character][k] = 0xFF;
                     }
                     for (k = 0; k < 16; k++) {
                         *(s16*)((u8*)p + j * 240 + 3566 + k * 2) = -1;
                     }
                     p->save.stuff[p->character].rune_near = 0xFFFF;
-                    for (k = 0; k < 3; k++) {
-                        *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
+                    for (i = 0; i < 3; i++) {
+                        p->save.stuff[p->character].completion1[i] = -1;
                     }
                 }
             }
@@ -4876,13 +4877,13 @@ s32 set_hidden_player(void* vp) {
             }
             for (j = 0; j < 16; j++) {
                 for (k = 0; k < 14; k++) {
-                    *((u8*)p + 0x1CD0 + p->character * 14 + k) = 0xFF;
+                    p->save.waves[p->character][k] = 0xFF;
                 }
                 for (k = 0; k < 16; k++) {
                     *(s16*)((u8*)p + j * 240 + 3566 + k * 2) = -1;
                 }
-                for (k = 0; k < 3; k++) {
-                    *(s16*)((u8*)p + p->character * 240 + 3560 + k * 2) = -1;
+                for (i = 0; i < 3; i++) {
+                    p->save.stuff[p->character].completion1[i] = -1;
                 }
                 p->save.stuff[p->character].rune_near = 0xFFFF;
             }
@@ -4904,11 +4905,11 @@ s32 set_hidden_player(void* vp) {
     for (j = 0; (u32)j < 27; j++) {
         HiddenChar* hidden = (HiddenChar*)(data + 2512) + j;
         if ((strncmp(p->save.name, hidden->name, 6) == 0 &&
-             (hidden->unlocked == 0 || lbl_80344828 > 1)) ||
+             (hidden->disable == 0 || lbl_80344828 > 1)) ||
             (match && pick == j)) {
-            p->class_id = hidden->class_id;
-            p->character = hidden->char_type;
-            p->hidden_code = hidden->code;
+            p->class_id = hidden->color;
+            p->character = ((HiddenChar*)(data + 2512))[j].type;
+            p->hidden_code = hidden->dir;
             return 1;
         }
     }
@@ -4916,21 +4917,23 @@ s32 set_hidden_player(void* vp) {
         PupCheat* cheat = (PupCheat*)(data + 3484) + j;
         if (strncmp(p->save.name, cheat->name, 6) == 0 ||
             (pups & (1 << j))) {
-            switch (cheat->type) {
+            switch (((s32*)cheat)[2]) {
             case 1:
-                p->gold = (s32)cheat->value;
+                p->gold = (s32)cheat->add;
                 break;
             case 2:
-                PF(p, offsetof(Player, item_body_lo), s32) = (s32)cheat->value;
+                p->item_body_lo = (s32)cheat->add;
                 break;
             case 4:
-                PF(p, offsetof(Player, item_body_hi), s32) = (s32)cheat->value;
+                p->item_body_hi = (s32)cheat->add;
                 break;
             default:
-                PlayerAddPowerup(cheat->value, -1.0f, p,
-                                 cheat->type, cheat->mask);
-                if (cheat->type == 9) {
-                    PF(p, offsetof(Player, flags), u32) |= cheat->mask;
+                /* type and flags are read as words of the entry: the
+                 * target keeps both addresses across the call. */
+                PlayerAddPowerup(cheat->add, p, ((s32*)cheat)[2],
+                                 ((u32*)cheat)[4], -1.0f);
+                if (((s32*)cheat)[2] == 9) {
+                    p->flags |= ((u32*)cheat)[4];
                 }
                 break;
             }
@@ -6447,7 +6450,7 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
 }
 
 /* Add/extend a powerup slot.  mask & 8 also drives the x-ray range.   */
-void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) {
+void PlayerAddPowerup(f32 duration, void* vp, s32 type, u32 mask, f32 strength) {
     PlayerPowerupOverlay* overlay = vp;
     Player* p = vp;
     f32 best = -2.0f;

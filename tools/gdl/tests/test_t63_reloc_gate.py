@@ -62,7 +62,14 @@ WF = "tools/gdl/composed_census/wf_word_diff.py"
 #: RELOC-SYMBOL MISMATCH rows at 77dd0fdef and its streams diverge in 109 of
 #: 604 words, so it exercises the exact combination both older passes miss.
 UNIT = "game/game/player"
-DEFECT_FN = "set_hidden_player"
+#: Integration 64-4 took set_hidden_player COUNT-ASYMMETRIC (603 of 604:
+#: one address recompute is still open), so it can no longer carry the
+#: gate's live measurement. kill_player is the same kind of body on the
+#: same object -- count-equal, 23 differing words, MNEMONIC DIVERGENCE 8,
+#: a clean relocation set -- and a lowered baseline still fails on it.
+#: Repoint again when it closes (any count-equal open function with
+#: mnem > 0 from `fndiff.py game/game/player --count` will do).
+DEFECT_FN = "kill_player"
 #: The LIVE carrier of the word-identical pass. `set_hidden_player`'s four
 #: rotated `.sdata2` bases were the original one; 0e4963268 recovered the
 #: target's cheat-name order and closed them, so its `--relocs` view is clean
@@ -144,7 +151,7 @@ class SyntheticRelocsView(unittest.TestCase):
             screen=screen(rows=[(0x38, "lbl_803479C8", "lbl_803479E0", True),
                                 (0x54, "lbl_803479D0", "lbl_803479C8", True)],
                           mnem=51, words=109))
-        self.assertIn("RELOC-SYMBOL MISMATCH set_hidden_player", text)
+        self.assertIn("RELOC-SYMBOL MISMATCH " + DEFECT_FN, text)
         self.assertIn("+0x0038  target lbl_803479C8   ours lbl_803479E0",
                       text)
         self.assertIn("2 WORD-IDENTICAL row(s)", text)
