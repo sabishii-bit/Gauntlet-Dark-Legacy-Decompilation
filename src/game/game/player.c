@@ -3303,6 +3303,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
     s32 hp_old;
     s32 hp_new;
     f32 hp;
+    f32 dam;
     f64 red;
     s16 hf;
 
@@ -3348,7 +3349,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
     if ((flags & 0x40000000) && (p->flags & 1)) {
         dmg = 0.0f;
     }
-    if (dmg > 0.05f) {
+    dam = dmg;
+    if (dam > 0.05f) {
         hf = p->hud_flags;
         if ((hf & 0x600) != 0) {
             f32 reduced_dmg;
@@ -3357,22 +3359,21 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             if (hf & 0x200) {
                 if (dir != NULL) {
                     red = atan2(dir[0], dir[2]) - p->move_yaw;
-                    if (red > 3.141592654) {
-                        red = red - 6.283185308;
-                    } else if (red <= -3.141592654) {
-                        red = red + 6.283185308;
-                    }
+                    red = red > 3.141592654
+                              ? red - 6.283185308
+                              : (red <= -3.141592654 ? red + 6.283185308
+                                                     : red);
                     if ((f32)red > -1.570796327 &&
                         (f32)red < 1.570796327) {
                         reduced_dmg = 0.0f;
                     } else {
-                        reduced_dmg = dmg * 0.25;
+                        reduced_dmg = dam * 0.25;
                     }
                 } else {
                     reduced_dmg = 0.0f;
                 }
             } else {
-                reduced_dmg = dmg * 0.25;
+                reduced_dmg = dam * 0.25;
             }
             if (dmg - reduced_dmg > 0.5 && p->timer_1FE <= 0) {
                 f32 clank = (f32)(0.75 * reduced_dmg);
@@ -3473,7 +3474,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         hp_old = (s32)(0.25 + hp);
         hp_new = (s32)(0.25 + p->health);
         if (dmg > 0.0f) {
-            PF(p, 0x924, f32) += dmg;
+            *(f32*)p->pad_0924 += dmg;
         }
         if (hp_old > 150 && hp_new <= 150) {
             if (msgPost(0xD, i, (u32)p->col_pos) == 0) {
@@ -3490,19 +3491,19 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                 if (dmg > 0.0f) {
                     AudioPlayerPain(i);
                 }
-                PF(p, 0x924, f32) = 0.0f;
+                *(f32*)p->pad_0924 = 0.0f;
             } else if (mode == 3) {
                 AudioPlayerPoison(i);
-                PF(p, 0x924, f32) = 0.0f;
+                *(f32*)p->pad_0924 = 0.0f;
             } else if (mode != 0) {
                 if (hp_old - hp_new > 60) {
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
-                    PF(p, 0x924, f32) = 0.0f;
+                    *(f32*)p->pad_0924 = 0.0f;
                     mode = 0;
-                } else if (PF(p, 0x924, f32) >= 45.0) {
-                    PF(p, 0x924, f32) = PF(p, 0x924, f32) - 45.0;
+                } else if (*(f32*)p->pad_0924 >= 45.0) {
+                    *(f32*)p->pad_0924 = *(f32*)p->pad_0924 - 45.0;
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
@@ -3960,7 +3961,7 @@ s32 activate_player(s32 i) {
  */
 void load_player(s32 i) {
     Player* cp = P(i);
-    Player* p = (Player*)((u8*)cp);
+    Player* p = P(i);
     s32 lvl;
     s32 exp;
     s32 product;
@@ -4082,11 +4083,11 @@ void load_player(s32 i) {
     p->field_A1C = 0;
     p->field_A1E = 0;
     p->field_A20 = 0;
-    PF(p, 0x924, f32) = 0.0f;
+    *(f32*)p->pad_0924 = 0.0f;
     p->got_timer = -1.0f;
     p->got_count = 0;
     for (j = 0; j < 5; j++) {
-        PF(p, 0xA34 + j * 4, s32) = -1;
+        p->milestone[j] = -1;
     }
     p->field_11C = 0;
     p->shield_flags = 0;
@@ -6902,10 +6903,10 @@ void UpdatePlayerWorldMat(void* vp, s32 anchor) {
 void mini_inventory_update(s32 i) {
     s32* label_table;
     u8* base = (u8*)lbl_80274EA0;
-    Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
     s32 tb_offset;
     TbInfo* tb;
     u32* held;
+    Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
     u8 moved;
     u8* selected_pup;
     u8* entry;
