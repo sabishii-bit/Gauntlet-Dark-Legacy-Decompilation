@@ -71,7 +71,7 @@
  *   0x8007A560 PlayersRestoreHealth    0x8007A614 PlayerRestoreState
  *   0x8007A6DC PlayerSaveState         0x8007A7A4 player_get_from_save
  *   0x8007AA4C player_store_in_save    0x8007AC58 player_save_controls
- *   0x8007ACC8 PlayerUpdateAtts        0x8007AE68 set_player_default_atts
+ *   0x8007ACC8 check_player_atts        0x8007AE68 set_player_default_atts
  *   0x8007AEF0 load_player_geo ("PLAYER.OBJ NODE EXISTS BEFORE LOAD")
  *   0x8007B558 set_hidden_player ("Access?".."Rand??" cheat strings)
  *   0x8007BEC8 load_player_model ("players\\%s\\sfx%s")
@@ -89,7 +89,7 @@
  *   0x8007F760 PlayerIncMagic          0x8007F7BC PlayerIncArmor
  *   0x8007F818 PlayerIncFight (Inc* stat index proven by 0xA98/9C/A0/A4
  *   displacement scan; GC order is Xbox order REVERSED)
- *   0x8007F874 check_player_atts (player_max_att auto-inlined x4)
+ *   0x8007F874 PlayerUpdateAtts (player_max_att auto-inlined x4)
  *   0x8007FAB4 SetPlayerWindows        0x8007FC80 do_got_it_8007FC80 (L)
  *   0x80080158 kill_got_it             0x800801EC add_got_it
  *   0x80080270 init_got_it             0x800802E4 UpdatePlayerWorldMat
@@ -101,7 +101,7 @@
  * Xbox fns NOT present as GC symbols (auto-inlined into the hosts above,
  * inlined-shared-helper law): player_dies + drop_keys (kill_player /
  * inactivate_player / abort_player), end_see_thru (do_see_thru),
- * player_max_att (check_player_atts x4), PlayerRestoreState's copy loop
+ * player_max_att (PlayerUpdateAtts x4), PlayerRestoreState's copy loop
  * (inactivate_player), LevelDeltaExp, GetFight..GetMissileSpd accessors,
  * PlayerProcessFamiliar / PlayerUsePowerup / DropMikey /
  * player_find_powerup_from_typemask (PlayerProcessPowerups giant),
@@ -988,7 +988,7 @@ void abort_player(s32 player);
 s32 activate_player(s32 player);
 void PlayerProcessPowerups(Player* p);
 static void PlayerProcessSkinFX(void* p);
-void check_player_atts(void* p, s32 chartype, f32* stats);
+void PlayerUpdateAtts(void* p, s32 chartype, f32* stats);
 static void do_got_it_8007FC80(void);
 void mini_inventory_update(s32 player);
 s32 heal_player(Player* p, f32 amount);
@@ -1003,7 +1003,7 @@ s32 load_player_model(s32 player, void* p, s32 alt, char* name);
 s32 load_player_model_sub(s32 player, void* p, s32 cls, char* name, void* slot);
 void player_get_from_save(void* p, s32 chartype);
 void player_store_in_save(Player* p);
-void PlayerUpdateAtts(void* p);
+void check_player_atts(void* p);
 void set_player_default_atts(void* p);
 static void create_player_blits(s32 i);
 static void GetMaxPlayerModelSize(void);
@@ -1912,7 +1912,7 @@ static void SetPlayerLevel(Player* p, f32 flevel) {
     p->exp = exp;
     p->level = level;
     set_player_default_atts(p);
-    check_player_atts(p, p->character, NULL);
+    PlayerUpdateAtts(p, p->character, NULL);
     p->health = 100.0 * (level - 1) + 500.0;
 }
 
@@ -1994,7 +1994,7 @@ static s32 ModifyExp(Player* p, s32 delta) {
         while (p->exp >= need && p->level < 99) {
             res = 1;
             p->level = p->level + 1;
-            check_player_atts(p, p->character, NULL);
+            PlayerUpdateAtts(p, p->character, NULL);
             need = CalcLevelExp(p->level + 1);
         }
     } else if (delta < 0) {
@@ -2005,7 +2005,7 @@ static s32 ModifyExp(Player* p, s32 delta) {
             }
             res = -1;
             p->level = *(volatile s32*)&p->level - 1;
-            check_player_atts(p, p->character, NULL);
+            PlayerUpdateAtts(p, p->character, NULL);
         }
     }
     return res;
@@ -3926,7 +3926,7 @@ void clear_player(s32 i, s32 full) {
             load_class++;
             stat_offset += 0x18;
         } while (load_class < 16);
-        check_player_atts(p, cls, NULL);
+        PlayerUpdateAtts(p, cls, NULL);
     }
 }
 
@@ -4268,7 +4268,7 @@ void player_get_from_save(void* vp, s32 type) {
         ATT_ARMOR(p) = 999.0f;
         ATT_MAGIC(p) = 999.0f;
         ATT_SPEED(p) = 999.0f;
-        PlayerUpdateAtts(p);
+        check_player_atts(p);
         p->level = 99;
         p->exp = 0x54218;
         cap = 100.0 * (p->level - 1) + 500.0;
@@ -4295,7 +4295,7 @@ void player_get_from_save(void* vp, s32 type) {
     p->character = type;
     p->class_id = PF(p, 0xA8A, s8);
     character = p->character;
-    PlayerUpdateAtts(p);
+    check_player_atts(p);
     offset = character * 0x18;
     p->exp = PF(p, offset + 0xA90, s32);
     exp = p->exp;
@@ -4325,7 +4325,7 @@ void player_get_from_save(void* vp, s32 type) {
     if (p->char_type >= 8) {
         p->char_type -= 8;
     }
-    check_player_atts(p, type, NULL);
+    PlayerUpdateAtts(p, type, NULL);
     memcpy((u8*)p + 0x130, p->save.stuff[type].powerups, 0xB0);
     PF(p, 0x1EC, s32) = p->save.stuff[type].npowerups;
     p->field_11C = 0;
@@ -4398,7 +4398,7 @@ void player_save_controls(s32 i) {
 }
 
 #pragma opt_propagation off
-void PlayerUpdateAtts(void* vp) {
+void check_player_atts(void* vp) {
     Player* p = vp;
     u8 unused[96];
     s32 character;
@@ -4406,7 +4406,7 @@ void PlayerUpdateAtts(void* vp) {
     LoadPlyrData(p->index, p->character, NULL);
     character = p->character;
     if (character != 2 || HIDDEN_CODE(p) != player_sumner_desc) {
-        check_player_atts(p, character, NULL);
+        PlayerUpdateAtts(p, character, NULL);
     }
     p->stat_damage = player_scale_att(&p->att_fight, lbl_80343D7C);
     p->stat_armor = player_scale_att(&p->att_armor, lbl_80343D84);
@@ -4436,7 +4436,7 @@ void set_player_default_atts(void* p) {
         *(f32*)((u8*)p + j * 0x18 + 0xAA0) = 0.0f;
         *(f32*)((u8*)p + j * 0x18 + 0xAA4) = 0.0f;
     }
-    check_player_atts(p, chartype, NULL);
+    PlayerUpdateAtts(p, chartype, NULL);
 }
 
 /* ------------------------------------------------------------------ */
@@ -6527,28 +6527,28 @@ void PlayerIncSpeed(void* vp, u32 amount) {
     PlayerAttributeOverlay* p = vp;
 
     p->bonuses[p->character].speed += (f32)(s32)amount;
-    check_player_atts(p, p->character, NULL);
+    PlayerUpdateAtts(p, p->character, NULL);
 }
 
 void PlayerIncMagic(void* vp, u32 amount) {
     PlayerAttributeOverlay* p = vp;
 
     p->bonuses[p->character].magic += (f32)(s32)amount;
-    check_player_atts(p, p->character, NULL);
+    PlayerUpdateAtts(p, p->character, NULL);
 }
 
 void PlayerIncArmor(void* vp, u32 amount) {
     PlayerAttributeOverlay* p = vp;
 
     p->bonuses[p->character].armor += (f32)(s32)amount;
-    check_player_atts(p, p->character, NULL);
+    PlayerUpdateAtts(p, p->character, NULL);
 }
 
 void PlayerIncFight(void* vp, u32 amount) {
     PlayerAttributeOverlay* p = vp;
 
     p->bonuses[p->character].fight += (f32)(s32)amount;
-    check_player_atts(p, p->character, NULL);
+    PlayerUpdateAtts(p, p->character, NULL);
 }
 
 /*
@@ -6556,7 +6556,7 @@ void PlayerIncFight(void* vp, u32 amount) {
  * the class max) + per-character bonus, clamped to 999.  The repeated
  * min(cap, base + (level-1)*5) is the auto-inlined player_max_att.
  */
-void check_player_atts(void* vp, s32 chartype, f32* stats) {
+void PlayerUpdateAtts(void* vp, s32 chartype, f32* stats) {
     Player* p = vp;
     s32 index;
     f32 cap;

@@ -399,11 +399,11 @@ typedef struct Player {
     /* 0x00E8 */ s32 state;          /* player state: 0=none 1=active 2=... (VERIFIED @232) */
     /* 0x00EC */ s32 prev_state;     /* last frame's state [player.c do_players] */
     /* 0x00F0 */ char* hidden_code;  /* active hidden-char code ptr, cmp lbl_80343D6C [player.c] */
-    /* 0x00F4 */ f32 att_fight;      /* attribute norms 0..999 (check_player_atts) [player.c] */
+    /* 0x00F4 */ f32 att_fight;      /* attribute norms 0..999 (PlayerUpdateAtts) [player.c] */
     /* 0x00F8 */ f32 att_armor;
     /* 0x00FC */ f32 att_magic;
     /* 0x0100 */ f32 att_speed;
-    /* 0x0104 */ f32 stat_damage;    /* derived stats (PlayerUpdateAtts) [player.c] */
+    /* 0x0104 */ f32 stat_damage;    /* derived stats (check_player_atts) [player.c] */
     /* 0x0108 */ f32 stat_armor;     /* absorbs in damage_player via ModifyDamage */
     /* 0x010C */ f32 magic_power;    /* potion magic power/radius (= derived magic stat) */
     /* 0x0110 */ f32 light_range;    /* derived speed stat (front slice used as light range) */

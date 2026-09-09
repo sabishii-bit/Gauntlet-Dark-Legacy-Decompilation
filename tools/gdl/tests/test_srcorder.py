@@ -234,8 +234,11 @@ class LivePlayerTests(unittest.TestCase):
         self.assertEqual(self.record["paired"], 90)
 
     def test_the_emission_order_is_predominantly_descending(self):
+        # Integration 64-7 gave our check_player_atts / PlayerUpdateAtts
+        # their PDB identities (the names were swapped), which aligns two
+        # more GC/Xbox pairs: 67/22 -> 69/20.
         self.assertEqual(self.record["steps"],
-                         {"pairs": 89, "down": 67, "up": 22, "flat": 0})
+                         {"pairs": 89, "down": 69, "up": 20, "flat": 0})
 
     def test_the_sdata2_creator_pair_is_bounded_to_one_interior_slot(self):
         found = {row["name"]: row for row in self.record["absent"]}
@@ -258,7 +261,7 @@ class LivePlayerTests(unittest.TestCase):
     def test_a_pinned_bound_is_the_common_case_not_a_rarity(self):
         pinned = [row for row in self.record["absent"] if row["width"] == 1]
         self.assertEqual(len(self.record["absent"]), 47)
-        self.assertEqual(len(pinned), 24)
+        self.assertEqual(len(pinned), 25)   # 24 before the 64-7 name swap
 
     def test_the_wrong_module_is_refused_rather_than_tabulated(self):
         with self.assertRaises(srcorder.Refused) as caught:

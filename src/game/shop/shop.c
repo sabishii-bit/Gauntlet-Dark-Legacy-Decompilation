@@ -90,7 +90,7 @@ typedef struct { s32 field_00; u8 _g1[0x0C]; s32 field_10; s32 field_14;
 /* Per-character checkpoint of the exp value at last shop entry, stride
  * 0x18 (24), at absolute pl+7900. Only field 0 is read in this TU (via
  * ExpToLevel / the this-level exp-delta calc); the remaining bytes are
- * passed opaquely to the extern check_player_atts(). */
+ * passed opaquely to the extern PlayerUpdateAtts(). */
 typedef struct { s32 field_00; } PlayerClassExpCkpt;
 
 /* Per-item shop entry record, stride 80, held in the lbl_80344C14 table
@@ -833,7 +833,7 @@ extern void ResolveWorldData(s32 key);
 
 extern s32 ExpToLevel(s32 exp);
 extern void AudioExp(s32 pad, s32 mode);
-extern void check_player_atts(u8* pl, s32 cls, u8* expslot);
+extern void PlayerUpdateAtts(u8* pl, s32 cls, u8* expslot);
 extern char* GetStringText(s32 id, s32 sub, s32 mode);
 extern char* GetStringListText(s32 id, s32 sub, s32 line, s32 mode);
 extern void DrawStringText(s32 x, s32 y, s32 font, u32 rgb, s32 msg, ...);
@@ -924,13 +924,13 @@ static s32 shop_show_lv(u8* pl, s32 final)
     {
         s32 old = *(s32*)(pl + offsetof(Player, level));
         *(s32*)(pl + offsetof(Player, level)) = lvl;
-        check_player_atts(pl, *(s32*)(pl + offsetof(Player, character)), exps);
+        PlayerUpdateAtts(pl, *(s32*)(pl + offsetof(Player, character)), exps);
         d1 = *(f32*)(pl + offsetof(Player, att_fight)) - *(f32*)(pl + offsetof(Player, field_A70));
         d2 = *(f32*)(pl + offsetof(Player, att_armor)) - *(f32*)(pl + offsetof(Player, field_A74));
         d3 = *(f32*)(pl + offsetof(Player, att_magic)) - *(f32*)(pl + offsetof(Player, field_A78));
         d4 = *(f32*)(pl + offsetof(Player, att_speed)) - *(f32*)(pl + offsetof(Player, field_A7C));
         *(s32*)(pl + offsetof(Player, level)) = old;
-        check_player_atts(pl, *(s32*)(pl + offsetof(Player, character)), 0);
+        PlayerUpdateAtts(pl, *(s32*)(pl + offsetof(Player, character)), 0);
     }
     chg = (d1 != *(f32*)(pl + offsetof(Player, att_fight)));
     if (d1 != *(f32*)(pl + offsetof(Player, att_fight)) && tick > rowgate && tick < rowgate + 60) {
