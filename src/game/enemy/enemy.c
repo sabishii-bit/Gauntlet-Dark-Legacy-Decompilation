@@ -3196,8 +3196,10 @@ void move_logic10(s32 index)
     Enemy* e;
     s32 type;
     f32 speed;
-    s32 it = lbl_80344748;
     s32 flee;
+    f32 probe[3];
+    f32 cand;
+    s32 it = lbl_80344748;
     s32 found = 0;
     f32* q;
     u8* t;
@@ -3243,10 +3245,8 @@ void move_logic10(s32 index)
     }
     update_enemy_milestone(e);
     switch (e->mode1) {
-        f32 probe[3];
     case 0: {
         s32 skip;
-        f32 cand;
         u8 _g1[24];
         if (*(s32*)(e0 + offsetof(Enemy, coll_pnum)) >= 0) {
             if (*(s16*)(e0 + offsetof(Enemy, algorithm)) != *(s16*)(e0 + offsetof(Enemy, prev_ai))) {
@@ -3390,7 +3390,6 @@ void move_logic10(s32 index)
     }
     case 1: {
         s32 skip;
-        f32 cand;
         /* Float turn arithmetic feeds a double normalization result; narrow
          * once after its join, not separately inside the wrapping arms. */
         f64 normalAngle;
@@ -3607,7 +3606,6 @@ void move_logic10(s32 index)
         break;
     }
     default: {
-        f32 cand;
         f64 normalAngle;
         if (e->algorithm != e->prev_ai) {
             format_brain(index);
