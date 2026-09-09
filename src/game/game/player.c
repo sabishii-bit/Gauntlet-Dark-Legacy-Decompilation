@@ -6662,15 +6662,17 @@ void mini_inventory_update(s32 i) {
 void mini_inventory_draw_label(s32 i) {
     char* label;
     TbInfo* tb;
+    u8* prec;
     u8 st;
     s32 x;
     s32 y;
 
-    tb = (TbInfo*) ((u8*) lbl_80274EA0 + i * 40 + 2368);
+    tb = &lbl_802757E0[i];
     if ((label = *(char**) ((u8*) lbl_80274EA0 + i * 40 + 2404)) == NULL) {
         return;
     }
-    st = *(u8*) ((u8*) lbl_80274EA0 + i * 13148 + tb->sel + 3616);
+    prec = (u8*) lbl_80274EA0 + i * PREC_STRIDE;
+    st = prec[tb->sel + 3616];
     y = *(s32*) ((u8*) lbl_80274EA0 + i * 40 + 2388) - 25;
     y += 128 - tb->slide;
     x = *(s32*) ((u8*) lbl_80274EA0 + i * 40 + 2380) + 12;
