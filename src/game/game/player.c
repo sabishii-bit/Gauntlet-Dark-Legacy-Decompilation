@@ -2937,7 +2937,7 @@ extern void ClearPlyrData(s32 player);
 /* per-frame processors                                                */
 /* ------------------------------------------------------------------ */
 
-extern const f64 lbl_803478E8;
+static const f64 lbl_803478E8 = 0.9;
 
 static inline f64 PlayerScaleMultiply(f32 value, const f64* factor)
 {
@@ -4650,8 +4650,8 @@ model_ready:
 s32 set_hidden_player(void* vp) {
     Player* p = vp;
     u8* data = (u8*)tb_info;
-    char* access_options[2];
     char* access_one[1];
+    char* access_options[2];
     char* fly_options[2];
     char* unlimited_options[2];
     char* nodamage_options[2];
@@ -4667,9 +4667,9 @@ s32 set_hidden_player(void* vp) {
     char* all_runes_options[2];
     char* all_cheats_options[2];
     s32 pick = -1;
-    u32 pups = 0;
     s32 match = 0;
     s32 prompt_ok;
+    u32 pups = 0;
     s32 j;
     s32 k;
 
@@ -5134,6 +5134,8 @@ static void create_player_blits(s32 i) {
     u16* lx = (u16*)(tab + i * 2);
     u16* rx;
     u32 tex;
+    s32 box_lx;
+    s32 box_cy;
     s32 j;
 
     frame_blit[i][0] = MBCreateBlit(0, 0, *(lx += 760), 0x130, 0x80, -1);
@@ -5185,17 +5187,19 @@ static void create_player_blits(s32 i) {
     player = PT(i);
     player->meter_flash = 0;
     rx = (u16*)(tab + i * 2) + 764;
+    box_lx = *rx - 0x40;
+    box_cy = 0x143;
     lbl_802757E0[i].sel = -1;
     lbl_802757E0[i].slide = -1;
     lbl_802757E0[i].state = 0;
-    lbl_802757E0[i].x_right = *rx - 0x34;
+    lbl_802757E0[i].x_right = box_lx + 12;
     lbl_802757E0[i].y_top = 0x14F;
-    lbl_802757E0[i].x_left = *rx - 0x40;
-    lbl_802757E0[i].y_box = 0x143;
+    lbl_802757E0[i].x_left = box_lx;
+    lbl_802757E0[i].y_box = box_cy;
     lbl_802757E0[i].tex1 = 0xF9F1;
     lbl_802757E0[i].tex2 = 0xF9F2;
     lbl_802757E0[i].label = NULL;
-    rune13_blit[i] = MBCreateBlit(0, 0, *rx - 0xE, -0x143, -1, -1);
+    rune13_blit[i] = MBCreateBlit(0, 0, *rx - 0xE, -box_cy, -1, -1);
     tex = (u32)MBOX_FindTexture_Err("BTMBK_LEVL", NULL, 1);
     mbInitBlitEntry(rune13_blit[i], tex, 0);
     mbBlitInit3414(rune13_blit[i], 1);
@@ -6903,11 +6907,11 @@ void mini_inventory_update(s32 i) {
     u32* held;
     Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
     u8 moved;
-    u8* selected_pup;
     u8* entry;
     s32 sel;
     s32 j;
     s32 count;
+    u8* selected_pup;
     s32 offset;
     s32 state;
     u8 unused[32];
