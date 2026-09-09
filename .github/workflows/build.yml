@@ -163,10 +163,24 @@ jobs:
       env:
         WINEPREFIX: /tmp/.wine
       run: |
-        # objneutral's live freshness tests use a source-built NonMatching TU.
-        # The default DOL links its extracted fallback, so a restored cache can
-        # contain a stale source object that the normal build never refreshes.
+        # Live analysis tests read source-built objects of NonMatching TUs.
+        # The default DOL links their extracted fallbacks, and a restored
+        # cache can hold objects built from an OLDER source whose mtime is
+        # newer than the checked-out source, so ninja alone keeps them.
+        # Remove every object the suite reads live, then rebuild all source
+        # objects (only the removed ones actually recompile).
+        rm -f build/GUNE5D/src/game/enemy/critter.o \
+              build/GUNE5D/src/game/game/player.o \
+              build/GUNE5D/src/game/game/controls.o \
+              build/GUNE5D/src/game/enemy/enemy.o \
+              build/GUNE5D/src/game/audio/dcsdrv.o \
+              build/GUNE5D/src/game/sound/sounds.o \
+              build/GUNE5D/src/game/movie/movieplayer.o \
+              build/GUNE5D/src/game/ui/btext.o \
+              build/GUNE5D/src/game/pb/pb_diag.o \
+              build/GUNE5D/src/game/anim/atree.o
         ninja build/GUNE5D/src/game/enemy/critter.o
+        ninja all_source
         python -m unittest discover tools/gdl/tests -b
 
     - name: Reconstruction diagnostics

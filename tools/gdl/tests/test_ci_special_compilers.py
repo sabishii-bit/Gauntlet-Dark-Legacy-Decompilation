@@ -43,6 +43,30 @@ class CiSpecialCompilerTests(unittest.TestCase):
             r"python -m unittest discover tools/gdl/tests -b",
         )
 
+    def test_ci_removes_every_live_test_object_before_rebuilding(self):
+        """A cache-restored object can be NEWER than the checked-out source
+        while its content comes from an older commit; ninja keeps it. CI must
+        delete the objects the suite reads live and rebuild through all_source
+        before the analysis suite runs (reproduced: five live failures on a
+        player.o built from 8255cd6f3, green after a real rebuild)."""
+        workflow = (ROOT / ".github/workflows/build.yml").read_text(
+            encoding="utf-8"
+        )
+        step = workflow[workflow.index("- name: Analysis tool tests"):
+                        workflow.index("- name: Reconstruction diagnostics")]
+        tests = "python -m unittest discover tools/gdl/tests -b"
+        self.assertIn("rm -f build/GUNE5D/src/", step)
+        for unit in ("game/enemy/critter", "game/game/player",
+                     "game/game/controls", "game/enemy/enemy",
+                     "game/audio/dcsdrv", "game/sound/sounds",
+                     "game/movie/movieplayer", "game/ui/btext",
+                     "game/pb/pb_diag", "game/anim/atree"):
+            self.assertIn(f"build/GUNE5D/src/{unit}.o", step)
+        self.assertIn("ninja all_source", step)
+        self.assertLess(step.index("rm -f build/GUNE5D/src/"),
+                        step.index("ninja all_source"))
+        self.assertLess(step.index("ninja all_source"), step.index(tests))
+
     def test_ci_payload_hash_matches_the_patcher_contract(self):
         script = (ROOT / "tools/gdl/mwcc_p6/build_payload.sh").read_text(
             encoding="utf-8"
