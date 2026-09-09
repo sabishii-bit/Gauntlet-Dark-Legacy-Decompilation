@@ -43,6 +43,11 @@ Tool paths may be supplied explicitly:
   -Objcopy C:\LLVM\bin\llvm-objcopy.exe
 ```
 
+CI builds the same open payload on Linux through `build_payload.sh`, pins the
+LLVM 18 toolchain family, and rejects any result whose SHA-256 differs. The
+authenticated payload is passed between jobs as a workflow artifact; no
+derived compiler executable is uploaded or committed.
+
 ## Derive a compiler
 
 Never overwrite the supplied compiler. The patcher rejects path aliases and

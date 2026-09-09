@@ -5,6 +5,24 @@ on:
   pull_request:
 
 jobs:
+  compiler_payload:
+    name: Build reviewed compiler payload
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install pinned payload toolchain family
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes clang-18 lld-18 llvm-18 nasm
+    - name: Build and authenticate open payload
+      run: sh tools/gdl/mwcc_p6/build_payload.sh
+    - name: Upload authenticated payload
+      uses: actions/upload-artifact@v4
+      with:
+        name: gdl_mwcc_p6_payload
+        path: tools/gdl/mwcc_p6/build/payload.bin
+        if-no-files-found: error
+
   source_lint:
     name: Reconstruction source lint
     runs-on: ubuntu-latest
@@ -39,6 +57,7 @@ jobs:
 
   build:
     name: Build GUNE5D
+    needs: compiler_payload
     # This is a *private* build container from gdl-build repository.
     # Contains MWCC compilers and original game files.
     container: ghcr.io/${{ github.repository_owner }}/gdl-build:main
@@ -69,6 +88,12 @@ jobs:
         cp -r /tools/mwcc_compiler tools/
         cp -r /orig/GUNE5D orig/
 
+    - name: Download authenticated compiler payload
+      uses: actions/download-artifact@v4
+      with:
+        name: gdl_mwcc_p6_payload
+        path: tools/gdl/mwcc_p6/build
+
     # The container's ninja-compatible builder lacks `-t deps`, which the
     # provenance audit requires. Use pinned Ninja for builds and diagnostics.
     - name: Install diagnostic-capable Ninja
@@ -87,13 +112,30 @@ jobs:
         key: ${{ runner.os }}-gune5d-v2-${{ github.sha }}
         restore-keys: ${{ runner.os }}-gune5d-v2-
 
+    # The normal compiler archive does not redistribute the reviewed local
+    # derivatives. Derive both from authenticated bases and the open payload.
+    - name: Install authenticated compiler profiles
+      run: |
+        if [ -f build/compilers/GC/1.2.5/mwcceppc.exe ] && \
+           [ -f build/compilers/GC/1.2.5n/mwcceppc.exe ]; then
+          python tools/gdl/mwcc_p6/setup_compilers.py build/compilers \
+            --payload tools/gdl/mwcc_p6/build/payload.bin
+        else
+          python tools/download_tool.py compilers build/compilers \
+            --tag 20251118 \
+            --gdl-special-compilers \
+            --gdl-special-payload tools/gdl/mwcc_p6/build/payload.bin
+        fi
+
     # Configure the project. decomp-toolkit (dtk) is downloaded automatically
     # as a native Linux binary at the version pinned in configure.py (dtk_tag).
+    # The explicit profile makes CI/reporting compile gamemain.c with 1.2.5s
+    # and registry.c with 1.2.5sn instead of measuring their fallback state.
     - name: Configure
       run: |
         ninja --version
         ninja -t list
-        python configure.py -v GUNE5D
+        python configure.py -v GUNE5D --experimental-p6-compiler
 
     # Build the project using ninja
     - name: Build
