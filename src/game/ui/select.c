@@ -45,6 +45,7 @@
  */
 
 #include "types.h"
+#include "game/options.h"
 #include "game/controls.h"
 #include "__va_arg.h"
 #include "game/gamemode.h"
@@ -64,7 +65,6 @@
 #endif
 
 /* ---- boss-requirement table (this TU, .data 0x80121DD8, 12 x 0x24) ---- */
-typedef struct SelOptsView { u8 _pad[44]; u32 flags44; } SelOptsView;
 typedef struct BossRuneReq {
     s32 boss;      /* +0x00 */
     s32 _04;
@@ -2797,7 +2797,6 @@ extern s32 lbl_80344B9C;
 extern s32 lbl_80344BA0;
 extern s32 lbl_80344BA4;
 extern s32 sLastWorldLevel;
-extern u8 gGameOptions[];
 extern u8 lbl_80284878[];
 extern f64 lbl_80348038;
 extern void fn_80053C70(void);
@@ -2910,7 +2909,7 @@ void init_player_select(s32 mode)
                 *(s32*)(blits + joff + offsetof(BlitEntry, mode)) = 0;
             }
             *(s32*)(pl + offsetof(Player, exit_dest)) = sLastWorldLevel;
-            if (!(((SelOptsView*)gGameOptions)->flags44 & 1)) {
+            if (!(gGameOptions.skip & 1)) {
                 setup_tex(i3, 0, 0, 0, pool + 868, i3 + 1);
                 setup_tex(i3, 1, 0, 0, pool + 880, i3 + 1);
                 setup_tex(i3, 9, 16384, 0, pool + 892);
@@ -2931,7 +2930,7 @@ void init_player_select(s32 mode)
                             (f32)*(s32*)(page + 152 + offsetof(BlitPlacement, scale)));
         }
     }
-    if (!(*(u32*)((u32)gGameOptions + offsetof(SelOptsView, flags44)) & 1)) {
+    if (!(gGameOptions.skip & 1)) {
         lbl_80344B90 = 0;
         lbl_80344B98 = 0;
         lbl_80344B94 = 0;

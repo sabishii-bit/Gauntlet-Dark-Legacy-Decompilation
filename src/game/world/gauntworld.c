@@ -4,6 +4,7 @@
  * GameCube text order below is the linked order. Names still spelled
  * fn_XXXXXXXX are unnamed in symbols.txt. */
 #include "types.h"
+#include "game/options.h"
 #include "game/critter.h"
 #include "game/effect.h"
 #include "game/enemy.h"
@@ -312,9 +313,6 @@ typedef struct WorldDataType {
 extern WorldDataType sWorldDataTypes[];
 
 extern s32  lbl_802511FC[];        /* per-index sign-flip table          */
-/* gGameOptions is a byte-offset view in this TU; the block below uses the
- * same *(s32*)(gGameOptions + N) form as the rest of the file. */
-extern u8    gGameOptions[];
 extern s32  lbl_802577CC[];        /* 8 keys                             */
 extern s8*  lbl_8025776C[];        /* 8 parallel object pointers         */
 
@@ -928,7 +926,7 @@ s32 init_next_level_8005638C(s32 arg0)
     result = LoadWorldDone(tbl + 172);
     GetEnemyTypes();
 
-    if (*(s32*)(gGameOptions + 8) < 2 && gBossType < 0 && arg0 != sWorldDataConst &&
+    if (gGameOptions.gen_active < 2 && gBossType < 0 && arg0 != sWorldDataConst &&
         lbl_80344738 < 0) {
         lbl_80344738 = LoadModel("gen", 0, 0, -1);
     }
@@ -1408,7 +1406,7 @@ void fn_80057024(void)
     lbl_80344880 = (f32)(gWorldInfo.worldmin[1] - lbl_80346C98);
     GetEnemyTypes();
 
-    if (*(s32*)(gGameOptions + 8) < 2 && gBossType < 0 && sMusicTrackHi != 13 &&
+    if (gGameOptions.gen_active < 2 && gBossType < 0 && sMusicTrackHi != 13 &&
         lbl_80344738 < 0) {
         lbl_80344738 = LoadModel("gen", 0, 0, -1);
     }
@@ -1657,7 +1655,7 @@ void GetEnemyTypes(void)
             row->reverse = rowType;
         }
     }
-    if (*(s32*)(gGameOptions + 8) < 2) {
+    if (gGameOptions.gen_active < 2) {
         for (i = 0; i < 8; i++) {
             u8* words;
             words = tbl;
@@ -1917,7 +1915,7 @@ s32 PrevWorldLevel(s32 waveMask)
     currentWorld = sCurWorldIndex;
     worldIndex = currentWorld;
     if (gWorldData == 0) {
-        return *(s32*)(gGameOptions + 36);
+        return gGameOptions.startwave;
     }
     if (waveMask == -1) {
         level = -1;
@@ -1968,7 +1966,7 @@ s32 NextWorldLevel(s32 waveMask)
     currentWorld = sCurWorldIndex;
     worldIndex = currentWorld;
     if (gWorldData == 0) {
-        return *(s32*)(gGameOptions + 36);
+        return gGameOptions.startwave;
     }
     if (waveMask == -1) {
         level = 99;
@@ -2585,7 +2583,7 @@ void LoadWorldData(void)
     sCurLevelHasCameras = -1;
     gWorldData = 0;
     gCurLevel  = 0;
-    ids = (s32*)(gGameOptions + 36);
+    ids = &gGameOptions.startwave;
     *ids = fn_80057F44(*ids, 1);
     sWorldDataConst = 0xD00;
 }

@@ -16,6 +16,7 @@
  * extabindex  0x800093A0..0x8000970C
  */
 #include "types.h"
+#include "game/options.h"
 #include "game/critter.h"
 #include "game/effect.h"
 #include "game/enemy.h"
@@ -638,7 +639,6 @@ extern f32   lbl_80346570;
 extern f32   lbl_8034464C;
 extern u32   sFlags;
 extern s32   gBossDead;
-extern s32   gGameOptions[];
 DECL_SECT(".sdata2") extern const char lbl_803465E0[];
 DECL_SECT(".sdata2") extern const char lbl_803465E4[];
 DECL_SECT(".sdata2") extern const char lbl_803465E8[];
@@ -3023,7 +3023,7 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
     }
     critterClass = c->hdr->descriptor->type;
 
-    if (gGameOptions[0] == 3 && player >= 0) {
+    if (gGameOptions.no_damage == 3 && player >= 0) {
         damage = lbl_80346560;
     }
     if (critterClass != 4 &&
@@ -4138,7 +4138,7 @@ s32 CritterBossAI(Critter *c)
         }
     }
 
-    if ((gControllerButtons & 0x10) != 0 && gGameOptions[8] != 0) {
+    if ((gControllerButtons & 0x10) != 0 && gGameOptions.showpos != 0) {
         distance = -1.0f;
         angle = distance;
         if (c->targetCount > 0) {
@@ -5548,7 +5548,6 @@ extern void *DmgFxConeAdd(void *emitter, f32 a, f32 b, f32 c, f32 d, f32 *v,
                           s32 z);
 extern void  BossSpewCoins(f32 *origin, f32 *dir, f32 angle);
 extern f32   acosf(f32 x);
-extern s32   gGameOptions[];
 extern f32   lbl_80127D00[];
 extern f64   lbl_80346610;
 extern f32   lbl_803464F0;
@@ -5619,7 +5618,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
         }
         if (c->emitter != NULL) {
             DmgFxCircleUpdate(c->emitter, desc->maxDistance, 1);
-        } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+        } else if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
             c->emitter = DmgFxCircleAdd(c->obj_d0, desc->maxDistance,
                                         desc->pitch,
                                         desc->yaw,
@@ -5635,7 +5634,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             DmgFxConeUpdate(c->emitter, desc->radius,
                             desc->maxDistance, desc->pitch,
                             desc->yaw, 1);
-        } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+        } else if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
             c->emitter = DmgFxConeAdd(c->obj_d0, desc->radius,
                                       desc->maxDistance,
                                       desc->pitch,
@@ -5668,7 +5667,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             }
             if (c->emitter != NULL) {
                 DmgFxCircleUpdate(c->emitter, desc->maxDistance, 1);
-            } else if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+            } else if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
                 c->emitter = DmgFxCircleAdd(c->obj_d0, desc->maxDistance,
                                             desc->pitch,
                                             desc->yaw,
@@ -5948,7 +5947,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
             SfxSetPhysics(result, NULL, NULL, desc->gravity, radius);
         }
 
-        if ((gControllerButtons & 0x10) != 0 && gGameOptions[8] != 0) {
+        if ((gControllerButtons & 0x10) != 0 && gGameOptions.showpos != 0) {
             DmgFxAdd(result);
         }
     }
@@ -6898,7 +6897,7 @@ void CritterInitColnodes(Critter *c)
                 }
             }
         }
-        if ((gControllerButtons & 0x10) && gGameOptions[8]) {
+        if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
             record->dmgfx = DmgFxCircleAdd(
                 record->active, record->descriptor->radius,
                 lbl_80346470, lbl_80346470,
