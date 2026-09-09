@@ -183,7 +183,7 @@ extern void  fn_8009C378(void); /* play shard-near audio cue */
 extern Player gPlayers[4];
 
 /* tower/sumner state (r13 small-data globals) */
-extern s32 lbl_80343D6C;
+extern char* player_sumner_desc;
 extern s32 lbl_80343E48;
 extern s32 lbl_80343E4C;
 extern s32 lbl_80343E50;
@@ -484,7 +484,7 @@ int towerAwardWorldRunes(void) {
 int towerGetLevelFlag(u8* rec, int level) {
     u32 offset;
 
-    if (*(u32*)(rec + offsetof(Player, hidden_code)) == (u32)lbl_80343D6C) {
+    if (*(u32*)(rec + offsetof(Player, hidden_code)) == (u32)player_sumner_desc) {
         return -1;
     }
     offset = *(s32*)(rec + offsetof(Player, character)) * 14;
@@ -569,7 +569,7 @@ static inline int towerLevelStatusA(int player, int level) {
         return 0;
     }
     world = PLAYER_AT(player, offsetof(Player, hidden_code), u32);
-    if (world == (u32)lbl_80343D6C) {
+    if (world == (u32)player_sumner_desc) {
         return 2;
     }
     record = &gPlayers[player];
@@ -672,7 +672,7 @@ static inline int towerLevelStatusB(int player, int level) {
         return 0;
     }
     world = PLAYER_AT(player, offsetof(Player, hidden_code), u32);
-    if (world == (u32)lbl_80343D6C) {
+    if (world == (u32)player_sumner_desc) {
         return 2;
     }
     record = &gPlayers[player];
@@ -722,7 +722,7 @@ int towerLevelStatus(int player, int level) {
         return 0;
     }
     world = PLAYER_AT(player, offsetof(Player, hidden_code), u32);
-    if (world == (u32)lbl_80343D6C) {
+    if (world == (u32)player_sumner_desc) {
         return 2;
     }
     value = gPlayers[player].save.stuff[gPlayers[player].character].completion2[level];
@@ -1188,7 +1188,7 @@ void TowerCheckMessages(s32 mode) {
             for (i = 0; i < 4; i++) {
                 Player* p = &gPlayers[i];
 
-                if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
+                if (p->state != 0 && (u32)p->hidden_code != (u32)player_sumner_desc) {
                     runeGot |= p->runes;
                     runeBanked |= p->save_backup.stuff[p->character].rune_stones;
                     p->save.stuff[p->character].rune_stones |= p->runes;
@@ -1215,7 +1215,7 @@ void TowerCheckMessages(s32 mode) {
             for (i = 0; i < 4; i++) {
                 Player* p = &gPlayers[i];
 
-                if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
+                if (p->state != 0 && (u32)p->hidden_code != (u32)player_sumner_desc) {
                     shardGot |= p->shards;
                     shardBanked |= p->save_backup.stuff[p->character].rune_stones2;
                     p->save.stuff[p->character].rune_stones2 |= p->shards;
@@ -1279,7 +1279,7 @@ void TowerCheckMessages(s32 mode) {
                     Player* p = &gPlayers[i];
 
                     if (p->state != 0 &&
-                        (u32)p->hidden_code != (u32)lbl_80343D6C) {
+                        (u32)p->hidden_code != (u32)player_sumner_desc) {
                         s32 val = p->save.stuff[p->character].completion1[j];
 
                         if (levels[j] >= 0 && (val < 0 || val > levels[j])) {
@@ -1312,7 +1312,7 @@ void TowerCheckMessages(s32 mode) {
                         Player* p = &gPlayers[i];
 
                         if (p->state != 0 &&
-                            (u32)p->hidden_code != (u32)lbl_80343D6C) {
+                            (u32)p->hidden_code != (u32)player_sumner_desc) {
                             s32 val = p->save.stuff[p->character].completion2[j];
 
                             if (bosses[j] >= 0 && (val < 0 || val > bosses[j])) {
@@ -1418,7 +1418,7 @@ void EnterTower(void) {
                 if (p->state == 0) {
                     st = 0;
                 } else if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) ==
-                           (u32)lbl_80343D6C) {
+                           (u32)player_sumner_desc) {
                     st = 2;
                 } else {
                     s32 val =
@@ -1467,7 +1467,7 @@ void EnterTower(void) {
                     if (p->state == 0) {
                         st = 0;
                     } else if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) ==
-                               (u32)lbl_80343D6C) {
+                               (u32)player_sumner_desc) {
                         st = 2;
                     } else {
                         s32 val =
@@ -1498,7 +1498,7 @@ void EnterTower(void) {
         Player* p = &gPlayers[i];
 
         if (p->state != 0) {
-            if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) == (u32)lbl_80343D6C) {
+            if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) == (u32)player_sumner_desc) {
                 runes = 0x7FE;
             } else {
                 runes |= *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_RUNES_OFF);
@@ -1545,7 +1545,7 @@ void EnterTower(void) {
         Player* p = &gPlayers[i];
 
         if (p->state != 0) {
-            if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) == (u32)lbl_80343D6C) {
+            if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) == (u32)player_sumner_desc) {
                 shards = 0x1FFF;
             } else {
                 shards |= *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_SHARDS_OFF);
@@ -2026,7 +2026,7 @@ int sumnerCheckLevelUp(void) {
     for (p = &gPlayers[0], i = 0, off = 0; i < 4; i++, off += 4, p++) {
         levelSlot = (u8*)s + off;
         *(s32*)(levelSlot += offsetof(TowerMsgState, levelUpLevel)) = 0;
-        if (p->state != 0 && *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+        if (p->state != 0 && *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)player_sumner_desc) {
             int lvlOld = ExpToLevel(*(s32*)((u8*)p + p->character * 24 + CHAR_EXP_SHADOW_OFF));
             int lvlNew = ExpToLevel(p->exp);
 

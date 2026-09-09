@@ -92,7 +92,7 @@ extern char lbl_80348018[8]; /* save-file name prefix (5 chars checked) */
 s32 get_vmu_directory(s32 a, s32 b);
 extern s32 lbl_803448AC;   /* front-end screen id (8 = in-game shop?) */
 extern s32 lbl_803448A8;   /* front-end sub-state                     */
-extern u32 lbl_80343D6C;   /* current save-file owner tag             */
+extern char* player_sumner_desc; /* the Sumner hidden-character tag  */
 s32 vmu_directory_exists();
 extern s32 gGameMode;
 extern char lbl_801143F8[];  /* select-screen string pool             */
@@ -1560,7 +1560,7 @@ s32 do_player_select(void)
             }
             ch = *(s32*)(pl + offsetof(Player, character));
             if (ch == 2 &&
-                *(u32*)(pl + offsetof(Player, hidden_code)) == lbl_80343D6C) {
+                *(char**)(pl + offsetof(Player, hidden_code)) == player_sumner_desc) {
                 setup_tex(i, 8, 0, 0, pool + 232);
             } else {
                 setup_tex(i, 8, 0, 0, lbl_80347F58, lbl_801200B0[ch]);
@@ -2407,7 +2407,7 @@ static s32 sel_set_choice(s32 player, s32 mode)
                 ((VmuMenuEntry*)e)->value = -1;
             } else {
                 owner = *(u32*)(pl + offsetof(Player, hidden_code));
-                if (owner != 0 && owner != lbl_80343D6C) {
+                if (owner != 0 && owner != (u32)player_sumner_desc) {
                     ((VmuMenuEntry*)e)->value = -1;
                 } else {
                     ((VmuMenuEntry*)e)->value = 0;
@@ -2712,7 +2712,7 @@ substate:
         break;
     case 1:
         cls = *(s32*)(pl + offsetof(Player, character));
-        if (cls == 2 && *(u32*)(pl + offsetof(Player, hidden_code)) == lbl_80343D6C) {
+        if (cls == 2 && *(char**)(pl + offsetof(Player, hidden_code)) == player_sumner_desc) {
             setup_tex(player, 8, 0, 0, pool + 232);
         } else {
             setup_tex(player, 8, 0, 0, lbl_80347F58,

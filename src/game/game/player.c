@@ -982,7 +982,7 @@ static s32 all_players_go_to_same_level(void);
 void inactivate_player(s32 player);
 void abort_player(s32 player);
 s32 activate_player(s32 player);
-void PlayerProcessPowerups(void* p);
+void PlayerProcessPowerups(Player* p);
 static void PlayerProcessSkinFX(void* p);
 void check_player_atts(void* p, s32 chartype, f32* stats);
 static void do_got_it_8007FC80(void);
@@ -998,7 +998,7 @@ s32 set_hidden_player(Player* p);
 s32 load_player_model(s32 player, void* p, s32 alt, char* name);
 s32 load_player_model_sub(s32 player, void* p, s32 cls, char* name, void* slot);
 void player_get_from_save(void* p, s32 chartype);
-void player_store_in_save(void* p);
+void player_store_in_save(Player* p);
 void PlayerUpdateAtts(void* p);
 void set_player_default_atts(void* p);
 static void create_player_blits(s32 i);
@@ -4324,15 +4324,13 @@ void player_get_from_save(void* vp, s32 type) {
 #pragma dont_inline off
 
 /* Pack the live fields into the per-character slots + image header.   */
-void player_store_in_save(void* vp) {
+void player_store_in_save(Player* p) {
     s32 chartype;
     s32 total;
     s32 player;
-    Player* p;
     s32* st;
     s32 j;
 
-    p = vp;
     total = 0;
     chartype = p->character;
     player = p->index;
@@ -5355,8 +5353,7 @@ void* PlayerModel(s32 i) {
     } while (0)
 
 #pragma opt_propagation off
-void PlayerProcessPowerups(void* vp) {
-    Player* p = vp;
+void PlayerProcessPowerups(Player* p) {
     u8 unused[112];
     u32 old_flags;
     s32 index = p->index;
