@@ -5448,8 +5448,7 @@ void PlayerProcessPowerups(Player* p) {
         case 9:
             p->flags |= p->powerup[i].specialflags;
             if (p->powerup[i].specialflags & 0x80000) {
-                p->power_target =
-                    (f32)((f64)p->power_target + 100.0);
+                p->power_target += 100.0;
                 if ((f64)p->power_target > 100.0) {
                     p->power_target = 100.0f;
                 }
