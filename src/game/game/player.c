@@ -312,18 +312,452 @@ static void* crystal_blit[4][8];   /* 0xAA0 (0x80275940) crystal icons */
 static void* rune_blit[4][12];     /* 0xB20 (0x802759C0) rune-stone icons */
 static void* frame_blit[4][6];     /* 0xBE0 (0x80275A80) portrait frame set */
 
+
+/* ------------------------------------------------------------------ */
+/* This TU's .data tables, 0x8011FC48..0x80120B4C.                     */
+/*                                                                     */
+/* Recovered from the DOL run and the Xbox PLAYER.OBJ globals: every    */
+/* object's size equals its PDB size, the declaration order below is    */
+/* the DOL address order, and the string initialisers are the .rodata   */
+/* front block 0x80113AE0..0x80113E28 in creation order.  The HUD code  */
+/* below still reaches most of them through `(u8*)tb_info + N`, which   */
+/* is how the original addressed the run; those sites are unchanged.    */
+/* heart_rate (0x801201C4), box_lx (0x80120238) and box_cx (0x80120240) */
+/* stay extern: the target materialises their addresses with addend 0,  */
+/* so they are separate objects, and MWCC places an initialised object  */
+/* of 8 bytes or less in .sdata, which would move them out of .data.    */
+/* ------------------------------------------------------------------ */
+
+/* 0x8011FC48, PDB tb_info, 7 x 20 B.  Only the DOL's field widths are  */
+/* recovered ({s32, char*, s32, s32, s32}); the roles of the three      */
+/* trailing words are not, so they keep offset names.                   */
+typedef struct BlitSetup {
+    /* 0x00 */ s32 unk00;
+    /* 0x04 */ char* name;
+    /* 0x08 */ s32 unk08;
+    /* 0x0C */ s32 unk0C;
+    /* 0x10 */ s32 unk10;
+} BlitSetup;
+
+/* 0x8011FCE8, PDB mini_inv_items, 75 x 12 B; layout from the Xbox
+ * `mini_inv_item` struct row (type, specialflags, name). */
+typedef struct MiniInvItem {
+    /* 0x00 */ s32 type;
+    /* 0x04 */ s32 specialflags;
+    /* 0x08 */ char* name;
+} MiniInvItem;
+
+/* 0x80120274, PDB gOverlayPUPParams (Xbox tPUPType[3]). */
+typedef struct BigapePowerupInfo {
+    char* name;
+    u32 flags;
+} BigapePowerupInfo;
+
+/* 0x8012028C, PDB fNewPUPDescs (Xbox tPUPDesc[39]). */
+typedef struct BigapePowerupSpawn {
+    char level[4];
+    s32 type;
+    f32 x;
+    f32 y;
+    f32 z;
+} BigapePowerupSpawn;
+
+/* 0x80120618, PDB Hidden, 27 x 0x24. */
+typedef struct HiddenChar {
+    /* 0x00 */ s32 class_id;
+    /* 0x04 */ s32 char_type;
+    /* 0x08 */ char name[8];   /* 6-char cheat name ("ICE600"..) */
+    /* 0x10 */ char code[16];  /* model/dir override tag */
+    /* 0x20 */ s32 unlocked;   /* available without cheat */
+} HiddenChar;
+
+/* 0x801209E4, PDB Cheats, 18 x 0x14. */
+typedef struct PupCheat {
+    /* 0x00 */ char name[8];
+    /* 0x08 */ s32 type;
+    /* 0x0C */ f32 value;
+    /* 0x10 */ u32 mask;
+} PupCheat;
+
+static BlitSetup tb_info[7] = {
+    { -1, "trbo_full_new", 0, 304, 63998 },
+    { -1, "trbo_full_new", 0, 304, 63999 },
+    { -1, "trbo_glint", 0, 304, 63997 },
+    { -1, "turbo_glow_new", 0, 304, 63996 },
+    { -1, "black_bar", -1, -1, 63995 },
+    { -1, "black_bar", -1, -1, 63995 },
+    { -1, "trbo_gleem1", 80, 310, 63995 },
+};
+
+static char* potionicon_tab[5] = {
+    "POTION_ICON_RED",
+    "POTION_ICON_RED",
+    "POTION_ICON_BLU",
+    "POTION_ICON_YEL",
+    "POTION_ICON_GRE",
+};
+
+static MiniInvItem mini_inv_items[75] = {
+    { 9, 0x00000001, "Levitation" },
+    { 9, 0x00000002, "XRay" },
+    { 9, 0x00000004, "Invisible" },
+    { 9, 0x00000008, "StopTime" },
+    { 9, 0x00000010, "FireBreath" },
+    { 9, 0x00000020, "AcidBreath" },
+    { 9, 0x00000040, "LightningBreath" },
+    { 9, 0x00000080, "Phoenix" },
+    { 9, 0x00000100, "Growth" },
+    { 9, 0x00000200, "EnemyShrink" },
+    { 9, 0x00000400, "Pojo" },
+    { 9, 0x00001000, "BossHorns" },
+    { 9, 0x00002000, "BossMask" },
+    { 9, 0x00004000, "BossGauntR" },
+    { 9, 0x00008000, "BossGauntL" },
+    { 9, 0x00010000, "Speed" },
+    { 9, 0x00020000, "Heath" },
+    { 9, 0x00040000, "Dummy" },
+    { 9, 0x00080000, "Turbo" },
+    { 9, 0x00100000, "Mikey" },
+    { 9, 0x00200000, "HandOfDeath" },
+    { 9, 0x00400000, "HealthVamp" },
+    { 6, 0x00000001, "Fire Shield" },
+    { 6, 0x00000002, "Elec Shield" },
+    { 6, 0x00000004, "Resist Light" },
+    { 6, 0x00000008, "Gas Mask" },
+    { 6, 0x00000010, "Resist Magic" },
+    { 6, 0x00000100, "Immune Fire" },
+    { 6, 0x00000200, "Immune Elec" },
+    { 6, 0x00000400, "Immune Light" },
+    { 6, 0x00000800, "Immune Acid" },
+    { 6, 0x00001000, "Immune Magic" },
+    { 6, 0x00002000, "Immune Gas" },
+    { 6, 0x00010000, "Invulnerable" },
+    { 6, 0x00020000, "Reflective Armor" },
+    { 6, 0x00040000, "Knockback Armor" },
+    { 6, 0x00080000, "AntiDeath" },
+    { 6, 0x00100000, "Gold Invuln" },
+    { 6, 0x00200000, "Fire Armor" },
+    { 6, 0x00400000, "Elec Armor" },
+    { 6, 0x00800000, "Armor Protect" },
+    { 6, 0x01000000, "Armor Reflect" },
+    { 5, 0x00000010, "KnockBack" },
+    { 5, 0x00000020, "KnockDown" },
+    { 5, 0x00000040, "BlownAway" },
+    { 5, 0x00000080, "Stun" },
+    { 5, 0x00000100, "KnockOver" },
+    { 5, 0x00000200, "Magic" },
+    { 5, 0x00000400, "Explode" },
+    { 5, 0x00000800, "PoisonGas" },
+    { 5, 0x00001000, "DeathStun" },
+    { 5, 0x00002000, "Spike" },
+    { 5, 0x00004000, "Grabbed" },
+    { 5, 0x00008000, "Thrown" },
+    { 5, 0x00010000, "Whirlwind" },
+    { 5, 0x00020000, "Arrow" },
+    { 5, 0x00040000, "FireBall" },
+    { 5, 0x00080000, "3Way Shot" },
+    { 5, 0x00100000, "Super Shot" },
+    { 5, 0x00200000, "Weapon Reflect" },
+    { 5, 0x00400000, "5Way Shot" },
+    { 5, 0x00800000, "Weapon Heal" },
+    { 5, 0x01000000, "No Hit" },
+    { 5, 0x02000000, "Weapon Turbo" },
+    { 5, 0x04000000, "Weapon Sticky" },
+    { 5, 0x08000000, "Weapon Sticky" },
+    { 5, 0x10000000, "Hammer" },
+    { 5, 0x20000000, "RapidFire" },
+    { 5, 0x40000000, "Weapon Low" },
+    { 5, 0x00000000, "Weapon" },
+    { 7, 0x00000000, "Speed" },
+    { 8, 0x00000000, "Magic" },
+    { 9, 0x00000000, "Special" },
+    { 6, 0x00000000, "Armor" },
+    { 0, 0x00000000, "Cheat" },
+};
+
+char player_desc[17][4] = {
+    "war",
+    "val",
+    "wiz",
+    "arc",
+    "dwf",
+    "kni",
+    "sor",
+    "jes",
+    "min",
+    "fal",
+    "jac",
+    "tig",
+    "ogr",
+    "uni",
+    "med",
+    "hye",
+    "sum",
+};
+
+char player_desc_uc[17][4] = {
+    "WAR",
+    "VAL",
+    "WIZ",
+    "ARC",
+    "DWF",
+    "KNI",
+    "SOR",
+    "JES",
+    "MIN",
+    "FAL",
+    "JAC",
+    "TIG",
+    "OGR",
+    "UNI",
+    "MED",
+    "HYE",
+    "SUM",
+};
+
+static char* player_color[4] = {
+    "yel",
+    "blu",
+    "red",
+    "gre",
+};
+
+char* player_color_uc[4] = {
+    "YEL",
+    "BLU",
+    "RED",
+    "GRE",
+};
+
+static char* player_blit_color[4] = {
+    "YELO",
+    "BLUE",
+    "RED",
+    "GREEN",
+};
+
+static char* player_pri_atts[8] = {
+    "STRENTH",
+    "ARMOR",
+    "MAGIC",
+    "SPEED",
+    "STRENTH",
+    "ARMOR",
+    "MAGIC",
+    "SPEED",
+};
+
+static char* player_lhand[16] = {
+    "L_WRIST",
+    "L_WRIST",
+    "L_WRIST",
+    "L_WRIST",
+    "LEFTHAND",
+    "LEFTHAND",
+    "LEFTHAND",
+    "LEFTHAND",
+    "L_WRIST",
+    "L_WRIST",
+    "L_WRIST",
+    "L_WRIST",
+    "LEFTHAND",
+    "LEFTHAND",
+    "LEFTHAND",
+    "LEFTHAND",
+};
+
+static char* player_rhand[16] = {
+    "R_WRIST",
+    "R_WRIST",
+    "R_WRIST",
+    "R_WRIST",
+    "RIGHTHAN",
+    "RIGHTHAN",
+    "RIGHTHAN",
+    "RHEND",
+    "R_WRIST",
+    "R_WRIST",
+    "R_WRIST",
+    "R_WRIST",
+    "RIGHTHAN",
+    "RIGHTHAN",
+    "RIGHTHAN",
+    "RHEND",
+};
+
+/* 0x80113E0C "MIKEYPUP" and the 16 bytes at 0x80113E18 are both in the DOL's
+ * .rodata run, and a whole-image word scan finds no pointer to either: they
+ * are compiled here, dead-stripped by mwld as unreferenced, and only their
+ * bytes reach the image -- the same compiler-object-only device as
+ * any_player_walking.  Both are load-bearing input for the literal pool.
+ * The Xbox PDB names gMikeyPUPName in PLAYER.OBJ; the const is anonymous
+ * there too (PLAYER.OBJ .rdata row 0001:0005C998, 16 bytes), so it keeps the
+ * project's lbl_ADDR placeholder until a name appears. */
+static char* gMikeyPUPName = "MIKEYPUP";
+static const s32 lbl_80113E18[4] = { 1, 15, 37, 51 };
+
+static u32 player_pal[4] = { 0x00FFFF80, 0x0087CEEB, 0x00FFC0E0, 0x0080FF80 };
+static u32 player_rgb[4] = { 0x00787800, 0x001E1E78, 0x00780000, 0x00006400 };
+static u32 player_inactive_rgb[4] = { 0x005A5A1E, 0x001E1E69, 0x00642828, 0x001E4B1E };
+
+static f32 player_light_color[4][4] = {
+    { 2.0f, 2.0f, 1.5f, 0.0f },
+    { 1.5f, 1.5f, 2.0f, 0.0f },
+    { 2.0f, 1.5f, 1.5f, 0.0f },
+    { 1.5f, 2.0f, 1.5f, 0.0f },
+};
+
+static char sHANDOFDEATH[15] = "HANDOFDEATHPUP";
+static char sHEALTHVAMP[14] = "HEALTHVAMPPUP";
+static char sMIKEY[9] = "MIKEYPUP";
+
+static BigapePowerupInfo gOverlayPUPParams[3] = {
+    { sHANDOFDEATH, 0x00200000 },
+    { sHEALTHVAMP, 0x00400000 },
+    { sMIKEY, 0x00100000 },
+};
+
+static BigapePowerupSpawn fNewPUPDescs[39] = {
+    { "G3", 0, 99.9f, -20.0f, -293.6f },
+    { "B3", 2, 72.3f, 35.3f, -13.5f },
+    { "B4", 1, 1.2f, 1.0f, 25.3f },
+    { "B5", 2, 67.3f, 5.8f, -186.5f },
+    { "A1", 0, 50.9f, 0.0f, 20.6f },
+    { "A3", 1, 79.6f, 43.6f, -111.3f },
+    { "A4", 2, 0.6f, -16.1f, -34.2f },
+    { "K1", 2, 57.8f, 0.0f, 21.8f },
+    { "K2", 0, -21.8f, 49.6f, 71.7f },
+    { "K3", 1, -116.0f, 35.3f, -378.6f },
+    { "K4", 2, -77.2f, 3.0f, 46.0f },
+    { "K4", 1, -201.4f, -16.0f, 101.7f },
+    { "D1", 1, 2.7f, 14.6f, 95.2f },
+    { "D1", 2, 111.8f, 12.2f, 8.5f },
+    { "D2", 1, 32.0f, 18.0f, -87.3f },
+    { "D2", 0, 86.8f, 6.4f, -47.5f },
+    { "D3", 2, -126.9f, 69.3f, -17.9f },
+    { "D3", 2, 138.7f, 65.5f, 20.0f },
+    { "D4", 1, -151.2f, 8.4f, -75.1f },
+    { "D4", 2, -53.5f, 5.0f, -147.1f },
+    { "D4", 0, 97.4f, -18.8f, -178.0f },
+    { "C1", 1, 6.5f, -12.1f, 12.7f },
+    { "C3", 2, -64.7f, 30.0f, 58.5f },
+    { "C4", 0, -112.3f, -10.0f, -142.9f },
+    { "C4", 2, -135.3f, 0.0f, -26.7f },
+    { "C4", 0, -30.5f, 0.0f, -13.4f },
+    { "C4", 1, -42.5f, 0.0f, -27.2f },
+    { "I1", 2, 167.4f, 4.2f, 71.9f },
+    { "I1", 0, 295.5f, 10.0f, -188.8f },
+    { "I2", 1, -46.2f, 35.0f, 83.0f },
+    { "I4", 1, -17.9f, -56.3f, 15.1f },
+    { "J1", 2, -5.8f, 0.0f, -19.2f },
+    { "J1", 0, -89.8f, 0.0f, -10.6f },
+    { "J2", 0, 80.9f, 1.5f, 48.0f },
+    { "J2", 2, -69.8f, 0.1f, 144.8f },
+    { "J2", 1, -158.8f, 28.0f, 111.4f },
+    { "J3", 0, 80.9f, 55.5f, -68.6f },
+    { "J4", 2, 133.5f, 49.4f, 92.1f },
+    { "J4", 1, 190.0f, 38.6f, 174.9f },
+};
+
+static s32 lbl_80120598[16] = {
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+};
+
+static char rune_color[8][4] = {
+    "blu",
+    "red",
+    "yel",
+    "gre",
+    "blu",
+    "red",
+    "yel",
+    "gre",
+};
+
+static char key_color[8][4] = {
+    "blu",
+    "red",
+    "yel",
+    "gre",
+    "gre",
+    "red",
+    "yel",
+    "blu",
+};
+
+static HiddenChar Hidden[27] = {
+    { 2, 4, "ICE600", "gei", 0 },
+    { 1, 4, "NUD069", "snm", 0 },
+    { 1, 7, "STX222", "stk", 0 },
+    { 3, 7, "KJH105", "kjh", 0 },
+    { 0, 7, "PNK666", "pnk", 0 },
+    { 3, 5, "BAT900", "geb", 0 },
+    { 2, 5, "TAK118", "nin", 0 },
+    { 3, 5, "STG333", "stg", 0 },
+    { 2, 5, "KAO292", "wtr", 0 },
+    { 0, 5, "CSS222", "css", 0 },
+    { 1, 5, "RIZ721", "riz", 0 },
+    { 1, 5, "ARV984", "arv", 0 },
+    { 2, 5, "DIB626", "dib", 0 },
+    { 1, 5, "SJB964", "sjb", 0 },
+    { 1, 1, "NAK069", "nud", 1 },
+    { 3, 1, "TWN300", "get", 0 },
+    { 1, 1, "AYA555", "sch", 0 },
+    { 3, 1, "CEL721", "cel", 0 },
+    { 1, 0, "CAS400", "gec", 0 },
+    { 2, 0, "MTN200", "gem", 0 },
+    { 2, 0, "RAT333", "rat", 0 },
+    { 0, 2, "GARM99", "ga2", 0 },
+    { 3, 2, "GARM00", "gam", 0 },
+    { 0, 2, "DES700", "ged", 0 },
+    { 3, 2, "SKY100", "gep", 0 },
+    { 0, 2, "SUM224", "sum", 0 },
+    { 3, 5, "DARTHC", "dcy", 0 },
+};
+
+static PupCheat Cheats[18] = {
+    { "INVULN", 6, 0.0f, 65536 },
+    { "SSHOTS", 5, -1.0f, 1048576 },
+    { "EGG911", 9, 0.0f, 1024 },
+    { "1ANGEL", 9, 0.0f, 1 },
+    { "1ANGEL", 6, 0.0f, 524288 },
+    { "DELTA1", 9, 0.0f, 768 },
+    { "000000", 9, 0.0f, 4 },
+    { "PEEKIN", 9, 0.0f, 2 },
+    { "PURPLE", 9, 0.0f, 524288 },
+    { "XSPEED", 9, 4.0f, 65536 },
+    { "QCKSHT", 5, 0.0f, 536870912 },
+    { "MENAGE", 5, 0.0f, 524288 },
+    { "REFLEX", 5, 0.0f, 2097152 },
+    { "ALLFUL", 2, 9.0f, 0 },
+    { "ALLFUL", 4, 9.0f, 0 },
+    { "10000K", 1, 10000.0f, 0 },
+    { "NOVATO", 9, 0.0f, 8 },
+    { "MEBERT", 9, 0.0f, 128 },
+};
+
 /* this TU's .data (unclaimed) */
 extern s32 lbl_80124C70[];   /* crystal totals per color {0,15,100,...,250} */
 extern char lbl_80124C94[];  /* crystal color names, 8-byte entries "TOWER".. */
 extern s32 lbl_80124CDC[];   /* boss-item totals {12,20,28} */
 extern char lbl_80124CE8[];  /* boss item names, 0xE entries "FANGS".. */
-extern char lbl_801200B0[];  /* class tags, 4-byte entries "WAR","VAL",.. */
 extern u16 lbl_80120238[];   /* per-player HUD left x */
 extern u16 lbl_80120240[];   /* per-player HUD right x (drawn as -x) */
-extern u32 lbl_801201C8[];   /* class colors */
-extern u32 lbl_801201D8[];   /* class colors (in-game set) */
-extern u32 lbl_801201E8[];   /* class colors (dim set) */
-extern s32 tb_info[];   /* +8 pm bar x/y/h, +0x1C pm frame x/y/h, +0x78 frames */
 extern s32 lbl_80126C68[];   /* action-init bank table (InitActions 3rd arg) */
 /* The HUD name/flag tables (0x801200B0..0x80120598) sit inside the
  * tb_info .data blob; the original code addressed them off the blob
@@ -332,13 +766,13 @@ extern s32 lbl_80126C68[];   /* action-init bank table (InitActions 3rd arg) */
 extern f32 lbl_80127D00[];   /* zero vec */
 extern f32 gIdentityMatrix[];   /* identity matrix */
 
-#define pm_bar_x    (tb_info[2])
-#define pm_bar_y    (tb_info[3])
-#define pm_bar_z    (tb_info[4])
-#define pm_frame_x  (tb_info[7])
-#define pm_frame_y  (tb_info[8])
-#define pm_frame_z  (tb_info[9])
-#define pm_frames   (tb_info[30])
+#define pm_bar_x    (((s32*)tb_info)[2])
+#define pm_bar_y    (((s32*)tb_info)[3])
+#define pm_bar_z    (((s32*)tb_info)[4])
+#define pm_frame_x  (((s32*)tb_info)[7])
+#define pm_frame_y  (((s32*)tb_info)[8])
+#define pm_frame_z  (((s32*)tb_info)[9])
+#define pm_frames   (((s32*)tb_info)[30])
 
 /* effects (sfx TU) */
 extern u8 lbl_80285BCC[]; /* gEffects[]: stride 0xF0, +0 node ptr */
@@ -421,7 +855,6 @@ extern s32 lbl_80344E48;
 extern f32 lbl_80343D70;
 extern f32 lbl_80343D74;
 extern f32 lbl_80343D78;
-extern f32 lbl_801201F8[];
 
 /* ------------------------------------------------------------------ */
 /* extern functions                                                    */
@@ -798,7 +1231,7 @@ static void show_crystals(Player* p) {
             cnt = p->got_count;
             total = sVisibleSumCoinCount;
             if (type - 0x200 < 0x10) {
-                sprintf(tbuf, "16_%sCOIN", &lbl_801200B0[(type - 0x200) * 4]);
+                sprintf(tbuf, "16_%sCOIN", player_desc_uc[type - 0x200]);
             } else {
                 sprintf(tbuf, "16_SUM");
             }
@@ -1029,7 +1462,6 @@ static void write_health_and_items(s32 i) {
 }
 
 /* Debug HUD: floor name, position, facing. */
-extern u8 lbl_80113AE0[];
 typedef struct PlayerControlState {
     u32 ctl;
     u32 levels;
@@ -1061,17 +1493,15 @@ static void debug_player_pos(s32 i) {
         u8 tail[16];
     } work;
     u16* x;
-    char* fmt;
     u8* base;
     char* name;
     char* floor;
     f32 magnitude;
     s32 oldflags;
 
-    fmt = (char*)lbl_80113AE0;
     base = (u8*)lbl_80274EA0;
     p = (Player*)((u8*)(p = (Player*)(base + i * 0x335C)) + 0xC40);
-    name = fmt + 908;
+    name = "NO FLOOR";
     if (gGameMode == MG_PLAY) {
         fn_800C02F4(0x80FF80);
         get_actual_screen_pos(0, &work.actualX, (f32*)&work.y, p->col_pos);
@@ -1089,12 +1519,12 @@ static void debug_player_pos(s32 i) {
         // lint-allow-next-line FM007: 0xFFFFFF is a packed RGB colour passed to the parameter this call's own prototype declares as `u32 rgb` - opaque white. A colour code is final-form source: there is nothing behind it to recover, and it is the only numeric literal on this statement.
         DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, name);
         work.y += 10.0f;
-        sprintf((char*)base + 0x4F4, fmt + 920,
+        sprintf((char*)base + 0x4F4, "%.1Lf %.1Lf %.1Lf",
                 p->pos[0], p->pos[1], p->pos[2]);
         DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, (char*)base + 0x4F4);
         work.y += 10.0f;
         MBWorldToScreen(work.screen, p->pos);
-        sprintf((char*)base + 0x4F4, fmt + 940,
+        sprintf((char*)base + 0x4F4, "%.0Lf %.0Lf",
                 work.screen[0], work.screen[1]);
         DrawText(*x + 8, (s32)work.y, 1, 0xFFFFFF, (char*)base + 0x4F4);
         MBSetFontFlags(oldflags);
@@ -1119,7 +1549,7 @@ static void write_gold(s32 i, s32 show) {
             w = DrawNormalText(1.0f, buf, 4);
             x = (lbl_80120238[i] + 0x3C) - w;
             DrawText(x, 0x167, 4,
-                     lbl_801201C8[p->class_id], buf);
+                     player_pal[p->class_id], buf);
             mbBlitInit3414(frame_blit[i][4], 0);
         } else {
             mbBlitInit3414(frame_blit[i][4], 1);
@@ -1130,7 +1560,7 @@ static void write_gold(s32 i, s32 show) {
 /* Turbo/power meter: bar scale + color, charge flash, drain flash. */
 static void draw_power_meter(s32 i) {
     Player* p = PT(i);
-    s32* table = tb_info;
+    s32* table = (s32*)tb_info;
     s32 j;
     s32 zone0;
     s32 zone;
@@ -1323,7 +1753,7 @@ void setup_player_display(s32 i) {
         sprintf(buf, "BK_RUNE_STONE_02");
         frames = (u32)MBOX_FindTexture_Sub(buf, NULL, 0, 0, 1);
         mbInitBlitEntry(frame_blit[i][0], frames, 0);
-        sprintf(buf, "S4_%s", &lbl_801200B0[chr * 4]);
+        sprintf(buf, "S4_%s", player_desc_uc[chr]);
         frames = (u32)MBOX_FindTexture_Err(buf, NULL, 1);
         mbInitBlitEntry(frame_blit[i][1], frames, 0);
         if (!(gGameMode & MODE_GROUP_ATTRACT)) {
@@ -1983,7 +2413,7 @@ s32 do_players(void) {
                         light_pos[1] = p->col_pos[1];
                         light_pos[2] = p->col_pos[2];
                         light_pos[1] += lbl_80343D78;
-                        fn_800C0ADC(light_pos, &lbl_801201F8[p->class_id * 4],
+                        fn_800C0ADC(light_pos, player_light_color[p->class_id],
                                    lbl_80343D74, lbl_80343D70);
                     }
                 }
@@ -2270,21 +2700,6 @@ typedef struct PlayerEnemyView {
 extern PlayerEnemyView gEnemies[25]; /* Enemy[25], stride 0x394 */
 extern s32 gNumEnemies;      /* enemy count */
 extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words */
-typedef struct BigapePowerupInfo {
-    char* name;
-    u32 flags;
-} BigapePowerupInfo;
-
-typedef struct BigapePowerupSpawn {
-    char level[4];
-    s32 type;
-    f32 x;
-    f32 y;
-    f32 z;
-} BigapePowerupSpawn;
-
-extern BigapePowerupInfo lbl_80120274[3];
-extern BigapePowerupSpawn lbl_8012028C[];
 /* sItems (Item*, stride 0xF0) -- game/item.h; gWorldInfo -- game/worldinfo.h */
 extern void* sKeyringAtree;    /* see-thru tree (low) */
 extern void* sDeathIconAtree;    /* see-thru tree (high) */
@@ -2329,40 +2744,7 @@ extern s32 lbl_803447A8[];   /* cleared at init_players (2 elems; unsized = abso
 extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
 extern s32 lbl_803447C0;      /* widescreen/mode flag (rune13 blit) */
 
-/* hidden-character table (0x80120618, stride 0x24, 27 entries) */
-typedef struct HiddenChar {
-    /* 0x00 */ s32 class_id;
-    /* 0x04 */ s32 char_type;
-    /* 0x08 */ char name[8];   /* 6-char cheat name ("ICE600"..) */
-    /* 0x10 */ char code[16];  /* model/dir override tag */
-    /* 0x20 */ s32 unlocked;   /* available without cheat */
-} HiddenChar;
-extern HiddenChar Hidden[27];
 
-/* powerup-cheat table (0x801209E4, stride 0x14, 18 entries) */
-typedef struct PupCheat {
-    /* 0x00 */ char name[8];
-    /* 0x08 */ s32 type;
-    /* 0x0C */ f32 value;
-    /* 0x10 */ u32 mask;
-} PupCheat;
-extern PupCheat Cheats[18];
-
-/* mini-inventory label table (0x8011FCE8, stride 0xC) */
-extern s32 mini_inv_items[];    /* [i*3+0] type, [i*3+1] mask, [i*3+2] name ptr */
-
-extern char* lbl_80120104[];  /* per-pad player color names */
-extern char* lbl_801200F4[];  /* per-pad color dir names */
-extern char* lbl_8012006C[];  /* per-class dir names */
-extern char* lbl_80120184[];  /* per-class R_WRIST node names */
-extern char* lbl_80120144[];  /* per-class L_WRIST node names */
-extern s32 lbl_80120598[];    /* per-class weapon-variant flag */
-extern u8 lbl_80113AE0[];     /* this TU's own .rodata literal-pool base: the
-                               * target materialises 0x80113AE0 as the base for
-                               * every literal player.c emits, so the offsets
-                               * added to it below name unrecovered literals of
-                               * this file, not another object's data */
-extern char lbl_80114098[];   /* "players/%s/sfx%s" */
 extern char lbl_80347A38[3];  /* "rb" (sdata2) */
 extern char* lbl_80347734;
 extern char* lbl_80347738;
@@ -2385,9 +2767,6 @@ extern char lbl_80347A68;
 extern char lbl_80347A70;
 extern char lbl_80347A78;
 extern char lbl_80347A80;
-extern char lbl_801205D8[][4];  /* rune world tags (4) */
-extern char lbl_801205F8[][4];  /* crystal color tags (8) */
-extern char* potionicon_tab[];  /* POTION_ICON_* names (5) */
 
 /* extern functions (back slice) */
 extern int rand(void);
@@ -4068,7 +4447,6 @@ void load_player_geo(s32 i, void* vp) {
     Player* p = vp;
     char name[20];
     u8 unused[12];
-    u8* rodata = lbl_80113AE0;
     u8* tab = (u8*)tb_info;
     PlayerGeoBssView* geoBss = (PlayerGeoBssView*)lbl_80274EA0;
     char* c;
@@ -4079,7 +4457,7 @@ void load_player_geo(s32 i, void* vp) {
     s32 n;
 
     if (p->node != NULL) {
-        FatalError((char*)rodata + 1236, 0x800000);
+        FatalError("PLAYER OBJ NODE EXISTS BEFORE LOAD_PLAYER", 0x800000);
     }
     if (lbl_80344828 > 0) {
         set_hidden_player(p);
@@ -4124,7 +4502,7 @@ model_ready:
                              (char*)(tab + 1128) + p->char_type * 4,
                              &p->platform, geoBss->scratch, 0x800);
     if (p->platform == NULL) {
-        FatalErrorf((char*)rodata + 1280,
+        FatalErrorf("Player Atree %s not found",
                     (char*)(tab + 1128) + p->char_type * 4);
     }
     MBNodeSetParent(*p->platform, p->node);
@@ -4153,7 +4531,7 @@ model_ready:
     } else {
         p->mbnode2 = NULL;
     }
-    sprintf(geoBss->scratch, (char*)rodata + 1308,
+    sprintf(geoBss->scratch, "%sCFGLOW",
             (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, -1);
     if (n < 0) {
@@ -4188,9 +4566,9 @@ model_ready:
         tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
         if (((s32*)(tab + 2384))[p->character] != 0 ||
             p->character >= 8 || p->hidden_code != NULL) {
-            sprintf(geoBss->scratch, (char*)rodata + 1320);
+            sprintf(geoBss->scratch, "WEAP_HOLD");
         } else {
-            sprintf(geoBss->scratch, (char*)rodata + 1332,
+            sprintf(geoBss->scratch, "WEAP_%s_HD%d",
                     ((char**)(tab + 1212))[class_idx], tier + 1);
         }
         n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
@@ -4220,7 +4598,7 @@ model_ready:
     p->field_96C = NULL;
     p->field_A14 = NULL;
     /* shadow */
-    n = MBOX_ReallyFindObject((char*)rodata + 1348,
+    n = MBOX_ReallyFindObject("SHADOWL1",
                               p->geo_handle, p->geo_handle, 1);
     p->mbnode = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
     ((mbnode*)p->mbnode)->zmod = -0x24;
@@ -4260,7 +4638,6 @@ model_ready:
  */
 s32 set_hidden_player(void* vp) {
     Player* p = vp;
-    u8* rodata = lbl_80113AE0;
     u8* data = (u8*)tb_info;
     char* access_options[2];
     char* access_one[1];
@@ -4320,7 +4697,7 @@ s32 set_hidden_player(void* vp) {
             }
             unlimited_options[0] = lbl_80347734;
             unlimited_options[1] = lbl_80347738;
-            if (saveMenuPrompt((char*)rodata + 1360,
+            if (saveMenuPrompt("Unlimited?",
                                unlimited_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4331,7 +4708,7 @@ s32 set_hidden_player(void* vp) {
             }
             nodamage_options[0] = lbl_80347734;
             nodamage_options[1] = lbl_80347738;
-            if (saveMenuPrompt((char*)rodata + 1372,
+            if (saveMenuPrompt("NoDamage?",
                                nodamage_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4372,7 +4749,7 @@ s32 set_hidden_player(void* vp) {
             }
             select_options[0] = lbl_80347734;
             select_options[1] = lbl_80347738;
-            if (saveMenuPrompt((char*)rodata + 1384,
+            if (saveMenuPrompt("Select a character ?",
                                select_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4399,7 +4776,7 @@ s32 set_hidden_player(void* vp) {
             }
             worlds_options[0] = lbl_80347734;
             worlds_options[1] = lbl_80347738;
-            if (saveMenuPrompt((char*)rodata + 1408,
+            if (saveMenuPrompt("Worlds ?",
                                worlds_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4419,7 +4796,7 @@ s32 set_hidden_player(void* vp) {
                     }
                 }
             }
-            saveMenuPrompt((char*)rodata + 1420,
+            saveMenuPrompt("Mike and Bob say,\nThank You for Playing!!",
                            access_one, 1);
         }
     }
@@ -4451,7 +4828,7 @@ s32 set_hidden_player(void* vp) {
             }
             all_unlimited_options[0] = lbl_80347734;
             all_unlimited_options[1] = lbl_80347738;
-            if (saveMenuPrompt((char*)rodata + 1360,
+            if (saveMenuPrompt("Unlimited?",
                                all_unlimited_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4462,7 +4839,7 @@ s32 set_hidden_player(void* vp) {
             }
             all_nodamage_options[0] = lbl_80347734;
             all_nodamage_options[1] = lbl_80347738;
-            if (saveMenuPrompt((char*)rodata + 1372,
+            if (saveMenuPrompt("NoDamage?",
                                all_nodamage_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4595,8 +4972,8 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     if (cls < 0 || cls >= 4) {
         cls = i;
     }
-    sprintf((char*) pot + 1268, lbl_80114098,
-            (char*) lbl_8012006C + t * 4, lbl_801200F4[cls]);
+    sprintf((char*) pot + 1268, "players/%s/sfx%s",
+            player_desc[t], player_color[cls]);
     q = pot + prod;
     sfx_arena = (s32*) (q + 1352);
     cls = MBOX_LoadModelFixed((char*) pot + 1268, *(u32*) (q + 1360), 0, NULL,
@@ -4622,7 +4999,6 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     s32 tier;
     s32 ct;
     s32 ct8;
-    u8* fmt = (u8*) lbl_80113AE0;
     u8* tab = (u8*) tb_info;
     u8* pot = (u8*) lbl_80274EA0;
     u32 arena;
@@ -4638,16 +5014,16 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     }
     if (name != NULL) {
         q = tab + ct * 4;
-        sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060, name);
+        sprintf((char*) pot + 1268, "players/%s/%s", q + 1060, name);
     } else {
         q = tab + ct * 4;
         if (((s32*) (tab + 2384))[ct] != 0) {
             class_entry = tab + cls * 4;
-            sprintf((char*) pot + 1268, (char*) fmt + 1500, q + 1060,
+            sprintf((char*) pot + 1268, "players/%s/%s%d0", q + 1060,
                     *(char**) (class_entry + 1196), tier);
         } else {
             class_entry = tab + cls * 4;
-            sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060,
+            sprintf((char*) pot + 1268, "players/%s/%s", q + 1060,
                     *(char**) (class_entry + 1196));
         }
     }
@@ -4665,7 +5041,7 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     slot->cur_tier = tier;
     slot->cur_override = (s32) name;
     q = tab + ct8 * 4;
-    sprintf((char*) pot + 1268, (char*) fmt + 1520, q + 1060);
+    sprintf((char*) pot + 1268, "players/%s/anim", q + 1060);
     if ((s32) slot->model_buf_max > 0) {
         MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->model_buf_max,
                     slot->model_buf);
@@ -4986,7 +5362,6 @@ void PlayerProcessPowerups(void* vp) {
     f32 weapon_time;
     f32 familiar_time;
     s32 i;
-    const char* name_base = (const char*)lbl_80113AE0;
 
     weapon_time = alpha_time = 0.0f;
     familiar_time = shield_time = lbl_80347920;
@@ -5170,7 +5545,7 @@ void PlayerProcessPowerups(void* vp) {
         }
 
         if (p->flags & 0x8000) {
-            s32 model = MBOX_FindObject(name_base + 1628);
+            s32 model = MBOX_FindObject("BOSSGAUNTL");
             void* held;
             if ((held = p->pup_object) == NULL) {
                 p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x9010);
@@ -5229,7 +5604,7 @@ void PlayerProcessPowerups(void* vp) {
     }
     if (p->flags & 0x200000) {
         if (p->field_A1E == 0) {
-            s32 model = MBOX_FindObject(name_base + 1640);
+            s32 model = MBOX_FindObject("HEAD_HANDOFDEATH");
             void* held;
             if ((held = p->gem_object) == NULL) {
                 p->gem_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
@@ -5241,7 +5616,7 @@ void PlayerProcessPowerups(void* vp) {
         }
     } else if (p->flags & 0x400000) {
         if (p->field_A20 == 0) {
-            s32 model = MBOX_FindObject(name_base + 1660);
+            s32 model = MBOX_FindObject("HEAD_HEALTHVAMP");
             void* held;
             if ((held = p->gem_object) == NULL) {
                 p->gem_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
@@ -5262,7 +5637,7 @@ void PlayerProcessPowerups(void* vp) {
     }
 
     if (p->flags & 0x1000) {
-        s32 model = MBOX_FindObject(name_base + 1676);
+        s32 model = MBOX_FindObject("BOSSHORNS");
         void* held;
         if ((held = p->wand_object) == NULL) {
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x9010);
@@ -5270,7 +5645,7 @@ void PlayerProcessPowerups(void* vp) {
             MBSetObject(held, model);
         }
     } else if (p->flags & 0x2000) {
-        s32 model = MBOX_FindObject(name_base + 1688);
+        s32 model = MBOX_FindObject("BOSSMASK");
         void* held;
         if ((held = p->wand_object) == NULL) {
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x9010);
@@ -5278,7 +5653,7 @@ void PlayerProcessPowerups(void* vp) {
             MBSetObject(held, model);
         }
     } else if (p->shield_flags & 0x80000) {
-        s32 model = MBOX_FindObject(name_base + 1700);
+        s32 model = MBOX_FindObject("HEAD_HALO");
         void* held;
         if ((held = p->wand_object) == NULL) {
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
@@ -5286,7 +5661,7 @@ void PlayerProcessPowerups(void* vp) {
             MBSetObject(held, model);
         }
     } else if (p->shield_flags & 0x2000) {
-        s32 model = MBOX_FindObject(name_base + 1712);
+        s32 model = MBOX_FindObject("HEAD_GAS");
         void* held;
         if ((held = p->wand_object) == NULL) {
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
@@ -5294,7 +5669,7 @@ void PlayerProcessPowerups(void* vp) {
             MBSetObject(held, model);
         }
     } else if (p->flags & 2) {
-        s32 model = MBOX_FindObject(name_base + 1724);
+        s32 model = MBOX_FindObject("HEAD_XRAY");
         void* held;
         if ((held = p->wand_object) == NULL) {
             p->wand_object = MBNewObject(model, NULL, p->weapon_node, 0x810);
@@ -5311,7 +5686,7 @@ void PlayerProcessPowerups(void* vp) {
 
     if (lbl_8034489C == 0 || p->quest_state == 0) {
         if (p->flags & 0x4000) {
-            s32 model = MBOX_FindObject(name_base + 1736);
+            s32 model = MBOX_FindObject("BOSSGAUNTR");
             void* held;
             if ((held = p->shield_object) == NULL) {
                 p->shield_object =
@@ -5320,7 +5695,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(held, model);
             }
         } else if (p->field_11C & 0x100000) {
-            s32 model = MBOX_FindObject(name_base + 1748);
+            s32 model = MBOX_FindObject("SUPERXBOW");
             void* held;
             if ((held = p->shield_object) == NULL) {
                 p->shield_object =
@@ -5329,7 +5704,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(held, model);
             }
         } else if (p->field_11C & 0x10000000) {
-            s32 model = MBOX_FindObject(name_base + 1760);
+            s32 model = MBOX_FindObject("HAMMER_HD");
             void* held;
             if ((held = p->shield_object) == NULL) {
                 p->shield_object =
@@ -5789,11 +6164,11 @@ void AppendBigapePowerupsToScene(void) {
     s32 i;
 
     for (i = 0; i < lbl_80343DAC; i++) {
-        if (InLevel((s32*)&lbl_8012028C[i]) != 0) {
+        if (InLevel((s32*)&fNewPUPDescs[i]) != 0) {
             BigapePowerupInfo* info =
-                &lbl_80120274[lbl_8012028C[i].type];
-            AppendItemToLevel(lbl_8012028C[i].x, lbl_8012028C[i].y,
-                              lbl_8012028C[i].z,
+                &gOverlayPUPParams[fNewPUPDescs[i].type];
+            AppendItemToLevel(fNewPUPDescs[i].x, fNewPUPDescs[i].y,
+                              fNewPUPDescs[i].z,
                               info->name, info->flags);
         }
     }
@@ -6526,7 +6901,7 @@ void mini_inventory_update(s32 i) {
     s32 state;
     u8 unused[32];
 
-    label_table = tb_info;
+    label_table = (s32*)tb_info;
     if (gGameMode != MG_PLAY || gGameBusy != 0) {
         return;
     }
