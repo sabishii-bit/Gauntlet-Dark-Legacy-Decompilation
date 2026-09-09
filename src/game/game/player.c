@@ -1270,9 +1270,8 @@ static void draw_power_meter(s32 i) {
 
 /* Rebuild the 6 portrait-frame blits for a player's display mode. */
 void setup_player_display(s32 i) {
-    Player* players = gPlayerRecords;
-    Player* p = &players[i];
-    u16 x = lbl_80120238[i];
+    Player* p = PT(i);
+    u16 x = ((u16*)((u8*)tb_info + i * 2))[760];
     s32 mode;
     s32 cls;
     s32 chr;
@@ -1292,9 +1291,9 @@ void setup_player_display(s32 i) {
     mbInitBlitEntry(frame_blit[i][1], frames, 0);
     mbBlitInit3414(frame_blit[i][1], 0);
     if (p->state == 0) {
-        MBBlitSetColor(frame_blit[i][1], lbl_801201E8[cls]);
+        MBBlitSetColor(frame_blit[i][1], ((u32*)((u8*)tb_info + cls * 4))[360]);
     } else {
-        MBBlitSetColor(frame_blit[i][1], lbl_801201D8[cls]);
+        MBBlitSetColor(frame_blit[i][1], ((u32*)((u8*)tb_info + cls * 4))[356]);
     }
     frames = (u32)MBOX_FindTexture_Err("S4_FRAME", NULL, 1);
     mbInitBlitEntry(frame_blit[i][2], frames, 0);
