@@ -53,6 +53,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(TOOLS))
 
 from tools.gdl import retire_audit as ra                      # noqa: E402
+from tools.gdl.raw_object import resolve_object               # noqa: E402
 
 SDA21 = ra.SDA21
 RUNS = [
@@ -186,10 +187,14 @@ class LiveGendir(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        raw = ROOT / ("build/GUNE5D/src/game/enemy/.postprocess/body/"
-                      "enemy.o")
         target = ROOT / "build/GUNE5D/obj/game/enemy/enemy.o"
-        if not (raw.exists() and target.exists()):
+        if not target.exists():
+            raise unittest.SkipTest("enemy objects are not built")
+        # Old .postprocess/body objects can survive retirement and carry the
+        # previous .data offsets. Resolve the active Ninja compiler edge so
+        # the object and the current ownership map describe the same build.
+        raw = resolve_object(cls.UNIT, root=ROOT, view="compiler").path
+        if not raw.exists():
             raise unittest.SkipTest("enemy objects are not built")
         os.chdir(ROOT)
         cls.ours = ra.normalize_relocations(
