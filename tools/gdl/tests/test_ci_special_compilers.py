@@ -30,11 +30,13 @@ class CiSpecialCompilerTests(unittest.TestCase):
         self.assertIn(fixture, workflow)
         self.assertIn(tests, workflow)
         self.assertLess(workflow.index(fixture), workflow.index(tests))
+        analysis_step = workflow[workflow.index("- name: Analysis tool tests"):
+                                 workflow.index("- name: Reconstruction diagnostics")]
+        self.assertNotRegex(analysis_step, r"(?m)^\s+HOME:")
         self.assertRegex(
             workflow,
             r"(?ms)- name: Analysis tool tests\n"
             r"\s+env:\n"
-            r"\s+HOME: /tmp\n"
             r"\s+WINEPREFIX: /tmp/\.wine\n"
             r"\s+run: \|.*?"
             r"ninja build/GUNE5D/src/game/enemy/critter\.o.*?"

@@ -161,7 +161,6 @@ jobs:
     # pnpm's action-provided executable is not visible inside this container.
     - name: Analysis tool tests
       env:
-        HOME: /tmp
         WINEPREFIX: /tmp/.wine
       run: |
         # objneutral's live freshness tests use a source-built NonMatching TU.
