@@ -4334,7 +4334,6 @@ void player_get_from_save(void* vp, s32 type) {
 #pragma dont_inline off
 
 /* Pack the live fields into the per-character slots + image header.   */
-#pragma opt_common_subs off
 void player_store_in_save(void* vp) {
     s32 chartype;
     s32 total;
@@ -4355,18 +4354,14 @@ void player_store_in_save(void* vp) {
         player_get_from_save(p, -1);
         HIDDEN_CODE(p) = player_sumner_desc;
     }
-    chartype *= 0xF0;
     st = (s32*)((u8*)p + p->character * 0x18);
     st[0xA90 / 4] = p->exp;
     *(f32*)&st[0xA94 / 4] = p->health;
-    {
-        u8* item = (u8*)p + chartype;
-        *(s32*)(item + 0xE00) = p->gold;
-        *(s16*)(item + 0xDD0) = (s16)p->item_body_hi;
-        *(s16*)(item + 0xDD2) = (s16)p->item_body_lo;
-        *(u16*)(item + 0xDD4) |= p->runes;
-        *(u16*)(item + 0xDD6) |= p->shards;
-    }
+    p->save.stuff[chartype].gold = p->gold;
+    p->save.stuff[chartype].potions = (s16)p->item_body_hi;
+    p->save.stuff[chartype].keys = (s16)p->item_body_lo;
+    p->save.stuff[chartype].rune_stones |= p->runes;
+    p->save.stuff[chartype].rune_stones2 |= p->shards;
     p->save.last_alttype = (s16)p->character;
     p->save.last_color = (s8)p->class_id;
     /* total-level checksum across all 16 characters */
@@ -4374,11 +4369,8 @@ void player_store_in_save(void* vp) {
         total += ExpToLevel(CHAR_STATS(p, j)[0]);
     }
     p->save.leveltot = total;
-    memcpy((u8*)p + chartype + 0xE04, (u8*)p + 0x130, 0xB0);
-    {
-        u8* item = (u8*)p + chartype;
-        *(s16*)(item + 0xDDA) = (s16)PF(p, 0x1EC, s32);
-    }
+    memcpy(p->save.stuff[chartype].pad_34, (u8*)p + 0x130, 0xB0);
+    p->save.stuff[chartype].npowerups = (s16)PF(p, 0x1EC, s32);
     p->save.control_scheme = (u8)lbl_80240E30[player].scheme;
     p->save.control_rumble = (u8)lbl_80240E30[player].hasActuator;
     p->save.control_autoattack = (u8)lbl_80240E30[player].unk38;
@@ -4387,7 +4379,6 @@ void player_store_in_save(void* vp) {
         player_get_from_save(p, -1);
     }
 }
-#pragma opt_common_subs reset
 
 /* Copy the live pad config into both control-save byte sets.          */
 void player_save_controls(s32 i) {
