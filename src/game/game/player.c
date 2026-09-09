@@ -4621,11 +4621,11 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     u8* class_entry;
     s32 cls;
     s32 tier;
-    s32 ct;
     s32 ct8;
-    u8* fmt = (u8*) lbl_80113AE0;
+    s32 ct;
     u8* tab = (u8*) tb_info;
     u8* pot = (u8*) lbl_80274EA0;
+    u8* fmt = (u8*) lbl_80113AE0;
     u32 arena;
 
     q = (u8*) vp;
