@@ -166,8 +166,13 @@ class LiveUnclaimedSection(unittest.TestCase):
                          record["inventory"]["gap_bytes"])
 
     def test_every_gap_carries_an_address_a_size_and_decoded_content(self):
+        """Integration 64-6 closed the last DOL-side gaps of this run, so the
+        live inventory now reports none (the gap rendering itself is pinned
+        by the synthetic cases); a gap that does appear must still be well
+        formed."""
         record = secbind.bind(UNIT, self.SECTION)
-        self.assertTrue(record["inventory"]["gaps"])
+        self.assertEqual(record["inventory"]["gaps"], [])
+        self.assertEqual(record["inventory"]["gap_bytes"], 0)
         for gap in record["inventory"]["gaps"]:
             self.assertGreaterEqual(gap["address"], record["base"])
             self.assertTrue(gap["size"] % 4 == 0 and gap["size"] > 0)
@@ -184,14 +189,20 @@ class LiveUnclaimedSection(unittest.TestCase):
         record = secbind.bind(UNIT, self.SECTION)
         end = record["end_verdict"]
         self.assertEqual(end["end"], record["base"] + record["size"])
-        self.assertIn(end["boundary"], ("inside", "exact"))
+        self.assertIn(end["boundary"], ("inside", "exact", "gap"))
         if end["boundary"] == "inside":
             self.assertIsNotNone(end["straddled"])
             self.assertLess(end["straddled"]["start"], end["end"])
             self.assertGreater(end["straddled"]["end"], end["end"])
-        else:
+        elif end["boundary"] == "exact":
             self.assertEqual(end["boundary_symbol"], "lbl_80347AF4")
             self.assertIsNone(end["straddled"])
+        else:
+            # Integration 64-6: the run reaches the target's true end
+            # 0x80347AFC, where symbols.txt has no datum before the next
+            # symbol at 0x80347B00.
+            self.assertEqual(end["end"], 0x80347AFC)
+            self.assertEqual(end["next_symbol_start"], 0x80347B00)
         self.assertGreater(end["next_symbol_start"], end["end"])
 
 

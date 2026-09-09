@@ -174,52 +174,26 @@ class LivePlayerTests(unittest.TestCase):
                                for row in self.record["gaps"]]))
 
     def test_the_run_and_its_attribution_are_reported(self):
-        # The run end follows our object's recovered .sdata2 extent: it was
-        # 0x80347C6C before P10's literals, 0x80347D24 after them and
-        # 0x80347D34 after P11's damage_player values (integration 64-2).
-        self.assertEqual(self.record["run"], [0x80347608, 0x80347D34])
-        self.assertEqual(self.record["module"], ".\\Release\\PLAYER.OBJ")
-        self.assertEqual(len(self.record["gaps"]), 3)
-
-    def test_the_bracketed_gap_names_setup_player_display_and_addexp(self):
-        bracket = self.gap(0x80347828)["bracket"]
-        self.assertEqual(bracket["below"]["function"], "setup_player_display")
-        self.assertEqual(bracket["below"]["gc_index"], 13)
-        self.assertEqual(bracket["after"]["function"], "AddExp")
-        self.assertEqual(bracket["after"]["gc_index"], 15)
-        self.assertTrue(bracket["monotone"])
-
-    def test_the_gap_has_ten_referrers_and_none_of_them_in_the_bracket(self):
-        """The fact a one-line summary loses. `no referrer` is FALSE here;
-        `no referrer inside the bracket` is what makes it the dead-stripped
-        class."""
-        device = self.gap(0x80347828)["device"]
-        self.assertEqual(device["datums"], ["lbl_80347828", "lbl_80347830"])
-        self.assertEqual(len(device["referrers"]), 10)
-        self.assertEqual(device["referrers_in_bracket"], [])
-        self.assertIn("any_player_walking", device["verdict"])
+        """The run end follows our object's recovered .sdata2 extent: it was
+        0x80347C6C before P10's literals, 0x80347D24 after them, 0x80347D34
+        after P11's damage_player values (integration 64-2) and, since
+        integration 64-6 closed the last three DOL-side gaps (SetPlayerLevel
+        and player_scale_att outlined in the setup_player_display..AddExp
+        bracket, start_magic's 0.707 as a compound-assigned literal, 95.0f
+        through a local float, the "Yes"/"No" pointers as separate objects
+        after both strings), the target run's true end 0x80347AFC. The
+        bracket, device and candidate rules that the old live gaps pinned
+        are pinned by BracketTests, ClassifyTests and CandidateTests."""
+        self.assertEqual(self.record["run"], [0x80347608, 0x80347AFC])
+        self.assertEqual(self.record["module"], ".\Release\PLAYER.OBJ")
+        self.assertEqual(self.record["gaps"], [])
 
     def test_the_float_datum_is_not_reported_as_the_string_its_bytes_spell(self):
-        values = dict(self.gap(0x80347828)["values"])
-        self.assertTrue(values["lbl_80347828"].startswith("f64 0.001"))
-        self.assertIn('"?PbM"', values["lbl_80347828"])
-        self.assertEqual(values["lbl_80347830"], "f64 500")
-
-    def test_the_candidate_list_is_wider_than_the_two_names_p7_recorded(self):
-        names = [row["name"] for row in self.gap(0x80347828)["candidates"]]
-        self.assertIn("power_bar_state", names)
-        self.assertIn("hide_power_meter", names)
-        self.assertIn("IncLevel", names)
-        self.assertIn("SetPlayerLevel", names)
-        self.assertIn("IncAtt", names)
-        self.assertEqual(names[-1], "load_player_atts")   # widest bound last
-
-    def test_the_other_two_gaps_refuse_a_bracket_rather_than_inventing_one(self):
-        for address in (0x80347880, 0x80347938):
-            gap = self.gap(address)
-            self.assertIsNone(gap["bracket"]["interval"])
-            self.assertIn("UNBRACKETED", gap["device"]["verdict"])
-            self.assertEqual(gap["candidates"], [])
+        """0x80347828 is f64 0.001 whose big-endian bytes begin "?PbM";
+        the DOL bytes decide, so the check does not depend on our object."""
+        note = poolslot.datum_note(0x80347828, 8)
+        self.assertTrue(note.startswith("f64 0.001"), note)
+        self.assertIn('"?PbM"', note)
 
     def test_a_bss_section_is_refused_not_bound(self):
         with self.assertRaises(poolslot.Refused) as caught:

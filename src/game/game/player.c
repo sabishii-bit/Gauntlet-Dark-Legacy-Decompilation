@@ -593,10 +593,14 @@ static char* player_rhand[16] = {
  * through R_PPC_EMB_SDA21. */
 static s32 mini_inv_item_count = 75;          /* = mini_inv_items[75] */
 char* player_sumner_desc = "sum";             /* select.c and tower.c read it */
-/* the save-menu answer lists the cheat prompts pass to saveMenuPrompt.
- * .sdata2 0x80347734 (2 pointers) and 0x80347740; their literals "Yes",
- * "No" and "Ok!" open the 0x8034772C run.  No attested name. */
-static char* const lbl_80347734 = "Yes", * const lbl_80347738 = "No";
+/* the save-menu answer lists the cheat prompts pass to saveMenuPrompt:
+ * .sdata2 0x80347734 (the two-pointer array) and 0x80347740; their
+ * literals "Yes", "No" and "Ok!" open the 0x8034772C run.  No attested
+ * name. */
+static const char lbl_8034772C[] = "Yes";
+static const char lbl_80347730[] = "No";
+static const char* const lbl_80347734 = lbl_8034772C;
+static const char* const lbl_80347738 = lbl_80347730;
 static char* const lbl_80347740 = "Ok!";
 static f32 player_lightattn = 10.0f;
 static f32 player_lightrad = 20.0f;
@@ -1883,6 +1887,35 @@ static inline s32 CalcLevelExp(s32 lv) {
     return result;
 }
 
+
+/* Derive one combat stat from an attribute norm x its class range.
+ * Only ever inlined in the shipped build. */
+static f32 player_scale_att(f32* att, f32* range)
+{
+    return 0.001 * *att * (range[1] - range[0]) + range[0];
+}
+
+/* Stamp a level on p: its exp, the class norms and full health.  Not
+ * called out of line in the shipped build (load_player inlines it). */
+static void SetPlayerLevel(Player* p, f32 flevel) {
+    s32 level = (s32)flevel;
+    s32 exp;
+    s32 product;
+
+    if ((s32)flevel <= 60) {
+        exp = (level - 1) * (level * 30 + 1000);
+    } else {
+        product = (level - 60) * 4600;
+        exp = 0x28550;
+        exp += product;
+    }
+    p->exp = exp;
+    p->level = level;
+    set_player_default_atts(p);
+    check_player_atts(p, p->character, NULL);
+    p->health = 100.0 * (level - 1) + 500.0;
+}
+
 /* Give exp; mode -2 scales by level bracket, mode 1 charges the power
  * meter, mode >= 0 forwards into an attached familiar. */
 s32 AddExp(s32 pnum, s32 amount, s32 mode) {
@@ -2033,7 +2066,6 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
     f32 vpos[3];
     f32 vel[3];
     f32 pw;
-    f64 tmp;
 
     scale = 1.0f;
     p = NULL;
@@ -2073,10 +2105,9 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
         vpos[1] = (f32)(2.0 * vel[1] + vpos[1]);
         vpos[2] = (f32)(2.0 * vel[2] + vpos[2]);
         vpos[1] += 4.0;
-        tmp = *(volatile f32*)&vel[0];
-        vel[0] = (f32)(tmp * lbl_80347880);
+        vel[0] *= 0.707;
         vel[1] = 0.707f;
-        vel[2] = (f32)((f64)vel[2] * lbl_80347880);
+        vel[2] *= 0.707;
         vel[0] *= pw;
         vel[1] *= pw;
         vel[2] *= pw;
@@ -2706,7 +2737,6 @@ s32 do_players(void) {
 extern f32 lbl_803477AC; /* 0.0f  */
 extern f64 lbl_803478B0; /* 0.5   */
 extern f64 lbl_80347A40; /* 3.0   */
-extern f32 lbl_80347A54; /* 95.0f */
 extern f64 __frsqrte(f64 value);
 extern f64 __sin(f64 value);
 extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
@@ -3953,9 +3983,6 @@ s32 activate_player(s32 i) {
 void load_player(s32 i) {
     Player* cp = P(i);
     Player* p = P(i);
-    s32 lvl;
-    s32 exp;
-    s32 product;
     s32 j;
     s32 zero;
     struct {
@@ -3968,19 +3995,7 @@ void load_player(s32 i) {
         if ((f32)cp->level != PF(gCurLevel, offsetof(level_data, plevel), f32)) {
             opt_force_player |= 2;
         }
-        lvl = (s32)PF(gCurLevel, offsetof(level_data, plevel), f32);
-        if ((s32)PF(gCurLevel, offsetof(level_data, plevel), f32) <= 60) {
-            exp = (lvl - 1) * (lvl * 30 + 1000);
-        } else {
-            product = (lvl - 60) * 4600;
-            exp = 0x28550;
-            exp += product;
-        }
-        cp->exp = exp;
-        cp->level = lvl;
-        set_player_default_atts(cp);
-        check_player_atts(cp, cp->character, NULL);
-        cp->health = 100.0 * (lvl - 1) + 500.0;
+        SetPlayerLevel(cp, PF(gCurLevel, offsetof(level_data, plevel), f32));
     }
     zero = 0;
     p->node = NULL;
@@ -4382,12 +4397,6 @@ void player_save_controls(s32 i) {
     p->save_backup.control_autoaim = (u8)lbl_80240E30[i].unk34;
 }
 
-/* Derive the combat stats from the attribute norms x class ranges.    */
-static inline f32 player_scale_att(f32* att, f32* range)
-{
-    return 0.001 * *att * (range[1] - range[0]) + range[0];
-}
-
 #pragma opt_propagation off
 void PlayerUpdateAtts(void* vp) {
     Player* p = vp;
@@ -4666,9 +4675,9 @@ s32 set_hidden_player(Player* p) {
          strncmp(p->save.name, "ARIENT", 6) == 0 ||
          strncmp(p->save.name, "AAAAAA", 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-        access_options[0] = lbl_80347734;
+        access_options[0] = (char*)lbl_80347734;
         access_one[0] = lbl_80347740;
-        access_options[1] = lbl_80347738;
+        access_options[1] = (char*)lbl_80347738;
         if (saveMenuPrompt("Access?", access_options, 2) == 0) {
             prompt_ok = 1;
         } else {
@@ -4680,8 +4689,8 @@ s32 set_hidden_player(Player* p) {
             match = 0;
         }
         if (match != 0) {
-            fly_options[0] = lbl_80347734;
-            fly_options[1] = lbl_80347738;
+            fly_options[0] = (char*)lbl_80347734;
+            fly_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Fly?", fly_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4690,8 +4699,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 gGameOptions[6] = 1;
             }
-            unlimited_options[0] = lbl_80347734;
-            unlimited_options[1] = lbl_80347738;
+            unlimited_options[0] = (char*)lbl_80347734;
+            unlimited_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Unlimited?",
                                unlimited_options, 2) == 0) {
                 prompt_ok = 1;
@@ -4701,8 +4710,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 gGameOptions[1] = 3;
             }
-            nodamage_options[0] = lbl_80347734;
-            nodamage_options[1] = lbl_80347738;
+            nodamage_options[0] = (char*)lbl_80347734;
+            nodamage_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("NoDamage?",
                                nodamage_options, 2) == 0) {
                 prompt_ok = 1;
@@ -4712,8 +4721,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 gGameOptions[0] = 1;
             }
-            shards_options[0] = lbl_80347734;
-            shards_options[1] = lbl_80347738;
+            shards_options[0] = (char*)lbl_80347734;
+            shards_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Shards?", shards_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4722,8 +4731,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 p->runes = 0xFFFF;
             }
-            runes_options[0] = lbl_80347734;
-            runes_options[1] = lbl_80347738;
+            runes_options[0] = (char*)lbl_80347734;
+            runes_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Runes?", runes_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4732,8 +4741,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 p->shards = 0xFFFF;
             }
-            cheats_options[0] = lbl_80347734;
-            cheats_options[1] = lbl_80347738;
+            cheats_options[0] = (char*)lbl_80347734;
+            cheats_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Cheats?", cheats_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4742,8 +4751,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 pups = 0xFFFFFFFF;
             }
-            select_options[0] = lbl_80347734;
-            select_options[1] = lbl_80347738;
+            select_options[0] = (char*)lbl_80347734;
+            select_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Select a character ?",
                                select_options, 2) == 0) {
                 prompt_ok = 1;
@@ -4769,8 +4778,8 @@ s32 set_hidden_player(Player* p) {
                     ReadControls();
                 }
             }
-            worlds_options[0] = lbl_80347734;
-            worlds_options[1] = lbl_80347738;
+            worlds_options[0] = (char*)lbl_80347734;
+            worlds_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Worlds ?",
                                worlds_options, 2) == 0) {
                 prompt_ok = 1;
@@ -4811,8 +4820,8 @@ s32 set_hidden_player(Player* p) {
             match = 1;
             pick = 1;
             pups = rand();
-            all_fly_options[0] = lbl_80347734;
-            all_fly_options[1] = lbl_80347738;
+            all_fly_options[0] = (char*)lbl_80347734;
+            all_fly_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Fly?", all_fly_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4821,8 +4830,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 gGameOptions[6] = 1;
             }
-            all_unlimited_options[0] = lbl_80347734;
-            all_unlimited_options[1] = lbl_80347738;
+            all_unlimited_options[0] = (char*)lbl_80347734;
+            all_unlimited_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Unlimited?",
                                all_unlimited_options, 2) == 0) {
                 prompt_ok = 1;
@@ -4832,8 +4841,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 gGameOptions[1] = 3;
             }
-            all_nodamage_options[0] = lbl_80347734;
-            all_nodamage_options[1] = lbl_80347738;
+            all_nodamage_options[0] = (char*)lbl_80347734;
+            all_nodamage_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("NoDamage?",
                                all_nodamage_options, 2) == 0) {
                 prompt_ok = 1;
@@ -4843,8 +4852,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 gGameOptions[0] = 1;
             }
-            all_shards_options[0] = lbl_80347734;
-            all_shards_options[1] = lbl_80347738;
+            all_shards_options[0] = (char*)lbl_80347734;
+            all_shards_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Shards?", all_shards_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4853,8 +4862,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 p->runes = 0xFFFF;
             }
-            all_runes_options[0] = lbl_80347734;
-            all_runes_options[1] = lbl_80347738;
+            all_runes_options[0] = (char*)lbl_80347734;
+            all_runes_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Runes?", all_runes_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4863,8 +4872,8 @@ s32 set_hidden_player(Player* p) {
             if (prompt_ok != 0) {
                 p->shards = 0xFFFF;
             }
-            all_cheats_options[0] = lbl_80347734;
-            all_cheats_options[1] = lbl_80347738;
+            all_cheats_options[0] = (char*)lbl_80347734;
+            all_cheats_options[1] = (char*)lbl_80347738;
             if (saveMenuPrompt("Cheats?", all_cheats_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
@@ -4901,37 +4910,34 @@ s32 set_hidden_player(Player* p) {
         return 1;
     }
     for (j = 0; (u32)j < 27; j++) {
-        HiddenChar* hidden = (HiddenChar*)(data + 2512) + j;
-        if ((strncmp(p->save.name, hidden->name, 6) == 0 &&
-             (hidden->disable == 0 || lbl_80344828 > 1)) ||
+        if ((strncmp(p->save.name, ((HiddenChar*)(data + 2512))[j].name, 6) == 0 &&
+             (((HiddenChar*)(data + 2512))[j].disable == 0 || lbl_80344828 > 1)) ||
             (match && pick == j)) {
-            p->class_id = hidden->color;
+            p->class_id = ((HiddenChar*)(data + 2512))[j].color;
             p->character = ((HiddenChar*)(data + 2512))[j].type;
-            p->hidden_code = hidden->dir;
+            p->hidden_code = ((HiddenChar*)(data + 2512))[j].dir;
             return 1;
         }
     }
     for (j = 0; (u32)j < 27; j++) {
-        PupCheat* cheat = (PupCheat*)(data + 3484) + j;
-        if (strncmp(p->save.name, cheat->name, 6) == 0 ||
+        if (strncmp(p->save.name, ((PupCheat*)(data + 3484))[j].name, 6) == 0 ||
             (pups & (1 << j))) {
-            switch (((s32*)cheat)[2]) {
+            switch (((PupCheat*)(data + 3484))[j].type) {
             case 1:
-                p->gold = (s32)cheat->add;
+                p->gold = (s32)((PupCheat*)(data + 3484))[j].add;
                 break;
             case 2:
-                p->item_body_lo = (s32)cheat->add;
+                p->item_body_lo = (s32)((PupCheat*)(data + 3484))[j].add;
                 break;
             case 4:
-                p->item_body_hi = (s32)cheat->add;
+                p->item_body_hi = (s32)((PupCheat*)(data + 3484))[j].add;
                 break;
             default:
-                /* type and flags are read as words of the entry: the
-                 * target keeps both addresses across the call. */
-                PlayerAddPowerup(cheat->add, p, ((s32*)cheat)[2],
-                                 ((u32*)cheat)[4], -1.0f);
-                if (((s32*)cheat)[2] == 9) {
-                    p->flags |= ((u32*)cheat)[4];
+                PlayerAddPowerup(((PupCheat*)(data + 3484))[j].add, p,
+                                 ((PupCheat*)(data + 3484))[j].type,
+                                 ((PupCheat*)(data + 3484))[j].flags, -1.0f);
+                if (((PupCheat*)(data + 3484))[j].type == 9) {
+                    p->flags |= ((PupCheat*)(data + 3484))[j].flags;
                 }
                 break;
             }
@@ -5502,7 +5508,8 @@ void PlayerProcessPowerups(Player* p) {
         }
 
         if (p->anim_208 == 0x92) {
-            MBTreeSetAlpha(p->node, (s32)lbl_80347A54, 1);
+            f32 alpha = 95.0f;
+            MBTreeSetAlpha(p->node, (s32)alpha, 1);
         } else if (p->flags & 4) {
             f32 player_alpha;
             if (alpha_time < 0.0f || alpha_time > 3.0 ||
