@@ -6908,11 +6908,11 @@ void mini_inventory_update(s32 i) {
     u32* held;
     Player* p = (Player*)(base + i * PREC_STRIDE + 0xC40);
     u8 moved;
-    u8* selected_pup;
     u8* entry;
     s32 sel;
     s32 j;
     s32 count;
+    u8* selected_pup;
     s32 offset;
     s32 state;
     u8 unused[32];
