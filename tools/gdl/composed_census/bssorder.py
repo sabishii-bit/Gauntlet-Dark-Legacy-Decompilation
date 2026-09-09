@@ -89,9 +89,15 @@ CONTROLS, both EXACT units whose `.bss` the link already proves right:
                     "whatever order the text happens to show", and that a
                     first-reference disagreement alone is NOT a defect.
 
-WHAT IT IS NOT. A seat is not a name: player's `.bss` seater has no PDB
-counterpart at its slot, so `srcorder.py` cannot bound it and this screen
-reports the requirement, not a candidate. An unreferenced object (player's
+WHAT IT IS NOT. A seat is not a name. This screen reports a REQUIREMENT —
+"a function referencing these eight objects in this order before gc#5" — and
+stops there; naming it is `srcorder.py`'s job and, on player, `srcorder` does
+not settle it. The only PDB-absent name whose bound reaches a slot before
+gc#5 del_player_blits is `del_item_blits` (xb#109, bounded gc#3..gc#7), and
+its Xbox body is 0x1 byte — a stub that cannot touch eight objects. So the
+seater is most likely GC-only, like `create_player_blits`, and this screen
+reports the shape it must have rather than a candidate. An unreferenced
+object (player's
 hud_pad_034) is not evidence of anything — it is reached only through the
 per-player index arithmetic already attributed to the object that covers it.
 
