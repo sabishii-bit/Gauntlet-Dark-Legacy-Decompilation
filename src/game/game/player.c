@@ -585,6 +585,24 @@ static char* player_rhand[16] = {
     "RHEND",
 };
 
+/* ------------------------------------------------------------------ */
+/* This TU's .sdata, 0x80343D68..0x80343DB0 (12 objects).  Four names come
+ * from the Xbox PLAYER.OBJ globals; the six two-float ranges have no PDB
+ * name and keep their addresses.  The target reaches every one of them
+ * through R_PPC_EMB_SDA21. */
+static s32 mini_inv_item_count = 75;          /* = mini_inv_items[75] */
+char* player_sumner_desc = "sum";             /* select.c and tower.c read it */
+static f32 player_lightattn = 10.0f;
+static f32 player_lightrad = 20.0f;
+static f32 player_lightdy = 10.0f;
+static f32 lbl_80343D7C[2] = { 5.0f, 20.0f };    /* damage range */
+static f32 lbl_80343D84[2] = { 0.0f, 5.0f };     /* armor range */
+static f32 lbl_80343D8C[2] = { 8.0f, 32.0f };    /* magic range */
+static f32 lbl_80343D94[2] = { 5.0f, 12.5f };    /* speed range */
+static f32 lbl_80343D9C[2] = { 5.0f, 20.0f };    /* missile damage range */
+static f32 lbl_80343DA4[2] = { 20.0f, 60.0f };   /* missile speed range */
+static s32 giOverlayPUPCount = 39;            /* = fNewPUPDescs[39] */
+
 /* 0x80113E0C "MIKEYPUP" and the 16 bytes at 0x80113E18 are both in the DOL's
  * .rodata run, and a whole-image word scan finds no pointer to either: they
  * are compiled here, dead-stripped by mwld as unreferenced, and only their
@@ -861,9 +879,6 @@ extern s32 lbl_80344510;
 extern s32 dbgTextFlagA;
 extern s32 lbl_80344E44;   /* HUD button texture ids */
 extern s32 lbl_80344E48;
-extern f32 lbl_80343D70;
-extern f32 lbl_80343D74;
-extern f32 lbl_80343D78;
 
 /* ------------------------------------------------------------------ */
 /* extern functions                                                    */
@@ -2421,9 +2436,9 @@ s32 do_players(void) {
                         light_pos[0] = p->col_pos[0];
                         light_pos[1] = p->col_pos[1];
                         light_pos[2] = p->col_pos[2];
-                        light_pos[1] += lbl_80343D78;
+                        light_pos[1] += player_lightdy;
                         fn_800C0ADC(light_pos, player_light_color[p->class_id],
-                                   lbl_80343D74, lbl_80343D70);
+                                   player_lightrad, player_lightattn);
                     }
                 }
                 if ((u32)(lbl_8034489C - 2) <= 1) {
@@ -2666,13 +2681,6 @@ s32 do_players(void) {
 /* ================================================================== */
 
 /* extern data (back slice) */
-extern char* lbl_80343D6C;    /* active hidden-character code ptr (set_hidden_player) */
-extern s32 lbl_80343D68;      /* mini-inventory label table count */
-extern s32 lbl_80343DAC;      /* bigape powerup table count */
-extern f32 lbl_80343D7C[2];   /* damage range */
-extern f32 lbl_80343D84[2];   /* armor range */
-extern f32 lbl_80343D8C[2];   /* magic range */
-extern f32 lbl_80343D94[2];   /* speed range */
 extern f32 lbl_803477AC;
 extern f32 lbl_803477B4;
 extern f64 lbl_803477D0;
@@ -2694,8 +2702,6 @@ extern f32 lbl_80347770;
 extern f32 lbl_80347790;
 extern f64 __frsqrte(f64 value);
 extern f64 __sin(f64 value);
-extern f32 lbl_80343D9C[2];   /* missile damage range */
-extern f32 lbl_80343DA4[2];   /* missile speed range */
 extern s32 lbl_80257594;      /* Unlimited? cheat (3 = unlimited turbo) */
 extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
 extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
@@ -3611,7 +3617,7 @@ static inline void restore_inactive_player(s32 i) {
     Player* p = PT(i);
     f32 cap;
 
-    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         cap = 100.0 * (p->level - 1) + 500.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
@@ -3791,7 +3797,7 @@ void change_player(s32 i, s32 type) {
     player_store_in_save(p);
     if (type == 0x10) {
         type = 2;
-        HIDDEN_CODE(p) = lbl_80343D6C;
+        HIDDEN_CODE(p) = player_sumner_desc;
     } else {
         HIDDEN_CODE(p) = NULL;
     }
@@ -4184,7 +4190,7 @@ void PlayersRestoreHealth(void) {
             p->state = 1;
         }
         chartype = p->character;
-        if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+        if (chartype == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
             cap = 100.0 * (p->level - 1) + 500.0;
             if (cap > 9999.0f) {
                 cap = 9999.0f;
@@ -4201,7 +4207,7 @@ void PlayerRestoreState(s32 player) {
     Player* p = P(player);
     f32 cap;
 
-    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         cap = 100.0 * (p->level - 1) + 500.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
@@ -4217,7 +4223,7 @@ void PlayerRestoreState(s32 player) {
 void PlayerSaveState(s32 player, s32 full) {
     Player* p = P(player);
 
-    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         return;
     }
     player_store_in_save(p);
@@ -4247,7 +4253,7 @@ void player_get_from_save(void* vp, s32 type) {
     p = vp;
     player = p->index;
 
-    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         /* hidden character: fixed loadout */
         p->save_backup = p->save;
         p->class_id = 0;
@@ -4341,12 +4347,12 @@ void player_store_in_save(void* vp) {
     chartype = p->character;
     player = p->index;
 
-    if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    if (chartype == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         /* hidden char: park it, restore the base character, re-flag */
         p->save = p->save_backup;
         HIDDEN_CODE(p) = NULL;
         player_get_from_save(p, -1);
-        HIDDEN_CODE(p) = lbl_80343D6C;
+        HIDDEN_CODE(p) = player_sumner_desc;
     }
     chartype *= 0xF0;
     st = (s32*)((u8*)p + p->character * 0x18);
@@ -4376,7 +4382,7 @@ void player_store_in_save(void* vp) {
     p->save.control_rumble = (u8)lbl_80240E30[player].hasActuator;
     p->save.control_autoattack = (u8)lbl_80240E30[player].unk38;
     p->save.control_autoaim = (u8)lbl_80240E30[player].unk34;
-    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         player_get_from_save(p, -1);
     }
 }
@@ -4410,7 +4416,7 @@ void PlayerUpdateAtts(void* vp) {
 
     LoadPlyrData(p->index, p->character, NULL);
     character = p->character;
-    if (character != 2 || HIDDEN_CODE(p) != lbl_80343D6C) {
+    if (character != 2 || HIDDEN_CODE(p) != player_sumner_desc) {
         check_player_atts(p, character, NULL);
     }
     p->stat_damage = player_scale_att(&p->att_fight, lbl_80343D7C);
@@ -4907,7 +4913,7 @@ s32 set_hidden_player(void* vp) {
         }
     }
     if (p->hidden_code != NULL) {
-        if (p->hidden_code == lbl_80343D6C) {
+        if (p->hidden_code == player_sumner_desc) {
             p->char_type = 2;
             p->character = 2;
             return 0;
@@ -6172,7 +6178,7 @@ void AppendBigapePowerupsToScene(void) {
     u8 unused[16];
     s32 i;
 
-    for (i = 0; i < lbl_80343DAC; i++) {
+    for (i = 0; i < giOverlayPUPCount; i++) {
         if (InLevel((s32*)&fNewPUPDescs[i]) != 0) {
             BigapePowerupInfo* info =
                 &gOverlayPUPParams[fNewPUPDescs[i].type];
@@ -6565,7 +6571,7 @@ void check_player_atts(void* vp, s32 chartype, f32* stats) {
     f32 v;
 
     index = p->index;
-    if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
+    if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         ATT_FIGHT(p) = 999.0f;
         ATT_ARMOR(p) = 999.0f;
         ATT_MAGIC(p) = 999.0f;
@@ -6966,7 +6972,7 @@ void mini_inventory_update(s32 i) {
                 tb->sel = sel;
                 j = 0;
                 offset = j;
-                count = lbl_80343D68;
+                count = mini_inv_item_count;
                 selected_pup = (u8*)p + tb->sel * 0x10;
                 for (; j < count; j++, offset += 12) {
                     entry = (u8*)label_table + offset;
@@ -6979,9 +6985,9 @@ void mini_inventory_update(s32 i) {
                         break;
                     }
                 }
-                if (j >= lbl_80343D68) {
+                if (j >= mini_inv_item_count) {
                     lbl_802757E0[i].label =
-                        (char*)label_table[40 + (lbl_80343D68 - 1) * 3 + 2];
+                        (char*)label_table[40 + (mini_inv_item_count - 1) * 3 + 2];
                 }
             }
             if (tb->sel >= 0) {
@@ -7009,7 +7015,7 @@ void mini_inventory_update(s32 i) {
         if (moved) {
             j = 0;
             offset = j;
-            count = lbl_80343D68;
+            count = mini_inv_item_count;
             selected_pup = (u8*)p + tb->sel * 0x10;
             for (; j < count; j++, offset += 12) {
                 entry = (u8*)label_table + offset;
@@ -7022,9 +7028,9 @@ void mini_inventory_update(s32 i) {
                     break;
                 }
             }
-            if (j >= lbl_80343D68) {
+            if (j >= mini_inv_item_count) {
                 lbl_802757E0[i].label =
-                    (char*)label_table[40 + (lbl_80343D68 - 1) * 3 + 2];
+                    (char*)label_table[40 + (mini_inv_item_count - 1) * 3 + 2];
             }
         }
         break;

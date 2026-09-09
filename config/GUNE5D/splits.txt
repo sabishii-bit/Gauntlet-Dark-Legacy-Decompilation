@@ -213,6 +213,7 @@ game/game/player.c:
 	.rodata     start:0x80113AE0 end:0x80114220
 	.data       start:0x80120B4C end:0x80120BEC
 	.bss        start:0x80274EA0 end:0x80275AE0
+	.sdata      start:0x80343D68 end:0x80343DB0
 
 game/game/pmotion.c:
 	extab       start:0x80006B30 end:0x80006BE8
