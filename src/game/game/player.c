@@ -4313,12 +4313,11 @@ void player_get_from_save(void* vp, s32 type) {
     }
     p->level = lv;
     p->health = PF(p, offset + 0xA94, f32);
-    offset = type * 0xF0;
-    p->gold = PF(p, offset + 0xE00, s32);
-    p->item_body_hi = PF(p, offset + 0xDD0, s16);
-    p->item_body_lo = PF(p, offset + 0xDD2, s16);
-    p->runes = PF(p, offset + 0xDD4, u16);
-    p->shards = PF(p, offset + 0xDD6, u16);
+    p->gold = p->save.stuff[type].gold;
+    p->item_body_hi = p->save.stuff[type].potions;
+    p->item_body_lo = p->save.stuff[type].keys;
+    p->runes = p->save.stuff[type].rune_stones;
+    p->shards = p->save.stuff[type].rune_stones2;
     stat_offset = type * 0x18;
     if (PF(p, stat_offset + 0xA94, f32) == 0.0f) {
         clear_player(p->index, 0);
@@ -4329,8 +4328,8 @@ void player_get_from_save(void* vp, s32 type) {
         p->char_type -= 8;
     }
     check_player_atts(p, type, NULL);
-    memcpy((u8*)p + 0x130, (u8*)p + offset + 0xE04, 0xB0);
-    PF(p, 0x1EC, s32) = PF(p, offset + 0xDDA, s16);
+    memcpy((u8*)p + 0x130, p->save.stuff[type].powerups, 0xB0);
+    PF(p, 0x1EC, s32) = p->save.stuff[type].npowerups;
     p->field_11C = 0;
     p->shield_flags = 0;
     p->flags = 0;
