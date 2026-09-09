@@ -8331,17 +8331,17 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     f32 secondDist;
     f32 bestDy;
     f32 secondDy;
+    f32 base;
     f64 kThree;
     f64 kHalf;
     f32 kZero;
     f64 k2Pi;
     f64 kNegPi;
     f64 kPi;
-    f32 base;
-    s32 second;
     u8* m;
     s32 i;
     s32 best;
+    s32 second;
     u8 unusedLo[28];
 
     bestDist = 100000.0f;
@@ -8409,8 +8409,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
             dy = ((MilestoneParam *)m)->matrix[13] - pos[1];
             dx = ((MilestoneParam *)m)->matrix[12] - pos[0];
             dz = ((MilestoneParam *)m)->matrix[14] - pos[2];
-            dist = dx * dx + dy * dy;
-            dist = dz * dz + dist;
+            dist = dz * dz + (dist = dx * dx + dy * dy);
             if (dist > kZero) {
                 f64 y = __frsqrte(dist);
                 y = kHalf * y * (kThree - y * y * dist);
