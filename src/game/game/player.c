@@ -3482,7 +3482,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         hp_old = (s32)(0.25 + hp);
         hp_new = (s32)(0.25 + p->health);
         if (dmg > 0.0f) {
-            *(f32*)p->pad_0924 += dmg;
+            p->pain_accum += dmg;
         }
         if (hp_old > 150 && hp_new <= 150) {
             if (msgPost(0xD, i, (u32)p->col_pos) == 0) {
@@ -3499,19 +3499,19 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                 if (dmg > 0.0f) {
                     AudioPlayerPain(i);
                 }
-                *(f32*)p->pad_0924 = 0.0f;
+                p->pain_accum = 0.0f;
             } else if (mode == 3) {
                 AudioPlayerPoison(i);
-                *(f32*)p->pad_0924 = 0.0f;
+                p->pain_accum = 0.0f;
             } else if (mode != 0) {
                 if (hp_old - hp_new > 60) {
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
-                    *(f32*)p->pad_0924 = 0.0f;
+                    p->pain_accum = 0.0f;
                     mode = 0;
-                } else if (*(f32*)p->pad_0924 >= 45.0) {
-                    *(f32*)p->pad_0924 = *(f32*)p->pad_0924 - 45.0;
+                } else if (p->pain_accum >= 45.0) {
+                    p->pain_accum = p->pain_accum - 45.0;
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
@@ -4091,7 +4091,7 @@ void load_player(s32 i) {
     p->field_A1C = 0;
     p->field_A1E = 0;
     p->field_A20 = 0;
-    *(f32*)p->pad_0924 = 0.0f;
+    p->pain_accum = 0.0f;
     p->got_timer = -1.0f;
     p->got_count = 0;
     for (j = 0; j < 5; j++) {

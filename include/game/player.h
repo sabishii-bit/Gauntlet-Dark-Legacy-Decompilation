@@ -547,7 +547,12 @@ typedef struct Player {
                                       * PlayerDamagedItem; also reset in player.c] */
     /* 0x091C */ s32 count_91C;      /* per-frame countdown [player.c do_players] */
     /* 0x0920 */ s32 count_920;      /* exit-anim countdown [player.c do_players] */
-    /* 0x0924 */ u8  pad_0924[4];
+    /* 0x0924 */ f32 pain_accum;     /* pain-grunt accumulator: damage_player adds
+                                      * every positive `dmg` to it, plays the grunt
+                                      * and subtracts 45.0 once it reaches 45.0, and
+                                      * zeroes it on any grunt/poison/big-hit path;
+                                      * load_player zeroes it. Every GC access is a
+                                      * 4-byte float [player.c] */
     /* 0x0928 */ s32 got_type;       /* last pickup: crystal/boss-item/coin id [player.c] */
     /* 0x092C */ f32 got_timer;      /* pickup ticker time left [player.c] */
     /* 0x0930 */ s32 got_count;      /* pickup running count [player.c] */
