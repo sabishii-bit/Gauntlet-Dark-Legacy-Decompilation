@@ -3356,16 +3356,16 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                         (f32)red < -1.570796327) {
                         reduced_dmg = 0.0f;
                     } else {
-                        reduced_dmg = dam * 0.25;
+                        reduced_dmg = dam * 0.5;
                     }
                 } else {
                     reduced_dmg = 0.0f;
                 }
             } else {
-                reduced_dmg = dam * 0.25;
+                reduced_dmg = dam * 0.5;
             }
-            if (dmg - reduced_dmg > 0.5 && p->timer_1FE <= 0) {
-                f32 clank = (f32)(0.75 * reduced_dmg);
+            if (dmg - reduced_dmg > 2.0 && p->timer_1FE <= 0) {
+                f32 clank = (f32)(0.01 * reduced_dmg);
 
                 clank = (f32)(clank < 0.333 ? 0.333
                                             : (clank > 1.0 ? 1.0 : clank));
@@ -3413,7 +3413,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             if (flags & 0xF) {
                 p->obj_flags &= ~0xF;
             }
-            if (dmg <= 0.5f) {
+            if (dmg <= 2.0f) {
                 flags &= 0xFFFEFE8F;
             }
             p->obj_flags |= flags;
@@ -3460,8 +3460,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         result = 1;
     } else {
         /* grunt tiers on crossing 150/50 hp; big-hit speech (msg 0xD) */
-        hp_old = (s32)(0.25 + hp);
-        hp_new = (s32)(0.25 + p->health);
+        hp_old = (s32)(0.5 + hp);
+        hp_new = (s32)(0.5 + p->health);
         if (dmg > 0.0f) {
             p->pain_accum += dmg;
         }
