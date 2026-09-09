@@ -381,11 +381,12 @@ class PinScreenLive(unittest.TestCase):
         self.assertEqual([l for l in proc.stdout.splitlines() if l.startswith('== ')],
                          [l for l in raw.stdout.splitlines() if l.startswith('== ')])
 
-    def test_the_raw_read_shows_the_residual_the_pin_closes(self):
+    def test_the_raw_read_shows_the_native_closure(self):
         proc = self.run_cli("--raw")
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        self.assertIn("16 renaming", proc.stdout)
-        self.assertIn("CLEAN-RENAMING", proc.stdout)
+        self.assertIn("0 renaming", proc.stdout)
+        self.assertIn("0 STRUCTURAL", proc.stdout)
+        self.assertIn("-> EXACT", proc.stdout)
         self.assertIn("RAW pre-postprocess body", proc.stdout)
         self.assertNotIn("WEBFRANK-PINNED", proc.stdout)
 
