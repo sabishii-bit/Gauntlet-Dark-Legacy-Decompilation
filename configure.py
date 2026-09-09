@@ -192,7 +192,12 @@ if args.experimental_p6_compiler:
         if not compiler.is_file():
             sys.exit(
                 f"Experimental compiler not found: {compiler}\n"
-                "See tools/gdl/mwcc_p6/README.md to derive it."
+                "Build tools/gdl/mwcc_p6/build/payload.bin, then run:\n"
+                f"  {sys.executable} tools/gdl/mwcc_p6/setup_compilers.py "
+                f"{compiler_root} --payload "
+                "tools/gdl/mwcc_p6/build/payload.bin\n"
+                "See tools/gdl/mwcc_p6/README.md for the authenticated "
+                "download-and-derive workflow."
             )
         actual_sha256 = hashlib.sha256(compiler.read_bytes()).hexdigest()
         if actual_sha256 != expected_sha256:

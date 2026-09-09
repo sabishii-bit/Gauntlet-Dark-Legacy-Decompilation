@@ -16,6 +16,7 @@ import os
 import platform
 import shutil
 import stat
+import sys
 import urllib.request
 import zipfile
 from typing import Callable, Dict
@@ -120,7 +121,22 @@ def main() -> None:
     parser.add_argument("tool", help="Tool name")
     parser.add_argument("output", type=Path, help="output file path")
     parser.add_argument("--tag", help="GitHub tag", required=True)
+    parser.add_argument(
+        "--gdl-special-compilers",
+        action="store_true",
+        help="after downloading compilers, derive GDL's reviewed 1.2.5s profiles",
+    )
+    parser.add_argument(
+        "--gdl-special-payload",
+        type=Path,
+        help="reviewed payload.bin for --gdl-special-compilers",
+    )
     args = parser.parse_args()
+
+    if args.gdl_special_compilers and args.tool != "compilers":
+        parser.error("--gdl-special-compilers requires tool=compilers")
+    if args.gdl_special_payload is not None and not args.gdl_special_compilers:
+        parser.error("--gdl-special-payload requires --gdl-special-compilers")
 
     url = TOOLS[args.tool](args.tag)
     output = Path(args.output)
@@ -146,6 +162,19 @@ def main() -> None:
             req, context=ssl.create_default_context(cafile=certifi.where())
         ) as response:
             download(url, response, output)
+
+    if args.gdl_special_compilers:
+        repo_root = Path(__file__).resolve().parents[1]
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+        from tools.gdl.mwcc_p6.setup_compilers import (
+            DEFAULT_PAYLOAD,
+            install_special_compilers,
+        )
+
+        payload = args.gdl_special_payload or DEFAULT_PAYLOAD
+        for compiler in install_special_compilers(output, payload):
+            print(f"Installed {compiler}")
 
 
 if __name__ == "__main__":

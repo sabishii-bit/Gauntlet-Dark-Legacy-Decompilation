@@ -302,6 +302,71 @@ one axis, not a universal explanation: Fable's Critter retirement also exposed
 an artificial write-only induction local. Neither a low diff nor a failed
 finite matrix proves that postprocessing is necessary.
 
+### TU closure playbook
+
+Use this staged decision tree when the objective is to flip a complete TU.
+Do not begin by grinding the closest function or assuming the current split,
+compiler label, data claims or source roster are correct.
+
+1. **Establish the real TU envelope.** Map every target function, local/static
+   helper, literal run, writable datum, BSS range and EH record that can belong
+   to the TU. Check both boundaries in `splits.txt` against adjacent target
+   symbols and sections. A proposed bound needs converging text, data,
+   relocation and ownership evidence; one convenient address is insufficient.
+2. **Reproduce the active native object.** Record its compiler and complete
+   Ninja command, target/raw function rosters, counts, positional relocations,
+   section sizes and EH identities. A NonMatching TU's green DOL uses fallback
+   and says nothing about its source object. Keep a private hash-pinned baseline.
+3. **Repair semantics and program structure before allocation.** Recover types,
+   prototypes, control flow, inlined and discarded helpers, linkage, declaration
+   order, real aggregates and data ownership. Compile the whole TU after every
+   structural change. A helper that is absent from target text may still be
+   required to establish target pool order before the linker discards it.
+4. **Close data jointly with code.** Trace every relocation to its exact datum,
+   width, alignment and section. Compare literal order and first use, not just a
+   value multiset. Test storage duration, constness, array bounds and definition
+   order as source hypotheses. Do not manufacture filler or resize a split to
+   hide unexplained bytes.
+5. **Classify each remaining code residual.** First resolve count/opcode/CFG
+   differences, then stack slots and saved homes, then register webs and final
+   scheduling. Re-align after every insertion/deletion. A two-word swap after
+   all siblings are exact is a different problem from a 70% structural match.
+6. **Exhaust ordinary compiler explanations on the real edge.** Test only
+   source-backed flags, pragmas, inline modes and compiler versions, one axis at
+   a time and then justified combinations. Preserve negative controls with the
+   exact command and hashes. A flag name does not imply it controls the backend
+   pass under investigation; verify its emitted object.
+7. **Investigate the compiler only with a minimal counterfactual.** Trace the
+   offending IR/PCode through the pass boundary, prove which state transition
+   causes the target/raw divergence, and alter that one state live before
+   patching anything. The counterfactual must produce the exact complete object,
+   not merely improve a score. Never infer a compiler defect from final PPC
+   output alone.
+8. **If explicitly authorized, patch a semantic compiler condition, not a
+   target.** Hook the narrowest responsible callsite; do not inspect function
+   names, retail addresses or desired PPC words. Authenticate input binaries,
+   callsite bytes, payload and outputs. Compare against the prior compiler over
+   both exact and broad corpora, and select the derivative only for TUs whose
+   target evidence supports it.
+9. **Promote only after the source-selected link.** Require every target function
+   body and positional binding, explain any compiler-object-only discarded
+   helper, check data/BSS/EH, rebuild the DOL after deleting the `ok` stamp and
+   verify the checksum. Then repeat the default/fallback build so the opt-in
+   profile did not damage ordinary development.
+
+`gamemain.c` is the reference example. Corrected TU/data ownership, recovered
+definition order and deferred inlining closed 27 of 28 functions and the full
+literal pool. Making `StartCompass` `static inline` removed its extra object/EH
+record but shifted 69 `.sdata2` bytes, proving the outlined definition was
+load-bearing input later discarded by `mwld`. The last `game_main` residual was
+only two adjacent instructions. Stock flags, including `-opt nodeadcode`, did
+not alter it. A live trace showed `MarkLastUses` deleting a dead `LI vreg,0`,
+the generic remover clearing an already-valid schedule bit, and the physical
+scheduler revisiting the block. Restoring only that bit produced all 28 exact
+bodies; the guarded stock-derived `1.2.5s` profile then passed the complete
+source-linked DOL. This sequence is evidence for the stages above, not permission
+to reuse its compiler condition or discarded-helper shape in another TU.
+
 ## Types, names and de-fakematching
 
 Before source-debt cleanup, run `pnpm install --frozen-lockfile` once, then

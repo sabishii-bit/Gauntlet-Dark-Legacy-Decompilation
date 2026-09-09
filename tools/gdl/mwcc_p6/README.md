@@ -48,6 +48,30 @@ Tool paths may be supplied explicitly:
 Never overwrite the supplied compiler. The patcher rejects path aliases and
 writes the derived executable atomically.
 
+For a fresh setup, build the open payload and let the normal compiler downloader
+derive and install both profiles after extracting the pinned compiler archive:
+
+```powershell
+.\tools\gdl\mwcc_p6\build_payload.ps1
+python tools\download_tool.py compilers build\compilers `
+  --tag 20251118 `
+  --gdl-special-compilers `
+  --gdl-special-payload tools\gdl\mwcc_p6\build\payload.bin
+```
+
+If the ordinary compiler archive is already installed, avoid downloading it
+again and run only the authenticated setup step:
+
+```powershell
+python tools\gdl\mwcc_p6\setup_compilers.py build\compilers `
+  --payload tools\gdl\mwcc_p6\build\payload.bin
+```
+
+Both paths verify the two base compilers, payload, callsites and derived output
+hashes before atomically installing either profile.
+
+The equivalent manual derivation is shown below for auditing and development.
+
 ```powershell
 python patch_pe.py `
   ..\..\..\build\compilers\GC\1.2.5\mwcceppc.exe `

@@ -56,6 +56,10 @@ macOS / Linux
 
 All other tools (compilers, objdiff-cli, sjiswrap, etc.) are downloaded automatically during the build.
 
+The optional, locally derived `GC/1.2.5s` and `GC/1.2.5sn` matching profiles
+are not distributed in the compiler archive. Their open, hash-pinned setup is
+documented in [tools/gdl/mwcc_p6/README.md](tools/gdl/mwcc_p6/README.md).
+
 Building
 ========
 
