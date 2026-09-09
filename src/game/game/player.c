@@ -4373,7 +4373,7 @@ void player_store_in_save(void* vp) {
         total += ExpToLevel(CHAR_STATS(p, j)[0]);
     }
     p->save.leveltot = total;
-    memcpy(p->save.stuff[chartype].pad_34, (u8*)p + 0x130, 0xB0);
+    memcpy(p->save.stuff[chartype].powerups, (u8*)p + 0x130, 0xB0);
     p->save.stuff[chartype].npowerups = (s16)PF(p, 0x1EC, s32);
     p->save.control_scheme = (u8)lbl_80240E30[player].scheme;
     p->save.control_rumble = (u8)lbl_80240E30[player].hasActuator;

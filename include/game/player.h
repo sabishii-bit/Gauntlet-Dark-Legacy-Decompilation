@@ -71,6 +71,23 @@ enum PlayerCharType {
 };
 
 /*
+ * Active powerup slot (11 per player at +0x130).  GC-proven by
+ * player_get_powerup_state / PlayerAddPowerup / PlayerProcessMikeyPUP
+ * (type 9 mask 0x100000 = mikey, mask 8 = x-ray range feed).
+ */
+/* Field names are Midway's own (Xbox shell3D.pdb struct P_POWERUP).  Note the
+ * two f32s are overloaded by powerup class: for timed buffs `timeleft` is the
+ * real-time countdown (drained by gClockFrameStep) and `attributeadd` is 0; for
+ * charge items `attributeadd` is the use/charge count (?1.0 per use) and
+ * `timeleft` is pinned < 0 as a permanent/occupied flag. */
+typedef struct PlayerPowerup {
+    /* 0x00 */ f32 timeleft;         /* time remaining; 0 = free slot, < 0 = permanent */
+    /* 0x04 */ s32 type;             /* powerup class (9 = flagged specials) */
+    /* 0x08 */ f32 attributeadd;     /* stat-boost amount; also charge count for weapons */
+    /* 0x0C */ u32 specialflags;     /* subtype/flags mask */
+} PlayerPowerup;                     /* size 0x10 */
+
+/*
  * Per-character progression slot.  Player.save.stuff is an array of 16 of these
  * (one per enum PlayerCharType); Player.character selects the active one.
  * Size 0xF0 (240) -- the stride proven by `mulli type,240` in hide_rune_stones.
@@ -98,7 +115,13 @@ typedef struct PlayerCharSave {
     /* 0x18 */ s16 completion1[3];   /* absolute Player+0xDE8; signed lha/lhax */
     /* 0x1E */ s16 completion2[9];   /* absolute Player+0xDEE; signed lha/lhax */
     /* 0x30 */ s32 gold;            /* absolute Player+0xE00 [player_store_in_save] */
-    /* 0x34 */ u8 pad_34[0xBC];      /* active-powerup image and remaining state */
+    /* 0x34 */ PlayerPowerup powerups[11]; /* saved image of Player.powerup[11]:
+                                      * player_store_in_save copies 0xB0 bytes
+                                      * from Player+0x130 to stuff[c]+0x34 and
+                                      * player_get_from_save copies the same
+                                      * 0xB0 back, and 0xB0 = 11 * sizeof
+                                      * PlayerPowerup exactly */
+    /* 0xE4 */ u8 pad_E4[0xC];       /* remaining per-slot state */
 } PlayerCharSave;                    /* size 0xF0 */
 
 /*
@@ -136,23 +159,6 @@ typedef struct PlayerCharStats {
     /* 0x14 */ s32 gold_found;           /* VERIFIED gamemain do_stats_display */
     /* 0x18 */ f32 total_playtime;       /* VERIFIED f32, /60.0f -> seconds */
 } PlayerCharStats;                       /* size 0x1C */
-
-/*
- * Active powerup slot (11 per player at +0x130).  GC-proven by
- * player_get_powerup_state / PlayerAddPowerup / PlayerProcessMikeyPUP
- * (type 9 mask 0x100000 = mikey, mask 8 = x-ray range feed).
- */
-/* Field names are Midway's own (Xbox shell3D.pdb struct P_POWERUP).  Note the
- * two f32s are overloaded by powerup class: for timed buffs `timeleft` is the
- * real-time countdown (drained by gClockFrameStep) and `attributeadd` is 0; for
- * charge items `attributeadd` is the use/charge count (?1.0 per use) and
- * `timeleft` is pinned < 0 as a permanent/occupied flag. */
-typedef struct PlayerPowerup {
-    /* 0x00 */ f32 timeleft;         /* time remaining; 0 = free slot, < 0 = permanent */
-    /* 0x04 */ s32 type;             /* powerup class (9 = flagged specials) */
-    /* 0x08 */ f32 attributeadd;     /* stat-boost amount; also charge count for weapons */
-    /* 0x0C */ u32 specialflags;     /* subtype/flags mask */
-} PlayerPowerup;                     /* size 0x10 */
 
 /*
  * Fields marked [player.c] were offset-verified 2026-07-27 against the
