@@ -194,7 +194,7 @@ s32 NextGridItem(void)
     return -1;
 }
 
-void StartItemGrid(f32 r, f32* pos)
+void StartItemGrid(f32* pos, f32 r)
 {
     int mnx, mnz;
     f32 pad;

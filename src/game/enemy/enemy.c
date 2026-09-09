@@ -165,8 +165,8 @@ extern s32 gGameOptions[];   /* 0x80257590 (lbl_80257598 = [2]) */
 /* --- same-TU statics not yet reconstructed (extern until written) --- */
 extern void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 extern void fn_80046140(s32 index);                 /* generator-contact retreat */
-extern s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc,
-                       f32* newc2, s32* hitWorld);  /* enemy-vs-enemy probe */
+extern s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2,
+                       f32 rad, f32 hht, s32* hitWorld);  /* enemy-vs-enemy probe */
 extern s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc,
                        f32* newc);                  /* generator-contact probe */
 s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
@@ -672,7 +672,7 @@ static s32 EnemyMovingAwayFromBirth(Enemy* enemy, f32* oldPosition, f32* transla
 void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold, f32* oldPosition, f32* translation, s32 collisionClass);
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 void fn_80046140(s32 index);
-s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2, s32* hitWorld);
+s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht, s32* hitWorld);
 s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc);
 s32 do_ai(s32 index);
 static f32 fabsf_(f32 x);
@@ -749,7 +749,7 @@ f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
     best_index = -1;
     best_distance = range;
     spread = (1.0 - width) / range;
-    StartItemGrid(range, position);
+    StartItemGrid(position, range);
     maximum_vertical = 10.0;
     while ((item = NextGridItem()) >= 0) {
         Enemy* enemy = &gEnemies[item];
@@ -907,9 +907,9 @@ void do_enemy_move(s32 index)
             }
         }
         if (collide == 0) {
-            e->coll_enenum = fn_8004646C(rad, hht, index, oldc, newc, newc, &hitWorld);
+            e->coll_enenum = fn_8004646C(index, oldc, newc, newc, rad, hht, &hitWorld);
         } else {
-            e->coll_enenum = fn_8004646C(rad, hht, index, oldc, newc, newc, 0);
+            e->coll_enenum = fn_8004646C(index, oldc, newc, newc, rad, hht, 0);
         }
         if (e->coll_enenum >= 0) {
             /* hit another enemy */
@@ -1775,24 +1775,41 @@ void fn_80046140(s32 index)
 
 extern s32 NextGridItem(void);
 
-s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
+/* Xbox ENEMY.OBJ names this source helper is_tail(int, int).  The retail
+ * Xbox body and the GC inlined body both walk next_enemy through a pointer;
+ * retaining that source-level helper also preserves the GC loop topology. */
+static inline s32 is_tail(s32 my_idx, s32 chk_idx)
+{
+    Enemy* enemy;
+    s32 idx;
+
+    for (enemy = &gEnemies[my_idx];
+         (idx = enemy->next_enemy) >= 0;
+         enemy = &gEnemies[idx]) {
+        if (idx == chk_idx) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht,
                 s32* hitWorld)
 {
-    s32 startNode = gEnemies[index].coll_enenum;
+    s32 startNode;
     f64 minimum_hht;
     f32 dist;
     f32 best = 100000.0f;
     s32 result = -1;
     s32 hint = -1;
     void* nodeCol;
-    s32 node;
-    Enemy* self;
     u8 stack_top[8];
     f32 scratch[3];
     u8 stack_gap[12];
     f32 delta[3];
     u8 stack_bottom[28];
 
+    startNode = gEnemies[index].coll_enenum;
     if (hitWorld == NULL && startNode < 0x10000) {
         hint = startNode;
     }
@@ -1801,13 +1818,12 @@ s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
     if (nodeCol != NULL) {
         return *(s16*)nodeCol | 0x10000;
     }
-    StartItemGrid(rad, newc);
-    self = &gEnemies[index];
+    StartItemGrid(newc, rad);
     minimum_hht = 2.0;
     for (;;) {
         Enemy* other;
         s32 st;
-        s32 linked;
+        s32 node;
 
         if (hint < 0) {
             node = NextGridItem();
@@ -1826,26 +1842,7 @@ s32 fn_8004646C(f32 rad, f32 hht, s32 index, f32* oldc, f32* newc, f32* newc2,
         if (st == 0 || st == 8) {
             continue;
         }
-        {
-            Enemy* c = self;
-
-            goto load_linked_enemy;
-check_linked_enemy:
-            if (linked == node) {
-                linked = -1;
-                goto linked_enemy_done;
-            }
-            c = &gEnemies[linked];
-load_linked_enemy:
-            linked = c->next_enemy;
-            if (linked >= 0) {
-                goto check_linked_enemy;
-            }
-            linked = 0;
-linked_enemy_done:
-            ;
-        }
-        if (linked != 0) {
+        if (is_tail(index, node)) {
             continue;
         }
         if ((f64)other->hht <= minimum_hht) {
@@ -5433,7 +5430,7 @@ s32 fn_8004C8CC(f32* pos, s32 index)
     result = -1;
     probe[2] = ((Enemy *)e)->objgrp.coll_pos[2];
     probe[1] = pos[1];
-    if (fn_8004646C(rad, hht, index, probe, pos, 0, 0) >= 0) {
+    if (fn_8004646C(index, probe, pos, 0, rad, hht, 0) >= 0) {
         result = 0;
     }
     if (result != 0) {
@@ -5524,9 +5521,7 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
         y = *(f32*)(milestoneY + milestoneOffset);
         x = *(f32*)(milestoneX + milestoneOffset);
         z = *(f32*)(milestoneZ + milestoneOffset);
-        dhi = y * y;
-        dhi = x * x + dhi;
-        dhi = z * z + dhi;
+        dhi = z * z + (dhi = x * x + y * y);
         if (dhi > 0.0f) {
             volatile f32 tmp;
             f64 y = __frsqrte(dhi);
@@ -7363,7 +7358,7 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
         return 0;
     }
     half = 0.5 * rad;
-    if (fn_8004646C((f32)half, hht, slot, start, pos, 0, 0) >= 0) {
+    if (fn_8004646C(slot, start, pos, 0, (f32)half, hht, 0) >= 0) {
         return 0;
     }
     obj = fn_8005EFAC((f32)half, start, pos, 0, 0);
@@ -8488,22 +8483,19 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
 
 s32 fn_80051480(f32* pos)
 {
-    u8 unused[16];
+    f32 delta[3];
     f32 d;
-    f32 dx;
-    f32 dy;
-    f32 dz;
     s32 best_idx = -1;
     f32 best_dist = 100000.0f;
     u8* node = sMilestones;
     s32 i;
 
     for (i = 0; i < sNumMilestones; i++, node += 104) {
-        dx = pos[0] - ((MilestoneParam *)node)->matrix[12];
-        dy = pos[1] - ((MilestoneParam *)node)->matrix[13];
-        dz = pos[2] - ((MilestoneParam *)node)->matrix[14];
-        d = dx * dx + dy * dy;
-        d = dz * dz + d;
+        delta[0] = pos[0] - ((MilestoneParam *)node)->matrix[12];
+        delta[1] = pos[1] - ((MilestoneParam *)node)->matrix[13];
+        delta[2] = pos[2] - ((MilestoneParam *)node)->matrix[14];
+        d = delta[2] * delta[2] +
+            (d = delta[0] * delta[0] + delta[1] * delta[1]);
 
         if (d > 0.0f) {
             volatile f32 tmp;

@@ -240,7 +240,7 @@ extern void fn_80094164(void* pos, u32 flags, s32 a3);
 extern void SetSkinFX(void* node, s32 tex, s32 a3, s32 a4, f32 dur);
 extern void StartEnemyGrid(f32* pos, f32 range);
 extern s32 NextGridEnemy(void);
-extern void StartItemGrid(f32 radius, f32* position);
+extern void StartItemGrid(f32* position, f32 radius);
 extern s32 NextGridItem(void);
 extern s32 FastWallCollide(f32* from, f32* to, f32* normal, s32 mode);
 extern void CritterCollideStart(f32 radius, f32* position, s32 unused);
@@ -4131,7 +4131,7 @@ s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
     s32 index;
     u8* object;
 
-    StartItemGrid(range, to);
+    StartItemGrid(to, range);
     {
     object = (u8*)gEnemies;
     goto item_test;

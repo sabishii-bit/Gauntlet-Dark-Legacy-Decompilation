@@ -2394,7 +2394,7 @@ extern void CritterSetFxHitTime(f32 damage, s32 player, s32 owner);
 extern void PlayerDamagedEnemy();
 extern void StartEnemyGrid(f32* pos, f32 radius);
 extern s32 NextGridEnemy(void);
-extern void StartItemGrid(f32 radius, f32* pos);
+extern void StartItemGrid(f32* pos, f32 radius);
 extern s32 NextGridItem(void);
 extern void CritterCollideStart(f32 radius, f32* pos, s32 unused);
 extern void* CritterExpCollide();
@@ -3028,7 +3028,7 @@ void ProcessEffects(void)
             s32 enemyIndex;
             if (mode != 0) {
                 if (radius > 0.0 && !(e->flags & 0x400)) {
-                StartItemGrid(radius, pos);
+                StartItemGrid(pos, radius);
                 while ((enemyIndex = NextGridItem()) >= 0) {
                     struct fxenemy* enemy =
                         (struct fxenemy*)(gEnemies + enemyIndex * 916);

@@ -13,7 +13,7 @@
 void StartEnemyGrid(f32* position, f32 radius); /* iterates sItems */
 s32 NextGridEnemy(void);
 
-void StartItemGrid(f32 radius, f32* position);  /* iterates gEnemies */
+void StartItemGrid(f32* position, f32 radius);  /* iterates gEnemies */
 s32 NextGridItem(void);
 
 void SetupDynGrid(void);

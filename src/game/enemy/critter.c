@@ -335,7 +335,7 @@ extern f32   fn_8005F0F4(void *item, f32 *nodepos, f32 *center, f32 *out,
                          f32 radius, f32 height);
 extern f32   fn_8005C1DC(u8 *item, s32 a, s32 b, void *hdr, f32 damage);
 extern s32   NextGridItem(void);
-extern void  StartItemGrid(f32 radius, f32 *position);
+extern void  StartItemGrid(f32 *position, f32 radius);
 extern void  MulVecMat3(const f32 *vector, f32 *out, const f32 *matrix);
 extern void  MulVecMat4(const f32 *vector, f32 *out, const f32 *matrix);
 extern void  MulBodyVecMat4(const f32 *vector, f32 *out, const f32 *matrix);
@@ -807,7 +807,7 @@ f32 *delta;
     bestIndex = -1;
     center[1] = cpos[1] + delta[1];
     center[2] = cpos[2] + delta[2];
-    StartItemGrid(radius, center);
+    StartItemGrid(center, radius);
     while ((index = NextGridItem()) >= 0) {
         enemy = &gEnemies[index];
         if (enemy->state != 1 &&
@@ -1304,7 +1304,7 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     pos[0] = c->moveOrigin[0] + out[0];
     pos[1] = c->moveOrigin[1] + out[1];
     pos[2] = c->moveOrigin[2] + out[2];
-    StartItemGrid(f26v, pos);
+    StartItemGrid(pos, f26v);
     k = lbl_80346478;
     zero = lbl_80346488;
     while ((idx = NextGridItem()) >= 0) {
