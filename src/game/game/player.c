@@ -180,6 +180,7 @@
 #include "game/worldobj.h"
 #include "game/mbnode.h"
 #include "game/mbobject.h" /* MBBlit */
+#include "game/enemy.h"    /* Enemy gEnemies[] */
 #include "game/plyrdata.h"
 #include "game/item.h"      /* Item* sItems, stride 0xF0 */
 #include "game/worldinfo.h" /* WorldInfo gWorldInfo */
@@ -2745,12 +2746,6 @@ extern s32 lbl_802575A8;      /* Access? cheat (levels open) */
 extern s32 lbl_80257630[4];   /* per-player targeting state cleared at init */
 extern s32 good_wiz_state;      /* cutscene/no-damage global */
 extern s32 gBoss398;      /* boss floor index */
-typedef struct PlayerEnemyView {
-    u8 pad0[0x32C];
-    s32 skip_itemcol;
-    u8 pad330[0x64];
-} PlayerEnemyView;
-extern PlayerEnemyView gEnemies[25]; /* Enemy[25], stride 0x394 */
 extern s32 gNumEnemies;      /* enemy count */
 extern s32 lbl_80251F44[];    /* enemy records target field, stride 0xE5 words */
 /* sItems (Item*, stride 0xF0) -- game/item.h; gWorldInfo -- game/worldinfo.h */
@@ -2837,7 +2832,7 @@ extern void AudioHeartBeat(s32 player);
 extern s32 fn_8005B8FC(void* p);
 extern f32 fqdist(f32 dx, f32 dz);
 extern void fn_8009190C(f32* pos, s32 amount);
-extern s32 ModifyDamage(f32 armor, f32* dmg, u32* flags, u32 shield);
+extern void ModifyDamage(f32* dmg, u32* flags, u32 shield, f32 armor);
 extern f32 atan2(f32 x, f32 z);
 extern void StartBlockFX(f32 dmg, s32 player);
 extern void fn_8009FFF4(s32 kind, s32 player);
@@ -3320,6 +3315,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
     f32 hp;
     f32 dam;
     f64 red;
+    f32 dir_z;
     s16 hf;
 
     if (p->state != 1) {
@@ -3353,14 +3349,14 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             return 0;
         }
         if (gBossType >= 0 && gBoss398 >= 0 &&
-            *(s32*)((u8*)gEnemies + gBoss398 * 0x394 + 0xB4) != 1) {
+            gEnemies[gBoss398].state != 1) {
             return 0;
         }
         if (dmg > 1.0) {
             dmg = dmg * gCurLevel->damagemul;
         }
     }
-    ModifyDamage(STAT_ARMOR(p), &dmg, &flags, p->shield_flags);
+    ModifyDamage(&dmg, &flags, p->shield_flags, STAT_ARMOR(p));
     if ((flags & 0x40000000) && (p->flags & 1)) {
         dmg = 0.0f;
     }
@@ -3373,7 +3369,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             /* shielded/back arc */
             if (hf & 0x200) {
                 if (dir != NULL) {
-                    red = atan2(dir[0], dir[2]) - p->move_yaw;
+                    dir_z = dir[2];
+                    red = atan2(dir[0], dir_z) - p->move_yaw;
                     red = red > 3.141592654
                               ? red - 6.283185308
                               : (red <= -3.141592654 ? red + 6.283185308

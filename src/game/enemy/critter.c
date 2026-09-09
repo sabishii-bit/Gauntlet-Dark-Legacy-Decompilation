@@ -651,8 +651,8 @@ extern s32   DoAnimateTreeFrame(void *tree, s32 sequence, s32 frame,
                                 s32 recurse);
 extern void  DrawText(s32 x, s32 y, s32 font, u32 color,
                       const char *format, ...);
-extern void  ModifyDamage(f32 armor, f32 *damage, u32 *damageType,
-                          u32 shield);
+extern void  ModifyDamage(f32 *damage, u32 *damageType, u32 shield,
+                          f32 armor);
 extern void  do_heal_players(void *player, f32 *matrix, f32 amount);
 extern s32   fn_800945D0(f32 *position, f32 *matrix, s32 damageType,
                          s32 alternate, s32 kind, f32 scale);
@@ -3019,7 +3019,7 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
         u32 shieldFlags = c->hdr->shieldFlags;
         f32 armor = c->hdr->armor;
 
-        ModifyDamage(armor, &damage, &flags, shieldFlags);
+        ModifyDamage(&damage, &flags, shieldFlags, armor);
     }
     critterClass = c->hdr->descriptor->type;
 
