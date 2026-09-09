@@ -4004,10 +4004,10 @@ void load_player(s32 i) {
     p->field_078 = zero;
     load_player_geo(i, p);
     /* Reset the live-gameplay block in the target's store order. */
-    PF(p, 0x800, s32) = 0;
-    PF(p, 0x804, s32) = 0;
+    p->field_800[0] = 0;
+    p->field_800[1] = 0;
     for (j = 0; j < 8; j++) {
-        ((s32*)((u8*)p + 0x808))[j] = zero;
+        p->field_800[j + 2] = zero;
     }
     p->anim_208 = 0;
     p->anim_20C = 0;

@@ -468,7 +468,12 @@ typedef struct Player {
     /* 0x07F4 */ s32 geo_handle;     /* loaded model/geo handle (load_player_model) [player.c] */
     /* 0x07F8 */ s32 texmod_id;      /* AddSpecialTexmod result, -1 when none [player.c] */
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
-    /* 0x0800 */ u8  pad_0800[0x28];
+    /* 0x0800 */ s32 field_800[10];  /* live-gameplay reset block: load_player
+                                      * clears [0] and [1] with two stores and
+                                      * [2..9] with an 8-iteration loop, which
+                                      * is the only GC evidence for its extent
+                                      * and word width; the entries' roles are
+                                      * not recovered [player.c] */
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
     /* 0x082C */ f32 power_level;    /* power-meter shown level [player.c] */
     /* 0x0830 */ s32 exit_dest;      /* next-level id picked by do_exit [player.c] */
