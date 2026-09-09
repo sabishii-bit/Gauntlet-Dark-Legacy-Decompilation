@@ -45,6 +45,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "__va_arg.h"
 #include "game/gamemode.h"
 #include "game/mbobject.h"
@@ -410,7 +411,6 @@ extern s64 gControllerButtons; /* 64-bit; low half aliases sFlags */
 extern s32 gClockStepTicks;
 extern s32 gFrameTicks;
 extern char lbl_80347F40[4]; /* auto-select save name */
-extern u8 PlayerControl[];  /* pad states, 4 x 0x3C, buttons at +8 */
 extern void show_optmenu();
 extern s32 do_optmenu(void* menu, s32 serve);
 extern void remove_optmenu(void* menu);
@@ -1552,7 +1552,7 @@ s32 do_player_select(void)
                                   pool + 208);
                 DrawTextKeepScale(1.2f, nx, 0xB2, 0, 0xFFFFFF,
                                   pool + 220);
-                if (*(u32*)(PlayerControl + padoff + 8) & 0x40000) {
+                if (((PLAYERCONTROL*)((u8*)PlayerControl + padoff))->edges & 0x40000) {
                     *(s32*)(pl + offsetof(Player, state)) = 2;
                     *(s32*)(pl + offsetof(Player, motion_state)) = 1;
                     *(s32*)(pl + offsetof(Player, motion_state_save)) = 1;

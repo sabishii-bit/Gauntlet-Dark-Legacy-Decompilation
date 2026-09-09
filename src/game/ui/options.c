@@ -96,6 +96,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/mbobject.h"
 #include "game/player.h"
@@ -358,14 +359,12 @@ extern u8 gPlayers[];            /* gPlayerRecords[4], stride 0x335C */
 /* pad state (controls TU) */
 extern u32 lbl_80240E34[];  /* per-player, stride 0xF words */
 extern u32 lbl_80240E38[];
-extern u8 PlayerControl[4 * 60];
 extern s32 lbl_80240E5C[];  /* per-player control style */
 extern s32 lbl_80240E60[];  /* per-pad setting (radio menu 0xF) */
 extern u32 lbl_80240E64[];  /* per-pad boolean (radio menu 0x10) */
 extern u32 lbl_80240E68[];  /* per-pad boolean (radio menu 0x11) */
 extern u32 lbl_80240FB0[4];    /* global buttons held */
 extern u32 lbl_80240FC0[4];    /* global buttons pressed */
-#define PADREC(i, off, T) (*(T*)(PlayerControl + (i) * 60 + (off)))
 extern u32 lbl_8034461C;    /* any-pad pressed mask */
 extern u32 lbl_80344620;    /* any-pad held mask */
 
@@ -725,13 +724,6 @@ s32 OptionsDone(void)
 
 int DoOptions(void)
 {
-    typedef struct OPTION_PAD {
-        u8 unused[0x2C];
-        s32 style;
-        s32 setting;
-        s32 boolean0;
-        s32 boolean1;
-    } OPTION_PAD;
     u8 unused[32];
     OPTMENU* m;
     OPTITEM* item;
@@ -763,7 +755,7 @@ int DoOptions(void)
         (gGameMode != MG_PLAY || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
             if (PREC(i, offsetof(Player, state), s32) == 1 &&
-                (PADREC(i, 8, u32) & 0x40000) != 0 &&
+                (PlayerControl[i].edges & 0x40000) != 0 &&
                 OptionsStart(i) != 0) {
                 break;
             }
@@ -1201,7 +1193,7 @@ int DoOptions(void)
     case OPTMENU_CONTROLS: /* controls hub */
         switch (choice) {
         case OPT_CTLSCHEME:
-            control_style = ((OPTION_PAD*)(PlayerControl + player * 60))->style;
+            control_style = PlayerControl[player].scheme;
             start_optmenu((OPTMENU*)(data + 5452), player);
             for (i = 0; i < 3; i++) {
                 CTLBLIT* blit = &((CTLBLIT*)(data + 7640))[i];
@@ -1260,7 +1252,7 @@ int DoOptions(void)
             break;
         case OPT_ABORTALL:
         case OPT_CTLSCHEME:
-            ((OPTION_PAD*)(PlayerControl + player * 60))->style = control_style;
+            PlayerControl[player].scheme = control_style;
             for (i = 0; i < 3; i++) {
                 CTLBLIT* blit = &((CTLBLIT*)(data + 7640))[i];
 
@@ -1279,7 +1271,7 @@ int DoOptions(void)
 
     case OPTMENU_CONTROL_RUMBLE: /* per-pad setting radio (pad + 0x2C) */
         for (i = 0; i < m->num_items; i++) {
-            if (i == ((OPTION_PAD*)(PlayerControl + player * 60))->setting) {
+            if (i == PlayerControl[player].rumble) {
                 m->items[i].on = 1;
             } else {
                 m->items[i].on = 0;
@@ -1290,7 +1282,7 @@ int DoOptions(void)
         case OPT_EASY:
         case OPT_MEDIUM:
         case OPT_HARD:
-            ((OPTION_PAD*)(PlayerControl + player * 60))->setting = m->sel;
+            PlayerControl[player].rumble = m->sel;
             fn_8009D350(player);
             break;
         case OPT_ON:
@@ -1301,7 +1293,7 @@ int DoOptions(void)
 
     case OPTMENU_CONTROL_AUTOAIM: /* per-pad boolean radio (pad + 0x30; 0 = first item) */
         for (i = 0; i < m->num_items; i++) {
-            if (i == !((OPTION_PAD*)(PlayerControl + player * 60))->boolean0) {
+            if (i == !PlayerControl[player].autoaim) {
                 m->items[i].on = 1;
             } else {
                 m->items[i].on = 0;
@@ -1310,7 +1302,7 @@ int DoOptions(void)
         switch (choice) {
         case OPT_OFF:
         case OPT_ON:
-            ((OPTION_PAD*)(PlayerControl + player * 60))->boolean0 = !m->sel;
+            PlayerControl[player].autoaim = !m->sel;
             fn_8009D350(player);
             break;
         default:
@@ -1320,7 +1312,7 @@ int DoOptions(void)
 
     case OPTMENU_CONTROL_AUTOATTACK: /* per-pad boolean radio (pad + 0x34) */
         for (i = 0; i < m->num_items; i++) {
-            if (i == !((OPTION_PAD*)(PlayerControl + player * 60))->boolean1) {
+            if (i == !PlayerControl[player].autoattack) {
                 m->items[i].on = 1;
             } else {
                 m->items[i].on = 0;
@@ -1329,7 +1321,7 @@ int DoOptions(void)
         switch (choice) {
         case OPT_OFF:
         case OPT_ON:
-            ((OPTION_PAD*)(PlayerControl + player * 60))->boolean1 = !m->sel;
+            PlayerControl[player].autoattack = !m->sel;
             fn_8009D350(player);
             break;
         default:
@@ -1768,8 +1760,8 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
     m->time += vb_elapsed_menu;
 
     if (m->player >= 0) {
-        pressed = *(u32*)(PlayerControl + m->player * 60 + 8);
-        held = *(u32*)(PlayerControl + m->player * 60 + 4);
+        pressed = PlayerControl[m->player].edges;
+        held = PlayerControl[m->player].levels;
     } else {
         pressed = lbl_8034461C;
         held = lbl_80344620;

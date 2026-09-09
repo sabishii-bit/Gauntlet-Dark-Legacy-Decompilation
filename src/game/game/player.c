@@ -173,6 +173,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/player.h"
 #include "game/effect.h"
@@ -1502,24 +1503,6 @@ static void write_health_and_items(s32 i) {
 }
 
 /* Debug HUD: floor name, position, facing. */
-typedef struct PlayerControlState {
-    u32 ctl;
-    u32 levels;
-    u32 edges;
-    u32 repeatEdges;
-    s32 specialTimer;
-    s32 specialResult;
-    s32 specialLast;
-    f32 leftAngle;
-    f32 leftMagnitude;
-    f32 rightAngle;
-    f32 rightMagnitude;
-    s32 scheme;
-    s32 hasActuator;
-    s32 unk34;
-    s32 unk38;
-} PlayerControlState;
-extern PlayerControlState PlayerControl[4];
 #pragma opt_common_subs off
 #pragma opt_lifetimes off
 static void debug_player_pos(s32 i) {
@@ -1548,7 +1531,7 @@ static void debug_player_pos(s32 i) {
         dbgTextFlagA = 1;
         floor = (char*)p->floor_name;  /* WorldObj.desc at +0 doubles as the debug string */
         if (floor != NULL &&
-            (magnitude = PlayerControl[i].leftMagnitude)) {
+            (magnitude = PlayerControl[i].joymag)) {
             name = floor;
         } else if (p->floor_name2 != NULL) {
             name = (char*)p->floor_name2;
@@ -2767,7 +2750,6 @@ extern void* BreatheFireTree;
 extern void* BreatheAcidTree;
 extern void* BreatheElecTree;
 extern void* WingsTree;
-extern PlayerControlState PlayerControl[4];
 extern u32 lbl_80240E5C[];    /* pad config words, stride 0xF */
 extern u32 lbl_80240E60[];
 extern u32 lbl_80240E64[];
@@ -4328,9 +4310,9 @@ void player_get_from_save(void* vp, s32 type) {
     p->shield_flags = 0;
     p->flags = 0;
     PlayerControl[player].scheme = p->save.control_scheme;
-    PlayerControl[player].hasActuator = p->save.control_rumble;
-    PlayerControl[player].unk38 = p->save.control_autoattack;
-    PlayerControl[player].unk34 = p->save.control_autoaim;
+    PlayerControl[player].rumble = p->save.control_rumble;
+    PlayerControl[player].autoattack = p->save.control_autoattack;
+    PlayerControl[player].autoaim = p->save.control_autoaim;
 }
 #pragma dont_inline off
 
@@ -4371,9 +4353,9 @@ void player_store_in_save(Player* p) {
     memcpy(p->save.stuff[chartype].powerups, (u8*)p + 0x130, 0xB0);
     p->save.stuff[chartype].npowerups = (s16)p->npowerups;
     p->save.control_scheme = (u8)PlayerControl[player].scheme;
-    p->save.control_rumble = (u8)PlayerControl[player].hasActuator;
-    p->save.control_autoattack = (u8)PlayerControl[player].unk38;
-    p->save.control_autoaim = (u8)PlayerControl[player].unk34;
+    p->save.control_rumble = (u8)PlayerControl[player].rumble;
+    p->save.control_autoattack = (u8)PlayerControl[player].autoattack;
+    p->save.control_autoaim = (u8)PlayerControl[player].autoaim;
     if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         player_get_from_save(p, -1);
     }
@@ -4384,13 +4366,13 @@ void player_save_controls(s32 i) {
     Player* p = P(i);
 
     p->save.control_scheme = (u8)PlayerControl[i].scheme;
-    p->save.control_rumble = (u8)PlayerControl[i].hasActuator;
-    p->save.control_autoattack = (u8)PlayerControl[i].unk38;
-    p->save.control_autoaim = (u8)PlayerControl[i].unk34;
+    p->save.control_rumble = (u8)PlayerControl[i].rumble;
+    p->save.control_autoattack = (u8)PlayerControl[i].autoattack;
+    p->save.control_autoaim = (u8)PlayerControl[i].autoaim;
     p->save_backup.control_scheme = (u8)PlayerControl[i].scheme;
-    p->save_backup.control_rumble = (u8)PlayerControl[i].hasActuator;
-    p->save_backup.control_autoattack = (u8)PlayerControl[i].unk38;
-    p->save_backup.control_autoaim = (u8)PlayerControl[i].unk34;
+    p->save_backup.control_rumble = (u8)PlayerControl[i].rumble;
+    p->save_backup.control_autoattack = (u8)PlayerControl[i].autoattack;
+    p->save_backup.control_autoaim = (u8)PlayerControl[i].autoaim;
 }
 
 #pragma opt_propagation off
@@ -6925,7 +6907,7 @@ void mini_inventory_update(s32 i) {
                 tb->sel = sel;
             }
         }
-        held = &PlayerControl[i].ctl;
+        held = &PlayerControl[i].inactive;
         if (*(held += 2) & 0x20000000) {
             AudioCursorH();
             moved = 1;

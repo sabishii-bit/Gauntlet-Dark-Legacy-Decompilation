@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/controls.h"
 #include "game/critter.h"
 #include "game/enemy.h"
 #include "game/gamemode.h"
@@ -345,24 +346,6 @@ extern void* lbl_80344EA8;
 
 /* Shared controller record, as reconstructed by controls.c (0x3C stride).
  * The tally helpers read held buttons, not a character descriptor. */
-typedef struct CTL {
-    u32 ctl;
-    u32 levels;
-    u32 edges;
-    u32 repedges;
-    s32 spTimer;
-    s32 spResult;
-    s32 spLast;
-    f32 lx;
-    f32 ly;
-    f32 rx;
-    f32 ry;
-    s32 scheme;
-    s32 hasActuator;
-    s32 unk34;
-    s32 unk38;
-} CTL;
-extern CTL PlayerControl[4];
 
 extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 flags, s32 color,
                               const char* fmt);

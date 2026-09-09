@@ -15,6 +15,7 @@
  */
 
 #include "types.h"
+#include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/player.h"
 #include "game/worldobj.h"
@@ -99,30 +100,6 @@ extern s32 gTriggerCameraState;
 extern s32 gBossType;
 extern s32 lbl_80344768;
 extern s32 lbl_803447B4;
-typedef union ControlState {
-    f32 values[15];
-    struct {
-        s32 ctl;
-        u32 levels;
-        u32 edges;
-        u32 repedges;
-        s32 spResult;
-        s32 spLast;
-        s32 spTimer;
-        f32 lx;
-        f32 ly;
-        f32 rx;
-        f32 ry;
-        s32 scheme;
-        s32 hasActuator;
-        s32 unk34;
-        s32 flag;
-    } pad;
-    struct {
-        u8 pad[56];
-        s32 flag;
-    } control;
-} ControlState;
 typedef struct PlayerActionMotionView {
     u8 pad_000[0x8F4];
     s32 heldHistory;
@@ -131,7 +108,6 @@ typedef struct PlayerActionMotionView {
     s16 actionFlags;
     s16 actionTicks;
 } PlayerActionMotionView;
-extern ControlState PlayerControl[]; /* control-pad state array, stride 15 f32 */
 extern f32 sMusicFadeBase; /* sMusicFadeBase */
 extern s64 gControllerButtons;
 extern s32 sFlags;
@@ -924,7 +900,7 @@ static s32 PlayerMotion_SfxIndex(Player* p) {
 void PlayerMotion(Player* p) {
     char* strings = lbl_80114220;
     u8* ctxbase = lbl_80282850;
-    ControlState* ctl = &PlayerControl[p->index];
+    PLAYERCONTROL* ctl = &PlayerControl[p->index];
     s32 index = p->index;
     u8* motion = (u8*)p + 0x14;
     f32 radius = p->col_radius;
@@ -985,25 +961,25 @@ void PlayerMotion(Player* p) {
 
     controlYaw = atan2(*(f32*)(motion + 0x20), *(f32*)(motion + 0x28));
     if (p->anim_208 == 143 && p->grab_partner != NULL &&
-        PlayerControl[p->grab_partner->index].values[8] > 0.0f) {
-        ControlState* otherCtl =
+        PlayerControl[p->grab_partner->index].joymag > 0.0f) {
+        PLAYERCONTROL* otherCtl =
             &PlayerControl[p->grab_partner->index];
-        movement = otherCtl->values[8];
-        controlYaw = otherCtl->values[7];
+        movement = otherCtl->joymag;
+        controlYaw = otherCtl->joyang;
     } else if (anim == 8) {
-        if ((f64)ctl->values[8] < lbl_80347B58) {
+        if ((f64)ctl->joymag < lbl_80347B58) {
             controlYaw = p->move_yaw - facing;
         } else {
-            controlYaw = ctl->values[7];
+            controlYaw = ctl->joyang;
         }
         movement = 1.0f;
-    } else if (ctl->values[8] == 0.0f && p->char_type == 0 &&
+    } else if (ctl->joymag == 0.0f && p->char_type == 0 &&
                (anim == 35 || anim == 37)) {
         movement = lbl_80347B10;
         controlYaw = p->move_yaw - facing;
     } else {
-        movement = ctl->values[8];
-        controlYaw = ctl->values[7];
+        movement = ctl->joymag;
+        controlYaw = ctl->joyang;
     }
     speedScale = movement * p->field_A50;
 
@@ -1014,8 +990,8 @@ void PlayerMotion(Player* p) {
         heading = atan2(dpos[0], dpos[2]);
         speedScale = 0.0f;
         facing = heading;
-    } else if ((f64)ctl->values[10] > lbl_80347B08) {
-        heading = ctl->values[9] + facing;
+    } else if ((f64)ctl->firemag > lbl_80347B08) {
+        heading = ctl->fireang + facing;
         facing = PlayerMotion_WrapAngle(controlYaw + facing);
     } else if ((motionType >= 2 && motionType <= 6) ||
                (motionType >= 9 && motionType <= 12) ||
@@ -1431,7 +1407,7 @@ void PlayerMotion(Player* p) {
                     dpos[2] = 0.0f;
                     hitKind = 1;
                 }
-            } else if (ctl->control.flag != 0 || wallResult != 0) {
+            } else if (ctl->autoattack != 0 || wallResult != 0) {
                 dpos[0] = 0.0f;
                 dpos[2] = 0.0f;
             } else {
@@ -1602,9 +1578,9 @@ collision_done:
         }
 
         if ((p->hud_flags & 0xC000) != 0 ||
-            (ctl->pad.levels & 0x5000) != 0 ||
-            (ctl->pad.unk34 != 0 &&
-             (f64)ctl->values[10] > lbl_80347B08)) {
+            (ctl->levels & 0x5000) != 0 ||
+            (ctl->autoaim != 0 &&
+             (f64)ctl->firemag > lbl_80347B08)) {
             attackDir[0] = targetDir[0];
             attackDir[2] = targetDir[2];
         }
@@ -1726,7 +1702,7 @@ collision_done:
 
             if ((motionState == 8 || motionState == 13) &&
                 p->field_8F8 == 0 &&
-                (anim < 39 || anim > 114) && ctl->control.flag != 0) {
+                (anim < 39 || anim > 114) && ctl->autoattack != 0) {
                 if ((item >= 0 &&
                      (specialCritter == 0 || gBossType == 37 ||
                       gBossType == 41)) ||
@@ -2054,9 +2030,9 @@ store_motion_state:
             case 1:
             case 8:
             case 13:
-                if ((f64)ctl->values[8] > lbl_80347C00) {
+                if ((f64)ctl->joymag > lbl_80347C00) {
                     motionState = 13;
-                } else if ((f64)ctl->values[8] > lbl_80347B08) {
+                } else if ((f64)ctl->joymag > lbl_80347B08) {
                     motionState = 8;
                 } else {
                     motionState = 1;
@@ -2502,9 +2478,9 @@ store_motion_state:
 
         if (p->action > 0 && p->action < 11 &&
             p->action != 7 &&
-            (ctl->pad.levels & 0x5000) == 0 && ctl->pad.unk34 != 0 &&
+            (ctl->levels & 0x5000) == 0 && ctl->autoaim != 0 &&
             lbl_80347B08 == speedScale &&
-            lbl_80347B08 == ctl->values[10]) {
+            lbl_80347B08 == ctl->firemag) {
             heading = atan2(attackDir[0], attackDir[2]);
         }
 
@@ -2646,7 +2622,7 @@ store_motion_state:
                 u32 damageFlags = p->field_11C;
                 f32 hitRange;
 
-                if (p->collision_item == NULL && ctl->values[8] == 0.0f) {
+                if (p->collision_item == NULL && ctl->joymag == 0.0f) {
                     hit[0] = (f32)(targetDir[0] *
                                    (lbl_80347C28 * p->col_radius) +
                                    oldpos[0]);
@@ -2824,7 +2800,7 @@ store_motion_state:
                 (lbl_8034489C <= 0 || lbl_8034489C >= 5)) {
                 s32 magicMode;
                 if ((p->act_bits & 0x40000) != 0) {
-                    magicMode = (ctl->pad.levels & 0x10000) != 0 ? 3 : 2;
+                    magicMode = (ctl->levels & 0x10000) != 0 ? 3 : 2;
                 } else if ((p->field_956 & 2) != 0) {
                     magicMode = 1;
                     fn_8009F390(p->index);
@@ -3941,7 +3917,7 @@ void DoExit(Player* p) {
             p->idle_timer += gFrameTicks;
         } else if (fn_8005B8FC(p) != 0) {
             if (lbl_80344804 != 0 ||
-                0.0 == (f64)PlayerControl[p->index].values[8]) {
+                0.0 == (f64)PlayerControl[p->index].joymag) {
                 p->idle_timer += gFrameTicks;
             }
         } else {
@@ -4214,7 +4190,7 @@ item_test:
         hit[0] = from[0];
         hit[1] = from[1];
         hit[2] = from[2];
-    } else if (PlayerControl[p->index].control.flag == 0) {
+    } else if (PlayerControl[p->index].autoattack == 0) {
         if (count == 1) {
             f32 dx;
             f32 dz;
@@ -4609,13 +4585,13 @@ s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     return result;
 }
 s32 fn_80088938(Player* p, f32 angle) {
-    ControlState* ctl = &PlayerControl[p->index];
+    PLAYERCONTROL* ctl = &PlayerControl[p->index];
     PlayerActionMotionView* motion = (PlayerActionMotionView*)p;
     f64 wrapped;
     f32 facing;
     s32 action;
 
-    angle = angle + ctl->pad.lx - p->move_yaw;
+    angle = angle + ctl->joyang - p->move_yaw;
     if ((f64)angle > lbl_80347B50) {
         wrapped = (f64)angle - lbl_80347B60;
     } else if ((f64)angle <= lbl_80347B68) {
@@ -4626,20 +4602,20 @@ s32 fn_80088938(Player* p, f32 angle) {
     facing = (f32)wrapped;
 
     if (p->quest_state != 0 && gBossType >= 0) {
-        ctl->pad.edges &= ~0x900;
-        ctl->pad.levels &= ~0x900;
+        ctl->edges &= ~0x900;
+        ctl->levels &= ~0x900;
     }
 
     if ((p->flags & 0x400) != 0 &&
-        (ctl->pad.levels & 0x400) != 0) {
-        ctl->pad.levels &= ~0x400;
-        ctl->pad.levels |= 0x200;
+        (ctl->levels & 0x400) != 0) {
+        ctl->levels &= ~0x400;
+        ctl->levels |= 0x200;
     }
 
     if ((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) {
-        if ((ctl->pad.edges & 0x2000) != 0) {
-            ctl->pad.edges &= ~0x2000;
-            ctl->pad.edges |= 0x800;
+        if ((ctl->edges & 0x2000) != 0) {
+            ctl->edges &= ~0x2000;
+            ctl->edges |= 0x800;
         }
     }
 
@@ -4651,22 +4627,22 @@ s32 fn_80088938(Player* p, f32 angle) {
     } else if ((p->hud_flags & 0x80) != 0) {
         action = 0x17;
     } else if (((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) &&
-               (ctl->pad.levels & 0x08000000) != 0) {
+               (ctl->levels & 0x08000000) != 0) {
         action = 0x1D;
     }
 
     if (action > 0) {
         goto final_action;
     }
-    if ((ctl->pad.levels & 0x10000) != 0) {
+    if ((ctl->levels & 0x10000) != 0) {
             if ((motion->actionFlags & 0x80) == 0) {
             action = 0x19;
         }
-    } else if ((ctl->pad.levels & 0x8000) != 0) {
+    } else if ((ctl->levels & 0x8000) != 0) {
         if ((motion->actionFlags & 0x80) == 0) {
             action = 0x1A;
         }
-    } else if ((ctl->pad.levels & 0x100) != 0) {
+    } else if ((ctl->levels & 0x100) != 0) {
         if ((motion->actionFlags & 0x80) == 0) {
             action = 0x18;
         }
@@ -4676,7 +4652,7 @@ s32 fn_80088938(Player* p, f32 angle) {
     if (action > 0) {
         goto final_action;
     }
-    if ((ctl->pad.levels & 0x20000) != 0 &&
+    if ((ctl->levels & 0x20000) != 0 &&
         (f64)p->power_target >= lbl_80347BB8) {
         s32 target = fn_80088EF4(p, lbl_80347C6C, lbl_80347D08);
         if (target >= 0) {
@@ -4686,19 +4662,19 @@ s32 fn_80088938(Player* p, f32 angle) {
         }
     }
 
-    if ((ctl->pad.levels & 0x800) != 0 &&
-        (ctl->pad.edges & 0x200) != 0 &&
+    if ((ctl->levels & 0x800) != 0 &&
+        (ctl->edges & 0x200) != 0 &&
         (f64)p->power_target >= lbl_80347B08) {
         action = 0x15;
         goto final_action;
     }
 
-    if ((ctl->pad.edges & 0x1000) != 0) {
+    if ((ctl->edges & 0x1000) != 0) {
         action = 2;
         goto final_action;
-    } else if ((f64)ctl->pad.ry > lbl_80347B08) {
-        if ((f64)ctl->pad.ly > lbl_80347B08) {
-            f64 delta = ctl->pad.rx - ctl->pad.lx;
+    } else if ((f64)ctl->firemag > lbl_80347B08) {
+        if ((f64)ctl->joymag > lbl_80347B08) {
+            f64 delta = ctl->fireang - ctl->joyang;
             f32 dir;
             if (delta > lbl_80347B50) {
                 delta -= lbl_80347B60;
@@ -4715,15 +4691,15 @@ s32 fn_80088938(Player* p, f32 angle) {
             } else {
                 action = 0x11;
             }
-        } else if ((ctl->pad.levels & 0x400) != 0) {
+        } else if ((ctl->levels & 0x400) != 0) {
             action = 0x10;
         } else {
             action = 0x0F;
         }
         goto selected;
-    } else if ((ctl->pad.levels & 0x4000) != 0 &&
-               (f64)ctl->pad.ly > lbl_80347B08) {
-        if ((ctl->pad.levels & 0x600) != 0) {
+    } else if ((ctl->levels & 0x4000) != 0 &&
+               (f64)ctl->joymag > lbl_80347B08) {
+        if ((ctl->levels & 0x600) != 0) {
             if ((f64)facing > lbl_80347CE8 || (f64)facing < lbl_80347D80) {
                 action = 0x12;
             } else if ((f64)facing > lbl_80347D88) {
@@ -4745,22 +4721,22 @@ s32 fn_80088938(Player* p, f32 angle) {
             }
         }
         goto selected;
-    } else if ((ctl->pad.edges & 0x2000) != 0 &&
+    } else if ((ctl->edges & 0x2000) != 0 &&
                (f64)p->power_target >= lbl_80347C78) {
         action = 7;
         goto selected;
-    } else if ((ctl->pad.levels & 0x200) != 0) {
+    } else if ((ctl->levels & 0x200) != 0) {
         action = 0x0F;
         goto selected;
-    } else if ((ctl->pad.levels & 0x400) != 0) {
+    } else if ((ctl->levels & 0x400) != 0) {
         action = 0x10;
     }
 
 selected:
     if (action <= 0) {
-        if ((f64)ctl->pad.ly > lbl_80347C00) {
+        if ((f64)ctl->joymag > lbl_80347C00) {
             action = 0x0D;
-        } else if ((f64)ctl->pad.ly > *(volatile f64*)&lbl_80347B08) {
+        } else if ((f64)ctl->joymag > *(volatile f64*)&lbl_80347B08) {
             action = 8;
         } else {
             action = 1;
@@ -4790,9 +4766,9 @@ final_action:
         break;
     }
 
-    if ((ctl->pad.levels & 0x600) != 0) {
-        motion->edgeHistory |= ctl->pad.levels ^ motion->heldHistory;
-        motion->heldHistory |= ctl->pad.levels;
+    if ((ctl->levels & 0x600) != 0) {
+        motion->edgeHistory |= ctl->levels ^ motion->heldHistory;
+        motion->heldHistory |= ctl->levels;
     } else if (motion->heldHistory != 0) {
         motion->heldHistory = 0;
     }
