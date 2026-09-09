@@ -1793,12 +1793,15 @@ static inline s32 is_tail(s32 my_idx, s32 chk_idx)
 s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht,
                 s32* hitWorld)
 {
+    Enemy* other;
+    s32 st;
+    s32 node;
+    s32 result = -1;
+    s32 hint = -1;
     s32 startNode;
     f64 minimum_hht;
     f32 dist;
     f32 best = 100000.0f;
-    s32 result = -1;
-    s32 hint = -1;
     void* nodeCol;
     u8 stack_top[8];
     f32 scratch[3];
@@ -1818,10 +1821,6 @@ s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht,
     StartItemGrid(newc, rad);
     minimum_hht = 2.0;
     for (;;) {
-        Enemy* other;
-        s32 st;
-        s32 node;
-
         if (hint < 0) {
             node = NextGridItem();
         } else {
