@@ -2439,8 +2439,8 @@ s32 do_players(void) {
                     f32 light_pos[3];
 
                     p->intower = 1;
-                    PF(p, 0xC28 + p->character * 0x1C, f32) =
-                        PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)(u32)gFrameTicks;
+                    p->save.stats[p->character].total_playtime +=
+                        (f32)(u32)gFrameTicks;
                     if (PF(gCurLevel, offsetof(level_data, flags), u32) & 8) {
                         light_pos[0] = p->col_pos[0];
                         light_pos[1] = p->col_pos[1];
