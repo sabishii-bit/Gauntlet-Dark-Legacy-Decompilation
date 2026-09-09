@@ -507,6 +507,7 @@ config.libs = [
             Object(NonMatching, "game/boss/boss.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/gauntworld.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/camera.c", cflags=cflags_demo),
+            Object(NonMatching, "game/game/clock.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/combat.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/newcam.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/world.c", cflags=cflags_demo),
