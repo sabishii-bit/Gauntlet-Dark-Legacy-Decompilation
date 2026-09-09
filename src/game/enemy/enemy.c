@@ -8555,8 +8555,8 @@ void fn_80051568(s32 index)
  * temporaries owned by the caller instead of nested macro scopes. */
 #define ENEMY_DISTANCE3(dst, av, bv, kZ, kH, kT, rounding) \
     { \
-        f32 dy_ = (av)[1] - (bv)[1]; \
         f32 dx_ = (av)[0] - (bv)[0]; \
+        f32 dy_ = (av)[1] - (bv)[1]; \
         f32 dz_ = (av)[2] - (bv)[2]; \
         (dst) = dx_ * dx_ + dy_ * dy_; \
         (dst) = dz_ * dz_ + (dst); \
@@ -8620,7 +8620,7 @@ void fn_800516F8(s32 slot)
             *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
         }
         *(f32*)(e + offsetof(Enemy, close_dist)) = *(f32*)(e + offsetof(Enemy, actual_dist)) +
-                           *(f32*)((u8*)gPlayers.players + lbl_80344B24 * 13148 + 2600);
+                           gPlayers.players[lbl_80344B24].dist_offset;
     } else {
         s32 go = 1;
         s32 cur;
@@ -8675,7 +8675,7 @@ void fn_800516F8(s32 slot)
                         continue;
                     }
                     if (range > kK * *(f32*)(e + offsetof(Enemy, rad))) {
-                        range += *(f32*)(p + 2600);
+                        range += ((Player*)p)->dist_offset;
                     }
                     if (!(range < *(f32*)(e + offsetof(Enemy, close_dist)))) {
                         continue;
@@ -8701,10 +8701,10 @@ void fn_800516F8(s32 slot)
             Player* base;
             *(s16*)(e + offsetof(Enemy, recognized)) = 1;
             base = gPlayers.players;
-            (*(s32*)((u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148 + 2596))++;
+            base[*(s16*)(e + offsetof(Enemy, closest))].num_approaching++;
             {
                 u8* r = (u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148;
-                *(f32*)(r + 2600) += 2.0;
+                ((Player*)r)->dist_offset += 2.0;
             }
         }
     } else {

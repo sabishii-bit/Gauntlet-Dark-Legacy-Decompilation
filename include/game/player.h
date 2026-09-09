@@ -625,7 +625,12 @@ typedef struct Player {
                                       * hand_of_death_flag) [player.c] */
     /* 0x0A20 */ s16 field_A20;      /* gem-object latch, flags 0x400000 (Xbox analogue slot:
                                       * health_vamp_flag) [player.c] */
-    /* 0x0A22 */ u8  pad_0A22[0x0A];
+    /* 0x0A22 */ u8  pad_0A22[2];
+    /* 0x0A24 */ s32 num_approaching; /* enemies currently inside sight range
+                                      * (Xbox player.num_approaching @0xB88;
+                                      * GC offset fixed by adjacent Mikey fields) */
+    /* 0x0A28 */ f32 dist_offset;    /* crowding penalty added while choosing
+                                      * an enemy target (Xbox @0xB8C) */
     /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
     /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
     /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
