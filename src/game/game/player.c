@@ -3367,10 +3367,10 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             if (dmg - reduced_dmg > 0.5 && p->timer_1FE <= 0) {
                 f32 clank = (f32)(0.75 * reduced_dmg);
 
-                clank = (f32)(clank < 0.1 ? 0.1
-                                          : (clank > 1.0 ? 1.0 : clank));
+                clank = (f32)(clank < 0.333 ? 0.333
+                                            : (clank > 1.0 ? 1.0 : clank));
                 StartBlockFX(clank, p->index);
-                p->timer_1FE = (s16)(s32)(5.0 * clank);
+                p->timer_1FE = (s16)(s32)(60.0 * clank);
                 p->hud_flags |= 0x2000;
             }
             if (flags & 0x10160) {
@@ -3382,8 +3382,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             dmg = reduced_dmg;
         } else {
             /* front hit: "ouch" speech occasionally */
-            if (dmg > 40.0f && (flags & 0x10160) && (hf & 0x2000) == 0 &&
-                sMusicFadeBase > 5.0) {
+            if (dmg > 15.0f && (flags & 0x10160) && (hf & 0x2000) == 0 &&
+                sMusicFadeBase > 60.0) {
                 msgPost(0x7D, p->index, (u32)p->col_pos);
             }
         }
@@ -3427,7 +3427,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                     p->field_898 = 1.0 + sMusicFadeBase;
                 }
                 if (flags & 0x1000) {
-                    p->field_898 = 4.0 + sMusicFadeBase;
+                    p->field_898 = 0.0666666666 + sMusicFadeBase;
                 }
                 if (flags & 0x10040) {
                     do_vibe(i, 3, 0x1E);
@@ -3491,8 +3491,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                     }
                     p->pain_accum = 0.0f;
                     mode = 0;
-                } else if (p->pain_accum >= 45.0) {
-                    p->pain_accum = p->pain_accum - 45.0;
+                } else if (p->pain_accum >= 30.0) {
+                    p->pain_accum = p->pain_accum - 30.0;
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
