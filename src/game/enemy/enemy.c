@@ -282,22 +282,9 @@ s32 lbl_802511FC[45];          /* 0x802511FC per-type min-level class */
 s32 lbl_80251148[45];          /* 0x80251148 per-type generator-fx enable */
 u32 lbl_80251100[0x48 / 4];    /* 0x80251100 */
 f32 enemy_wall_collp[3];           /* 0x802510F4 world-probe hit normal */
-typedef union EnemyRuntimePool {
-    u32 words[0x2B4 / 4];
-    struct {
-        u32 prefix[0xB4 / 4];
-        s32 milestoneIds[(0x2B4 - 0xB4) / 4];
-    } view;
-} EnemyRuntimePool;
-typedef union EnemyRuntimeOwner {
-    u32 words[(0x40 + 0x2B4) / 4];
-    struct {
-        u32 prefix[0x40 / 4];
-        EnemyRuntimePool pool;
-    } view;
-} EnemyRuntimeOwner;
-EnemyRuntimePool lbl_80250E40;  /* 0x80250E40 */
-s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
+s32 sEnemyMilestoneRoute[128]; /* 0x80250EF4 */
+f32 lbl_80250E40[45];          /* per-enemy-type speed table */
+s32 lbl_80250E00[0x40 / 4];   /* 0x80250E00 enemy-type pool anchor */
 
 /* .bss first-use-order referencer.  MWCC allocates a bss object at the first
  * reference that is compiled with the object already defined, in first-use
@@ -317,7 +304,8 @@ s32 lbl_80250E00[0x40 / 4];    /* 0x80250E00 enemy-type pool anchor */
 static void enemy_bss_order(void)
 {
     lbl_80250E00[0] = 0;
-    lbl_80250E40.words[0] = 0;
+    *(u32*)&lbl_80250E40[0] = 0;
+    sEnemyMilestoneRoute[0] = 0;
     *(u32*)enemy_wall_collp = 0;
     lbl_80251100[0] = 0;
     lbl_80251148[0] = 0;
@@ -2159,19 +2147,20 @@ void move_logic00(s32 index)
     u8* e0 = basep + index * 916;
     Enemy* e;
     s32 type;
-    f32 speed;
+    s32 i;
+    f32 spd;
     s32 it = lbl_80344748;
     s32 flee;
-    f32 base;
+    f32 ang;
     u8* t;
-    f32 probe[3];
+    f32 dest[3];
     u8 unused[24];
 
     type = *(s32*)(e0 += 3608);
     e = (Enemy*)(u8*)e0;
     t = basep;
     t += type * 4;
-    speed = *(f32*)(t + 64);
+    spd = *(f32*)(t + 64);
     if (it < 0) {
         flee = 0;
     } else {
@@ -2223,38 +2212,36 @@ void move_logic00(s32 index)
             } else {
                 f = e->ang;
             }
-            base = f;
+            ang = f;
         }
-        lbl_80344720 = base;
+        lbl_80344720 = ang;
         {
-            f32 cand = base;
-            s32 off = 0;
-            s32 found = 0;
+            i = 0;
             do {
                 f32 d;
                 if (e->route > 0) {
-                    cand = cand + *(f32*)((u8*)lbl_8011C0C4 + off);
+                    ang = ang + lbl_8011C0C4[i];
                 } else {
-                    cand = cand - *(f32*)((u8*)lbl_8011C0C4 + off);
+                    ang = ang - lbl_8011C0C4[i];
                 }
                 {
                     f64 nv;
-                    if (cand > 3.141592654) {
-                        nv = cand - 6.283185308;
-                    } else if (cand <= -3.141592654) {
-                        nv = 6.283185308 + cand;
+                    if (ang > 3.141592654) {
+                        nv = ang - 6.283185308;
+                    } else if (ang <= -3.141592654) {
+                        nv = 6.283185308 + ang;
                     } else {
-                        nv = cand;
+                        nv = ang;
                     }
-                    cand = nv;
+                    ang = nv;
                 }
-                probe[0] = e->objgrp.worldmat[3][0];
-                probe[1] = e->objgrp.worldmat[3][1];
-                probe[2] = e->objgrp.worldmat[3][2];
-                probe[1] += 0.1 + e->rad;
-                probe[0] += speed * sin(cand);
-                probe[2] += speed * cos(cand);
-                d = cand - e->ang;
+                dest[0] = e->objgrp.worldmat[3][0];
+                dest[1] = e->objgrp.worldmat[3][1];
+                dest[2] = e->objgrp.worldmat[3][2];
+                dest[1] += 0.1 + e->rad;
+                dest[0] += spd * sin(ang);
+                dest[2] += spd * cos(ang);
+                d = ang - e->ang;
                 {
                     f64 nd;
                     if (d > 3.141592654) {
@@ -2267,21 +2254,20 @@ void move_logic00(s32 index)
                     d = nd;
                 }
                 if ((!(fabsf_(e->ang - e->angbak) > 0.034906585044444445)
-                     || !(fabsf_(cand - e->angbak) <= 0.034906585044444445))
+                     || !(fabsf_(ang - e->angbak) <= 0.034906585044444445))
                     && !(fabsf_(d) >= 3.106686068955556)
-                    && fn_8004C8CC(probe, index) != 0) {
+                    && fn_8004C8CC(dest, index) != 0) {
                     break;
                 }
-                found++;
-                off += 4;
-            } while (found < 9);
-            if (found >= 9) {
-                cand = lbl_80344720;
+                i++;
+            } while (i < 9);
+            if (i >= 9) {
+                ang = lbl_80344720;
             } else {
-                e->collided = found;
+                e->collided = i;
             }
             e->angbak = e->ang;
-            e->ang = cand;
+            e->ang = ang;
         }
     }
     set_enemy_trans(e, 1.0f, e->ang);
@@ -2394,7 +2380,7 @@ void move_logic02(s32 index)
     s32 flee;
     u8 unused[16];
 
-    e0 = base + index * 916 + 3608;
+    e0 = base + (index * 916 + 3608);
     it = lbl_80344748;
     e = (Enemy*)e0;
     if (it < 0) {
@@ -2540,7 +2526,7 @@ void move_logic04(s32 index)
     s32 flee;
     u8 unused[16];
 
-    e0 = base + index * 916 + 3608;
+    e0 = base + (index * 916 + 3608);
     it = lbl_80344748;
     e = (Enemy*)e0;
     if (it < 0) {
@@ -4072,7 +4058,7 @@ void move_logic14(s32 index)
     f32 diff;
     u8 _pad14[24];
 
-    e0 = base + index * 916 + 3608;
+    e0 = base + (index * 916 + 3608);
     e = (Enemy*)(u8*)e0;
     if (it < 0) {
         flee = 0;
@@ -4650,7 +4636,7 @@ void move_logic20(s32 index)
     Enemy* e = &gEnemies[index];
     s32 found = 0;
     u8* tbl = (u8*)lbl_8011AF48;
-    f32 speed = ((f32*)lbl_80250E40.words)[e->type];
+    f32 speed = lbl_80250E40[e->type];
     f32 cand;
     f32* q;
     f32 probe[3];
@@ -5265,7 +5251,7 @@ void move_logic29(s32 index)
  * delegated base wander (move_logic00) with the algorithm parked at 30. */
 void move_logic30(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + index * 916 + 3608);
+    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + (index * 916 + 3608));
     s32 it = lbl_80344748;
     s32 flee;
     u8 unused[24];
@@ -5350,7 +5336,7 @@ static inline void update_vel(Enemy* e, f32 k)
         e->zspd = cos(ang);
         e->prev_dir = ang;
     }
-    spd = ((f32*)lbl_80250E40.words)[e->type];
+    spd = lbl_80250E40[e->type];
     vx = k * (e->xspd * spd);
     vz = k * (e->zspd * spd);
     e->trans[0] += vx;
@@ -5459,8 +5445,6 @@ s32 fn_8004C8CC(f32* pos, s32 index)
  * preferring whichever candidate sits closer to the world origin. */
 s32 find_neighbor_milestone(s32 ms, s32 nth)
 {
-    u32* scanWord;
-    EnemyRuntimeOwner* milestoneOwner = (EnemyRuntimeOwner*)lbl_80250E00;
     s32 count = lbl_80344724;
     s32 idx = 0;
     s32 lo;
@@ -5469,7 +5453,7 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
     u8 unused[24];
 
     for (i = 0; i < count; i++) {
-        if (ms == *(s32*)((u8*)(scanWord = &milestoneOwner->words[i]) + 0xF4)) {
+        if (ms == sEnemyMilestoneRoute[i]) {
             break;
         }
         idx++;
@@ -5479,18 +5463,17 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
     }
     lo = idx - nth;
     if (lo < 0) {
-        return milestoneOwner->view.pool.view.milestoneIds[idx + nth];
+        return sEnemyMilestoneRoute[idx + nth];
     }
     hi = idx + nth;
     if (hi > count - 1) {
-        return milestoneOwner->view.pool.view.milestoneIds[lo];
+        return sEnemyMilestoneRoute[lo];
     }
     {
         u8* milestoneBase;
         u8* milestoneY;
         u8* milestoneX;
         u8* milestoneZ;
-        s32 milestoneOffset;
         s32 m_lo;
         s32 m_hi;
         f32 x;
@@ -5499,15 +5482,14 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
         f32 dlo;
         f32 dhi;
 
-        m_lo = milestoneOwner->view.pool.view.milestoneIds[lo];
+        m_lo = sEnemyMilestoneRoute[lo];
         milestoneBase = sMilestones;
-        milestoneOffset = m_lo * 0x68;
-        milestoneY = milestoneBase + 0x34;
         milestoneX = milestoneBase + 0x30;
+        milestoneY = milestoneBase + 0x34;
         milestoneZ = milestoneBase + 0x38;
-        y = *(f32*)(milestoneY + milestoneOffset);
-        x = *(f32*)(milestoneX + milestoneOffset);
-        z = *(f32*)(milestoneZ + milestoneOffset);
+        x = *(f32*)(milestoneX + m_lo * 0x68);
+        y = *(f32*)(milestoneY + m_lo * 0x68);
+        z = *(f32*)(milestoneZ + m_lo * 0x68);
         dlo = y * y;
         dlo = x * x + dlo;
         dlo = z * z + dlo;
@@ -5521,11 +5503,10 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
             tmp = (f32)(dlo * (0.5 * y * (3.0 - y * y * dlo)));
             dlo = tmp;
         }
-        m_hi = milestoneOwner->view.pool.view.milestoneIds[hi];
-        milestoneOffset = m_hi * 0x68;
-        y = *(f32*)(milestoneY + milestoneOffset);
-        x = *(f32*)(milestoneX + milestoneOffset);
-        z = *(f32*)(milestoneZ + milestoneOffset);
+        m_hi = sEnemyMilestoneRoute[hi];
+        x = *(f32*)(milestoneX + m_hi * 0x68);
+        y = *(f32*)(milestoneY + m_hi * 0x68);
+        z = *(f32*)(milestoneZ + m_hi * 0x68);
         dhi = z * z + (dhi = x * x + y * y);
         if (dhi > 0.0f) {
             volatile f32 tmp;
@@ -5634,7 +5615,7 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
                 enemy->zspd = cos(angle);
                 enemy->prev_dir = angle;
             }
-            typeSpeed = ((f32*)lbl_80250E40.words)[enemy->type];
+            typeSpeed = lbl_80250E40[enemy->type];
             dx = speed * (enemy->xspd * typeSpeed);
             dz = speed * (enemy->zspd * typeSpeed);
             enemy->trans[0] += dx;
