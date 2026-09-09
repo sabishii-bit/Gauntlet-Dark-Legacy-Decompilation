@@ -6597,7 +6597,7 @@ void mini_inventory_update(s32 i) {
                     }
                 }
                 if (j >= lbl_80343D68) {
-                    *(char**)(base + tb_offset + 0x964) =
+                    lbl_802757E0[i].label =
                         (char*)label_table[40 + (lbl_80343D68 - 1) * 3 + 2];
                 }
             }
@@ -6640,7 +6640,7 @@ void mini_inventory_update(s32 i) {
                 }
             }
             if (j >= lbl_80343D68) {
-                *(char**)(base + tb_offset + 0x964) =
+                lbl_802757E0[i].label =
                     (char*)label_table[40 + (lbl_80343D68 - 1) * 3 + 2];
             }
         }
