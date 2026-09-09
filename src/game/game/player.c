@@ -2769,28 +2769,6 @@ extern f32 lbl_80344B20;      /* x-ray range (mask & 8 powerup strength) */
 extern s32 lbl_803447C0;      /* widescreen/mode flag (rune13 blit) */
 
 
-/* .sdata2 0x80347A38 is "anim" in the DOL, not a stdio mode string: the
- * second AllocFile/MLMReadFile argument is the asset kind. */
-extern char lbl_80347A38[5];
-DECL_SECT(".sdata2") extern char lbl_803479C8[];
-DECL_SECT(".sdata2") extern char lbl_803479D0[];
-DECL_SECT(".sdata2") extern char lbl_803479D8[];
-DECL_SECT(".sdata2") extern char lbl_803479E0[];
-DECL_SECT(".sdata2") extern char lbl_803479E8[];
-DECL_SECT(".sdata2") extern char lbl_803479F0[];
-DECL_SECT(".sdata2") extern char lbl_803479F8[];
-DECL_SECT(".sdata2") extern char lbl_80347A00[];
-DECL_SECT(".sdata2") extern char lbl_80347A08[];
-DECL_SECT(".sdata2") extern char lbl_80347A10[];
-DECL_SECT(".sdata2") extern char lbl_80347A18[];
-DECL_SECT(".sdata2") extern char lbl_80347A20[];
-DECL_SECT(".sdata2") extern char lbl_80347A28[];
-DECL_SECT(".sdata2") extern char lbl_80347A30[];
-extern char lbl_80347A68;
-extern char lbl_80347A70;
-extern char lbl_80347A78;
-extern char lbl_80347A80;
-
 /* extern functions (back slice) */
 extern int rand(void);
 extern s32 strncmp(const char* a, const char* b, u32 n);
@@ -4677,19 +4655,19 @@ s32 set_hidden_player(void* vp) {
     s32 j;
     s32 k;
 
-    if (strncmp(p->save.name, lbl_803479C8, 6) == 0) {
+    if (strncmp(p->save.name, "DBRNKR", 6) == 0) {
         pick = 0x10;
         match = 1;
     }
     /* the interactive cheat menu (start+trigger names) */
-    if ((strncmp(p->save.name, lbl_803479D0, 6) == 0 ||
-         strncmp(p->save.name, lbl_803479D8, 6) == 0 ||
-         strncmp(p->save.name, lbl_803479E0, 6) == 0) &&
+    if ((strncmp(p->save.name, "MNTHRX", 6) == 0 ||
+         strncmp(p->save.name, "ARIENT", 6) == 0 ||
+         strncmp(p->save.name, "AAAAAA", 6) == 0) &&
         any_level(0x100000) != 0 && any_level(0x400000) != 0) {
         access_options[0] = lbl_80347734;
         access_one[0] = lbl_80347740;
         access_options[1] = lbl_80347738;
-        if (saveMenuPrompt(lbl_803479E8, access_options, 2) == 0) {
+        if (saveMenuPrompt("Access?", access_options, 2) == 0) {
             prompt_ok = 1;
         } else {
             prompt_ok = 0;
@@ -4702,7 +4680,7 @@ s32 set_hidden_player(void* vp) {
         if (match != 0) {
             fly_options[0] = lbl_80347734;
             fly_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_803479F0, fly_options, 2) == 0) {
+            if (saveMenuPrompt("Fly?", fly_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4734,7 +4712,7 @@ s32 set_hidden_player(void* vp) {
             }
             shards_options[0] = lbl_80347734;
             shards_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_803479F8, shards_options, 2) == 0) {
+            if (saveMenuPrompt("Shards?", shards_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4744,7 +4722,7 @@ s32 set_hidden_player(void* vp) {
             }
             runes_options[0] = lbl_80347734;
             runes_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_80347A00, runes_options, 2) == 0) {
+            if (saveMenuPrompt("Runes?", runes_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4754,7 +4732,7 @@ s32 set_hidden_player(void* vp) {
             }
             cheats_options[0] = lbl_80347734;
             cheats_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_80347A08, cheats_options, 2) == 0) {
+            if (saveMenuPrompt("Cheats?", cheats_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4780,7 +4758,7 @@ s32 set_hidden_player(void* vp) {
                         }
                         if ((u32)pick >= 27) {
                             pick = (u8)rand() % 27U;
-                            saveMenuPrompt(lbl_80347A10,
+                            saveMenuPrompt("Rand !!",
                                            access_one, 1);
                             break;
                         }
@@ -4817,23 +4795,23 @@ s32 set_hidden_player(void* vp) {
     }
     /* one-shot cheat names */
     if (any_level(0x100000) != 0 && any_level(0x400000) != 0) {
-        if (strncmp(p->save.name, lbl_80347A18, 6) == 0) {
+        if (strncmp(p->save.name, "ADMBLY", 6) == 0) {
             match = 1;
             pick = (rand() & 0xFF) % 27U;
             pups = rand();
         }
-        if (strncmp(p->save.name, lbl_80347A20, 6) == 0) {
+        if (strncmp(p->save.name, "ZANZI", 6) == 0) {
             match = 1;
             pick = 5;
             pups = rand();
         }
-        if (strncmp(p->save.name, lbl_80347A28, 6) == 0) {
+        if (strncmp(p->save.name, "NICO", 6) == 0) {
             match = 1;
             pick = 1;
             pups = rand();
             all_fly_options[0] = lbl_80347734;
             all_fly_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_803479F0, all_fly_options, 2) == 0) {
+            if (saveMenuPrompt("Fly?", all_fly_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4865,7 +4843,7 @@ s32 set_hidden_player(void* vp) {
             }
             all_shards_options[0] = lbl_80347734;
             all_shards_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_803479F8, all_shards_options, 2) == 0) {
+            if (saveMenuPrompt("Shards?", all_shards_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4875,7 +4853,7 @@ s32 set_hidden_player(void* vp) {
             }
             all_runes_options[0] = lbl_80347734;
             all_runes_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_80347A00, all_runes_options, 2) == 0) {
+            if (saveMenuPrompt("Runes?", all_runes_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4885,7 +4863,7 @@ s32 set_hidden_player(void* vp) {
             }
             all_cheats_options[0] = lbl_80347734;
             all_cheats_options[1] = lbl_80347738;
-            if (saveMenuPrompt(lbl_80347A08, all_cheats_options, 2) == 0) {
+            if (saveMenuPrompt("Cheats?", all_cheats_options, 2) == 0) {
                 prompt_ok = 1;
             } else {
                 prompt_ok = 0;
@@ -4906,7 +4884,7 @@ s32 set_hidden_player(void* vp) {
                 p->save.stuff[p->character].rune_near = 0xFFFF;
             }
         }
-        if (strncmp(p->save.name, lbl_80347A30, 6) == 0) {
+        if (strncmp(p->save.name, "SAHARA", 6) == 0) {
             match = 1;
             pick = 0x17;
             pups = rand();
@@ -4995,7 +4973,7 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
                               *sfx_arena);
     *sfx_arena = cls;
     sfx_buf = (char**) (q + 1372);
-    MLMReadFile((char*) pot + 1268, lbl_80347A38, *(u32*) (q + 1364), *sfx_buf);
+    MLMReadFile((char*) pot + 1268, "anim", *(u32*) (q + 1364), *sfx_buf);
     sfx_remap = (s32*) (q + 1356);
     *sfx_remap = fn_8001267C((u16*) *sfx_buf, cls, *sfx_remap);
     arena = (u32*) (q + 1316);
@@ -5045,9 +5023,9 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     arena = MBOX_LoadModelFixed((char*) pot + 1268, slot->model_max, 0, NULL,
                                 (u32) slot->arena);
     if ((s32) slot->anim_max > 0) {
-        MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->anim_max, slot->anim_buf);
+        MLMReadFile((char*) pot + 1268, "anim", slot->anim_max, slot->anim_buf);
     } else {
-        slot->anim_buf = AllocFile((char*) pot + 1268, lbl_80347A38, slot->anim_max);
+        slot->anim_buf = AllocFile((char*) pot + 1268, "anim", slot->anim_max);
     }
     slot->anim_remap2 = fn_8001267C((u16*) slot->anim_buf, arena, slot->anim_remap2);
     slot->arena = (void*) arena;
@@ -5058,10 +5036,10 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
     q = tab + ct8 * 4;
     sprintf((char*) pot + 1268, "players/%s/anim", q + 1060);
     if ((s32) slot->model_buf_max > 0) {
-        MLMReadFile((char*) pot + 1268, lbl_80347A38, slot->model_buf_max,
+        MLMReadFile((char*) pot + 1268, "anim", slot->model_buf_max,
                     slot->model_buf);
     } else {
-        slot->model_buf = AllocFile((char*) pot + 1268, lbl_80347A38,
+        slot->model_buf = AllocFile((char*) pot + 1268, "anim",
                                     slot->model_buf_max);
     }
     slot->anim_remap = fn_8001267C((u16*) slot->model_buf, arena, slot->anim_remap);
@@ -5572,7 +5550,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(held, model);
             }
         } else if (p->shield_flags & 0x20000) {
-            s32 model = MBOX_FindObject(&lbl_80347A68);
+            s32 model = MBOX_FindObject("RF_SHLD");
             void* held;
             if ((held = p->pup_object) == NULL) {
                 p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x810);
@@ -5580,7 +5558,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(held, model);
             }
         } else if (p->shield_flags & 0x200000) {
-            s32 model = MBOX_FindObject(&lbl_80347A70);
+            s32 model = MBOX_FindObject("FW_SHLD");
             void* held;
             if ((held = p->pup_object) == NULL) {
                 p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x810);
@@ -5588,7 +5566,7 @@ void PlayerProcessPowerups(void* vp) {
                 MBSetObject(held, model);
             }
         } else if (p->shield_flags & 0x400000) {
-            s32 model = MBOX_FindObject(&lbl_80347A78);
+            s32 model = MBOX_FindObject("L_SHLD");
             void* held;
             if ((held = p->pup_object) == NULL) {
                 p->pup_object = MBNewObject(model, NULL, p->mbnode2, 0x810);
@@ -5905,7 +5883,7 @@ void PlayerProcessPowerups(void* vp) {
 
     if (PF(p, offsetof(Player, speak_timer), u16) != 0 && (p->hud_flags & 2) == 0) {
         if (p->marker_object == NULL) {
-            p->marker_object = MBOX_NewObject(&lbl_80347A80, NULL, p->node, 0x10);
+            p->marker_object = MBOX_NewObject("IT_SIGN", NULL, p->node, 0x10);
         }
     } else {
         void* obj;
