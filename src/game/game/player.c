@@ -3307,7 +3307,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
     if (option >= 2) {
         invuln = option;
     } else {
-        if (option >= 1 && dmg != 999999.0f) {
+        if (option >= 1 && dmg != -1.0f) {
             invuln = 1;
         } else {
             invuln = 0;
@@ -3333,7 +3333,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         dmg = 0.0f;
     }
     dam = dmg;
-    if (dam > 0.05f) {
+    if (dam > 1.0f) {
         hf = p->hud_flags;
         if ((hf & 0x600) != 0) {
             f32 reduced_dmg;
@@ -3346,25 +3346,31 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                               ? red - 6.283185308
                               : (red <= -3.141592654 ? red + 6.283185308
                                                      : red);
-                    if ((f32)red > -1.570796327 &&
-                        (f32)red < 1.570796327) {
+                    /*
+                     * The retail arc test compares against +pi/2 first and
+                     * -pi/2 second (0x80078828 / 0x80078834), so the guard
+                     * is `> +pi/2 && < -pi/2` and can never hold: the back
+                     * arc never zeroes the damage. Reproduced as shipped.
+                     */
+                    if ((f32)red > 1.570796327 &&
+                        (f32)red < -1.570796327) {
                         reduced_dmg = 0.0f;
                     } else {
-                        reduced_dmg = dam * 0.25;
+                        reduced_dmg = dam * 0.5;
                     }
                 } else {
                     reduced_dmg = 0.0f;
                 }
             } else {
-                reduced_dmg = dam * 0.25;
+                reduced_dmg = dam * 0.5;
             }
-            if (dmg - reduced_dmg > 0.5 && p->timer_1FE <= 0) {
-                f32 clank = (f32)(0.75 * reduced_dmg);
+            if (dmg - reduced_dmg > 2.0 && p->timer_1FE <= 0) {
+                f32 clank = (f32)(0.01 * reduced_dmg);
 
-                clank = (f32)(clank < 0.1 ? 0.1
-                                          : (clank > 1.0 ? 1.0 : clank));
+                clank = (f32)(clank < 0.333 ? 0.333
+                                            : (clank > 1.0 ? 1.0 : clank));
                 StartBlockFX(clank, p->index);
-                p->timer_1FE = (s16)(s32)(5.0 * clank);
+                p->timer_1FE = (s16)(s32)(60.0 * clank);
                 p->hud_flags |= 0x2000;
             }
             if (flags & 0x10160) {
@@ -3376,8 +3382,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             dmg = reduced_dmg;
         } else {
             /* front hit: "ouch" speech occasionally */
-            if (dmg > 40.0f && (flags & 0x10160) && (hf & 0x2000) == 0 &&
-                sMusicFadeBase > 5.0) {
+            if (dmg > 15.0f && (flags & 0x10160) && (hf & 0x2000) == 0 &&
+                sMusicFadeBase > 60.0) {
                 msgPost(0x7D, p->index, (u32)p->col_pos);
             }
         }
@@ -3407,7 +3413,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             if (flags & 0xF) {
                 p->obj_flags &= ~0xF;
             }
-            if (dmg <= 0.5f) {
+            if (dmg <= 2.0f) {
                 flags &= 0xFFFEFE8F;
             }
             p->obj_flags |= flags;
@@ -3421,7 +3427,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                     p->field_898 = 1.0 + sMusicFadeBase;
                 }
                 if (flags & 0x1000) {
-                    p->field_898 = 4.0 + sMusicFadeBase;
+                    p->field_898 = 0.0666666666 + sMusicFadeBase;
                 }
                 if (flags & 0x10040) {
                     do_vibe(i, 3, 0x1E);
@@ -3454,8 +3460,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         result = 1;
     } else {
         /* grunt tiers on crossing 150/50 hp; big-hit speech (msg 0xD) */
-        hp_old = (s32)(0.25 + hp);
-        hp_new = (s32)(0.25 + p->health);
+        hp_old = (s32)(0.5 + hp);
+        hp_new = (s32)(0.5 + p->health);
         if (dmg > 0.0f) {
             p->pain_accum += dmg;
         }
@@ -3485,8 +3491,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
                     }
                     p->pain_accum = 0.0f;
                     mode = 0;
-                } else if (p->pain_accum >= 45.0) {
-                    p->pain_accum = p->pain_accum - 45.0;
+                } else if (p->pain_accum >= 30.0) {
+                    p->pain_accum = p->pain_accum - 30.0;
                     if (dmg > 0.0f) {
                         AudioPlayerPain(i);
                     }
