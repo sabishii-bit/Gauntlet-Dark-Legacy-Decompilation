@@ -840,7 +840,7 @@ void AudioAmbientUpdate(void)
     for (pi = 0; pi < 4; pi++) {
         p = (u8*)gPlayers + poff;
         if (*(s32*)(p + offsetof(Player, state)) == 1 &&
-            *(s16*)(p + offsetof(Player, pad_0960)) != 0) {
+            *(s16*)(p + offsetof(Player, field_960)) != 0) {
             j = 0;
             joff = 0;
             for (; j < 4; j++, joff += 4) {

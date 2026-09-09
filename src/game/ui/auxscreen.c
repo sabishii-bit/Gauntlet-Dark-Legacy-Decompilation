@@ -561,10 +561,7 @@ void DoGoodWizard(void)
                 u8* p = (u8*)gPlayers + off;
 
                 if (*(s32*)(p + offsetof(Player, state)) == 1) {
-                    /* +0x7dc falls inside Player's unmapped pad_07A4 gap
-                     * (delta 0x38); no GC-verified field covers it, left
-                     * raw per AGENTS.md. */
-                    SetSkinFX(p + 0x7dc, lbl_80344BEC, lbl_80345A30, 10, 1);
+                    SetSkinFX(p + offsetof(Player, skinfx_timer), lbl_80344BEC, lbl_80345A30, 10, 1);
                 }
             }
             good_wiz_state++;

@@ -179,6 +179,7 @@
 #include "game/leveldata.h"
 #include "game/worldobj.h"
 #include "game/mbnode.h"
+#include "game/mbobject.h" /* MBBlit */
 #include "game/plyrdata.h"
 #include "game/item.h"      /* Item* sItems, stride 0xF0 */
 #include "game/worldinfo.h" /* WorldInfo gWorldInfo */
@@ -1470,7 +1471,7 @@ static void write_health_and_items(s32 i) {
             DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x1A, 0x147, 4, rgb, buf2);
         }
         if (p->item_body_hi > 0) {
-            blit = MBNewTempBlit(lbl_80274EA0[PF(p, 0x32FC + p->item_body_hi * 4, s32)],
+            blit = MBNewTempBlit(lbl_80274EA0[p->potion_type[p->item_body_hi - 1]],
                                  ((u16*)(tab + 1520))[i] + 0x66, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_hi);
@@ -1687,7 +1688,7 @@ static void draw_power_meter(s32 i) {
             rgb2 = 0xFFFF00;
             break;
         }
-        tex = (u16*)MBRomTexPtr(PF((u8*)pm_blit[i][0], 4, u32));
+        tex = (u16*)MBRomTexPtr(((MBBlit*)pm_blit[i][0])->tex_idx);
         width = (s32)((f32)(s32)tex[5] * frac) >> 1;
         w = width;
         if (width < 1) {
@@ -1937,8 +1938,8 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
         }
         amount = amount * (s32)(0.01 * (f32)delta);
     } else {
-        f32 dist = PF(gCurLevel, offsetof(level_data, plevel), f32);
-        f32 fac = PF(gCurLevel, offsetof(level_data, xpmul), f32);
+        f32 dist = gCurLevel->plevel;
+        f32 fac = gCurLevel->xpmul;
 
         if (dist > 0.0f) {
             if ((f32)p->level > dist) {
@@ -2473,7 +2474,7 @@ s32 do_players(void) {
                     p->intower = 1;
                     p->save.stats[p->character].total_playtime +=
                         (f32)(u32)gFrameTicks;
-                    if (PF(gCurLevel, offsetof(level_data, flags), u32) & 8) {
+                    if (gCurLevel->flags & 8) {
                         light_pos[0] = p->col_pos[0];
                         light_pos[1] = p->col_pos[1];
                         light_pos[2] = p->col_pos[2];
@@ -2978,12 +2979,12 @@ void PlayerProcessScale(void* vp) {
         }
         MBTreeSetAmbientAdd(p->node, (s32)(255.0 * ambientScale), 1);
     }
-    if (PF(p, 0x7DC, f32) > 0.0f) {
-        PF(p, 0x95A, s16) = 1;
-    } else if (PF(p, 0x95A, s16) != 0) {
-        PF(p, 0x95A, s16) = 0;
+    if (p->skinfx_timer > 0.0f) {
+        p->skinfx_on = 1;
+    } else if (p->skinfx_on != 0) {
+        p->skinfx_on = 0;
     }
-    if (ProcessSkinFX((f32*)((u8*)p + 0x7DC), p->node, 0) == 0 &&
+    if (ProcessSkinFX(&p->skinfx_timer, p->node, 0) == 0 &&
         *(s16*)(p->node + 0x5C) <= -2) {
         MBTreeSetAltTex(p->node, -1, 0, 1);
         MBTreeSetAmbientAdd(p->node, 0, 1);
@@ -3156,7 +3157,7 @@ s32 PlayerOnMovingObject(void) {
     }
     for (i = 0; i < 4; i++) {
         Player* p = P(i);
-        if (p->state == 1 && (obj = PF(p, offsetof(Player, floor_name2), u8*)) != NULL &&
+        if (p->state == 1 && (obj = (u8*)p->floor_name2) != NULL &&
             *(u32*)(obj + 0x28) != 0) {
             mo = *(u8**)(obj + 0x18);
             flags = *(u32*)(obj + 0x10);
@@ -3179,7 +3180,7 @@ s32 OtherPlayerOnOtherMovingObject(s32 i, WorldObj* obj) {
 
     for (j = 0; j < 4; j++) {
         Player* p = P(j);
-        if (j != i && p->state == 1 && (o = PF(p, offsetof(Player, floor_name2), WorldObj*)) != NULL && o != obj) {
+        if (j != i && p->state == 1 && (o = (WorldObj*)p->floor_name2) != NULL && o != obj) {
             if (o->nodeptr != 0 && (o->flags & 0x4000)) {
                 return 1;
             }
@@ -3356,7 +3357,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             return 0;
         }
         if (dmg > 1.0) {
-            dmg = dmg * PF(gCurLevel, offsetof(level_data, damagemul), f32);
+            dmg = dmg * gCurLevel->damagemul;
         }
     }
     ModifyDamage(STAT_ARMOR(p), &dmg, &flags, p->shield_flags);
@@ -3614,7 +3615,7 @@ static inline void player_dies(s32 i) {
     for (j = 0; j < 11; j++) {
         memset(&p->powerup[j], 0, sizeof(PlayerPowerup));
     }
-    PF(p, 0x1EC, s32) = 0;
+    p->npowerups = 0;
     p->flags = 0;
 }
 
@@ -3842,8 +3843,8 @@ void new_player(s32 i) {
     clear_player(i, 1);
     p->state = 2;
     p->motion_state = 0;
-    PF(p, 0xA8B, s8) = -1;
-    PF(p, 0x3358, s32) = -1;
+    p->save.saved = -1;
+    p->sel_file_cursor = -1;
     sel_set_inactive(i);
 }
 
@@ -3877,7 +3878,7 @@ void clear_player(s32 i, s32 full) {
     for (j = 0; j < 11; j++) {
         memset(&p->powerup[j], 0, sizeof(PlayerPowerup));
     }
-    PF(p, 0x1EC, s32) = 0;
+    p->npowerups = 0;
     p->flags = 0;
     p->level = 1;
     p->exp = 0;
@@ -3913,18 +3914,16 @@ void clear_player(s32 i, s32 full) {
     player_index = p->index;
     {
         s32 load_class = 0;
-        s32 stat_offset = 0;
 
         cls = p->character;
 
         do {
             LoadPlyrData(player_index, load_class, NULL);
-            PF((u8*)p + stat_offset, 0xA98, f32) = 0.0f;
-            PF((u8*)p + stat_offset, 0xA9C, f32) = 0.0f;
-            PF((u8*)p + stat_offset, 0xAA0, f32) = 0.0f;
-            PF((u8*)p + stat_offset, 0xAA4, f32) = 0.0f;
+            p->save.atts[load_class].fight_add = 0.0f;
+            p->save.atts[load_class].armor_add = 0.0f;
+            p->save.atts[load_class].magic_add = 0.0f;
+            p->save.atts[load_class].speed_add = 0.0f;
             load_class++;
-            stat_offset += 0x18;
         } while (load_class < 16);
         PlayerUpdateAtts(p, cls, NULL);
     }
@@ -3992,10 +3991,10 @@ void load_player(s32 i) {
 
     if (gDemoMode != 0 && sMusicTrackHi != 0xD) {
         /* cheat build: force the level stamped on the current level */
-        if ((f32)cp->level != PF(gCurLevel, offsetof(level_data, plevel), f32)) {
+        if ((f32)cp->level != gCurLevel->plevel) {
             opt_force_player |= 2;
         }
-        SetPlayerLevel(cp, PF(gCurLevel, offsetof(level_data, plevel), f32));
+        SetPlayerLevel(cp, gCurLevel->plevel);
     }
     zero = 0;
     p->node = NULL;
@@ -4014,14 +4013,14 @@ void load_player(s32 i) {
     p->grab_partner = NULL;
     p->grab_pending = NULL;
     p->anchor_pos[0] = 0.0f;
-    PF(p, offsetof(Player, anchor_pos) + 4, f32) = lbl_80282930[i]->attny;
-    PF(p, offsetof(Player, anchor_pos) + 8, f32) = 0.0f;
+    p->anchor_pos[1] = lbl_80282930[i]->attny;
+    p->anchor_pos[2] = 0.0f;
     p->anchor_fwd[0] = 0.0f;
-    PF(p, offsetof(Player, anchor_fwd) + 4, f32) = lbl_80282930[i]->coly;
-    PF(p, offsetof(Player, anchor_fwd) + 8, f32) = 0.0f;
+    p->anchor_fwd[1] = lbl_80282930[i]->coly;
+    p->anchor_fwd[2] = 0.0f;
     p->light_vec[0] = 0.0f;
-    PF(p, offsetof(Player, light_vec) + 4, f32) = 0.0f;
-    PF(p, offsetof(Player, light_vec) + 8, f32) = 0.0f;
+    p->light_vec[1] = 0.0f;
+    p->light_vec[2] = 0.0f;
     p->vel[0] = 0.0f;
     p->vel[1] = 0.0f;
     p->vel[2] = 0.0f;
@@ -4040,8 +4039,8 @@ void load_player(s32 i) {
     p->floor_fx_time = 0.0f;
     p->floor_hi = 256.0f;
     p->floor_lo = 192.0f;
-    PF(p, 0x7DC, f32) = 0.0f;
-    PF(p, 0x95A, s16) = 0;
+    p->skinfx_timer = 0.0f;
+    p->skinfx_on = 0;
     p->col_radius = lbl_80282930[i]->width;
     p->col_height = lbl_80282930[i]->height * 0.5;
     p->timer_1F0 = 0;
@@ -4059,7 +4058,7 @@ void load_player(s32 i) {
     p->field_908 = 0;
     p->coll_flags = 0;
     p->bossdamage = 0.0f;
-    PF(p, offsetof(Player, hit_streak), s32) = 0;
+    p->hit_streak = 0;
     p->field_A48 = 1.0f;
     p->field_A4C = 1.0f;
     p->field_A50 = 1.0f;
@@ -4071,19 +4070,19 @@ void load_player(s32 i) {
     p->idle_timer = 0;
     p->weakening_elapsed = 0;
     p->weakening_period = lbl_801201C4[0];
-    PF(p, 0x952, s16) = 0;
+    p->field_952 = 0;
     p->count_91C = p->count_920;
     p->collision_item = NULL;
-    PF(p, 0xA24, s32) = 0;
-    PF(p, 0xA28, f32) = 0.0f;
-    PF(p, offsetof(Player, field_A68), s32) = 0;
+    p->num_approaching = 0;
+    p->dist_offset = 0.0f;
+    p->field_A68 = 0;
     p->field_93C = 0;
     p->field_940 = 0;
     p->speech_req = NULL;
     p->combo_cd = 0.0f;
     p->camera_limit = 0;
     p->speak_done = 0;
-    PF(p, 0x960, s16) = 0;
+    p->field_960 = 0;
     p->grab_flags = 0;
     p->hud_flags = 0;
     p->field_A1C = 0;
@@ -4105,7 +4104,7 @@ void load_player(s32 i) {
             PUP_TIMELEFT(p, j) = 0.0f;
         }
     }
-    PF(p, offsetof(Player, floor_name2), s32) = 0;
+    p->floor_name2 = NULL;
     if ((gGameOptions[11] & 1) == 0 || gGameMode != MG_PLAYER_SELECT) {
         setup_player_display(i);
     }
@@ -4284,16 +4283,16 @@ void player_get_from_save(void* vp, s32 type) {
         for (t = 0; t < 11; t++) {
             memset(&p->powerup[t], 0, sizeof(PlayerPowerup));
         }
-        PF(p, 0x1EC, s32) = 0;
+        p->npowerups = 0;
         p->flags = 0;
         return;
     }
 
     if (type < 0) {
-        type = PF(p, 0xA88, s16);
+        type = p->save.last_alttype;
     }
     p->character = type;
-    p->class_id = PF(p, 0xA8A, s8);
+    p->class_id = p->save.last_color;
     character = p->character;
     check_player_atts(p);
     offset = character * 0x18;
@@ -4327,14 +4326,14 @@ void player_get_from_save(void* vp, s32 type) {
     }
     PlayerUpdateAtts(p, type, NULL);
     memcpy((u8*)p + 0x130, p->save.stuff[type].powerups, 0xB0);
-    PF(p, 0x1EC, s32) = p->save.stuff[type].npowerups;
+    p->npowerups = p->save.stuff[type].npowerups;
     p->field_11C = 0;
     p->shield_flags = 0;
     p->flags = 0;
-    lbl_80240E30[player].scheme = PF(p, 0x1DB0, u8);
-    lbl_80240E30[player].hasActuator = PF(p, 0x1DB1, u8);
-    lbl_80240E30[player].unk38 = PF(p, 0x1DB2, u8);
-    lbl_80240E30[player].unk34 = PF(p, 0x1DB3, u8);
+    lbl_80240E30[player].scheme = p->save.control_scheme;
+    lbl_80240E30[player].hasActuator = p->save.control_rumble;
+    lbl_80240E30[player].unk38 = p->save.control_autoattack;
+    lbl_80240E30[player].unk34 = p->save.control_autoaim;
 }
 #pragma dont_inline off
 
@@ -4373,7 +4372,7 @@ void player_store_in_save(Player* p) {
     }
     p->save.leveltot = total;
     memcpy(p->save.stuff[chartype].powerups, (u8*)p + 0x130, 0xB0);
-    p->save.stuff[chartype].npowerups = (s16)PF(p, 0x1EC, s32);
+    p->save.stuff[chartype].npowerups = (s16)p->npowerups;
     p->save.control_scheme = (u8)lbl_80240E30[player].scheme;
     p->save.control_rumble = (u8)lbl_80240E30[player].hasActuator;
     p->save.control_autoattack = (u8)lbl_80240E30[player].unk38;
@@ -4515,7 +4514,7 @@ model_ready:
         gGameMode != MG_MAPSCREEN && gGameMode != MG_STATS) {
         LoadPlyrData(i, p->character, (void*)1);
     }
-    PF(p, 0x744, s32) = 0;
+    p->field_744 = 0;
     /* attachment nodes */
     sprintf(geoBss->scratch, "%s%s", (char*)&p->pad_0210[0x4B0],
             ((char**)(tab + 1340))[cls]);
@@ -4561,9 +4560,9 @@ model_ready:
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
-        PF(p, 0x6DC, s32) = *nd;
+        p->grab_node = (void*)(*nd);
     } else {
-        PF(p, 0x6DC, s32) = 0;
+        p->grab_node = NULL;
     }
     /* weapon */
     if (sWeaponsBuf != 0) {
@@ -5775,12 +5774,12 @@ void PlayerProcessPowerups(Player* p) {
                     lbl_80282930[p->index]->weapon_fx_offset[tier][2];
                 if (lbl_80282930[p->index]->weapon_fx_scale[tier][0] !=
                     0.0f) {
-                    PF(*(void**)p->weaphold_atree, 0x60, u32) |= 8;
-                    *(f32*)((u8*)*(void**)p->weaphold_atree + 0x40) =
+                    (*(struct mbnode**)p->weaphold_atree)->flags |= 8;
+                    (*(struct mbnode**)p->weaphold_atree)->scale[0] =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][0];
-                    *(f32*)((u8*)*(void**)p->weaphold_atree + 0x44) =
+                    (*(struct mbnode**)p->weaphold_atree)->scale[1] =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][1];
-                    *(f32*)((u8*)*(void**)p->weaphold_atree + 0x48) =
+                    (*(struct mbnode**)p->weaphold_atree)->scale[2] =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][2];
                 }
             }
@@ -5891,7 +5890,7 @@ void PlayerProcessPowerups(Player* p) {
         }
     }
 
-    if (PF(p, offsetof(Player, speak_timer), u16) != 0 && (p->hud_flags & 2) == 0) {
+    if (p->speak_timer != 0 && (p->hud_flags & 2) == 0) {
         if (p->marker_object == NULL) {
             p->marker_object = MBOX_NewObject("IT_SIGN", NULL, p->node, 0x10);
         }
@@ -5948,9 +5947,9 @@ void PlayerProcessPowerups(Player* p) {
         p->speak_done = 0;
     }
     if ((p->flags & 8) == 0) {
-        PF(p, 0x960, s16) = 0;
+        p->field_960 = 0;
     } else {
-        PF(p, 0x960, s16) = 1;
+        p->field_960 = 1;
     }
 
     p->stat_damage = p->stat_damage < lbl_80343D7C[0] ? lbl_80343D7C[0] :
