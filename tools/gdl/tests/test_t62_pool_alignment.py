@@ -179,8 +179,11 @@ LIVE = (ROOT / "build/GUNE5D/obj/game/enemy/critter.o").is_file()
 # The units lane P7's scan covered when it replaced the closed carrier. Not
 # every configured unit: a whole-image sweep costs minutes, and these three
 # are the ones whose pool rows this file's claims rest on.
+# fn_800606FC moved with the ITEMS.OBJ head from gauntworld.c into items.c
+# (run 64 bounds pass) and lost its interior row there; the loud carrier is
+# now shop::shop_setup (scan of every incomplete game unit, 2026-09-09).
 CARRIER_UNITS = ("game/game/player", "game/enemy/critter",
-                 "game/world/gauntworld")
+                 "game/shop/shop")
 
 
 @unittest.skipUnless(LIVE, "needs the split target objects and a built tree")
@@ -212,15 +215,17 @@ class LiveCritter(unittest.TestCase):
         # row at all. A scan of the configured units for the same shape
         # (build/p7_lane/p7_pooldefect.py) found the loud banner surviving
         # in exactly two functions, game/world/gauntworld::fn_800606FC and
-        # game/game/player::damage_player; the gauntworld one is used here
-        # because damage_player is under active repair. Its rows are the
+        # game/game/player::damage_player; fn_800606FC then moved into
+        # items.c with the ITEMS.OBJ head and lost its interior row, so the
+        # carrier is now game/shop/shop::shop_setup (both banners, one
+        # function). Its rows are the
         # VALUES-DIFFER class rather than set_hidden_player's ADDRESSES-
         # DIFFER one -- incidental to the claim, which is that an interior
         # row keeps the loud banner while an edge row in the same function
         # is demoted.
-        text = self.clean("game/world/gauntworld", "fn_800606FC")
-        self.assertIn("POOL-DEFECT fn_800606FC", text)
-        self.assertIn("POOL-DEFECT CANDIDATE fn_800606FC", text)
+        text = self.clean("game/shop/shop", "shop_setup")
+        self.assertIn("POOL-DEFECT shop_setup", text)
+        self.assertIn("POOL-DEFECT CANDIDATE shop_setup", text)
         self.assertIn("VALUES DIFFER", text)
 
     def carriers(self, units=CARRIER_UNITS):
@@ -270,7 +275,7 @@ class LiveCritter(unittest.TestCase):
                               % (CARRIER_UNITS,))
         self.assertTrue(demoted, "no demoted candidate survives in %s"
                                  % (CARRIER_UNITS,))
-        self.assertIn("game/world/gauntworld::fn_800606FC", loud,
+        self.assertIn("game/shop/shop::shop_setup", loud,
                       "the carrier this file's live test uses has been"
                       " closed; the current census is loud=%s demoted=%s"
                       % (loud, demoted))

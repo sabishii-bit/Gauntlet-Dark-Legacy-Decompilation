@@ -45,7 +45,7 @@ class SharedStateTests(unittest.TestCase):
 
     def test_score_does_not_claim_datum_equivalence(self):
         target = ["lis     r3,0", "    R_PPC_ADDR16_HA\tlbl_802407B8", "blr"]
-        ours = ["lis     r3,0", "    R_PPC_ADDR16_HA\tlbl_80240E30", "blr"]
+        ours = ["lis     r3,0", "    R_PPC_ADDR16_HA\tPlayerControl", "blr"]
         self.assertEqual(audit.score(target, ours)["nonreloc_diff_rows"], 0)
         # This zero is the deliberately reported metric's blind spot, not a
         # statement that the two different named addresses denote one object.

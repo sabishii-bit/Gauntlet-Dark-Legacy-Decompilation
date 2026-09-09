@@ -1519,7 +1519,7 @@ typedef struct PlayerControlState {
     s32 unk34;
     s32 unk38;
 } PlayerControlState;
-extern PlayerControlState lbl_80240E30[4];
+extern PlayerControlState PlayerControl[4];
 #pragma opt_common_subs off
 #pragma opt_lifetimes off
 static void debug_player_pos(s32 i) {
@@ -1548,7 +1548,7 @@ static void debug_player_pos(s32 i) {
         dbgTextFlagA = 1;
         floor = (char*)p->floor_name;  /* WorldObj.desc at +0 doubles as the debug string */
         if (floor != NULL &&
-            (magnitude = lbl_80240E30[i].leftMagnitude)) {
+            (magnitude = PlayerControl[i].leftMagnitude)) {
             name = floor;
         } else if (p->floor_name2 != NULL) {
             name = (char*)p->floor_name2;
@@ -2310,7 +2310,7 @@ s32 do_players(void) {
                     it = i;
                     best = p->health;
                 }
-                if ((p->state == 4 && !(lbl_80240E30[i].levels & 0xFF)) ||
+                if ((p->state == 4 && !(PlayerControl[i].levels & 0xFF)) ||
                     lbl_8034481C >= 3) {
                     lbl_80344804 = 1;
                 }
@@ -2430,10 +2430,10 @@ s32 do_players(void) {
             }
             case 0xB:
                 if (gGameMode == MG_PLAY && p->motion_state == 1) {
-                    if (lbl_80240E30[i].edges & 0x8000000) {
+                    if (PlayerControl[i].edges & 0x8000000) {
                         abort_player(i);
                     }
-                    if (lbl_80240E30[i].edges & 0x2000000) {
+                    if (PlayerControl[i].edges & 0x2000000) {
                         p->motion_state = 0;
                     }
                 }
@@ -2767,7 +2767,7 @@ extern void* BreatheFireTree;
 extern void* BreatheAcidTree;
 extern void* BreatheElecTree;
 extern void* WingsTree;
-extern PlayerControlState lbl_80240E30[4];
+extern PlayerControlState PlayerControl[4];
 extern u32 lbl_80240E5C[];    /* pad config words, stride 0xF */
 extern u32 lbl_80240E60[];
 extern u32 lbl_80240E64[];
@@ -3967,7 +3967,7 @@ s32 activate_player(s32 i) {
     } else {
         MBTreeSetFlags(p->node, 2, 0);
     }
-    lbl_80240E30[i].edges &= ~0x40000;
+    PlayerControl[i].edges &= ~0x40000;
     return 1;
 }
 
@@ -4327,10 +4327,10 @@ void player_get_from_save(void* vp, s32 type) {
     p->field_11C = 0;
     p->shield_flags = 0;
     p->flags = 0;
-    lbl_80240E30[player].scheme = p->save.control_scheme;
-    lbl_80240E30[player].hasActuator = p->save.control_rumble;
-    lbl_80240E30[player].unk38 = p->save.control_autoattack;
-    lbl_80240E30[player].unk34 = p->save.control_autoaim;
+    PlayerControl[player].scheme = p->save.control_scheme;
+    PlayerControl[player].hasActuator = p->save.control_rumble;
+    PlayerControl[player].unk38 = p->save.control_autoattack;
+    PlayerControl[player].unk34 = p->save.control_autoaim;
 }
 #pragma dont_inline off
 
@@ -4370,10 +4370,10 @@ void player_store_in_save(Player* p) {
     p->save.leveltot = total;
     memcpy(p->save.stuff[chartype].powerups, (u8*)p + 0x130, 0xB0);
     p->save.stuff[chartype].npowerups = (s16)p->npowerups;
-    p->save.control_scheme = (u8)lbl_80240E30[player].scheme;
-    p->save.control_rumble = (u8)lbl_80240E30[player].hasActuator;
-    p->save.control_autoattack = (u8)lbl_80240E30[player].unk38;
-    p->save.control_autoaim = (u8)lbl_80240E30[player].unk34;
+    p->save.control_scheme = (u8)PlayerControl[player].scheme;
+    p->save.control_rumble = (u8)PlayerControl[player].hasActuator;
+    p->save.control_autoattack = (u8)PlayerControl[player].unk38;
+    p->save.control_autoaim = (u8)PlayerControl[player].unk34;
     if (p->character == 2 && HIDDEN_CODE(p) == player_sumner_desc) {
         player_get_from_save(p, -1);
     }
@@ -4383,14 +4383,14 @@ void player_store_in_save(Player* p) {
 void player_save_controls(s32 i) {
     Player* p = P(i);
 
-    p->save.control_scheme = (u8)lbl_80240E30[i].scheme;
-    p->save.control_rumble = (u8)lbl_80240E30[i].hasActuator;
-    p->save.control_autoattack = (u8)lbl_80240E30[i].unk38;
-    p->save.control_autoaim = (u8)lbl_80240E30[i].unk34;
-    p->save_backup.control_scheme = (u8)lbl_80240E30[i].scheme;
-    p->save_backup.control_rumble = (u8)lbl_80240E30[i].hasActuator;
-    p->save_backup.control_autoattack = (u8)lbl_80240E30[i].unk38;
-    p->save_backup.control_autoaim = (u8)lbl_80240E30[i].unk34;
+    p->save.control_scheme = (u8)PlayerControl[i].scheme;
+    p->save.control_rumble = (u8)PlayerControl[i].hasActuator;
+    p->save.control_autoattack = (u8)PlayerControl[i].unk38;
+    p->save.control_autoaim = (u8)PlayerControl[i].unk34;
+    p->save_backup.control_scheme = (u8)PlayerControl[i].scheme;
+    p->save_backup.control_rumble = (u8)PlayerControl[i].hasActuator;
+    p->save_backup.control_autoattack = (u8)PlayerControl[i].unk38;
+    p->save_backup.control_autoaim = (u8)PlayerControl[i].unk34;
 }
 
 #pragma opt_propagation off
@@ -6914,7 +6914,7 @@ void mini_inventory_update(s32 i) {
     tb = (TbInfo*)((u8*)tb + 0x940);
     if (state == 1) {
         if (PUP_TIMELEFT(p, tb->sel) == 0.0 ||
-            (lbl_80240E30[i].edges & 0x10000000)) {
+            (PlayerControl[i].edges & 0x10000000)) {
             AudioCursorH();
             moved = 1;
             sel = mini_inventory_find_previous_selectable_item(i);
@@ -6925,7 +6925,7 @@ void mini_inventory_update(s32 i) {
                 tb->sel = sel;
             }
         }
-        held = &lbl_80240E30[i].ctl;
+        held = &PlayerControl[i].ctl;
         if (*(held += 2) & 0x20000000) {
             AudioCursorH();
             moved = 1;
@@ -6952,7 +6952,7 @@ void mini_inventory_update(s32 i) {
             moved = 1;
             tb->slide = 0;
         }
-    } else if ((lbl_80240E30[i].edges & 0x40000000) != 0) {
+    } else if ((PlayerControl[i].edges & 0x40000000) != 0) {
         AudioCursorV();
         if (tb->state == 0) {
             if (tb->sel == -1 && (sel = mini_inventory_find_previous_selectable_item(i)) >= 0) {

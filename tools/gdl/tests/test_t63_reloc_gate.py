@@ -87,7 +87,8 @@ RELOC_ROW_FN = "damage_player"
 #: a diverged stream (MNEMONIC DIVERGENCE 2, 22 differing words). The
 #: VALUE-class wording is pinned synthetically; the live case asserts the
 #: pass, not the row class. Repoint again when that function closes.
-RELOC_ROW_UNIT = "game/world/gauntworld"
+#: fn_8005FB48 moved into items.c with the ITEMS.OBJ head (run 64 bounds pass).
+RELOC_ROW_UNIT = "game/world/items"
 RELOC_ROW_LIVE_FN = "fn_8005FB48"
 RELOC_ROW_LIVE = (ROOT / "build/GUNE5D/src" / (RELOC_ROW_UNIT + ".o")).is_file()
 EXACT_FN = "PlayerAttacking"

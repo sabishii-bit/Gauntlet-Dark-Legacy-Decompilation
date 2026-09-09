@@ -131,7 +131,7 @@ typedef struct PlayerActionMotionView {
     s16 actionFlags;
     s16 actionTicks;
 } PlayerActionMotionView;
-extern ControlState lbl_80240E30[]; /* control-pad state array, stride 15 f32 */
+extern ControlState PlayerControl[]; /* control-pad state array, stride 15 f32 */
 extern f32 sMusicFadeBase; /* sMusicFadeBase */
 extern s64 gControllerButtons;
 extern s32 sFlags;
@@ -924,7 +924,7 @@ static s32 PlayerMotion_SfxIndex(Player* p) {
 void PlayerMotion(Player* p) {
     char* strings = lbl_80114220;
     u8* ctxbase = lbl_80282850;
-    ControlState* ctl = &lbl_80240E30[p->index];
+    ControlState* ctl = &PlayerControl[p->index];
     s32 index = p->index;
     u8* motion = (u8*)p + 0x14;
     f32 radius = p->col_radius;
@@ -985,9 +985,9 @@ void PlayerMotion(Player* p) {
 
     controlYaw = atan2(*(f32*)(motion + 0x20), *(f32*)(motion + 0x28));
     if (p->anim_208 == 143 && p->grab_partner != NULL &&
-        lbl_80240E30[p->grab_partner->index].values[8] > 0.0f) {
+        PlayerControl[p->grab_partner->index].values[8] > 0.0f) {
         ControlState* otherCtl =
-            &lbl_80240E30[p->grab_partner->index];
+            &PlayerControl[p->grab_partner->index];
         movement = otherCtl->values[8];
         controlYaw = otherCtl->values[7];
     } else if (anim == 8) {
@@ -3941,7 +3941,7 @@ void DoExit(Player* p) {
             p->idle_timer += gFrameTicks;
         } else if (fn_8005B8FC(p) != 0) {
             if (lbl_80344804 != 0 ||
-                0.0 == (f64)lbl_80240E30[p->index].values[8]) {
+                0.0 == (f64)PlayerControl[p->index].values[8]) {
                 p->idle_timer += gFrameTicks;
             }
         } else {
@@ -4214,7 +4214,7 @@ item_test:
         hit[0] = from[0];
         hit[1] = from[1];
         hit[2] = from[2];
-    } else if (lbl_80240E30[p->index].control.flag == 0) {
+    } else if (PlayerControl[p->index].control.flag == 0) {
         if (count == 1) {
             f32 dx;
             f32 dz;
@@ -4609,7 +4609,7 @@ s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
     return result;
 }
 s32 fn_80088938(Player* p, f32 angle) {
-    ControlState* ctl = &lbl_80240E30[p->index];
+    ControlState* ctl = &PlayerControl[p->index];
     PlayerActionMotionView* motion = (PlayerActionMotionView*)p;
     f64 wrapped;
     f32 facing;

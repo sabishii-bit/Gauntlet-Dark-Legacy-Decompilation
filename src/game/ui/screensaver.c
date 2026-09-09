@@ -755,7 +755,7 @@ void ScreenSaverEnd(void)
 int fn_80055F68(int a, int b);
 void DoTexMods(void* seq);
 void PlayerControls(void);
-extern u8 lbl_80240E30[];
+extern u8 PlayerControl[];
 
 /* lbl_80274600+0x240 (576): last-seen owning MB node per weapon slot,
  * immediately after the ScreenSaverWeapon[4] array; used only to detect a
@@ -765,7 +765,7 @@ typedef struct ScreenSaverControlNodes {
     void* node[4];
 } ScreenSaverControlNodes;
 
-/* lbl_80240E30 per-player control state (see controls.c's CTL, stride
+/* PlayerControl per-player control state (see controls.c's CTL, stride
  * 0x3C=60): only levels/edges are read in this TU. */
 typedef struct PadCtlView {
     u8 _pad00[4];
@@ -786,7 +786,7 @@ void ScreenSaver(void)
         lbl_80344A48 += gClockStepTicks;
         for (i = 0; i < 4; i++) {
             u8* wr = weap + i * 4;
-            u8* pr = lbl_80240E30 + i * 60;
+            u8* pr = PlayerControl + i * 60;
             if (*(void**)(wr + offsetof(ScreenSaverControlNodes, node)) !=
                 *(void**)(pr + offsetof(PadCtlView, levels))) {
                 lbl_80344A48 = 0;
@@ -797,7 +797,7 @@ void ScreenSaver(void)
         }
         if ((u32)lbl_80344A48 < 36000) {
             for (i = 0; i < 4; i++) {
-                u8* pr = lbl_80240E30 + i * 60;
+                u8* pr = PlayerControl + i * 60;
                 u8* wr = weap + i * 4;
                 *(void**)(wr + offsetof(ScreenSaverControlNodes, node)) =
                     *(void**)(pr + offsetof(PadCtlView, levels));
@@ -815,7 +815,7 @@ void ScreenSaver(void)
                 }
                 PlayerControls();
                 for (i = 0; i < 4; i++) {
-                    u8* pr = lbl_80240E30 + i * 60;
+                    u8* pr = PlayerControl + i * 60;
                     u8* wr = weap + i * 4;
                     if (*(void**)(pr + offsetof(PadCtlView, levels)) !=
                         *(void**)(wr +
@@ -1787,7 +1787,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
                     if ((maskSave & (1 << i)) != 0) {
                         u8* pp = players + i * 13148;
                         if (*(s32*)(pp + offsetof(Player, state)) != 0) {
-                            u8* pb = lbl_80240E30 + i * 60;
+                            u8* pb = PlayerControl + i * 60;
                             nbut++;
                             buttons |= *(u32*)(pb + offsetof(PadCtlView, edges));
                         }

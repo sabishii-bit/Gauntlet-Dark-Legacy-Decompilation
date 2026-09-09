@@ -93,7 +93,7 @@ def main(argv=None):
         table = fndiff.symbol_table()
         forms = small_forms(source)
         forms["global_reverse_and_bss_all_export"] = bss_export(forms["global_reverse"])
-        forms["global_reverse_and_ctl_export"] = bss_export(forms["global_reverse"], "lbl_80240E30")
+        forms["global_reverse_and_ctl_export"] = bss_export(forms["global_reverse"], "PlayerControl")
         folder = Path(tempfile.mkdtemp(prefix="r69_controls_layout_", dir=ROOT / "build"))
         result.update(artifacts=str(folder.relative_to(ROOT)), variants={}, baseline=before)
         for label, text in forms.items():

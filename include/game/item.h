@@ -28,7 +28,7 @@ typedef struct LookoutParam {
     /* 0x00 */ f32 worldmat[4][4]; /* == OBJGRP.worldmat; [3][0..2] = position */
     /* 0x40 */ f32 attn_pos[4];    /* == OBJGRP.attn_pos */
     /* 0x50 */ f32 coll_pos[4];    /* == OBJGRP.coll_pos */
-    /* 0x60 */ s32 node;           /* == OBJGRP.node (mbnode handle) */
+    /* 0x60 */ struct mbnode* node;/* == OBJGRP.node */
     /* 0x64 */ s32 flags;          /* == OBJGRP.flags */
     /* 0x68 */ s16 next;
     /* 0x6A */ s16 param;

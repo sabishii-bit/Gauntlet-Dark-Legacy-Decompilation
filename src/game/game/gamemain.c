@@ -362,7 +362,7 @@ typedef struct CTL {
     s32 unk34;
     s32 unk38;
 } CTL;
-extern CTL lbl_80240E30[4];
+extern CTL PlayerControl[4];
 
 extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 flags, s32 color,
                               const char* fmt);
@@ -593,7 +593,7 @@ static inline int tally_treasures(Player* pp)
     if (gGameBusy != 0) {
         return 0;
     }
-    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+    if (PlayerControl[pp->index].levels & 0x0F000000) {
         amount *= 6;
     }
     tbuf_treasures[pp->index] += amount;
@@ -612,7 +612,7 @@ static inline int tally_enemies(Player* pp)
     if (gGameBusy != 0) {
         return 0;
     }
-    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+    if (PlayerControl[pp->index].levels & 0x0F000000) {
         amount *= 6;
     }
     tbuf_enemies[pp->index] += amount;
@@ -631,7 +631,7 @@ static inline int tally_generators(Player* pp)
     if (gGameBusy != 0) {
         return 0;
     }
-    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+    if (PlayerControl[pp->index].levels & 0x0F000000) {
         amount *= 6;
     }
     tbuf_generators[pp->index] += amount;
@@ -650,7 +650,7 @@ static inline int tally_playtime(Player* pp)
     if (gGameBusy != 0) {
         return 0;
     }
-    if (lbl_80240E30[pp->index].levels & 0x0F000000) {
+    if (PlayerControl[pp->index].levels & 0x0F000000) {
         amount *= 6;
     }
     tbuf_playtime[pp->index] += amount;

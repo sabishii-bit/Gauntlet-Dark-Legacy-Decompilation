@@ -17,7 +17,7 @@ from tools.gdl.composed_census.r67_runtime_visibility_probe import inventory
 from tools.gdl.composed_census import cv_probe as cv
 from tools.gdl import fndiff, datadiff
 
-UNIT, CTL = "game/game/controls", "lbl_80240E30"
+UNIT, CTL = "game/game/controls", "PlayerControl"
 
 
 def check_homes(local, public, table):
