@@ -174,7 +174,7 @@ class LivePlayerTests(unittest.TestCase):
                                for row in self.record["gaps"]]))
 
     def test_the_run_and_its_attribution_are_reported(self):
-        self.assertEqual(self.record["run"], [0x80347608, 0x80347C6C])
+        self.assertEqual(self.record["run"], [0x80347608, 0x80347D24])
         self.assertEqual(self.record["module"], ".\\Release\\PLAYER.OBJ")
         self.assertEqual(len(self.record["gaps"]), 3)
 
