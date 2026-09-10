@@ -3335,6 +3335,52 @@ void move_logic08(s32 index)
 }
 #pragma opt_propagation reset
 
+/* Xbox retains set_turn_to_ms(Enemy*) with mpos, trans and dtrans as
+ * three 12-byte vectors. Both GC route tests inline that same operation.
+ * These real vectors replace the old 24-byte reservations at each callsite;
+ * only their X/Z components participate in the horizontal distance test.
+ * Preserve float rounding both before and after double heading wrapping. */
+static inline int set_turn_to_ms(Enemy* e)
+{
+    f32 mpos[3];
+    f32 trans[3];
+    f32 len_r;
+    f32 dtrans[3];
+    f32 angle;
+
+    GetMilestonePos(e->plr_ms, mpos);
+    dtrans[0] = e->objgrp.worldmat[3][0] - mpos[0];
+    dtrans[2] = e->objgrp.worldmat[3][2] - mpos[2];
+    {
+        f64 a = (f32)(0.5235987756666667 + e->pyr[1]);
+        if (a > 3.141592654) {
+            a -= 6.283185308;
+        } else if (a <= -3.141592654) {
+            a = 6.283185308 + a;
+        }
+        angle = a;
+    }
+    trans[0] = sin(angle);
+    trans[2] = cos(angle);
+    trans[0] += dtrans[0];
+    trans[2] += dtrans[2];
+    len_r = fqdist(trans[0], trans[2]);
+    {
+        f64 a = (f32)(e->pyr[1] - 0.5235987756666667);
+        if (a > 3.141592654) {
+            a -= 6.283185308;
+        } else if (a <= -3.141592654) {
+            a = 6.283185308 + a;
+        }
+        angle = a;
+    }
+    trans[0] = sin(angle);
+    trans[2] = cos(angle);
+    trans[0] += dtrans[0];
+    trans[2] += dtrans[2];
+    return fqdist(trans[0], trans[2]) <= len_r ? -1 : 1;
+}
+
 #pragma opt_propagation off
 void move_logic10(s32 index)
 {
@@ -3596,39 +3642,7 @@ void move_logic10(s32 index)
                 cand = lbl_80344720;
                 col = e->collided;
                 if (e->route == 0) {
-                    u8 _g2[24];
-                    f32 b3[3];
-                    f32 dx;
-                    f32 dz;
-                    f32 aw;
-                    f32 dist1;
-                    f32 sn;
-                    GetMilestonePos(e->plr_ms, b3);
-                    dx = e->objgrp.worldmat[3][0] - b3[0];
-                    dz = e->objgrp.worldmat[3][2] - b3[2];
-                    {
-                        f64 av = (f32)(0.5235987756666667 + e->pyr[1]);
-                        if (av > 3.141592654) {
-                            av -= 6.283185308;
-                        } else if (av <= -3.141592654) {
-                            av = 6.283185308 + av;
-                        }
-                        aw = av;
-                    }
-                    sn = sin(aw);
-                    dist1 = fqdist(sn + dx, cos(aw) + dz);
-                    {
-                        f64 av = (f32)(e->pyr[1] - 0.5235987756666667);
-                        if (av > 3.141592654) {
-                            av -= 6.283185308;
-                        } else if (av <= -3.141592654) {
-                            av = 6.283185308 + av;
-                        }
-                        aw = av;
-                    }
-                    sn = sin(aw);
-                    e->route = (fqdist(sn + dx, cos(aw) + dz) <= dist1)
-                                   ? -1 : 1;
+                    e->route = set_turn_to_ms(e);
                 }
                 if (e->route > 0) {
                     q = (f32*)(tbl + col * 4);
@@ -3765,39 +3779,7 @@ void move_logic10(s32 index)
                 cand = lbl_80344720;
                 col = e->collided;
                 if (e->route == 0) {
-                    u8 _g3[24];
-                    f32 b6[3];
-                    f32 dx;
-                    f32 dz;
-                    f32 aw;
-                    f32 dist1;
-                    f32 sn;
-                    GetMilestonePos(e->plr_ms, b6);
-                    dx = e->objgrp.worldmat[3][0] - b6[0];
-                    dz = e->objgrp.worldmat[3][2] - b6[2];
-                    {
-                        f64 av = (f32)(0.5235987756666667 + e->pyr[1]);
-                        if (av > 3.141592654) {
-                            av -= 6.283185308;
-                        } else if (av <= -3.141592654) {
-                            av = 6.283185308 + av;
-                        }
-                        aw = av;
-                    }
-                    sn = sin(aw);
-                    dist1 = fqdist(sn + dx, cos(aw) + dz);
-                    {
-                        f64 av = (f32)(e->pyr[1] - 0.5235987756666667);
-                        if (av > 3.141592654) {
-                            av -= 6.283185308;
-                        } else if (av <= -3.141592654) {
-                            av = 6.283185308 + av;
-                        }
-                        aw = av;
-                    }
-                    sn = sin(aw);
-                    e->route = (fqdist(sn + dx, cos(aw) + dz) <= dist1)
-                                   ? -1 : 1;
+                    e->route = set_turn_to_ms(e);
                 }
                 if (e->route > 0) {
                     q = (f32*)(tbl + col * 4);
