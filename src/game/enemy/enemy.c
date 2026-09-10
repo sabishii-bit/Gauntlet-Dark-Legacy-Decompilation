@@ -517,7 +517,9 @@ u32 gWadAtreeHeaders[0x8B4 / 4];   /* 0x80251364 */
 s32 lbl_802512B0[45];          /* 0x802512B0 per-type spawn-allowed */
 s32 lbl_802511FC[45];          /* 0x802511FC per-type min-level class */
 s32 lbl_80251148[45];          /* 0x80251148 per-type generator-fx enable */
-u32 lbl_80251100[0x48 / 4];    /* 0x80251100 */
+/* PDB enemy_floor_col is a worldcol: matrix, squared distance and hit object.
+ * GC passes this 72-byte record to FloorCollide and reads mtx[3][1] at +0x34. */
+FloorCollisionResult enemy_floor_col; /* 0x80251100 */
 f32 enemy_wall_collp[3];           /* 0x802510F4 world-probe hit normal */
 s32 sEnemyMilestoneRoute[128]; /* 0x80250EF4 */
 f32 lbl_80250E40[45];          /* per-enemy-type speed table */
@@ -545,7 +547,7 @@ static void enemy_bss_order(void)
     *(u32*)&lbl_80250E40[0] = 0;
     sEnemyMilestoneRoute[0] = 0;
     *(u32*)enemy_wall_collp = 0;
-    lbl_80251100[0] = 0;
+    *(u32*)&enemy_floor_col = 0;
     lbl_80251148[0] = 0;
     lbl_802511FC[0] = 0;
     lbl_802512B0[0] = 0;
@@ -1581,14 +1583,14 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
         }
         tr[2] = 0.0f;
         tr[0] = 0.0f;
-        hit = FloorCollide(oldpos, (s32)(pool + 0x300), 0, 2,
+        hit = FloorCollide(oldpos, (s32)&enemy_floor_col, 0, 2,
                            (f32)(0.5 * rad), enemy->hht,
                            (f32)(-enemy->hht - 5.0));
         if (hit != NULL) {
-            enemy->floory = ((FloorCollisionResult*)(pool + 0x300))->mtx[3][1] +
+            enemy->floory = enemy_floor_col.mtx[3][1] +
                             enemy->flooroffset;
             if (enemy->shadow != NULL) {
-                CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
+                CopyMat3(&enemy_floor_col.mtx[0][0], (f32*)enemy->shadow);
             }
         }
     }
@@ -1774,11 +1776,11 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
 
     halfRadius = 0.5 * radius;
     floorObject = (void*)FloorCollide(
-        probe, (s32)(pool + 0x300), 0, 2, (f32)halfRadius, enemy->hht,
+        probe, (s32)&enemy_floor_col, 0, 2, (f32)halfRadius, enemy->hht,
         (f32)(-enemy->hht - 5.0));
     if (floorObject != 0) {
         EnemyWorldDamage(enemy, floorObject, oldPosition,
-                         (f32*)(pool + 0x330));
+                         enemy_floor_col.mtx[3]);
     } else {
         if ((f64)enemy->pushmag2 < 0.01) {
             translation[0] = translation[2] = 0.0f;
@@ -1788,7 +1790,7 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
         return 0;
     }
 
-    floorYAddress = (f32*)(pool + 0x334);
+    floorYAddress = &enemy_floor_col.mtx[3][1];
     baseY = enemy->floory - enemy->flooroffset;
     floorY = *floorYAddress;
     distance = floorY - baseY;
@@ -1812,7 +1814,7 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
             probe[1] = oldPosition[1] + translation[1];
             probe[2] = oldPosition[2] + translation[2];
             floorObject = (void*)FloorCollide(
-                probe, (s32)(pool + 0x300), 0, 2, (f32)halfRadius,
+                probe, (s32)&enemy_floor_col, 0, 2, (f32)halfRadius,
                 enemy->hht, (f32)(-enemy->hht - 5.0));
             if (floorObject == 0) {
                 translation[0] = translation[2] = 0.0f;
@@ -1850,7 +1852,7 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
 collision_done:
     enemy->floory = floorY + enemy->flooroffset;
     if (enemy->shadow != 0) {
-        CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
+        CopyMat3(&enemy_floor_col.mtx[0][0], (f32*)enemy->shadow);
     }
     return floorObject;
 }
