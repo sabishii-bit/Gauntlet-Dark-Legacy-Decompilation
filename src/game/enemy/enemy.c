@@ -2368,38 +2368,29 @@ static inline f32 enemy_normalized_heading(f32 a)
  * clear heading (recording the try count), else keep the straight bearing. */
 void move_logic00(s32 index)
 {
-    u8* basep = (u8*)lbl_80250E00;
-    u8* e0 = basep + index * 916;
-    Enemy* e;
-    s32 type;
+    Enemy* e = &gEnemies[index];
+    s32 type = e->type;
     s32 i;
-    f32 spd;
+    f32 spd = lbl_80250E40[type];
     s32 it = lbl_80344748;
     s32 flee;
     f32 ang;
-    u8* t;
     f32 dest[3];
     u8 unused[24];
 
-    type = *(s32*)(e0 += 3608);
-    e = (Enemy*)(u8*)e0;
-    t = basep;
-    t += type * 4;
-    spd = *(f32*)(t + 64);
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = basep + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
+        if (gEnemies[it].state != ACTIVE) {
             flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
+        } else if (gEnemies[it].actual_dist > e->sight) {
             flee = 0;
-        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
+        } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero00;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
+            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
+            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
+            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
