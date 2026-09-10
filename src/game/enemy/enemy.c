@@ -7565,7 +7565,6 @@ static char* findWorldName(s32 world)
     return 0;
 }
 
-#pragma opt_propagation off
 /* The PDB identifies get_enemy_level(enum type, float health) -> int.
  * GC's caller expands its level-scaled health thresholds here. Keep the
  * operation together rather than passing cached thresholds to a made-up ABI. */
@@ -7574,34 +7573,28 @@ static inline int get_enemy_level(e_e_tpye type, f32 health)
     f32 full = gCurLevel->ene_health * lbl_8011BA10[type];
     f32 lower = (f32)(0.333 * full);
     f32 upper = (f32)(0.667 * full);
-    int tier = 0;
-
     if (health > upper) {
-        tier = 3;
-    } else if (health > lower) {
-        tier = 2;
-    } else if (health > 0.0f) {
-        tier = 1;
+        return 3;
     }
-    return tier;
+    if (health > lower) {
+        return 2;
+    }
+    if (health > 0.0f) {
+        return 1;
+    }
+    return 0;
 }
 
 void init_enemy_vars(int slot, f32 scale, int spew)
 {
-    /* Retail reserves eight more bytes below its save area. Their original
-     * local identities are unrecovered; this is a frame reservation only. */
-    u8 unrecovered_locals[8];
+    /* The real tier helper and direct field constants reproduce the native
+     * frame without a local reservation or propagation override. */
     Enemy* enemy;
     s32 i4;
-    f32 z;
-    f32 z2;
-    int tier;
-    f32 fv;
     s16 sv;
 
     enemy = &gEnemies[slot];
-    z = 0.0f;
-    enemy->skinfx.nframes = z;
+    enemy->skinfx.nframes = 0.0f;
     enemy->next_enemy = -1;
     enemy->prev_enemy = -1;
     enemy->action = 0;
@@ -7610,9 +7603,8 @@ void init_enemy_vars(int slot, f32 scale, int spew)
     enemy->prev_closest = -1;
     enemy->closest = -1;
     enemy->sight = (f32)(30.0 * gCurLevel->ene_visrad);
-    fv = 1.0f;
-    enemy->close_dist = fv;
-    enemy->actual_dist = fv;
+    enemy->close_dist = 1.0f;
+    enemy->actual_dist = 1.0f;
     enemy->hht = (f32)(0.5 * ene_height[enemy->type]);
     enemy->rad = ene_width[enemy->type];
     enemy->area = 0;
@@ -7626,28 +7618,26 @@ void init_enemy_vars(int slot, f32 scale, int spew)
     enemy->attack_index = -1;
     enemy->attack_count = 0;
     enemy->attack_flag = 0;
-    enemy->damage = z;
+    enemy->damage = 0.0f;
     enemy->damagetype = 0;
     for (i4 = 0; i4 < 5; i4++) {
-        enemy->fxhittime[i4] = z;
+        enemy->fxhittime[i4] = 0.0f;
     }
-    z2 = 0.0f;
-    enemy->damagedir[0] = z2;
-    enemy->damagedir[1] = z2;
-    enemy->damagedir[2] = z2;
-    enemy->pushed[0] = z2;
-    enemy->pushed[1] = z2;
-    enemy->pushed[2] = z2;
-    enemy->pushang = z2;
+    enemy->damagedir[0] = 0.0f;
+    enemy->damagedir[1] = 0.0f;
+    enemy->damagedir[2] = 0.0f;
+    enemy->pushed[0] = 0.0f;
+    enemy->pushed[1] = 0.0f;
+    enemy->pushed[2] = 0.0f;
+    enemy->pushang = 0.0f;
     enemy->push_cnt = 0;
     enemy->generator = NULL;
     enemy->anim_done = -1;
     enemy->idle_time = 1.0f;
-    enemy->idle_secs = z2;
-    enemy->idle_frac = z2;
+    enemy->idle_secs = 0.0f;
+    enemy->idle_frac = 0.0f;
     enemy->damage_count = 0;
-    tier = get_enemy_level(enemy->type, scale);
-    enemy->org_lvl = (s16)tier;
+    enemy->org_lvl = get_enemy_level(enemy->type, scale);
     enemy->mode2 = 0;
     enemy->mode1 = 0;
     enemy->flag2 = 0;
@@ -7657,9 +7647,8 @@ void init_enemy_vars(int slot, f32 scale, int spew)
     enemy->recognized = 0;
     enemy->skip_itemcol = 0;
     enemy->prev_dir = (-999.9f);
-    fv = 0.0f;
-    enemy->zspd = fv;
-    enemy->xspd = fv;
+    enemy->zspd = 0.0f;
+    enemy->xspd = 0.0f;
     enemy->visible = 1;
     enemy->visactive = 1;
     enemy->gotitem = NULL;
@@ -7687,8 +7676,6 @@ void init_enemy_vars(int slot, f32 scale, int spew)
     enemy->atts.damagetype = enemy_damagetype[enemy->type];
     enemy->atts.armortype = enemy_armortype[enemy->type];
 }
-
-#pragma opt_propagation reset
 
 void format_brain(s32 index)
 {
