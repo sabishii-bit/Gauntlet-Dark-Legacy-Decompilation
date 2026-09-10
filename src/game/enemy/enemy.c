@@ -5679,8 +5679,10 @@ void fn_8004D030(s32 index, s32 ticks)
 
 void do_enemies(void)
 {
-    /* Final update cursor; the preceding scans have separate lifetimes. */
+    /* Independent cursors for the update, visibility and scripted passes. */
     Enemy* e;
+    Enemy* visibleEnemy;
+    Enemy* scriptEnemy;
     s32 shown = 0;
     s32 i;
     u8 unused[8];
@@ -5696,31 +5698,29 @@ void do_enemies(void)
     }
 
     if (gScriptedCameraState != 0) {
-        Enemy* e;
-
         if (lbl_803447B8 == 0) {
             return;
         }
-        e = gEnemies;
-        for (i = 0; i < gNumEnemies; i++, e++) {
+        scriptEnemy = gEnemies;
+        for (i = 0; i < gNumEnemies; i++, scriptEnemy++) {
             s32 type;
 
-            if (e->state != ACTIVE) {
+            if (scriptEnemy->state != ACTIVE) {
                 continue;
             }
-            type = e->type;
+            type = scriptEnemy->type;
             if (type == gBossType) {
                 continue;
             }
             if (type == 0x1D) {
-                e->daction = 1;
+                scriptEnemy->daction = 1;
             } else if (type == 0) {
-                e->daction = 3;
+                scriptEnemy->daction = 3;
             } else {
-                e->daction = 0;
+                scriptEnemy->daction = 0;
             }
-            if (e->atree.root != 0) {
-                e->action = DoEnemyAction(e);
+            if (scriptEnemy->atree.root != 0) {
+                scriptEnemy->action = DoEnemyAction(scriptEnemy);
             }
         }
         return;
@@ -5762,22 +5762,22 @@ void do_enemies(void)
     }
 
     {
-        Enemy* e = gEnemies;
+        visibleEnemy = gEnemies;
 
         lbl_80344740 = 0;
-        for (i = 0; i < gNumEnemies; i++, e++) {
+        for (i = 0; i < gNumEnemies; i++, visibleEnemy++) {
             f32 r;
 
-            if (e->state == 0) {
+            if (visibleEnemy->state == 0) {
                 continue;
             }
-            r = 2.0f * e->rad;
-            e->visible =
-                (s16)MBWorldSphereVisible3(e->objgrp.attn_pos, r);
+            r = 2.0f * visibleEnemy->rad;
+            visibleEnemy->visible =
+                (s16)MBWorldSphereVisible3(visibleEnemy->objgrp.attn_pos, r);
             r += 15.0;
-            e->visactive =
-                (s16)MBWorldSphereVisible3(e->objgrp.attn_pos, r);
-            if (e->visible != 0) {
+            visibleEnemy->visactive =
+                (s16)MBWorldSphereVisible3(visibleEnemy->objgrp.attn_pos, r);
+            if (visibleEnemy->visible != 0) {
                 lbl_80344740++;
             }
         }
