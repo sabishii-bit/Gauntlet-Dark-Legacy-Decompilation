@@ -422,8 +422,8 @@ f32 lbl_8011C0C4[10] = { 0.0f, 0.392699093f, 0.392699093f, 0.392699093f, 0.39269
 s32 find_enemy_slot(s32 type, s32 level);
 void kill_enemy(s32 index);
 void uncouple_enemy(s32 index);
-void do_enemy_move(s32 index);
-s32 do_enemy_collide(s32 index, f32 retryThreshold);
+void do_enemy_move(int index);
+int do_enemy_collide(int index, f32 retryThreshold);
 f32 turn_enemy_ang(Enemy* e, f32 want);
 s32 do_ai(s32 index);
 void move_logic00(int index);
@@ -447,8 +447,8 @@ extern s32 gGameOptions[];   /* 0x80257590 (lbl_80257598 = [2]) */
 /* --- same-TU statics not yet reconstructed (extern until written) --- */
 extern void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 extern void fn_80046140(s32 index);                 /* generator-contact retreat */
-extern s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2,
-                       f32 rad, f32 hht, s32* hitWorld);  /* enemy-vs-enemy probe */
+extern int fn_8004646C(int index, f32* oldc, f32* newc, f32* newc2,
+                       f32 rad, f32 hht, int* hitWorld);  /* enemy-vs-enemy probe */
 extern int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad,
                        f32 hht);                    /* generator-contact probe */
 s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
@@ -884,13 +884,13 @@ extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
  * caller; these prototypes are what let that order compile. */
 static void enemy_bss_order(void);
 f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction, f32* offset, s32* enemy_index, s32 flags);
-void do_enemy_move(s32 index);
-s32 do_enemy_collide(s32 index, f32 retryThreshold);
+void do_enemy_move(int index);
+int do_enemy_collide(int index, f32 retryThreshold);
 static s32 EnemyMovingAwayFromBirth(Enemy* enemy, f32* oldPosition, f32* translation);
 void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold, f32* oldPosition, f32* translation, s32 collisionClass);
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 void fn_80046140(s32 index);
-s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht, s32* hitWorld);
+int fn_8004646C(int index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht, int* hitWorld);
 int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht);
 s32 do_ai(s32 index);
 static f32 fabsf_(f32 x);
@@ -1024,17 +1024,17 @@ next_enemy:
     return best_distance;
 }
 
-void do_enemy_move(s32 index)
+void do_enemy_move(int index)
 {
     Enemy* e;
-    s32 alg;
+    int alg;
     f32 rad;
     f32 hht;
-    s32 blocked;
-    s32 collide;
+    int blocked;
+    int collide;
     f32 moveDistance;
-    s32 result;
-    s32 n;
+    int result;
+    int n;
     Enemy* other;
     f32 mat[16];
     u8 matrixGap[8]; /* Unrecovered local space above the movement vectors. */
@@ -1044,7 +1044,7 @@ void do_enemy_move(s32 index)
     f32 oldc[3];
     u8 unused2[4];
     f32 newc[3];
-    s32 hitWorld;
+    int hitWorld;
     u8 unused3[4];
     f32 half[3];
     u8 unused4[12];
@@ -1452,7 +1452,7 @@ void do_enemy_move(s32 index)
     }
 }
 
-s32 do_enemy_collide(s32 index, f32 retryThreshold)
+int do_enemy_collide(int index, f32 retryThreshold)
 {
     u8* pool = (u8*)mbdesc;
     u8* e0;
@@ -1998,10 +1998,10 @@ extern s32 NextGridItem(void);
 /* Xbox ENEMY.OBJ names this source helper is_tail(int, int).  The retail
  * Xbox body and the GC inlined body both walk next_enemy through a pointer;
  * retaining that source-level helper also preserves the GC loop topology. */
-static inline s32 is_tail(s32 my_idx, s32 chk_idx)
+static inline int is_tail(int my_idx, int chk_idx)
 {
     Enemy* enemy;
-    s32 idx;
+    int idx;
 
     for (enemy = &gEnemies[my_idx];
          (idx = enemy->next_enemy) >= 0;
@@ -2013,15 +2013,15 @@ static inline s32 is_tail(s32 my_idx, s32 chk_idx)
     return 0;
 }
 
-s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht,
-                s32* hitWorld)
+int fn_8004646C(int index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht,
+                int* hitWorld)
 {
     Enemy* other;
-    s32 st;
-    s32 node;
-    s32 result = -1;
-    s32 hint = -1;
-    s32 startNode;
+    int st;
+    int node;
+    int result = -1;
+    int hint = -1;
+    int startNode;
     f64 minimum_hht;
     f32 dist;
     f32 best = 100000.0f;
