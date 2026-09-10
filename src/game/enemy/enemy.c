@@ -650,17 +650,13 @@ extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
 extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
 extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
 
-/* Field displacements into the two world-node tables above.  Both records are
- * owned by items.c, so this TU quotes their layouts rather than redefining the
- * structs (a second, divergent copy of a record is the failure mode
- * claim.law.swap-loop-is-record-layout-ground-truth was written about):
- *   LookoutParam  include/game/item.h, 0x6C  - pos[3] @0x30, next @0x68
- *   MilestoneParam src/game/world/items.c, 0x68 - matrix[16] @0x00, so the
- *                  world translation row matrix[12..14] lands at 0x30..0x38.
- * The walked pointers keep their `base + LITERAL` shape on purpose:
- * claim.law.offsetof-fused-immediate-counter records that rewriting exactly
- * these milestone matrix[12/13/14] reads into array-of-struct indexing costs
- * the fused displacement (items.c update_player_milestone, real 46 -> 89). */
+/* World-node tables owned by items.c: LookoutParam is 0x6C bytes and
+ * MilestoneParam is 0x68. Xbox MILESTONE contains one OBJGRP, corroborated by
+ * GC's 104-byte milestone stride, matrix basis at 0x20/0x28, and position
+ * at 0x30..0x38. Reuse the established object-group type rather than calling
+ * its attention/collision vectors arbitrary positions and padding.
+ * This TU-local view preserves the complete native object; items.c's older
+ * flattened declaration and its traversal forms are a separate cleanup. */
 #define LOOKOUT_POS_X    0x30
 #define LOOKOUT_POS_Y    0x34
 #define LOOKOUT_POS_Z    0x38
@@ -669,13 +665,7 @@ extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
 #define MILESTONE_POS_Y  0x34
 #define MILESTONE_POS_Z  0x38
 typedef struct MilestoneParam {
-    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
-    f32 pos[3];       /* 0x40 */
-    u8  _pad4C[4];
-    f32 saved_pos[3]; /* 0x50 */
-    u8  _pad5C[4];
-    s32 handle;       /* 0x60 */
-    s32 active;       /* 0x64 */
+    OBJGRP objgrp;
 } MilestoneParam;
 /* Item record (include/game/item.h, 0xF0): active @0xC4, minoff @0xCD. */
 #define ITEM_ACTIVE      0xC4
@@ -4893,9 +4883,9 @@ void move_logic22(s32 index)
 
         for (node = (MilestoneParam*)sMilestones, i = 0;
              i < sNumMilestones; i++, node++) {
-            f32 dx = e->objgrp.worldmat[3][0] - node->matrix[12];
-            f32 dy = e->objgrp.worldmat[3][1] - node->matrix[13];
-            f32 dz = e->objgrp.worldmat[3][2] - node->matrix[14];
+            f32 dx = e->objgrp.worldmat[3][0] - node->objgrp.worldmat[3][0];
+            f32 dy = e->objgrp.worldmat[3][1] - node->objgrp.worldmat[3][1];
+            f32 dz = e->objgrp.worldmat[3][2] - node->objgrp.worldmat[3][2];
             f32 d;
             if ((d = dx * dx + dy * dy + dz * dz) > 0.0f) {
                 f64 y = __frsqrte(d);
@@ -4917,8 +4907,8 @@ void move_logic22(s32 index)
     }
     default: {
         MilestoneParam* node = &((MilestoneParam*)sMilestones)[e->flag1];
-        f32 dist = fqdist(node->matrix[12] - e->objgrp.worldmat[3][0],
-                          node->matrix[14] - e->objgrp.worldmat[3][2]);
+        f32 dist = fqdist(node->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0],
+                          node->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2]);
         if (dist <= 1.5) {
             s32 old = e->flag1;
             e->flag1 = fn_800511D0(old, 0.17453292f);
@@ -8211,12 +8201,12 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     }
 
     m = (MilestoneParam*)sMilestones + milestone;
-    pos[0] = m->matrix[12];
-    pos[1] = m->matrix[13];
-    pos[2] = m->matrix[14];
+    pos[0] = m->objgrp.worldmat[3][0];
+    pos[1] = m->objgrp.worldmat[3][1];
+    pos[2] = m->objgrp.worldmat[3][2];
     {
-        f32 x = m->matrix[10];
-        f32 r = atan2(m->matrix[8], x);
+        f32 x = m->objgrp.worldmat[2][2];
+        f32 r = atan2(m->objgrp.worldmat[2][0], x);
         f64 p = 3.141592654;
         f32 a = (f32)(p + r);
         f64 t;
@@ -8248,7 +8238,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         if (i == milestone) {
             continue;
         }
-        d = get_yaw(&m->matrix[12], pos) - base;
+        d = get_yaw(&m->objgrp.worldmat[3][0], pos) - base;
         if (d > kPi) {
             nd = d - k2Pi;
         } else if (d <= kNegPi) {
@@ -8259,9 +8249,9 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         ad = (f32)nd;
         *(u32*)&ad &= 0x7FFFFFFF;
         if (ad <= tolerance) {
-            temp[0] = m->matrix[12] - pos[0];
-            temp[1] = m->matrix[13] - pos[1];
-            temp[2] = m->matrix[14] - pos[2];
+            temp[0] = m->objgrp.worldmat[3][0] - pos[0];
+            temp[1] = m->objgrp.worldmat[3][1] - pos[1];
+            temp[2] = m->objgrp.worldmat[3][2] - pos[2];
             dist = temp[2] * temp[2] +
                    (dist = temp[0] * temp[0] + temp[1] * temp[1]);
             if (dist > kZero) {
@@ -8314,9 +8304,9 @@ s32 fn_80051480(f32* pos)
     s32 i;
 
     for (i = 0; i < sNumMilestones; i++, node += 104) {
-        delta[0] = pos[0] - ((MilestoneParam *)node)->matrix[12];
-        delta[1] = pos[1] - ((MilestoneParam *)node)->matrix[13];
-        delta[2] = pos[2] - ((MilestoneParam *)node)->matrix[14];
+        delta[0] = pos[0] - ((MilestoneParam *)node)->objgrp.worldmat[3][0];
+        delta[1] = pos[1] - ((MilestoneParam *)node)->objgrp.worldmat[3][1];
+        delta[2] = pos[2] - ((MilestoneParam *)node)->objgrp.worldmat[3][2];
         d = delta[2] * delta[2] +
             (d = delta[0] * delta[0] + delta[1] * delta[1]);
 
@@ -8552,9 +8542,9 @@ void fn_80051C78(void)
         MilestoneParam* m = (MilestoneParam*)sMilestones;
 
         for (i = 0; i < sNumMilestones; i++, m++) {
-            f32 dx = gDefaultPlayerPosition[0] - m->matrix[12];
-            f32 dy = gDefaultPlayerPosition[1] - m->matrix[13];
-            f32 dz = gDefaultPlayerPosition[2] - m->matrix[14];
+            f32 dx = gDefaultPlayerPosition[0] - m->objgrp.worldmat[3][0];
+            f32 dy = gDefaultPlayerPosition[1] - m->objgrp.worldmat[3][1];
+            f32 dz = gDefaultPlayerPosition[2] - m->objgrp.worldmat[3][2];
             f32 d2 = dz * dz + (dx * dx + dy * dy);
             if (d2 > 0.0f) {
                 volatile f32 tmp;
