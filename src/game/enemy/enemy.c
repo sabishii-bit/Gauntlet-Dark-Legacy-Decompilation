@@ -401,17 +401,20 @@ f32 lbl_8011BF60[38] = {
  * declared by "game/enemy.h" (the reconstructed Enemy struct header). */
 
 /* Initialized enemy data immediately preceding the AI jump tables. The
- * original broad lbl_8011BFF8 symbol incorrectly covered all these objects.
- * Preserve the five unused tables present in retail with the compiler's
- * ordinary retention pragma; otherwise mwld removes 192 bytes. This also
- * restores the natural eight-byte input-section alignment, without an ELF
- * alignment patch. Placeholder names remain until their PDB names are known. */
+ * old broad lbl_8011BFF8 symbol incorrectly covered all these objects.
+ * Keep the established retention policy while some legacy consumers still
+ * address tables through unrelated data anchors rather than their symbols.
+ * Remaining placeholder names await independent identity evidence. */
 char* lbl_8011BFF8[3] = { "SHADOW1L1", "SHADOW2L1", "SHADOW3L1" };
-/* force_active keeps these otherwise unreferenced tables in the image: without
- * it mwld dead-strips them and the DOL shrinks below the target size. It leaves
- * no trace in .text/.data/.symtab, only in .comment. */
+/* force_active retains an object even when its remaining callers use only
+ * another symbol plus a byte offset. It changes linker metadata, not values. */
 #pragma force_active on
-s32 lbl_8011C004[16] = { 16, 23, 14, 13, 7, 7, 7, 7, 2, 24, 20, 25, 30, 30, 7, 7 };
+/* Four file-local spawn choices, corroborated by the Xbox enemy.obj
+ * int[4] declarations and both targets' -2/-3 branch table accesses. */
+static int cathedral_rand_enemy[4] = { 16, 23, 14, 13 };
+static int cathedral_rand_ai[4] = { 7, 7, 7, 7 };
+static int hell_rand_enemy[4] = { 2, 24, 20, 25 };
+static int hell_rand_ai[4] = { 30, 30, 7, 7 };
 f32 lbl_8011C044[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
 f32 lbl_8011C064[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
 f32 lbl_8011C084[8] = { 0.0f, 0.392699093f, 0.785398185f, 1.17809725f, 1.57079637f, 1.96349537f, 2.3561945f, 2.7488935f };
@@ -6847,15 +6850,15 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         level = 2;
         i = lbl_8034472C;
         lbl_8034472C = i + 1;
-        type = lbl_8011C004[(i & 3)];
-        spew = lbl_8011C004[4 + (i & 3)];
+        type = cathedral_rand_enemy[i & 3];
+        spew = cathedral_rand_ai[i & 3];
     } else if (type == -3) {
         RandInt(4);
         level = 3;
         i = lbl_8034472C;
         lbl_8034472C = i + 1;
-        type = lbl_8011C004[8 + (i & 3)];
-        spew = lbl_8011C004[12 + (i & 3)];
+        type = hell_rand_enemy[i & 3];
+        spew = hell_rand_ai[i & 3];
     } else if (type < 0) {
         return -6;
     }
