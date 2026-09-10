@@ -5448,7 +5448,7 @@ void move_logic29(s32 index)
  * delegated base wander (move_logic00) with the algorithm parked at 30. */
 void move_logic30(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)mbdesc + (index * 916 + 3608));
+    Enemy* e = &gEnemies[index];
     s32 it = lbl_80344748;
     s32 flee;
     u8 unused[24];
@@ -5456,17 +5456,16 @@ void move_logic30(s32 index)
     if (it < 0) {
         flee = 0;
     } else {
-        u8* op = (u8*)mbdesc + it * 916;
-        if (((Enemy *)(op + ENEMY_POOL_OFF))->state != 1) {
+        if (gEnemies[it].state != ACTIVE) {
             flee = 0;
-        } else if (((Enemy *)(op + ENEMY_POOL_OFF))->actual_dist > e->sight) {
+        } else if (gEnemies[it].actual_dist > e->sight) {
             flee = 0;
         } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero30;
         } else {
-            f32 dx = ((Enemy *)(op + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(op + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(op + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
+            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
+            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
+            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
