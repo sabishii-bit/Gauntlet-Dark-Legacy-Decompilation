@@ -5984,7 +5984,6 @@ void fn_8004D030(s32 index, s32 ticks)
 
 void do_enemies(void)
 {
-    u8* pool = (u8*)lbl_80250E00;
     s32 shown = 0;
     s32 i;
     u8 unused[8];
@@ -6032,12 +6031,12 @@ void do_enemies(void)
     }
 
     {
-        u8* pl = (u8*)gPlayerWords;
+        Player* pl = gPlayers.players;
 
-        for (i = 0; i < 4; i++, pl += 0x335C) {
-            if (((EnemyPlayerView*)pl)->state == 1) {
-                *(s32*)(pl + offsetof(EnemyPlayerView, _A22) + 2) = 0;
-                *(f32*)(pl + offsetof(EnemyPlayerView, _A22) + 6) = 0.0f;
+        for (i = 0; i < 4; i++, pl++) {
+            if (pl->state == 1) {
+                pl->num_approaching = 0;
+                pl->dist_offset = 0.0f;
             }
         }
     }
@@ -6047,9 +6046,7 @@ void do_enemies(void)
         f32 rate = gCurLevel->ene_speed * (f32)(u32)gFrameTicks;
 
         for (i = 0; i < 45; i++) {
-            u8* dst = pool + i * 4;
-
-            ((EnemyMovePage05 *)dst)->speed[0] =
+            lbl_80250E40[i] =
                 rate * lbl_8011B878[i];
         }
     }
@@ -6070,8 +6067,6 @@ void do_enemies(void)
 
     {
         Enemy* e = gEnemies;
-        f32 visibilityScale = 2.0f;
-        f64 visibilityAdd = 15.0;
 
         lbl_80344740 = 0;
         for (i = 0; i < gNumEnemies; i++, e++) {
@@ -6080,10 +6075,10 @@ void do_enemies(void)
             if (e->state == 0) {
                 continue;
             }
-            r = visibilityScale * e->rad;
+            r = 2.0f * e->rad;
             e->visible =
                 (s16)MBWorldSphereVisible3(e->objgrp.attn_pos, r);
-            r += visibilityAdd;
+            r += 15.0;
             e->visactive =
                 (s16)MBWorldSphereVisible3(e->objgrp.attn_pos, r);
             if (e->visible != 0) {
@@ -6094,20 +6089,13 @@ void do_enemies(void)
 
     {
         Enemy* e = gEnemies;
-        f32 skinOne = 1.0f;
-        f64 zero = 1.0;
-        f64 bossRise = 10.0;
-        f32 zeroFloat = 0.0f;
-        f64 pushDamping = 0.8;
-        f64 pushEpsilon = 0.01;
-        f32 verticalDamping = 100.0f;
 
         for (i = 0; i < gNumEnemies; i++, e++) {
             s32 state;
 
             e->old_ai = e->algorithm;
             e->operation_count += gFrameTicks;
-            if (e->idle_secs > zeroFloat) {
+            if (e->idle_secs > 0.0f) {
                 e->idle_secs -= gClockFrameStep;
             }
             if (e->type == 0) {
@@ -6185,7 +6173,7 @@ void do_enemies(void)
                     MBTreeSetAlpha(e->objgrp.node, alpha, 1);
                     e->alpha = e->alpha + gFrameTicks * 4;
                     e->objgrp.worldmat[3][1] =
-                        (f32)(bossRise * gClockFrameStep +
+                        (f32)(10.0 * gClockFrameStep +
                               e->objgrp.worldmat[3][1]);
                     UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
                     goto sync;
@@ -6218,7 +6206,7 @@ void do_enemies(void)
                         goto finished_skin;
                     }
                 active_skin:
-                    if (e->skinfx.nframes <= zeroFloat) {
+                    if (e->skinfx.nframes <= 0.0f) {
                         goto finished_skin;
                     }
                     goto update_skin;
@@ -6254,43 +6242,43 @@ void do_enemies(void)
             if (e->operation_count >= e->operation_speed) {
                 e->operation_count -= e->operation_speed;
             }
-            e->pushed[0] = (f32)(pushDamping * e->pushed[0]);
-            e->pushed[1] = (f32)(pushDamping * e->pushed[1]);
-            e->pushed[2] = (f32)(pushDamping * e->pushed[2]);
+            e->pushed[0] = (f32)(0.8 * e->pushed[0]);
+            e->pushed[1] = (f32)(0.8 * e->pushed[1]);
+            e->pushed[2] = (f32)(0.8 * e->pushed[2]);
             {
                 f32 v = e->pushed[0];
                 *(u32*)&v &= 0x7FFFFFFF;
-                if (v < pushEpsilon) {
-                    e->pushed[0] = zeroFloat;
+                if (v < 0.01) {
+                    e->pushed[0] = 0.0f;
                 }
             }
             {
                 f32 v = e->pushed[1];
                 *(u32*)&v &= 0x7FFFFFFF;
-                if (v < pushEpsilon) {
-                    e->pushed[1] = zeroFloat;
+                if (v < 0.01) {
+                    e->pushed[1] = 0.0f;
                 }
             }
             {
                 f32 v = e->pushed[2];
                 *(u32*)&v &= 0x7FFFFFFF;
-                if (v < pushEpsilon) {
-                    e->pushed[2] = zeroFloat;
+                if (v < 0.01) {
+                    e->pushed[2] = 0.0f;
                 }
             }
             {
                 u8 unused2[24];
                 (void)unused2;
             }
-            if (e->pushed[1] > zeroFloat) {
+            if (e->pushed[1] > 0.0f) {
                 e->pushed[1] =
-                    e->pushed[1] - verticalDamping * gClockFrameStep;
-                if (e->pushed[1] < zeroFloat) {
-                    e->pushed[1] = zeroFloat;
+                    e->pushed[1] - 100.0f * gClockFrameStep;
+                if (e->pushed[1] < 0.0f) {
+                    e->pushed[1] = 0.0f;
                 }
             }
             if (gBossType < 0) {
-                if ((f64)lbl_803447D8 != zero) {
+                if ((f64)lbl_803447D8 != 1.0) {
                     if (e->objgrp.node != 0) {
                         MBTreeSetFlags(e->objgrp.node, 8, 0);
                         ((MBObject *)e->objgrp.node)->scale[0] = lbl_803447D8;
@@ -6306,15 +6294,15 @@ void do_enemies(void)
                 } else {
                     if (e->objgrp.node != 0) {
                         MBTreeClearFlags(e->objgrp.node, 8, 0);
-                        ((MBObject *)e->objgrp.node)->scale[0] = skinOne;
-                        ((MBObject *)e->objgrp.node)->scale[1] = skinOne;
-                        ((MBObject *)e->objgrp.node)->scale[2] = skinOne;
+                        ((MBObject *)e->objgrp.node)->scale[0] = 1.0f;
+                        ((MBObject *)e->objgrp.node)->scale[1] = 1.0f;
+                        ((MBObject *)e->objgrp.node)->scale[2] = 1.0f;
                     }
                     if (e->shadow != 0) {
                         MBTreeClearFlags(e->shadow, 8, 0);
-                        ((MBObject *)e->shadow)->scale[0] = skinOne;
-                        ((MBObject *)e->shadow)->scale[1] = skinOne;
-                        ((MBObject *)e->shadow)->scale[2] = skinOne;
+                        ((MBObject *)e->shadow)->scale[0] = 1.0f;
+                        ((MBObject *)e->shadow)->scale[1] = 1.0f;
+                        ((MBObject *)e->shadow)->scale[2] = 1.0f;
                     }
                 }
             }
