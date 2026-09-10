@@ -7914,17 +7914,9 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     {
         f32 x = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[2][2];
         f32 r = atan2(((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[2][0], x);
-        f64 p = 3.141592654;
-        f32 a = (f32)(p + r);
-        f64 t;
-        if (a > p) {
-            t = a - 6.283185308;
-        } else if (a <= (-3.141592654)) {
-            t = 6.283185308 + a;
-        } else {
-            t = a;
-        }
-        base = (f32)t;
+        f32 a = (f32)(3.141592654 + r);
+        base = a > 3.141592654 ? a - 6.283185308 :
+            (a <= -3.141592654 ? 6.283185308 + a : a);
     }
 
     kZero = 0.0f;
