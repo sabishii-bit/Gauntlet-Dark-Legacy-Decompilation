@@ -7955,7 +7955,8 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
                 y = kHalf * y * (kThree - y * y * dist);
                 y = kHalf * y * (kThree - y * y * dist);
                 y = kHalf * y * (kThree - y * y * dist);
-                tmp = (f32)(dist * (kHalf * y * (kThree - y * y * dist)));
+                y = kHalf * y * (kThree - y * y * dist);
+                tmp = (f32)(dist * y);
                 dist = tmp;
             }
             if (dist < bestDist) {
