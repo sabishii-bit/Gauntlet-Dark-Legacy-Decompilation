@@ -8942,21 +8942,16 @@ void fn_80051C78(void)
 
     cur = best;
     for (;;) {
-        s32 count = lbl_80344724;
         s32 prev = cur;
 
-        lbl_80344724 = count + 1;
-        {
-            sEnemyMilestoneRoute[count] = cur;
-        }
+        sEnemyMilestoneRoute[lbl_80344724++] = cur;
         cur = fn_800511D0(prev, 0.17453292f);
-        count = lbl_80344724;
-        for (i = 0; i < count; i++) {
+        for (i = 0; i < lbl_80344724; i++) {
             if (cur == sEnemyMilestoneRoute[i]) {
                 break;
             }
         }
-        if (i < count) {
+        if (i < lbl_80344724) {
             break;
         }
         if (prev == cur) {
