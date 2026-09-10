@@ -8687,24 +8687,47 @@ void fn_80051568(s32 index)
 }
 #pragma opt_propagation reset
 
-/* Same distance/rounding operation as DIST3, with the four real truncation
- * temporaries owned by the caller instead of nested macro scopes. */
-#define ENEMY_DISTANCE3(dst, av, bv, kZ, kH, kT, rounding) \
-    { \
-        f32 dx_ = (av)[0] - (bv)[0]; \
-        f32 dy_ = (av)[1] - (bv)[1]; \
-        f32 dz_ = (av)[2] - (bv)[2]; \
-        (dst) = dx_ * dx_ + dy_ * dy_; \
-        (dst) = dz_ * dz_ + (dst); \
-        if ((dst) > (kZ)) { \
-            f64 y_ = __frsqrte((dst)); \
-            y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst)); \
-            y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst)); \
-            y_ = (kH) * y_ * ((kT) - y_ * y_ * (dst)); \
-            (rounding) = (f32)((dst) * ((kH) * y_ * ((kT) - y_ * y_ * (dst)))); \
-            (dst) = (rounding); \
-        } \
+/* The target expands the same four-step square-root kernel at each
+ * distance site, including a volatile float rounding store/reload. This
+ * is the operation also described by MSL's sqrtf_accurate, not a request
+ * for an arbitrary native sqrt implementation with different rounding. */
+static inline f32 enemy_distance_sqrt(f32 x)
+{
+    volatile f32 y;
+
+    if (x > 0.0f) {
+        f64 guess = __frsqrte((f64)x);
+
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        y = (f32)(x * guess);
+        return y;
     }
+    return x;
+}
+
+/* Xbox retains calc_enemy_to_player_distance(Enemy*, Player*). The GC
+ * selector uses the same live-mikey choice and collision-position fields.
+ * Keeping that real operation separate removes the old caller-owned
+ * constant caches and synthetic distance-rounding arguments. */
+static inline f32 calc_enemy_to_player_distance(Enemy* e, Player* p)
+{
+    f32 dx, dy, dz;
+
+    if (p->field_A1C > 2) {
+        dx = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
+        dy = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
+        dz = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
+        return enemy_distance_sqrt(dz * dz + (dx * dx + dy * dy));
+    } else {
+        dx = e->objgrp.coll_pos[0] - p->effectpos[0];
+        dy = e->objgrp.coll_pos[1] - p->effectpos[1];
+        dz = e->objgrp.coll_pos[2] - p->effectpos[2];
+        return enemy_distance_sqrt(dz * dz + (dx * dx + dy * dy));
+    }
+}
 
 void fn_800516F8(s32 slot)
 {
@@ -8713,16 +8736,10 @@ void fn_800516F8(s32 slot)
     Enemy* e;
     s32 i;
     s32 t;
-    f64 kK;
-    f64 kThree;
-    f64 kHalf;
-    f32 kZero;
     f32 dist;
-    f64 kPi;
     f32 range;
     f32 bestSpecial;
     f32 ad;
-    volatile f32 distanceScratch0, distanceScratch1, distanceScratch2, distanceScratch3;
 
     e = &gEnemies[slot];
     bestSpecial = 100000.0f;
@@ -8744,17 +8761,7 @@ void fn_800516F8(s32 slot)
         e->prev_closest = e->closest;
         e->closest = (s16)lbl_80344B24;
         q = &gPlayers[lbl_80344B24];
-        {
-            f32 fd;
-            if (q->field_A1C > 2) {
-                ENEMY_DISTANCE3(fd, e->objgrp.coll_pos, q->mikey_coll_pos,
-                                0.0f, 0.5, 3.0, distanceScratch0);
-            } else {
-                ENEMY_DISTANCE3(fd, e->objgrp.coll_pos, q->effectpos,
-                                0.0f, 0.5, 3.0, distanceScratch1);
-            }
-            e->actual_dist = fd;
-        }
+        e->actual_dist = calc_enemy_to_player_distance(e, q);
         e->close_dist = e->actual_dist +
                            gPlayers[lbl_80344B24].dist_offset;
     } else {
@@ -8776,11 +8783,6 @@ void fn_800516F8(s32 slot)
             if (e->type == 30) {
                 e->counter2 = -1;
             }
-            kPi = 3.141592654;
-            kK = 5.0;
-            kZero = 0.0f;
-            kHalf = 0.5;
-            kThree = 3.0;
             {
                 for (; i < 4; i++, p++) {
                     if (p->state != 1) {
@@ -8789,17 +8791,7 @@ void fn_800516F8(s32 slot)
                     if (p->flags & 4) {
                         continue;
                     }
-                    {
-                        f32 measuredDistance;
-                        if (p->field_A1C > 2) {
-                            ENEMY_DISTANCE3(measuredDistance, e->objgrp.coll_pos, p->mikey_coll_pos,
-                                            kZero, kHalf, kThree, distanceScratch2);
-                        } else {
-                            ENEMY_DISTANCE3(measuredDistance, e->objgrp.coll_pos, p->effectpos,
-                                            kZero, kHalf, kThree, distanceScratch3);
-                        }
-                        range = dist = measuredDistance;
-                    }
+                    range = dist = calc_enemy_to_player_distance(e, p);
                     if (range > e->sight) {
                         continue;
                     }
@@ -8810,13 +8802,13 @@ void fn_800516F8(s32 slot)
                         }
                         continue;
                     }
-                    if (range > kK * e->rad) {
+                    if (range > 5.0 * e->rad) {
                         range += p->dist_offset;
                     }
                     if (!(range < e->close_dist)) {
                         continue;
                     }
-                    if (e->view < kPi) {
+                    if (e->view < 3.141592654) {
                         ad = get_yaw(p->effectpos, e->objgrp.coll_pos) -
                              e->pyr[1];
                         *(u32*)&ad &= 0x7FFFFFFF;
@@ -8848,8 +8840,6 @@ void fn_800516F8(s32 slot)
         e->close_dist = 100000.0f;
     }
 }
-
-#undef ENEMY_DISTANCE3
 
 /* Build the route in the same milestone-index array used by the neighbor
  * lookup. Its stores are .bss-anchor-relative in the target; that addressing
