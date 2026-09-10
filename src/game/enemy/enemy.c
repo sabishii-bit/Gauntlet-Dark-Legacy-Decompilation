@@ -449,7 +449,7 @@ extern void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 extern void fn_80046140(s32 index);                 /* generator-contact retreat */
 extern s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2,
                        f32 rad, f32 hht, s32* hitWorld);  /* enemy-vs-enemy probe */
-extern s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad,
+extern int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad,
                        f32 hht);                    /* generator-contact probe */
 s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
 void fn_8004D030(s32 index, s32 ticks);             /* set dead_end/turn timer */
@@ -891,7 +891,7 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold, f32* oldPosition
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm);
 void fn_80046140(s32 index);
 s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht, s32* hitWorld);
-s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad, f32 hht);
+int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht);
 s32 do_ai(s32 index);
 static f32 fabsf_(f32 x);
 void move_logic00(s32 index);
@@ -2167,13 +2167,13 @@ static inline void get_actual_closest_player(Enemy* e, s32* nearest)
 
 /* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
  * b==0 restricts the sweep to the nearest live player. */
-s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad, f32 hht)
+int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht)
 {
     s32 last;
     s32 j;
     Player* q;
-    u8* e = (u8*)gEnemies + index * 916;
-    s32 ret = -1;
+    Enemy* e = &gEnemies[index];
+    int ret = -1;
     s32 start;
     f32 best = 100000.0f;
     f32 hit[3];
@@ -2185,10 +2185,10 @@ s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad, f32 hht)
         start = 0;
         last = 3;
     } else {
-        if (((Enemy *)e)->closest < 0) {
+        if (e->closest < 0) {
             return -1;
         }
-        get_actual_closest_player((Enemy*)e, &last);
+        get_actual_closest_player(e, &last);
         start = last;
     }
     q = gPlayers + start;
@@ -3342,6 +3342,20 @@ void move_logic08(s32 index)
 }
 #pragma opt_propagation reset
 
+/* get_face_ang(Enemy*, int) is retained in the Xbox executable. GC callers
+ * inline this same player/mikey selection and yaw fallback. Keep the returned
+ * float's lifetime at callers; manually flattening it loses inline locals. */
+static inline f32 get_face_ang(Enemy* e, int always)
+{
+    if (e->closest >= 0 && always) {
+        if (gPlayers[e->closest].field_A1C > 2) {
+            return get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        }
+        return get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
+    }
+    return e->ang;
+}
+
 #pragma opt_propagation off
 void move_logic10(s32 index)
 {
@@ -3408,17 +3422,7 @@ void move_logic10(s32 index)
                 format_brain(index);
             }
             {
-                s16 c = *(s16*)(e0 + offsetof(Enemy, closest));
-                f32 f;
-                if (c >= 0) {
-                    if (gPlayers[c].field_A1C > 2) {
-                        f = get_yaw(gPlayers[c].mikey_worldmat[3], (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
-                    } else {
-                        f = get_yaw(gPlayers[c].pos, (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
-                    }
-                } else {
-                    f = *(f32*)(e0 + offsetof(Enemy, ang));
-                }
+                f32 f = get_face_ang((Enemy*)e0, 1);
                 *(f32*)(e0 + offsetof(Enemy, ang)) = f;
             }
             *(s32*)(e0 + offsetof(Enemy, dead_end)) = 0;
@@ -3447,17 +3451,7 @@ void move_logic10(s32 index)
                 e->collided = 0;
             }
         } else {
-            s16 c = e->closest;
-            f32 f;
-            if (c >= 0) {
-                if (gPlayers[c].field_A1C > 2) {
-                    f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-                } else {
-                    f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-                }
-            } else {
-                f = e->ang;
-            }
+            f32 f = get_face_ang(e, 1);
             lbl_80344720 = f;
         }
         if (e->dead_end > 0) {
@@ -3553,17 +3547,7 @@ void move_logic10(s32 index)
                 format_brain(index);
             }
             {
-                s16 c = *(s16*)(e0 + offsetof(Enemy, closest));
-                f32 f;
-                if (c >= 0) {
-                    if (gPlayers[c].field_A1C > 2) {
-                        f = get_yaw(gPlayers[c].mikey_worldmat[3], (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
-                    } else {
-                        f = get_yaw(gPlayers[c].pos, (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
-                    }
-                } else {
-                    f = *(f32*)(e0 + offsetof(Enemy, ang));
-                }
+                f32 f = get_face_ang((Enemy*)e0, 1);
                 *(f32*)(e0 + offsetof(Enemy, ang)) = f;
             }
             *(s32*)(e0 + offsetof(Enemy, dead_end)) = 0;
@@ -3614,17 +3598,7 @@ void move_logic10(s32 index)
                 }
                 if (got == 0) {
                     {
-                        s16 c = e->closest;
-                        f32 f;
-                        if (c >= 0) {
-                            if (gPlayers[c].field_A1C > 2) {
-                                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-                            } else {
-                                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-                            }
-                        } else {
-                            f = e->ang;
-                        }
+                        f32 f = get_face_ang(e, 1);
                         lbl_80344720 = f;
                     }
                     e->mode1 = 0;
@@ -3779,17 +3753,7 @@ void move_logic10(s32 index)
                     e->max_msidx = 4;
                     e->plr_ms = -1;
                     {
-                        s16 c = e->closest;
-                        f32 f;
-                        if (c >= 0) {
-                            if (gPlayers[c].field_A1C > 2) {
-                                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-                            } else {
-                                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-                            }
-                        } else {
-                            f = e->ang;
-                        }
+                        f32 f = get_face_ang(e, 1);
                         lbl_80344720 = f;
                     }
                 } else {
@@ -3805,31 +3769,11 @@ void move_logic10(s32 index)
                     GetMilestonePos(e->plr_ms, b5);
                     lbl_80344720 = get_yaw(b5, &e->objgrp.worldmat[3][0]);
                 } else {
-                    s16 c = e->closest;
-                    f32 f;
-                    if (c >= 0) {
-                        if (gPlayers[c].field_A1C > 2) {
-                            f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-                        } else {
-                            f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-                        }
-                    } else {
-                        f = e->ang;
-                    }
+                    f32 f = get_face_ang(e, 1);
                     lbl_80344720 = f;
                 }
             } else {
-                s16 c = e->closest;
-                f32 f;
-                if (c >= 0) {
-                    if (gPlayers[c].field_A1C > 2) {
-                        f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-                    } else {
-                        f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-                    }
-                } else {
-                    f = e->ang;
-                }
+                f32 f = get_face_ang(e, 1);
                 lbl_80344720 = f;
             }
         }
@@ -4190,20 +4134,6 @@ void move_logic13(s32 index)
     }
 }
 #pragma opt_propagation reset
-
-/* get_face_ang(Enemy*, int) is retained in the Xbox executable. GC callers
- * inline this same player/mikey selection and yaw fallback. Keep the returned
- * float's lifetime at callers; manually flattening it loses inline locals. */
-static inline f32 get_face_ang(Enemy* e, int always)
-{
-    if (e->closest >= 0 && always) {
-        if (gPlayers[e->closest].field_A1C > 2) {
-            return get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-        }
-        return get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
-    }
-    return e->ang;
-}
 
 /* move_logic14 @0x80049FD4 (state 14, plague zig-zag skirmisher).  If a player is
  * within 8 units it switches to the chase algorithm; otherwise it strafes: swing
