@@ -5932,7 +5932,6 @@ void do_enemies(void)
     (void)unused;
 
     ProcessCritterList();
-#pragma opt_propagation off
     if (gBoss398 >= 0) {
         gEnemies[gBoss398].state = ACTIVE;
     }
@@ -6032,8 +6031,6 @@ void do_enemies(void)
         Enemy* e = gEnemies;
 
         for (i = 0; i < gNumEnemies; i++, e++) {
-            s32 state;
-
             e->old_ai = e->algorithm;
             e->operation_count += gFrameTicks;
             if (e->idle_secs > 0.0f) {
@@ -6045,13 +6042,12 @@ void do_enemies(void)
                 e->daction = 0;
             }
 
-            state = e->state;
-            switch (state) {
+            switch (e->state) {
             case 1:
             case 7:
                 shown++;
                 if (e->type == gBossType) {
-                    goto tail;
+                    break;
                 }
                 fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset,
                             e->attn_offset);
@@ -6069,7 +6065,7 @@ void do_enemies(void)
                     fn_8004DF58(e);
                     fn_8004DC2C(e);
                     if (fn_8004D958(i) != 0) {
-                        goto tail;
+                        break;
                     }
                     if (e->atree.root != 0) {
                         e->action = DoEnemyAction(e);
@@ -6078,12 +6074,12 @@ void do_enemies(void)
                 }
                 ProcessSkinFX((f32*)&e->skinfx, e->objgrp.node, 0);
                 UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
-                goto tail;
+                break;
             case 6:
                 fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset,
                             e->attn_offset);
                 shown++;
-                goto tail;
+                break;
             case 8:
                 fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset,
                             e->attn_offset);
@@ -6109,7 +6105,7 @@ void do_enemies(void)
                             }
                         }
                         kill_enemy(i);
-                        goto tail;
+                        break;
                     }
                     MBTreeSetAlpha(e->objgrp.node, alpha, 1);
                     e->alpha = e->alpha + gFrameTicks * 4;
@@ -6137,31 +6133,18 @@ void do_enemies(void)
                     }
                     ProcessSkinFX((f32*)&e->skinfx, e->objgrp.node, 0);
                     cc = e->action;
-                    if (cc == 0x1C) {
-                        goto active_skin;
-                    }
-                    if (cc == 0x1D) {
-                        goto active_skin;
-                    }
-                    if (cc != 0x20) {
-                        goto finished_skin;
-                    }
-                active_skin:
-                    if (e->skinfx.nframes <= 0.0f) {
-                        goto finished_skin;
-                    }
-                    goto update_skin;
-                finished_skin:
-                    if (e->type == 0x1D) {
-                        if (RandInt(2) == 0) {
-                            fn_8009FEFC(e->area);
-                        } else {
-                            fn_8009FEA0(e->area);
+                    if ((cc != E_HIT_REACT1 && cc != E_HIT_REACT2 && cc != E_DYING) ||
+                        e->skinfx.nframes <= 0.0f) {
+                        if (e->type == E_GOLEM) {
+                            if (RandInt(2) == 0) {
+                                fn_8009FEFC(e->area);
+                            } else {
+                                fn_8009FEA0(e->area);
+                            }
                         }
+                        kill_enemy(i);
+                        break;
                     }
-                    kill_enemy(i);
-                    goto tail;
-                update_skin:
                     UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
                     goto sync;
                 }
@@ -6177,7 +6160,6 @@ void do_enemies(void)
                 break;
             }
 
-        tail:
             e->prev_ai = e->algorithm;
             e->algorithm = e->old_ai;
             if (e->operation_count >= e->operation_speed) {
@@ -6186,30 +6168,14 @@ void do_enemies(void)
             e->pushed[0] = (f32)(0.8 * e->pushed[0]);
             e->pushed[1] = (f32)(0.8 * e->pushed[1]);
             e->pushed[2] = (f32)(0.8 * e->pushed[2]);
-            {
-                f32 v = e->pushed[0];
-                *(u32*)&v &= 0x7FFFFFFF;
-                if (v < 0.01) {
-                    e->pushed[0] = 0.0f;
-                }
+            if (fabsf_(e->pushed[0]) < 0.01) {
+                e->pushed[0] = 0.0f;
             }
-            {
-                f32 v = e->pushed[1];
-                *(u32*)&v &= 0x7FFFFFFF;
-                if (v < 0.01) {
-                    e->pushed[1] = 0.0f;
-                }
+            if (fabsf_(e->pushed[1]) < 0.01) {
+                e->pushed[1] = 0.0f;
             }
-            {
-                f32 v = e->pushed[2];
-                *(u32*)&v &= 0x7FFFFFFF;
-                if (v < 0.01) {
-                    e->pushed[2] = 0.0f;
-                }
-            }
-            {
-                u8 unused2[24];
-                (void)unused2;
+            if (fabsf_(e->pushed[2]) < 0.01) {
+                e->pushed[2] = 0.0f;
             }
             if (e->pushed[1] > 0.0f) {
                 e->pushed[1] =
@@ -6262,7 +6228,6 @@ void do_enemies(void)
         *blit |= 0x40000;
     }
 }
-#pragma opt_propagation reset
 
 s32 fn_8004D958(s32 index)
 {
