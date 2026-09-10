@@ -5637,23 +5637,22 @@ s32 fn_8004CE38(Enemy* e)
     return 1;
 }
 
-/* Choose the turn direction on the axis with the larger separation. */
+/* Choose the turn direction on the axis with the larger separation.
+ * Xbox get_turn_dir corroborates the two point inputs and absolute differences.
+ * The GC inline magnitude calls supply their own temporaries; the former
+ * caller padding and manually expanded sign-bit writes are not needed. */
 s32 fn_8004CFAC(f32* pos, f32* target)
 {
-    u8 framePad[8];
     f32 x = pos[0];
     f32 targetX = target[0];
-    f32 dx = x - targetX;
+    f32 dx = fabsf_(x - targetX);
     f32 z;
     f32 targetZ;
     f32 dz;
-    u8 unused[12];
 
-    *(u32*)&dx &= 0x7FFFFFFF;
     z = pos[2];
     targetZ = target[2];
-    dz = z - targetZ;
-    *(u32*)&dz &= 0x7FFFFFFF;
+    dz = fabsf_(z - targetZ);
 
     if (dx >= dz) {
         if (z < targetZ) {
