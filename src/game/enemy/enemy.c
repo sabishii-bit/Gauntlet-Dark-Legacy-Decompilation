@@ -7806,10 +7806,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 #pragma opt_propagation reset
 
 /* Enemy loading, targeting and milestone tail: recovered TU ownership. */
-typedef struct MilestonePool {
-    u8 _000[0xF4];
-    s32 slots[128];
-} MilestonePool;
 extern s32  lbl_802577CC[];
 extern s32   lbl_8034476C;
 extern s32   gNumPlayers;
@@ -8902,19 +8898,19 @@ void fn_800516F8(s32 slot)
 
 #undef ENEMY_DISTANCE3
 
-/* Preserve the cached-pool element addresses through propagation. */
+/* Build the route in the same milestone-index array used by the neighbor
+ * lookup. Its stores are .bss-anchor-relative in the target; that addressing
+ * does not imply a larger enclosing object. */
 #pragma opt_propagation off
 void fn_80051C78(void)
 {
-    MilestonePool* mp = (MilestonePool*)lbl_80250E00;
     u8 unused[16];
     s32 best;
     s32 cur;
     s32 i;
 
     for (i = 0; i < 128; i++) {
-        u8* row = (u8*)mp + i * sizeof(s32);
-        ((MilestonePool *)row)->slots[0] = -1;
+        sEnemyMilestoneRoute[i] = -1;
     }
     lbl_80344724 = 0;
     best = -1;
@@ -8951,14 +8947,12 @@ void fn_80051C78(void)
 
         lbl_80344724 = count + 1;
         {
-            u8* row = (u8*)mp + count * sizeof(s32);
-            ((MilestonePool *)row)->slots[0] = cur;
+            sEnemyMilestoneRoute[count] = cur;
         }
         cur = fn_800511D0(prev, 0.17453292f);
         count = lbl_80344724;
         for (i = 0; i < count; i++) {
-            u8* row = (u8*)mp + i * sizeof(s32);
-            if (cur == ((MilestonePool *)row)->slots[0]) {
+            if (cur == sEnemyMilestoneRoute[i]) {
                 break;
             }
         }
