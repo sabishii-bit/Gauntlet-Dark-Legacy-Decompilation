@@ -8714,24 +8714,27 @@ static inline f32 enemy_distance_sqrt(f32 x)
  * constant caches and synthetic distance-rounding arguments. */
 static inline f32 calc_enemy_to_player_distance(Enemy* e, Player* p)
 {
-    f32 dx, dy, dz;
+    f32 delta[3];
+    f32 distance;
 
     if (p->field_A1C > 2) {
-        dx = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
-        dy = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
-        dz = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
-        return enemy_distance_sqrt(dz * dz + (dx * dx + dy * dy));
+        delta[0] = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
+        delta[1] = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
+        delta[2] = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
+        distance = enemy_distance_sqrt(delta[2] * delta[2] +
+                                      (delta[0] * delta[0] + delta[1] * delta[1]));
     } else {
-        dx = e->objgrp.coll_pos[0] - p->effectpos[0];
-        dy = e->objgrp.coll_pos[1] - p->effectpos[1];
-        dz = e->objgrp.coll_pos[2] - p->effectpos[2];
-        return enemy_distance_sqrt(dz * dz + (dx * dx + dy * dy));
+        delta[0] = e->objgrp.coll_pos[0] - p->effectpos[0];
+        delta[1] = e->objgrp.coll_pos[1] - p->effectpos[1];
+        delta[2] = e->objgrp.coll_pos[2] - p->effectpos[2];
+        distance = enemy_distance_sqrt(delta[2] * delta[2] +
+                                      (delta[0] * delta[0] + delta[1] * delta[1]));
     }
+    return distance;
 }
 
 void fn_800516F8(s32 slot)
 {
-    u8 unused[4];
     Player* p;
     Enemy* e;
     s32 i;
@@ -8809,9 +8812,8 @@ void fn_800516F8(s32 slot)
                         continue;
                     }
                     if (e->view < 3.141592654) {
-                        ad = get_yaw(p->effectpos, e->objgrp.coll_pos) -
-                             e->pyr[1];
-                        *(u32*)&ad &= 0x7FFFFFFF;
+                        ad = fabsf_(get_yaw(p->effectpos, e->objgrp.coll_pos) -
+                                    e->pyr[1]);
                         if (ad > e->view) {
                             continue;
                         }
