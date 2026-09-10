@@ -8063,13 +8063,12 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         return milestone;
     }
 
-    m = (MilestoneParam*)sMilestones + milestone;
-    pos[0] = m->objgrp.worldmat[3][0];
-    pos[1] = m->objgrp.worldmat[3][1];
-    pos[2] = m->objgrp.worldmat[3][2];
+    pos[0] = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[3][0];
+    pos[1] = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[3][1];
+    pos[2] = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[3][2];
     {
-        f32 x = m->objgrp.worldmat[2][2];
-        f32 r = atan2(m->objgrp.worldmat[2][0], x);
+        f32 x = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[2][2];
+        f32 r = atan2(((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[2][0], x);
         f64 p = 3.141592654;
         f32 a = (f32)(p + r);
         f64 t;
@@ -8089,10 +8088,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     kNegPi = (-3.141592654);
     k2Pi = 6.283185308;
     kPi = 3.141592654;
-    {
-        MilestoneParam* m0 = (MilestoneParam*)sMilestones;
-        m = m0;
-    }
+    m = (MilestoneParam*)sMilestones;
     for (i = 0; i < sNumMilestones; i++, m++) {
         f32 d;
         f64 nd;
