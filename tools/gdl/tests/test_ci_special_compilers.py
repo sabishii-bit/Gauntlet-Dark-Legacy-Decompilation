@@ -1,4 +1,5 @@
 import re
+import json
 import unittest
 from pathlib import Path
 
@@ -63,6 +64,29 @@ class CiSpecialCompilerTests(unittest.TestCase):
             r"ninja build/GUNE5D/src/game/enemy/critter\.o.*?"
             r"python -m unittest discover tools/gdl/tests -b",
         )
+
+    def test_rust_linter_is_installed_and_tested_in_its_own_workflow(self):
+        lint = (ROOT / ".github/workflows/reconstruction-lint.yml").read_text(encoding="utf-8")
+        scripts = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["scripts"]
+        self.assertIn("dtolnay/rust-toolchain@stable", lint)
+        self.assertIn("pnpm run lint:install", lint)
+        self.assertIn("pnpm run lint:test", lint)
+        self.assertLess(lint.index("pnpm run lint:test"), lint.index("pnpm run lint:decomp"))
+        self.assertIn("--locked", scripts["lint:install"])
+        self.assertIn("--locked", scripts["lint:test"])
+        self.assertIn("--path tools/fakematch-linter", scripts["lint:install"])
+        self.assertIn("--root tools/fakematch-lint", scripts["lint:install"])
+        self.assertIn("fakematch_lint.cjs", scripts["lint:decomp"])
+        self.assertIn("--fail-on-findings", scripts["lint:decomp"])
+
+    def test_ci_retains_diagnostic_logs_and_requires_a_report_artifact(self):
+        workflow = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
+        report_step = workflow.split("- name: Upload progress report", 1)[1].split("- name:", 1)[0]
+        self.assertIn("if-no-files-found: error", report_step)
+        diagnostics = workflow.split("- name: Upload reconstruction diagnostics", 1)[1].split("- name:", 1)[0]
+        self.assertIn("if: always()", diagnostics)
+        self.assertIn("build/GUNE5D/reconstruction_preflight.json", diagnostics)
+        self.assertIn("build/GUNE5D/reconstruction_*/*.log", diagnostics)
 
     def test_ci_removes_every_live_test_object_before_rebuilding(self):
         """A cache-restored object can be NEWER than the checked-out source

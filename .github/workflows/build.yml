@@ -124,9 +124,9 @@ jobs:
           exit 1
         fi
 
-    # The separate reconstruction-lint workflow owns the ast-grep and lint-
-    # integration suites. Keep this private compiler container focused on
-    # Python analysis; pnpm's executable is not visible inside the container.
+    # The separate reconstruction-lint workflow owns the fakematch-lint source
+    # scan. Keep this private compiler container focused on Python analysis;
+    # neither pnpm nor cargo is visible inside the container.
     - name: Analysis tool tests
       env:
         WINEPREFIX: /tmp/.wine
@@ -181,6 +181,18 @@ jobs:
       with:
         name: GUNE5D_report
         path: build/GUNE5D/report.json
+        if-no-files-found: error
+
+    # Keep stage verdicts and logs even when a diagnostic refuses its input.
+    - name: Upload reconstruction diagnostics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: reconstruction_diagnostics
+        path: |
+          build/GUNE5D/reconstruction_preflight.json
+          build/GUNE5D/reconstruction_*/*.json
+          build/GUNE5D/reconstruction_*/*.log
 
     # Upload build report (if it exists)
     - name: Upload build report

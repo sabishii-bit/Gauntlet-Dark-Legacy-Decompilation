@@ -10,9 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
     - uses: actions/setup-node@v4
       with:
         node-version: '22'
@@ -21,14 +18,26 @@ jobs:
         version: '10.25.0'
     - name: Install pinned lint dependencies
       run: pnpm install --frozen-lockfile
-    - name: Test structural rules and reporting policy
-      run: |
-        pnpm run test:lint
-        pnpm run test:lint:integration
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Cache the fakematch-lint binary
+      id: lint-cache
+      uses: actions/cache@v4
+      with:
+        path: tools/fakematch-lint/bin
+        key: fakematch-lint-${{ runner.os }}-${{ hashFiles('tools/fakematch-linter/Cargo.lock', 'tools/fakematch-linter/Cargo.toml', 'tools/fakematch-linter/fakematch.example.toml', 'tools/fakematch-linter/src/**', 'tools/fakematch-linter/guidance/**') }}
+    # The scanner is the in-repo tools/fakematch-linter Rust project, installed
+    # into the gitignored tools/fakematch-lint/ root that
+    # .vscode/lint/fakematch_lint.cjs runs. Same command as a local setup.
+    - name: Install fakematch-lint
+      if: steps.lint-cache.outputs.cache-hit != 'true'
+      run: pnpm run lint:install
+    # Test the scanner even when its installed binary is restored from cache.
+    - name: Test reconstruction linter
+      run: pnpm run lint:test
     # Outstanding review debt deliberately fails this workflow. Keeping it
     # separate lets decomp.dev ingest the successful build workflow's report
     # without weakening or hiding the reconstruction-debt check.
-    - name: Scan all reconstructed source and headers
+    - name: Scan reconstructed game source
       run: pnpm run lint:decomp --format github --limit 50
     - name: Upload reconstruction lint findings
       if: always()

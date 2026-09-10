@@ -79,7 +79,7 @@ class Refusals(unittest.TestCase):
     def test_a_missing_report_refuses_and_names_the_scan_command(self):
         with self.assertRaises(lint_debt.ReportUnavailable) as caught:
             lint_debt.load_report(self.root / "absent.json")
-        self.assertIn("fakematch_lint.py", str(caught.exception))
+        self.assertIn("fakematch_lint.cjs", str(caught.exception))
 
     def test_malformed_json_refuses(self):
         path = self.root / "bad.json"

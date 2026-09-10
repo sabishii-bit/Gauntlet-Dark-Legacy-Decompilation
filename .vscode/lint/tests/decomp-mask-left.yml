@@ -1,5 +1,0 @@
-id: decomp-mask-left
-valid:
-  - 'void f(){ (0x1000 + offset) & flags; }'
-invalid:
-  - 'void f(){ 0x1000 & flags; }'

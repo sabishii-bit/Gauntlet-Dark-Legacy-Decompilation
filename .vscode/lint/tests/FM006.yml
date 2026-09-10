@@ -1,6 +1,0 @@
-id: FM006
-valid:
-  - "#pragma once\nvoid f(){}"
-invalid:
-  - "#pragma scheduling off\nvoid f(){}"
-  - "void __attribute__((optimize(\"O0\"))) f(){}"

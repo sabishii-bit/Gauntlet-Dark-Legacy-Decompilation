@@ -1,7 +1,0 @@
-id: decomp-mask
-valid:
-  - 'void f(){ call(0x1000); }'
-  - 'void f(){ flags & (0x1000 + offset); }'
-invalid:
-  - 'void f(){ if (mp != NULL && !(mp->flags & 0x1000)) { goto gravity; } }'
-  - 'void f(){ flags &= 0x1000; }'

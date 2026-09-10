@@ -1,0 +1,118 @@
+# fakematch-lint configuration.
+#
+# Every value shown here is the default. Delete what you do not need; a
+# missing table or key falls back to the default. Paths are repository-relative
+# POSIX paths; the repository root is the directory that holds this file (or
+# the --root argument).
+schema_version = 1
+
+[scan]
+# Directories (or files) that are in scope. Inputs outside these paths are
+# skipped even when named explicitly on the command line.
+paths = ["src"]
+# Lower-case extensions that count as C/C++ sources.
+extensions = [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx"]
+# Glob patterns (repository-relative) to leave out, e.g. ["src/game/gen/**"].
+exclude = []
+
+# ---------------------------------------------------------------------------
+# Rules. Each rule has `enabled` and `severity` ("error" or "warning") plus
+# its own knobs. Warnings only fail the run with --warnings-as-errors.
+# ---------------------------------------------------------------------------
+
+[rules.FM001]   # Raw offset or indexed pointer cast
+enabled = true
+severity = "error"
+
+[rules.FM002]   # Nested dereference through pointer casts
+enabled = true
+severity = "error"
+min_depth = 2
+
+[rules.FM003]   # Possible stack/allocation scaffolding
+enabled = true
+severity = "error"
+unused_arrays = true
+volatile_locals = true
+trash_names = true
+write_only_locals = true
+trash_pattern = '(?i)^(?:trash\w*|unused\w*|(?:stack|frame)_?pad\w*|pad(?:ding)?(?:[0-9_]\w*)?)$'
+
+[rules.FM004]   # Float/address-shaped numeric byte array
+enabled = true
+severity = "error"
+byte_types = ["u8", "uint8_t", "unsigned char"]
+min_bytes = 8
+address_range = [0x80000000, 0x81800000]
+min_address_words = 3
+float_ratio = 0.75
+float_magnitude = [1e-8, 1e8]
+
+[rules.FM005]   # Assembly without an explicit reviewed exception
+enabled = true
+severity = "error"
+keywords = ["asm", "__asm", "__asm__", "ASM"]
+
+[rules.FM006]   # Source-level compilation override
+enabled = true
+severity = "error"           # optimisation attributes
+pragma_severity = "warning"  # #pragma directives
+ignored_pragmas = ['^#\s*pragma\s+once\s*$']
+attributes = ["optimize", "optnone", "target", "noinline", "always_inline"]
+
+[rules.FM007]   # Unnamed hexadecimal expression constant
+enabled = true
+severity = "error"
+ignore_masks = true
+ignore_enums = true
+ignore_const_declarations = true
+ignore_object_macros = true
+
+[rules.FM009]   # Unnamed constant-offset pointer or array access
+enabled = true
+severity = "error"
+require_visible_declaration = true
+offset_pattern = '^\(*\s*(?:0[xX][0-9a-fA-F]+|[0-9]+)[uUlL]*\s*\)*$'
+
+# ---------------------------------------------------------------------------
+# Inline suppression comments:
+#   // lint-allow-next-line FM007: <reason>
+#   // lint-begin FM005, FM007: <reason>   ...   // lint-end FM005, FM007
+#   // lint-file FM005: <reason>           (before all code and directives)
+# ---------------------------------------------------------------------------
+[suppressions]
+prefix = "lint-"
+rejected_prefixes = ["gdl-lint-"]
+
+# ---------------------------------------------------------------------------
+# Review policy. Either keep the lists here or point `file` at a separate
+# TOML/JSON policy (schema_version = 1, exceptions, pragma_allowlist).
+# ---------------------------------------------------------------------------
+[policy]
+# file = ".vscode/lint/fakematch_lint.toml"
+exceptions = []          # [{ fingerprint = "<64 hex>", reason = "..." }]
+pragma_allowlist = []    # [{ path, scope, directive, count, reason }]
+
+# ---------------------------------------------------------------------------
+# FM008: legacy postprocessor inventories that must not reappear.
+# ---------------------------------------------------------------------------
+[postprocessors]
+engines = []             # [{ name = "WebFrank", path = "config/GUNE5D/webfrank.json" }]
+# native_guard = "tools/gdl/native_build.py"
+unit_prefix = ""         # e.g. "game/" to keep the inventory game-only
+source_prefix = "src/"
+
+[output]
+format = "human"         # human | github | problems | json
+limit = 40               # console rows; JSON keeps every finding
+report_dir = "build"     # --out must live under this directory
+explain_command = "fakematch-lint --explain"
+begin_marker = "GDL_LINT_BEGIN"
+end_marker = "GDL_LINT_END"
+
+[guidance]
+# path = ".vscode/lint/guidance.toml"   # override the embedded guidance
+
+[watch]
+debounce_ms = 250
+extra_paths = []

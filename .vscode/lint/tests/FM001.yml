@@ -1,8 +1,0 @@
-id: FM001
-valid:
-  - "int f(){ return p->field + p[i]; }"
-  - "int f(){ return *(T*)p; }"
-invalid:
-  - "int f(){ return *(T*)(p+8); }"
-  - "int f(){ return ((const struct Thing*)p)[2]; }"
-  - "int f(){ return *(T*)((u8*)p+0x18); }"

@@ -1,5 +1,0 @@
-id: FM002
-valid:
-  - "int f(){ return *(int*)(p+8); }"
-invalid:
-  - "int f(){ return *(int*)*(void**)(p+8); }"

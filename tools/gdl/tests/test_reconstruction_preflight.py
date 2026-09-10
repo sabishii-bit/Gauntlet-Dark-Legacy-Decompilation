@@ -1,5 +1,7 @@
 """Shadow-report calibration and stale-output refusal; no private fixtures."""
 import copy
+import contextlib
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -82,6 +84,95 @@ class ExceptionControlTests(unittest.TestCase):
                 row["rows"][0]["exception_metadata"][field] = value
                 with self.assertRaises(ValueError):
                     preflight.validate_exception_control(row)
+
+
+class DatumControlTests(unittest.TestCase):
+    def control(self, delta=False):
+        state = "UNRESOLVED" if delta else "PASS"
+        side = {"object": "build/enemy.o", "status": state,
+                "verdict": "VALUE-DELTA" if delta else "VALUE-EQUAL",
+                "target_relocs": 91, "ours_relocs": 91,
+                "target_only": {"A:0x80250E00": 2} if delta else {},
+                "ours_only": {"N:mbdesc": 2} if delta else {}}
+        return {"schema_version": 1, "status": state,
+                "selection": {"scope": "explicit-function", "units_selected": 1},
+                "discovery_failures": [],
+                "tally": dict(functions_selected=1, functions_screened_both=1,
+                              raw_equal=int(not delta), raw_candidates=int(delta),
+                              post_equal=int(not delta), post_candidates=int(delta),
+                              raw_unreadable=0, post_unreadable=0,
+                              disagreements=0, discovery_failures=0),
+                "rows": [{"unit": "game/enemy/enemy", "function": "do_enemy_move",
+                          "status": state, "raw": copy.deepcopy(side),
+                          "post": copy.deepcopy(side)}]}
+
+    def test_equal_and_delta_are_complete_measurements_not_equivalence(self):
+        for delta in (False, True):
+            payload = self.control(delta)
+            before = copy.deepcopy(payload)
+            self.assertIn("not a binding/equivalence certificate",
+                          preflight.validate_datum_control(payload))
+            self.assertEqual(payload, before)  # Never rewrite UNRESOLVED to PASS.
+
+    def test_incomplete_stale_or_malformed_screens_fail(self):
+        mutations = [
+            lambda p: p.update(schema_version=2),
+            lambda p: p.update(status="FAIL"),
+            lambda p: p.update(rows=[]),
+            lambda p: p.update(rows=None),
+            lambda p: p.update(discovery_failures=[{"error": "missing object"}]),
+            lambda p: p["selection"].update(units_selected=0),
+            lambda p: p["rows"][0].update(function="different"),
+            lambda p: p["rows"][0]["raw"].update(error="STALE OBJECT"),
+            lambda p: p["rows"][0]["raw"].update(target_relocs=0),
+            lambda p: p["rows"][0]["raw"].pop("ours_relocs"),
+            lambda p: p["rows"][0]["raw"].update(verdict="VALUE-EQUAL"),
+            lambda p: p["rows"][0]["raw"].update(target_only={"bad": -1}),
+            lambda p: p["rows"][0]["raw"].update(target_only={"bad": 92}),
+            lambda p: p["tally"].update(functions_screened_both=0),
+            lambda p: p["tally"].update(raw_candidates=0),
+        ]
+        for i, mutate in enumerate(mutations):
+            with self.subTest(case=i):
+                payload = self.control(True)
+                mutate(payload)
+                with self.assertRaises(ValueError):
+                    preflight.validate_datum_control(payload)
+
+    def test_only_valid_exit_two_artifact_completes_the_stage(self):
+        for incomplete in (False, True):
+            with self.subTest(incomplete=incomplete), tempfile.TemporaryDirectory() as temp:
+                folder = Path(temp)
+                artifact = folder / "datum.json"
+                payload = self.control(True)
+                if incomplete:
+                    payload["rows"][0]["raw"]["error"] = "missing object"
+
+                def run(*args, **kwargs):
+                    artifact.write_text(json.dumps(payload), encoding="utf-8")
+                    return subprocess.CompletedProcess(args[0], 2, "review candidate", "")
+
+                with patch.object(preflight.subprocess, "run", side_effect=run):
+                    result = preflight.run_stage(
+                        "datum", ["fixture"], folder, folder, artifact,
+                        allowed_returncodes=(0, 2),
+                        artifact_validator=preflight.validate_datum_control)
+                self.assertEqual(result["status"], "FAIL" if incomplete else "PASS")
+                if not incomplete:
+                    self.assertEqual(result["tool_reported_status"], "UNRESOLVED")
+
+    def test_console_distinguishes_review_findings_from_execution_failure(self):
+        output = io.StringIO()
+        result = {"status": "FAIL", "error": "input changed", "stages": [
+            {"name": "datum_control", "status": "PASS",
+             "tool_reported_status": "UNRESOLVED", "validated_scope": "measurement only"},
+            {"name": "provenance", "status": "FAIL", "error": "bad graph",
+             "log": "build/provenance.log"}]}
+        with contextlib.redirect_stdout(output):
+            preflight.print_result(result, "build/summary.json")
+        for text in ("ERROR: input changed", "REVIEW UNRESOLVED: measurement only",
+                     "provenance: FAIL", "bad graph", "build/provenance.log"):
+            self.assertIn(text, output.getvalue())
 
 
 class InputFingerprintTests(unittest.TestCase):

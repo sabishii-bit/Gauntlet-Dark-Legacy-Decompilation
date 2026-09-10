@@ -19,7 +19,7 @@ steps = [
   "Rerun the same scan on stable inputs and require SCAN_COMPLETE. Review parser-recovery limits separately even after a completed scan."
 ]
 example_condition = "Only when the failure says the configuration or policy file is malformed"
-before = "UNRESOLVED: lint.toml: invalid configuration"
+before = "UNRESOLVED: fakematch.toml: invalid configuration"
 after = "Repair the named configuration key; then rerun the original lint command"
 legitimate = "Parser recovery may occur on MWCC syntax; it limits coverage and does not justify manufacturing source changes."
 avoid = "Do not waive a broken scan, use a stale report as current evidence, or change compiler input to appease a parser."

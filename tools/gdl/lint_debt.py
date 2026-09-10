@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read-only ledger over the reconstruction linter's JSON report.
 
-    python .vscode/lint/fakematch_lint.py src/game --out build/fakematch_lint.json
+    node .vscode/lint/fakematch_lint.cjs src/game --out build/fakematch_lint.json
     python tools/gdl/lint_debt.py                       # per-TU + per-family
     python tools/gdl/lint_debt.py --baseline build/lint_run61.json
     python tools/gdl/lint_debt.py --top 10 --json --out build/c_debt.json
@@ -60,7 +60,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_REPORT = REPO / "build" / "fakematch_lint.json"
-SCAN_COMMAND = ("python .vscode/lint/fakematch_lint.py src/game"
+SCAN_COMMAND = ("node .vscode/lint/fakematch_lint.cjs src/game"
                 " --out build/fakematch_lint.json")
 
 

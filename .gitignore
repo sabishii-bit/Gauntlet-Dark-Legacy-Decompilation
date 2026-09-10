@@ -38,7 +38,7 @@ compile_commands.json
 /CLAUDE.md
 /.worktreeinclude
 /.claude/*
-!/.claude/findings/
+/.claude/findings/
 decomp-toolkit
 tools/mwcc_compiler
 gdl-build
@@ -46,3 +46,6 @@ misc/
 
 
 *_scratch/
+
+# Repo-local fakematch-lint binary (cargo install --root tools/fakematch-lint)
+/tools/fakematch-lint/

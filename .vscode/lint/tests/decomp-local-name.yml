@@ -1,7 +1,0 @@
-id: decomp-local-name
-valid:
-  - 'void f(){ use(trash); }'
-  - 'int global;'
-invalid:
-  - 'void f(){ int real = trash; }'
-  - 'void f(){ int * volatile pointer; }'

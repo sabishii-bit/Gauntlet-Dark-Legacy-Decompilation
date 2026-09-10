@@ -369,12 +369,16 @@ to reuse its compiler condition or discarded-helper shape in another TU.
 
 ## Types, names and de-fakematching
 
-Before source-debt cleanup, run `pnpm install --frozen-lockfile` once, then
-`python .vscode/lint/fakematch_lint.py <owned-source-path> --out build/lint.json`.
+Before source-debt cleanup, install the scanner once into the repository
+(`pnpm install` then `pnpm run lint:install`;
+the in-repo `tools/fakematch-linter` Rust project owns the rules, and
+`tools/fakematch-lint/` is gitignored, nothing goes on PATH), then run
+`node .vscode/lint/fakematch_lint.cjs <owned-source-path> --out build/lint.json`.
+Its configuration is `lint.toml` at the repository root (the wrapper passes `--config lint.toml`).
 Source lint is scoped to `src/game` only, including CI and the editor watcher;
 SDK/library files and headers outside that directory are skipped even if passed
 explicitly. This is a review-scope decision, not proof those files are defect-free.
-The ast-grep-backed report covers source reconstruction-debt families. Findings
+The tree-sitter-backed report covers source reconstruction-debt families. Findings
 are review candidates, not proven fakematches; parser recovery, macro expansion
 and absent type/liveness analysis limit coverage. Never mechanically rewrite
 findings to improve the lint count or weaken matching gates. Review exceptions
@@ -392,7 +396,7 @@ declaration/statement, including its continuation lines. Explicit regions use
 `// lint-file FM005: <specific reason>` before all code/preprocessor directives.
 Use the narrowest justified scope. All forms name exact source rules, never `*`.
 Blank reasons, unused/unknown rules, unclosed/nested regions and overlapping
-waivers of the same finding are scan failures. FM000/FM008 cannot be waived.
+waivers of the same finding are scan failures. FM000 cannot be waived.
 Comments may suppress direct assembly and pragma diagnostics but do not authorize
 invented assembly, fakematching or postprocessing. Explain real behavior/evidence,
 not merely "needed to match"; the scanner cannot verify the truth of a reason.
@@ -400,17 +404,17 @@ Suppressed rows remain in JSON with reason, comment location, scope and current
 target hash. A source edit does not invalidate a still-applicable comment by hash:
 review its reason again when the code changes. No blanket exemptions are preloaded.
 Before repairing a finding, read its rule guidance with
-`python .vscode/lint/fakematch_lint.py --explain FM001` (substitute its rule id).
+`pnpm run lint:explain FM001` (substitute its rule id).
 The guide provides investigation steps, conditional examples, legitimate cases,
 unsafe shortcuts and verification gates. It is not a substitute for evidence.
 Agents can run `pnpm run lint:decomp` for the complete `src/game` queue and read
 `build/fakematch_lint.json`: each finding's `guidance_id` resolves into the report's
 `remediation_guidance.rules`, with shared gates in `remediation_guidance.common`.
 The console is capped; use the JSON for all findings, and remeasure stale reports.
-Test rule changes with `pnpm run test:lint` and `pnpm run test:lint:integration`.
+Rule logic lives in `tools/fakematch-linter`; test changes with `pnpm run lint:test`.
 CI fails on source-debt errors and scanner/test failures; warnings are nonfatal
-unless promoted. The generator independently refuses postprocessing. FM008
-detects reintroduced legacy rule configuration, not a sanctioned closure path.
+unless promoted. The generator independently refuses postprocessing. The
+postprocessor-inventory check (FM008) is not run; legacy engines stay retired.
 This deliberate cleanup gate is separate from DOL verification.
 VS Code/Cursor: run the `GDL: watch reconstruction debt` task (or allow its
 folder-open task). It refreshes Problems errors on saved changes using the same

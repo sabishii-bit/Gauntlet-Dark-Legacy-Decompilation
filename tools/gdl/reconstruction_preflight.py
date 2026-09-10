@@ -172,6 +172,85 @@ def validate_exception_control(payload):
     return "newcam exception metadata only; data ownership and whole-TU status remain separate"
 
 
+def validate_datum_control(payload):
+    """Require a complete screen, not a delta-free NonMatching function.
+
+    Recovering enemy's local mbdesc name made the multiset screen compare
+    N:mbdesc with A:0x80250E00. That is an adjudication candidate, not failed
+    execution or proof of a bad binding. Keep all deltas in the artifact;
+    missing/stale objects, unreadable sides and malformed accounting fail.
+    This validates measurement only, never datum or relocation equivalence.
+    """
+    if payload.get("schema_version") != 1 or payload.get("error"):
+        raise ValueError("datum control: invalid schema or failed audit")
+    selection = payload.get("selection", {})
+    rows = payload.get("rows", [])
+    if (not isinstance(selection, dict) or not isinstance(rows, list)
+            or selection.get("scope") != "explicit-function"
+            or selection.get("units_selected") != 1
+            or payload.get("discovery_failures") != []
+            or len(rows) != 1
+            or not isinstance(rows[0], dict)
+            or rows[0].get("unit") != "game/enemy/enemy"
+            or rows[0].get("function") != "do_enemy_move"):
+        raise ValueError("datum control: incomplete or unexpected population")
+    expected = dict(functions_selected=1, functions_screened_both=1,
+                    raw_equal=0, raw_candidates=0, post_equal=0,
+                    post_candidates=0, raw_unreadable=0, post_unreadable=0,
+                    disagreements=0, discovery_failures=0)
+    row = rows[0]
+    states = []
+    for name in ("raw", "post"):
+        side = row.get(name, {})
+        if not isinstance(side, dict) or side.get("error") or not side.get("object"):
+            raise ValueError("datum control: unreadable object side")
+        for field in ("target_relocs", "ours_relocs"):
+            if type(side.get(field)) is not int or side[field] <= 0:
+                raise ValueError("datum control: missing/empty relocation population")
+        for field in ("target_only", "ours_only"):
+            counts = side.get(field)
+            if (not isinstance(counts, dict)
+                    or any(not isinstance(key, str) or not key
+                           or type(value) is not int or value <= 0
+                           for key, value in counts.items())):
+                raise ValueError("datum control: invalid delta accounting")
+            total = side["target_relocs" if field == "target_only" else "ours_relocs"]
+            if sum(counts.values()) > total:
+                raise ValueError("datum control: delta exceeds relocation population")
+        delta = bool(side["target_only"] or side["ours_only"])
+        state = "UNRESOLVED" if delta else "PASS"
+        if (side.get("verdict") != ("VALUE-DELTA" if delta else "VALUE-EQUAL")
+                or side.get("status") != state):
+            raise ValueError("datum control: inconsistent side verdict")
+        states.append(state)
+        expected[name + ("_candidates" if delta else "_equal")] = 1
+    expected["disagreements"] = int(any(
+        row["raw"][field] != row["post"][field]
+        for field in ("target_only", "ours_only")))
+    state = "UNRESOLVED" if "UNRESOLVED" in states else "PASS"
+    if (payload.get("tally") != expected or row.get("status") != state
+            or payload.get("status") != state):
+        raise ValueError("datum control: inconsistent complete-screen accounting")
+    return ("one enemy function screened on both sides; datum deltas remain "
+            "UNRESOLVED review candidates, not a binding/equivalence certificate")
+
+
+def print_result(result, output):
+    """Expose the failed stage in CI even if artifact upload is unavailable."""
+    print(f"{result['status']}: reconstruction diagnostics written to {output}")
+    if result.get("error"):
+        print("ERROR: " + result["error"])
+    for stage in result["stages"]:
+        print(f"  {stage['name']}: {stage['status']}")
+        if stage.get("error"):
+            print("    " + stage["error"])
+        if stage.get("log") and stage["status"] != "PASS":
+            print("    log: " + stage["log"])
+        if stage.get("tool_reported_status") == "UNRESOLVED":
+            print("    REVIEW UNRESOLVED: " + stage["validated_scope"])
+    print("This is not a source-completion or semantic-equivalence certificate.")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=ROOT / "build/GUNE5D/reconstruction_preflight.json")
@@ -205,14 +284,19 @@ def main(argv=None):
                 ("provenance", "tools/gdl/build_provenance.py", []),
                 ("compiler_fidelity", "tools/gdl/composed_census/cv_probe.py",
                  ["game/sys/sysservice", "--axes", "check"]),
-                ("datum_control", "tools/gdl/composed_census/ce_eq_datum_audit.py",
-                 ["--unit", "game/enemy/enemy", "--function", "do_enemy_move"]),
             ]
             for name, script, options in specifications:
                 path = folder / (name + ".json")
                 result["stages"].append(run_stage(
                     name, [sys.executable, script, *options, "--out", str(path)],
                     ROOT, folder, path, require_status=True))
+            path = folder / "datum_control.json"
+            result["stages"].append(run_stage(
+                "datum_control", [sys.executable,
+                    "tools/gdl/composed_census/ce_eq_datum_audit.py",
+                    "--unit", "game/enemy/enemy", "--function", "do_enemy_move",
+                    "--out", str(path)], ROOT, folder, path,
+                allowed_returncodes=(0, 2), artifact_validator=validate_datum_control))
             path = folder / "exception_control.json"
             result["stages"].append(run_stage(
                 "exception_control", [sys.executable, "tools/gdl/datadiff.py",
@@ -229,8 +313,7 @@ def main(argv=None):
     except (OSError, ValueError, KeyError, TypeError) as error:
         result["error"] = str(error)
     args.out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print(f"{result['status']}: reconstruction diagnostics written to {args.out}")
-    print("This is not a source-completion or semantic-equivalence certificate.")
+    print_result(result, args.out)
     return {"PASS": 0, "FAIL": 1, "UNRESOLVED": 2}[result["status"]]
 
 

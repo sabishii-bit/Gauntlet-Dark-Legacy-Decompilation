@@ -1,6 +1,0 @@
-id: FM003-array
-valid:
-  - "u8 global[8];"
-  - "void f(){ data[2]=0; }"
-invalid:
-  - "void f(){ u8 local[8]; }"

@@ -5,10 +5,10 @@
   "tasks": [
     {
       "label": "GDL: watch reconstruction debt",
-      "detail": "Saved-file diagnostics for src/game only. First scan can take a short while; this task must be running to show inline Problems markers.",
+      "detail": "Saved-file diagnostics for src/game only (repo-local fakematch-lint --watch; see .vscode/lint/fakematch_lint.cjs). This task must be running to show inline Problems markers.",
       "type": "process",
-      "command": "python",
-      "args": ["-u", ".vscode/lint/fakematch_lint.py", "--postprocessors", "--format", "problems", "--watch"],
+      "command": "node",
+      "args": [".vscode/lint/fakematch_lint.cjs", "--format", "problems", "--watch"],
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 },
@@ -32,10 +32,10 @@
     },
     {
       "label": "GDL: lint current file",
-      "detail": "Quick saved-file check for src/game; other source files are skipped. No watcher or build required.",
+      "detail": "Quick saved-file check for src/game (fakematch-lint); other source files are skipped. No watcher or build required.",
       "type": "process",
-      "command": "python",
-      "args": ["-u", ".vscode/lint/fakematch_lint.py", "${file}", "--postprocessors", "--format", "problems"],
+      "command": "node",
+      "args": [".vscode/lint/fakematch_lint.cjs", "${file}", "--format", "problems"],
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": { "reveal": "silent", "revealProblems": "onProblem", "panel": "dedicated" },
       "problemMatcher": {

@@ -1,7 +1,0 @@
-id: decomp-local-write
-valid:
-  - 'void f(){ use(i++); }'
-  - 'int f(){ return i++; }'
-invalid:
-  - 'void f(){ timeOffset += 4; }'
-  - 'void f(){ timeOffset = 0; }'

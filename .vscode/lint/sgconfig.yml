@@ -1,8 +1,0 @@
-ruleDirs:
-  - rules
-testConfigs:
-  - testDir: tests
-# These reconstructed TUs use MWCC C++ regions even in .c files. Use the C++
-# grammar consistently rather than silently missing methods in C extensions.
-languageGlobs:
-  Cpp: ['*.c', '*.h', '*.cpp', '*.hpp', '*.cc', '*.hh', '*.cxx', '*.hxx']

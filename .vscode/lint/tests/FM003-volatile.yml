@@ -1,6 +1,0 @@
-id: FM003-volatile
-valid:
-  - "volatile int device;"
-  - "void f(){ int local; }"
-invalid:
-  - "void f(){ volatile int home; }"

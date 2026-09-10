@@ -3,13 +3,13 @@
   "private": true,
   "packageManager": "pnpm@10.25.0",
   "scripts": {
-    "lint:ast": "python .vscode/lint/fakematch_lint.py --rule FM001 --rule FM002 --rule FM005 --rule FM006",
-    "test:lint": "ast-grep test --config .vscode/lint/sgconfig.yml --skip-snapshot-tests",
-    "lint:decomp": "python .vscode/lint/fakematch_lint.py --postprocessors --fail-on-findings --out build/fakematch_lint.json",
-    "lint:editor": "python .vscode/lint/fakematch_lint.py --postprocessors --format problems --watch",
-    "test:lint:integration": "python -m unittest discover -s .vscode/lint/tests -p test_*.py -b"
-  },
-  "devDependencies": {
-    "@ast-grep/cli": "0.45.3"
+    "lint": "node .vscode/lint/fakematch_lint.cjs",
+    "lint:install": "cargo install --path tools/fakematch-linter --locked --root tools/fakematch-lint",
+    "lint:ast": "node .vscode/lint/fakematch_lint.cjs --rule FM001 --rule FM002 --rule FM005 --rule FM006",
+    "lint:decomp": "node .vscode/lint/fakematch_lint.cjs --fail-on-findings --out build/fakematch_lint.json",
+    "lint:editor": "node .vscode/lint/fakematch_lint.cjs --format problems --watch",
+    "lint:explain": "node .vscode/lint/fakematch_lint.cjs --explain",
+    "lint:rules": "node .vscode/lint/fakematch_lint.cjs --list-rules",
+    "lint:test": "cargo test --locked --manifest-path tools/fakematch-linter/Cargo.toml"
   }
 }

@@ -1,0 +1,30 @@
+# fakematch-lint configuration for the GDL reconstruction. The wrapper
+# (.vscode/lint/fakematch_lint.cjs) passes --config lint.toml so this file is
+# found regardless of the linter's default name. Every key is documented in
+# tools/fakematch-linter/fakematch.example.toml.
+schema_version = 1
+
+[scan]
+# Source lint is scoped to src/game only, including CI and the editor watcher.
+# SDK/library files and headers outside it are skipped even if passed explicitly.
+paths = ["src/game"]
+
+[rules.FM006]
+# Reported pragmas are visible warnings, not permission to add scaffolding.
+# Use --warnings-as-errors to make them build-breaking. Attributes stay errors.
+pragma_severity = "warning"
+severity = "error"
+
+# Review exceptions require exact fingerprints and a reason; suppressed rows
+# remain in the report. No blanket exemptions are preloaded.
+[policy]
+file = ".vscode/lint/fakematch_lint.toml"
+
+[output]
+report_dir = "build"
+explain_command = "pnpm run lint:explain"
+begin_marker = "GDL_LINT_BEGIN"
+end_marker = "GDL_LINT_END"
+
+[guidance]
+path = ".vscode/lint/guidance.toml"
