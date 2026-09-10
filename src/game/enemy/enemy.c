@@ -1849,15 +1849,13 @@ collision_done:
     return floorObject;
 }
 
-#pragma opt_common_subs off
 void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
 {
     u32 flags;
-    u32 damageType;
     f32 dir[3];
 
     flags = WorldObjGetAllFlags(wobj);
-    if (*(s32*)e == 27) {
+    if (e->type == E_GARM2) {
         return;
     }
     if ((flags & 0xF0000) == 0) {
@@ -1872,8 +1870,8 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
     dir[1] = 0.0f;
     dir[2] = oldpos[2] - hitnrm[2];
     NormalVector2D(dir);
-    damageType = flags & 0xF0000;
-    switch (damageType) {
+    flags &= 0xF0000;
+    switch (flags) {
     case 0x10000:
         damage_enemy(e, 5.0f, -1, 0, (s32)hitnrm, (s32)dir, 1);
         break;
@@ -1889,7 +1887,6 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
         break;
     }
 }
-#pragma opt_common_subs reset
 
 void fn_80046140(s32 index)
 {
