@@ -541,22 +541,19 @@ extern EnemyPlayerArray gPlayers; /* 0x80275AE0: four 0x335C player records */
 extern f32 lbl_8023CA98[][4];
 extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-slide scratch; [1] = output vector */
 
-/* Enemy records ride at +0xE18 inside the lbl_80250E00 pool block.  The
- * compiler folds that constant into each field displacement off the
- * pool-relative pointer, so a pool-relative enemy field is expressed as one
- * additive constant.  Do NOT replace these with a typed `Enemy*` alias: with
- * several nearby fields read off one index-computed base that defeats the
- * combined index-register addressing and regresses the function (A/B'd on
- * move_logic05's flee block: real 0 -> 83). */
+/* gEnemies is a separate object at .bss +0xE18. MWCC can address several
+ * globals through one section anchor; this is not evidence of an enclosing
+ * C pool object. Legacy consumers below still spell that addressing manually.
+ * Retire them against the complete native object: typed player/milestone views
+ * are neutral in move_logic15/22, but their enemy-entry aliases still change
+ * instruction counts or allocation (measured 2026-09-09). */
 #define ENEMY_POOL_OFF 0xE18
 #define OFF_E(field) (ENEMY_POOL_OFF + offsetof(Enemy, field))
 
-/* --- TU .bss (declaration order = address order; the compiler addresses the
- * whole block off the first symbol, lbl_80250E00 - gEnemies rides at +0xE18,
- * the world-probe hit normal enemy_wall_collp at +0x2F4). --- */
-/* NOTE: MWCC allocates .bss in REVERSE declaration order - declare in reverse
- * address order so lbl_80250E00 lands at section offset 0 (the pool anchor)
- * and gEnemies at +0xE18, matching the target's base+displacement addressing. */
+/* TU .bss objects. Under this edge, defined objects are placed at first use;
+ * otherwise-unreferenced definitions follow in reverse definition order.
+ * The historical referencer below, not declaration order alone, currently
+ * establishes the target layout. */
 Enemy gEnemies[25];            /* 0x80251C18 */
 u32 gWadAtreeHeaders[0x8B4 / 4];   /* 0x80251364 */
 s32 lbl_802512B0[45];          /* 0x802512B0 per-type spawn-allowed */
@@ -571,10 +568,11 @@ s32 lbl_80250E00[0x40 / 4];   /* 0x80250E00 enemy-type pool anchor */
 /* .bss first-use-order referencer.  MWCC allocates a bss object at the first
  * reference that is compiled with the object already defined, in first-use
  * order; everything it did not allocate that way follows in reverse definition
- * order.  In the original TU the earlier code touches the scratch arrays before
- * any gEnemies access, anchoring the pool at lbl_80250E00 with gEnemies at
- * +0xE18.  This unreferenced static reproduces that order and is stripped by
- * mwld (stripped functions still order the section).
+ * order. The original source responsible for this ordering is UNRECOVERED.
+ * Earlier discarded code is one hypothesis, not proof of this helper's
+ * provenance. This historical unreferenced static is reconstruction debt: it
+ * reproduces the order and is stripped by mwld. Its presence is not permission
+ * to add similar referencers elsewhere.
  *
  * It must stay a LEAF, and it must not create a constant: a call here gives it
  * an unwind record the linked image has none for, so the object carries one
@@ -4486,8 +4484,8 @@ void move_logic15(s32 index)
         return;
     }
     if (e->closest >= 0 && e->close_dist <= 0.8 * e->sight) {
-        f32 d = fqdist(gPlayerWords[e->closest][PW(pos)] - e->objgrp.worldmat[3][0],
-                            gPlayerWords[e->closest][PW(pos[2])] - e->objgrp.worldmat[3][2]);
+        f32 d = fqdist(gPlayers.players[e->closest].pos[0] - e->objgrp.worldmat[3][0],
+                            gPlayers.players[e->closest].pos[2] - e->objgrp.worldmat[3][2]);
         if (d <= 0.8 * e->sight) {
             e->algorithm = 0;
             do_ai(index);
@@ -4500,7 +4498,7 @@ void move_logic15(s32 index)
     }
     switch (e->mode1) {
     case 0: {
-        u8* n = sLookoutParams;
+        LookoutParam* n = (LookoutParam*)sLookoutParams;
         s32 i;
         f32 ex = e->objgrp.worldmat[3][0];
         f32 ey = e->objgrp.worldmat[3][1];
@@ -4510,11 +4508,11 @@ void move_logic15(s32 index)
         f32 thresh = 0.0f;
         f32 d;
 
-        for (i = 0; i < sNumLookoutParams; i++, n += 108) {
-            if (((LookoutParam *)n)->next >= 0) {
-                f32 dx = ((LookoutParam *)n)->worldmat[3][0] - ex;
-                f32 dy = ((LookoutParam *)n)->worldmat[3][1] - ey;
-                f32 dz = ((LookoutParam *)n)->worldmat[3][2] - ez;
+        for (i = 0; i < sNumLookoutParams; i++, n++) {
+            if (n->next >= 0) {
+                f32 dx = n->worldmat[3][0] - ex;
+                f32 dy = n->worldmat[3][1] - ey;
+                f32 dz = n->worldmat[3][2] - ez;
                 if ((d = dx * dx + dy * dy + dz * dz) > thresh) {
                     f64 y = __frsqrte(d);
                     y = 0.5 * y * (3.0 - y * y * d);
@@ -4533,19 +4531,19 @@ void move_logic15(s32 index)
         e->mode1 = 1;
     }
     case 1: {
-        u8* n = sLookoutParams + e->flag1 * 108;
+        LookoutParam* n = &((LookoutParam*)sLookoutParams)[e->flag1];
         f32 dy;
         f32 dx;
         f32 dz;
 
-        e->ang = get_yaw((f32*)(n + LOOKOUT_POS_X), &e->objgrp.worldmat[3][0]);
-        dy = ((LookoutParam *)n)->worldmat[3][1] - e->objgrp.worldmat[3][1];
-        dx = ((LookoutParam *)n)->worldmat[3][0] - e->objgrp.worldmat[3][0];
-        dz = ((LookoutParam *)n)->worldmat[3][2] - e->objgrp.worldmat[3][2];
+        e->ang = get_yaw(n->worldmat[3], &e->objgrp.worldmat[3][0]);
+        dy = n->worldmat[3][1] - e->objgrp.worldmat[3][1];
+        dx = n->worldmat[3][0] - e->objgrp.worldmat[3][0];
+        dz = n->worldmat[3][2] - e->objgrp.worldmat[3][2];
         ady = dy;
         *(u32*)&ady &= 0x7FFFFFFF;
         if (ady < 4.0 && fqdist(dx, dz) < 1.0) {
-            e->flag1 = ((LookoutParam *)n)->next;
+            e->flag1 = n->next;
         }
         break;
     }
@@ -5168,9 +5166,9 @@ void move_logic22(s32 index)
         e->mode1 = 1;
     }
     default: {
-        u8* node = sMilestones + e->flag1 * 104;
-        f32 dist = fqdist(*(f32*)(node + MILESTONE_POS_X) - e->objgrp.worldmat[3][0],
-                          *(f32*)(node + MILESTONE_POS_Z) - e->objgrp.worldmat[3][2]);
+        MilestoneParam* node = &((MilestoneParam*)sMilestones)[e->flag1];
+        f32 dist = fqdist(node->matrix[12] - e->objgrp.worldmat[3][0],
+                          node->matrix[14] - e->objgrp.worldmat[3][2]);
         if (dist <= 1.5) {
             s32 old = e->flag1;
             e->flag1 = fn_800511D0(old, 0.17453292f);
@@ -5188,10 +5186,10 @@ void move_logic22(s32 index)
         s16 c = e->closest;
         f32 f;
         if (c >= 0) {
-            if (*(s16*)&gPlayerWords[c][PW(field_A1C)] > 2) {
-                f = get_yaw(&gPlayerWords[c][PW(mikey_worldmat[3][0])], &e->objgrp.worldmat[3][0]);
+            if (gPlayers.players[c].field_A1C > 2) {
+                f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                f = get_yaw(&gPlayerWords[c][PW(pos)], &e->objgrp.worldmat[3][0]);
+                f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             f = e->ang;
