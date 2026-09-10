@@ -8283,13 +8283,13 @@ s32 fn_80051480(f32* pos)
     f32 d;
     s32 best_idx = -1;
     f32 best_dist = 100000.0f;
-    u8* node = sMilestones;
+    MilestoneParam* node = (MilestoneParam*)sMilestones;
     s32 i;
 
-    for (i = 0; i < sNumMilestones; i++, node += 104) {
-        delta[0] = pos[0] - ((MilestoneParam *)node)->objgrp.worldmat[3][0];
-        delta[1] = pos[1] - ((MilestoneParam *)node)->objgrp.worldmat[3][1];
-        delta[2] = pos[2] - ((MilestoneParam *)node)->objgrp.worldmat[3][2];
+    for (i = 0; i < sNumMilestones; i++, node++) {
+        delta[0] = pos[0] - node->objgrp.worldmat[3][0];
+        delta[1] = pos[1] - node->objgrp.worldmat[3][1];
+        delta[2] = pos[2] - node->objgrp.worldmat[3][2];
         d = delta[2] * delta[2] +
             (d = delta[0] * delta[0] + delta[1] * delta[1]);
 
