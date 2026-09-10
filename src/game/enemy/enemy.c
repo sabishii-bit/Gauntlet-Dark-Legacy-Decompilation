@@ -3512,17 +3512,7 @@ void move_logic10(s32 index)
             } else {
                 cand = lbl_80344720;
             }
-            {
-                f64 a;
-                if (cand > 3.141592654) {
-                    a = cand - 6.283185308;
-                } else if (cand <= -3.141592654) {
-                    a = 6.283185308 + cand;
-                } else {
-                    a = cand;
-                }
-                cand = a;
-            }
+            cand = enemy_normalized_heading(cand);
             probe[0] = e->objgrp.worldmat[3][0];
             probe[1] = e->objgrp.worldmat[3][1];
             probe[2] = e->objgrp.worldmat[3][2];
