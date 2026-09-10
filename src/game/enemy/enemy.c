@@ -427,8 +427,8 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold);
 f32 turn_enemy_ang(Enemy* e, f32 want);
 s32 do_ai(s32 index);
 void move_logic00(s32 index);
-void move_logic01(s32 index); void move_logic02(s32 index); void move_logic03(s32 index);
-void move_logic04(s32 index); void move_logic05(s32 index); void move_logic06(s32 index);
+void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s32 index);
+void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
 void move_logic07(s32 index); void move_logic08(s32 index); void move_logic10(s32 index);
 void move_logic12(s32 index); void move_logic13(s32 index); void move_logic14(s32 index);
 void move_logic15(s32 index); void move_logic16(s32 index); void move_logic18(s32 index);
@@ -896,9 +896,9 @@ s32 do_ai(s32 index);
 static f32 fabsf_(f32 x);
 void move_logic00(s32 index);
 void move_logic01(s32 index);
-void move_logic02(s32 index);
+void move_logic02(int index);
 void move_logic03(s32 index);
-void move_logic04(s32 index);
+void move_logic04(int index);
 void move_logic05(s32 index);
 void move_logic06(s32 index);
 void move_logic07(s32 index);
@@ -2569,45 +2569,48 @@ void move_logic01(s32 index)
     }
 }
 
+/* The retained Xbox helper and repeated GC caller expansions identify this
+ * bomber query. Its parameter/result are int, not the project's signed-long
+ * s32: equal ABI widths do not give MWCC identical inline argument lifetimes.
+ * The real three-dimensional delta replaces the callers' old frame padding.
+ * Preserve GC's early greater-than rejection, including unordered inputs. */
+static inline int FoundSuicideBomber(int num)
+{
+    Enemy* self = &gEnemies[num];
+    int it = lbl_80344748;
+
+    if (it < 0) {
+        return 0;
+    }
+    if (gEnemies[it].state != ACTIVE) {
+        return 0;
+    }
+    if (gEnemies[it].actual_dist > self->sight) {
+        return 0;
+    }
+    if (num != it && self->birth_style == 0 && self->dead_end <= 0) {
+        f32 delta[3];
+        delta[0] = gEnemies[it].objgrp.worldmat[3][0] - self->objgrp.worldmat[3][0];
+        delta[1] = gEnemies[it].objgrp.worldmat[3][1] - self->objgrp.worldmat[3][1];
+        delta[2] = gEnemies[it].objgrp.worldmat[3][2] - self->objgrp.worldmat[3][2];
+        if (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2] < 100.0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 /* move_logic02 @0x800471A4 (state 2, demon-flee-from-IT).  If the "IT" enemy is
  * active, close, at the same height and this enemy is fresh, flee it (algorithm
  * 24); once it has closed on a player switch to chase; otherwise drift on a
  * timer, wobbling the heading by pi/4 and periodically re-rolling to ON_EXIT. */
-void move_logic02(s32 index)
+void move_logic02(int index)
 {
-    u8* e0;
-    u8* base = (u8*)mbdesc;
     Enemy* e;
     s32 it;
-    s32 flee;
-    u8 unused[16];
 
-    e0 = base + (index * 916 + 3608);
-    it = lbl_80344748;
-    e = (Enemy*)e0;
-    if (it < 0) {
-        flee = 0;
-    } else {
-        u8* other = base + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
-            flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
-            flee = 0;
-        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
-            goto flee_zero;
-        } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    e = &gEnemies[index];
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
@@ -2719,41 +2722,12 @@ void move_logic03(s32 index)
 /* move_logic04 @0x800475FC (state 4, sibling of move_logic02).  Same IT-flee /
  * chase gating, but the drift-timer wobbles the heading the other way (-pi/4)
  * and, on expiry, rolls to the ON_EXIT taunt (algorithm/old_ai = 2, play = 4). */
-void move_logic04(s32 index)
+void move_logic04(int index)
 {
-    u8* e0;
-    u8* base = (u8*)mbdesc;
     Enemy* e;
-    s32 it;
-    s32 flee;
-    u8 unused[16];
 
-    e0 = base + (index * 916 + 3608);
-    it = lbl_80344748;
-    e = (Enemy*)e0;
-    if (it < 0) {
-        flee = 0;
-    } else {
-        u8* other = base + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
-            flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
-            flee = 0;
-        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
-            goto flee_zero;
-        } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    e = &gEnemies[index];
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
