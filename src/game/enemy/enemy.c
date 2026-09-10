@@ -3426,9 +3426,7 @@ void move_logic10(int index)
     update_enemy_milestone(e);
     switch (e->mode1) {
     case 0: {
-        s32 skip;
-        skip = logic10_attacking(index);
-        if (skip != 0) {
+        if (logic10_attacking(index) != 0) {
             return;
         }
         if (e->algorithm != e->prev_ai) {
@@ -3511,9 +3509,7 @@ void move_logic10(int index)
         break;
     }
     case 1: {
-        s32 skip;
-        skip = logic10_attacking(index);
-        if (skip != 0) {
+        if (logic10_attacking(index) != 0) {
             return;
         }
         if (e->algorithm != e->prev_ai) {
