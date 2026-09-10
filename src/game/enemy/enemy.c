@@ -6811,34 +6811,17 @@ s32 check_vacancy(s32 index, f32* pos)
     return -1;
 }
 
-/* Addressing view over the existing enemy BSS symbols, not new storage.
- * Offsets are relative to mbdesc; the arrays below start at +0x348,
- * +0x3FC, +0x4B0, +0x564 and +0xE18 respectively. Keeping the actual pool
- * owner explicit avoids a second compiler-created base for the spawn path. */
-typedef struct EnemySpawnPoolView {
-    u8 _000[0x348];
-    s32 lbl_80251148[45];
-    s32 lbl_802511FC[45];
-    s32 lbl_802512B0[45];
-    u32 gWadAtreeHeaders[0x8B4 / 4];
-    Enemy gEnemies[25];
-} EnemySpawnPoolView;
-
 /* generate_enemy @0x8004F4B4 (global).  Spawn an enemy of `type` at `pos`:
  * validate world/boss state and per-type limits, resolve random types
  * (-2/-3), take a slot, then for generator spawns search the 8 (or 2)
  * directions around the generator for a free position; finish by claiming
  * the grid cell, starting the E_START anim and the generator fx.
  *
- * The target retains the BSS row address and its advance to the gEnemies
- * member as one register lifetime.  MWCC's default lifetime split folds the
- * member offset into a temporary and changes four words; this local pragma
- * preserves the target's single cursor without changing the TU-wide flags. */
-#pragma opt_lifetimes off
+ * The arrays and enemy records below are separate BSS objects. Their shared
+ * target addressing base does not imply a source-level containing struct. */
 s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
                    struct Item* gen, s32 imp, f32 ang)
 {
-    EnemySpawnPoolView* pool = (EnemySpawnPoolView*)mbdesc;
     Enemy* e;
     s32 slot;
     s32 otype;
@@ -6881,10 +6864,10 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         return -6;
     }
     if (type != 30 && type != 31) {
-        if (pool->lbl_802512B0[type] < 0) {
+        if (lbl_802512B0[type] < 0) {
             return -5;
         }
-        if (pool->lbl_802511FC[type] == 4 && level < 4) {
+        if (lbl_802511FC[type] == 4 && level < 4) {
             return -5;
         }
     }
@@ -6893,8 +6876,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         return -2;
     }
     init_enemy(slot, pos, type, level, spew);
-    e = (Enemy*)((u8*)pool + slot * sizeof(Enemy));
-    e = (Enemy*)((u8*)e + offsetof(EnemySpawnPoolView, gEnemies));
+    e = &gEnemies[slot];
     e->generator = gen;
     if (gen == 0 || type == 30) {
         e->genang_offset = 0.0f;
@@ -6987,12 +6969,11 @@ placed:
             InitAnim(0.0f, &e->atree.animinfo, animation, 0, 1);
         }
     }
-    if (e->hht > 2.0 && level <= 3 && pool->lbl_80251148[type] != 0) {
+    if (e->hht > 2.0 && level <= 3 && lbl_80251148[type] != 0) {
         StartGenFX(pos, level);
     }
     return slot;
 }
-#pragma opt_lifetimes reset
 
 /* Resolve the generator/spew class shared by groups of enemy types. */
 s32 fn_8004F87C(s32 type, s32 level, s32 spew)
