@@ -2797,9 +2797,8 @@ void move_logic04(s32 index)
 #pragma opt_propagation off
 void move_logic05(s32 index)
 {
-    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
-    u8* e0;
+    Enemy* e0;
     s32 it = lbl_80344748;
     s32 type;
     f32 dist;
@@ -2810,25 +2809,24 @@ void move_logic05(s32 index)
     f32 probeEnd[3];
     u8 _pad05[56];
 
-    e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 += ENEMY_POOL_OFF);
-    e = (Enemy*)e0;
+    e0 = &gEnemies[index];
+    type = e0->type;
+    e = e0;
     dist = e->rad;
-    speed = page->speed[type];
+    speed = lbl_80250E40[type];
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = (u8*)page + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
+        if (gEnemies[it].state != ACTIVE) {
             flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > e->sight) {
+        } else if (gEnemies[it].actual_dist > e->sight) {
             flee = 0;
         } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero05;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
+            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e0->objgrp.worldmat[3][0];
+            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e0->objgrp.worldmat[3][1];
+            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e0->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2862,9 +2860,9 @@ void move_logic05(s32 index)
             }
         }
     }
-    probe[0] = ((Enemy *)e0)->objgrp.worldmat[3][0];
-    probe[1] = ((Enemy *)e0)->objgrp.worldmat[3][1];
-    probe[2] = ((Enemy *)e0)->objgrp.worldmat[3][2];
+    probe[0] = e0->objgrp.worldmat[3][0];
+    probe[1] = e0->objgrp.worldmat[3][1];
+    probe[2] = e0->objgrp.worldmat[3][2];
     probe[1] += 0.1 + e->rad;
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
@@ -2920,9 +2918,8 @@ void move_logic05(s32 index)
 #pragma opt_propagation off
 void move_logic06(s32 index)
 {
-    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
-    u8* e0;
+    Enemy* e0;
     s32 it = lbl_80344748;
     s32 type;
     f32 dist;
@@ -2933,25 +2930,24 @@ void move_logic06(s32 index)
     f32 probeEnd[3];
     u8 _pad06[56];
 
-    e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 += ENEMY_POOL_OFF);
-    e = (Enemy*)e0;
+    e0 = &gEnemies[index];
+    type = e0->type;
+    e = e0;
     dist = e->rad;
-    speed = page->speed[type];
+    speed = lbl_80250E40[type];
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = (u8*)page + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
+        if (gEnemies[it].state != ACTIVE) {
             flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > e->sight) {
+        } else if (gEnemies[it].actual_dist > e->sight) {
             flee = 0;
         } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
             goto flee_zero06;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
+            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e0->objgrp.worldmat[3][0];
+            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e0->objgrp.worldmat[3][1];
+            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e0->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -2985,9 +2981,9 @@ void move_logic06(s32 index)
             }
         }
     }
-    probe[0] = ((Enemy *)e0)->objgrp.worldmat[3][0];
-    probe[1] = ((Enemy *)e0)->objgrp.worldmat[3][1];
-    probe[2] = ((Enemy *)e0)->objgrp.worldmat[3][2];
+    probe[0] = e0->objgrp.worldmat[3][0];
+    probe[1] = e0->objgrp.worldmat[3][1];
+    probe[2] = e0->objgrp.worldmat[3][2];
     probe[1] += 0.1 + e->rad;
     probeEnd[0] = probe[0];
     probeEnd[1] = probe[1];
@@ -3045,42 +3041,37 @@ void move_logic06(s32 index)
 #pragma opt_propagation off
 void move_logic07(s32 index)
 {
-    u8* tbl = (u8*)lbl_8011AF48;
-    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
-    u8* e0;
+    Enemy* e0;
     s32 it = lbl_80344748;
     s32 type;
     f32 speed;
     s32 flee;
     s32 found = 0;
     f32 cand;
-    f32* q;
     f32 probe[3];
     u8 unusedA[20];
     f32 d1;
     f32 d2;
     u8 unusedB[16];
 
-    e0 = (u8*)page + index * 916;
-    type = ((Enemy *)(e0 + ENEMY_POOL_OFF))->type;
-    e0 += ENEMY_POOL_OFF;
-    e = (Enemy*)(u8*)e0;
-    speed = page->speed[type];
+    e0 = &gEnemies[index];
+    type = e0->type;
+    e = e0;
+    speed = lbl_80250E40[type];
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = (u8*)page + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
+        if (gEnemies[it].state != ACTIVE) {
             flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
+        } else if (gEnemies[it].actual_dist > e0->sight) {
             flee = 0;
-        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
+        } else if (index == it || e0->birth_style != 0 || e0->dead_end > 0) {
             goto flee_zero07;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
+            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e0->objgrp.worldmat[3][0];
+            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e0->objgrp.worldmat[3][1];
+            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e0->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3130,22 +3121,18 @@ void move_logic07(s32 index)
                 e->route = fn_8004CE38(e);
             }
             if (e->route > 0) {
-                q = (f32*)(tbl + col * 4);
-                cand = cand + q[1111];
+                cand = cand + lbl_8011C0A4[col];
             } else {
-                q = (f32*)(tbl + col * 4);
-                cand = cand - q[1111];
+                cand = cand - lbl_8011C0A4[col];
             }
         } else if (e->coll_ip != 0 || e->coll_enenum >= 0) {
             s32 col2;
             cand = e->ang;
             col2 = e->collided;
             if (e->route > 0) {
-                q = (f32*)(tbl + col2 * 4);
-                cand = cand + q[1111];
+                cand = cand + lbl_8011C0A4[col2];
             } else {
-                q = (f32*)(tbl + col2 * 4);
-                cand = cand - q[1111];
+                cand = cand - lbl_8011C0A4[col2];
             }
         } else {
             cand = lbl_80344720;
@@ -3208,42 +3195,37 @@ void move_logic07(s32 index)
 #pragma opt_propagation off
 void move_logic08(s32 index)
 {
-    u8* tbl = (u8*)lbl_8011AF48;
-    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
-    u8* e0;
+    Enemy* e0;
     s32 it = lbl_80344748;
     s32 type;
     f32 speed;
     s32 flee;
     s32 found = 0;
     f32 cand;
-    f32* q;
     f32 probe[3];
     u8 unusedA[20];
     f32 d1;
     f32 d2;
     u8 unusedB[16];
 
-    e0 = (u8*)page + index * 916;
-    type = ((Enemy *)(e0 + ENEMY_POOL_OFF))->type;
-    e0 += ENEMY_POOL_OFF;
-    e = (Enemy*)(u8*)e0;
-    speed = page->speed[type];
+    e0 = &gEnemies[index];
+    type = e0->type;
+    e = e0;
+    speed = lbl_80250E40[type];
     if (it < 0) {
         flee = 0;
     } else {
-        u8* other = (u8*)page + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
+        if (gEnemies[it].state != ACTIVE) {
             flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
+        } else if (gEnemies[it].actual_dist > e0->sight) {
             flee = 0;
-        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
+        } else if (index == it || e0->birth_style != 0 || e0->dead_end > 0) {
             goto flee_zero08;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
+            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e0->objgrp.worldmat[3][0];
+            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e0->objgrp.worldmat[3][1];
+            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e0->objgrp.worldmat[3][2];
             if (dx * dx + dy * dy + dz * dz < 100.0) {
                 flee = -1;
             } else {
@@ -3322,22 +3304,18 @@ void move_logic08(s32 index)
                     e->route = fn_8004CE38(e);
                 }
                 if (e->route > 0) {
-                    q = (f32*)(tbl + col * 4);
-                    cand = cand + q[1103];
+                    cand = cand + lbl_8011C084[col];
                 } else {
-                    q = (f32*)(tbl + col * 4);
-                    cand = cand - q[1103];
+                    cand = cand - lbl_8011C084[col];
                 }
             } else if (ip != 0 || e->coll_enenum >= 0) {
                 s32 col2;
                 cand = e->ang;
                 col2 = e->collided;
                 if (e->route > 0) {
-                    q = (f32*)(tbl + col2 * 4);
-                    cand = cand + q[1103];
+                    cand = cand + lbl_8011C084[col2];
                 } else {
-                    q = (f32*)(tbl + col2 * 4);
-                    cand = cand - q[1103];
+                    cand = cand - lbl_8011C084[col2];
                 }
             } else {
                 cand = lbl_80344720;
