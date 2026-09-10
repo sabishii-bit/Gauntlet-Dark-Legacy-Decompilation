@@ -4861,8 +4861,11 @@ void move_logic22(s32 index)
         e->mode1 = 1;
     }
     default: {
-        MilestoneParam* node = &((MilestoneParam*)sMilestones)[e->flag1];
-        f32 dist = fqdist(node->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0],
+        MilestoneParam* node = (MilestoneParam*)sMilestones;
+        f32 dist;
+
+        node += e->flag1;
+        dist = fqdist(node->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0],
                           node->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2]);
         if (dist <= 1.5) {
             s32 old = e->flag1;
