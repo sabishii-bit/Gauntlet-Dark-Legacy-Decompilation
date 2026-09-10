@@ -5,7 +5,7 @@
 #include "game/worldcol.h"
 #include "game/dyngrid.h"
 #include "game/leveldata.h"
-#include "game/mbobject.h"
+#include "game/mbnode.h"
 #include "game/player.h"
 
 /* ENEMY.OBJ owns the parallel type tables at 0x8011AF48..0x8011BFF8.
@@ -1419,9 +1419,9 @@ void do_enemy_move(s32 index)
         CreateYPRMatrix(mat, e->pyr);
         CopyMat3(mat, &e->objgrp.worldmat[0][0]);
         if (e->shadow != 0) {
-            ((MBObject *)e->shadow)->mat[3][0] = e->objgrp.worldmat[3][0];
-            ((MBObject *)e->shadow)->mat[3][1] = e->objgrp.worldmat[3][1];
-            ((MBObject *)e->shadow)->mat[3][2] = e->objgrp.worldmat[3][2];
+            e->shadow->mat[3][0] = e->objgrp.worldmat[3][0];
+            e->shadow->mat[3][1] = e->objgrp.worldmat[3][1];
+            e->shadow->mat[3][2] = e->objgrp.worldmat[3][2];
             if (e->action == 1) {
                 MBTreeSetFlags(e->shadow, 2, 0);
             } else {
@@ -6182,9 +6182,9 @@ void do_enemies(void)
                 }
             sync:
                 if (e->shadow != 0) {
-                    ((MBObject *)e->shadow)->mat[3][0] = e->objgrp.worldmat[3][0];
-                    ((MBObject *)e->shadow)->mat[3][1] = e->objgrp.worldmat[3][1];
-                    ((MBObject *)e->shadow)->mat[3][2] = e->objgrp.worldmat[3][2];
+                    e->shadow->mat[3][0] = e->objgrp.worldmat[3][0];
+                    e->shadow->mat[3][1] = e->objgrp.worldmat[3][1];
+                    e->shadow->mat[3][2] = e->objgrp.worldmat[3][2];
                 }
                 break;
             case 0:
@@ -6237,28 +6237,28 @@ void do_enemies(void)
                 if ((f64)lbl_803447D8 != 1.0) {
                     if (e->objgrp.node != 0) {
                         MBTreeSetFlags(e->objgrp.node, 8, 0);
-                        ((MBObject *)e->objgrp.node)->scale[0] = lbl_803447D8;
-                        ((MBObject *)e->objgrp.node)->scale[1] = lbl_803447D8;
-                        ((MBObject *)e->objgrp.node)->scale[2] = lbl_803447D8;
+                        e->objgrp.node->scale[0] = lbl_803447D8;
+                        e->objgrp.node->scale[1] = lbl_803447D8;
+                        e->objgrp.node->scale[2] = lbl_803447D8;
                     }
                     if (e->shadow != 0) {
                         MBTreeSetFlags(e->shadow, 8, 0);
-                        ((MBObject *)e->shadow)->scale[0] = lbl_803447D8;
-                        ((MBObject *)e->shadow)->scale[1] = lbl_803447D8;
-                        ((MBObject *)e->shadow)->scale[2] = lbl_803447D8;
+                        e->shadow->scale[0] = lbl_803447D8;
+                        e->shadow->scale[1] = lbl_803447D8;
+                        e->shadow->scale[2] = lbl_803447D8;
                     }
                 } else {
                     if (e->objgrp.node != 0) {
                         MBTreeClearFlags(e->objgrp.node, 8, 0);
-                        ((MBObject *)e->objgrp.node)->scale[0] = 1.0f;
-                        ((MBObject *)e->objgrp.node)->scale[1] = 1.0f;
-                        ((MBObject *)e->objgrp.node)->scale[2] = 1.0f;
+                        e->objgrp.node->scale[0] = 1.0f;
+                        e->objgrp.node->scale[1] = 1.0f;
+                        e->objgrp.node->scale[2] = 1.0f;
                     }
                     if (e->shadow != 0) {
                         MBTreeClearFlags(e->shadow, 8, 0);
-                        ((MBObject *)e->shadow)->scale[0] = 1.0f;
-                        ((MBObject *)e->shadow)->scale[1] = 1.0f;
-                        ((MBObject *)e->shadow)->scale[2] = 1.0f;
+                        e->shadow->scale[0] = 1.0f;
+                        e->shadow->scale[1] = 1.0f;
+                        e->shadow->scale[2] = 1.0f;
                     }
                 }
             }
@@ -7745,15 +7745,12 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
     e->floory = e->objgrp.worldmat[3][1];
     if (e->shadow != NULL) {
-        /* Park the shadow node on the body node's world translation.  Each row
-         * element re-casts both node pointers rather than caching one typed
-         * alias: the target reloads them per statement (lwz 100/476 before
-         * every lfs/stfs pair), exactly as
-         * claim.law.write-site-alias-defeats-reload-parity prescribes for this
-         * shape - the same three-write mat[3][*] block it was recorded on. */
-        ((MBObject*)e->shadow)->mat[3][0] = ((MBObject*)e->objgrp.node)->mat[3][0];
-        ((MBObject*)e->shadow)->mat[3][1] = ((MBObject*)e->objgrp.node)->mat[3][1];
-        ((MBObject*)e->shadow)->mat[3][2] = ((MBObject*)e->objgrp.node)->mat[3][2];
+        /* Park the shadow on the body node's world translation. The target
+         * reloads both node fields for each component; ordinary mbnode field
+         * access preserves those loads without unrelated pointer casts. */
+        e->shadow->mat[3][0] = e->objgrp.node->mat[3][0];
+        e->shadow->mat[3][1] = e->objgrp.node->mat[3][1];
+        e->shadow->mat[3][2] = e->objgrp.node->mat[3][2];
     }
     if (e->atree.root != NULL) {
         AnimateATree(&e->atree, 0, 2);
@@ -8148,8 +8145,8 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
         object = MBOX_ReallyFindObject(lbl_8011BFF8[level],
                                        shadowObject, shadowObject, 1);
         enemy->shadow = MBNewObject(object, (f32*)gIdentityMatrix, 0, 2176);
-        ((MBObject*)enemy->shadow)->zsort_add = 3.0f;
-        ((MBObject*)enemy->shadow)->zmod = -32;
+        enemy->shadow->zsort_add = 3.0f;
+        enemy->shadow->zmod = -32;
     }
 }
 
