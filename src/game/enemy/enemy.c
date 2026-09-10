@@ -1295,9 +1295,9 @@ void do_enemy_move(int index)
             e->trans[2] = 0.0f;
             fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
             if (alg == 0) {
-                if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
+                if (e->coll_ip->objgrp.node != 0) {
                     e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
-                                           (f32*)((u8*)e->coll_ip + 52));
+                                           e->coll_ip->objgrp.worldmat[3]);
                 }
                 if (e->dead_end <= 0) {
                     e->dead_end = 60;
@@ -1307,10 +1307,10 @@ void do_enemy_move(int index)
                 }
             } else if (alg == 7 || alg == 8 || alg == 10 || alg == 20) {
                 const Enemy* contactOwner = e;
-                if (*(u32*)((u8*)e->coll_ip + 100) != 0) {
+                if (e->coll_ip->objgrp.node != 0) {
                     if (e->route == 0 || ABS_REVERSED(e->route) > 2) {
                         e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
-                                               (f32*)((u8*)contactOwner->coll_ip + 52));
+                                               contactOwner->coll_ip->objgrp.worldmat[3]);
                         e->collided = 0;
                     }
                     if (alg == 7) {
