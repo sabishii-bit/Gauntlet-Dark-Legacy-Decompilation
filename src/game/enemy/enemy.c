@@ -8687,7 +8687,7 @@ s32 fn_80051480(f32* pos)
 #pragma opt_propagation off
 void fn_80051568(s32 index)
 {
-    u8* e = (u8*)gEnemies + index * 916;
+    Enemy* e = &gEnemies[index];
     s32 i;
     Item* it;
     iteminfo* hdr;
@@ -8701,17 +8701,17 @@ void fn_80051568(s32 index)
     u8 _spare[24];
     u8 unused[8];
 
-    if (*(s16*)(e + offsetof(Enemy, closest)) >= 0 &&
-        *(f32*)(e + offsetof(Enemy, actual_dist)) <= 14.0) {
-        *(s32*)(e + offsetof(Enemy, guard_mode)) = 0;
-        *(s32*)(e + offsetof(Enemy, guard_closest)) = -1;
-        *(f32*)(e + offsetof(Enemy, guard_dist)) = 100000.0f;
+    if (e->closest >= 0 &&
+        e->actual_dist <= 14.0) {
+        e->guard_mode = 0;
+        e->guard_closest = -1;
+        e->guard_dist = 100000.0f;
         return;
     }
-    if (*(s32*)(e + offsetof(Enemy, guard_mode)) != 0) {
+    if (e->guard_mode != 0) {
         return;
     }
-    StartEnemyGrid((f32*)(e + offsetof(Enemy, objgrp.worldmat[3])), 20.0f);
+    StartEnemyGrid(e->objgrp.worldmat[3], 20.0f);
     kZero = 0.0f;
     kHalf = 0.5;
     kThree = 3.0;
@@ -8727,9 +8727,9 @@ void fn_80051568(s32 index)
         if (it->minoff != 0) {
             continue;
         }
-        dx = it->objgrp.worldmat[3][0] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][0]));
-        dy = it->objgrp.worldmat[3][1] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1]));
-        dz = it->objgrp.worldmat[3][2] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][2]));
+        dx = it->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
+        dy = it->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
+        dz = it->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
         dist2 = dx * dx + dy * dy + dz * dz;
         if (dist2 > kZero) {
             volatile f32 tmp;
@@ -8741,10 +8741,10 @@ void fn_80051568(s32 index)
             tmp = dist2;
             dist2 = tmp;
         }
-        if (dist2 < *(f32*)(e + offsetof(Enemy, guard_dist))) {
-            *(f32*)(e + offsetof(Enemy, guard_dist)) = dist2;
-            *(s32*)(e + offsetof(Enemy, guard_closest)) = i;
-            *(s32*)(e + offsetof(Enemy, guard_mode)) = 1;
+        if (dist2 < e->guard_dist) {
+            e->guard_dist = dist2;
+            e->guard_closest = i;
+            e->guard_mode = 1;
         }
     }
 }
@@ -8772,8 +8772,8 @@ void fn_80051568(s32 index)
 void fn_800516F8(s32 slot)
 {
     u8 unused[4];
-    u8* p;
-    u8* e;
+    Player* p;
+    Enemy* e;
     s32 i;
     s32 t;
     f64 kK;
@@ -8787,57 +8787,57 @@ void fn_800516F8(s32 slot)
     f32 ad;
     volatile f32 distanceScratch0, distanceScratch1, distanceScratch2, distanceScratch3;
 
-    e = (u8*)gEnemies + slot * 916;
+    e = &gEnemies[slot];
     bestSpecial = 100000.0f;
 
-    for (i = 0, p = (u8*)gPlayers.players; i < 4; i++, p += 13148) {
-        if (((Player *)p)->state == 1) {
+    for (i = 0, p = gPlayers.players; i < 4; i++, p++) {
+        if (p->state == 1) {
             break;
         }
     }
     if (i >= 4) {
-        *(s16*)(e + offsetof(Enemy, recognized)) = 0;
+        e->recognized = 0;
     }
 
     t = lbl_80344B24;
     if (t >= 0 && gPlayers.players[t].state == ACTIVE &&
         !(gPlayers.players[t].flags & 4) &&
-        !(*(s32*)e == 30 && (gPlayers.players[t].shield_flags & 0x80000))) {
-        u8* q;
-        *(s16*)(e + offsetof(Enemy, prev_closest)) = *(s16*)(e + offsetof(Enemy, closest));
-        *(s16*)(e + offsetof(Enemy, closest)) = (s16)lbl_80344B24;
-        q = (u8*)gPlayers.players + lbl_80344B24 * 13148;
+        !(e->type == 30 && (gPlayers.players[t].shield_flags & 0x80000))) {
+        Player* q;
+        e->prev_closest = e->closest;
+        e->closest = (s16)lbl_80344B24;
+        q = &gPlayers.players[lbl_80344B24];
         {
             f32 fd;
-            if (((Player *)q)->field_A1C > 2) {
-                ENEMY_DISTANCE3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, mikey_coll_pos)),
+            if (q->field_A1C > 2) {
+                ENEMY_DISTANCE3(fd, e->objgrp.coll_pos, q->mikey_coll_pos,
                                 0.0f, 0.5, 3.0, distanceScratch0);
             } else {
-                ENEMY_DISTANCE3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
+                ENEMY_DISTANCE3(fd, e->objgrp.coll_pos, q->effectpos,
                                 0.0f, 0.5, 3.0, distanceScratch1);
             }
-            *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
+            e->actual_dist = fd;
         }
-        *(f32*)(e + offsetof(Enemy, close_dist)) = *(f32*)(e + offsetof(Enemy, actual_dist)) +
+        e->close_dist = e->actual_dist +
                            gPlayers.players[lbl_80344B24].dist_offset;
     } else {
         s32 go = 1;
         s32 cur;
-        if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + offsetof(Enemy, closest)) >= 0) {
+        if ((lbl_80344800 & 7) != (slot & 7) && e->closest >= 0) {
             go = 0;
         }
-        cur = *(s16*)(e + offsetof(Enemy, closest));
+        cur = e->closest;
         if ((s16)cur >= 0 &&
             gPlayers.players[cur].state != ACTIVE) {
             go = -1;
         }
         if (go != 0) {
-            *(s16*)(e + offsetof(Enemy, prev_closest)) = (s16)cur;
-            *(s16*)(e + offsetof(Enemy, closest)) = -1;
-            *(f32*)(e + offsetof(Enemy, close_dist)) = 100000.0f;
-            *(f32*)(e + offsetof(Enemy, actual_dist)) = 100000.0f;
-            if (*(s32*)e == 30) {
-                *(s32*)(e + offsetof(Enemy, counter2)) = -1;
+            e->prev_closest = (s16)cur;
+            e->closest = -1;
+            e->close_dist = 100000.0f;
+            e->actual_dist = 100000.0f;
+            if (e->type == 30) {
+                e->counter2 = -1;
             }
             kPi = 3.141592654;
             kK = 5.0;
@@ -8845,70 +8845,70 @@ void fn_800516F8(s32 slot)
             kHalf = 0.5;
             kThree = 3.0;
             {
-                for (; i < 4; i++, p += 13148) {
-                    if (((Player *)p)->state != 1) {
+                for (; i < 4; i++, p++) {
+                    if (p->state != 1) {
                         continue;
                     }
-                    if (((Player *)p)->flags & 4) {
+                    if (p->flags & 4) {
                         continue;
                     }
                     {
                         f32 measuredDistance;
-                        if (((Player *)p)->field_A1C > 2) {
-                            ENEMY_DISTANCE3(measuredDistance, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, mikey_coll_pos)),
+                        if (p->field_A1C > 2) {
+                            ENEMY_DISTANCE3(measuredDistance, e->objgrp.coll_pos, p->mikey_coll_pos,
                                             kZero, kHalf, kThree, distanceScratch2);
                         } else {
-                            ENEMY_DISTANCE3(measuredDistance, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
+                            ENEMY_DISTANCE3(measuredDistance, e->objgrp.coll_pos, p->effectpos,
                                             kZero, kHalf, kThree, distanceScratch3);
                         }
                         range = dist = measuredDistance;
                     }
-                    if (range > *(f32*)(e + offsetof(Enemy, sight))) {
+                    if (range > e->sight) {
                         continue;
                     }
-                    if (*(s32*)e == 30 && (((Player *)p)->shield_flags & 0x80000)) {
+                    if (e->type == 30 && (p->shield_flags & 0x80000)) {
                         if (range < bestSpecial) {
                             bestSpecial = range;
-                            *(s32*)(e + offsetof(Enemy, counter2)) = i;
+                            e->counter2 = i;
                         }
                         continue;
                     }
-                    if (range > kK * *(f32*)(e + offsetof(Enemy, rad))) {
-                        range += ((Player*)p)->dist_offset;
+                    if (range > kK * e->rad) {
+                        range += p->dist_offset;
                     }
-                    if (!(range < *(f32*)(e + offsetof(Enemy, close_dist)))) {
+                    if (!(range < e->close_dist)) {
                         continue;
                     }
-                    if (*(f32*)(e + offsetof(Enemy, view)) < kPi) {
-                        ad = get_yaw((f32*)(p + offsetof(Player, effectpos)), (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos))) -
-                             *(f32*)(e + offsetof(Enemy, pyr) + 4);
+                    if (e->view < kPi) {
+                        ad = get_yaw(p->effectpos, e->objgrp.coll_pos) -
+                             e->pyr[1];
                         *(u32*)&ad &= 0x7FFFFFFF;
-                        if (ad > *(f32*)(e + offsetof(Enemy, view))) {
+                        if (ad > e->view) {
                             continue;
                         }
                     }
-                    *(f32*)(e + offsetof(Enemy, close_dist)) = range;
-                    *(f32*)(e + offsetof(Enemy, actual_dist)) = dist;
-                    *(s16*)(e + offsetof(Enemy, closest)) = (s16)i;
+                    e->close_dist = range;
+                    e->actual_dist = dist;
+                    e->closest = (s16)i;
                 }
             }
         }
     }
 
-    if (*(s16*)(e + offsetof(Enemy, closest)) >= 0) {
-        if (*(f32*)(e + offsetof(Enemy, actual_dist)) <= *(f32*)(e + offsetof(Enemy, sight))) {
+    if (e->closest >= 0) {
+        if (e->actual_dist <= e->sight) {
             Player* base;
-            *(s16*)(e + offsetof(Enemy, recognized)) = 1;
+            e->recognized = 1;
             base = gPlayers.players;
-            base[*(s16*)(e + offsetof(Enemy, closest))].num_approaching++;
+            base[e->closest].num_approaching++;
             {
-                u8* r = (u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148;
-                ((Player*)r)->dist_offset += 2.0;
+                Player* r = &base[e->closest];
+                r->dist_offset += 2.0;
             }
         }
     } else {
-        *(f32*)(e + offsetof(Enemy, actual_dist)) = 100000.0f;
-        *(f32*)(e + offsetof(Enemy, close_dist)) = 100000.0f;
+        e->actual_dist = 100000.0f;
+        e->close_dist = 100000.0f;
     }
 }
 
