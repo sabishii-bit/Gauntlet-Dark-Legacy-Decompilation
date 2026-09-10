@@ -8333,6 +8333,27 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
 }
 #pragma opt_propagation reset
 
+/* The target expands the same four-step square-root kernel at each
+ * distance site, including a volatile float rounding store/reload. This
+ * is the operation also described by MSL's sqrtf_accurate, not a request
+ * for an arbitrary native sqrt implementation with different rounding. */
+static inline f32 enemy_distance_sqrt(f32 x)
+{
+    volatile f32 y;
+
+    if (x > 0.0f) {
+        f64 guess = __frsqrte((f64)x);
+
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        y = (f32)(x * guess);
+        return y;
+    }
+    return x;
+}
+
 s32 fn_80051480(f32* pos)
 {
     f32 delta[3];
@@ -8349,15 +8370,7 @@ s32 fn_80051480(f32* pos)
         d = delta[2] * delta[2] +
             (d = delta[0] * delta[0] + delta[1] * delta[1]);
 
-        if (d > 0.0f) {
-            volatile f32 tmp;
-            f64 y = __frsqrte(d);
-            y = 0.5 * y * (3.0 - y * y * d);
-            y = 0.5 * y * (3.0 - y * y * d);
-            y = 0.5 * y * (3.0 - y * y * d);
-            tmp = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
-            d = tmp;
-        }
+        d = enemy_distance_sqrt(d);
         if (d < best_dist) {
             best_idx = i;
             best_dist = d;
@@ -8431,27 +8444,6 @@ void fn_80051568(s32 index)
     }
 }
 #pragma opt_propagation reset
-
-/* The target expands the same four-step square-root kernel at each
- * distance site, including a volatile float rounding store/reload. This
- * is the operation also described by MSL's sqrtf_accurate, not a request
- * for an arbitrary native sqrt implementation with different rounding. */
-static inline f32 enemy_distance_sqrt(f32 x)
-{
-    volatile f32 y;
-
-    if (x > 0.0f) {
-        f64 guess = __frsqrte((f64)x);
-
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        y = (f32)(x * guess);
-        return y;
-    }
-    return x;
-}
 
 /* Xbox retains calc_enemy_to_player_distance(Enemy*, Player*). The GC
  * selector uses the same live-mikey choice and collision-position fields.
