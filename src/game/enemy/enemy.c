@@ -5651,13 +5651,16 @@ s32 fn_8004CFAC(f32* pos, f32* target)
     if (dx >= dz) {
         if (z < targetZ) {
             return 1;
+        } else {
+            return -1;
         }
-        return -1;
+    } else {
+        if (x < targetX) {
+            return -1;
+        } else {
+            return 1;
+        }
     }
-    if (x < targetX) {
-        return -1;
-    }
-    return 1;
 }
 
 /* Arm an enemy's dead-end timer and clear blocked desired actions. */
