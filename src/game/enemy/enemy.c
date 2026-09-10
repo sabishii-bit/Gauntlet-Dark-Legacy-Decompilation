@@ -3346,7 +3346,8 @@ static inline int set_turn_to_ms(Enemy* e)
     f32 trans[3];
     f32 len_r;
     f32 dtrans[3];
-    f32 angle;
+    f32 right_angle;
+    f32 left_angle;
 
     GetMilestonePos(e->plr_ms, mpos);
     dtrans[0] = e->objgrp.worldmat[3][0] - mpos[0];
@@ -3358,10 +3359,10 @@ static inline int set_turn_to_ms(Enemy* e)
         } else if (a <= -3.141592654) {
             a = 6.283185308 + a;
         }
-        angle = a;
+        right_angle = a;
     }
-    trans[0] = sin(angle);
-    trans[2] = cos(angle);
+    trans[0] = sin(right_angle);
+    trans[2] = cos(right_angle);
     trans[0] += dtrans[0];
     trans[2] += dtrans[2];
     len_r = fqdist(trans[0], trans[2]);
@@ -3372,10 +3373,10 @@ static inline int set_turn_to_ms(Enemy* e)
         } else if (a <= -3.141592654) {
             a = 6.283185308 + a;
         }
-        angle = a;
+        left_angle = a;
     }
-    trans[0] = sin(angle);
-    trans[2] = cos(angle);
+    trans[0] = sin(left_angle);
+    trans[2] = cos(left_angle);
     trans[0] += dtrans[0];
     trans[2] += dtrans[2];
     return fqdist(trans[0], trans[2]) <= len_r ? -1 : 1;
