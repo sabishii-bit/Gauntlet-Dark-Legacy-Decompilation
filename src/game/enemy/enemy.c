@@ -431,7 +431,7 @@ void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s3
 void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
 void move_logic07(s32 index); void move_logic08(s32 index); void move_logic10(s32 index);
 void move_logic12(s32 index); void move_logic13(s32 index); void move_logic14(int index);
-void move_logic15(s32 index); void move_logic16(s32 index); void move_logic18(s32 index);
+void move_logic15(int index); void move_logic16(s32 index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
 void move_logic22(s32 index); void move_logic23(s32 index); void move_logic24(s32 index);
 void move_logic28(s32 index); void move_logic29(s32 index); void move_logic30(s32 index);
@@ -907,7 +907,7 @@ void move_logic10(s32 index);
 void move_logic12(s32 index);
 void move_logic13(s32 index);
 void move_logic14(int index);
-void move_logic15(s32 index);
+void move_logic15(int index);
 void move_logic16(s32 index);
 void move_logic18(s32 index);
 void move_logic19(s32 index);
@@ -2366,6 +2366,27 @@ static inline f32 enemy_normalized_heading(f32 a)
 {
     return a > 3.141592654 ? a - 6.283185308 :
           (a <= -3.141592654 ? 6.283185308 + a : a);
+}
+
+/* The target expands the same four-step square-root kernel at each
+ * distance site, including a volatile float rounding store/reload. This
+ * is the operation also described by MSL's sqrtf_accurate, not a request
+ * for an arbitrary native sqrt implementation with different rounding. */
+static inline f32 enemy_distance_sqrt(f32 x)
+{
+    volatile f32 y;
+
+    if (x > 0.0f) {
+        f64 guess = __frsqrte((f64)x);
+
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        y = (f32)(x * guess);
+        return y;
+    }
+    return x;
 }
 
 /* The retained Xbox helper and repeated GC caller expansions identify this
@@ -4209,52 +4230,25 @@ void move_logic14(int index)
  * table for the nearest active node, then each frame faces the current node and
  * advances to the node's link when it arrives.  A player inside 0.8*sight (and its
  * milestone likewise) snaps it back to the chase algorithm. */
-#pragma opt_propagation off
-void move_logic15(s32 index)
+void move_logic15(int index)
 {
-    u8* base = (u8*)mbdesc;
-    u8* row15;
     Enemy* e;
-    s32 it = lbl_80344748;
-    s32 flee;
-    u8 _pad15[40];
-    volatile f32 tmp;
-    f32 ady;
-    u8 _pad15b[8];
+    /* Xbox records both as float[3]; GC reuses the same delta across tests. */
+    f32 pos[3];
+    f32 tpos[3];
+    f32 d;
 
-    row15 = base + index * 916;
-    row15 += 3608;
-    e = (Enemy*)(u8*)row15;
-    if (it < 0) {
-        flee = 0;
-    } else {
-        u8* other = base + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
-            flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)row15)->sight) {
-            flee = 0;
-        } else if (index == it || ((Enemy *)row15)->birth_style != 0 || ((Enemy *)row15)->dead_end > 0) {
-            goto flee_zero15;
-        } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)row15)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)row15)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)row15)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero15:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    e = &gEnemies[index];
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
     }
     if (e->closest >= 0 && e->close_dist <= 0.8 * e->sight) {
-        f32 d = fqdist(gPlayers[e->closest].pos[0] - e->objgrp.worldmat[3][0],
-                            gPlayers[e->closest].pos[2] - e->objgrp.worldmat[3][2]);
+        tpos[0] = gPlayers[e->closest].pos[0] - e->objgrp.worldmat[3][0];
+        tpos[1] = gPlayers[e->closest].pos[1] - e->objgrp.worldmat[3][1];
+        tpos[2] = gPlayers[e->closest].pos[2] - e->objgrp.worldmat[3][2];
+        d = fqdist(tpos[0], tpos[2]);
         if (d <= 0.8 * e->sight) {
             e->algorithm = 0;
             do_ai(index);
@@ -4268,28 +4262,22 @@ void move_logic15(s32 index)
     switch (e->mode1) {
     case 0: {
         LookoutParam* n = (LookoutParam*)sLookoutParams;
-        s32 i;
-        f32 ex = e->objgrp.worldmat[3][0];
-        f32 ey = e->objgrp.worldmat[3][1];
-        f32 ez = e->objgrp.worldmat[3][2];
-        s32 best_idx = -1;
-        f32 best_dist = 100000.0f;
-        f32 thresh = 0.0f;
-        f32 d;
+        int i;
+        int best_idx = -1;
+        f32 best_dist;
+
+        pos[0] = e->objgrp.worldmat[3][0];
+        pos[1] = e->objgrp.worldmat[3][1];
+        pos[2] = e->objgrp.worldmat[3][2];
+        best_dist = 100000.0f;
 
         for (i = 0; i < sNumLookoutParams; i++, n++) {
             if (n->next >= 0) {
-                f32 dx = n->worldmat[3][0] - ex;
-                f32 dy = n->worldmat[3][1] - ey;
-                f32 dz = n->worldmat[3][2] - ez;
-                if ((d = dx * dx + dy * dy + dz * dz) > thresh) {
-                    f64 y = __frsqrte(d);
-                    y = 0.5 * y * (3.0 - y * y * d);
-                    y = 0.5 * y * (3.0 - y * y * d);
-                    y = 0.5 * y * (3.0 - y * y * d);
-                    tmp = (f32)(d * (0.5 * y * (3.0 - y * y * d)));
-                    d = tmp;
-                }
+                tpos[0] = n->worldmat[3][0] - pos[0];
+                tpos[1] = n->worldmat[3][1] - pos[1];
+                tpos[2] = n->worldmat[3][2] - pos[2];
+                d = enemy_distance_sqrt(tpos[0] * tpos[0] +
+                                        tpos[1] * tpos[1] + tpos[2] * tpos[2]);
                 if (d < best_dist) {
                     best_dist = d;
                     best_idx = i;
@@ -4301,17 +4289,12 @@ void move_logic15(s32 index)
     }
     case 1: {
         LookoutParam* n = &((LookoutParam*)sLookoutParams)[e->flag1];
-        f32 dy;
-        f32 dx;
-        f32 dz;
 
         e->ang = get_yaw(n->worldmat[3], &e->objgrp.worldmat[3][0]);
-        dy = n->worldmat[3][1] - e->objgrp.worldmat[3][1];
-        dx = n->worldmat[3][0] - e->objgrp.worldmat[3][0];
-        dz = n->worldmat[3][2] - e->objgrp.worldmat[3][2];
-        ady = dy;
-        *(u32*)&ady &= 0x7FFFFFFF;
-        if (ady < 4.0 && fqdist(dx, dz) < 1.0) {
+        tpos[0] = n->worldmat[3][0] - e->objgrp.worldmat[3][0];
+        tpos[1] = n->worldmat[3][1] - e->objgrp.worldmat[3][1];
+        tpos[2] = n->worldmat[3][2] - e->objgrp.worldmat[3][2];
+        if (fabsf_(tpos[1]) < 4.0 && fqdist(tpos[0], tpos[2]) < 1.0) {
             e->flag1 = n->next;
         }
         break;
@@ -4319,12 +4302,10 @@ void move_logic15(s32 index)
     default:
         break;
     }
-move:
     set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
 }
-#pragma opt_propagation reset
 
 /* move_logic16 @0x8004A78C (state 16, ice leap-attacker).  Faces the target, and
  * when the player is at a shallow height difference it arms (flag1) inside 0.6*
@@ -8335,27 +8316,6 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     return best;
 }
 #pragma opt_propagation reset
-
-/* The target expands the same four-step square-root kernel at each
- * distance site, including a volatile float rounding store/reload. This
- * is the operation also described by MSL's sqrtf_accurate, not a request
- * for an arbitrary native sqrt implementation with different rounding. */
-static inline f32 enemy_distance_sqrt(f32 x)
-{
-    volatile f32 y;
-
-    if (x > 0.0f) {
-        f64 guess = __frsqrte((f64)x);
-
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        y = (f32)(x * guess);
-        return y;
-    }
-    return x;
-}
 
 s32 fn_80051480(f32* pos)
 {
