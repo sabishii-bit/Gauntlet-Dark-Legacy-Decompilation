@@ -307,6 +307,15 @@ cflags_demo = [
     "-str reuse,readonly",
 ]
 
+# Enemy's recovered logic10_attacking -> get_face_ang chain is expanded at
+# both retail call sites. Default auto leaves two calls (32 missing words);
+# level=2 restores those expansions without changing the other 89 bodies.
+# This is stock MWCC inlining, not a derived compiler or object rewrite.
+cflags_enemy = [
+    "-inline auto,level=2" if flag == "-inline auto" else flag
+    for flag in cflags_demo
+]
+
 # REL flags
 cflags_rel = [
     *cflags_base,
@@ -523,7 +532,7 @@ config.libs = [
             Object(Matching, "game/audio/soundmgr.c", cflags=cflags_demo, mw_version="GC/1.2.5"),
             Object(NonMatching, "game/sys/ml_mem.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_blit.c", cflags=cflags_demo),
-            Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_demo),
+            Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_enemy),
             Object(Matching, "game/mb/mb_objects.c", cflags=cflags_demo),
             # Deferred codegen + recovered definition order reproduce gamemain's
             # retail text order, BSS layout and complete 0x130-byte sdata2 pool.
