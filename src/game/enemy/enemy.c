@@ -2123,10 +2123,10 @@ __declspec(weak) f32 fn_80034C88(f32 x)
  * and delta vectors replace the former output-parameter and padding trick. */
 static inline int get_actual_closest_player(Enemy* e)
 {
+    Player* p;
+    int i;
     int nearest = -1;
     f32 best = 100000.0f;
-    int i;
-    Player* p;
     f32 d;
 
     for (i = 0, p = gPlayers; i < 4; i++, p++) {
@@ -2163,9 +2163,9 @@ static inline int get_actual_closest_player(Enemy* e)
  * b==0 restricts the sweep to the nearest live player. */
 int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht)
 {
-    int last;
-    int j;
     Player* q;
+    int j;
+    int last;
     Enemy* e = &gEnemies[index];
     int ret = -1;
     int start;
