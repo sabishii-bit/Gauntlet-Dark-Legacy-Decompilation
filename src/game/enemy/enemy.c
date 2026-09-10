@@ -2353,6 +2353,15 @@ static f32 fabsf_(f32 x)
     return x;
 }
 
+/* One-step heading wrap shared by the two wander-loop calculations. The
+ * input and returned heading are floats; the conditional arithmetic uses
+ * double constants, with one final float rounding at the join. */
+static inline f32 enemy_normalized_heading(f32 a)
+{
+    return a > 3.141592654 ? a - 6.283185308 :
+          (a <= -3.141592654 ? 6.283185308 + a : a);
+}
+
 /* move_logic00 @0x80046B54 (state 0 + 9, base wander/seek).  IT-flee / chase
  * gates, then face the closest player and sweep up to 9 offset headings,
  * projecting each with sin/cos and probing for wall clearance; commit the first
@@ -2440,17 +2449,7 @@ void move_logic00(s32 index)
                 } else {
                     ang = ang - lbl_8011C0C4[i];
                 }
-                {
-                    f64 nv;
-                    if (ang > 3.141592654) {
-                        nv = ang - 6.283185308;
-                    } else if (ang <= -3.141592654) {
-                        nv = 6.283185308 + ang;
-                    } else {
-                        nv = ang;
-                    }
-                    ang = nv;
-                }
+                ang = enemy_normalized_heading(ang);
                 dest[0] = e->objgrp.worldmat[3][0];
                 dest[1] = e->objgrp.worldmat[3][1];
                 dest[2] = e->objgrp.worldmat[3][2];
@@ -2458,17 +2457,7 @@ void move_logic00(s32 index)
                 dest[0] += spd * sin(ang);
                 dest[2] += spd * cos(ang);
                 d = ang - e->ang;
-                {
-                    f64 nd;
-                    if (d > 3.141592654) {
-                        nd = d - 6.283185308;
-                    } else if (d <= -3.141592654) {
-                        nd = 6.283185308 + d;
-                    } else {
-                        nd = d;
-                    }
-                    d = nd;
-                }
+                d = enemy_normalized_heading(d);
                 if ((!(fabsf_(e->ang - e->angbak) > 0.034906585044444445)
                      || !(fabsf_(ang - e->angbak) <= 0.034906585044444445))
                     && !(fabsf_(d) >= 3.106686068955556)
