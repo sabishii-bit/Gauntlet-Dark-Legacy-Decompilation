@@ -7731,147 +7731,54 @@ void AllocEnemy(s32 id, s32 model)
 {
     char buf[68];
     u8 unused[4];
-    EnemyTypeName* tbl = lbl_8011AF48;
-    s32* pool = (s32*)mbdesc;
-    char* name;
-    s32 i;
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
         FatalErrorf("%d > MAX:%d ETYPES\n", lbl_8034471C, 8);
     }
-    pool[7 + lbl_8034471C] = id;
+    enemy_type[lbl_8034471C - 1] = id;
 
     if (id == E_GOLEM || id == E_GENERAL) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto alloc_fmt1;
-            }
-        }
-        name = 0;
-alloc_fmt1:
-        sprintf(buf, "monsters/%s/%s", name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s/%s", findWorldName(id), fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto alloc_fmt2;
-            }
-        }
-        name = 0;
-alloc_fmt2:
-        sprintf(buf, "monsters/%s_%s", name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s_%s", findWorldName(id), fn_80057ACC(id));
     } else if (model == 4) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto alloc_fmt3;
-            }
-        }
-        name = 0;
-alloc_fmt3:
-        sprintf(buf, "monsters/%saux", name);
+        sprintf(buf, "monsters/%saux", findWorldName(id));
     } else if (model > 10) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto alloc_fmt4;
-            }
-        }
-        name = 0;
-alloc_fmt4:
-        sprintf(buf, "monsters/%s%d", name, model - 10);
+        sprintf(buf, "monsters/%s%d", findWorldName(id), model - 10);
     } else {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto alloc_fmt5;
-            }
-        }
-        name = 0;
-alloc_fmt5:
-        sprintf(buf, "monsters/%s", name);
+        sprintf(buf, "monsters/%s", findWorldName(id));
     }
 
-    id <<= 2;
-    *(s32*)((u8*)&pool[300] + id) =
-        fn_8005A1EC(buf, (void**)((u8*)&pool[345] + id));
-    *(s32*)((u8*)&pool[255] + id) = -model;
+    lbl_802512B0[id] = fn_8005A1EC(buf, (void**)&gWadAtreeHeaders[id]);
+    lbl_802511FC[id] = -model;
 }
 
 void LoadEnemy(s32 id, s32 model)
 {
     char buf[68];
     u8 unused[4];
-    EnemyTypeName* tbl = lbl_8011AF48;
-    s32* pool = (s32*)mbdesc;
-    char* name;
-    s32 i;
-    s32 offset;
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
         FatalErrorf("%d > MAX:%d ETYPES\n", lbl_8034471C, 8);
     }
-    pool[7 + lbl_8034471C] = id;
+    enemy_type[lbl_8034471C - 1] = id;
 
     if (id == E_GOLEM || id == E_GENERAL) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto load_fmt1;
-            }
-        }
-        name = 0;
-load_fmt1:
-        sprintf(buf, "monsters/%s/%s", name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s/%s", findWorldName(id), fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto load_fmt2;
-            }
-        }
-        name = 0;
-load_fmt2:
-        sprintf(buf, "monsters/%s_%s", name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s_%s", findWorldName(id), fn_80057ACC(id));
     } else if (model == 4) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto load_fmt3;
-            }
-        }
-        name = 0;
-load_fmt3:
-        sprintf(buf, "monsters/%saux", name);
+        sprintf(buf, "monsters/%saux", findWorldName(id));
     } else if (model > 10) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto load_fmt4;
-            }
-        }
-        name = 0;
-load_fmt4:
-        sprintf(buf, "monsters/%s%d", name, model - 10);
+        sprintf(buf, "monsters/%s%d", findWorldName(id), model - 10);
     } else {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto load_fmt5;
-            }
-        }
-        name = 0;
-load_fmt5:
-        sprintf(buf, "monsters/%s", name);
+        sprintf(buf, "monsters/%s", findWorldName(id));
     }
 
-    offset = id << 2;
-    *(s32*)((u8*)&pool[300] + offset) =
-        LoadModel(buf, ((void**)&pool[345]) + id, 0, -1);
-    *(s32*)((u8*)&pool[255] + offset) = model;
+    lbl_802512B0[id] = LoadModel(buf, (void**)&gWadAtreeHeaders[id], 0, -1);
+    lbl_802511FC[id] = model;
     InitEnemyMissiles(id);
 }
 
