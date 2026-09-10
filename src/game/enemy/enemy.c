@@ -8515,13 +8515,14 @@ void fn_80051C78(void)
     }
 }
 
-/* Keep the nested name lookup inline with the level formatter. Numbered
- * cases share the default arm; lettered levels use the existing suffix map. */
-#pragma inline_depth(2)
-static inline char* enemy_format_world_level(s32 world, s32 lvl)
+/* EnemyDesc formats into the shared mbdesc buffer. Numbered levels share
+ * the default arm; lettered levels use the existing suffix map. */
+char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
 {
+    char* character;
+    u32 i;
     s32 n = lvl;
-    char* buf = mbdesc;
+
     if (lvl == 0) {
         n = 1;
     }
@@ -8530,33 +8531,23 @@ static inline char* enemy_format_world_level(s32 world, s32 lvl)
     case 2:
     case 3:
     default:
-        sprintf(buf, "%s%d", findWorldName(world), n);
+        sprintf(mbdesc, "%s%d", findWorldName(world), n);
         break;
     case 4:
     case 5:
     case 6:
     case 7:
-        sprintf(buf, "%s%c", findWorldName(world), lbl_80343BF8[n - 4]);
+        sprintf(mbdesc, "%s%c", findWorldName(world), lbl_80343BF8[n - 4]);
         break;
     }
-    return buf;
-}
-
-char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
-{
-    char* character;
-    u32 i;
-    char* buf;
-
-    buf = enemy_format_world_level(world, lvl);
     if (flag != 0) {
-        strcat(buf, "L1");
+        strcat(mbdesc, "L1");
     }
-    for (i = 0; i < strlen(buf); i++) {
-        character = buf + i;
+    for (i = 0; i < strlen(mbdesc); i++) {
+        character = mbdesc + i;
         *character = toupper(*character);
     }
-    return buf;
+    return mbdesc;
 }
 
 void* EnemyTypePrefix(s32 id)
