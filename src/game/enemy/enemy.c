@@ -874,7 +874,7 @@ extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
 /* SetEnemyObj's full prototype is declared down at init_enemy, not here: the
  * unprototyped `extern void SetEnemyObj();` above is the only declaration in
  * scope at damage_enemy's call site, exactly as before the reorder. */
-extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
+extern void init_enemy_vars(int slot, f32 scale, int spew);
 extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
 extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
 
@@ -7521,7 +7521,7 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         e->objgrp.worldmat[3][1] = FloorPos(lbl_80344880, 0.1f, pos, 2);
         MBTreeClearFlags(e->objgrp.node, 2, 0);
         e->health = health;
-        init_enemy_vars(slot, spew, health);
+        init_enemy_vars(slot, health, spew);
         if (type == E_DEATH) {
             e->org_lvl = level;
         }
@@ -7617,21 +7617,27 @@ static char* findWorldName(s32 world)
 }
 
 #pragma opt_propagation off
-static inline s32 enemy_health_tier(f32 scale, f32 hi, f32 lo, f32 z2)
+/* The PDB identifies get_enemy_level(enum type, float health) -> int.
+ * GC's caller expands its level-scaled health thresholds here. Keep the
+ * operation together rather than passing cached thresholds to a made-up ABI. */
+static inline int get_enemy_level(e_e_tpye type, f32 health)
 {
-    s32 tier;
-    tier = 0;
-    if (scale > hi) {
+    f32 full = gCurLevel->ene_health * lbl_8011BA10[type];
+    f32 lower = (f32)(0.333 * full);
+    f32 upper = (f32)(0.667 * full);
+    int tier = 0;
+
+    if (health > upper) {
         tier = 3;
-    } else if (scale > lo) {
+    } else if (health > lower) {
         tier = 2;
-    } else if (scale > z2) {
+    } else if (health > 0.0f) {
         tier = 1;
     }
     return tier;
 }
 
-void init_enemy_vars(s32 slot, s32 spew, f32 scale)
+void init_enemy_vars(int slot, f32 scale, int spew)
 {
     /* Retail reserves eight more bytes below its save area. Their original
      * local identities are unrecovered; this is a frame reservation only. */
@@ -7640,10 +7646,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     s32 i4;
     f32 z;
     f32 z2;
-    f32 t;
-    f32 hi;
-    f32 lo;
-    s32 tier;
+    int tier;
     f32 fv;
     s16 sv;
 
@@ -7694,10 +7697,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->idle_secs = z2;
     enemy->idle_frac = z2;
     enemy->damage_count = 0;
-    t = gCurLevel->ene_health * lbl_8011BA10[enemy->type];
-    lo = (f32)(0.333 * t);
-    hi = (f32)(0.667 * t);
-    tier = enemy_health_tier(scale, hi, lo, z2);
+    tier = get_enemy_level(enemy->type, scale);
     enemy->org_lvl = (s16)tier;
     enemy->mode2 = 0;
     enemy->mode1 = 0;
