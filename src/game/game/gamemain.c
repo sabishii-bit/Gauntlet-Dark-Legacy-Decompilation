@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/mb_font.h"
 #include "game/options.h"
 #include "game/controls.h"
 #include "game/critter.h"
@@ -249,24 +250,10 @@ extern s32   lbl_80344778;
 extern s32   lbl_803441F8;
 extern void  fn_8009FB00(void);
 extern f32   SetDrawStringScale(f32 s);
-/* Local mirror of mb_font.c's queued message, returned through the opaque
+/* MBTextMsg from game/mb_font.h is returned through the opaque
  * DrawStringText API. GC MBDrawText uses a 44-byte stride and initializes
- * every field below; its +0x10 pointer addresses the copied character data.
+ * the complete record; its +0x10 pointer addresses copied character data.
  * fn_800521E8 truncates that copy, not the original string resource. */
-typedef struct MBTextMsg {
-    u32 flags;
-    s32 x;
-    s32 y;
-    f32 z;
-    char* text;
-    f32 xspace;
-    f32 xscale;
-    f32 yspace;
-    f32 yscale;
-    s16 font;
-    s16 seq;
-    u32 color;
-} MBTextMsg;
 /* DrawStringText's GC va_list starts after six GPR arguments; the message
  * index is fixed, not the first variadic argument. */
 extern void* DrawStringText(s32 x, s32 y, u32 flags, u32 color,

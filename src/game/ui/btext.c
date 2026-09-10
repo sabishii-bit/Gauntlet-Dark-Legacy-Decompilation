@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/mb_font.h"
 #include "__va_arg.h"
 
 #ifndef offsetof
@@ -1166,9 +1167,10 @@ s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
 }
 
 /* ==== 0x800209BC DrawTextKeepScale ==== */
-void DrawTextKeepScale(f32 scale, s32 x, s32 y, u32 font, u32 color, u8* str)
+MBTextMsg* DrawTextKeepScale(f32 scale, s32 x, s32 y, u32 font, u32 color, u8* str)
 {
-    DrawTextSub(scale, sBTextOne, x, y, font, color, str);
+    /* DrawTextSub still exposes its queued-message pointer as s32. */
+    return (MBTextMsg*)DrawTextSub(scale, sBTextOne, x, y, font, color, str);
 }
 
 /* ==== 0x800209E0 DrawText (variadic; skeleton) ==== */

@@ -25,6 +25,7 @@
  * mid-TU helpers whose Xbox name is not uniquely pinned are left as fn_.
  */
 #include "types.h"
+#include "game/mb_font.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -52,22 +53,6 @@ extern s32 lbl_8029F474[8];   /* saved message_count per lock level */
 extern s32 lbl_802A4A84[8];   /* saved textbuf_count per lock level */
 extern s32 lbl_8029E454[];    /* saved font_count per font-lock level */
 extern void* lbl_802A4AA4[];  /* fonts[] : per-font descriptor pointers */
-
-/* per-drawtext message record (44 bytes) */
-typedef struct MBTextMsg {
-    u32 flags;    /* 0x00 (0x02000000 = marked; bit0 = hidden) */
-    s32 x;        /* 0x04 */
-    s32 y;        /* 0x08 */
-    f32 z;        /* 0x0C */
-    char* text;   /* 0x10 -> slice of the char buffer lbl_8029E474 */
-    f32 xspace;   /* 0x14 */
-    f32 xscale;   /* 0x18 */
-    f32 yspace;   /* 0x1C */
-    f32 yscale;   /* 0x20 */
-    s16 font;     /* 0x24 */
-    s16 seq;      /* 0x26 */
-    u32 color;    /* 0x28 */
-} MBTextMsg;
 
 extern MBTextMsg lbl_8029F494[]; /* drawtext message records (44B each) */
 extern char lbl_8029E474[];      /* drawtext character buffer */

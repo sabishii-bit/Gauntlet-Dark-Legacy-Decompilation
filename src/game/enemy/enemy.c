@@ -1,4 +1,5 @@
 #include "game/enemy.h"
+#include "game/mb_font.h"
 #include "game/item.h"
 #include "game/gamemode.h"
 #include "game/worldobj.h"
@@ -815,7 +816,7 @@ extern f32 NormalVector2D(f32* v);
 extern void ProcessCritterList(void);
 extern s32 gScriptedCameraState;
 s32 fn_8004D958(s32 index);
-extern s32* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color, char* txt);
+extern MBTextMsg* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color, char* txt);
 extern s32 MBWorldSphereVisible3(f32* center, f32 radius);
 extern void fn_800516F8(s32 index);
 extern void fn_8009FEFC(s16 sound);
@@ -5974,11 +5975,11 @@ void do_enemies(void)
     }
     if ((gControllerButtons & 0x10) != 0 &&
         (gControllerButtons & 1) != 0) {
-        s32* blit;
+        MBTextMsg* message;
         sprintf(gTextFormatBuf, "%d", shown);
-        blit = DrawTextKeepScale(1.2f, -0x100, 0x144, 0, 0xFF0000,
-                                 gTextFormatBuf);
-        *blit |= 0x40000;
+        message = DrawTextKeepScale(1.2f, -0x100, 0x144, 0, 0xFF0000,
+                                    gTextFormatBuf);
+        message->flags |= 0x40000;
     }
 }
 
