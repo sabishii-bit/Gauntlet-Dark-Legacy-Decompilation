@@ -3377,8 +3377,10 @@ static inline int set_turn_to_ms(Enemy* e)
 static inline f32 get_milestone_ang(Enemy* e_ptr, int ms)
 {
     f32 mpos[3];
+    f32 angle;
     GetMilestonePos(ms, mpos);
-    return get_yaw(mpos, e_ptr->objgrp.worldmat[3]);
+    angle = get_yaw(mpos, e_ptr->objgrp.worldmat[3]);
+    return angle;
 }
 
 static inline int logic10_attacking(int index)
@@ -3407,6 +3409,7 @@ void move_logic10(int index)
     f32 speed;
     f32 probe[3];
     f32 cand;
+    f32 faceAngle;
     s32 found = 0;
 
     speed = lbl_80250E40[e->type];
@@ -3440,8 +3443,8 @@ void move_logic10(int index)
                 e->collided = 0;
             }
         } else {
-            f32 f = get_face_ang(e, 1);
-            lbl_80344720 = f;
+            faceAngle = get_face_ang(e, 1);
+            lbl_80344720 = faceAngle;
         }
         if (e->dead_end > 0) {
             e->dead_end -= gFrameTicks;
@@ -3543,8 +3546,8 @@ void move_logic10(int index)
                 }
                 if (got == 0) {
                     {
-                        f32 f = get_face_ang(e, 1);
-                        lbl_80344720 = f;
+                        faceAngle = get_face_ang(e, 1);
+                        lbl_80344720 = faceAngle;
                     }
                     e->mode1 = 0;
                     e->mode2 = 0;
@@ -3645,8 +3648,8 @@ void move_logic10(int index)
                     e->max_msidx = 4;
                     e->plr_ms = -1;
                     {
-                        f32 f = get_face_ang(e, 1);
-                        lbl_80344720 = f;
+                        faceAngle = get_face_ang(e, 1);
+                        lbl_80344720 = faceAngle;
                     }
                 } else {
                     e->plr_ms = v;
@@ -3659,12 +3662,12 @@ void move_logic10(int index)
                 if (e->plr_ms >= 0) {
                     lbl_80344720 = get_milestone_ang(e, e->plr_ms);
                 } else {
-                    f32 f = get_face_ang(e, 1);
-                    lbl_80344720 = f;
+                    faceAngle = get_face_ang(e, 1);
+                    lbl_80344720 = faceAngle;
                 }
             } else {
-                f32 f = get_face_ang(e, 1);
-                lbl_80344720 = f;
+                faceAngle = get_face_ang(e, 1);
+                lbl_80344720 = faceAngle;
             }
         }
         if (e->dead_end > 0) {
