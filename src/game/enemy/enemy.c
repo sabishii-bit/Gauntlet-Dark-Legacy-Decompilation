@@ -5679,6 +5679,8 @@ void fn_8004D030(s32 index, s32 ticks)
 
 void do_enemies(void)
 {
+    /* Final update cursor; the preceding scans have separate lifetimes. */
+    Enemy* e;
     s32 shown = 0;
     s32 i;
     u8 unused[8];
@@ -5782,7 +5784,7 @@ void do_enemies(void)
     }
 
     {
-        Enemy* e = gEnemies;
+        e = gEnemies;
 
         for (i = 0; i < gNumEnemies; i++, e++) {
             e->old_ai = e->algorithm;
