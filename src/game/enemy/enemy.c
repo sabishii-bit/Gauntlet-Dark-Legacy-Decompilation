@@ -2117,57 +2117,62 @@ __declspec(weak) f32 fn_80034C88(f32 x)
 #pragma dont_inline reset
 #endif
 
-/* The Xbox symbols retain this helper as get_actual_closest_player(Enemy*).
- * GC MWCC inlines the same search into EnemyCollidePlayer. */
-static inline void get_actual_closest_player(Enemy* e, s32* nearest)
+/* Xbox retains an int-returning get_actual_closest_player(Enemy*), with
+ * nearest initialized before the distance bound (source lines 278/279).
+ * GC inlines that search. Its vector arithmetic and the caller's real hit
+ * and delta vectors replace the former output-parameter and padding trick. */
+static inline int get_actual_closest_player(Enemy* e)
 {
-    s32 i;
-    Player* p = gPlayers;
+    int nearest = -1;
     f32 best = 100000.0f;
+    int i;
+    Player* p;
     f32 d;
-    f32 dy;
-    f32 dx;
-    f32 dz;
 
-    *nearest = -1;
-    for (i = 0; i < 4; i++, p++) {
+    for (i = 0, p = gPlayers; i < 4; i++, p++) {
         if (p->state == 1) {
             /* A live mikey supplies its collision position instead of
              * the player's own effectpos. */
             if (p->field_A1C > 2) {
-                dx = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
-                dy = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
-                dz = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
-                d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+                f32 distance[3];
+                distance[0] = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
+                distance[1] = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
+                distance[2] = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
+                d = fn_80034C88(distance[0] * distance[0] +
+                                distance[1] * distance[1] +
+                                distance[2] * distance[2]);
             } else {
-                dx = e->objgrp.coll_pos[0] - p->effectpos[0];
-                dy = e->objgrp.coll_pos[1] - p->effectpos[1];
-                dz = e->objgrp.coll_pos[2] - p->effectpos[2];
-                d = fn_80034C88(dx * dx + dy * dy + dz * dz);
+                f32 distance[3];
+                distance[0] = e->objgrp.coll_pos[0] - p->effectpos[0];
+                distance[1] = e->objgrp.coll_pos[1] - p->effectpos[1];
+                distance[2] = e->objgrp.coll_pos[2] - p->effectpos[2];
+                d = fn_80034C88(distance[0] * distance[0] +
+                                distance[1] * distance[1] +
+                                distance[2] * distance[2]);
             }
             if (d < best) {
                 best = d;
-                *nearest = i;
+                nearest = i;
             }
         }
     }
+    return nearest;
 }
 
 /* 0x80046680 - pick the player hit by the enemy's swept collision cylinder;
  * b==0 restricts the sweep to the nearest live player. */
 int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht)
 {
-    s32 last;
-    s32 j;
+    int last;
+    int j;
     Player* q;
     Enemy* e = &gEnemies[index];
     int ret = -1;
-    s32 start;
+    int start;
     f32 best = 100000.0f;
     f32 hit[3];
-    u8 _pad4[8];
+    f32 delta[3];
     f32 d;
-    u8 _spare[36];
 
     if (b != 0) {
         start = 0;
@@ -2176,7 +2181,7 @@ int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht)
         if (e->closest < 0) {
             return -1;
         }
-        get_actual_closest_player(e, &last);
+        last = get_actual_closest_player(e);
         start = last;
     }
     q = gPlayers + start;
@@ -2186,7 +2191,10 @@ int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht)
                                     rad + q->col_radius,
                                     hht + q->col_height,
                                     oldc, newc, hit, 1) != 0) {
-                d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
+                delta[0] = hit[0] - newc[0];
+                delta[1] = hit[1] - newc[1];
+                delta[2] = hit[2] - newc[2];
+                d = fqdist(delta[0], delta[2]);
                 if (d < best) {
                     ret = j;
                     best = d;
