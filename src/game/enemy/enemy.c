@@ -495,49 +495,7 @@ extern void* lbl_80344730;    /* last worldobj hit by an enemy move */
 extern s32 lbl_80344728;
 extern s32 default_gen_count;
 extern s32 lbl_8034471C;
-typedef struct EnemyPlayerCharacterStats {
-    s32 kills;
-    u8 _004[0x01C - 0x004];
-} EnemyPlayerCharacterStats;
-
-typedef struct EnemyPlayerView {
-    s32 index;
-    u8 _004[0x00C - 0x004];
-    s32 character;
-    u8 _010[0x054 - 0x010];
-    f32 position[3];
-    u8 _060[0x064 - 0x060];
-    f32 damage_position[3];
-    u8 _070[0x0E8 - 0x070];
-    s32 state;
-    u8 _0EC[0x120 - 0x0EC];
-    u32 flags;
-    u8 _124[0x954 - 0x124];
-    s16 it_enemy;
-    u8 _956[0xA1E - 0x956];
-    s16 attack_reflect;
-    s16 attack_heal;
-    u8 _A22[0xC10 - 0xA22];
-    EnemyPlayerCharacterStats character_stats[16];
-    u8 _DD0[0x1EB4 - 0xDD0];
-    f32 health;
-    u8 _1EB8[0x3324 - 0x1EB8];
-    s32 level;
-    u8 _3328[0x335C - 0x3328];
-} EnemyPlayerView;
-typedef union EnemyPlayerArray {
-    f32 words[4][3287];
-    EnemyPlayerView view[4];
-    Player players[4]; /* Canonical view used by the restored targeting tail. */
-} EnemyPlayerArray;
-extern EnemyPlayerArray gPlayers; /* 0x80275AE0: four 0x335C player records */
-#define gPlayerWords gPlayers.words
-#define gEnemyPlayers gPlayers.view
-/* f32-word index of a Player field inside one gPlayerWords record: the TU
- * addresses player records as f32 words[3287], so a byte displacement is
- * spelled as offset/4 (same idiom as the `[0xE8 / 4]` state read this TU
- * already used in fn_8004F1DC).  Folds to the identical integer literal. */
-#define PW(field) (offsetof(Player, field) / 4)
+extern Player gPlayers[4]; /* Four GC records, sizeof(Player) == 0x335C. */
 extern f32 lbl_8023CA98[][4];
 extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-slide scratch; [1] = output vector */
 
@@ -768,7 +726,7 @@ extern s32 gTriggerCameraState;
 extern s32 lbl_80344734;      /* node-delete reentry guard */
 extern s32 ErrorPrintf(const char* fmt, ...);
 
-extern s32 heal_player(EnemyPlayerView* player, f32 amount);
+extern s32 heal_player(Player* player, f32 amount);
 extern void do_heal_players(void* player, f32* matrix, f32 amount);
 extern void ModifyDamage(f32 armor, f32* damage, u32* damage_type, u32 shield);
 extern void CopyMat4(f32* source, f32* destination);
@@ -881,7 +839,7 @@ extern f32 lbl_803447D8;
 extern s32 lbl_803447E4;
 extern f32 lbl_8011B878[];        /* per-type aggro-decay ramp (0x88) */
 extern s32 lbl_80344BF8;
-extern s32 heal_player(EnemyPlayerView* player, f32 amount);
+extern s32 heal_player(Player* player, f32 amount);
 extern void StartGemFX(f32* position, s32 kind);
 extern void fn_8009E08C(Enemy* enemy);
 extern void AudioPlayerHit(s32 player, s32 kind);
@@ -1148,7 +1106,7 @@ void do_enemy_move(s32 index)
         e->trans[2] = 0.0f;
         fn_8005A65C(&e->objgrp.worldmat[0][0], e->coll_offset);
         e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
-                               gPlayers.players[e->coll_pnum].pos);
+                               gPlayers[e->coll_pnum].pos);
         fn_80046140(index);
     } else {
         hitWorld = 0;
@@ -1948,7 +1906,7 @@ void fn_80046140(s32 index)
 
     if (enemy->type == E_DEATH) {
         if (enemy->stun_timer <= 0 &&
-            (gEnemyPlayers[enemy->coll_pnum].flags & 0x80000) == 0) {
+            (gPlayers[enemy->coll_pnum].shield_flags & 0x80000) == 0) {
             if (enemy->endurance > 0) {
                 enemy->endurance--;
             } else {
@@ -1998,13 +1956,15 @@ void fn_80046140(s32 index)
             }
         }
     } else if (enemy->type == E_IT) {
+        /* +0x954 is also the IT-transfer timer in PlayerMotion. Keep the
+         * canonical header's speak_timer name; this is not a second field. */
         if (lbl_80344B24 >= 0) {
-            gEnemyPlayers[lbl_80344B24].it_enemy = 0;
+            gPlayers[lbl_80344B24].speak_timer = 0;
         }
         lbl_80344B24 = enemy->coll_pnum;
-        gEnemyPlayers[lbl_80344B24].it_enemy = 1;
-        msgPost(0x32, gEnemyPlayers[lbl_80344B24].index,
-                &gEnemyPlayers[lbl_80344B24].position[0]);
+        gPlayers[lbl_80344B24].speak_timer = 1;
+        msgPost(0x32, gPlayers[lbl_80344B24].index,
+                &gPlayers[lbl_80344B24].col_pos[0]);
 
         playerIndex = lbl_80344B24;
         pool = (u8*)(enemy - (Enemy*)(pool + 0xE18));
@@ -2168,7 +2128,7 @@ __declspec(weak) f32 fn_80034C88(f32 x)
 static inline void get_actual_closest_player(Enemy* e, s32* nearest)
 {
     s32 i;
-    Player* p = gPlayers.players;
+    Player* p = gPlayers;
     f32 best = 100000.0f;
     f32 d;
     f32 dy;
@@ -2225,7 +2185,7 @@ s32 fn_80046680(s32 index, s32 b, f32* oldc, f32* newc, f32 rad, f32 hht)
         get_actual_closest_player((Enemy*)e, &last);
         start = last;
     }
-    q = gPlayers.players + start;
+    q = gPlayers + start;
     for (j = start; j <= last; j++, q++) {
         if (q->state == 1) {
             if (LineCylinderCollide(q->effectpos,
@@ -2460,10 +2420,10 @@ void move_logic00(s32 index)
             s16 c = e->closest;
             f32 f;
             if (c >= 0) {
-                if (gPlayers.players[c].field_A1C > 2) {
-                    f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+                if (gPlayers[c].field_A1C > 2) {
+                    f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
                 } else {
-                    f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                    f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
                 }
             } else {
                 f = e->ang;
@@ -2595,10 +2555,10 @@ void move_logic01(s32 index)
     if (e->closest < 0 || e->operation_count < e->operation_speed) {
         a = e->ang;
     } else {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            e->ang = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        if (gPlayers[e->closest].field_A1C > 2) {
+            e->ang = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
         } else {
-            e->ang = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+            e->ang = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
         a = e->ang;
     }
@@ -2695,7 +2655,7 @@ void move_logic02(s32 index)
         }
     }
     if ((it = e->coll_pnum) >= 0) {
-        e->ang = get_yaw(gPlayers.players[it].pos, &e->objgrp.worldmat[3][0]);
+        e->ang = get_yaw(gPlayers[it].pos, &e->objgrp.worldmat[3][0]);
     }
     set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
@@ -2732,10 +2692,10 @@ void move_logic03(s32 index)
             e->dead_end = 0;
         }
         if (e->counter2 >= 0) {
-            if (gPlayers.players[e->counter2].field_A1C > 2) {
-                face = get_yaw(gPlayers.players[e->counter2].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[e->counter2].field_A1C > 2) {
+                face = get_yaw(gPlayers[e->counter2].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                face = get_yaw(gPlayers.players[e->counter2].pos, &e->objgrp.worldmat[3][0]);
+                face = get_yaw(gPlayers[e->counter2].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             face = e->ang;
@@ -2841,7 +2801,7 @@ void move_logic04(s32 index)
         }
     }
     if (e->coll_pnum >= 0) {
-        e->ang = get_yaw(gPlayers.players[e->coll_pnum].pos, &e->objgrp.worldmat[3][0]);
+        e->ang = get_yaw(gPlayers[e->coll_pnum].pos, &e->objgrp.worldmat[3][0]);
     }
     set_enemy_trans(e, 1.0f, e->ang);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
@@ -3160,10 +3120,10 @@ void move_logic07(s32 index)
         s16 c = e->closest;
         f32 f;
         if (c >= 0) {
-            if (gPlayers.players[c].field_A1C > 2) {
-                f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[c].field_A1C > 2) {
+                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             f = e->ang;
@@ -3327,10 +3287,10 @@ void move_logic08(s32 index)
         s16 c = e->closest;
         f32 f;
         if (c >= 0) {
-            if (gPlayers.players[c].field_A1C > 2) {
-                f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[c].field_A1C > 2) {
+                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             f = e->ang;
@@ -3345,10 +3305,10 @@ void move_logic08(s32 index)
             s16 c = e->closest;
             f32 f;
             if (c >= 0) {
-                if (gPlayers.players[c].field_A1C > 2) {
-                    f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+                if (gPlayers[c].field_A1C > 2) {
+                    f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
                 } else {
-                    f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                    f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
                 }
             } else {
                 f = e->ang;
@@ -3513,10 +3473,10 @@ void move_logic10(s32 index)
                 s16 c = *(s16*)(e0 + offsetof(Enemy, closest));
                 f32 f;
                 if (c >= 0) {
-                    if (gPlayers.players[c].field_A1C > 2) {
-                        f = get_yaw(gPlayers.players[c].mikey_worldmat[3], (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
+                    if (gPlayers[c].field_A1C > 2) {
+                        f = get_yaw(gPlayers[c].mikey_worldmat[3], (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
                     } else {
-                        f = get_yaw(gPlayers.players[c].pos, (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
+                        f = get_yaw(gPlayers[c].pos, (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
                     }
                 } else {
                     f = *(f32*)(e0 + offsetof(Enemy, ang));
@@ -3542,7 +3502,7 @@ void move_logic10(s32 index)
         }
         if (e->collided >= 5) {
             e->stuck_count = 0;
-            e->plr_ms = gPlayers.players[e->closest].milestone[0];
+            e->plr_ms = gPlayers[e->closest].milestone[0];
             if (e->plr_ms >= 0) {
                 e->mode1++;
                 e->mode2 = 0;
@@ -3552,10 +3512,10 @@ void move_logic10(s32 index)
             s16 c = e->closest;
             f32 f;
             if (c >= 0) {
-                if (gPlayers.players[c].field_A1C > 2) {
-                    f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+                if (gPlayers[c].field_A1C > 2) {
+                    f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
                 } else {
-                    f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                    f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
                 }
             } else {
                 f = e->ang;
@@ -3658,10 +3618,10 @@ void move_logic10(s32 index)
                 s16 c = *(s16*)(e0 + offsetof(Enemy, closest));
                 f32 f;
                 if (c >= 0) {
-                    if (gPlayers.players[c].field_A1C > 2) {
-                        f = get_yaw(gPlayers.players[c].mikey_worldmat[3], (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
+                    if (gPlayers[c].field_A1C > 2) {
+                        f = get_yaw(gPlayers[c].mikey_worldmat[3], (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
                     } else {
-                        f = get_yaw(gPlayers.players[c].pos, (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
+                        f = get_yaw(gPlayers[c].pos, (f32*)(e0 + offsetof(Enemy, objgrp.worldmat[3][0])));
                     }
                 } else {
                     f = *(f32*)(e0 + offsetof(Enemy, ang));
@@ -3719,10 +3679,10 @@ void move_logic10(s32 index)
                         s16 c = e->closest;
                         f32 f;
                         if (c >= 0) {
-                            if (gPlayers.players[c].field_A1C > 2) {
-                                f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+                            if (gPlayers[c].field_A1C > 2) {
+                                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
                             } else {
-                                f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
                             }
                         } else {
                             f = e->ang;
@@ -3876,8 +3836,7 @@ void move_logic10(s32 index)
                 s32 v;
                 e->ms_idx++;
                 if (e->ms_idx > e->max_msidx
-                    || (v = ((s32*)((u8*)&gPlayers + e->closest * PLAYER_STRIDE
-                                    + e->ms_idx * 4))[PW(milestone)]) < 0) {
+                    || (v = gPlayers[e->closest].milestone[e->ms_idx]) < 0) {
                     e->ms_idx = 0;
                     e->max_msidx = 4;
                     e->plr_ms = -1;
@@ -3885,10 +3844,10 @@ void move_logic10(s32 index)
                         s16 c = e->closest;
                         f32 f;
                         if (c >= 0) {
-                            if (gPlayers.players[c].field_A1C > 2) {
-                                f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+                            if (gPlayers[c].field_A1C > 2) {
+                                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
                             } else {
-                                f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
                             }
                         } else {
                             f = e->ang;
@@ -3902,8 +3861,7 @@ void move_logic10(s32 index)
             }
         } else {
             if (e->stuck_count >= 5) {
-                e->plr_ms = ((s32*)((u8*)&gPlayers + e->closest * PLAYER_STRIDE
-                                    + e->ms_idx * 4))[PW(milestone)];
+                e->plr_ms = gPlayers[e->closest].milestone[e->ms_idx];
                 if (e->plr_ms >= 0) {
                     f32 b5[3];
                     GetMilestonePos(e->plr_ms, b5);
@@ -3912,10 +3870,10 @@ void move_logic10(s32 index)
                     s16 c = e->closest;
                     f32 f;
                     if (c >= 0) {
-                        if (gPlayers.players[c].field_A1C > 2) {
-                            f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+                        if (gPlayers[c].field_A1C > 2) {
+                            f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
                         } else {
-                            f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                            f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
                         }
                     } else {
                         f = e->ang;
@@ -3926,10 +3884,10 @@ void move_logic10(s32 index)
                 s16 c = e->closest;
                 f32 f;
                 if (c >= 0) {
-                    if (gPlayers.players[c].field_A1C > 2) {
-                        f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+                    if (gPlayers[c].field_A1C > 2) {
+                        f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
                     } else {
-                        f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                        f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
                     }
                 } else {
                     f = e->ang;
@@ -4128,10 +4086,10 @@ void move_logic12(s32 index)
         format_brain(index);
     }
     if (e->closest >= 0) {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        if (gPlayers[e->closest].field_A1C > 2) {
+            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
@@ -4356,10 +4314,10 @@ void move_logic14(s32 index)
     {
         s16 c = e->closest;
         if (c >= 0) {
-            if (gPlayers.players[c].field_A1C > 2) {
-                face = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[c].field_A1C > 2) {
+                face = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                face = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                face = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             face = e->ang;
@@ -4408,7 +4366,7 @@ void move_logic14(s32 index)
             e->flag1 = -e->flag1;
         }
         e->dead_end = 0;
-        e->ang = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+        e->ang = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         if (e->flag1 > 0) {
             e->ang = e->ang + scale;
         } else {
@@ -4484,8 +4442,8 @@ void move_logic15(s32 index)
         return;
     }
     if (e->closest >= 0 && e->close_dist <= 0.8 * e->sight) {
-        f32 d = fqdist(gPlayers.players[e->closest].pos[0] - e->objgrp.worldmat[3][0],
-                            gPlayers.players[e->closest].pos[2] - e->objgrp.worldmat[3][2]);
+        f32 d = fqdist(gPlayers[e->closest].pos[0] - e->objgrp.worldmat[3][0],
+                            gPlayers[e->closest].pos[2] - e->objgrp.worldmat[3][2]);
         if (d <= 0.8 * e->sight) {
             e->algorithm = 0;
             do_ai(index);
@@ -4618,10 +4576,10 @@ void move_logic16(s32 index)
     {
         s16 c = e->closest;
         if (c >= 0) {
-            if (gPlayers.players[c].field_A1C > 2) {
-                a = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[c].field_A1C > 2) {
+                a = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                a = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                a = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             a = e->ang;
@@ -4712,11 +4670,11 @@ void move_logic18(s32 index)
         format_brain(index);
     }
     if (e->closest >= 0) {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3],
+        if (gPlayers[e->closest].field_A1C > 2) {
+            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3],
                         &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(gPlayers.players[e->closest].pos,
+            a = get_yaw(gPlayers[e->closest].pos,
                         &e->objgrp.worldmat[3][0]);
         }
     } else {
@@ -4820,10 +4778,10 @@ void move_logic19(s32 index)
         format_brain(index);
     }
     if (e->closest >= 0) {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        if (gPlayers[e->closest].field_A1C > 2) {
+            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
@@ -4911,10 +4869,10 @@ void move_logic20(s32 index)
         s16 c = e->closest;
         f32 f;
         if (c >= 0) {
-            if (gPlayers.players[c].field_A1C > 2) {
-                f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[c].field_A1C > 2) {
+                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             f = e->ang;
@@ -5048,10 +5006,10 @@ void move_logic21(s32 index)
         e->dead_end = 0;
     }
     if (e->closest >= 0) {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            face = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        if (gPlayers[e->closest].field_A1C > 2) {
+            face = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
         } else {
-            face = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+            face = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
     } else {
         face = e->ang;
@@ -5186,10 +5144,10 @@ void move_logic22(s32 index)
         s16 c = e->closest;
         f32 f;
         if (c >= 0) {
-            if (gPlayers.players[c].field_A1C > 2) {
-                f = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[c].field_A1C > 2) {
+                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                f = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             f = e->ang;
@@ -5218,17 +5176,17 @@ void move_logic23(s32 index)
         format_brain(index);
     }
     if (e->closest >= 0) {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        if (gPlayers[e->closest].field_A1C > 2) {
+            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
     }
     e->ang = a;
     if (e->closest >= 0) {
-        Player* player = &gPlayers.players[e->closest];
+        Player* player = &gPlayers[e->closest];
         f32 sight = e->sight;
         f32 dy = e->objgrp.worldmat[3][1] - player->pos[1];
         if (e->visactive != 0 && e->actual_dist <= sight
@@ -5311,17 +5269,17 @@ void move_logic28(s32 index)
         format_brain(index);
     }
     if (e->closest >= 0) {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        if (gPlayers[e->closest].field_A1C > 2) {
+            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
     }
     e->ang = a;
     if (e->closest >= 0) {
-        Player* player = &gPlayers.players[e->closest];
+        Player* player = &gPlayers[e->closest];
         f32 sight = e->sight;
         f32 dy = e->objgrp.worldmat[3][1] - player->pos[1];
         if (e->visactive != 0 && e->actual_dist <= sight
@@ -5409,10 +5367,10 @@ void move_logic29(s32 index)
     {
         s16 c = e->closest;
         if (c >= 0) {
-            if (gPlayers.players[c].field_A1C > 2) {
-                a = get_yaw(gPlayers.players[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            if (gPlayers[c].field_A1C > 2) {
+                a = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
             } else {
-                a = get_yaw(gPlayers.players[c].pos, &e->objgrp.worldmat[3][0]);
+                a = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
             }
         } else {
             a = e->ang;
@@ -5609,10 +5567,10 @@ void move_logic31(s32 index)
         format_brain(index);
     }
     if (e->closest >= 0) {
-        if (gPlayers.players[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers.players[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        if (gPlayers[e->closest].field_A1C > 2) {
+            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
         } else {
-            a = get_yaw(gPlayers.players[e->closest].pos, &e->objgrp.worldmat[3][0]);
+            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
     } else {
         a = e->ang;
@@ -5879,7 +5837,7 @@ void set_enemy_trans(Enemy* enemy, f32 speed, f32 angle)
 
 s32 fn_8004CE38(Enemy* e)
 {
-    u8* p;
+    Player* p;
     f32 dx;
     f32 dz;
     f32 a;
@@ -5890,22 +5848,22 @@ s32 fn_8004CE38(Enemy* e)
     f32 x2;
     f32 z2;
 
-    p = (u8*)&gPlayerWords[e->closest];
+    p = &gPlayers[e->closest];
     /* When the closest player's mikey is live (field_A1C > 2) the chase
      * bearing is taken from the mikey object's world translation
      * (mikey_worldmat[3], the mikey OBJGRP embed) rather than from pos[]. */
-    if (((Player *)p)->field_A1C > 2) {
-        dx = ((Enemy *)e)->objgrp.worldmat[3][0] -
-             ((Player *)p)->mikey_worldmat[3][0];
-        dz = ((Enemy *)e)->objgrp.worldmat[3][2] -
-             ((Player *)p)->mikey_worldmat[3][2];
+    if (p->field_A1C > 2) {
+        dx = e->objgrp.worldmat[3][0] -
+             p->mikey_worldmat[3][0];
+        dz = e->objgrp.worldmat[3][2] -
+             p->mikey_worldmat[3][2];
     } else {
-        dx = ((Enemy *)e)->objgrp.worldmat[3][0] -
-             ((Player *)p)->pos[0];
-        dz = ((Enemy *)e)->objgrp.worldmat[3][2] -
-             ((Player *)p)->pos[2];
+        dx = e->objgrp.worldmat[3][0] -
+             p->pos[0];
+        dz = e->objgrp.worldmat[3][2] -
+             p->pos[2];
     }
-    a = (f32)(0.5235987756666667 + *(f32*)((u32)e + offsetof(Enemy, pyr[1])));
+    a = (f32)(0.5235987756666667 + e->pyr[1]);
     if (a > 3.141592654) {
         t = a - 6.283185308;
     } else if (a <= (-3.141592654)) {
@@ -6029,7 +5987,7 @@ void do_enemies(void)
     }
 
     {
-        Player* pl = gPlayers.players;
+        Player* pl = gPlayers;
 
         for (i = 0; i < 4; i++, pl++) {
             if (pl->state == 1) {
@@ -6527,7 +6485,7 @@ void fn_8004DC2C(Enemy* enemy)
 void fn_8004DF58(Enemy* enemy)
 {
     u32 playerFlags;
-    EnemyPlayerView* player;
+    Player* player;
     s32 damageMode;
     f32 amount;
     f32 direction[3];
@@ -6545,9 +6503,9 @@ void fn_8004DF58(Enemy* enemy)
         (enemy->algorithm == 31 && (enemy->attack_flag & 2) != 0)) {
         if (enemy->coll_pnum < 0) {
             if (enemy->closest >= 0) {
-                missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
-                missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
-                missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
+                missilePosition[0] = gPlayers[enemy->closest].effectpos[0];
+                missilePosition[1] = gPlayers[enemy->closest].effectpos[1];
+                missilePosition[2] = gPlayers[enemy->closest].effectpos[2];
             } else {
                 missilePosition[0] = enemy->objgrp.coll_pos[0];
                 missilePosition[1] = enemy->objgrp.coll_pos[1];
@@ -6564,7 +6522,7 @@ void fn_8004DF58(Enemy* enemy)
     }
 
     if (enemy->attack_index >= 0 && (enemy->attack_flag & 0xF) != 0) {
-        player = &gEnemyPlayers[enemy->attack_index];
+        player = &gPlayers[enemy->attack_index];
         if (player->state == 1) {
             damageMode = 1;
             amount = enemy->atts.fight;
@@ -6586,39 +6544,39 @@ void fn_8004DF58(Enemy* enemy)
                 }
             }
 
-            if (player->attack_heal != 0) {
+            if (player->field_A20 != 0) {
                 healedPosition[0] = enemy->objgrp.coll_pos[0];
                 healedPosition[1] = enemy->objgrp.coll_pos[1];
                 healedPosition[2] = enemy->objgrp.coll_pos[2];
-                player->damage_position[0] =
+                player->effectpos[0] =
                     healedPosition[0] - healedPosition[0];
-                player->damage_position[1] =
+                player->effectpos[1] =
                     healedPosition[1] - healedPosition[1];
-                player->damage_position[2] =
+                player->effectpos[2] =
                     healedPosition[2] - healedPosition[2];
                 damage_enemy(enemy, amount, -1, 0x200,
-                             (s32)player->damage_position,
+                             (s32)player->effectpos,
                              (s32)healedPosition, 1);
                 heal_player(player, amount);
                 amount = 0.0f;
                 playerFlags = 0x40000000;
-                StartGemFX(player->position, 1);
-            } else if (player->attack_reflect != 0) {
+                StartGemFX(player->col_pos, 1);
+            } else if (player->field_A1E != 0) {
                 reflectedPosition[0] = enemy->objgrp.coll_pos[0];
                 reflectedPosition[1] = enemy->objgrp.coll_pos[1];
                 reflectedPosition[2] = enemy->objgrp.coll_pos[2];
-                player->damage_position[0] =
+                player->effectpos[0] =
                     reflectedPosition[0] - reflectedPosition[0];
-                player->damage_position[1] =
+                player->effectpos[1] =
                     reflectedPosition[1] - reflectedPosition[1];
-                player->damage_position[2] =
+                player->effectpos[2] =
                     reflectedPosition[2] - reflectedPosition[2];
                 damage_enemy(enemy, amount, -1, 0,
-                             (s32)player->damage_position,
+                             (s32)player->effectpos,
                              (s32)reflectedPosition, 1);
                 amount = 0.0f;
                 playerFlags = 0x40000000;
-                StartGemFX(player->position, 1);
+                StartGemFX(player->col_pos, 1);
             }
 
             if ((f64)enemy->hht <= 2.0) {
@@ -6642,11 +6600,11 @@ void fn_8004DF58(Enemy* enemy)
                 damageMode = 0;
             }
             if ((playerFlags & 0x130) != 0) {
-                direction[0] = player->damage_position[0] -
+                direction[0] = player->effectpos[0] -
                                enemy->objgrp.coll_pos[0];
-                direction[1] = player->damage_position[1] -
+                direction[1] = player->effectpos[1] -
                                enemy->objgrp.coll_pos[1];
-                direction[2] = player->damage_position[2] -
+                direction[2] = player->effectpos[2] -
                                enemy->objgrp.coll_pos[2];
                 direction[1] = -direction[1];
                 NormalVector(direction);
@@ -6665,9 +6623,9 @@ void fn_8004DF58(Enemy* enemy)
 
     if ((enemy->attack_flag & 0x10) != 0) {
         if (enemy->closest >= 0) {
-            missilePosition[0] = gEnemyPlayers[enemy->closest].damage_position[0];
-            missilePosition[1] = gEnemyPlayers[enemy->closest].damage_position[1];
-            missilePosition[2] = gEnemyPlayers[enemy->closest].damage_position[2];
+            missilePosition[0] = gPlayers[enemy->closest].effectpos[0];
+            missilePosition[1] = gPlayers[enemy->closest].effectpos[1];
+            missilePosition[2] = gPlayers[enemy->closest].effectpos[2];
         } else {
             missilePosition[0] = enemy->objgrp.coll_pos[0];
             missilePosition[1] = enemy->objgrp.coll_pos[1];
@@ -6752,7 +6710,7 @@ void update_enemy_milestone(Enemy* enemy)
 /* Track this enemy's target milestone in the player's recent-history ring. */
 void adjust_msidx(Enemy* enemy)
 {
-    Player* player = &gPlayers.players[enemy->closest];
+    Player* player = &gPlayers[enemy->closest];
     s32 i;
 
     for (i = 0; i < 5; i++) {
@@ -6847,7 +6805,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
                  s32 effect_position_arg, s32 hit_direction_arg,
                  s32 play_effects)
 {
-    EnemyPlayerView* player = NULL;
+    Player* player = NULL;
     f32* effect_position = (f32*)effect_position_arg;
     f32* hit_direction = (f32*)hit_direction_arg;
     f32 old_health = e->health;
@@ -6867,7 +6825,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     }
 
     if (player_index >= 0) {
-        player = &gEnemyPlayers[player_index];
+        player = &gPlayers[player_index];
     }
     if (player != NULL) {
         lbl_803447E4 = 1;
@@ -6903,7 +6861,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
                 }
             }
             return 0;
-        } else if (player != NULL && (player->flags & 0x80000) != 0) {
+        } else if (player != NULL && (player->shield_flags & 0x80000) != 0) {
             f64 one;
 
             e->health = (f32)(e->health - (one = 1.0));
@@ -6915,7 +6873,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         } else {
             e->health = (f32)(e->health - 1.0);
             if (player != NULL) {
-                msgPost(0, player_index, player->position);
+                msgPost(0, player_index, player->col_pos);
             }
         }
 
@@ -6934,7 +6892,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             }
             uncouple_enemy(enemy_index);
             if (player != NULL) {
-                player->character_stats[player->character].kills++;
+                player->save.stats[player->character].enemies_killed++;
             }
             return 1;
         }
@@ -7028,7 +6986,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     if ((f64)e->health <= 0.0) {
         if (e->type == gBossType) {
             if ((f64)old_health > 0.0 && player != NULL) {
-                player->character_stats[player->character].kills++;
+                player->save.stats[player->character].enemies_killed++;
             }
             return 1;
         }
@@ -7050,7 +7008,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         }
         uncouple_enemy(enemy_index);
         if (player != NULL) {
-            player->character_stats[player->character].kills++;
+            player->save.stats[player->character].enemies_killed++;
         }
 
         if (player_index >= -1) {
@@ -7172,15 +7130,15 @@ void fn_8004F1DC(Enemy* enemy)
     Player* player = NULL;
 
     if (enemy->closest >= 0) {
-        player = &gPlayers.players[enemy->closest];
+        player = &gPlayers[enemy->closest];
     } else {
         for (i = 0; i < 4; i++) {
-            if (gPlayers.players[i].state == 1) {
+            if (gPlayers[i].state == 1) {
                 break;
             }
         }
         if (i < 4) {
-            player = &gPlayers.players[i];
+            player = &gPlayers[i];
         }
     }
 
@@ -7843,7 +7801,7 @@ extern char* fn_80051E1C(s32 world, s32 lvl, s32 flag);
 
 static s32 PlayersAverageLevel(void)
 {
-    s32* player = (s32*)gPlayers.players;
+    s32* player = (s32*)gPlayers;
     s32 activePlayers = 0;
     s32 totalLevel = 0;
     s32 i;
@@ -8772,7 +8730,7 @@ void fn_800516F8(s32 slot)
     e = &gEnemies[slot];
     bestSpecial = 100000.0f;
 
-    for (i = 0, p = gPlayers.players; i < 4; i++, p++) {
+    for (i = 0, p = gPlayers; i < 4; i++, p++) {
         if (p->state == 1) {
             break;
         }
@@ -8782,13 +8740,13 @@ void fn_800516F8(s32 slot)
     }
 
     t = lbl_80344B24;
-    if (t >= 0 && gPlayers.players[t].state == ACTIVE &&
-        !(gPlayers.players[t].flags & 4) &&
-        !(e->type == 30 && (gPlayers.players[t].shield_flags & 0x80000))) {
+    if (t >= 0 && gPlayers[t].state == ACTIVE &&
+        !(gPlayers[t].flags & 4) &&
+        !(e->type == 30 && (gPlayers[t].shield_flags & 0x80000))) {
         Player* q;
         e->prev_closest = e->closest;
         e->closest = (s16)lbl_80344B24;
-        q = &gPlayers.players[lbl_80344B24];
+        q = &gPlayers[lbl_80344B24];
         {
             f32 fd;
             if (q->field_A1C > 2) {
@@ -8801,7 +8759,7 @@ void fn_800516F8(s32 slot)
             e->actual_dist = fd;
         }
         e->close_dist = e->actual_dist +
-                           gPlayers.players[lbl_80344B24].dist_offset;
+                           gPlayers[lbl_80344B24].dist_offset;
     } else {
         s32 go = 1;
         s32 cur;
@@ -8810,7 +8768,7 @@ void fn_800516F8(s32 slot)
         }
         cur = e->closest;
         if ((s16)cur >= 0 &&
-            gPlayers.players[cur].state != ACTIVE) {
+            gPlayers[cur].state != ACTIVE) {
             go = -1;
         }
         if (go != 0) {
@@ -8881,7 +8839,7 @@ void fn_800516F8(s32 slot)
         if (e->actual_dist <= e->sight) {
             Player* base;
             e->recognized = 1;
-            base = gPlayers.players;
+            base = gPlayers;
             base[e->closest].num_approaching++;
             {
                 Player* r = &base[e->closest];
