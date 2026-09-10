@@ -1143,7 +1143,7 @@ void do_enemy_move(int index)
                 lbl_80344730 = EnemyWallCollide(rad2, oldpos, half, enemy_wall_collp);
                 if (lbl_80344730 != 0) {
                     EnemyWorldDamage(e, lbl_80344730, oldpos, enemy_wall_collp);
-                    if (*(u32*)((u8*)lbl_80344730 + 16) & 0x38) {
+                    if (((WorldObj*)lbl_80344730)->flags & 0x38) {
                         result = 0;
                     } else if (!(e->ai_flags & 1)
                                && SlideAlongWall(rad2, oldpos, e->trans,
@@ -1506,7 +1506,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
             if (lbl_80344730 != 0) {
                 EnemyWorldDamage(enemy, lbl_80344730, oldpos,
                                  (f32*)(pool + 0x2F4));
-                if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
+                if (((WorldObj*)lbl_80344730)->flags & 0x38) {
                     wallResult = 0;
                 } else {
                     if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
@@ -1540,7 +1540,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
             if (lbl_80344730 != 0) {
                 EnemyWorldDamage(enemy, lbl_80344730, oldpos,
                                  (f32*)(pool + 0x2F4));
-                if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
+                if (((WorldObj*)lbl_80344730)->flags & 0x38) {
                     wallResult = 0;
                 } else {
                     if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
