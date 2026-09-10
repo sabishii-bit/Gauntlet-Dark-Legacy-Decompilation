@@ -2770,7 +2770,6 @@ void move_logic05(s32 index)
     Enemy* e;
     Enemy* e0;
     s32 it = lbl_80344748;
-    s32 type;
     f32 dist;
     f32 speed;
     s32 flee;
@@ -2780,10 +2779,9 @@ void move_logic05(s32 index)
     u8 _pad05[56];
 
     e0 = &gEnemies[index];
-    type = e0->type;
     e = e0;
     dist = e->rad;
-    speed = lbl_80250E40[type];
+    speed = lbl_80250E40[e->type];
     if (it < 0) {
         flee = 0;
     } else {
