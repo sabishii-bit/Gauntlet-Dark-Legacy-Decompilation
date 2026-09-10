@@ -7732,8 +7732,8 @@ void fn_80050910(s32 arg0)
 
 void AllocEnemy(s32 id, s32 model)
 {
-    char buf[68];
-    u8 unused[4];
+    char buf[64]; /* Xbox tbuf[64], also sufficient for the GC frame. */
+    u8 unused[4]; /* Unrecovered inline-local space; not part of buf. */
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
@@ -7759,8 +7759,8 @@ void AllocEnemy(s32 id, s32 model)
 
 void LoadEnemy(s32 id, s32 model)
 {
-    char buf[68];
-    u8 unused[4];
+    char buf[64]; /* Same directory buffer as AllocEnemy. */
+    u8 unused[4]; /* Unrecovered inline-local space; not part of buf. */
 
     lbl_8034471C++;
     if (lbl_8034471C > 8) {
