@@ -2349,7 +2349,7 @@ static f32 fabsf_(f32 x)
     return x;
 }
 
-/* One-step heading wrap shared by the two wander-loop calculations. The
+/* One-step heading wrap shared by the enemy movement calculations. The
  * input and returned heading are floats; the conditional arithmetic uses
  * double constants, with one final float rounding at the join. */
 static inline f32 enemy_normalized_heading(f32 a)
@@ -3565,9 +3565,6 @@ void move_logic10(s32 index)
     }
     case 1: {
         s32 skip;
-        /* Float turn arithmetic feeds a double normalization result; narrow
-         * once after its join, not separately inside the wrapping arms. */
-        f64 normalAngle;
         if (*(s32*)(e0 + offsetof(Enemy, coll_pnum)) >= 0) {
             if (*(s16*)(e0 + offsetof(Enemy, algorithm)) != *(s16*)(e0 + offsetof(Enemy, prev_ai))) {
                 format_brain(index);
@@ -3647,10 +3644,10 @@ void move_logic10(s32 index)
                 }
                 if (e->route > 0) {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand + q[1095];
+                    cand = cand + q[1095];
                 } else {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand - q[1095];
+                    cand = cand - q[1095];
                 }
             } else if (e->area == 1) {
                 s32 col;
@@ -3661,10 +3658,10 @@ void move_logic10(s32 index)
                 }
                 if (e->route > 0) {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand + q[1095];
+                    cand = cand + q[1095];
                 } else {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand - q[1095];
+                    cand = cand - q[1095];
                 }
             } else if (e->coll_ip != 0 || e->coll_enenum >= 0) {
                 s32 col2;
@@ -3672,22 +3669,15 @@ void move_logic10(s32 index)
                 col2 = e->collided;
                 if (e->route > 0) {
                     q = (f32*)(tbl + col2 * 4);
-                    normalAngle = cand + q[1095];
+                    cand = cand + q[1095];
                 } else {
                     q = (f32*)(tbl + col2 * 4);
-                    normalAngle = cand - q[1095];
+                    cand = cand - q[1095];
                 }
             } else {
-                normalAngle = lbl_80344720;
+                cand = lbl_80344720;
             }
-            {
-                if (normalAngle > 3.141592654) {
-                    normalAngle -= 6.283185308;
-                } else if (normalAngle <= -3.141592654) {
-                    normalAngle = 6.283185308 + normalAngle;
-                }
-                cand = normalAngle;
-            }
+            cand = enemy_normalized_heading(cand);
             probe[0] = e->objgrp.worldmat[3][0];
             probe[1] = e->objgrp.worldmat[3][1];
             probe[2] = e->objgrp.worldmat[3][2];
@@ -3729,7 +3719,6 @@ void move_logic10(s32 index)
         break;
     }
     default: {
-        f64 normalAngle;
         if (e->algorithm != e->prev_ai) {
             format_brain(index);
         }
@@ -3784,10 +3773,10 @@ void move_logic10(s32 index)
                 }
                 if (e->route > 0) {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand + q[1095];
+                    cand = cand + q[1095];
                 } else {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand - q[1095];
+                    cand = cand - q[1095];
                 }
             } else if (e->area == 1) {
                 s32 col;
@@ -3798,10 +3787,10 @@ void move_logic10(s32 index)
                 }
                 if (e->route > 0) {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand + q[1095];
+                    cand = cand + q[1095];
                 } else {
                     q = (f32*)(tbl + col * 4);
-                    normalAngle = cand - q[1095];
+                    cand = cand - q[1095];
                 }
             } else if (e->coll_ip != 0 || e->coll_enenum >= 0) {
                 s32 col2;
@@ -3809,22 +3798,15 @@ void move_logic10(s32 index)
                 col2 = e->collided;
                 if (e->route > 0) {
                     q = (f32*)(tbl + col2 * 4);
-                    normalAngle = cand + q[1095];
+                    cand = cand + q[1095];
                 } else {
                     q = (f32*)(tbl + col2 * 4);
-                    normalAngle = cand - q[1095];
+                    cand = cand - q[1095];
                 }
             } else {
-                normalAngle = lbl_80344720;
+                cand = lbl_80344720;
             }
-            {
-                if (normalAngle > 3.141592654) {
-                    normalAngle -= 6.283185308;
-                } else if (normalAngle <= -3.141592654) {
-                    normalAngle = 6.283185308 + normalAngle;
-                }
-                cand = normalAngle;
-            }
+            cand = enemy_normalized_heading(cand);
             probe[0] = e->objgrp.worldmat[3][0];
             probe[1] = e->objgrp.worldmat[3][1];
             probe[2] = e->objgrp.worldmat[3][2];
