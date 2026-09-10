@@ -6838,7 +6838,6 @@ typedef struct EnemySpawnPoolView {
 s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
                    struct Item* gen, s32 imp, f32 ang)
 {
-    u8* tbl = (u8*)lbl_8011AF48;
     EnemySpawnPoolView* pool = (EnemySpawnPoolView*)mbdesc;
     Enemy* e;
     s32 slot;
@@ -6869,15 +6868,15 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
         level = 2;
         i = lbl_8034472C;
         lbl_8034472C = i + 1;
-        type = *(s32*)(tbl + ((i & 3) << 2) + 4284);
-        spew = *(s32*)(tbl + ((i & 3) << 2) + 4300);
+        type = lbl_8011C004[(i & 3)];
+        spew = lbl_8011C004[4 + (i & 3)];
     } else if (type == -3) {
         RandInt(4);
         level = 3;
         i = lbl_8034472C;
         lbl_8034472C = i + 1;
-        type = *(s32*)(tbl + ((i & 3) << 2) + 4316);
-        spew = *(s32*)(tbl + ((i & 3) << 2) + 4332);
+        type = lbl_8011C004[8 + (i & 3)];
+        spew = lbl_8011C004[12 + (i & 3)];
     } else if (type < 0) {
         return -6;
     }
