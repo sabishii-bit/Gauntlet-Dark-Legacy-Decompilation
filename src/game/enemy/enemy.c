@@ -7787,60 +7787,16 @@ void LoadEnemy(s32 id, s32 model)
 
 void fn_80050DD8(char* buf, s32 id, s32 qty)
 {
-    EnemyTypeName* tbl = lbl_8011AF48;
-    char* name;
-    s32 i;
-
     if (id == E_GOLEM || id == E_GENERAL) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto f1;
-            }
-        }
-        name = 0;
-f1:
-        sprintf(buf, "monsters/%s/%s", name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s/%s", findWorldName(id), fn_80057ACC(id));
     } else if (id == E_GARGOYLE) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto f2;
-            }
-        }
-        name = 0;
-f2:
-        sprintf(buf, "monsters/%s_%s", name, fn_80057ACC(id));
+        sprintf(buf, "monsters/%s_%s", findWorldName(id), fn_80057ACC(id));
     } else if (qty == 4) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto f3;
-            }
-        }
-        name = 0;
-f3:
-        sprintf(buf, "monsters/%saux", name);
+        sprintf(buf, "monsters/%saux", findWorldName(id));
     } else if (qty > 10) {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto f4;
-            }
-        }
-        name = 0;
-f4:
-        sprintf(buf, "monsters/%s%d", name, qty - 10);
+        sprintf(buf, "monsters/%s%d", findWorldName(id), qty - 10);
     } else {
-        for (i = 0; i < 44; i++) {
-            if (id == tbl[i].type) {
-                name = tbl[i].desc;
-                goto f5;
-            }
-        }
-        name = 0;
-f5:
-        sprintf(buf, "monsters/%s", name);
+        sprintf(buf, "monsters/%s", findWorldName(id));
     }
 }
 
