@@ -2404,13 +2404,17 @@ static inline int FoundSuicideBomber(int num)
  * float's lifetime at callers; manually flattening it loses inline locals. */
 static inline f32 get_face_ang(Enemy* e, int always)
 {
+    f32 angle;
     if (e->closest >= 0 && always) {
         if (gPlayers[e->closest].field_A1C > 2) {
-            return get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+            angle = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        } else {
+            angle = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
         }
-        return get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
+    } else {
+        angle = e->ang;
     }
-    return e->ang;
+    return angle;
 }
 
 /* move_logic00 @0x80046B54 (state 0 + 9, base wander/seek).  IT-flee / chase
@@ -2420,9 +2424,8 @@ static inline f32 get_face_ang(Enemy* e, int always)
 void move_logic00(int index)
 {
     Enemy* e = &gEnemies[index];
-    s32 type = e->type;
     int i;
-    f32 spd = lbl_80250E40[type];
+    f32 spd = lbl_80250E40[e->type];
     f32 dest[3];
     f32 ang;
 
