@@ -426,7 +426,7 @@ void do_enemy_move(s32 index);
 s32 do_enemy_collide(s32 index, f32 retryThreshold);
 f32 turn_enemy_ang(Enemy* e, f32 want);
 s32 do_ai(s32 index);
-void move_logic00(s32 index);
+void move_logic00(int index);
 void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s32 index);
 void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
 void move_logic07(s32 index); void move_logic08(s32 index); void move_logic10(s32 index);
@@ -894,7 +894,7 @@ s32 fn_8004646C(s32 index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht, s
 int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad, f32 hht);
 s32 do_ai(s32 index);
 static f32 fabsf_(f32 x);
-void move_logic00(s32 index);
+void move_logic00(int index);
 void move_logic01(s32 index);
 void move_logic02(int index);
 void move_logic03(s32 index);
@@ -2368,44 +2368,65 @@ static inline f32 enemy_normalized_heading(f32 a)
           (a <= -3.141592654 ? 6.283185308 + a : a);
 }
 
+/* The retained Xbox helper and repeated GC caller expansions identify this
+ * bomber query. Its parameter/result are int, not the project's signed-long
+ * s32: equal ABI widths do not give MWCC identical inline argument lifetimes.
+ * The real three-dimensional delta replaces the callers' old frame padding.
+ * Preserve GC's early greater-than rejection, including unordered inputs. */
+static inline int FoundSuicideBomber(int num)
+{
+    Enemy* self = &gEnemies[num];
+    int it = lbl_80344748;
+
+    if (it < 0) {
+        return 0;
+    }
+    if (gEnemies[it].state != ACTIVE) {
+        return 0;
+    }
+    if (gEnemies[it].actual_dist > self->sight) {
+        return 0;
+    }
+    if (num != it && self->birth_style == 0 && self->dead_end <= 0) {
+        f32 delta[3];
+        delta[0] = gEnemies[it].objgrp.worldmat[3][0] - self->objgrp.worldmat[3][0];
+        delta[1] = gEnemies[it].objgrp.worldmat[3][1] - self->objgrp.worldmat[3][1];
+        delta[2] = gEnemies[it].objgrp.worldmat[3][2] - self->objgrp.worldmat[3][2];
+        if (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2] < 100.0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+/* get_face_ang(Enemy*, int) is retained in the Xbox executable. GC callers
+ * inline this same player/mikey selection and yaw fallback. Keep the returned
+ * float's lifetime at callers; manually flattening it loses inline locals. */
+static inline f32 get_face_ang(Enemy* e, int always)
+{
+    if (e->closest >= 0 && always) {
+        if (gPlayers[e->closest].field_A1C > 2) {
+            return get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
+        }
+        return get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
+    }
+    return e->ang;
+}
+
 /* move_logic00 @0x80046B54 (state 0 + 9, base wander/seek).  IT-flee / chase
  * gates, then face the closest player and sweep up to 9 offset headings,
  * projecting each with sin/cos and probing for wall clearance; commit the first
  * clear heading (recording the try count), else keep the straight bearing. */
-void move_logic00(s32 index)
+void move_logic00(int index)
 {
     Enemy* e = &gEnemies[index];
     s32 type = e->type;
-    s32 i;
+    int i;
     f32 spd = lbl_80250E40[type];
-    s32 it = lbl_80344748;
-    s32 flee;
-    f32 ang;
     f32 dest[3];
-    u8 unused[24];
+    f32 ang;
 
-    if (it < 0) {
-        flee = 0;
-    } else {
-        if (gEnemies[it].state != ACTIVE) {
-            flee = 0;
-        } else if (gEnemies[it].actual_dist > e->sight) {
-            flee = 0;
-        } else if (index == it || e->birth_style != 0 || e->dead_end > 0) {
-            goto flee_zero00;
-        } else {
-            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero00:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
@@ -2423,17 +2444,7 @@ void move_logic00(s32 index)
     }
     if (e->dead_end <= 0) {
         {
-            s16 c = e->closest;
-            f32 f;
-            if (c >= 0) {
-                if (gPlayers[c].field_A1C > 2) {
-                    f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-                } else {
-                    f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-                }
-            } else {
-                f = e->ang;
-            }
+            f32 f = get_face_ang(e, 1);
             ang = f;
         }
         lbl_80344720 = ang;
@@ -2568,38 +2579,6 @@ void move_logic01(s32 index)
         e->anghit = e->ang;
     }
 }
-
-/* The retained Xbox helper and repeated GC caller expansions identify this
- * bomber query. Its parameter/result are int, not the project's signed-long
- * s32: equal ABI widths do not give MWCC identical inline argument lifetimes.
- * The real three-dimensional delta replaces the callers' old frame padding.
- * Preserve GC's early greater-than rejection, including unordered inputs. */
-static inline int FoundSuicideBomber(int num)
-{
-    Enemy* self = &gEnemies[num];
-    int it = lbl_80344748;
-
-    if (it < 0) {
-        return 0;
-    }
-    if (gEnemies[it].state != ACTIVE) {
-        return 0;
-    }
-    if (gEnemies[it].actual_dist > self->sight) {
-        return 0;
-    }
-    if (num != it && self->birth_style == 0 && self->dead_end <= 0) {
-        f32 delta[3];
-        delta[0] = gEnemies[it].objgrp.worldmat[3][0] - self->objgrp.worldmat[3][0];
-        delta[1] = gEnemies[it].objgrp.worldmat[3][1] - self->objgrp.worldmat[3][1];
-        delta[2] = gEnemies[it].objgrp.worldmat[3][2] - self->objgrp.worldmat[3][2];
-        if (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2] < 100.0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
 /* move_logic02 @0x800471A4 (state 2, demon-flee-from-IT).  If the "IT" enemy is
  * active, close, at the same height and this enemy is fresh, flee it (algorithm
  * 24); once it has closed on a player switch to chase; otherwise drift on a
@@ -3341,20 +3320,6 @@ void move_logic08(s32 index)
     do_enemy_move(index);
 }
 #pragma opt_propagation reset
-
-/* get_face_ang(Enemy*, int) is retained in the Xbox executable. GC callers
- * inline this same player/mikey selection and yaw fallback. Keep the returned
- * float's lifetime at callers; manually flattening it loses inline locals. */
-static inline f32 get_face_ang(Enemy* e, int always)
-{
-    if (e->closest >= 0 && always) {
-        if (gPlayers[e->closest].field_A1C > 2) {
-            return get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-        }
-        return get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
-    }
-    return e->ang;
-}
 
 #pragma opt_propagation off
 void move_logic10(s32 index)
