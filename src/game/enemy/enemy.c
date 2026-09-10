@@ -312,7 +312,7 @@ f32 lbl_8011BF60[38] = {
  * Data used throughout:
  *   gEnemies        0x80251C18  active enemy records, stride 0x394 (916) bytes.
  *                               The compiler often addresses them via the base
- *                               lbl_80250E00 (= gEnemies - 0xE18) + 0xE18.
+ *                               mbdesc (= gEnemies - 0xE18) + 0xE18.
  *   gNumEnemies     0x80344744  number of active enemy slots.
  *   generator table 0x80275AE0  four 0x335C (13148) byte "generator/head" recs.
  *   jumptable_8011C0EC          32-entry AI move-logic dispatch table (see below).
@@ -508,10 +508,12 @@ extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-sl
 #define ENEMY_POOL_OFF 0xE18
 #define OFF_E(field) (ENEMY_POOL_OFF + offsetof(Enemy, field))
 
-/* TU .bss objects. Under this edge, defined objects are placed at first use;
- * otherwise-unreferenced definitions follow in reverse definition order.
- * The historical referencer below, not declaration order alone, currently
- * establishes the target layout. */
+/* TU .bss objects. The five module-local arrays below have Xbox LDATA32
+ * evidence and no external GC consumers. MWCC allocates file-scope statics
+ * at their definitions, in order: description buffer, loaded type indices,
+ * type speeds, milestone route, wall-contact vector. These are separate
+ * objects, not one BSS pool. The external globals still use the historical
+ * referencer until their original declaration/initialization context is found. */
 Enemy gEnemies[25];            /* 0x80251C18 */
 u32 gWadAtreeHeaders[0x8B4 / 4];   /* 0x80251364 */
 s32 lbl_802512B0[45];          /* 0x802512B0 per-type spawn-allowed */
@@ -520,15 +522,20 @@ s32 lbl_80251148[45];          /* 0x80251148 per-type generator-fx enable */
 /* PDB enemy_floor_col is a worldcol: matrix, squared distance and hit object.
  * GC passes this 72-byte record to FloorCollide and reads mtx[3][1] at +0x34. */
 FloorCollisionResult enemy_floor_col; /* 0x80251100 */
-f32 enemy_wall_collp[3];           /* 0x802510F4 world-probe hit normal */
-s32 sEnemyMilestoneRoute[128]; /* 0x80250EF4 */
-f32 lbl_80250E40[45];          /* per-enemy-type speed table */
-s32 lbl_80250E00[0x40 / 4];   /* 0x80250E00 enemy-type pool anchor */
+static char mbdesc[32];              /* 0x80250E00 description scratch */
+static s32 enemy_type[8];            /* 0x80250E20 loaded type indices */
+static f32 lbl_80250E40[45];          /* 0x80250E40 per-type speed */
+static s32 sEnemyMilestoneRoute[128]; /* 0x80250EF4 */
+static f32 enemy_wall_collp[3];       /* 0x802510F4 world-probe contact */
 
-/* .bss first-use-order referencer.  MWCC allocates a bss object at the first
- * reference that is compiled with the object already defined, in first-use
- * order; everything it did not allocate that way follows in reverse definition
- * order. The original source responsible for this ordering is UNRECOVERED.
+/* Legacy accesses below still compute other objects from mbdesc's address.
+ * They are unreconstructed cross-object arithmetic, not fields of this real
+ * 32-byte buffer. Replace each with its actual owner and whole-TU validation;
+ * the shared target BSS addressing base is not a source-level aggregate. */
+
+/* Remaining external .bss first-use-order referencer. MWCC's global-object
+ * placement is distinct from the declaration-order placement of statics above.
+ * The original source responsible for this global ordering is UNRECOVERED.
  * Earlier discarded code is one hypothesis, not proof of this helper's
  * provenance. This historical unreferenced static is reconstruction debt: it
  * reproduces the order and is stripped by mwld. Its presence is not permission
@@ -540,13 +547,10 @@ s32 lbl_80250E00[0x40 / 4];   /* 0x80250E00 enemy-type pool anchor */
  * 0x240/0x360, 73 vs 72 records); and an `f32` zero here enters the anonymous
  * constant pool at a new creation point, renumbering .sdata2 and moving every
  * @sda21 displacement in the linked image (measured 183 differing DOL bytes).
- * The integer store below references the vector without doing either. */
+ * The existing integer store below references the floor record without doing
+ * either. Four former stores were retired by recovering the statics above. */
 static void enemy_bss_order(void)
 {
-    lbl_80250E00[0] = 0;
-    *(u32*)&lbl_80250E40[0] = 0;
-    sEnemyMilestoneRoute[0] = 0;
-    *(u32*)enemy_wall_collp = 0;
     *(u32*)&enemy_floor_col = 0;
     lbl_80251148[0] = 0;
     lbl_802511FC[0] = 0;
@@ -706,7 +710,7 @@ typedef struct EnemyMovePage05 {
  *   fqdist x4, fn_8004CE38 x3, fn_8004C8CC x3 - dist checks + corner probes
  *   do_ai x2         - the flee/chase bail-outs
  * Frame: 392 bytes, saves r25-r31 (_savefpr_25), pool base lbl_8011AF48 held in a
- * nonvolatile.  Uses the lbl_80250E00 + index*916 + 3608 anchor like the others.
+ * nonvolatile.  Uses the mbdesc + index*916 + 3608 anchor like the others.
  * The entry's pointer-copy shape remains unresolved; exact count alone is
  * not a complete register-renaming proof. */
 extern f32 lbl_8011C064[];    /* 0x8011C064 pack-hunter turn-step ramp */
@@ -1045,7 +1049,7 @@ void do_enemy_move(s32 index)
     f32 half[3];
     u8 unused4[12];
 
-    e = (Enemy*)((u8*)lbl_80250E00 + index * sizeof(Enemy));
+    e = (Enemy*)((u8*)mbdesc + index * sizeof(Enemy));
     e = (Enemy*)((u8*)e + ENEMY_POOL_OFF);
     alg = e->algorithm;
     rad = e->rad;
@@ -1450,7 +1454,7 @@ void do_enemy_move(s32 index)
 
 s32 do_enemy_collide(s32 index, f32 retryThreshold)
 {
-    u8* pool = (u8*)lbl_80250E00;
+    u8* pool = (u8*)mbdesc;
     u8* e0;
     u8* e;
     Enemy* enemy;
@@ -1753,7 +1757,7 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
     f32 floorY;
 
     (void)unused;
-    pool = (u8*)lbl_80250E00;
+    pool = (u8*)mbdesc;
     tolerance = (f32)(2.0 *
                       (0.1 + (f64)(retryThreshold + radius)));
     if (enemy->type == E_GOLEM || (f64)enemy->hht <= 2.0) {
@@ -1901,7 +1905,7 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
 
 void fn_80046140(s32 index)
 {
-    u8* pool = (u8*)lbl_80250E00;
+    u8* pool = (u8*)mbdesc;
     Enemy* enemy = (Enemy*)(pool + index * 0x394 + 0xE18);
     s32 playerIndex;
     s32 damaged;
@@ -2479,7 +2483,7 @@ void move_logic00(s32 index)
 void move_logic01(s32 index)
 {
     s32 stuck;
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     u8* row01;
     u8* e0;
     Enemy* e;
@@ -2572,7 +2576,7 @@ void move_logic01(s32 index)
 void move_logic02(s32 index)
 {
     u8* e0;
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     Enemy* e;
     s32 it;
     s32 flee;
@@ -2718,7 +2722,7 @@ void move_logic03(s32 index)
 void move_logic04(s32 index)
 {
     u8* e0;
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     Enemy* e;
     s32 it;
     s32 flee;
@@ -2793,7 +2797,7 @@ void move_logic04(s32 index)
 #pragma opt_propagation off
 void move_logic05(s32 index)
 {
-    EnemyMovePage05* page = (EnemyMovePage05*)lbl_80250E00;
+    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
     u8* e0;
     s32 it = lbl_80344748;
@@ -2916,7 +2920,7 @@ void move_logic05(s32 index)
 #pragma opt_propagation off
 void move_logic06(s32 index)
 {
-    EnemyMovePage05* page = (EnemyMovePage05*)lbl_80250E00;
+    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
     u8* e0;
     s32 it = lbl_80344748;
@@ -3042,7 +3046,7 @@ void move_logic06(s32 index)
 void move_logic07(s32 index)
 {
     u8* tbl = (u8*)lbl_8011AF48;
-    EnemyMovePage05* page = (EnemyMovePage05*)lbl_80250E00;
+    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
     u8* e0;
     s32 it = lbl_80344748;
@@ -3205,7 +3209,7 @@ void move_logic07(s32 index)
 void move_logic08(s32 index)
 {
     u8* tbl = (u8*)lbl_8011AF48;
-    EnemyMovePage05* page = (EnemyMovePage05*)lbl_80250E00;
+    EnemyMovePage05* page = (EnemyMovePage05*)mbdesc;
     Enemy* e;
     u8* e0;
     s32 it = lbl_80344748;
@@ -3389,7 +3393,7 @@ void move_logic08(s32 index)
 #pragma opt_propagation off
 void move_logic10(s32 index)
 {
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     u8* tbl = (u8*)lbl_8011AF48;
     u8* e0 = base + index * 916;
     Enemy* e;
@@ -4013,7 +4017,7 @@ void move_logic10(s32 index)
 #pragma opt_propagation off
 void move_logic12(s32 index)
 {
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     Enemy* e;
     struct Item* gen;
     s32 flee;
@@ -4114,7 +4118,7 @@ void move_logic12(s32 index)
 #pragma opt_propagation off
 void move_logic13(s32 index)
 {
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     Enemy* e;
     struct Item* gen;
     u8* p;
@@ -4242,7 +4246,7 @@ void move_logic13(s32 index)
 void move_logic14(s32 index)
 {
     u8* e0;
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
@@ -4383,7 +4387,7 @@ void move_logic14(s32 index)
 #pragma opt_propagation off
 void move_logic15(s32 index)
 {
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     u8* row15;
     Enemy* e;
     s32 it = lbl_80344748;
@@ -4504,7 +4508,7 @@ move:
 void move_logic16(s32 index)
 {
     s32 stuck;
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     u8* row16;
     u8* e0;
     Enemy* e;
@@ -5026,7 +5030,7 @@ void move_logic21(s32 index)
 void move_logic22(s32 index)
 {
     u8* row22;
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     u8* e0;
     Enemy* e;
     s32 it = lbl_80344748;
@@ -5290,7 +5294,7 @@ void move_logic28(s32 index)
 void move_logic29(s32 index)
 {
     s32 stuck;
-    u8* base = (u8*)lbl_80250E00;
+    u8* base = (u8*)mbdesc;
     u8* row29;
     u8* e0;
     Enemy* e;
@@ -5444,7 +5448,7 @@ void move_logic29(s32 index)
  * delegated base wander (move_logic00) with the algorithm parked at 30. */
 void move_logic30(s32 index)
 {
-    Enemy* e = (Enemy*)((u8*)lbl_80250E00 + (index * 916 + 3608));
+    Enemy* e = (Enemy*)((u8*)mbdesc + (index * 916 + 3608));
     s32 it = lbl_80344748;
     s32 flee;
     u8 unused[24];
@@ -5452,7 +5456,7 @@ void move_logic30(s32 index)
     if (it < 0) {
         flee = 0;
     } else {
-        u8* op = (u8*)lbl_80250E00 + it * 916;
+        u8* op = (u8*)mbdesc + it * 916;
         if (((Enemy *)(op + ENEMY_POOL_OFF))->state != 1) {
             flee = 0;
         } else if (((Enemy *)(op + ENEMY_POOL_OFF))->actual_dist > e->sight) {
@@ -5516,7 +5520,7 @@ void move_logic30(s32 index)
 
 /* Integrate the heading into a horizontal velocity, refreshing the cached
  * sin/cos when the heading changed; scaled by k and the per-type speed table
- * at lbl_80250E40 (= lbl_80250E00 + 64).  Inlined into move_logic31. */
+ * at lbl_80250E40 (= mbdesc + 64).  Inlined into move_logic31. */
 static inline void update_vel(Enemy* e, f32 k)
 {
     f32 ang = e->ang;
@@ -6712,42 +6716,21 @@ void adjust_msidx(Enemy* enemy)
     }
 }
 
-/* Advance texture modifiers for each loaded enemy type while gameplay runs.
- *
- * `resources` walks the lbl_80250E00 combined bss pool (see the TU .bss
- * layout note above this file's declarations).  Identification attempt
- * (2026-08-30, secondary de-fakematch pass):
- *   +0x564  EXACT match for gWadAtreeHeaders (0x80251364 - 0x80250E00 =
- *           0x564; verified by address arithmetic against the declared
- *           bss layout) - this reads gWadAtreeHeaders[index] as a void*,
- *           the per-type WAD/atree texmod-owner pointer DoTexMods() wants.
- *           NOT rewritten to the `gWadAtreeHeaders` symbol: fnasm.py shows
- *           this function's own base address relocates against
- *           lbl_80250E00 directly, so switching to the sub-object's own
- *           extern name would change the relocation target even though the
- *           resolved address is identical (claim.law.walked-base-symbol-
- *           identity.20260830.v1) - kept as the raw blob-base + literal
- *           offset for that reason, now with the identity documented.
- *   +0x20   first-level index table, inside lbl_80250E00's own declared
- *           0x40-byte anchor.  No covering struct found: reference-type
- *           searches for gen_head/generator/enemy_gen/gen_record/gentable/
- *           gen_table/texmod_owner/enemy_texmod all returned no PDB match,
- *           and no other function in the TU references this slot range.
- *           Left as a raw offset - no name to adopt without inventing one.
- */
+/* Update texture animations for the loaded enemy types. GC reads the
+ * eight-slot enemy_type array at .bss +0x20, then the corresponding animation
+ * header at .bss +0x564. PDB names/types and AllocEnemy/LoadEnemy/ResetEnemies
+ * corroborate the two distinct arrays. The target's shared section base does
+ * not imply an enclosing source object. */
 void enemy_update(void)
 {
-    u8* resources;
-    u8* cursor;
     s32 i;
+    s32 idx;
 
-    resources = (u8*)lbl_80250E00;
     if ((gGameBusy | gGameplayPauseTimer) == 0) {
         for (i = 0; i < lbl_8034471C; i++) {
-            cursor = resources + i * sizeof(s32);
-            cursor = resources + *(s32*)(cursor + 0x20) * sizeof(void*);
-            if (*(void**)(cursor + 0x564) != 0) {
-                DoTexMods(*(void**)(cursor + 0x564));
+            idx = enemy_type[i];
+            if (((void**)gWadAtreeHeaders)[idx] != 0) {
+                DoTexMods(((void**)gWadAtreeHeaders)[idx]);
             }
         }
     }
@@ -7201,7 +7184,7 @@ s32 check_vacancy(s32 index, f32* pos)
 }
 
 /* Addressing view over the existing enemy BSS symbols, not new storage.
- * Offsets are relative to lbl_80250E00; the arrays below start at +0x348,
+ * Offsets are relative to mbdesc; the arrays below start at +0x348,
  * +0x3FC, +0x4B0, +0x564 and +0xE18 respectively. Keeping the actual pool
  * owner explicit avoids a second compiler-created base for the spawn path. */
 typedef struct EnemySpawnPoolView {
@@ -7228,7 +7211,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
                    struct Item* gen, s32 imp, f32 ang)
 {
     u8* tbl = (u8*)lbl_8011AF48;
-    EnemySpawnPoolView* pool = (EnemySpawnPoolView*)lbl_80250E00;
+    EnemySpawnPoolView* pool = (EnemySpawnPoolView*)mbdesc;
     Enemy* e;
     s32 slot;
     s32 otype;
@@ -8136,18 +8119,14 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
 #pragma opt_propagation off
 void fn_800508A0(void)
 {
-    s32* pool = lbl_80250E00;
     s32 i;
     s32 idx;
     u8 unused[8];
 
     for (i = 0; i < lbl_8034471C; i++) {
-        s32* index_row = pool + i;
-        s32* resource_row;
-        idx = index_row[8];
-        resource_row = pool + idx;
-        if ((void*)resource_row[345] != 0) {
-            InitTexMods((void*)resource_row[345], resource_row[300]);
+        idx = enemy_type[i];
+        if (((void**)gWadAtreeHeaders)[idx] != 0) {
+            InitTexMods(((void**)gWadAtreeHeaders)[idx], lbl_802512B0[idx]);
         }
     }
 }
@@ -8164,7 +8143,7 @@ void AllocEnemy(s32 id, s32 model)
     char buf[68];
     u8 unused[4];
     EnemyTypeName* tbl = lbl_8011AF48;
-    s32* pool = lbl_80250E00;
+    s32* pool = (s32*)mbdesc;
     char* name;
     s32 i;
 
@@ -8237,7 +8216,7 @@ void LoadEnemy(s32 id, s32 model)
     char buf[68];
     u8 unused[4];
     EnemyTypeName* tbl = lbl_8011AF48;
-    s32* pool = lbl_80250E00;
+    s32* pool = (s32*)mbdesc;
     char* name;
     s32 i;
     s32 offset;
@@ -8390,7 +8369,7 @@ s32 GetEnemyType(s32 w, s32 l)
 
 void fn_800510A4(void)
 {
-    s32* pool = lbl_80250E00;
+    s32* pool = (s32*)mbdesc;
     Enemy* e = (Enemy*)((u8*)pool + 3608);   /* = gEnemies */
     s32 i;
 
@@ -8420,7 +8399,6 @@ void fn_800510A4(void)
 #pragma opt_propagation off
 void fn_80051164(void)
 {
-    s32* p = lbl_80250E00;
     s32 i;
 
     for (i = 0; i < 45; i++) {
@@ -8429,8 +8407,7 @@ void fn_80051164(void)
         lbl_802511FC[i] = 0;
     }
     for (i = 0; i < 8; i++) {
-        s32* row = p + i;
-        row[8] = -1;
+        enemy_type[i] = -1;
     }
     lbl_8034471C = 0;
     lbl_80344738 = -1;
@@ -8894,7 +8871,7 @@ void fn_80051C78(void)
 static inline char* enemy_format_world_level(s32 world, s32 lvl)
 {
     s32 n = lvl;
-    char* buf = (char*)lbl_80250E00;
+    char* buf = mbdesc;
     if (lvl == 0) {
         n = 1;
     }
