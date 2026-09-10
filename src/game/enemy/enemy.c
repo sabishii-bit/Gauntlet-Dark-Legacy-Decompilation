@@ -8261,11 +8261,8 @@ s32 fn_80051480(f32* pos)
         delta[0] = pos[0] - node->objgrp.worldmat[3][0];
         delta[1] = pos[1] - node->objgrp.worldmat[3][1];
         delta[2] = pos[2] - node->objgrp.worldmat[3][2];
-        d = delta[2] * delta[2] +
-            (d = delta[0] * delta[0] + delta[1] * delta[1]);
-
-        d = enemy_distance_sqrt(d);
-        if (d < best_dist) {
+        if ((d = enemy_distance_sqrt(delta[2] * delta[2] +
+                    (delta[0] * delta[0] + delta[1] * delta[1]))) < best_dist) {
             best_idx = i;
             best_dist = d;
         }
@@ -8477,10 +8474,8 @@ void fn_800516F8(s32 slot)
 /* Build the route in the same milestone-index array used by the neighbor
  * lookup. Its stores are .bss-anchor-relative in the target; that addressing
  * does not imply a larger enclosing object. */
-#pragma opt_propagation off
 void fn_80051C78(void)
 {
-    u8 unused[16];
     s32 best;
     s32 cur;
     s32 i;
@@ -8489,32 +8484,7 @@ void fn_80051C78(void)
         sEnemyMilestoneRoute[i] = -1;
     }
     lbl_80344724 = 0;
-    best = -1;
-
-    {
-        f32 bestDist = 100000.0f;
-        MilestoneParam* m = (MilestoneParam*)sMilestones;
-
-        for (i = 0; i < sNumMilestones; i++, m++) {
-            f32 dx = gDefaultPlayerPosition[0] - m->objgrp.worldmat[3][0];
-            f32 dy = gDefaultPlayerPosition[1] - m->objgrp.worldmat[3][1];
-            f32 dz = gDefaultPlayerPosition[2] - m->objgrp.worldmat[3][2];
-            f32 d2 = dz * dz + (dx * dx + dy * dy);
-            if (d2 > 0.0f) {
-                volatile f32 tmp;
-                f64 y = __frsqrte(d2);
-                y = 0.5 * y * (3.0 - y * y * d2);
-                y = 0.5 * y * (3.0 - y * y * d2);
-                y = 0.5 * y * (3.0 - y * y * d2);
-                tmp = (f32)(d2 * (0.5 * y * (3.0 - y * y * d2)));
-                d2 = tmp;
-            }
-            if (d2 < bestDist) {
-                best = i;
-                bestDist = d2;
-            }
-        }
-    }
+    best = fn_80051480(gDefaultPlayerPosition);
 
     cur = best;
     for (;;) {
@@ -8535,7 +8505,6 @@ void fn_80051C78(void)
         }
     }
 }
-#pragma opt_propagation reset
 
 /* Keep the nested name lookup inline with the level formatter. Numbered
  * cases share the default arm; lettered levels use the existing suffix map. */
