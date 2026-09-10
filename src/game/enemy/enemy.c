@@ -7957,7 +7957,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
             temp[1] = m->objgrp.worldmat[3][1] - pos[1];
             temp[2] = m->objgrp.worldmat[3][2] - pos[2];
             dist = temp[2] * temp[2] +
-                   (dist = temp[0] * temp[0] + temp[1] * temp[1]);
+                   (temp[0] * temp[0] + temp[1] * temp[1]);
             if (dist > kZero) {
                 f64 y = __frsqrte(dist);
                 y = kHalf * y * (kThree - y * y * dist);
