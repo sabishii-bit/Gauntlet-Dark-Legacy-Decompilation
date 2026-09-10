@@ -729,7 +729,7 @@ extern void ModifyDamage(f32 armor, f32* damage, u32* damage_type, u32 shield);
 extern void CopyMat4(f32* source, f32* destination);
 extern void UpdateObjWorldMat(f32* matrix);
 extern void fn_8005A404(f32* matrix, f32* coll_offset, f32* attn_offset);
-extern void SetEnemyObj();
+extern void SetEnemyObj(Enemy* e, s32 type, s32 level);
 extern void AudioPlayEvt101(f32* position);
 extern void AudioPlayEvt103(f32* position);
 extern void fn_8009DD48(void);
@@ -862,9 +862,6 @@ extern s32 NextGridItem(void);
 
 extern f32 lbl_80344880;
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
-/* SetEnemyObj's full prototype is declared down at init_enemy, not here: the
- * unprototyped `extern void SetEnemyObj();` above is the only declaration in
- * scope at damage_enemy's call site, exactly as before the reorder. */
 extern void init_enemy_vars(int slot, f32 scale, int spew);
 extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
 extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
@@ -6537,7 +6534,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
                         AudioPlayEvt103(&e->objgrp.worldmat[3][0]);
                     }
                     CopyMat4(&e->objgrp.worldmat[0][0], saved_matrix);
-                    SetEnemyObj((u8*)e, e->type, 1);
+                    SetEnemyObj(e, e->type, 1);
                     CopyMat4(saved_matrix, &e->objgrp.worldmat[0][0]);
                     UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
                     fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset,
@@ -7358,8 +7355,6 @@ s32 find_enemy_slot(s32 type, s32 level) {
  * floor at `pos`, its per-type variables are initialised, and its shadow node
  * is parked underneath it.
  */
-extern void SetEnemyObj(Enemy* e, s32 type, s32 level);
-
 /* init_enemy followed do_enemies in the pre-reorder file and so compiled under
  * the `#pragma opt_propagation off` that do_enemies' body opens (its bare
  * `#pragma reset` does not close it).  The reorder moves init_enemy out of that
