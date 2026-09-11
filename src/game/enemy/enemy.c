@@ -1441,7 +1441,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
     dt = (f32)((-16.0) * gClockFrameStep);
     behavior = enemy->algorithm;
 
-    if (type == 0x1F || enemy->dead_end <= 0) {
+    if (type == E_IT || enemy->dead_end <= 0) {
         enemy->area = 0;
     }
     if (enemy->moved == 0) {
@@ -1458,7 +1458,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
     oldpos[1] += 2.0 - enemy->flooroffset;
 
     if (enemy->moved != 0) {
-        if (enemy->type == 0x1D) {
+        if (enemy->type == E_GOLEM) {
             f32 np[3];
             u8 npPad[4];
             s32 wallResult;
