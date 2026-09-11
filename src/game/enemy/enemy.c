@@ -4185,9 +4185,9 @@ void move_logic16(s32 index)
     {
     s16 c16 = e->closest;
     if (c16 >= 0) {
-        u8* gp = (u8*)&gPlayers + c16 * PLAYER_STRIDE;
+        Player* gp = &gPlayers[c16];
         f32 dvert = e->objgrp.worldmat[3][1] -
-                    ((Player *)gp)->pos[1];
+                    gp->pos[1];
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 0.6 * e->sight) {
@@ -4973,9 +4973,9 @@ void move_logic29(s32 index)
     {
     s16 c29 = e->closest;
     if (c29 >= 0) {
-        u8* gp = (u8*)&gPlayers + c29 * PLAYER_STRIDE;
+        Player* gp = &gPlayers[c29];
         f32 dvert = e->objgrp.worldmat[3][1] -
-                    ((Player *)gp)->pos[1];
+                    gp->pos[1];
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 8.0) {
