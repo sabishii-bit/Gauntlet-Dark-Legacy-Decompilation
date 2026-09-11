@@ -941,15 +941,16 @@ f32 closest_enemy(f32 width, f32 range, f32* position, f32* direction,
         if (enemy->state == ACTIVE || enemy->state == SLEEP) {
             if (enemy->type != E_IT &&
                 (enemy->type != E_DEATH || (flags & 0x80000) != 0)) {
-                f32 vertical;
+                /* GC clears the IEEE single-precision sign bit. */
+                union { f32 value; u32 bits; } vertical;
                 f32 distance;
 
                 delta[0] = enemy->objgrp.coll_pos[0] - position[0];
                 delta[1] = enemy->objgrp.coll_pos[1] - position[1];
                 delta[2] = enemy->objgrp.coll_pos[2] - position[2];
-                vertical = delta[1];
-                *(u32*)&vertical &= 0x7FFFFFFF;
-                if ((f64)vertical > maximum_vertical) {
+                vertical.value = delta[1];
+                vertical.bits &= 0x7FFFFFFF;
+                if ((f64)vertical.value > maximum_vertical) {
                     goto next_enemy;
                 }
                 distance = NormalVector(delta) - enemy->rad;
@@ -3184,7 +3185,7 @@ void move_logic08(s32 index)
     }
     fn_80051568(index);
     if (e->guard_closest >= 0) {
-        lbl_80344720 = get_yaw((f32*)((u8*)sItems + e->guard_closest * 240 + 52),
+        lbl_80344720 = get_yaw(sItems[e->guard_closest].objgrp.worldmat[3],
                                &e->objgrp.worldmat[3][0]);
     } else {
         s16 c = e->closest;
