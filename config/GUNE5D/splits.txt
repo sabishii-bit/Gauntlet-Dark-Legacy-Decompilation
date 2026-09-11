@@ -513,6 +513,8 @@ game/pb/pb_global.c:
 	extab       start:0x80007C20 end:0x80007C30
 	extabindex  start:0x8000C280 end:0x8000C298
 	.text       start:0x800C33FC end:0x800C3674
+	.rodata     start:0x80116580 end:0x801165B4
+	.sbss       start:0x80344FC0 end:0x80345004
 
 game/pb/pb_objects.c:
 	extab       start:0x80007C30 end:0x80007C68

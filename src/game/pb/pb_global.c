@@ -23,27 +23,29 @@ typedef struct PBGlobal {
 } PBGlobal;
 
 extern PBGlobal lbl_802C5230;
-extern PBGlobal* volatile gWinGlobals; /* 0x80344FC0 : points at lbl_802C5230 */
-extern u32 lbl_80344FC4;      /* 0x80344FC4 : "open" flag */
-
-/* pushbuffer global pointer table (0x80344FC8..0x80345000) */
-extern void* lbl_80344FC8;
-extern void* lbl_80344FCC;
-extern void* lbl_80344FD0;
-extern void* lbl_80344FD4;
-extern void* lbl_80344FD8;
-extern void* lbl_80344FDC;
-extern void* lbl_80344FE0;
-extern void* lbl_80344FE4;
-extern void* lbl_80344FE8;
-extern void* lbl_80344FEC;
-extern void* lbl_80344FF0;
-extern void* lbl_80344FF4;
-extern void* lbl_80344FF8;
-extern void* lbl_80344FFC;
-extern void* lbl_80345000;
-
-extern char lbl_80116580[]; /* "ERROR: pbInitGlobal did not init all modules: %08x\n" */
+/* This TU owns the independent globals at 0x80344FC0..0x80345004.
+ * Xbox names them pbg, pb_global_ok and the pbg_* module pointers below;
+ * GC pbSetupPBGPtrs publishes each four-byte pointer separately. Retain the
+ * shared symbol names and partial pointer types until their headers are
+ * recovered. MWCC emits tentative definitions in reverse declaration order.
+ * The existing volatile access to gWinGlobals is unchanged. */
+void* lbl_80345000; /* pbg_utils */
+void* lbl_80344FFC; /* pbg_tex */
+void* lbl_80344FF8; /* pbg_geom */
+void* lbl_80344FF4; /* pbg_blit */
+void* lbl_80344FF0; /* pbg_text */
+void* lbl_80344FEC; /* pbg_model */
+void* lbl_80344FE8; /* pbg_mem */
+void* lbl_80344FE4; /* pbg_diag */
+void* lbl_80344FE0; /* pbg_stats */
+void* lbl_80344FDC; /* pbg_scrn */
+void* lbl_80344FD8; /* pbg_att */
+void* lbl_80344FD4; /* pbg_win */
+void* lbl_80344FD0; /* pbg_render */
+void* lbl_80344FCC; /* pbg_frm */
+void* lbl_80344FC8; /* pbg_err */
+u32 lbl_80344FC4;  /* pb_global_ok, the open flag */
+PBGlobal* volatile gWinGlobals; /* pbg, points at lbl_802C5230 */
 
 extern void ErrorPrintf(const char* fmt, ...);
 extern void pbInitWindow(void);
@@ -171,7 +173,7 @@ void pbInitGlobal(void)
     pbSetDefaultWindow();
     g->status = 0x3FFFF;
     if (g->status != 0x3FFFF) {
-        ErrorPrintf(lbl_80116580, g->status);
+        ErrorPrintf("ERROR: pbInitGlobal did not init all modules: %08x\n", g->status);
     }
     p->dst[0] = g->src[0];
     p->dst[1] = g->src[1];
