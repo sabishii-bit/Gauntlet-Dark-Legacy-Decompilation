@@ -18,7 +18,7 @@
  * pb_global.c ABOVE 0x800C33FC -- this TU stops at 0x800C33FC.
  *
  * .text 0x800C151C-0x800C33FC. Compiled -Cpp_exceptions on (cflags_demo).
- * NonMatching: structural skeletons only.
+ * NonMatching: pbFrameMode still differs, and native BSS ownership is open.
  */
 
 #include "types.h"
@@ -102,7 +102,6 @@ extern u32 lbl_80344FAC, lbl_80344FB0, lbl_80344FB8;
 extern s32 lbl_80344FC4;
 extern u8 lbl_802C51E0[];    /* default screen block */
 extern u8 lbl_802C4DE0[];    /* default frame buffers (0x450) */
-extern char lbl_8011656C[]; /* "PB_FRAME.C:__LINE__" */
 
 extern void pbFrameMode(s32 mode, s32 flag);
 
@@ -273,12 +272,12 @@ void fn_800C151C(s32 which)
     *lbl_80343E94 = frame->o1_display.words.b;
     *lbl_80343E98 = frame->o2_dispfb.words.b;
     *lbl_80343E9C = frame->o2_display.words.b;
-    fn_800C116C(0x100, lbl_8011656C);
+    fn_800C116C(0x100, "PB_FRAME.C:__LINE__");
     *lbl_80343E88 = 4;
     *lbl_80343E80 = 0;
     *lbl_80343E84 = (u32)frame;
     *lbl_80343E7C = 0x105;
-    fn_800C116C(0x100, lbl_8011656C);
+    fn_800C116C(0x100, "PB_FRAME.C:__LINE__");
     lbl_80344F98 = 0;
 }
 
