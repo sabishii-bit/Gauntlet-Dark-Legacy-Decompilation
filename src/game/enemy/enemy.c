@@ -2370,27 +2370,6 @@ static inline f32 enemy_normalized_heading(f32 a)
           (a <= -3.141592654 ? 6.283185308 + a : a);
 }
 
-/* The target expands the same four-step square-root kernel at each
- * distance site, including a volatile float rounding store/reload. This
- * is the operation also described by MSL's sqrtf_accurate, not a request
- * for an arbitrary native sqrt implementation with different rounding. */
-static inline f32 enemy_distance_sqrt(f32 x)
-{
-    volatile f32 y;
-
-    if (x > 0.0f) {
-        f64 guess = __frsqrte((f64)x);
-
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        guess = 0.5 * guess * (3.0 - guess * guess * x);
-        y = (f32)(x * guess);
-        return y;
-    }
-    return x;
-}
-
 /* The retained Xbox helper and repeated GC caller expansions identify this
  * bomber query. Its parameter/result are int, not the project's signed-long
  * s32: equal ABI widths do not give MWCC identical inline argument lifetimes.
@@ -4132,7 +4111,7 @@ void move_logic15(int index)
                 tpos[0] = n->worldmat[3][0] - pos[0];
                 tpos[1] = n->worldmat[3][1] - pos[1];
                 tpos[2] = n->worldmat[3][2] - pos[2];
-                d = enemy_distance_sqrt(tpos[0] * tpos[0] +
+                d = fn_80034C88(tpos[0] * tpos[0] +
                                         tpos[1] * tpos[1] + tpos[2] * tpos[2]);
                 if (d < best_dist) {
                     best_dist = d;
@@ -8013,7 +7992,7 @@ s32 fn_80051480(f32* pos)
         delta[0] = pos[0] - node->objgrp.worldmat[3][0];
         delta[1] = pos[1] - node->objgrp.worldmat[3][1];
         delta[2] = pos[2] - node->objgrp.worldmat[3][2];
-        if ((d = enemy_distance_sqrt(delta[2] * delta[2] +
+        if ((d = fn_80034C88(delta[2] * delta[2] +
                     (delta[0] * delta[0] + delta[1] * delta[1]))) < best_dist) {
             best_idx = i;
             best_dist = d;
