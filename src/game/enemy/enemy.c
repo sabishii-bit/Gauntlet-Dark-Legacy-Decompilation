@@ -4453,10 +4453,8 @@ void move_logic20(s32 index)
 {
     Enemy* e = &gEnemies[index];
     s32 found = 0;
-    u8* tbl = (u8*)lbl_8011AF48;
     f32 speed = lbl_80250E40[e->type];
     f32 cand;
-    f32* q;
     f32 probe[3];
     f32 d1;
     f32 d2;
@@ -4499,21 +4497,17 @@ void move_logic20(s32 index)
                 e->route = fn_8004CE38(e);
             }
             if (e->route > 0) {
-                q = (f32*)(tbl + col * 4);
-                cand = cand + q[1087];
+                cand = cand + lbl_8011C044[col];
             } else {
-                q = (f32*)(tbl + col * 4);
-                cand = cand - q[1087];
+                cand = cand - lbl_8011C044[col];
             }
         } else if (e->coll_ip != 0 || e->coll_enenum >= 0) {
             cand = e->ang;
             col2 = e->collided;
             if (e->route > 0) {
-                q = (f32*)(tbl + col2 * 4);
-                cand = cand + q[1087];
+                cand = cand + lbl_8011C044[col2];
             } else {
-                q = (f32*)(tbl + col2 * 4);
-                cand = cand - q[1087];
+                cand = cand - lbl_8011C044[col2];
             }
         } else {
             cand = 3.141592654 + lbl_80344720;
