@@ -13,6 +13,45 @@ import struct
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def modifier_qualifiers(flags):
+    """CV_modifier_t bits, not LF_POINTER's differently placed attributes.
+
+    Microsoft cvinfo.h defines const/volatile/unaligned in bits 0/1/2:
+    https://github.com/microsoft/microsoft-pdb/blob/master/include/cvinfo.h
+    Refuse unknown bits rather than presenting a partially qualified type.
+    """
+    if not isinstance(flags, int) or flags < 0 or flags & ~7:
+        raise ValueError("unsupported LF_MODIFIER flags %r" % flags)
+    return [name for bit, name in ((1, "const"), (2, "volatile"),
+                                   (4, "__unaligned")) if flags & bit]
+
+
+def modifier_record(body):
+    """(base type index, flags) from LF_MODIFIER's u32/u16 payload."""
+    if len(body) < 6:
+        raise ValueError("truncated LF_MODIFIER record")
+    target, flags = struct.unpack_from("<IH", body)
+    modifier_qualifiers(flags)
+    return target, flags
+
+
+def pointer_record(body):
+    """(pointee index, attributes) from LF_POINTER's fixed u32/u32 header."""
+    if len(body) < 8:
+        raise ValueError("truncated LF_POINTER record")
+    return struct.unpack_from("<II", body)
+
+
+def pointer_modifiers(attributes):
+    """Map LF_POINTER's cv/unaligned bits onto CV_modifier_t bit positions.
+
+    This does not decode pointer modes or member-pointer representations;
+    the existing reader remains scoped to Xbox 32-bit pointer sizing.
+    """
+    return ((attributes >> 10) & 1) | ((attributes >> 8) & 2) \
+        | ((attributes >> 9) & 4)
+
+
 def pdb_streams(data):
     if not data.startswith(b"Microsoft C/C++ program database 2.00"):
         raise ValueError("expected PDB 2.0")
@@ -72,8 +111,16 @@ def describe_types(tpi):
             out.update(size=amount, element=child)
             if child.get("size") and amount % child["size"] == 0:
                 out["count"] = amount // child["size"]
-        elif leaf in (0x1001, 0x1002):
-            out["target"] = describe(struct.unpack_from("<I", body)[0], depth + 1)
+        elif leaf == 0x1001:
+            target, flags = modifier_record(body)
+            child = describe(target, depth + 1)
+            out.update(target=child, modifiers=flags)
+            if "size" in child:
+                out["size"] = child["size"]
+        elif leaf == 0x1002:
+            target, attributes = pointer_record(body)
+            out.update(target=describe(target, depth + 1),
+                       pointer_attributes=attributes)
         else:
             out["unmodelled"] = True
         return out

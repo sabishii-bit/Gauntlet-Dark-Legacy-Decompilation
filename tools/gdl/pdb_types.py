@@ -67,9 +67,13 @@ for _path in (HERE, HERE / "composed_census"):
 import pdb_globals  # noqa: E402
 
 try:
-    from composed_census.r68_sound_data_recovery import pdb_streams
+    from composed_census.r68_sound_data_recovery import (modifier_record,
+                                                         pdb_streams,
+                                                         pointer_modifiers,
+                                                         pointer_record)
 except ImportError:  # run from tools/gdl
-    from r68_sound_data_recovery import pdb_streams  # noqa: F401
+    from r68_sound_data_recovery import (modifier_record, pdb_streams,
+                                        pointer_modifiers, pointer_record)
 
 #: Aggregate leaves this expands, and how many u32 sit between `property`
 #: and the numeric size for each.
@@ -275,10 +279,20 @@ class TypeTable(object):
         if leaf is None:
             return "type0x%x?" % index
         if leaf == LF_POINTER:
-            return self.spell(struct.unpack_from("<I", body)[0], depth + 1) + " *"
+            try:
+                target, attributes = pointer_record(body)
+            except ValueError as error:
+                raise Unavailable(str(error)) from error
+            return pdb_globals.qualified_type_name(
+                self.spell(target, depth + 1) + " *",
+                pointer_modifiers(attributes))
         if leaf == LF_MODIFIER:
-            return "const " + self.spell(struct.unpack_from("<I", body)[0],
-                                         depth + 1)
+            try:
+                target, flags = modifier_record(body)
+            except ValueError as error:
+                raise Unavailable(str(error)) from error
+            return pdb_globals.qualified_type_name(
+                self.spell(target, depth + 1), flags)
         if leaf in (LF_ARRAY, LF_ARRAY_ST):
             element = struct.unpack_from("<I", body)[0]
             total, _at = numeric_leaf(body, 8)
@@ -309,9 +323,17 @@ class TypeTable(object):
         if leaf is None:
             return None
         if leaf == LF_POINTER:
+            try:
+                pointer_record(body)
+            except ValueError as error:
+                raise Unavailable(str(error)) from error
             return 4                            # Xbox is a 32-bit target
         if leaf == LF_MODIFIER:
-            return self.size(struct.unpack_from("<I", body)[0], depth + 1)
+            try:
+                target, _flags = modifier_record(body)
+            except ValueError as error:
+                raise Unavailable(str(error)) from error
+            return self.size(target, depth + 1)
         if leaf in (LF_ARRAY, LF_ARRAY_ST):
             return numeric_leaf(body, 8)[0]
         if leaf in (LF_CLASS, LF_STRUCTURE, LF_UNION):

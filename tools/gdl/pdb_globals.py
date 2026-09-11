@@ -68,9 +68,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "composed_census"))
 
 try:
     from composed_census.r68_sound_data_recovery import (describe_types,
-                                                         pdb_streams)
+                                                         modifier_qualifiers,
+                                                         pdb_streams,
+                                                         pointer_modifiers)
 except ImportError:  # run from tools/gdl, or as tools.gdl.pdb_globals
-    from r68_sound_data_recovery import describe_types, pdb_streams  # noqa: F401
+    from r68_sound_data_recovery import (describe_types, modifier_qualifiers,
+                                        pdb_streams, pointer_modifiers)
 
 #: CodeView symbol kinds this reads. S_PUB32 carries flags where the other two
 #: carry a type index, so it is opt-in and its rows have no type.
@@ -132,7 +135,9 @@ def type_size(description):
         return None
     if isinstance(description.get("size"), int):
         return description["size"]
-    if description.get("leaf") in ("0x1001", "0x1002"):
+    if description.get("leaf") == "0x1001":
+        return type_size(description.get("target"))
+    if description.get("leaf") == "0x1002":
         return 4                        # near 32-bit pointer; Xbox is 32-bit
     try:
         index = int(str(description.get("type_index", "")), 0)
@@ -140,6 +145,23 @@ def type_size(description):
         return None
     primitive = primitive_type(index)
     return primitive[1] if primitive else None
+
+
+def qualified_type_name(spelling, modifiers):
+    """Apply qualifiers at the outer level of the supported C-ish spelling.
+
+    Prefixing every type would turn a const pointer into a pointer to const.
+    For pointers (including array elements), qualify after the last star;
+    scalar and aggregate spellings take a prefix. This is not a general C
+    declarator parser; function/member pointers remain outside these views.
+    """
+    qualifiers = " ".join(modifier_qualifiers(modifiers))
+    if not qualifiers:
+        return spelling
+    head, bracket, dimensions = spelling.partition("[")
+    if "*" in head:
+        return head.rstrip() + " " + qualifiers + bracket + dimensions
+    return qualifiers + " " + spelling
 
 
 def type_name(description):
@@ -176,8 +198,13 @@ def type_name(description):
     primitive = primitive_type(index) if index is not None else None
     if primitive:
         return primitive[0] + suffix
-    if description.get("leaf") in ("0x1001", "0x1002"):
-        return type_name(description.get("target")) + " *" + suffix
+    if description.get("leaf") == "0x1001":
+        return qualified_type_name(type_name(description.get("target")),
+                                   description.get("modifiers")) + suffix
+    if description.get("leaf") == "0x1002":
+        return qualified_type_name(
+            type_name(description.get("target")) + " *",
+            pointer_modifiers(description.get("pointer_attributes", 0))) + suffix
     return "type%s%s" % (description.get("type_index", "?"), suffix)
 
 
