@@ -7312,17 +7312,17 @@ extern char* fn_80051E1C(s32 world, s32 lvl, s32 flag);
 
 static s32 PlayersAverageLevel(void)
 {
-    s32* player = (s32*)gPlayers;
+    Player* player = gPlayers;
     s32 activePlayers = 0;
     s32 totalLevel = 0;
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        if (player[58] == 1) {
+        if (player->state == 1) {
             activePlayers++;
-            totalLevel += player[3273];
+            totalLevel += player->level;
         }
-        player += 3287;
+        player++;
     }
     if (activePlayers == 0) {
         return 1;
