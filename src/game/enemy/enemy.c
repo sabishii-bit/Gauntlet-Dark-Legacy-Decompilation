@@ -494,11 +494,14 @@ extern s32 gFrameTicks;      /* frame ticks (game speed units this frame) */
 extern s32 gGameBusy;
 extern s32 gGameplayPauseTimer;
 extern f32 gClockFrameStep;   /* knockback integration scale */
-extern f32 lbl_80344720;      /* current retreat/turn base angle */
+/* GC-owned module locals, corroborated by Xbox death_touch, num_etypes,
+ * and faceang. All target references are direct accesses inside this TU. */
+static s32 lbl_80344718;
+static s32 lbl_8034471C;
+static f32 lbl_80344720;      /* current retreat/turn base angle */
 extern void* lbl_80344730;    /* last worldobj hit by an enemy move */
 extern s32 lbl_80344728;
 extern s32 default_gen_count;
-extern s32 lbl_8034471C;
 extern Player gPlayers[4]; /* Four GC records, sizeof(Player) == 0x335C. */
 extern f32 lbl_8023CA98[][4];
 extern f32 lbl_8011BED8[];  /* 0x8011BED8 per-type turn-rate table */ /* wall-slide scratch; [1] = output vector */
@@ -605,7 +608,6 @@ extern void AudioPlayEvt102Follow(f32* position, s32 player);
 extern void AudioPlayEvt104(f32* position);
 extern s32 SuicideExplosion(f32* position, f32 damage);
 extern void fn_8009DAC8(f32* position);
-extern s32 lbl_80344718;
 extern s32 lbl_803447E4;
 extern s32 lbl_80344B24;
 extern f32 lbl_80344880;
@@ -833,7 +835,6 @@ extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
 extern s32 gBoss398;
 extern char gTextFormatBuf[];
 extern s32 lbl_803447B8;
-extern s32 lbl_80344718;
 extern s32 lbl_80344740;
 extern f32 lbl_803447D8;
 extern s32 lbl_803447E4;

@@ -155,6 +155,7 @@ game/enemy/enemy.c:
 	.data       start:0x8011AF48 end:0x8011C2FC
 	.bss        start:0x80250E00 end:0x8025758C
 	.sdata      start:0x80343BF8 end:0x80343C00
+	.sbss       start:0x80344718 end:0x80344724
 	.sdata2     start:0x803466D0 end:0x80346AAC
 
 game/game/gamemain.c:
