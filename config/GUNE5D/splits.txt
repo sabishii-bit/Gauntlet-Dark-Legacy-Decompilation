@@ -516,6 +516,7 @@ game/ps2/ml_timer.c:
 	extab       start:0x80007B98 end:0x80007BA8
 	extabindex  start:0x8000C1B4 end:0x8000C1CC
 	.text       start:0x800C031C end:0x800C0ADC
+	.data       start:0x80127DE8 end:0x80128088
 
 game/pb/pb_winglobals.c:
 	extab       start:0x80007BA8 end:0x80007BD8

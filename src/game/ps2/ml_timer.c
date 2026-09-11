@@ -80,7 +80,37 @@ void fn_800C0394(void)
 
 extern s32 lbl_8034475C;        /* debug page/mode selector               */
 extern char lbl_80116450[];     /* rodata: 8 colors + scale/fmt strings   */
-extern TimerDesc lbl_80127DE8[]; /* 24 descriptors; final word is precision */
+/* timerFYB_descs: the real 24-entry ML_TIMER table. GC owns the complete
+ * 0x80127DE8..0x80128088 range; the old symbol at 0x80128017 bisected the
+ * final precision byte of entry 19. Keep the significant label spacing.
+ * Xbox's local table and the GC 28-byte accesses corroborate this layout. */
+// lint-allow-next-line FM007: Retail descriptor colors are packed RGB values passed to text/blit color APIs, not offsets or hidden enum objects.
+static TimerDesc lbl_80127DE8[24] = {
+    { "TEMP1          ", 1, 0xFF00FF, 0 },
+    { "TEMP2          ", 1, 0xFF00FF, 0 },
+    { "TEMP3          ", 1, 0xFF00FF, 0 },
+    { "FPS VSYNC      ", 0, 0xFFFFFF, 0 },
+    { "FPS            ", 0, 0xFFFFFF, 0 },
+    { "MATH BOX       ", 1, 0x00FF00, 0 },
+    { "TRAVERSE TREE  ", 2, 0x00FFFF, 0 },
+    { "DMA SEND       ", 3, 0xFFFF00, 0 },
+    { "TEXTURE LOAD   ", 3, 0xFFFF00, 0 },
+    { "RENDER TEXT    ", 3, 0xFFFF00, 0 },
+    { "ALPHA TREE NODE", 3, 0xFFFF00, 0 },
+    { "SORT OBJ NODE  ", 3, 0xFFFF00, 0 },
+    { "DIST OBJ NODE  ", 3, 0xFFFF00, 0 },
+    { "OBJECT NODE    ", 3, 0xFFFF00, 0 },
+    { "PSYS NODE      ", 3, 0xFFFF00, 0 },
+    { "POLY NODE      ", 3, 0xFFFF00, 0 },
+    { "BLIT NODE      ", 3, 0xFFFF00, 0 },
+    { "DRAW BLITS     ", 3, 0xFF2040, 0 },
+    { "SEND BLITS     ", 4, 0xFF6000, 0 },
+    { "WAIT FOR VU    ", 2, 0x00FFFF, 0 },
+    { "DMA SCHEDULE   ", 2, 0x00FFFF, 0 },
+    { "DMA INTR       ", 1, 0xFF00FF, 0 },
+    { "GAME LOGIC     ", 1, 0x00FF00, 0 },
+    { "PROFILER       ", 1, 0x00FF00, 0 },
+};
 extern f32  lbl_80348EF0;       /* quad depth constant                    */
 extern char lbl_80348EF4;       /* mode-5 row fmt (sdata2 string)         */
 
