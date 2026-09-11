@@ -653,19 +653,9 @@ extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
  * its attention/collision vectors arbitrary positions and padding.
  * This TU-local view preserves the complete native object; items.c's older
  * flattened declaration and its traversal forms are a separate cleanup. */
-#define LOOKOUT_POS_X    0x30
-#define LOOKOUT_POS_Y    0x34
-#define LOOKOUT_POS_Z    0x38
-#define LOOKOUT_NEXT     0x68
-#define MILESTONE_POS_X  0x30
-#define MILESTONE_POS_Y  0x34
-#define MILESTONE_POS_Z  0x38
 typedef struct MilestoneParam {
     OBJGRP objgrp;
 } MilestoneParam;
-/* Item record (include/game/item.h, 0xF0): active @0xC4, minoff @0xCD. */
-#define ITEM_ACTIVE      0xC4
-#define ITEM_MINOFF      0xCD
 extern void GetMilestonePos(s32 idx, f32* out);  /* 0x80066054 */
 extern s32 fn_800511D0(s32 idx, f32 turn);        /* 0x800511D0 next-node picker */
 
