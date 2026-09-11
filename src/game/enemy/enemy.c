@@ -7916,21 +7916,14 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     m = (MilestoneParam*)sMilestones;
     for (i = 0; i < sNumMilestones; i++, m++) {
         f32 d;
-        f64 nd;
         f32 dist;
 
         if (i == milestone) {
             continue;
         }
         d = get_yaw(&m->objgrp.worldmat[3][0], pos) - base;
-        if (d > kPi) {
-            nd = d - k2Pi;
-        } else if (d <= kNegPi) {
-            nd = k2Pi + d;
-        } else {
-            nd = d;
-        }
-        ad.value = (f32)nd;
+        ad.value = d > kPi ? d - k2Pi :
+            (d <= kNegPi ? k2Pi + d : d);
         ad.bits &= 0x7FFFFFFF;
         if (ad.value <= tolerance) {
             temp[0] = m->objgrp.worldmat[3][0] - pos[0];
