@@ -402,8 +402,6 @@ extern u32 sCullModeTable[4];        /* sCullModeTable (.data) */
 extern f32 lbl_801283A0[4];
 
 /* --- strings --- */
-extern char str_txsh[];              /* "txsh: %6.2Lf %6.2Lf  %6.3Lf..." */
-extern char str_TexNotLoaded[];      /* "setTexInfo: Texture not loaded" */
 extern char lbl_80348F8C;            /* "\n" (sdata2) */
 extern char lbl_801168D8[];          /* pbSetDORegs vector-debug strings */
 
@@ -1736,7 +1734,7 @@ void setTexShift(PbDOObj* obj, f32* sh, f32* alt, s32 chrome)
         obj->shu2 = x + sh[1] + g->scr->f4c * lbl_80343F50->f30;
         obj->shv2 = y + sh[3] + g->scr->f48 * lbl_80343F50->f2c;
         if (dbg & 0x800) {
-            bulletproof_printf(str_txsh, obj->shu, obj->shv, obj->shu2,
+            bulletproof_printf("txsh: %6.2Lf %6.2Lf  %6.3Lf %6.3Lf  ", obj->shu, obj->shv, obj->shu2,
                                obj->shv2);
         }
         if (dbg & 0x1000) {
@@ -1773,7 +1771,7 @@ void setTexInfo(PbDOObj* obj, u32 handle)
         loaded = banks[(u16)(handle >> 16)].bank->loaded[lo];
     }
     if (loaded == 0) {
-        FatalError(str_TexNotLoaded, 0x800000);
+        FatalError("pbSetDODrawRegs: Texture not loaded", 0x800000);
     }
     obj->regid[n] = 0x3F;
     n = n + 1;
