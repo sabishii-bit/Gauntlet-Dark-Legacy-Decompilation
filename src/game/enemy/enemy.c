@@ -2094,10 +2094,9 @@ int fn_8004646C(int index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht,
  * verifies the resulting pool and metadata. Original header provenance is
  * UNPROVEN: this is documented compatibility scaffolding, not a claim that
  * Midway wrote a second definition here. Other compilers use the extern
- * declaration above instead. Graph record:
- * attempt.R62_enemy-literal-pool-and-initialized-tables-exact-link.20260905.v1 */
+ * declaration above instead. The real distance-helper call hierarchy below
+ * now preserves the target's outlined/inline uses without dont_inline. */
 #ifdef __MWERKS__
-#pragma dont_inline on
 __declspec(weak) f32 fn_80034C88(f32 x)
 {
     volatile f32 result;
@@ -2109,13 +2108,38 @@ __declspec(weak) f32 fn_80034C88(f32 x)
         y = 0.5 * y * (3.0 - y * y * x);
         y = 0.5 * y * (3.0 - y * y * x);
         result = (f32)(x * (0.5 * y * (3.0 - y * y * x)));
-        x = result;
+        return result;
     }
     return x;
 }
 
-#pragma dont_inline reset
 #endif
+
+/* Xbox retains calc_enemy_to_player_distance(Enemy*, Player*). Both GC
+ * player searches use the same live-mikey choice and collision positions.
+ * With the TU's verified inline depth, the nearest-player search retains
+ * the sqrt call through this extra helper level, while fn_800516F8 inlines
+ * it. Keep the actual call hierarchy instead of forcing sqrt not to inline. */
+static inline f32 calc_enemy_to_player_distance(Enemy* e, Player* p)
+{
+    f32 delta[3];
+    f32 distance;
+
+    if (p->field_A1C > 2) {
+        delta[0] = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
+        delta[1] = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
+        delta[2] = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
+        distance = fn_80034C88(delta[2] * delta[2] +
+                             (delta[0] * delta[0] + delta[1] * delta[1]));
+    } else {
+        delta[0] = e->objgrp.coll_pos[0] - p->effectpos[0];
+        delta[1] = e->objgrp.coll_pos[1] - p->effectpos[1];
+        delta[2] = e->objgrp.coll_pos[2] - p->effectpos[2];
+        distance = fn_80034C88(delta[2] * delta[2] +
+                             (delta[0] * delta[0] + delta[1] * delta[1]));
+    }
+    return distance;
+}
 
 /* Xbox retains an int-returning get_actual_closest_player(Enemy*), with
  * nearest initialized before the distance bound (source lines 278/279).
@@ -2131,25 +2155,7 @@ static inline int get_actual_closest_player(Enemy* e)
 
     for (i = 0, p = gPlayers; i < 4; i++, p++) {
         if (p->state == 1) {
-            /* A live mikey supplies its collision position instead of
-             * the player's own effectpos. */
-            if (p->field_A1C > 2) {
-                f32 distance[3];
-                distance[0] = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
-                distance[1] = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
-                distance[2] = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
-                d = fn_80034C88(distance[0] * distance[0] +
-                                distance[1] * distance[1] +
-                                distance[2] * distance[2]);
-            } else {
-                f32 distance[3];
-                distance[0] = e->objgrp.coll_pos[0] - p->effectpos[0];
-                distance[1] = e->objgrp.coll_pos[1] - p->effectpos[1];
-                distance[2] = e->objgrp.coll_pos[2] - p->effectpos[2];
-                d = fn_80034C88(distance[0] * distance[0] +
-                                distance[1] * distance[1] +
-                                distance[2] * distance[2]);
-            }
+            d = calc_enemy_to_player_distance(e, p);
             if (d < best) {
                 best = d;
                 nearest = i;
@@ -8081,31 +8087,6 @@ void fn_80051568(s32 index)
     }
 }
 #pragma opt_propagation reset
-
-/* Xbox retains calc_enemy_to_player_distance(Enemy*, Player*). The GC
- * selector uses the same live-mikey choice and collision-position fields.
- * Keeping that real operation separate removes the old caller-owned
- * constant caches and synthetic distance-rounding arguments. */
-static inline f32 calc_enemy_to_player_distance(Enemy* e, Player* p)
-{
-    f32 delta[3];
-    f32 distance;
-
-    if (p->field_A1C > 2) {
-        delta[0] = e->objgrp.coll_pos[0] - p->mikey_coll_pos[0];
-        delta[1] = e->objgrp.coll_pos[1] - p->mikey_coll_pos[1];
-        delta[2] = e->objgrp.coll_pos[2] - p->mikey_coll_pos[2];
-        distance = enemy_distance_sqrt(delta[2] * delta[2] +
-                                      (delta[0] * delta[0] + delta[1] * delta[1]));
-    } else {
-        delta[0] = e->objgrp.coll_pos[0] - p->effectpos[0];
-        delta[1] = e->objgrp.coll_pos[1] - p->effectpos[1];
-        delta[2] = e->objgrp.coll_pos[2] - p->effectpos[2];
-        distance = enemy_distance_sqrt(delta[2] * delta[2] +
-                                      (delta[0] * delta[0] + delta[1] * delta[1]));
-    }
-    return distance;
-}
 
 void fn_800516F8(s32 slot)
 {
