@@ -641,7 +641,7 @@ extern f64 __frsqrte(f64 x);
 extern s32 ErrorPrintf(const char* fmt, ...);
 extern s32 sFlags;            /* 0x803445CC packed config flags */
 extern u64 gControllerButtons;      /* 0x803445C8 config-word pair (hi) + sFlags (lo) */
-extern u8 sLookoutParams[];     /* 0x802584A8 prowl-node table (stride 0x6C) */
+extern LookoutParam sLookoutParams[]; /* 0x802584A8, 0x6C-byte waypoints */
 extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
 extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
 extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
@@ -4075,7 +4075,7 @@ void move_logic15(int index)
     }
     switch (e->mode1) {
     case 0: {
-        LookoutParam* n = (LookoutParam*)sLookoutParams;
+        LookoutParam* n = sLookoutParams;
         int i;
         int best_idx = -1;
         f32 best_dist;
@@ -4102,7 +4102,7 @@ void move_logic15(int index)
         e->mode1 = 1;
     }
     case 1: {
-        LookoutParam* n = &((LookoutParam*)sLookoutParams)[e->flag1];
+        LookoutParam* n = &sLookoutParams[e->flag1];
 
         e->ang = get_yaw(n->worldmat[3], &e->objgrp.worldmat[3][0]);
         tpos[0] = n->worldmat[3][0] - e->objgrp.worldmat[3][0];
