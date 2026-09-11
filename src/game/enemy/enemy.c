@@ -5250,7 +5250,10 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
     s32 lo;
     s32 hi;
     s32 i;
-    u8 unused[24];
+    /* Xbox retains p2 as float[3]; PS2 and arcade both materialize two
+     * three-float positions before computing their lengths. */
+    f32 p1[3];
+    f32 p2[3];
 
     for (i = 0; i < count; i++) {
         if (ms == sEnemyMilestoneRoute[i]) {
@@ -5270,53 +5273,33 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
         return sEnemyMilestoneRoute[lo];
     }
     {
-        u8* milestoneBase;
+        /* These component bases still preserve an unrecovered address-sharing
+         * form. Direct MilestoneParam fields change the GC indexed loads;
+         * the vector copies and magnitude calls below are independently
+         * recoverable without retaining the old padding or math expansion. */
         u8* milestoneY;
         u8* milestoneX;
         u8* milestoneZ;
         s32 m_lo;
         s32 m_hi;
-        f32 x;
-        f32 y;
-        f32 z;
         f32 dlo;
         f32 dhi;
 
         m_lo = sEnemyMilestoneRoute[lo];
-        milestoneBase = sMilestones;
-        milestoneX = milestoneBase + 0x30;
-        milestoneY = milestoneBase + 0x34;
-        milestoneZ = milestoneBase + 0x38;
-        x = *(f32*)(milestoneX + m_lo * 0x68);
-        y = *(f32*)(milestoneY + m_lo * 0x68);
-        z = *(f32*)(milestoneZ + m_lo * 0x68);
-        dlo = y * y;
-        dlo = x * x + dlo;
-        dlo = z * z + dlo;
-
-        if (dlo > 0.0f) {
-            volatile f32 tmp;
-            f64 y = __frsqrte(dlo);
-            y = 0.5 * y * (3.0 - y * y * dlo);
-            y = 0.5 * y * (3.0 - y * y * dlo);
-            y = 0.5 * y * (3.0 - y * y * dlo);
-            tmp = (f32)(dlo * (0.5 * y * (3.0 - y * y * dlo)));
-            dlo = tmp;
-        }
+        milestoneX = sMilestones + 0x30;
+        milestoneY = sMilestones + 0x34;
+        milestoneZ = sMilestones + 0x38;
+        p1[0] = *(f32*)(milestoneX + m_lo * 0x68);
+        p1[1] = *(f32*)(milestoneY + m_lo * 0x68);
+        p1[2] = *(f32*)(milestoneZ + m_lo * 0x68);
+        dlo = fn_80034C88(p1[2] * p1[2] +
+                (p1[0] * p1[0] + p1[1] * p1[1]));
         m_hi = sEnemyMilestoneRoute[hi];
-        x = *(f32*)(milestoneX + m_hi * 0x68);
-        y = *(f32*)(milestoneY + m_hi * 0x68);
-        z = *(f32*)(milestoneZ + m_hi * 0x68);
-        dhi = z * z + (dhi = x * x + y * y);
-        if (dhi > 0.0f) {
-            volatile f32 tmp;
-            f64 y = __frsqrte(dhi);
-            y = 0.5 * y * (3.0 - y * y * dhi);
-            y = 0.5 * y * (3.0 - y * y * dhi);
-            y = 0.5 * y * (3.0 - y * y * dhi);
-            tmp = (f32)(dhi * (0.5 * y * (3.0 - y * y * dhi)));
-            dhi = tmp;
-        }
+        p2[0] = *(f32*)(milestoneX + m_hi * 0x68);
+        p2[1] = *(f32*)(milestoneY + m_hi * 0x68);
+        p2[2] = *(f32*)(milestoneZ + m_hi * 0x68);
+        dhi = fn_80034C88(p2[2] * p2[2] +
+                (p2[0] * p2[0] + p2[1] * p2[1]));
         if (dlo < dhi) {
             return m_lo;
         }
