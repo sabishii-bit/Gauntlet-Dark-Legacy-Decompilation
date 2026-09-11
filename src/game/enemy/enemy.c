@@ -6555,10 +6555,10 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     e->atts.fight = get_enemy_fight(e->type, e->health);
 
     if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
-        ((u8*)e->generator)[0xE6] = 7;
-        ((u8*)e->generator)[0xE0] = 3;
+        e->generator->data.gen.flags = 7;
+        e->generator->data.gen.num_generated = 3;
     } else if (e->algorithm == 15 && e->generator != NULL) {
-        ((u8*)e->generator)[0xE3] = 0;
+        e->generator->data.gen.ai = 0;
     }
 
     if ((f64)e->health <= 0.0) {
@@ -6622,9 +6622,9 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     }
     if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
         if (effect_position != NULL && (f64)e->hht >= 4.0) {
-            effect_pos[0] = *(f32*)((u8*)effect_position + 0);
-            effect_pos[1] = *(f32*)((u8*)effect_position + 4);
-            effect_pos[2] = *(f32*)((u8*)effect_position + 8);
+            effect_pos[0] = effect_position[0];
+            effect_pos[1] = effect_position[1];
+            effect_pos[2] = effect_position[2];
         }
         fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
                     damage_type, 0, e->type, e->hht);
