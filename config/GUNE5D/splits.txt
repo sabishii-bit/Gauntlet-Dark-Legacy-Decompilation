@@ -250,6 +250,9 @@ game/sfx/psfx.c:
 	.text       start:0x80089120 end:0x8008BC50
 	.data       start:0x80120E40 end:0x80120E94
 
+game/sys/rfont.c:
+	.data       start:0x80120E98 end:0x80121688
+
 game/sys/psx2.c:
 	extab       start:0x80006C50 end:0x80006C60
 	extabindex  start:0x8000AAC8 end:0x8000AAE0

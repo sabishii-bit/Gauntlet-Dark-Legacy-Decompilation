@@ -488,6 +488,8 @@ config.libs = [
             Object(NonMatching, "game/pb/dbgtext.c", cflags=cflags_demo),
             Object(Matching, "game/pb/pb_winglobals.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_error.c", cflags=cflags_demo),
+            # Data-only diagnostic glyph TU (RFONT.OBJ), not PB_ERROR storage.
+            Object(Matching, "game/sys/rfont.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_frame.c", cflags=cflags_demo),
             Object(Matching, "game/pb/pb_global.c", cflags=cflags_demo),
             Object(Matching, "game/ps2/mathfunc.c", cflags=cflags_demo),

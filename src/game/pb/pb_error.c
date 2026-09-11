@@ -28,7 +28,7 @@ extern s32 lbl_80343EE8;
 extern s32 lbl_80343EEC;
 extern s32 lbl_80344F90;
 const char lbl_801164C0[] = "PB_ERROR.C:__LINE__";
-extern s8 lbl_80120E98[];
+extern s8 ramfont[2030]; /* RFONT.OBJ: 58 glyphs, seven rows of five cells */
 u32 lbl_80344F94; /* four-byte PBGLOBAL_ERROR storage; only its address escapes */
 
 typedef struct WinGlobals {
@@ -178,7 +178,7 @@ void fn_800C1174(register s8* text)
             }
             c8 = (s8)c;
             if (c8 != ' ') {
-                glyph = (s8*)lbl_80120E98 + (c8 - 33) * 35;
+                glyph = (s8*)ramfont + (c8 - 33) * 35;
                 for (row = 0; row < 7; row++) {
                     for (col = 0; col < 5; col++) {
                         if (*glyph != 0) {
