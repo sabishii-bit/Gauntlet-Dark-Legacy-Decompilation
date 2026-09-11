@@ -3220,12 +3220,12 @@ void move_logic08(s32 index)
             cand = f;
             lbl_80344720 = f;
         } else {
-            u8* ip = (u8*)e->coll_ip;
+            Item* ip = e->coll_ip;
             s32 valid;
             if (ip == 0) {
                 valid = 0;
-            } else if (((Item *)ip)->active == -1 || **(s32**)ip != 2
-                       || ((Item *)ip)->minoff != 0) {
+            } else if (ip->active == -1 || ip->info->type != 2
+                       || ip->minoff != 0) {
                 valid = 0;
             } else {
                 valid = -1;
