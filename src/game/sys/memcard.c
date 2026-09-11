@@ -16,6 +16,7 @@
  */
 #include "types.h"
 #include "game/dcs.h"
+#include "game/mb_font.h"
 
 /* ---- libc ------------------------------------------------------------- */
 int sprintf(char* dst, const char* fmt, ...);
@@ -234,7 +235,6 @@ extern u8 lbl_80344A5D;
 extern s32 lbl_80344A54;
 extern float lbl_80344A58;
 extern u8 lbl_802A5D1C[];
-extern u8 lbl_802A4AA4[];
 extern s32 lbl_80343CCC;
 extern char lbl_80347368[8];
 extern float lbl_80347370;
@@ -2102,7 +2102,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         quad = MBNewTempQuad();
     }
 
-    if (*(u32*) ((u8*) lbl_802A4AA4 + 24) != 0) {
+    if (lbl_802A4AA4[6] != NULL) {
         lbl_80344A54 = 6;
         lbl_80344A58 = lbl_80347370;
     } else {

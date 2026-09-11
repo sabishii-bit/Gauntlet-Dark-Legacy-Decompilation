@@ -43,6 +43,7 @@
 #include "types.h"
 #include "game/controls.h"
 #include "game/gamemode.h"
+#include "game/mb_font.h"
 #include "game/mbobject.h"
 #include "game/player.h"
 
@@ -194,7 +195,6 @@ char* strcpy(char* dst, const char* src);
 extern char lbl_802A5D1C[];       /* current model name */
 extern char lbl_80347368[8];      /* "ATTRACT"-ish sdata name */
 extern void* lbl_80343CC8;        /* message-box texture */
-extern u8 lbl_802A4AA4[];         /* scroll-list context */
 extern int lbl_80344A4C;          /* message font */
 extern f32 lbl_80344A50;          /* message font scale */
 extern f32 lbl_80347374;
@@ -217,13 +217,6 @@ typedef struct ModelHeaderView {
     u8 _pad00[12];
     s32 loadedFlag; /* zero => model not yet loaded/ready */
 } ModelHeaderView;
-
-/* lbl_802A4AA4 scroll-list context; only the font-select flag read here is
- * named. */
-typedef struct ScrollListContextView {
-    u8 _pad00[24];
-    u32 altFontFlag; /* nonzero selects the alt font/size for scroll text */
-} ScrollListContextView;
 
 void ScrollMessageBox(char* msg)
 {
@@ -278,8 +271,7 @@ void ScrollMessageBox(char* msg)
         } else {
             quad = MBNewTempQuad();
         }
-        if (*(u32*)(lbl_802A4AA4 +
-                    offsetof(ScrollListContextView, altFontFlag)) != 0) {
+        if (lbl_802A4AA4[6] != NULL) {
             lbl_80344A4C = 6;
             lbl_80344A50 = lbl_80347370;
         } else {

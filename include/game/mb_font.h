@@ -3,6 +3,11 @@
 
 #include "types.h"
 
+/* Registered font descriptors. MBNewFont owns this 35-entry table; UI code
+ * tests an entry for availability before selecting that font index. */
+struct MBFont;
+extern struct MBFont* lbl_802A4AA4[35];
+
 /* Queued text message: MBDrawText initializes 44-byte records and returns
  * their address. Shared with text/HUD consumers; not a sprite blit record.
  * Xbox FontMessage corroborates the layout, including its AltTex at +0x26.
