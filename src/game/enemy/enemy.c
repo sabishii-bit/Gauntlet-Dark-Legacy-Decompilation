@@ -3775,7 +3775,7 @@ void move_logic12(s32 index)
     switch (e->mode1) {
     case 0:
         if (gen != 0) {
-            *((u8*)gen + 230) |= e->flag1;
+            gen->data.gen.flags |= e->flag1;
             e->objgrp.worldmat[3][0] = e->dest[0];
             e->objgrp.worldmat[3][1] = e->dest[1];
             e->objgrp.worldmat[3][2] = e->dest[2];
@@ -3784,7 +3784,7 @@ void move_logic12(s32 index)
         }
         break;
     case 1:
-        if (gen != 0 && *((u8*)gen + 230) == 7) {
+        if (gen != 0 && gen->data.gen.flags == 7) {
             f32 z = 0.0f;
             e->dest[0] = z;
             e->dest[1] = z;
