@@ -775,22 +775,6 @@ extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u32 jumptable_8011C25C[];
 
-typedef struct EnemyGeneratorInfo {
-    s32 type;
-} EnemyGeneratorInfo;
-
-
-typedef struct EnemyGenerator {
-    EnemyGeneratorInfo* info;
-    u8 _pad004[0xDA];
-    s8 live_count;
-    u8 _pad0DF[2];
-    s8 first_enemy;
-    u8 _pad0E2;
-    s8 flag_e3;
-} EnemyGenerator;
-
-
 /* check_enemy_pos @0x8004F9AC -- validate a candidate spawn point for enemy
  * `slot`: optionally offset it, reject wall/floor failures and steep drops,
  * snap Y to the floor, then reject overlaps with world objects or other
@@ -6733,12 +6717,9 @@ void fn_8004F1DC(Enemy* enemy)
     }
 }
 
-/* uncouple_enemy: detach enemy `index` from its generator's spawn list.
- * The prev_enemy/next_enemy relink below is transcribed from the verified GC
- * asm (uncouple_enemy @0x8004F2D8) and exercises the reconstructed Enemy
- * fields; the generator-record fixup (item*) is left as a comment because the
- * item struct belongs to another module.  NonMatching: shipped bytes come from
- * the original DOL. */
+/* Detach an enemy from its generator's spawn list. Retail clears prev_enemy
+ * before the following neighbor and generator-tail updates read it; preserve
+ * that order, including the resulting -1 assignments. */
 void uncouple_enemy(s32 index) {
     Enemy* e = &gEnemies[index];
 
@@ -6755,17 +6736,17 @@ void uncouple_enemy(s32 index) {
         e->algorithm = -e->algorithm;
     }
     if (e->generator != 0) {
-        if (((EnemyGenerator*)e->generator)->first_enemy == index) {
-            ((EnemyGenerator*)e->generator)->first_enemy =
+        if (e->generator->data.gen.tail == index) {
+            e->generator->data.gen.tail =
                 (s8)e->prev_enemy;
         }
         if (e->algorithm == 15) {
-            ((EnemyGenerator*)e->generator)->flag_e3 = 0;
-            ((EnemyGenerator*)e->generator)->live_count = 0;
+            e->generator->data.gen.ai = 0;
+            e->generator->data.gen.numenemies = 0;
         }
-        if (((EnemyGenerator*)e->generator)->info->type == 3) {
-            if (((EnemyGenerator*)e->generator)->live_count > 0) {
-                ((EnemyGenerator*)e->generator)->live_count--;
+        if (e->generator->info->type == 3) {
+            if (e->generator->data.gen.numenemies > 0) {
+                e->generator->data.gen.numenemies--;
             }
         } else {
             ErrorPrintf("Enemy has non generator generator", e->generator);
