@@ -19,6 +19,10 @@ typedef struct TimerSample {
     u32 last_frame;
 } TimerSample;
 
+/* TimersFYB: 24 platform profiling samples at GC 0x802C45CC, distinct
+ * from the registered game timers. Existing GC symbol retained for now. */
+extern TimerSample lbl_802C45CC[24];
+
 struct MBBlit;
 
 /* TimersAddList: existing GC label retained pending a coordinated rename. */

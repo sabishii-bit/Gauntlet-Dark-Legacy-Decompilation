@@ -75,10 +75,11 @@ class DbgtextLifetimeTests(unittest.TestCase):
         for name in ("i_per_mode", "i_quad_joint", "mode3_row_counter", "locals_int", "quad_per_allocation"):
             a, body, b = audit.split_body(forms[name])
             self.assertEqual((a, b), (prefix, suffix))
-            self.assertTrue(body.startswith("s32 fn_800C03E0(s32 mode)"))
+            self.assertTrue(body.startswith("s32 fn_800C03E0(s32 line)"))
         self.assertIn("s32 i3;", forms["i_mode3"])
         self.assertNotIn("s32 i2;", forms["i_mode3"])
-        self.assertIn("s32 fixedIndex;", forms["bind_distinct_counter"])
+        self.assertIn("lbl_80344F78[rowIndex].level", forms["mode3_row_counter"])
+        self.assertIn("lbl_80344F7C[rowIndex].last_frame", forms["mode3_row_counter"])
 
     def test_source_drift_cannot_silently_create_noop_probe(self):
         source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
@@ -87,23 +88,25 @@ class DbgtextLifetimeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source-form anchor changed"):
                 audit.source_forms(changed)
 
-    def test_binding_controls_preserve_recovered_timer_api_and_loop(self):
+    def test_all_controls_preserve_exact_registration_and_shared_initializer(self):
         source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
         forms = audit.source_forms(source)
         signature = "void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)"
-        loop = "base[i].last_frame = base[i].current = base[i].count = base[i].frame = 0;"
-        self.assertNotIn("bind_signed_arg1", forms)
-        for name in ("bind_typed_cell", "bind_distinct_counter", "bind_int_counter"):
+        prefix, _, suffix = audit.split_body(source)
+        for retired in ("bind_signed_arg1", "bind_typed_cell", "bind_distinct_counter", "bind_int_counter"):
+            self.assertNotIn(retired, forms)
+        for name in forms:
             self.assertEqual(forms[name].count(signature), 1)
-            self.assertEqual(forms[name].count(loop), 1)
-            self.assertNotEqual(forms[name], source)
-        self.assertIn("cell->acc = cell->unk8 = cell->unk4 = cell->unk0 = 0;",
-                      forms["bind_typed_cell"])
+            self.assertEqual(forms[name].count("init_timersFYB(base, count);"), 1)
+            self.assertEqual(forms[name].count("init_timersFYB(lbl_802C45CC, 24);"), 1)
+            a, _, b = audit.split_body(forms[name])
+            self.assertEqual((a, b), (prefix, suffix))
 
     def test_unreviewed_timer_loop_or_signature_is_refused(self):
         source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
         for changed in (source.replace("TimerSample* base", "u32* base"),
-                        source.replace("base[i].last_frame = ", "")):
+                        source.replace("tmrs[i].last_frame = 0;", ""),
+                        source.replace("init_timersFYB(lbl_802C45CC, 24);", "init_timersFYB(lbl_802C45CC, 23);")):
             with self.assertRaisesRegex(ValueError, "source-form anchor changed"):
                 audit.source_forms(changed)
 

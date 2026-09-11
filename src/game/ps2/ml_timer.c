@@ -2,7 +2,8 @@
  * GC text 0x800C031C..0x800C0ADC; timer data and Xbox module contributions
  * corroborate both ends. Remaining reconstruction debt is confined here,
  * not in the eight natively exact formatted-text functions in ml_text.c.
- * Timer data ownership and the registration/renderer residuals remain open.
+ * Timer data ownership and the renderer residual remain open. Registration
+ * matches natively using the recovered, twice-used init_timersFYB helper.
  */
 #include "types.h"
 #include "game/ml_text.h"
@@ -17,13 +18,15 @@ extern s32 dbgTextFlagA;    /* OR 0x40000 into the drawn glyph flags     */
 /* externs (other TUs)                                                 */
 /* ------------------------------------------------------------------ */
 void* MBNewTempQuad(void);                           /* mb_blit.c */
-s32 mbBlitCalcWidth(void*, s32 x, s32 y, f32 depth); /* mb_blit.c */
+void mbBlitCalcWidth(void*, s32 x, s32 y, f32 depth); /* mb_blit.c */
 void mbBlitProject(void*, s32 a, s32 c);             /* mb_blit.c */
 void MBBlitSetColor(void*, u32 bright);              /* mb_blit.c */
-s32 fn_800C03E0(s32 mode);
+s32 fn_800C03E0(s32 line);
 
-extern u32 lbl_802C45CC[];   /* debug-cell array base (.data) */
-extern u32 lbl_802C45C0[];   /* debug-graph state block (.data) */
+/* Unrecovered pooled BSS address base, 12 bytes BEFORE TimersFYB. The two
+ * exact reset routines below retain their old partial view for now; this
+ * does not identify a separate timer array or an object spanning both. */
+extern u32 lbl_802C45C0[];
 
 typedef struct DbgGraphCell {
     u32 unk0;
@@ -37,24 +40,31 @@ extern TimerDesc* lbl_80344F78;
 extern TimerSample* lbl_80344F7C;
 extern s32 lbl_80344F80;
 
-/* TimersAddList: register samples, descriptions and display handles; clear
- * the samples and the separate fixed debug-cell block at lbl_802C45CC. */
-void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)
+/* ML_TIMER's real local helper, called twice by TimersAddList on PS2 and
+ * recorded with the same pointer/count API in Xbox's PDB. Both calls are
+ * inlined in GC; writing the loops directly loses the native zero-value
+ * register allocation. No target-specific instruction or compiler flag. */
+static inline void init_timersFYB(TimerSample* tmrs, s32 num)
 {
     s32 i;
-    u32* cell;
+    for (i = 0; i < num; i++) {
+        tmrs[i].frame = 0;
+        tmrs[i].count = 0;
+        tmrs[i].current = 0;
+        tmrs[i].last_frame = 0;
+    }
+}
 
+/* TimersAddList: register samples, descriptions and display handles; clear
+ * the samples and the separate fixed platform-timer array. */
+void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)
+{
     lbl_80344F7C = base;
     lbl_80344F78 = arg1;
     lbl_80344F70 = arg2;
     lbl_80344F74 = count;
-    for (i = 0; i < count; i++) {
-        base[i].last_frame = base[i].current = base[i].count = base[i].frame = 0;
-    }
-    for (i = 0; i < 24; i++) {
-        cell = (u32*)((char*)lbl_802C45CC + i * 16);
-        cell[3] = cell[2] = cell[1] = cell[0] = 0;
-    }
+    init_timersFYB(base, count);
+    init_timersFYB(lbl_802C45CC, 24);
 }
 
 void fn_800C0394(void)
@@ -68,42 +78,32 @@ void fn_800C0394(void)
     fn_800C03E0(4);
 }
 
-/* Debug-table record (28-byte stride): name used as the row's fmt label. */
-typedef struct DbgRow {
-    /* 0x00 */ char name[16];
-    /* 0x10 */ s32  id;      /* <0 = unused slot */
-    /* 0x14 */ u32  color;
-    /* 0x18 */ u32  _pad;
-} DbgRow;
-
 extern s32 lbl_8034475C;        /* debug page/mode selector               */
 extern char lbl_80116450[];     /* rodata: 8 colors + scale/fmt strings   */
-extern DbgRow lbl_80127DE8[];   /* 24-entry debug row table (.data)       */
+extern TimerDesc lbl_80127DE8[]; /* 24 descriptors; final word is precision */
 extern f32  lbl_80348EF0;       /* quad depth constant                    */
 extern char lbl_80348EF4;       /* mode-5 row fmt (sdata2 string)         */
 
 /* Large debug-quad / graph renderer: per-mode text rows + bar quads.
- * Dispatch is on the global lbl_8034475C (the mode parameter is unused in
- * the original).  Returns the advanced line cursor. */
-s32 fn_800C03E0(s32 mode)
+ * Dispatch is on global lbl_8034475C. The incoming line parameter is
+ * overwritten with 20 in the retail code; return its advanced value. */
+s32 fn_800C03E0(s32 line)
 {
     u8 unused[96];
-    u32* tblA = lbl_802C45CC;
+    TimerSample* tblA = lbl_802C45CC;
     char* fmts = lbl_80116450;
-    DbgRow* tblB = lbl_80127DE8;
+    TimerDesc* tblB = lbl_80127DE8;
     u32 shift = 10;
     u32 div;
     s32 qline;
-    s32 line;
     s32 i;
     s32 j;
     s32 k;
     void* quad;
-    DbgRow* row;
+    TimerDesc* row;
     u32 scale;
 
-    (void)mode;
-    div = tblA[19] >> 10;
+    div = tblA[4].last_frame >> 10;
     if (div == 0) {
         div = 1000000;
     }
@@ -113,9 +113,8 @@ s32 fn_800C03E0(s32 mode)
 
     if (lbl_8034475C == 3) {
         dbgTextPrintfPx(0xFFFFFF, 240, 12, fmts + 32);
-#define DBGROW3 ((DbgRow*)((u8*)lbl_80344F78 + i * 28))
         for (i = 0; i < 74; i++) {
-            s32 id = DBGROW3->id;
+            s32 id = lbl_80344F78[i].level;
             u32 dv;
             u32 pct;
             u32 w;
@@ -125,16 +124,16 @@ s32 fn_800C03E0(s32 mode)
                 goto next3;
             }
             scale = 4882;
-            dv = ((u32*)lbl_80344F7C)[i * 4 + 3];
+            dv = lbl_80344F7C[i].last_frame;
             pct = dv >> 10;
             if (dv != 0 && pct == 0) {
                 pct = 1;
             }
             textX = 0;
-            dbgTextPrintfPx(DBGROW3->color, textX * 8, line, fmts + 64,
+            dbgTextPrintfPx(lbl_80344F78[i].color, textX * 8, line, fmts + 64,
                             pct * 100 / div, pct);
-            dbgTextPrintfPx(DBGROW3->color, (id + 11) * 8, line,
-                            DBGROW3->name);
+            dbgTextPrintfPx(lbl_80344F78[i].color, (id + 11) * 8, line,
+                            lbl_80344F78[i].name);
             w = pct * 96;
             j = (s32)(w / scale);
             if (j > 0) {
@@ -145,7 +144,7 @@ s32 fn_800C03E0(s32 mode)
                 mbBlitProject(quad, w / scale, 4);
                 MBBlitSetColor(quad, 0x10101);
             }
-            color = DBGROW3->color;
+            color = lbl_80344F78[i].color;
             if (j > 0) {
                 s32 x;
                 quad = MBNewTempQuad();
@@ -159,7 +158,6 @@ s32 fn_800C03E0(s32 mode)
         next3:
             ;
         }
-#undef DBGROW3
         j = qline - 20;
         for (k = 0, i = 0; k < 3; k++, i += 12) {
             quad = MBNewTempQuad();
@@ -179,11 +177,11 @@ s32 fn_800C03E0(s32 mode)
             u32 w;
             u32 color;
             s32 textX;
-            id = tblB[i].id;
+            id = tblB[i].level;
             if (id < 0) {
                 goto next2;
             }
-            dv = tblA[i * 4 + 3];
+            dv = tblA[i].last_frame;
             colorp = &tblB[i].color;
             pct = dv >> 10;
             textX = 0;
@@ -234,7 +232,7 @@ s32 fn_800C03E0(s32 mode)
             u32 dv;
             s32 textX;
             row = &tblB[i];
-            dv = tblA[i * 4 + 3];
+            dv = tblA[i].last_frame;
             textX = 0;
             dbgTextPrintfPx(row->color, textX * 8, line, &lbl_80348EF4,
                             dv >> shift);
@@ -251,27 +249,27 @@ s32 fn_800C03E0(s32 mode)
         s32 i;
 
         j = 0;
-        dv = tblA[19];
+        dv = tblA[4].last_frame;
         pct = dv >> 10;
         i = 4;
-        bid = tblB[i].id;
+        bid = tblB[i].level;
         dbgTextPrintfPx(0xFFFFFF, j * 8, line, fmts + 64,
                         pct * 100 / div, pct);
         lx = (bid + 9) * 8;
         dbgTextPrintfPx(0xFFFFFF, lx, line, tblB[i].name);
-        dv = tblA[23];
+        dv = tblA[5].last_frame;
         pct = dv >> 10;
         i = 5;
         dbgTextPrintfPx(0xFFFFFF, j * 8, line + 8, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 8, tblB[i].name);
-        dv = tblA[35];
+        dv = tblA[8].last_frame;
         pct = dv >> 10;
         i = 8;
         dbgTextPrintfPx(0xFFFFFF, j * 8, line + 16, fmts + 64,
                         pct * 100 / div, pct);
         dbgTextPrintfPx(0xFFFFFF, lx, line + 16, tblB[i].name);
-        dv = tblA[3];
+        dv = tblA[0].last_frame;
         pct = dv >> 10;
         i = 0;
         dbgTextPrintfPx(0xFFFFFF, j * 8, line + 24, fmts + 64,
@@ -290,7 +288,7 @@ s32 fn_800C03E0(s32 mode)
             s32 x = 30;
             row = &tblB[i];
             scale = 4882;
-            dv = tblA[i * 4 + 3];
+            dv = tblA[i].last_frame;
             pct = dv >> 10;
             w = pct * 48;
             if ((s32)(w / scale) > 0) {

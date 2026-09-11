@@ -2,7 +2,8 @@
 
 The historical filename predates recovery of the ML_TEXT/ML_TIMER boundary.
 Text-state ownership/type controls belong to ML_TEXT and are no longer part
-of this timer-only experiment roster.
+of this timer-only experiment roster. Registration is now native exact via
+its recovered shared initializer; only renderer controls remain active.
 
 No production file or configured option is changed. PASS establishes that the
 experiment completed, not that source matches. Every candidate is compared to
@@ -109,7 +110,7 @@ def canonical_sections(path, current):
 
 
 def split_body(source):
-    marker = "s32 fn_800C03E0(s32 mode)\n{"
+    marker = "s32 fn_800C03E0(s32 line)\n{"
     start = source.index(marker)
     end = source.index("\n/* Latch a graph slot:", start)
     return source[:start], source[start:end], source[end:]
@@ -138,17 +139,23 @@ def source_forms(source):
     # These are fixed source experiments, not generic rewriting rules. Refuse
     # future source drift rather than silently measuring a replacement no-op.
     expected = {
-        "    u32* tblA = lbl_802C45CC;": 1,
+        "    TimerSample* tblA = lbl_802C45CC;": 1,
         "    char* fmts = lbl_80116450;": 1,
-        "    DbgRow* tblB = lbl_80127DE8;": 1,
+        "    TimerDesc* tblB = lbl_80127DE8;": 1,
         "    u32 div;": 1,
         "    u32 scale;": 1,
         "    u32 shift = 10;": 1,
         "extern s32 dbgTextFlagA;": 1,
-        # TIMING recovery typed the registered samples; only the separate
-        # fixed debug-cell loop still has the old word-array representation.
-        "cell[3] = cell[2] = cell[1] = cell[0] = 0;": 1,
-        "base[i].last_frame = base[i].current = base[i].count = base[i].frame = 0;": 1,
+        # The actual shared initializer closes registration's zero allocation.
+        # Renderer experiments must not silently revive the old raw loops.
+        "static inline void init_timersFYB(TimerSample* tmrs, s32 num)": 1,
+        "tmrs[i].frame = 0;": 1,
+        "tmrs[i].count = 0;": 1,
+        "tmrs[i].current = 0;": 1,
+        "tmrs[i].last_frame = 0;": 1,
+        "    init_timersFYB(base, count);": 1,
+        "    init_timersFYB(lbl_802C45CC, 24);": 1,
+        "    div = tblA[4].last_frame >> 10;": 1,
         "void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)": 1,
     }
     for anchor, count in expected.items():
@@ -168,21 +175,22 @@ def source_forms(source):
     for mode in (3, 2, 5, 4):
         forms[f"i_mode{mode}"] = per_mode(body, "i", "s32", (mode,))
     # Separate row iteration from the mode-3 graph-grid position loop.
-    start = body.index("#define DBGROW3")
-    end = body.index("#undef DBGROW3") + len("#undef DBGROW3")
+    start = body.index("        for (i = 0; i < 74; i++) {")
+    end = body.index("\n        j = qline - 20;", start)
     row_index = re.sub(r"\bi\b", "rowIndex", body[start:end])
     forms["mode3_row_counter"] = (body[:start] + row_index + body[end:]).replace(
         "    if (lbl_8034475C == 3) {", "    if (lbl_8034475C == 3) {\n        s32 rowIndex;")
     forms["quad_per_allocation"] = body.replace("quad = MBNewTempQuad();", "void* quad = MBNewTempQuad();")
     # Existing pointer identities and expression order are unchanged; unlink
     # declaration order from initializer evaluation order as ordinary C allows.
-    declarations = "    u32* tblA = lbl_802C45CC;\n    char* fmts = lbl_80116450;\n    DbgRow* tblB = lbl_80127DE8;"
-    uninitialized = "    u32* tblA;\n    char* fmts;\n    DbgRow* tblB;"
+    declarations = "    TimerSample* tblA = lbl_802C45CC;\n    char* fmts = lbl_80116450;\n    TimerDesc* tblB = lbl_80127DE8;"
+    uninitialized = "    TimerSample* tblA;\n    char* fmts;\n    TimerDesc* tblB;"
     split = body.replace(declarations, uninitialized).replace(
-        "    (void)mode;", "    (void)mode;\n    tblA = lbl_802C45CC;\n    fmts = lbl_80116450;\n    tblB = lbl_80127DE8;")
+        "    div = tblA[4].last_frame >> 10;",
+        "    tblA = lbl_802C45CC;\n    fmts = lbl_80116450;\n    tblB = lbl_80127DE8;\n    div = tblA[4].last_frame >> 10;")
     forms["pointers_split_assignment"] = split
-    forms["pointers_fmts_first"] = split.replace(uninitialized, "    char* fmts;\n    u32* tblA;\n    DbgRow* tblB;")
-    forms["pointers_fmts_last"] = split.replace(uninitialized, "    u32* tblA;\n    DbgRow* tblB;\n    char* fmts;")
+    forms["pointers_fmts_first"] = split.replace(uninitialized, "    char* fmts;\n    TimerSample* tblA;\n    TimerDesc* tblB;")
+    forms["pointers_fmts_last"] = split.replace(uninitialized, "    TimerSample* tblA;\n    TimerDesc* tblB;\n    char* fmts;")
     # Each source value stays within signed range: div is an unsigned >>10
     # result or 1000000, scale is 4882, shift is 10. Numerators are unsigned,
     # preserving unsigned division and shift semantics under these declarations.
@@ -190,24 +198,10 @@ def source_forms(source):
     forms["signed_scale"] = body.replace("    u32 scale;", "    s32 scale;")
     forms["signed_shift"] = body.replace("    u32 shift = 10;", "    s32 shift = 10;")
     result = {name: prefix + value + suffix for name, value in forms.items()}
-    bind_start = source.index("void fn_800C031C(TimerSample* base")
-    bind_end = source.index("\nvoid fn_800C0394", bind_start)
-    bind = source[bind_start:bind_end]
-    typed_bind = bind.replace("u32* cell;", "DbgGraphCell* cell;").replace(
-        "cell = (u32*)((char*)", "cell = (DbgGraphCell*)((char*)").replace(
-        "cell[3] = cell[2] = cell[1] = cell[0] = 0;", "cell->acc = cell->unk8 = cell->unk4 = cell->unk0 = 0;")
-    result["bind_typed_cell"] = source[:bind_start] + typed_bind + source[bind_end:]
-    split_loop = bind.index("    for (i = 0; i < 24;")
-    split_bind = bind[:split_loop] + re.sub(r"\bi\b", "fixedIndex", bind[split_loop:])
-    split_bind = split_bind.replace("    s32 i;", "    s32 i;\n    s32 fixedIndex;")
-    result["bind_distinct_counter"] = source[:bind_start] + split_bind + source[bind_end:]
-    # arg1 is a descriptor pointer, not an integer value. The old signedness
-    # control is no longer admissible after recovering the registration API.
     result["divisor_unsigned_int"] = prefix + body.replace("    u32 div;", "    unsigned int div;") + suffix
-    result["cursors_int"] = prefix + body.replace("    s32 qline;", "    int qline;").replace("    s32 line;", "    int line;") + suffix
+    result["cursor_local_int"] = prefix + body.replace("    s32 qline;", "    int qline;") + suffix
     opening = body.index("{")
     result["locals_int"] = prefix + body[:opening] + re.sub(r"\bs32\b", "int", body[opening:]) + suffix
-    result["bind_int_counter"] = source[:bind_start] + bind.replace("    s32 i;", "    int i;") + source[bind_end:]
     if any(value == source for name, value in result.items() if name != "baseline"):
         raise ValueError("a source-form candidate became a textual no-op")
     return result

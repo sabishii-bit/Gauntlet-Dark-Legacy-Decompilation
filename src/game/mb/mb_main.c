@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/timing.h"
 
 /* Midway "MB" model-buffer library main file (GCN MB_MAIN.CPP TU,
  * .text 0x800B6ED8-0x800B7758). This is the top of the MB graphics
@@ -30,7 +31,6 @@ extern s32 lbl_80344E6C;         /* CPU-time history write cursor (0..0x7F) */
 extern u32 lbl_802A4B48[128];    /* per-frame pbGetCPUTime history ring */
 extern vs32 lbl_80344E70;        /* render-thread busy flag (spun on) */
 extern s32 lbl_80343EB8;         /* frame-budget threshold (0 = disabled) */
-extern s32 lbl_802C45CC[16];     /* profiler block; +0x30 = elapsed CPU time */
 extern s32 lbl_80344E7C;         /* slow-frame (over-budget) counter */
 extern u8* lbl_80344EE8;         /* MB world context ptr; +0x84 = face-yaw state */
 extern const char lbl_80115D90[]; /* "MB_MAIN.CPP:__LINE__" assert watermark */
@@ -185,7 +185,9 @@ void MBEndFrame(void) {
     }
     fn_800C3674();
 
-    if (lbl_80343EB8 != 0 && lbl_802C45CC[12] > lbl_80343EB8) {
+    /* The retail comparison interprets the unsigned timer bits as signed
+     * (cmpw), including wraparound; preserve that existing behavior. */
+    if (lbl_80343EB8 != 0 && (s32)lbl_802C45CC[3].frame > lbl_80343EB8) {
         lbl_80344E7C++;
     }
 
