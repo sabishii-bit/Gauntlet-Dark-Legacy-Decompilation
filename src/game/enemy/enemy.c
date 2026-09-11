@@ -8123,7 +8123,6 @@ void fn_800516F8(s32 slot)
  * does not imply a larger enclosing object. */
 void fn_80051C78(void)
 {
-    s32 best;
     s32 cur;
     s32 i;
 
@@ -8131,9 +8130,7 @@ void fn_80051C78(void)
         sEnemyMilestoneRoute[i] = -1;
     }
     lbl_80344724 = 0;
-    best = fn_80051480(gDefaultPlayerPosition);
-
-    cur = best;
+    cur = fn_80051480(gDefaultPlayerPosition);
     for (;;) {
         s32 prev = cur;
 
