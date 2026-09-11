@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 /* newcam.c -- NEWCAM.OBJ (Gauntlet Dark Legacy camera system), NonMatching.
  *
  * Function names recovered from shell3D.pdb (NEWCAM.OBJ) and confirmed
@@ -211,7 +212,6 @@ extern void MBWindowProjection(f32 angle, f32 aspect);
 extern void pbUpdateMatricies(void);
 extern void DoShake(Vec3* position, Vec3* attention);
 extern void DebugCamControlInputs(void);
-extern void dbgTextPrintfCell(s32 color, s32 x, s32 line, char* fmt, ...);
 
 /* MB scene-tree node ops + the level-arrow blit factory (world/items.c). */
 extern s32  add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles,
@@ -1989,4 +1989,3 @@ void CamReset(NcCamera* cam) {
     cam->field_1AC = 0.0f;
     lbl_80344A78 = 0;
 }
-

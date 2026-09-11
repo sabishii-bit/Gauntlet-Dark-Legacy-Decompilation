@@ -485,7 +485,8 @@ config.libs = [
             Object(NonMatching, "game/pb/pb_objregs.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_texture.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(Matching, "game/pb/pb_tree.cpp", cflags=cflags_demo, mw_version="GC/1.2.5n"),
-            Object(NonMatching, "game/pb/dbgtext.c", cflags=cflags_demo),
+            Object(Matching, "game/ps2/ml_text.c", cflags=cflags_demo),
+            Object(NonMatching, "game/ps2/ml_timer.c", cflags=cflags_demo),
             Object(Matching, "game/pb/pb_winglobals.c", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_error.c", cflags=cflags_demo),
             # Data-only diagnostic glyph TU (RFONT.OBJ), not PB_ERROR storage.

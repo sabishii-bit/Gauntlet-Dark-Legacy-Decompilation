@@ -505,10 +505,17 @@ game/sys/ml_mem.c:
 	.rodata     start:0x801161B0 end:0x80116450
 	.bss        start:0x802C4348 end:0x802C45C0
 
-game/pb/dbgtext.c:
-	extab       start:0x80007B70 end:0x80007BA8
-	extabindex  start:0x8000C178 end:0x8000C1CC
-	.text       start:0x800BFC80 end:0x800C0ADC
+game/ps2/ml_text.c:
+	extab       start:0x80007B70 end:0x80007B98
+	extabindex  start:0x8000C178 end:0x8000C1B4
+	.text       start:0x800BFC80 end:0x800C031C
+	.sdata      start:0x80343ED8 end:0x80343EDC
+	.sbss       start:0x80344F50 end:0x80344F6C
+
+game/ps2/ml_timer.c:
+	extab       start:0x80007B98 end:0x80007BA8
+	extabindex  start:0x8000C1B4 end:0x8000C1CC
+	.text       start:0x800C031C end:0x800C0ADC
 
 game/pb/pb_winglobals.c:
 	extab       start:0x80007BA8 end:0x80007BD8

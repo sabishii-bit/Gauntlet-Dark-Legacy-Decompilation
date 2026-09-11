@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 #include "types.h"
 
 #include "game/gamemode.h"
@@ -117,7 +118,6 @@ extern int sndRegisterPair(s32* rec, int chans, void* out);
 
 /* --- other cross-region callees --- */
 extern void ErrorPrintf(const char* fmt, ...);
-extern void fn_800C0310(void);
 extern int fn_800BC418(int a, int b);
 extern s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult);
 extern void bulletproof_printf(const char* fmt, ...);

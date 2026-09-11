@@ -96,6 +96,12 @@ class SectionsNeverPrintsNothing(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp(prefix="t20_sections_"))
         self.cwd = os.getcwd()
         self._repo, self._report = datadiff.REPO, datadiff.REPORT
+        # These are synthetic section inventories, not live graph-selection
+        # tests. The historical combined dbgtext TU no longer exists; do not
+        # accidentally depend on it (or any other production unit) resolving.
+        selector = patch.object(datadiff, "ours_object", return_value=self.dir / "fixture.o")
+        selector.start()
+        self.addCleanup(selector.stop)
 
     def tearDown(self):
         datadiff.REPO, datadiff.REPORT = self._repo, self._report

@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 /*
  * action.c - enemy/player action state machines (ACTION.OBJ).
  *
@@ -76,7 +77,6 @@ typedef struct ENEMYACT {
 s32 AtreeFindSeq(ATREE* atree, char* name);
 void SfxSetParent(void* sfx, void* parent);
 void SfxDeleteParented(void* parent, s32 a, s32 b);
-void dbgTextPrintfCol(int x, int y, const char* fmt, ...);
 s32 AnimateATree(void* node, s32 seq, s32 mode);
 u32 DoAnimateTree(f32 t, void* node, s32 seq, u32 frame, s32 mode, s32 e);
 s32 StartEnemyAtkFX(void* a, s32 b);

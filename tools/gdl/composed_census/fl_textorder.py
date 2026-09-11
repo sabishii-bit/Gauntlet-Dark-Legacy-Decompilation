@@ -12,7 +12,7 @@ the dtk-extracted TARGET object against our linked object.
 
 Usage (from the repo root):
     python tools/gdl/composed_census/fl_textorder.py --calibrate \
-        game/mb/mb_camera game/pb/dbgtext ...
+        game/mb/mb_camera game/ps2/ml_timer ...
 
 Exit 0 = order and offsets identical; 1 = order identical but a body has a
 different SIZE (the flip still shifts); 2 = order or roster differs.

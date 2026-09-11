@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 #include "types.h"
 #include "game/camera.h"
 #include "game/effect.h"
@@ -552,7 +553,6 @@ extern f32 GetPlayerAvgPos(f32* out, void* a, f32* b, s32 c);
 extern void GetYawPitch(f32* dir, f32* yaw, f32* pitch);
 extern void DoShake(f32* pos, f32* attn);
 extern void ExtractYPR(void* mtx, f32* pyr);
-extern void dbgTextPrintfCell(s32 color, s32 a, s32 b, char* fmt, ...);
 extern f64 __frsqrte(f64 x);
 extern const f64 lbl_80345BB0;        /* 3.0 */
 extern const f64 lbl_80345BC8;        /* rad->deg scale A */

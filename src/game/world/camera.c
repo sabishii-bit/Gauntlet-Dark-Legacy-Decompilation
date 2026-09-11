@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 /* camera.c -- head of CAMERA.OBJ (game camera system), NonMatching.
  *
  * Function names recovered from shell3D.pdb (CAMERA.OBJ) where anchored by a
@@ -434,7 +435,6 @@ void CopyCam(u8* source, u8* destination);
 void UpdatePlayerWorldMat(void* player, s32 anchor);
 void init_stage_info(void);
 void DiffRate_8002951C(s32 camIdx);
-void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 void fn_8005A588(struct OBJGRP* group, f32* offset);
 s32 MBScreenHeight(void);
 s32 MBScreenWidth(void);
@@ -7285,8 +7285,6 @@ void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
  * clamping is the runtime-relevant part of the routine.
  */
 extern f64 lbl_803460C0, lbl_803460C8;
-void fn_800C02F4(s32 color);
-void dbgTextPrintfCol(s32 column, s32 row, char* format, ...);
 extern s32 EnemyDescType(char* desc);
 extern char* lbl_8011B578[];
 

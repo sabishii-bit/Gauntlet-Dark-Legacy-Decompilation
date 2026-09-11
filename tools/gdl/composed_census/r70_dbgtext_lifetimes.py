@@ -1,4 +1,8 @@
-"""Controlled, full-TU dbgtext variable-identity experiments.
+"""Controlled, full-TU ML_TIMER variable-identity experiments.
+
+The historical filename predates recovery of the ML_TEXT/ML_TIMER boundary.
+Text-state ownership/type controls belong to ML_TEXT and are no longer part
+of this timer-only experiment roster.
 
 No production file or configured option is changed. PASS establishes that the
 experiment completed, not that source matches. Every candidate is compared to
@@ -26,7 +30,7 @@ from tools.gdl.composed_census import wf_word_diff as words
 from tools.gdl import fndiff, fnasm, savedregs
 from tools.fix_exception_objects import Elf
 
-UNIT = "game/pb/dbgtext"
+UNIT = "game/ps2/ml_timer"
 FUNCTION = "fn_800C03E0"
 REVIEWED_LOOP = (0x7C, 0x1C4)
 LOOP_SHA256 = {
@@ -140,9 +144,7 @@ def source_forms(source):
         "    u32 div;": 1,
         "    u32 scale;": 1,
         "    u32 shift = 10;": 1,
-        "extern s32 dbgTextActive;": 1,
-        "extern s32 dbgTextColor;": 1,
-        "extern s32 dbgTextLine;": 1,
+        "extern s32 dbgTextFlagA;": 1,
         # TIMING recovery typed the registered samples; only the separate
         # fixed debug-cell loop still has the old word-array representation.
         "cell[3] = cell[2] = cell[1] = cell[0] = 0;": 1,
@@ -188,13 +190,6 @@ def source_forms(source):
     forms["signed_scale"] = body.replace("    u32 scale;", "    s32 scale;")
     forms["signed_shift"] = body.replace("    u32 shift = 10;", "    s32 shift = 10;")
     result = {name: prefix + value + suffix for name, value in forms.items()}
-    # A source-ownership control, not authorization to claim a data range.
-    # These three scalar values have ordinary definitions and real consumers;
-    # no synthetic owner struct, padding or address alias is introduced.
-    defined = source
-    for name in ("dbgTextActive", "dbgTextColor", "dbgTextLine"):
-        defined = defined.replace("extern s32 " + name + ";", "s32 " + name + ";")
-    result["init_defined_state"] = defined
     bind_start = source.index("void fn_800C031C(TimerSample* base")
     bind_end = source.index("\nvoid fn_800C0394", bind_start)
     bind = source[bind_start:bind_end]
@@ -208,21 +203,11 @@ def source_forms(source):
     result["bind_distinct_counter"] = source[:bind_start] + split_bind + source[bind_end:]
     # arg1 is a descriptor pointer, not an integer value. The old signedness
     # control is no longer admissible after recovering the registration API.
-    for name in ("dbgTextActive", "dbgTextColor", "dbgTextLine"):
-        result["init_int_" + name] = source.replace("extern s32 " + name + ";", "extern int " + name + ";")
-    int_state = source
-    for name in ("dbgTextActive", "dbgTextColor", "dbgTextLine"):
-        int_state = int_state.replace("extern s32 " + name + ";", "extern int " + name + ";")
-    result["init_int_state"] = int_state
     result["divisor_unsigned_int"] = prefix + body.replace("    u32 div;", "    unsigned int div;") + suffix
     result["cursors_int"] = prefix + body.replace("    s32 qline;", "    int qline;").replace("    s32 line;", "    int line;") + suffix
     opening = body.index("{")
     result["locals_int"] = prefix + body[:opening] + re.sub(r"\bs32\b", "int", body[opening:]) + suffix
     result["bind_int_counter"] = source[:bind_start] + bind.replace("    s32 i;", "    int i;") + source[bind_end:]
-    result["color_unsigned_int"] = source.replace("extern s32 dbgTextColor;", "extern unsigned int dbgTextColor;")
-    result["defined_int_state"] = int_state
-    for name in ("dbgTextActive", "dbgTextColor", "dbgTextLine"):
-        result["defined_int_state"] = result["defined_int_state"].replace("extern int " + name + ";", "int " + name + ";")
     if any(value == source for name, value in result.items() if name != "baseline"):
         raise ValueError("a source-form candidate became a textual no-op")
     return result

@@ -1,4 +1,5 @@
 """Fixed-witness and experiment-integrity controls; no compiler required."""
+import re
 import unittest
 
 from tools.gdl.composed_census import r70_dbgtext_lifetimes as audit
@@ -68,7 +69,7 @@ class DbgtextLifetimeTests(unittest.TestCase):
         self.assertEqual(audit.completed_status({"x": {"error": None, "inventory": {}}}), "PASS")
 
     def test_registered_forms_keep_unselected_siblings_and_signature(self):
-        source = (audit.ROOT / "src/game/pb/dbgtext.c").read_text(encoding="utf-8")
+        source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
         forms = audit.source_forms(source)
         prefix, _, suffix = audit.split_body(source)
         for name in ("i_per_mode", "i_quad_joint", "mode3_row_counter", "locals_int", "quad_per_allocation"):
@@ -80,14 +81,14 @@ class DbgtextLifetimeTests(unittest.TestCase):
         self.assertIn("s32 fixedIndex;", forms["bind_distinct_counter"])
 
     def test_source_drift_cannot_silently_create_noop_probe(self):
-        source = (audit.ROOT / "src/game/pb/dbgtext.c").read_text(encoding="utf-8")
+        source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
         for changed in (source.replace("    u32 div;", "    unsigned int div;"),
-                        source + "\nextern s32 dbgTextActive;\n"):
+                        source + "\nextern s32 dbgTextFlagA;\n"):
             with self.assertRaisesRegex(ValueError, "source-form anchor changed"):
                 audit.source_forms(changed)
 
     def test_binding_controls_preserve_recovered_timer_api_and_loop(self):
-        source = (audit.ROOT / "src/game/pb/dbgtext.c").read_text(encoding="utf-8")
+        source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
         forms = audit.source_forms(source)
         signature = "void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)"
         loop = "base[i].last_frame = base[i].current = base[i].count = base[i].frame = 0;"
@@ -100,11 +101,28 @@ class DbgtextLifetimeTests(unittest.TestCase):
                       forms["bind_typed_cell"])
 
     def test_unreviewed_timer_loop_or_signature_is_refused(self):
-        source = (audit.ROOT / "src/game/pb/dbgtext.c").read_text(encoding="utf-8")
+        source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
         for changed in (source.replace("TimerSample* base", "u32* base"),
                         source.replace("base[i].last_frame = ", "")):
             with self.assertRaisesRegex(ValueError, "source-form anchor changed"):
                 audit.source_forms(changed)
+
+    def test_timer_controls_do_not_reintroduce_text_owned_state(self):
+        self.assertEqual(audit.UNIT, "game/ps2/ml_timer")
+        source = (audit.ROOT / "src" / (audit.UNIT + ".c")).read_text(encoding="utf-8")
+        forms = audit.source_forms(source)
+        for retired in ("init_defined_state", "init_int_state", "defined_int_state",
+                        "color_unsigned_int", "init_int_dbgTextActive",
+                        "init_int_dbgTextColor", "init_int_dbgTextLine"):
+            self.assertNotIn(retired, forms)
+        for name, candidate in forms.items():
+            with self.subTest(form=name):
+                for state in ("dbgTextActive", "dbgTextColor", "dbgTextLine"):
+                    self.assertNotIn(state, candidate)
+                for signature in ("void fn_800C031C(", "void fn_800C0394(",
+                                  "s32 fn_800C03E0(", "void fn_800C0AA4("):
+                    definition = r"^" + re.escape(signature) + r"[^;{}]*\)\n\{"
+                    self.assertEqual(len(re.findall(definition, candidate, re.M)), 1)
 
 
 if __name__ == "__main__":

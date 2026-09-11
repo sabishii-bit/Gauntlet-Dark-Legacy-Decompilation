@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 /*
  * main.c - game entry (Xbox: MAIN.OBJ: main_init, sendPlayerPos, playMovie,
  * test_movies, DefunctThreads, GauntletMain). GCN main() is GauntletMain
@@ -109,7 +110,6 @@ void AdsAllocBuffer(void);
 void fn_800C73E0(void);
 int sprintf(char* buf, const char* fmt, ...);
 void fn_800BC418(int a, int b);
-void dbgTextInit(void);
 void MBInit(void);
 void FontEndFrame(void);
 void FontInitDefault(void);

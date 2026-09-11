@@ -1,43 +1,25 @@
-/* dbgtext.c -- Midway "pb" library on-screen debug-text overlay TU.
- *
- * .text 0x800BFC80-0x800C0ADC (12 functions). No PB_XXX.C assert strings
- * of its own; identified by the sdata2 pool seam (0x80348EF0/EF4) that
- * separates it from mb_window.obj at 0x800C0ADC, and by its callees
- * (vsprintf + MBSetFontColor + MBDrawSysText). Not a distinct shell3D.pdb
- * module (dbgText* names are behavioural). Compiled -Cpp_exceptions on
- * (cflags_demo): every LR-saving function carries an extab/extabindex entry.
- *
- * NonMatching: the small accessors are reconstructed faithfully; the printf
- * family and the large debug-quad renderer (fn_800C03E0) are best-effort
- * structural skeletons.
+/* ML_TIMER: profiling samples and debug graphs, separate from ML_TEXT.
+ * GC text 0x800C031C..0x800C0ADC; timer data and Xbox module contributions
+ * corroborate both ends. Remaining reconstruction debt is confined here,
+ * not in the eight natively exact formatted-text functions in ml_text.c.
+ * Timer data ownership and the registration/renderer residuals remain open.
  */
-
 #include "types.h"
+#include "game/ml_text.h"
 #include "game/timing.h"
-#include "__va_arg.h"
 
 /* ------------------------------------------------------------------ */
 /* module state (.sdata / .sbss)                                       */
 /* ------------------------------------------------------------------ */
-extern s32 dbgTextActive;   /* 1 while a debug line was drawn this frame */
-extern s32 dbgTextColor;    /* current text colour (default 0x00FF0000)  */
-extern s32 dbgTextLine;     /* auto-advancing line counter               */
-extern s32 gDbgTextOn;      /* master enable                             */
-extern s32 dbgTextEnable;   /* per-frame enable                          */
 extern s32 dbgTextFlagA;    /* OR 0x40000 into the drawn glyph flags     */
-extern s32 dbgTextFlagB;    /* OR 0x8 into the drawn glyph flags         */
 
 /* ------------------------------------------------------------------ */
 /* externs (other TUs)                                                 */
 /* ------------------------------------------------------------------ */
-int vsprintf(char* str, const char* fmt, va_list ap);
-s32 MBSetFontColor(s32 color);                       /* mb_font.c */
-u32* MBDrawSysText(s32 x, s32 y, char* text);        /* mb_font.c */
 void* MBNewTempQuad(void);                           /* mb_blit.c */
 s32 mbBlitCalcWidth(void*, s32 x, s32 y, f32 depth); /* mb_blit.c */
 void mbBlitProject(void*, s32 a, s32 c);             /* mb_blit.c */
 void MBBlitSetColor(void*, u32 bright);              /* mb_blit.c */
-void dbgTextPrintfPx(s32 color, s32 x, s32 line, char* fmt, ...);
 s32 fn_800C03E0(s32 mode);
 
 extern u32 lbl_802C45CC[];   /* debug-cell array base (.data) */
@@ -54,189 +36,6 @@ extern u32 lbl_80344F74;
 extern TimerDesc* lbl_80344F78;
 extern TimerSample* lbl_80344F7C;
 extern s32 lbl_80344F80;
-
-/* Reset the overlay state. */
-void dbgTextInit(void)
-{
-    dbgTextColor = 0x00FF0000;
-    dbgTextActive = 0;
-    dbgTextLine = 0;
-}
-
-/* Formatted debug text at (cell x, cell line); line==-1 auto-advances. */
-void dbgTextPrintfCell(s32 color, s32 x, s32 line, char* fmt, ...)
-{
-    char buf[72];
-    u32* h;
-    s32 old;
-    va_list ap;
-
-    if (!gDbgTextOn) {
-        return;
-    }
-    if (dbgTextEnable) {
-        if (line == -1) {
-            line = dbgTextLine;
-            dbgTextLine = line + 1;
-        } else {
-            dbgTextLine = line + 1;
-        }
-        va_start(ap, fmt);
-        vsprintf(buf, fmt, ap);
-        old = MBSetFontColor(color);
-        h = MBDrawSysText(x << 3, line << 3, buf);
-        MBSetFontColor(old);
-        if (h && dbgTextFlagA) {
-            *h |= 0x40000;
-        }
-        if (h && dbgTextFlagB) {
-            *h |= 0x8;
-        }
-        dbgTextActive = 1;
-    } else if (dbgTextActive) {
-        dbgTextActive = 0;
-    }
-}
-
-/* Formatted debug text with an explicit colour override. */
-void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...)
-{
-    char buf[72];
-    u32* h;
-    s32 old;
-    va_list ap;
-
-    if (!gDbgTextOn) {
-        return;
-    }
-    if (dbgTextEnable) {
-        if (line == -1) {
-            line = dbgTextLine;
-            dbgTextLine = line + 1;
-        } else {
-            dbgTextLine = line + 1;
-        }
-        va_start(ap, fmt);
-        vsprintf(buf, fmt, ap);
-        old = MBSetFontColor(dbgTextColor);
-        h = MBDrawSysText(x << 3, line << 3, buf);
-        MBSetFontColor(old);
-        if (h && dbgTextFlagA) {
-            *h |= 0x40000;
-        }
-        if (h && dbgTextFlagB) {
-            *h |= 0x8;
-        }
-        dbgTextActive = 1;
-    } else if (dbgTextActive) {
-        dbgTextActive = 0;
-    }
-}
-
-/* Formatted debug text at pixel coordinates. */
-void dbgTextPrintfPx(s32 color, s32 x, s32 line, char* fmt, ...)
-{
-    char buf[72];
-    u32* h;
-    s32 old;
-    va_list ap;
-
-    if (!gDbgTextOn) {
-        return;
-    }
-    if (line == -1) {
-        line = dbgTextLine;
-        dbgTextLine = line + 1;
-    } else {
-        dbgTextLine = line + 1;
-    }
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    old = MBSetFontColor(color);
-    h = MBDrawSysText(x, line, buf);
-    MBSetFontColor(old);
-    if (h && dbgTextFlagA) {
-        *h |= 0x40000;
-    }
-    if (h && dbgTextFlagB) {
-        *h |= 0x8;
-    }
-}
-
-void fn_800C008C(s32 color, s32 x, s32 line, char* fmt, ...)
-{
-    char buf[72];
-    u32* h;
-    s32 old;
-    va_list ap;
-
-    if (!gDbgTextOn) {
-        return;
-    }
-    if (line == -1) {
-        line = dbgTextLine;
-        dbgTextLine = line + 1;
-    } else {
-        dbgTextLine = line + 1;
-    }
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    old = MBSetFontColor(color);
-    h = MBDrawSysText(x << 3, line << 3, buf);
-    MBSetFontColor(old);
-    if (h && dbgTextFlagA) {
-        *h |= 0x40000;
-    }
-    if (h && dbgTextFlagB) {
-        *h |= 0x8;
-    }
-}
-
-void fn_800C01C0(s32 x, s32 line, char* fmt, ...)
-{
-    char buf[72];
-    u32* h;
-    s32 old;
-    va_list ap;
-
-    if (!gDbgTextOn) {
-        return;
-    }
-    if (line == -1) {
-        line = dbgTextLine;
-        dbgTextLine = line + 1;
-    } else {
-        dbgTextLine = line + 1;
-    }
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    old = MBSetFontColor(dbgTextColor);
-    h = MBDrawSysText(x << 3, line << 3, buf);
-    MBSetFontColor(old);
-    if (h && dbgTextFlagA) {
-        *h |= 0x40000;
-    }
-    if (h && dbgTextFlagB) {
-        *h |= 0x8;
-    }
-}
-
-/* Set the overlay colour (-1 resets to red); returns the previous colour. */
-s32 fn_800C02F4(s32 color)
-{
-    s32 old = dbgTextColor;
-    if (color == -1) {
-        color = 0x00FF0000;
-    }
-    dbgTextColor = color;
-    return old;
-}
-
-/* Clear the drawn flag. */
-void fn_800C0310(void)
-{
-    dbgTextActive = 0;
-}
 
 /* TimersAddList: register samples, descriptions and display handles; clear
  * the samples and the separate fixed debug-cell block at lbl_802C45CC. */

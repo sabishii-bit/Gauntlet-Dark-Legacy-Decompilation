@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 #include "types.h"
 #include "game/mbobject.h"
 
@@ -130,8 +131,6 @@ extern void MBBlitSetColor(s32 blit, s32 color);
 extern void MBSetObject(s32 obj, void* data);
 extern void MBTreeSetAltTex(s32 obj, int idx, void* tex, int a);
 extern void CreatePYRMatrix(s32 obj, void* pyr);
-extern u32 fn_800C02F4(u32 color);
-extern void fn_800C01C0(int x, int y, const char* fmt, ...);
 extern u8* MBOX_ReallyFindObject(void* entry, int a, int b, int c);
 void pbDiagDrawColorBars(void);
 void pbDiagDrawStrRow(DiagStrRows* p);
@@ -159,10 +158,8 @@ extern u32 gDiag_D04;           /* gDiag_D04 */
 extern s32 gDiag_D08;           /* gDiag_D08 */
 
 /* --- text / draw primitives + subsystem init (other TUs) --- */
-extern void fn_800C008C(u32 rgba, int x, int y, const char* fmt, ...);
 extern void AudioStopSelect(void);
 extern void AudioSelectReset(void);
-extern void fn_800C0310(void);
 extern void MBTreeInit(void);
 extern void DebugCamInit(void); /* newcam.c: init the pb-diag debug camera */
 extern void* MBOX_FindTexture(const char* name, int arg);

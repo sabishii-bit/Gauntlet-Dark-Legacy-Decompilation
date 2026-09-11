@@ -1,3 +1,4 @@
+#include "game/ml_text.h"
 /*
  * player.c -- GCN PLAYER.OBJ (shell3D.pdb module .\Release\PLAYER.OBJ), FULL MODULE.
  *
@@ -927,7 +928,6 @@ extern void MBWorldToScreen(f32* out, f32* pos);
 extern s32 DrawNormalText(f32 scale, char* text, s32 font);
 extern void DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char* text);
 extern s32 DrawText(s32 x, s32 y, s32 font, u32 rgb, char* fmt, ...);
-extern void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
 
 /* scene nodes */
 extern void MBNodeSetParent(void* node, void* parent);
@@ -945,7 +945,6 @@ extern void UpdateObjWorldMat(f32* mat);
 extern f32 get_actual_screen_pos(s32 a, f32* out1, f32* out2, f32* pos);
 extern void add_target(f32* mat);
 extern s32 DamageColor(u32 flags);
-extern void fn_800C02F4(u32 rgb);
 extern s32 fn_800C0ADC(f32* pos, f32* color, f32 radius, f32 intensity);
 
 /* tower / sounds / messages */
