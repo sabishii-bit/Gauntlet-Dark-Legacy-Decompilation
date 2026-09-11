@@ -731,8 +731,8 @@ extern void fn_8009DD48(void);
 extern void fn_8009DE5C(s32 type, f32* position);
 extern void fn_8009DE88(Enemy* enemy, s32 mode);
 extern void fn_8009DF7C(Enemy* enemy, s32 mode);
-extern void fn_800945D0(u8* position, u8* matrix, s32 damage_type, s32 alt,
-                        u32 type, f32 scale);
+extern s32 fn_800945D0(f32* position, f32* matrix, s32 damage_type, s32 alt,
+                       s32 type, f32 scale);
 extern void MBTreeSetAmbientAdd(struct mbnode* node, s32 value, s32 recurse);
 extern void SetSkinFX(skinfx* fx, s32 base, s32 frames, s32 loops, f32 rate);
 extern s32 gBossType;
@@ -822,7 +822,6 @@ extern void AudioPlayerHit(s32 player, s32 kind);
 /* 0x8004D958 - per-enemy frame update: lifetime, owner change, boss-death
  * cull, AI step + type-24 hover bob timer */
 extern s32 gBossDying;
-extern void fn_800945D0(u8* pos, u8* a, s32 b, s32 c, u32 type, f32 scale);
 
 extern f32 fn_80034C88(f32 x);
 extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
@@ -5872,8 +5871,8 @@ s32 fn_8004D958(s32 index)
         e->max_msidx = 4;
     }
     if (gBossType >= 0 && gBossDying != 0) {
-        fn_800945D0((u8*)e + offsetof(Enemy, objgrp.attn_pos[0]),
-                    (u8*)e + offsetof(Enemy, objgrp), 0, 1, *(u32*)e,
+        fn_800945D0(e->objgrp.attn_pos, &e->objgrp.worldmat[0][0],
+                    0, 1, e->type,
                     e->hht);
         kill_enemy(index);
         return -1;
@@ -5882,7 +5881,7 @@ s32 fn_8004D958(s32 index)
     if (e->action == 1) {
         e->daction = 3;
     }
-    switch (*(s32*)e) {
+    switch (e->type) {
     case 24: {
         s32 st = e->action;
         dir = 16;
@@ -6583,7 +6582,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
                 MBTreeSetAmbientAdd(e->objgrp.node, 999, 1);
             }
             if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
-                fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
+                fn_800945D0(effect_pos, &e->objgrp.worldmat[0][0],
                             damage_type, 1, e->type, e->hht);
             }
         }
@@ -6599,7 +6598,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             effect_pos[1] = effect_position[1];
             effect_pos[2] = effect_position[2];
         }
-        fn_800945D0((u8*)effect_pos, (u8*)&e->objgrp,
+        fn_800945D0(effect_pos, &e->objgrp.worldmat[0][0],
                     damage_type, 0, e->type, e->hht);
     }
     return 0;
