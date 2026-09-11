@@ -69,7 +69,10 @@ typedef struct MemPoolLists {
     s32 alignmentShift;
 } MemPoolLists;
 
-extern MemListNode* lbl_8031EB00[];
+/* MEMPOOL.OBJ's gcSort is a file-local _memblk*[2048] in the Xbox PDB.
+ * GC pool_garbage_collect uses four-byte entries at 0x8031EB00; the
+ * complete 0x2000-byte range ends immediately before adstream's gADS. */
+static MemListNode* gcSort[2048];
 
 void list_verify(MemList* list);
 void list_insert_size(MemList* list, MemListNode* node);
@@ -146,7 +149,7 @@ u32 pool_new(MemList* list) {
 /* 0x800D5390  coalesce free blocks (qsort) */
 s32 pool_garbage_collect(MemPoolLists* pool,
                          s32 (*gapCallback)(MemListNode*, u32)) {
-    MemListNode** entries = lbl_8031EB00;
+    MemListNode** entries = gcSort;
     s32 result;
     s32 count;
     MemListNode* node;
