@@ -574,16 +574,6 @@ static void enemy_bss_order(void)
  * --------------------------------------------------------------------------- */
 
 
-/* Legacy consumers still address the separate attribute arrays through the
- * .data base at lbl_8011AF48. The definitions above and GameCube accesses prove
- * these offsets: ene_attn +2080, ene_coll +2216, base health +2760. Convert each
- * remaining consumer to its actual array while checking complete native output;
- * the unchanged byte-walk forms are reconstruction debt, not a recovered struct.
- */
-#define ETYPE_ATTN_Y      2080 /* f32[34] attention-point height per type */
-#define ETYPE_COLL_Y      2216 /* f32[34] collision-point height per type */
-#define ETYPE_BASE_HEALTH 2760 /* f32[34] unscaled hit points per type    */
-
 /* do_enemy_collide @0x80045488 - the enemy collision core.  Sweeps the pending
  * move (e->trans) against the world: probes walls (splitting the swept box for
  * the 0x1d flyer type), resolves wall hits by damage + slide-or-stop, tests
@@ -7224,19 +7214,16 @@ s32 find_enemy_slot(s32 type, s32 level) {
 void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
     Enemy* e = &gEnemies[slot];
-    u8* tbl = (u8*)lbl_8011AF48;
-    s32 toff;
     f32 zero;
     f32 health;
 
     e->type = type;
-    toff = type * 4;
     zero = 0.0f;
     e->attn_offset[0] = zero;
-    e->attn_offset[1] = *(f32*)(tbl + toff + ETYPE_ATTN_Y);
+    e->attn_offset[1] = ene_attn[type];
     e->attn_offset[2] = zero;
     e->coll_offset[0] = zero;
-    e->coll_offset[1] = *(f32*)(tbl + toff + ETYPE_COLL_Y);
+    e->coll_offset[1] = ene_coll[type];
     e->coll_offset[2] = zero;
     e->pyr[0] = zero;
     e->pyr[1] = zero;
@@ -7250,17 +7237,7 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     if (spew == 18) {
         level = 1;
     }
-    /* Kept as a two-step walk instead of the obvious
-     * `health = *(f32*)(tbl + toff + ETYPE_BASE_HEALTH);`: the target
-     * re-materialises the table row after the SetEnemyObj call (`add r3,r29,r28`
-     * at 0xb4), and the flat single-expression form lets MWCC reuse the entry
-     * region's row register instead, deleting that `add` and cascading an
-     * entry-schedule rewrite - measured real 27 -> 76, opcode multiset DIFFERS. */
-    {
-        u8* r = tbl;
-        r += toff;
-        health = *(f32*)(r + ETYPE_BASE_HEALTH);
-    }
+    health = lbl_8011BA10[type];
     if (type != E_DEATH) {
         health = health * gCurLevel->ene_health;
     }
