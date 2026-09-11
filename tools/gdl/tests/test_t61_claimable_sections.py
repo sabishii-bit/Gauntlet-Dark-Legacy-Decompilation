@@ -204,11 +204,55 @@ class SectionVerdict(unittest.TestCase):
         row = cs.section_result(".sdata2", 0x74, {0x80345D40: {}}, 0x80345D40,
                                 self.score(100.0), {"kind": "exact"},
                                 ("lbl_80345DB0", 0x80345DB0, 0x80345DB8),
-                                None, False, prior=(0x80345D40, 0x80345D70))
+                                None, False, prior=(0x80345D40, 0x80345D70),
+                                tail_bytes=bytes(4))
         self.assertEqual(row["verdict"], "claimable")
         self.assertEqual(row["claim_end"], "0x80345DB8")
         self.assertEqual(row["claim_bytes"], 0x48)
         self.assertEqual(row["kind"], "extend")
+
+    def rounded_tail(self, tail_bytes, *, use_alignment=False):
+        # memcard's 145-byte prefix was advertised as a 904-byte claim:
+        # the coarse target string-run symbol extends well past our data.
+        base, size, end = 0x801131C0, 145, 0x80113548
+        return cs.section_result(
+            ".rodata", size, {base: {}}, base, self.score(100.0),
+            {"kind": "exact"},
+            None if use_alignment else ("string_run", base, end),
+            None, False,
+            align=(lambda value: (end, "test rounded end"))
+            if use_alignment else None, tail_bytes=tail_bytes)
+
+    def test_a_matching_prefix_cannot_claim_a_nonzero_unemitted_tail(self):
+        for use_alignment in (False, True):
+            with self.subTest(use_alignment=use_alignment):
+                row = self.rounded_tail(bytes(3) + b"NEXT" + bytes(752),
+                                        use_alignment=use_alignment)
+                self.assertEqual(row["verdict"], "blocked-unemitted-tail")
+                self.assertEqual(row["unemitted_tail"]["first_nonzero"],
+                                 "0x80113254")
+                self.assertEqual(cs.rank_units([
+                    {"unit": "memcard", "sections": [row]}])[0][1], 0)
+
+    def test_missing_short_or_long_tail_measurements_fail_closed(self):
+        for tail in (None, b"", bytes(758), bytes(760)):
+            with self.subTest(length=None if tail is None else len(tail)):
+                row = self.rounded_tail(tail)
+                self.assertEqual(row["verdict"], "unresolved-unread-tail")
+
+    def test_verified_zero_alignment_tail_is_reported(self):
+        row = cs.section_result(
+            ".rodata", 9, {0x1000: {}}, 0x1000, self.score(100.0),
+            {"kind": "exact"}, None, None, False,
+            align=lambda end: (0x100C, "align to four"), tail_bytes=bytes(3))
+        self.assertEqual(row["verdict"], "claimable")
+        self.assertEqual(row["unemitted_tail"],
+                         {"start": "0x00001009", "size": 3, "all_zero": True})
+
+    def test_exact_extent_needs_no_tail_measurement(self):
+        row = self.call(100.0)
+        self.assertEqual(row["verdict"], "claimable")
+        self.assertNotIn("unemitted_tail", row)
 
     def test_a_base_that_contradicts_an_existing_claim_refuses(self):
         row = cs.section_result(".sdata2", 0x74, {1: {}}, 0x80345D50,

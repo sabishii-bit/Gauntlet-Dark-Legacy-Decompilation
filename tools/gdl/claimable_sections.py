@@ -72,6 +72,10 @@ size and DOL content.
 A section is only called `claimable` when every compared byte is equal, so
 a section whose bytes differ at its candidate base can never be listed as
 claimable -- that is the negative half of the calibration.
+Rounding its end to a target symbol or split boundary must also read every
+added byte. A matching emitted prefix does not account for a nonzero tail;
+missing tail bytes are unresolved, not presumed linker padding. Even a
+verified zero tail still requires ownership/alignment review before linking.
 
 ORPHAN EXTERNS
 --------------
@@ -769,9 +773,9 @@ def boundary_of(section, address, symbols=None):
 def straddled_end(section, end, symbols=None):
     """The symbol an END address falls strictly inside, or None.
 
-    dtk refuses a split ending inside a symbol, so the claim must round up
-    to that symbol's end and carry the slack (claim.law.AF_dtk-rejects-an-
-    unaligned-auto-split-start-so-some-claim-slack-is-structural).
+    dtk refuses a split ending inside a symbol. Its end is a candidate
+    boundary, not proof that the source emitted the rest of that symbol.
+    section_result must check the added bytes before suggesting a claim.
     """
     symbols = fndiff.symbol_table() if symbols is None else symbols
     for name, entry in symbols.items():
@@ -817,7 +821,7 @@ def resolve_end(section, end, symbols=None, starts=(), claim_starts=()):
     return rounded, ("end 0x%08X is neither 4-byte aligned nor a symbol"
                      " start, so dtk would reject the auto-split it"
                      " generates; rounded up to the next symbol start"
-                     " 0x%08X and the 0x%X byte(s) of slack are structural"
+                     " 0x%08X; the 0x%X added byte(s) still need verification"
                      % (end, rounded, rounded - end))
 
 
@@ -833,7 +837,7 @@ def overlapping_claim(section, lo, hi, intervals, exclude=None):
 
 def section_result(section, our_size, bases, best, score, boundary,
                    straddle, collision, bss, prior=None, align=None,
-                   inventory=None, front_deficit=None):
+                   inventory=None, front_deficit=None, tail_bytes=None):
     """The verdict for one claimable section. Pure; every input measured.
 
     Verdicts, in refusal order:
@@ -844,6 +848,8 @@ def section_result(section, our_size, bases, best, score, boundary,
       blocked-short-in-middle  bytes missing only INSIDE the run
       blocked-short-front-and-middle   both, with each byte count measured
       blocked-bytes-differ     words still differ after resynchronising
+      unresolved-unread-tail   end rounding adds bytes not fully measured
+      blocked-unemitted-tail   end rounding absorbs nonzero, unemitted data
       claimable-bss            no DOL bytes exist; consensus only
       claimable                every compared byte equals the DOL
 
@@ -897,7 +903,7 @@ def section_result(section, our_size, bases, best, score, boundary,
         row["end_note"] = (
             "object end 0x%08X falls inside target symbol %s (ends 0x%08X);"
             " dtk refuses a split that ends within a symbol, so the claim"
-            " ends at the symbol boundary and the slack is structural"
+            " ends at the symbol boundary; its added bytes need verification"
             % (end, name, symbol_end))
         end = symbol_end
     if align is not None:
@@ -966,6 +972,32 @@ def section_result(section, our_size, bases, best, score, boundary,
                          or "no word of this section could be compared")
         return row
     if dol.get("percent") == 100.0:
+        tail_start = best + our_size
+        tail_size = end - tail_start
+        if tail_size > 0:
+            row["unemitted_tail"] = {"start": "0x%08X" % tail_start,
+                                     "size": tail_size}
+            if tail_bytes is None or len(tail_bytes) != tail_size:
+                row["verdict"] = "unresolved-unread-tail"
+                row["reason"] = (
+                    "the emitted prefix is equal, but end rounding adds %d"
+                    " byte(s) at 0x%08X that were not fully read; cannot"
+                    " assume padding" % (tail_size, tail_start))
+                return row
+            first_nonzero = next((i for i, value in enumerate(tail_bytes)
+                                  if value), None)
+            if first_nonzero is not None:
+                row["unemitted_tail"]["first_nonzero"] = (
+                    "0x%08X" % (tail_start + first_nonzero))
+                row["verdict"] = "blocked-unemitted-tail"
+                row["reason"] = (
+                    "the emitted prefix is equal, but the proposed end"
+                    " absorbs %d unemitted byte(s); first nonzero at"
+                    " 0x%08X. Recover that data or independently establish"
+                    " a smaller symbol/split boundary, not padding"
+                    % (tail_size, tail_start + first_nonzero))
+                return row
+            row["unemitted_tail"]["all_zero"] = True
         row["verdict"] = "claimable"
         row["reason"] = ("all %d compared word(s) equal the DOL at this base"
                          " (%d relocated word(s) not comparable before the"
@@ -1298,6 +1330,14 @@ def census(unit, splits, intervals, defined=None, root=REPO, version=VERSION):
         front_deficit = None
         if pool["section_base"] is not None and best is not None:
             front_deficit = best - pool["section_base"]
+        tail_bytes = None
+        if best is not None and not bss:
+            candidate_end = straddle[2] if straddle else best + size
+            candidate_end, _note = resolve_end(
+                section, candidate_end, symbols, symbol_starts, claim_starts)
+            if candidate_end > best + size:
+                tail_bytes = fndiff.dol_read(best + size,
+                                            candidate_end - best - size)
         # The gap inventory is what makes two bases' percentages comparable,
         # and it is what decides FRONT versus MIDDLE below: see
         # `gap_inventory`.
@@ -1310,7 +1350,8 @@ def census(unit, splits, intervals, defined=None, root=REPO, version=VERSION):
             bss, prior,
             align=lambda end: resolve_end(section, end, symbols,
                                           symbol_starts, claim_starts),
-            inventory=inventory, front_deficit=front_deficit)
+            inventory=inventory, front_deficit=front_deficit,
+            tail_bytes=tail_bytes)
         row["evidence"] = {"0x%08X" % base: {
             "support": entry["support"], "symbols": entry["symbols"],
             "dol_percent": (entry["dol"] or {}).get("percent"),
