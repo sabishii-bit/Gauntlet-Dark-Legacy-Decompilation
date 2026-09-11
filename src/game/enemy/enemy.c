@@ -7171,7 +7171,7 @@ s32 find_enemy_slot(s32 type, s32 level) {
     }
     kill_enemy(best_index);
     {
-        Enemy* k = (Enemy*)((u8*)gEnemies + best_index * 916);
+        Enemy* k = &gEnemies[best_index];
 
 
         k->close_dist = 1.0f;
