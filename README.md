@@ -89,6 +89,12 @@ Building
 The build is verified against [config/GUNE5D/build.sha1](config/GUNE5D/build.sha1),
 which targets the extab-cleaned reference, not the original input hash above.
 
+`ExceptionPPC.cpp` links from stock GC 1.2.5 output without postprocessing.
+Its runtime header retains a user-approved `NMWEXCEPTION_CPP` compatibility
+split between inline and out-of-line exception methods; this has a strict
+C++ one-definition-rule caveat, documented in [AGENTS.md](AGENTS.md).
+`NMWException.cpp` itself still uses an extracted fallback object.
+
 Diffing
 =======
 

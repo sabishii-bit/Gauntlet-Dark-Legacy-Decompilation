@@ -758,7 +758,7 @@ Runtime.PPCEABI.H/ExceptionPPC.cpp:
 	extabindex  start:0x8000CEBC end:0x8000CF10
 	.text       start:0x800E38C4 end:0x800E4D34
 	.rodata     start:0x80117918 end:0x801179B0
-	.data       start:0x802383B8 end:0x802384A0
+	.data       start:0x802383B8 end:0x802384B0
 	.bss        start:0x80328EB8 end:0x80328EC4
 	.sdata      start:0x80344058 end:0x80344068
 

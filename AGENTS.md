@@ -151,6 +151,14 @@ an inherent limitation of the function. A refuted premise is a useful result.
   (2026-09-08). Their original source provenance remains unproven. This narrow
   exception does not authorize other padding, hooks or postprocessing, nor
   waive native code/data/relocation/EH and source-linked checksum gates.
+- The user approved the existing `NMWEXCEPTION_CPP` runtime-header split
+  covering both `std::exception`'s destructor and `what()` (2026-09-11).
+  NMWException sees out-of-line declarations; other TUs see inline bodies.
+  This is MWCC compatibility scaffolding with a strict C++ one-definition-rule
+  caveat, not recovered vendor-header provenance. ExceptionPPC's stock-1.2.5
+  source-selected DOL is exact with this exception and its discarded weak
+  vtable's retained 16-byte data extent. It does not authorize analogous
+  conditional class definitions elsewhere or waive any native/link gates.
 - Never improve one function by silently regressing exact siblings, source
   semantics, linked data, exception metadata, the DOL checksum or the best
   verified project result. Preserve unrelated user changes.

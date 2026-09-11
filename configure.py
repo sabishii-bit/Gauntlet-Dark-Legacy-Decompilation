@@ -419,8 +419,11 @@ config.libs = [
                 extra_cflags=["-Cpp_exceptions on", "-RTTI on", "-str reuse,nopool"],
             ),
             Object(
-                NonMatching,
+                Matching,
                 "Runtime.PPCEABI.H/ExceptionPPC.cpp",
+                # Native stock 1.2.5. The inline exception methods emit weak
+                # copies; mwld discards them but retains the vtable's 16-byte
+                # data extent (included in this TU's split, not an auto pad).
                 extra_cflags=["-Cpp_exceptions on", "-RTTI on", "-str reuse,nopool"],
             ),
             Object(Matching, "Runtime.PPCEABI.H/runtime.c"),

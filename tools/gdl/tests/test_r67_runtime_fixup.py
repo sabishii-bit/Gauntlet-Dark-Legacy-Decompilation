@@ -111,14 +111,23 @@ class RuntimeBuildConfigTests(unittest.TestCase):
         generate.assert_called_once()
         return generate.call_args.args[0]
 
-    def test_native_matching_demotes_both_runtime_objects_without_rewriting(self):
+    def test_native_matching_links_recovered_exceptionppc_without_rewriting(self):
         config = self.config()
         self.assertTrue(config.native_only)
         self.assertEqual(config.object_postprocesses,{})
         self.assertEqual(config.custom_build_rules,[])
         self.assertEqual(config.custom_build_steps,{})
-        for unit in ('NMWException','ExceptionPPC'):
-            self.assertFalse(config.objects()[f'Runtime.PPCEABI.H/{unit}.cpp'].completed)
+        self.assertFalse(config.objects()['Runtime.PPCEABI.H/NMWException.cpp'].completed)
+        self.assertTrue(config.objects()['Runtime.PPCEABI.H/ExceptionPPC.cpp'].completed)
+
+    def test_exceptionppc_claim_includes_discarded_weak_vtable_extent(self):
+        from tools.gdl.pool_owner import load_splits
+        rows = [(start, end) for unit, section, start, end in load_splits()
+                if unit == 'Runtime.PPCEABI.H/ExceptionPPC' and section == '.data']
+        # The duplicate weak exception vtable is discarded by mwld, but its
+        # sixteen-byte zero extent remains. A separate auto object for this
+        # tail duplicates it and moves __files and its consumers by 16 bytes.
+        self.assertEqual(rows, [(0x802383B8, 0x802384B0)])
 
     def test_editable_mode_has_no_retail_byte_rewrites(self):
         config = self.config("--non-matching")

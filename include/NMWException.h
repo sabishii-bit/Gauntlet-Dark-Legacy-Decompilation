@@ -46,6 +46,10 @@ extern void __unexpected(CatchInfo* catchinfo);
 #ifdef __cplusplus
 namespace std {
 
+// User-approved runtime compatibility exception (2026-09-11): this existing
+// home-emission split is retained for the destructor and what(). Different
+// class definitions across TUs are a strict C++ ODR caveat, despite MWCC's
+// exact linked result; the original uniform vendor header is not recovered.
 class exception {
 public:
     exception() throw() {}
@@ -54,10 +58,14 @@ public:
     // 0x800E31D4); every other TU sees it inline so mwcc can inline it into
     // derived-class destructors (e.g. ~bad_exception in ExceptionPPC.cpp).
     virtual ~exception() throw();
+    virtual const char* what() const;
 #else
     virtual ~exception() throw() {}
+    // ExceptionPPC retains this weak method's string after the linker selects
+    // NMWException's out-of-line definition. Keep the ordinary inline body:
+    // a declaration alone loses the trailing "exception" in its literal pool.
+    virtual const char* what() const { return "exception"; }
 #endif
-    virtual const char* what() const;
 };
 
 class bad_exception : public exception {
