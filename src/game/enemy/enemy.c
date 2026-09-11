@@ -1410,7 +1410,6 @@ void do_enemy_move(int index)
 
 int do_enemy_collide(int index, f32 retryThreshold)
 {
-    u8* pool = (u8*)mbdesc;
     u8* e0;
     /* Reconstruction debt: the two wall ai_flags reads still use this byte
      * view. Converting them together with the typed routing/gravity region
@@ -1434,7 +1433,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
     (void)framePad;
     (void)unused;
 
-    e0 = pool + index * 916;
+    e0 = (u8*)mbdesc + index * 916;
     type = *(s32*)(e0 += ENEMY_POOL_OFF);
     e = e0;
     enemy = (Enemy*)e0;
@@ -1471,16 +1470,16 @@ int do_enemy_collide(int index, f32 retryThreshold)
             np[1] = oldpos[1] + tr[1];
             np[2] = oldpos[2] + tr[2];
             lbl_80344730 = EnemyWallCollide(slideRad, oldpos, np,
-                                                 (f32*)(pool + 0x2F4));
+                                          enemy_wall_collp);
             if (lbl_80344730 != 0) {
                 EnemyWorldDamage(enemy, lbl_80344730, oldpos,
-                                 (f32*)(pool + 0x2F4));
+                                 enemy_wall_collp);
                 if (((WorldObj*)lbl_80344730)->flags & 0x38) {
                     wallResult = 0;
                 } else {
                     if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
                         SlideAlongWall(slideRad, oldpos, tr,
-                                       (f32*)(pool + 0x2F4),
+                                       enemy_wall_collp,
                                        lbl_8023CA98[1]) < 0) {
                         tr[2] = 0.0f;
                         tr[0] = 0.0f;
@@ -1505,16 +1504,16 @@ int do_enemy_collide(int index, f32 retryThreshold)
             np[1] = oldpos[1] + tr[1];
             np[2] = oldpos[2] + tr[2];
             lbl_80344730 = EnemyWallCollide(slideRad, oldpos, np,
-                                                 (f32*)(pool + 0x2F4));
+                                          enemy_wall_collp);
             if (lbl_80344730 != 0) {
                 EnemyWorldDamage(enemy, lbl_80344730, oldpos,
-                                 (f32*)(pool + 0x2F4));
+                                 enemy_wall_collp);
                 if (((WorldObj*)lbl_80344730)->flags & 0x38) {
                     wallResult = 0;
                 } else {
                     if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
                         SlideAlongWall(slideRad, oldpos, tr,
-                                       (f32*)(pool + 0x2F4),
+                                       enemy_wall_collp,
                                        lbl_8023CA98[1]) < 0) {
                         tr[2] = 0.0f;
                         tr[0] = 0.0f;
@@ -1704,7 +1703,6 @@ static s32 EnemyMovingAwayFromBirth(Enemy* enemy, f32* oldPosition,
 void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
                   f32* oldPosition, f32* translation, s32 collisionClass)
 {
-    u8* pool;
     f32* floorYAddress;
     void* floorObject;
     f32 tolerance;
@@ -1717,7 +1715,6 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
     f32 floorY;
 
     (void)unused;
-    pool = (u8*)mbdesc;
     tolerance = (f32)(2.0 *
                       (0.1 + (f64)(retryThreshold + radius)));
     if (enemy->type == E_GOLEM || (f64)enemy->hht <= 2.0) {
@@ -1797,7 +1794,7 @@ void* fn_80045C30(Enemy* enemy, f32 radius, f32 retryThreshold,
             goto collision_blocked;
         }
         if (SlideAlongWall(radius, oldPosition, translation,
-                           (f32*)(pool + 0x2F4), lbl_8023CA98[1]) < 0) {
+                           enemy_wall_collp, lbl_8023CA98[1]) < 0) {
             f32 zero = 0.0f;
             translation[2] = zero;
             translation[0] = zero;
