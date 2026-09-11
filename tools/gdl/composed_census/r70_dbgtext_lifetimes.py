@@ -143,7 +143,11 @@ def source_forms(source):
         "extern s32 dbgTextActive;": 1,
         "extern s32 dbgTextColor;": 1,
         "extern s32 dbgTextLine;": 1,
-        "cell[3] = cell[2] = cell[1] = cell[0] = 0;": 2,
+        # TIMING recovery typed the registered samples; only the separate
+        # fixed debug-cell loop still has the old word-array representation.
+        "cell[3] = cell[2] = cell[1] = cell[0] = 0;": 1,
+        "base[i].last_frame = base[i].current = base[i].count = base[i].frame = 0;": 1,
+        "void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)": 1,
     }
     for anchor, count in expected.items():
         if source.count(anchor) != count:
@@ -191,7 +195,7 @@ def source_forms(source):
     for name in ("dbgTextActive", "dbgTextColor", "dbgTextLine"):
         defined = defined.replace("extern s32 " + name + ";", "s32 " + name + ";")
     result["init_defined_state"] = defined
-    bind_start = source.index("void fn_800C031C(u32* base")
+    bind_start = source.index("void fn_800C031C(TimerSample* base")
     bind_end = source.index("\nvoid fn_800C0394", bind_start)
     bind = source[bind_start:bind_end]
     typed_bind = bind.replace("u32* cell;", "DbgGraphCell* cell;").replace(
@@ -202,7 +206,8 @@ def source_forms(source):
     split_bind = bind[:split_loop] + re.sub(r"\bi\b", "fixedIndex", bind[split_loop:])
     split_bind = split_bind.replace("    s32 i;", "    s32 i;\n    s32 fixedIndex;")
     result["bind_distinct_counter"] = source[:bind_start] + split_bind + source[bind_end:]
-    result["bind_signed_arg1"] = source[:bind_start] + bind.replace("u32 arg1", "s32 arg1") + source[bind_end:]
+    # arg1 is a descriptor pointer, not an integer value. The old signedness
+    # control is no longer admissible after recovering the registration API.
     for name in ("dbgTextActive", "dbgTextColor", "dbgTextLine"):
         result["init_int_" + name] = source.replace("extern s32 " + name + ";", "extern int " + name + ";")
     int_state = source

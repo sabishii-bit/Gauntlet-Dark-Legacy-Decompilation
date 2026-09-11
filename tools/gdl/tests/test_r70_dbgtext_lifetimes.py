@@ -86,6 +86,26 @@ class DbgtextLifetimeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source-form anchor changed"):
                 audit.source_forms(changed)
 
+    def test_binding_controls_preserve_recovered_timer_api_and_loop(self):
+        source = (audit.ROOT / "src/game/pb/dbgtext.c").read_text(encoding="utf-8")
+        forms = audit.source_forms(source)
+        signature = "void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)"
+        loop = "base[i].last_frame = base[i].current = base[i].count = base[i].frame = 0;"
+        self.assertNotIn("bind_signed_arg1", forms)
+        for name in ("bind_typed_cell", "bind_distinct_counter", "bind_int_counter"):
+            self.assertEqual(forms[name].count(signature), 1)
+            self.assertEqual(forms[name].count(loop), 1)
+            self.assertNotEqual(forms[name], source)
+        self.assertIn("cell->acc = cell->unk8 = cell->unk4 = cell->unk0 = 0;",
+                      forms["bind_typed_cell"])
+
+    def test_unreviewed_timer_loop_or_signature_is_refused(self):
+        source = (audit.ROOT / "src/game/pb/dbgtext.c").read_text(encoding="utf-8")
+        for changed in (source.replace("TimerSample* base", "u32* base"),
+                        source.replace("base[i].last_frame = ", "")):
+            with self.assertRaisesRegex(ValueError, "source-form anchor changed"):
+                audit.source_forms(changed)
+
 
 if __name__ == "__main__":
     unittest.main()

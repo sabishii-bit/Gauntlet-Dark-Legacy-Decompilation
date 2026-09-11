@@ -30,9 +30,11 @@ typedef struct AudioDataLayout {
 } AudioDataLayout;
 
 /* Slice of the SOUNDS audio module (Xbox SOUNDS.OBJ) covering the
- * name/speech and music/stream helper functions in 0x800A00A0-0x800A18E8.
- * The full SOUNDS TU spans ~0x8009C2CC-0x800A4870 (shared .sdata2 string
- * pool); this file is the middle slice assigned to this region.
+ * name/speech and music/stream helper functions in 0x800A00A0-0x800A18AC.
+ * Additional earlier SOUNDS functions are reconstructed below. The old
+ * claim that SOUNDS extends through Tower was incorrect: the independently
+ * identified TIMING module begins at 0x800A18AC and Tower at 0x800A18E8.
+ * The remaining internal SOUNDS boundary is still under investigation.
  *
  * Names: AudioWelcome/AudioWelcomeBack/AudioWithName/InitNameAudio/
  * AudioSelect/ShopMusicStart/MapMusicStart/BGMusicStart are real Xbox-PDB
@@ -79,7 +81,6 @@ extern int AudioIsActive(void);
 extern void AudioDeferSlot(void* cb, int arg);
 extern int LevelLetter(int a);
 extern void serve_busy(int a);
-extern void fn_800C031C(void* a, void* b, void* c, int d);
 extern int sprintf(char* buf, const char* fmt, ...);
 extern char* strcat(char* dst, const char* src);
 
@@ -92,9 +93,6 @@ extern u8 sSpeechNameBuf[];  /* scratch name buffer; aliases per-class speech id
 extern char lbl_80348534[8];  /* "SHOP_%c" fmt (sdata2) */
 extern char lbl_80114C9C[];   /* "S_SHOP_%c" fmt (rodata) */
 extern u8 lbl_8028BCB8[];
-extern u8 lbl_8028BCC0[];
-extern u8 lbl_8028BDE8[];
-extern u8 lbl_80124458[];
 extern s32 sActiveTrackId[]; /* active-track id array (45 entries) */
 extern char lbl_801200B0[][4]; /* 4-char class name table */
 extern char sStreamNameBuf[];    /* stream-name scratch buffer */
@@ -741,11 +739,6 @@ void AudioResetInput(void)
     for (i = 0; i < 4; i++) {
         lbl_8028BCB8[i] = 0;
     }
-}
-
-void AudioRegisterMenu(void)
-{
-    fn_800C031C(lbl_8028BDE8, lbl_80124458, lbl_8028BCC0, 74);
 }
 
 /* 0x8009EFA0 - resolve the per-class speech id tables by sound name */

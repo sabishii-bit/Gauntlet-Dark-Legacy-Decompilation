@@ -13,6 +13,7 @@
  */
 
 #include "types.h"
+#include "game/timing.h"
 #include "__va_arg.h"
 
 /* ------------------------------------------------------------------ */
@@ -48,10 +49,10 @@ typedef struct DbgGraphCell {
     u32 unk8;
     u32 acc; /* per-slot accumulator, latched by fn_800C0AA4 */
 } DbgGraphCell; /* 16-byte graph slot */
-extern u32 lbl_80344F70;
+extern struct MBBlit** lbl_80344F70;
 extern u32 lbl_80344F74;
-extern u32 lbl_80344F78;
-extern u32 lbl_80344F7C;
+extern TimerDesc* lbl_80344F78;
+extern TimerSample* lbl_80344F7C;
 extern s32 lbl_80344F80;
 
 /* Reset the overlay state. */
@@ -237,20 +238,19 @@ void fn_800C0310(void)
     dbgTextActive = 0;
 }
 
-/* Bind a debug-cell array (base, stride, count, ...) and zero it, then zero
- * the fixed debug-cell block at lbl_802C45CC. */
-void fn_800C031C(u32* base, u32 arg1, u32 arg2, s32 count)
+/* TimersAddList: register samples, descriptions and display handles; clear
+ * the samples and the separate fixed debug-cell block at lbl_802C45CC. */
+void fn_800C031C(TimerSample* base, TimerDesc* arg1, struct MBBlit** arg2, s32 count)
 {
     s32 i;
     u32* cell;
 
-    lbl_80344F7C = (u32)base;
+    lbl_80344F7C = base;
     lbl_80344F78 = arg1;
     lbl_80344F70 = arg2;
     lbl_80344F74 = count;
     for (i = 0; i < count; i++) {
-        cell = (u32*)((char*)base + i * 16);
-        cell[3] = cell[2] = cell[1] = cell[0] = 0;
+        base[i].last_frame = base[i].current = base[i].count = base[i].frame = 0;
     }
     for (i = 0; i < 24; i++) {
         cell = (u32*)((char*)lbl_802C45CC + i * 16);

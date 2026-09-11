@@ -511,6 +511,7 @@ config.libs = [
             Object(NonMatching, "game/audio/sndfx.c", cflags=cflags_demo),
             Object(NonMatching, "game/sound/sounds_evt.c", cflags=cflags_demo),
             Object(NonMatching, "game/sound/sounds.c", cflags=cflags_demo),
+            Object(Matching, "game/game/timing.c", cflags=cflags_demo),
             Object(NonMatching, "game/world/tower.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/attract.c", cflags=cflags_demo),
             Object(NonMatching, "game/ui/options.c", cflags=cflags_demo),
