@@ -13,8 +13,9 @@
  * Real Xbox-PDB names used where confirmed by error strings + behaviour
  * (AllocMem/AllocMem32/GetMemBase/ResetAllocTot/AllocFile/FileSize/FileExists/
  * get_path/MBSetupWad/MBGetFromWad/StartFileRead/InitMemHandler/BytesFree).
- * Wired NonMatching: the allocator core is decompiled faithfully; the file
- * layer is a structurally-faithful reconstruction (byte-match not attempted). */
+ * NonMatching: AllocFile retains a two-instruction argument-copy ordering
+ * residual. The remaining native bodies are exact; some module globals and
+ * path literals still rely on extracted data ownership. */
 
 /* ---- OS / heap ---- */
 extern s32 DemoHeap;
@@ -57,30 +58,51 @@ extern int mlmMemReserved; /* nonzero => alloc calls are illegal        */
 extern int mlmMemLimit;   /* high boundary; hi-alloc decrements it      */
 extern int mlmMemUsed;    /* low watermark; lo-alloc increments it      */
 extern u8* mlmMemBase;    /* base of the managed block                  */
-extern int mlmLockStack[8];
 extern int gLowMemMode;   /* selects a smaller managed block            */
 extern int gDemoMode;
 extern int __OSCurrHeap;
 extern int pbLoad;
 
 /* ================= file-system state ================= */
-typedef struct MLFILE {
-    /* 0x000 */ int state;      /* -1 free, 0 reading, 1 done            */
-    /* 0x004 */ void* buffer;
-    /* 0x008 */ int unk08;
-    /* 0x00C */ int bytesRead;
-    /* 0x010 */ int done;
-    /* 0x014 */ int active;
-    /* 0x018 */ int totalSize;
+enum FinfoState {
+    FINFO_FREE = -1,
+    FINFO_IN_USE = 0,
+    FINFO_READY = 1,
+    FINFO_USER = 2
+};
+
+enum FileCmds {
+    FILE_OPENING = 0,
+    FILE_READING = 1
+};
+
+/* Xbox fileinfo field names and types, checked against StartFileRead's
+ * stores and do_threaded_io's loads. The callback at +0 is only stored on
+ * GC; keep the existing opaque callback API pending shared declaration
+ * recovery, rather than claiming the Xbox function-pointer signature here. */
+typedef struct fileinfo {
+    /* 0x000 */ void* complete;
+    /* 0x004 */ char* destbuf;
+    /* 0x008 */ int destbufsize;
+    /* 0x00C */ int bytes_read;
+    /* 0x010 */ enum FinfoState done;
+    /* 0x014 */ enum FileCmds cmd;
+    /* 0x018 */ int file_len;
     /* 0x01C */ int fd;
-    /* 0x020 */ char name[256];
+    /* 0x020 */ char filename[256];
     /* 0x120 */ int compressed;
-    /* 0x124 */ void* compSrc;
-    /* 0x128 */ int compSize;
+    /* 0x124 */ char* comp_buff;
+    /* 0x128 */ int decomp_size;
 } MLFILE; /* 0x12C */
 
-extern MLFILE finfo_list[1];
-extern MLFILE temp_finfo;
+/* ML_MEM owns two separate file records followed by eight lock watermarks.
+ * GC record strides and accesses cover 0x12C bytes each; LockMem and
+ * InitMemHandler bound the lock array at eight entries. The Xbox module
+ * independently identifies finfo_list[1] and temp_finfo as fileinfo objects.
+ * These are independent definitions, not one synthetic allocator block. */
+static MLFILE finfo_list[1];
+static MLFILE temp_finfo;
+static int mlmLockStack[8];
 extern int mlmCurFileSlot;
 extern int mlmServeTimeout;
 extern int mlmCloseRes;
@@ -107,7 +129,6 @@ void FreeHiMem(void)
 {
 }
 
-#pragma opt_common_subs off
 void serve_io(void)
 {
     int i;
@@ -116,16 +137,15 @@ void serve_io(void)
     i = 0;
     served = 0;
     while (i++ < 1 && served == 0) {
-        if (finfo_list[mlmCurFileSlot].done != -1 &&
-            finfo_list[mlmCurFileSlot].done != 1) {
-            served = do_threaded_io(&finfo_list[mlmCurFileSlot]);
+        MLFILE* f = &finfo_list[mlmCurFileSlot];
+        if (f->done != FINFO_FREE && f->done != FINFO_READY) {
+            served = do_threaded_io(f);
         }
         if (++mlmCurFileSlot >= 1) {
             mlmCurFileSlot = 0;
         }
     }
 }
-#pragma opt_common_subs reset
 
 static inline int* FindWadEntry(int* wad, int key)
 {
@@ -237,7 +257,7 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     }
     for (slot = 0; slot < 1; slot++) {
         f = &finfo_list[slot];
-        if (f->done == -1) {
+        if (f->done == FINFO_FREE) {
             break;
         }
     }
@@ -271,13 +291,13 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     if (size & 0xf) {
         size += 0x10 - (size & 0xf);
     }
-    strncpy(f->name, full, 0x100);
-    f->buffer = dest;
-    f->unk08 = sizeHint;
+    strncpy(f->filename, full, 0x100);
+    f->destbuf = dest;
+    f->destbufsize = sizeHint;
     sceLseek(fd, 0, 0);
-    f->state = (int)callback;
-    f->totalSize = size;
-    f->bytesRead = 0;
+    f->complete = callback;
+    f->file_len = size;
+    f->bytes_read = 0;
     f->compressed = 0;
     sceClose(fd);
     fd = sceOpen(full, 0x8001);
@@ -287,8 +307,8 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
         return NULL;
     }
     f->fd = fd;
-    f->active = 0;
-    f->done = 0;
+    f->cmd = FILE_OPENING;
+    f->done = FINFO_IN_USE;
     return f;
 }
 
@@ -306,11 +326,11 @@ int do_threaded_io(MLFILE* f)
     mlmReadRes = sceSifLoadElfPart(f->fd, 1, &initialStatus);
     status = initialStatus;
     if (status == 0) {
-        if (f->bytesRead >= f->totalSize) {
+        if (f->bytes_read >= f->file_len) {
             if (f->compressed) {
-                destLen[0] = f->compSize;
-                if (uncompress(f->buffer, destLen, f->compSrc,
-                               f->totalSize) != 0) {
+                destLen[0] = f->decomp_size;
+                if (uncompress(f->destbuf, destLen, f->comp_buff,
+                               f->file_len) != 0) {
                     gErrorCode = 0x80;
                     FatalErrorf("Error decompressing file. Can not contine.");
                 }
@@ -320,25 +340,25 @@ int do_threaded_io(MLFILE* f)
                     waitStatus != 0)) {
                 if (++mlmServeTimeout > 1500000000) {
                     gErrorCode = 0xa0;
-                    FatalErrorf("Timeout serving file %s (1)", f->name);
+                    FatalErrorf("Timeout serving file %s (1)", f->filename);
                 }
             }
             mlmCloseRes = sceClose(f->fd);
             mlmMemLimit += alloctot;
             alloctot = 0;
-            f->done = 1;
+            f->done = FINFO_READY;
         } else {
-            chunk = f->totalSize - f->bytesRead;
+            chunk = f->file_len - f->bytes_read;
             if ((int)chunk > 0x8000) {
                 chunk = 0x8000;
             }
             if (chunk & 0xf) {
                 chunk += 0x10 - (chunk & 0xf);
             }
-            buf = f->compressed ? f->compSrc : f->buffer;
-            f->active = 1;
-            if (sceRead(f->fd, (char*)buf + f->bytesRead, chunk) >= 0) {
-                f->bytesRead += chunk;
+            buf = f->compressed ? f->comp_buff : f->destbuf;
+            f->cmd = FILE_READING;
+            if (sceRead(f->fd, (char*)buf + f->bytes_read, chunk) >= 0) {
+                f->bytes_read += chunk;
             }
         }
     }
@@ -381,7 +401,7 @@ void InitMemHandler(void)
     mlmMemBase = (u8*)(((u32)mlmMemBase + 0x3f) & 0xffffffc0);
     mlmMemLimit = (mlmMemLimit & 0xffffffc0) - 0x40;
     InitMemHandlerClearLocks();
-    finfo_list[0].done = -1;
+    finfo_list[0].done = FINFO_FREE;
     pbLoad = 0;
 }
 
@@ -389,7 +409,7 @@ int FileSystemReading(void)
 {
     int reading = 0;
 
-    if (finfo_list[0].done == 0)
+    if (finfo_list[0].done == FINFO_IN_USE)
         reading = 1;
     return reading;
 }
@@ -398,7 +418,7 @@ int FileSystemBusy(void)
 {
     int busy = 0;
 
-    if (finfo_list[0].done != -1)
+    if (finfo_list[0].done != FINFO_FREE)
         busy = 1;
     return busy;
 }
@@ -605,7 +625,7 @@ void* AllocFile(char* wad, char* name)
     if (avail > 0 && read > avail) {
         gErrorCode = 0x80;
         FatalErrorf("File read overflowed: %s size:%d max:%d",
-                    temp_finfo.name, read, avail);
+                    temp_finfo.filename, read, avail);
     }
     if (read < 0) {
         gErrorCode = 0xff;
@@ -627,7 +647,7 @@ int MLMReadFile(char* wad, char* name, int maxLen, void* dest)
     if (maxLen > 0 && read > maxLen) {
         gErrorCode = 0x80;
         FatalErrorf("File read overflowed: %s size:%d max:%d",
-                    temp_finfo.name, read, maxLen);
+                    temp_finfo.filename, read, maxLen);
     }
     return read;
 }
