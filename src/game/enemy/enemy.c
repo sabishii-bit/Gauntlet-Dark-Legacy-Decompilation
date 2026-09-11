@@ -6660,17 +6660,17 @@ void kill_enemy(s32 index)
     }
     if (item != 0) {
         if (carried != 0) {
-            *((u8*)item + 205) = 10;
+            item->minoff = 10;
             StartBagFX(e->objgrp.attn_pos, item, 0.0f);
         } else {
-            *((u8*)item + 205) = 0;
-            MBTreeClearFlags(*(struct mbnode**)((u8*)item + 100), 2, 0);
-            if (**(s32**)item == 1) {
-                *(s16*)((u8*)item + 236) = 60;
+            item->minoff = 0;
+            MBTreeClearFlags(item->objgrp.node, 2, 0);
+            if (item->info->type == 1) {
+                item->data.powerup.nograb = 60;
             }
-            *(f32*)((u8*)item + 52) = e->objgrp.worldmat[3][0];
-            *(f32*)((u8*)item + 56) = e->objgrp.worldmat[3][1];
-            *(f32*)((u8*)item + 60) = e->objgrp.worldmat[3][2];
+            item->objgrp.worldmat[3][0] = e->objgrp.worldmat[3][0];
+            item->objgrp.worldmat[3][1] = e->objgrp.worldmat[3][1];
+            item->objgrp.worldmat[3][2] = e->objgrp.worldmat[3][2];
             AddItemSub(item);
         }
     }
