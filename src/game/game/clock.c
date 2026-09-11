@@ -16,23 +16,28 @@ typedef union ClockInputPair {
     ClockInputWords word;
 } ClockInputPair;
 
-extern s32 gClockFrameNumber;
-extern f32 sMusicFadeBase;
-extern f32 gClockTime;
-extern s32 InfFrame;
-extern s32 sLastVBlankCounter;
-extern f32 gClockFrameReciprocal;
-extern f32 gClockFrameStep;
-extern f32 gClockPreviousTime;
-extern s32 sLastTimerCount;
-extern u32 sLastFrameTime;
-extern s32 sClockAccumulator;
-extern u32 gClockElapsedTime;
-extern u32 gClockCurrentTime;
-extern s32 gClockStepTicks;
-extern u32 gFrameTicks;
+/* CLOCK state, .sbss 0x80344558..0x80344598. MWCC emits these tentative
+ * definitions in reverse declaration order. The preceding camera state at
+ * 0x80344550 is not part of this run. gGameBusy is the shared pause gate;
+ * its consumers are outside this TU, so it must retain external linkage. */
+f32 sMusicFadeBase;
+f32 gClockFrameStep;
+f32 gClockFrameReciprocal;
+s32 gClockFrameNumber;
+f32 gClockTime;
+s32 InfFrame;
+u32 gFrameTicks;
+s32 gClockStepTicks;
+u32 gClockCurrentTime;
+u32 gClockElapsedTime;
+s32 sClockAccumulator;
+s32 gGameBusy;
+s32 sLastVBlankCounter;
+u32 sLastFrameTime;
+s32 sLastTimerCount;
+f32 gClockPreviousTime;
+
 extern u32 pbLoad;
-extern s32 gGameBusy;
 extern s32 options_state;
 extern s32 gGameplayPauseTimer;
 extern s32 gModalRenderDepth;
@@ -41,11 +46,6 @@ extern s32 sFlags;
 extern s32 lbl_803445D4;
 extern ClockInputPair gControllerButtons;
 extern ClockInputPair sPreviousFlags;
-extern const f32 lbl_803462E8;
-extern const f32 lbl_803462EC;
-extern const f32 lbl_803462F0;
-extern const f32 lbl_803462F4;
-extern const f32 lbl_803462F8;
 
 void ResetClock(void)
 {
@@ -108,16 +108,16 @@ void ClockOncePerFrame(void)
         if (options_state != 100) {
             gClockElapsedTime = 0;
         }
-        gClockFrameStep = lbl_803462E8;
-        gClockFrameReciprocal = lbl_803462EC;
+        gClockFrameStep = 0.0f;
+        gClockFrameReciprocal = 30.0f;
     } else if (resumed || gFrameTicks > 60 || gFrameTicks == 0) {
         gFrameTicks = 2;
         gClockElapsedTime = 10000000;
-        gClockFrameStep = lbl_803462F0;
-        gClockFrameReciprocal = lbl_803462EC;
+        gClockFrameStep = 1.0f / 30.0f;
+        gClockFrameReciprocal = 30.0f;
     } else {
-        gClockFrameStep = (f32)gFrameTicks / lbl_803462F4;
-        gClockFrameReciprocal = lbl_803462F8 / gClockFrameStep;
+        gClockFrameStep = (f32)gFrameTicks / 60.0f;
+        gClockFrameReciprocal = 1.0f / gClockFrameStep;
     }
     if (gClockElapsedTime > 300000000) {
         gClockElapsedTime = 10000000;

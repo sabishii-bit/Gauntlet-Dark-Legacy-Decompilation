@@ -109,6 +109,8 @@ game/game/clock.c:
 	extab       start:0x80005BB0 end:0x80005BB8
 	extabindex  start:0x800091D8 end:0x800091E4
 	.text       start:0x8002EFE8 end:0x8002F2D4
+	.sbss       start:0x80344558 end:0x80344598
+	.sdata2     start:0x803462E8 end:0x80346310
 
 game/game/combat.c:
 	extab       start:0x80005BB8 end:0x80005C18
