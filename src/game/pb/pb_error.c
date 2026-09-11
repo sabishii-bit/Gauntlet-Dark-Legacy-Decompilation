@@ -15,7 +15,8 @@
  * .text 0x800C1174-0x800C151C. Compiled -Cpp_exceptions on (cflags_demo).
  * Reconstructed in plain C (2026-08): the allocator-resistant schedules that
  * used to be pinned by hand-written instruction blocks are now expressed as
- * ordinary C statements; the residual codegen difference is accepted.
+ * ordinary C statements. Two functions still have native code differences;
+ * this TU remains NonMatching until those and its link obligations close.
  */
 
 #include "types.h"
@@ -28,7 +29,7 @@ extern s32 lbl_80343EEC;
 extern s32 lbl_80344F90;
 const char lbl_801164C0[] = "PB_ERROR.C:__LINE__";
 extern s8 lbl_80120E98[];
-extern u32 lbl_80344F94;
+u32 lbl_80344F94; /* four-byte PBGLOBAL_ERROR storage; only its address escapes */
 
 typedef struct WinGlobals {
     u8 _pad[12];
@@ -47,17 +48,70 @@ extern int sceGsSyncPath();
 extern void fn_800C1148();              /* mb_window.c helper */
 extern void fn_800C13CC(void);
 
-typedef struct PBErrorBlock {
-    u8 _pad0[16];
-    u16 high : 9;
-    u16 low : 7;
-    u8 _pad12[14];
-    u8 red;
-    u8 green;
-    u8 blue;
-} PBErrorBlock;
+/* Five PS2 GS register records, retained by the GC compatibility layer.
+ * Xbox sceGsDispEnv/tGS_* declarations corroborate the names and 8-byte
+ * records. GC's halfword FBP update at +0x10 and RGB stores at +0x20..0x22
+ * verify the accessed fields under MWCC's big-endian bitfield allocation;
+ * do not copy the Xbox PDB's little-endian bit offsets. p0/p1 are reserved
+ * register bits, not artificial object padding. */
+typedef struct GsPmode {
+    u32 EN1 : 1;
+    u32 EN2 : 1;
+    u32 CRTMD : 3;
+    u32 MMOD : 1;
+    u32 AMOD : 1;
+    u32 SLBG : 1;
+    u32 ALP : 8;
+    u32 p0 : 16;
+    u32 p1;
+} GsPmode;
 
-extern PBErrorBlock lbl_802C4DB8;   /* error scratch block, 0x28 bytes (.bss) */
+typedef struct GsSmode2 {
+    u32 INT : 1;
+    u32 FFMD : 1;
+    u32 DPMS : 2;
+    u32 p0 : 28;
+    u32 p1;
+} GsSmode2;
+
+typedef struct GsDispFb {
+    u32 FBP : 9;
+    u32 FBW : 6;
+    u32 PSM : 5;
+    u32 p0 : 12;
+    u32 DBX : 11;
+    u32 DBY : 11;
+    u32 p1 : 10;
+} GsDispFb;
+
+typedef struct GsDisplay {
+    u32 DX : 12;
+    u32 DY : 11;
+    u32 MAGH : 4;
+    u32 MAGV : 2;
+    u32 p0 : 3;
+    u32 DW : 12;
+    u32 DH : 11;
+    u32 p1 : 9;
+} GsDisplay;
+
+typedef struct GsBgColor {
+    u32 R : 8;
+    u32 G : 8;
+    u32 B : 8;
+    u32 p0 : 8;
+    u32 p1;
+} GsBgColor;
+
+typedef struct PBErrorDispEnv {
+    GsPmode pmode;
+    GsSmode2 smode2;
+    GsDispFb dispfb;
+    GsDisplay display;
+    GsBgColor bgcolor;
+} PBErrorDispEnv;
+
+PBErrorDispEnv lbl_802C4DB8; /* sceGsDispEnv dispenv, 0x28 bytes at 0x802C4DB8 */
 
 /* Big error reporter: rasterizes the message through a 256-wide 1-bit glyph
  * atlas into an 8 KiB stack bitmap, one 21-character line at a time. Each
@@ -69,7 +123,7 @@ void fn_800C1174(register s8* text)
     u8 image[80];
     u8 unused[8];             /* unrecovered local between image and pixels */
     u32 pixels[2048];
-    PBErrorBlock* blk;
+    PBErrorDispEnv* blk;
     s8* glyph;
     u32 ec;
     s32 y;
@@ -89,10 +143,10 @@ void fn_800C1174(register s8* text)
 
     sceGsSetDefDBuff(blk, 0, (s16)lbl_80343F04, (s16)(lbl_80343F08 / 2), 0, 0);
     ec = gErrorCode;
-    blk->red = (ec >> 17) & 0x7F;
-    blk->green = (ec >> 9) & 0x7F;
-    blk->blue = (ec >> 1) & 0x7F;
-    blk->high = 0;
+    blk->bgcolor.R = (ec >> 17) & 0x7F;
+    blk->bgcolor.G = (ec >> 9) & 0x7F;
+    blk->bgcolor.B = (ec >> 1) & 0x7F;
+    blk->dispfb.FBP = 0;
     FlushCache(0);
     sceGsSwapDBuff(blk);
     sceGsResetPath();
