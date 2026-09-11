@@ -6676,11 +6676,12 @@ void kill_enemy(s32 index)
     uncouple_enemy(index);
 }
 
-/* Point the Garm death effect toward its target (or the first active player). */
+/* Point the Garm death effect toward its target (or the first active player).
+ * The translation is part of the same 4x4 matrix passed to the effect: GC
+ * stores it at matrix+48/52/56, and Xbox enemy_death_fx names tmat[4][4]. */
 void fn_8004F1DC(Enemy* enemy)
 {
-    volatile f32 enemyPos[3];
-    f32 matrix[12];
+    f32 matrix[4][4];
     f32 direction[3];
     s32 i;
     Player* player = NULL;
@@ -6699,15 +6700,15 @@ void fn_8004F1DC(Enemy* enemy)
     }
 
     if (player != 0) {
-        enemyPos[0] = enemy->objgrp.worldmat[3][0];
-        enemyPos[1] = enemy->objgrp.worldmat[3][1];
-        enemyPos[2] = enemy->objgrp.worldmat[3][2];
-        direction[0] = player->pos[0] - enemyPos[0];
-        direction[1] = player->pos[1] - enemyPos[1];
-        direction[2] = player->pos[2] - enemyPos[2];
+        matrix[3][0] = enemy->objgrp.worldmat[3][0];
+        matrix[3][1] = enemy->objgrp.worldmat[3][1];
+        matrix[3][2] = enemy->objgrp.worldmat[3][2];
+        direction[0] = player->pos[0] - matrix[3][0];
+        direction[1] = player->pos[1] - matrix[3][1];
+        direction[2] = player->pos[2] - matrix[3][2];
         NormalVector(direction);
-        CreateDirMatrix(matrix, direction, 0);
-        StartEnemyDeathFX(matrix);
+        CreateDirMatrix(&matrix[0][0], direction, 0);
+        StartEnemyDeathFX(&matrix[0][0]);
     }
 }
 
