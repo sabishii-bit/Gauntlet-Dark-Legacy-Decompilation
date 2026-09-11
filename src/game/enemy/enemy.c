@@ -6331,7 +6331,7 @@ void adjust_msidx(Enemy* enemy)
 
 /* Update texture animations for the loaded enemy types. GC reads the
  * eight-slot enemy_type array at .bss +0x20, then the corresponding animation
- * header at .bss +0x564. PDB names/types and AllocEnemy/LoadEnemy/ResetEnemies
+ * header at .bss +0x564. PDB names/types and AllocEnemy/LoadEnemy/InitEnemies
  * corroborate the two distinct arrays. The target's shared section base does
  * not imply an enclosing source object. */
 void enemy_update(void)
@@ -7835,7 +7835,7 @@ void fn_800510A4(void)
     }
 }
 
-/* ResetEnemies in the Xbox symbols corroborates these as three distinct
+/* InitEnemies in the Xbox symbols corroborates these as three distinct
  * 45-entry resource arrays.  GC combines their stores into one counted loop. */
 #pragma opt_propagation off
 void fn_80051164(void)
