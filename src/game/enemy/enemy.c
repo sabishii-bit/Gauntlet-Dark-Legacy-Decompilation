@@ -1432,6 +1432,10 @@ int do_enemy_collide(int index, f32 retryThreshold)
 {
     u8* pool = (u8*)mbdesc;
     u8* e0;
+    /* Reconstruction debt: the two wall ai_flags reads still use this byte
+     * view. Converting them together with the typed routing/gravity region
+     * splits retail's prologue lwzu (490 -> 492 instructions); direct array
+     * ownership gives 491. Recheck after recovering the caller/helper shape. */
     u8* e;
     Enemy* enemy;
     s32 type;
@@ -1591,101 +1595,101 @@ reparent:
     }
 
     if (behavior == 0) {
-        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
-            (*(s16*)(e + offsetof(Enemy, collided)))++;
+        if (ABS_REVERSED(enemy->route) <= 2) {
+            enemy->collided++;
             fn_8004D030(index, 5);
         } else {
-            (*(s16*)(e + offsetof(Enemy, collided)))++;
+            enemy->collided++;
             fn_8004D030(index, 0x3C);
         }
-        if (*(s16*)(e + offsetof(Enemy, collided)) >= 9) {
-            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
-            if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) > 2) {
-                *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
-                *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
+        if (enemy->collided >= 9) {
+            enemy->route = -enemy->route * 2;
+            enemy->collided = 0;
+            if (ABS_REVERSED(enemy->route) > 2) {
+                enemy->ang = lbl_80344720;
+                enemy->pyr[1] = lbl_80344720;
             }
         }
     } else if (behavior == 7) {
-        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
-            (*(s16*)(e + offsetof(Enemy, collided)))++;
+        if (ABS_REVERSED(enemy->route) <= 2) {
+            enemy->collided++;
             fn_8004D030(index, 0xA);
         } else {
             fn_8004D030(index, 0x3C);
-            *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
-            *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
-            *(s32*)(e + offsetof(Enemy, route)) = 0;
+            enemy->ang = lbl_80344720;
+            enemy->pyr[1] = lbl_80344720;
+            enemy->collided = 0;
+            enemy->route = 0;
         }
-        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
-            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+        if (enemy->collided >= 7) {
+            enemy->route = -enemy->route * 2;
+            enemy->collided = 0;
         }
     } else if (behavior == 8) {
-        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
-            (*(s16*)(e + offsetof(Enemy, collided)))++;
+        if (ABS_REVERSED(enemy->route) <= 2) {
+            enemy->collided++;
             fn_8004D030(index, 5);
         } else {
             fn_8004D030(index, 0x3C);
-            *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
-            *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
-            *(s32*)(e + offsetof(Enemy, route)) = 0;
+            enemy->ang = lbl_80344720;
+            enemy->pyr[1] = lbl_80344720;
+            enemy->collided = 0;
+            enemy->route = 0;
         }
-        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
-            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+        if (enemy->collided >= 7) {
+            enemy->route = -enemy->route * 2;
+            enemy->collided = 0;
         }
     } else if (behavior == 0xA) {
-        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
-            (*(s16*)(e + offsetof(Enemy, collided)))++;
+        if (ABS_REVERSED(enemy->route) <= 2) {
+            enemy->collided++;
             fn_8004D030(index, 0xA);
         } else {
             fn_8004D030(index, 0x3C);
-            *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
-            *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
-            *(s32*)(e + offsetof(Enemy, route)) = 0;
+            enemy->ang = lbl_80344720;
+            enemy->pyr[1] = lbl_80344720;
+            enemy->collided = 0;
+            enemy->route = 0;
         }
-        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
-            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+        if (enemy->collided >= 7) {
+            enemy->route = -enemy->route * 2;
+            enemy->collided = 0;
         }
     } else if (behavior == 0x14) {
-        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
-            (*(s16*)(e + offsetof(Enemy, collided)))++;
+        if (ABS_REVERSED(enemy->route) <= 2) {
+            enemy->collided++;
             fn_8004D030(index, 3);
         } else {
 
             fn_8004D030(index, 0x1E);
-            *(f32*)(e + offsetof(Enemy, ang)) = (f32)(3.141592654 + lbl_80344720);
+            enemy->ang = (f32)(3.141592654 + lbl_80344720);
             {
                 f64 a;
 
-                if ((a = *(f32*)(e + offsetof(Enemy, ang))) > 3.141592654) {
+                if ((a = enemy->ang) > 3.141592654) {
                     a -= 6.283185308;
                 } else if (a <= (-3.141592654)) {
                     a = 6.283185308 + a;
                 }
-                *(f32*)(e + offsetof(Enemy, ang)) = (f32)a;
-                *(f32*)(e + offsetof(Enemy, pyr[1])) = (f32)a;
+                enemy->ang = (f32)a;
+                enemy->pyr[1] = (f32)a;
             }
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
-            *(s32*)(e + offsetof(Enemy, route)) = 0;
+            enemy->collided = 0;
+            enemy->route = 0;
         }
-        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
-            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
-            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+        if (enemy->collided >= 7) {
+            enemy->route = -enemy->route * 2;
+            enemy->collided = 0;
         }
     } else {
-        if (*(s32*)(e + offsetof(Enemy, dead_end)) <= 0) {
-            *(s32*)(e + offsetof(Enemy, dead_end)) = 0x14;
+        if (enemy->dead_end <= 0) {
+            enemy->dead_end = 0x14;
         }
     }
-    *(s16*)(e + offsetof(Enemy, area)) = 1;
+    enemy->area = 1;
 
 gravity:
-    dh = *(f32*)(e + offsetof(Enemy, floory)) - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1]));
+    dh = enemy->floory - enemy->objgrp.worldmat[3][1];
     if ((f64)dh < (-5.0)) {
         damage_enemy(enemy, 99999.0f, -1, 0, 0, 0, 0);
     }
@@ -1693,7 +1697,7 @@ gravity:
         dh = dt;
     }
     tr[1] += dh;
-    *(f32*)(e + offsetof(Enemy, floory)) = *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1])) + dh;
+    enemy->floory = enemy->objgrp.worldmat[3][1] + dh;
     return result;
 }
 
