@@ -316,6 +316,9 @@ game/ui/message.c:
 	.data       start:0x80124E58 end:0x80126A98
 	.sdata2     start:0x80348618 end:0x80348620
 
+game/sys/version.c:
+	.data       start:0x80126A98 end:0x80126A9C
+
 game/pb/pb_diag.c:
 	extab       start:0x80007430 end:0x80007490
 	extabindex  start:0x8000B698 end:0x8000B728

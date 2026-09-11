@@ -119,7 +119,7 @@ void MBWindowZoom(f32 zoom);
 void fn_800C1170(int a, void* b, int c);
 
 extern char sBootStrings[];    /* string table (soulsave.. boot strings) */
-extern char lbl_80126A98[];    /* version string */
+extern char Version[];    /* version string */
 extern f32 lbl_80127D00[];
 extern f32 gIdentityMatrix[];
 extern u32 gErrorCode;         /* boot clear color */
@@ -318,7 +318,7 @@ void main(void)
     MBEndFrame();
     MBOX_ResetUnlockedModels(0);
     ReadControls();
-    bulletproof_printf(st + 124, lbl_80126A98);
+    bulletproof_printf(st + 124, Version);
     game_init_data();
     OptionsSetup();
     FontInit();

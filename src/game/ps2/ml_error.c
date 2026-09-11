@@ -30,7 +30,7 @@ typedef struct MLErrorWinGlobals {
     MLErrorScreen* screen;
 } MLErrorWinGlobals;
 
-extern char lbl_80126A98[];
+extern char Version[];
 extern char lbl_80127C00[];
 extern const char lbl_801160E8[];
 extern const char lbl_80116150[];
@@ -199,7 +199,7 @@ void FatalErrorf(const char* format, ...)
     vsprintf(error, format, args);
     error[63] = 0;
     fn_800BC7FC(1);
-    sprintf(version, strings + 12, lbl_80126A98);
+    sprintf(version, strings + 12, Version);
     strcat(error, version);
     fn_800C1174(error);
     bulletproof_printf(strings + 24);

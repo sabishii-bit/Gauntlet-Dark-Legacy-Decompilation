@@ -136,7 +136,7 @@ extern int  lbl_80118200[];
 extern char lbl_80111238[];
 extern const char lbl_80111294[];
 extern const char lbl_801112A0[];
-extern char lbl_80126A98[];
+extern char Version[];
 extern char lbl_80110900[];
 extern f32 gIdentityMatrix[];
 extern char lbl_80118188[];
@@ -424,7 +424,7 @@ void do_credits(void) {
     }
 
     if (any_level(0x400000) != 0 && any_level(0x800000) != 0) {
-        DrawText(292, 340, fontFlag, 0xFFFF80, lbl_80111238, lbl_80126A98);
+        DrawText(292, 340, fontFlag, 0xFFFF80, lbl_80111238, Version);
     }
 
     if (gGameBusy == 0) {
