@@ -422,6 +422,7 @@ game/mb/mb_font.c:
 	.text       start:0x800B5AA8 end:0x800B6CDC
 	.rodata     start:0x80115CE8 end:0x80115D6F
 	.data       start:0x80127BA8 end:0x80127BFC
+	.bss        start:0x8029E3C8 end:0x802A4B30
 	.sdata2     start:0x80348B48 end:0x80348B8C
 
 game/mb/mb_lights.c:

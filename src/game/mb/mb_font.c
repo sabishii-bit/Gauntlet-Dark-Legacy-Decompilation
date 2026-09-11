@@ -17,26 +17,21 @@
  * (0x80348B48..0x80348B8C, disjoint from the mb_camera pool below it). Function
  * names come from the Xbox shell3D PDB (MB_FONT.OBJ).
  *
- * cflags_demo (-O4 no-peephole, -Cpp_exceptions on, -str reuse,readonly).
+ * Native GC 1.2.5 (-O4, -Cpp_exceptions on, -str reuse,readonly).
  *
- * Status: NonMatching. The current-font setters, string width/height helpers,
- * and lock/unlock stack are reconstructed bodies; the rasteriser and remaining
- * reset/init cluster are documented stubs (call/flow shape only). Several
- * mid-TU helpers whose Xbox name is not uniquely pinned are left as fn_.
+ * Status: NonMatching. All 24 bodies are reconstructed; MBRenderText and
+ * MBNewFont retain native instruction differences. The independent BSS arrays
+ * below cover 0x8029E3C8..0x802A4B30. Unresolved Xbox names remain fn_.
  */
 #include "types.h"
 #include "game/mb_font.h"
-
-#ifndef offsetof
-#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
-#endif
 
 /* --- MB_FONT current-font + message state (0x80344E10.. sdata block).
  *     Referenced by lbl_ address to stay byte-identical against the DOL. --- */
 extern s32 lbl_80344E10;      /* font_count */
 extern s32 lbl_80344E14;      /* current_font_index */
-extern s32 lbl_80344E18;      /* live message_count */
-extern s32 lbl_80344E20;      /* live textbuf_count */
+extern s32 lbl_80344E18;      /* live textbuf_count */
+extern s32 lbl_80344E20;      /* live message_count */
 extern f32 lbl_80344E4C;      /* font z */
 extern s32 lbl_80344E50;      /* font flags */
 extern u32 lbl_80344E54;      /* font colour (packed AARRGGBB, MB half-range) */
@@ -45,31 +40,22 @@ extern f32 lbl_80344E5C;      /* font scale x */
 extern f32 lbl_80344E60;      /* font space scale y */
 extern f32 lbl_80344E64;      /* font space scale x */
 extern s32 lbl_80343EB0;      /* message_lock_level */
-extern s32 lbl_80344E1C;      /* saved message_count (hide/restore) */
-extern s32 lbl_80344E24;      /* saved textbuf_count (hide/restore) */
+extern s32 lbl_80344E1C;      /* saved textbuf_count (hide/restore) */
+extern s32 lbl_80344E24;      /* saved message_count (hide/restore) */
 extern s32 lbl_80344E28;      /* fonts-changed flag */
-
-extern s32 lbl_8029F474[8];   /* saved message_count per lock level */
-extern s32 lbl_802A4A84[8];   /* saved textbuf_count per lock level */
-extern s32 lbl_8029E454[];    /* saved font_count per font-lock level */
-extern void* lbl_802A4AA4[];  /* fonts[] : per-font descriptor pointers */
-
-extern MBTextMsg lbl_8029F494[]; /* drawtext message records (44B each) */
-extern char lbl_8029E474[];      /* drawtext character buffer */
 
 typedef struct MBFont MBFont;
 
-/* The font-space table is the first member of the module's contiguous BSS
- * state.  The live font-pointer table starts at +0x66DC. */
-typedef struct MBFontState {
-    s32 space[35];
-    u8 _pad008C[0x1040];
-    MBTextMsg msgs[499];       /* 0x10CC */
-    u8 _pad6690[0x4C];
-    MBFont* fonts[35];         /* 0x66DC */
-} MBFontState;
-
-extern MBFontState mbfont_space;
+/* Independent MB_FONT arrays, in their GameCube BSS order. The PDB records
+ * corroborate the bounds; the GC queue admits 499 of the 500 message slots.
+ * The font-pointer table is also read by the save and credits screens. */
+static s32 mbfont_space[35];
+static s32 lbl_8029E454[8];        /* lock_font_count */
+static char lbl_8029E474[4096];    /* textbuf */
+static s32 lbl_8029F474[8];        /* lock_textbuf_count */
+static MBTextMsg lbl_8029F494[500]; /* messages */
+static s32 lbl_802A4A84[8];        /* lock_message_count */
+MBFont* lbl_802A4AA4[35];          /* fonts */
 
 typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
 
@@ -118,13 +104,12 @@ int MBFontMsgSetAlpha(MBTextMsg* m, u32 alpha)
 int MBFontHeight(int idx)
 {
     if (idx < 0) idx = lbl_80344E14;
-    return *(s32*)lbl_802A4AA4[idx];
+    return lbl_802A4AA4[idx]->height;
 }
 
 /* 0x800B5B00 - pixel width of a string in the current font. */
 int MBFontStringWidth(const char* s)
 {
-    MBFontState* state = &mbfont_space;
     int width = 0;
     const char* str = s;
     int x;
@@ -134,7 +119,7 @@ int MBFontStringWidth(const char* s)
     if (lbl_80344E14 < 0) {
         lbl_80344E14 = 0;
     }
-    font = state->fonts[lbl_80344E14];
+    font = lbl_802A4AA4[lbl_80344E14];
 
     while (*(u8*)str != 0) {
         ch = *(u8*)str;
@@ -144,13 +129,8 @@ int MBFontStringWidth(const char* s)
                 goto add_width;
             }
             {
-                MBFont* specialFont;
-
                 str++;
-                specialFont = (MBFont*)((u8*)state + lbl_80344E14 * 4);
-                specialFont = *(MBFont**)((u8*)specialFont +
-                                           offsetof(MBFontState, fonts));
-                x = (s32)(lbl_80344E5C * (f32)specialFont->height);
+                x = (s32)(lbl_80344E5C * (f32)lbl_802A4AA4[lbl_80344E14]->height);
             }
             goto add_width;
         default:
@@ -174,7 +154,7 @@ int MBFontStringWidth(const char* s)
         mbBlitCalcX((u8*)&font->cells[ch], &x, 0);
         x = (s32)((f32)x * lbl_80344E5C);
         if (x == 0 && ch == ' ') {
-            x = (s32)(lbl_80344E5C * (f32)state->space[lbl_80344E14]);
+            x = (s32)(lbl_80344E5C * (f32)mbfont_space[lbl_80344E14]);
         }
 
     add_width:
@@ -279,7 +259,6 @@ typedef struct MBBlitEnt {
  * pipeline in two layer passes (flag-8 messages render on the second). */
 void MBRenderText(void)
 {
-    MBFontState* st = &mbfont_space;
     u8* wg = gWinGlobals;
     s32 layer = 2;
     u8 stackGap[4];
@@ -326,11 +305,10 @@ void MBRenderText(void)
     white = 0x80808080;
     do {
         for (i = 0; i < lbl_80344E20; i++) {
-            u8* p = (u8*)st + i * 44;
-            if (*(u32*)(p += 4300) & 1) {
+            msg = &lbl_8029F494[i];
+            if (msg->flags & 1) {
                 continue;
             }
-            msg = (MBTextMsg*)p;
             if (msg->flags & 8) {
                 if (layer != 0) {
                     layer = 1;
@@ -344,7 +322,7 @@ void MBRenderText(void)
             t = msg->font;
             baseY = msg->y;
             x = msg->x;
-            font = mbfont_space.fonts[t];
+            font = lbl_802A4AA4[t];
             clipX = msg->xspace;
             clipY = msg->yspace;
             if (font == NULL) {
@@ -359,7 +337,7 @@ void MBRenderText(void)
                 }
                 doClip = u ? 1 : 0;
             }
-            spaceW = (s32)(msg->xscale * (f32)st->space[t]);
+            spaceW = (s32)(msg->xscale * (f32)mbfont_space[t]);
             text = msg->text;
             while ((ch = *(u8*)text) != 0) {
                 y = baseY;
@@ -635,8 +613,6 @@ MBTextMsg* MBDrawText(int x, int y, const char* s)
 
 /* ==== font registration ==== */
 
-/* 0x800B66E8 - MBNewFont : register a font (MBCreateBlit); "Too many fonts" /
- * "MBNewFont: MBNewBlit failed". NonMatching stub. */
 typedef struct MBGlyphDef {   /* one entry of the caller's glyph table (16B) */
     s32 code;   /* 0x0  glyph index in the font (0 terminates) */
     s32 w;      /* 0x4  pixel width */
@@ -654,7 +630,7 @@ typedef struct MBTexHdr { u8 _p[32]; u16 w; u16 h; } MBTexHdr;
 
 extern MBTexHdr* MBOX_FindTexture_Err(char* name, MBTexHdr** out, s32 err);
 
-/* 0x800B65F4 - MBNewFont : register a font.  Finds the texture, sizes the
+/* 0x800B66E8 - MBNewFont : register a font.  Finds the texture, sizes the
  * glyph-cell table from the highest glyph code, builds one projected blit
  * entry per glyph (u/v from the texture dimensions) and stores the font in
  * the font table.  Returns the new font index. */
@@ -716,7 +692,7 @@ int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
     if (lbl_80344E14 < 0) {
         lbl_80344E14 = lbl_80344E10;
     }
-    mbfont_space.space[lbl_80344E10] = space;
+    mbfont_space[lbl_80344E10] = space;
     lbl_802A4AA4[lbl_80344E10] = fnt;
     lbl_80344E10 = lbl_80344E10 + 1;
     if (lbl_80344E10 >= 35) {
@@ -752,7 +728,7 @@ void MBFontUpdateWindow(f32 scaleX, f32 scaleY)
 
     for (fontIndex = 0; fontIndex < lbl_80344E10; fontIndex++) {
         s32 cellIndex;
-        MBFont* font = (MBFont*)lbl_802A4AA4[fontIndex];
+        MBFont* font = lbl_802A4AA4[fontIndex];
 
         for (cellIndex = 0; cellIndex < font->count; cellIndex++) {
             u8* cell = (u8*)&font->cells[cellIndex];
