@@ -7877,10 +7877,13 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
      * get_yaw. Recover the real delta vector instead of the old 12-byte pad. */
     f32 temp[3];
     f32 pos[3];
-    f32 ad;
+    /* The GC magnitude operations clear the IEEE single-precision sign bit.
+     * Give each value an explicit word view, as in MSL's FloatU32, instead
+     * of accessing a float through an unrelated integer pointer. */
+    union { f32 value; u32 bits; } ad;
     volatile f32 tmp;
-    f32 t1;
-    f32 t2;
+    union { f32 value; u32 bits; } t1;
+    union { f32 value; u32 bits; } t2;
     f32 bestDist;
     f32 secondDist;
     f32 bestDy;
@@ -7942,9 +7945,9 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         } else {
             nd = d;
         }
-        ad = (f32)nd;
-        *(u32*)&ad &= 0x7FFFFFFF;
-        if (ad <= tolerance) {
+        ad.value = (f32)nd;
+        ad.bits &= 0x7FFFFFFF;
+        if (ad.value <= tolerance) {
             temp[0] = m->objgrp.worldmat[3][0] - pos[0];
             temp[1] = m->objgrp.worldmat[3][1] - pos[1];
             temp[2] = m->objgrp.worldmat[3][2] - pos[2];
@@ -7960,20 +7963,20 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
                 dist = tmp;
             }
             if (dist < bestDist) {
-                t1 = temp[1];
+                t1.value = temp[1];
                 secondDist = bestDist;
                 second = best;
                 secondDy = bestDy;
-                *(u32*)&t1 &= 0x7FFFFFFF;
+                t1.bits &= 0x7FFFFFFF;
                 bestDist = dist;
                 best = i;
-                bestDy = t1;
+                bestDy = t1.value;
             } else if (dist < secondDist) {
-                t2 = temp[1];
+                t2.value = temp[1];
                 secondDist = dist;
                 second = i;
-                *(u32*)&t2 &= 0x7FFFFFFF;
-                secondDy = t2;
+                t2.bits &= 0x7FFFFFFF;
+                secondDy = t2.value;
             }
         }
     }
