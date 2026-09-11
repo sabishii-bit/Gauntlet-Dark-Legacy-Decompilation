@@ -22,9 +22,7 @@ pub fn watched_paths(scanner: &Scanner) -> Vec<(PathBuf, RecursiveMode)> {
         .map(|p| (root.join(p), RecursiveMode::Recursive))
         .collect();
     let mut singles: Vec<PathBuf> = Vec::new();
-    if let Some(p) = &scanner.loaded.path {
-        singles.push(p.clone());
-    }
+    singles.push(scanner.loaded.path.clone().unwrap_or_else(|| root.join(crate::config::DEFAULT_CONFIG_NAME)));
     if let Some(p) = &config.policy.file {
         singles.push(root.join(p));
     }
@@ -47,11 +45,11 @@ pub fn watched_paths(scanner: &Scanner) -> Vec<(PathBuf, RecursiveMode)> {
     paths
 }
 
-fn run_once(scanner: &Scanner, opts: &Options, out: &mut dyn Write) -> i32 {
+fn run_once(scanner: &mut Scanner, opts: &Options, out: &mut dyn Write) -> i32 {
     let output = scanner.config().output.clone();
     let _ = writeln!(out, "{}", output.begin_marker);
     let _ = out.flush();
-    let status = match scanner.run(opts, out) {
+    let status = match scanner.refresh().map_err(ScanError::Other).and_then(|()| scanner.run(opts, out)) {
         Ok(outcome) => outcome.exit_code,
         Err(e) => {
             crate::print_failure(scanner, &e, opts.format, out);
@@ -64,28 +62,39 @@ fn run_once(scanner: &Scanner, opts: &Options, out: &mut dyn Write) -> i32 {
 }
 
 /// Scan once, then rescan whenever watched files change.
-pub fn watch(scanner: &Scanner, opts: &Options, out: &mut dyn Write) -> Result<i32> {
+pub fn watch(mut scanner: Scanner, opts: &Options, out: &mut dyn Write) -> Result<i32> {
     let (tx, rx) = mpsc::channel();
     let mut watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-        if let Ok(event) = event {
+        if let Ok(event) = event
+            && !matches!(event.kind, notify::EventKind::Access(_)) {
             let _ = tx.send(event);
         }
     })
     .context("cannot create file watcher")?;
-    for (path, mode) in watched_paths(scanner) {
-        if path.exists() {
-            watcher
-                .watch(&path, mode)
-                .with_context(|| format!("cannot watch {}", path.display()))?;
-        }
-    }
-    let debounce = Duration::from_millis(scanner.config().watch.debounce_ms.max(1));
-    run_once(scanner, opts, out);
+    let mut registered = Vec::new();
     loop {
+        // Keep old registrations while adding new roots/policy parents. This
+        // also lets an invalid edit be corrected without restarting the task.
+        for (path, mode) in watched_paths(&scanner) {
+            if path.exists() && !registered.contains(&(path.clone(), mode)) {
+                watcher.watch(&path, mode)
+                    .with_context(|| format!("cannot watch {}", path.display()))?;
+                registered.push((path, mode));
+            }
+        }
+        run_once(&mut scanner, opts, out);
+        // A successful reload may introduce a new scan root or policy file.
+        for (path, mode) in watched_paths(&scanner) {
+            if path.exists() && !registered.contains(&(path.clone(), mode)) {
+                watcher.watch(&path, mode)
+                    .with_context(|| format!("cannot watch {}", path.display()))?;
+                registered.push((path, mode));
+            }
+        }
         let Ok(_first) = rx.recv() else { return Ok(0) };
         // Coalesce bursts of events.
+        let debounce = Duration::from_millis(scanner.config().watch.debounce_ms.max(1));
         while rx.recv_timeout(debounce).is_ok() {}
-        run_once(scanner, opts, out);
     }
 }
 

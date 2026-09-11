@@ -283,3 +283,83 @@ fn root_is_discovered_from_a_subdirectory() {
     assert_eq!(report["files_scanned"], 1);
     assert_eq!(report["findings"][0]["path"], "src/game/a.c");
 }
+
+// Exercise real watcher events, not just a fresh process reading a new config.
+// The guard reaps the watcher even if an assertion fails.
+struct Watching {
+    child: std::process::Child,
+    lines: std::sync::mpsc::Receiver<String>,
+}
+
+impl Watching {
+    fn new(repo: &Repo) -> Self {
+        use std::io::BufRead;
+        let mut child = bin().arg("--root").arg(repo.root())
+            .args(["--watch", "--format", "problems"])
+            .stdout(std::process::Stdio::piped()).spawn().unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let (tx, lines) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for line in std::io::BufReader::new(stdout).lines() {
+                if tx.send(line.unwrap()).is_err() { break; }
+            }
+        });
+        Self { child, lines }
+    }
+
+    fn until(&self, expected: &str) -> String {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        let mut batch = String::new();
+        loop {
+            let timeout = deadline.saturating_duration_since(std::time::Instant::now());
+            let line = self.lines.recv_timeout(timeout)
+                .unwrap_or_else(|e| panic!("watch did not report {expected}: {e}; last batch: {batch}"));
+            if line == "GDL_LINT_BEGIN" { batch.clear(); }
+            batch.push_str(&line);
+            batch.push('\n');
+            if line.starts_with("GDL_LINT_END") && batch.contains(expected) { return batch; }
+        }
+    }
+}
+
+impl Drop for Watching {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+#[test]
+fn watch_reloads_settings_and_recovers_from_invalid_edits() {
+    let repo = Repo::new();
+    repo.write("src/game/a.c", "void f(){use(0x40);}");
+    let watch = Watching::new(&repo);
+    watch.until(": error FM007:");
+    repo.write("fakematch.toml", "schema_version=1\n[rules.FM007]\nseverity='warning'\n");
+    let batch = watch.until(": warning FM007:");
+    assert!(!batch.contains(": error FM007:"));
+    repo.write("fakematch.toml", "[broken");
+    let batch = watch.until("GDL_LINT_END status=2");
+    assert!(batch.contains(": error FM000:"));
+    assert!(!batch.contains("SCAN_COMPLETE"));
+    repo.write("fakematch.toml", "schema_version=1\n[rules.FM007]\nenabled=false\n");
+    let batch = watch.until("0 review candidates");
+    assert!(!batch.contains(": warning FM007:"));
+    assert!(!batch.contains(": error FM007:"));
+}
+
+#[test]
+fn watch_reloads_external_policy_without_source_edits() {
+    let repo = Repo::new();
+    repo.write("src/game/a.c", "void f(){use(0x40);}");
+    repo.write("fakematch.toml", "schema_version=1\n[policy]\nfile='policy/review.toml'\n");
+    repo.write("policy/review.toml", "schema_version=1\nexceptions=[]\npragma_allowlist=[]\n");
+    assert_eq!(repo.run(&["--out", "build/baseline.json"]).0, 0);
+    let fingerprint = repo.report("build/baseline.json")["findings"][0]["fingerprint"].as_str().unwrap().to_owned();
+    let watch = Watching::new(&repo);
+    watch.until(": error FM007:");
+    repo.write("policy/review.toml", &format!("schema_version=1\nexceptions=[{{fingerprint='{fingerprint}',reason='Verified API constant.'}}]\npragma_allowlist=[]\n"));
+    let batch = watch.until("1 reviewed exceptions");
+    assert!(batch.contains("0 review candidates"));
+    assert!(!batch.contains(": error FM007:"));
+}

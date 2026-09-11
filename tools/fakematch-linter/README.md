@@ -107,6 +107,11 @@ Watch mode prints `GDL_LINT_BEGIN` / `GDL_LINT_END status=N` around each
 rescan (the markers are configurable) so a VS Code background task can drive
 the Problems panel.
 
+Saved configuration, policy and guidance changes are reloaded before rescanning.
+Invalid edits report FM000 until corrected; the watcher never silently continues
+with old rules. Unchanged settings keep the incremental source cache.
+Block-scope function prototypes and local type members are not stack-array locals.
+
 ## Reviewed exceptions
 
 Findings are never deleted; they are marked `suppressed` with the reason and

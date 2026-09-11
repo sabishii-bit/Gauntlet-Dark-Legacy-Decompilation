@@ -188,7 +188,7 @@ fn run(cli: Cli) -> Result<i32> {
     };
     let scanner = Scanner::new(root, loaded, policy, guidance)?;
     if cli.watch {
-        return watch::watch(&scanner, &opts, &mut stdout);
+        return watch::watch(scanner, &opts, &mut stdout);
     }
     match scanner.run(&opts, &mut stdout) {
         Ok(outcome) => Ok(outcome.exit_code),

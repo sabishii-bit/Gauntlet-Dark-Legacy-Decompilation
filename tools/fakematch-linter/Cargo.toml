@@ -1,6 +1,6 @@
 [package]
 name = "fakematch-lint"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Review-only C/C++ reconstruction-debt (fakematch) linter for decompilation projects"
 license = "MIT"

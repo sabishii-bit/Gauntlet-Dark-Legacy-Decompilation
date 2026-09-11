@@ -49,7 +49,10 @@ pub fn node_text<'a>(node: Node<'_>, text: &'a str) -> &'a str {
 
 /// The node's child under `field`, if that child is `node`'s parent's field.
 pub fn is_field_child(parent: Node<'_>, field: &str, child: Node<'_>) -> bool {
-    parent.child_by_field_name(field).is_some_and(|c| c == child)
+    // Declarations can have several children with the same field name:
+    // `int *pointer, scalar;`. Checking only the first loses later bindings.
+    let mut cursor = parent.walk();
+    parent.children_by_field_name(field, &mut cursor).any(|c| c == child)
 }
 
 /// Whether any ancestor (excluding the node itself) has the given kind.
@@ -72,6 +75,24 @@ pub fn ancestor<'t>(node: Node<'t>, kind: &str) -> Option<Node<'t>> {
             return Some(n);
         }
         cur = n.parent();
+    }
+    None
+}
+
+/// Follow only a variable's declarator chain to its declaration. A parameter
+/// of a block-scope prototype is not a local variable of the outer function;
+/// nor is a member of a locally declared type or a typedef's array extent.
+pub fn variable_declaration(mut node: Node<'_>) -> Option<Node<'_>> {
+    while let Some(parent) = node.parent() {
+        match parent.kind() {
+            "declaration" if is_field_child(parent, "declarator", node) => return Some(parent),
+            "init_declarator" | "pointer_declarator" | "array_declarator"
+                if is_field_child(parent, "declarator", node) => {}
+            "reference_declarator" | "parenthesized_declarator"
+                if parent.named_child(0) == Some(node) => {}
+            _ => return None,
+        }
+        node = parent;
     }
     None
 }

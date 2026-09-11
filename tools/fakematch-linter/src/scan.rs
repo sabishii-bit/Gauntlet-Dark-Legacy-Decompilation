@@ -158,6 +158,20 @@ impl Scanner {
         &self.loaded.config
     }
 
+    /// Reload watch-mode inputs atomically. Preserve the source cache when
+    /// nothing changed; never silently scan with stale settings after a bad edit.
+    pub fn refresh(&mut self) -> anyhow::Result<()> {
+        let loaded = Config::load(&self.root, self.loaded.path.as_deref())?;
+        let policy = Policy::load(&self.root, &loaded)?;
+        let guidance = Guidance::load(&self.root, loaded.config.guidance.path.as_deref())?;
+        if loaded.raw != self.loaded.raw || loaded.path != self.loaded.path
+            || policy.raw != self.policy.raw || guidance.sha256 != self.guidance.sha256
+        {
+            *self = Scanner::new(self.root.clone(), loaded, policy, guidance)?;
+        }
+        Ok(())
+    }
+
     pub fn rules(&self) -> &[Box<dyn Rule>] {
         &self.rules
     }

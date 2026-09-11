@@ -165,7 +165,7 @@ impl<'t, 'a> Analysis<'t, 'a> {
                             raw_bindings.push((node_text(n, text).to_string(), n.start_byte()));
                         }
                     }
-                    if let Some(decl) = parse::ancestor(n, "declaration")
+                    if let Some(decl) = parse::variable_declaration(n)
                         && parse::has_ancestor(decl, "function_definition")
                         && is_declarator_of(n, &LOCAL_DECLARATOR_PARENTS)
                     {

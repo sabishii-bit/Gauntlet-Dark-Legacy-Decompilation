@@ -61,6 +61,7 @@ fn scalar_arithmetic_and_unknown_types_are_not_pointer_claims() {
         "void f(char* strings){use(strings+OFFSET);use(strings[i]);}",
         "void f(){/* strings + 364 */ use(\"strings + 364\");}",
         "void f(char* strings){use(strings + 1.5f);}",
+        "char* scalar; void f(){int *pointer, scalar;use(scalar+364);}",
     ] {
         assert!(hits(source, "FM009").is_empty(), "{source}");
     }
@@ -146,6 +147,21 @@ fn function_local_declarations() {
 fn multiple_local_arrays() {
     let rows = hits("void f() { u8 first[2], second[2]; use(first); }", "FM003");
     assert_eq!(variables(&rows), ["second"]);
+    assert_eq!(variables(&hits("void f(){int first, trash; use(first);}", "FM003")), ["trash"]);
+}
+
+#[test]
+fn local_type_members_and_prototype_parameters_are_not_stack_locals() {
+    for source in [
+        "void f(){struct View { float position[3]; };}",
+        "void f(){typedef float Vector[3];}",
+        "void f(){void consume(float values[3]);}",
+        "void f(){void consume(float trash[3], int unused);}",
+        "void f(){struct View { int trash; volatile int status; };}",
+    ] {
+        assert!(hits(source, "FM003").is_empty(), "{source}");
+    }
+    assert_eq!(variables(&hits("void f(){float position[3];}", "FM003")), ["position"]);
 }
 
 #[test]

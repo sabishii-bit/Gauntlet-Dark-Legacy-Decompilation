@@ -62,6 +62,7 @@ impl Rule for Fm003 {
                 "array_declarator" if self.unused_arrays => {
                     let Some(name_node) = n.child_by_field_name("declarator") else { continue };
                     if name_node.kind() != "identifier"
+                        || parse::variable_declaration(name_node).is_none()
                         || !parse::has_ancestor(n, "compound_statement")
                         || !parse::has_ancestor(n, "function_definition")
                     {
