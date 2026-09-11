@@ -540,6 +540,7 @@ config.libs = [
             Object(NonMatching, "game/sys/ml_mem.c", cflags=cflags_demo),
             Object(NonMatching, "game/mb/mb_blit.c", cflags=cflags_demo),
             Object(NonMatching, "game/enemy/enemy.c", cflags=cflags_enemy),
+            Object(Matching, "game/game/gamedefs.c", cflags=cflags_demo),
             Object(Matching, "game/mb/mb_objects.c", cflags=cflags_demo),
             # Deferred codegen + recovered definition order reproduce gamemain's
             # retail text order, BSS layout and complete 0x130-byte sdata2 pool.

@@ -22,12 +22,12 @@
  * display, the on-screen thermometer/wave-timer HUD gadgets, per-world
  * enemy-type setup and boss / good-wizard orchestration.
  *
- * The current GameCube split is [0x800520CC, 0x80055CB8): the
- * GAMEDEFS prefix followed by the main game-flow functions. Enemy helpers
- * before this range belong to enemy.c; the world-loader block after it
- * belongs to gauntworld.c. Retail string-pool bases and exception-table
- * boundaries corroborate those module cuts independently of the Xbox names.
- * This TU remains NonMatching until all code and owned data match.
+ * The current GameCube split is [0x80052134, 0x80055CB8). The separate
+ * GAMEDEFS prefix is reconstructed in gamedefs.c with its option record;
+ * the world-loader block after this range belongs to gauntworld.c.
+ * Retail string-pool bases and exception records corroborate the boundaries.
+ * The optional 1.2.5s profile source-links this TU after complete native
+ * code/data/EH verification; the stock profile retains extracted fallback.
 
  */
 
@@ -35,8 +35,8 @@
  * reversed public definitions and deferred BSS declarations recover retail
  * text order, the ten BSS objects, and the complete 0x130-byte numeric pool.
  * The string region is reconstructed below as typed objects and literals.
- * game_main's adjacent instruction-order pair remains nonexact; fallback stays
- * selected until complete source-linked code/data/EH verification succeeds. */
+ * Stock output retains game_main's adjacent instruction-order difference;
+ * the disclosed 1.2.5s profile closes it without object postprocessing. */
 
 extern level_data* gCurLevel;
 extern s32 lbl_80257640[];
@@ -2229,29 +2229,6 @@ void fn_80052134(void)
             MBTreeSetAlpha(lbl_8034479C, lbl_80343C20, 0);
         }
     }
-}
-
-/* 0x800520CC -- restore default options, then load saved preferences. */
-void default_options(void)
-{
-    s32* options;
-    s32 zero;
-
-    zero = 0;
-    options = (s32*)&gGameOptions + zero;
-    options[0] = zero;
-    options[1] = zero;
-    options[2] = 3;
-    options[6] = zero;
-    options[7] = 1;
-    options[8] = zero;
-    options[3] = zero;
-    options[4] = zero;
-    options[5] = zero;
-    options[9] = 512;
-    options[10] = zero;
-    options[11] = zero;
-    init_prefs();
 }
 
 /* Xbox exposes StartCompass as a standalone function; GC embeds this

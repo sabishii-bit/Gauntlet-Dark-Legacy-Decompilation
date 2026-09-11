@@ -152,7 +152,7 @@ game/world/dynobjgrid.c:
 game/enemy/enemy.c:
 	extab       start:0x80006018 end:0x80006258
 	extabindex  start:0x80009874 end:0x80009BD4
-	.text       start:0x800444C0 end:0x800520CC
+	.text       start:0x800444C0 end:0x8005207C
 	.rodata     start:0x80112370 end:0x80112538
 	.data       start:0x8011AF48 end:0x8011C2FC
 	.bss        start:0x80250E00 end:0x8025758C
@@ -160,10 +160,16 @@ game/enemy/enemy.c:
 	.sbss       start:0x80344718 end:0x80344724
 	.sdata2     start:0x803466D0 end:0x80346AAC
 
+game/game/gamedefs.c:
+	extab       start:0x80006258 end:0x80006260
+	extabindex  start:0x80009BD4 end:0x80009BE0
+	.text       start:0x8005207C end:0x80052134
+	.bss        start:0x80257590 end:0x802575C0
+
 game/game/gamemain.c:
-	extab       start:0x80006258 end:0x80006320
-	extabindex  start:0x80009BD4 end:0x80009D00
-	.text       start:0x800520CC end:0x80055CB8
+	extab       start:0x80006260 end:0x80006320
+	extabindex  start:0x80009BE0 end:0x80009D00
+	.text       start:0x80052134 end:0x80055CB8
 	.rodata     start:0x80112538 end:0x80112788
 	.data       start:0x8011C300 end:0x8011C3C0
 	.bss        start:0x802575C0 end:0x80257680

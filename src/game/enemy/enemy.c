@@ -1,4 +1,5 @@
 #include "game/enemy.h"
+#include "game/options.h"
 #include "game/mb_font.h"
 #include "game/item.h"
 #include "game/gamemode.h"
@@ -304,8 +305,9 @@ f32 lbl_8011BF60[38] = {
 /* Gauntlet Dark Legacy enemy module (Xbox ENEMY.OBJ / enemy.c).
  *
  * ENEMY.OBJ is a single very large translation unit.  On the GameCube build it
- * occupies one contiguous .text run, 0x800444C0 - 0x800520CC, sitting between
- * dynobjgrid.c (ends 0x800444C0) and gamemain.c (starts 0x800520CC).  This file
+ * occupies one contiguous .text run, 0x800444C0 - 0x8005207C, sitting between
+ * dynobjgrid.c and gamedefs.c. The separate GAMEDEFS tail formerly assigned
+ * here has been recovered with its option record and default_options. This file
  * remains NonMatching while native instruction differences are reconstructed.
  * The default build links the extracted fallback object. Postprocessing is
  * retired; promotion requires exact native code, data, relocations and EH.
@@ -442,7 +444,6 @@ void move_logic28(s32 index); void move_logic29(s32 index); void move_logic30(s3
 void move_logic31(s32 index);
 extern void CreateYPRMatrix(f32* mat, f32* pyr);        /* pyr -> rotation matrix (fwd) */
 extern void CopyMat3(f32* src, f32* dst);           /* 0x800BE8C8 (fwd) */
-extern s32 gGameOptions[];   /* 0x80257590 (lbl_80257598 = [2]) */
 
 /* branchless-abs idiom (srawi/xor/subf at -O4) */
 #define ABS(x) (((x) ^ ((x) >> 31)) - ((x) >> 31))
@@ -2240,7 +2241,7 @@ s32 do_ai(s32 index)
         e->pyr[1] = turn_enemy_ang(e, e->ang);
         CreateYPRMatrix(mat, &e->pyr[0]);
         CopyMat3(mat, &e->objgrp.worldmat[0][0]);
-        if (e->generator == 0 || (e->state == 7 && gGameOptions[2] > 1)) {
+        if (e->generator == 0 || (e->state == 7 && gGameOptions.gen_active > 1)) {
             kill_enemy(index);
         }
         break;
@@ -6486,7 +6487,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     {
         f64 applied;
 
-        if (gGameOptions[0] == 3) {
+        if (gGameOptions.no_damage == 3) {
             applied = 10000.0;
         } else {
             applied = amount;
@@ -8206,25 +8207,4 @@ s32 EnemyDescType(const char* name)
         }
     }
     return -1;
-}
-
-void fn_8005207C(s32 arg0, s32 arg1, s32 arg2)
-{
-    lbl_8034476C = arg0;
-    if (arg1 < 0) {
-        arg1 = 0;
-    } else if (arg1 > 4) {
-        arg1 = 4;
-    }
-    lbl_80344768 = arg1;
-    if (gGameOptions[3] == 0) {
-        gNumPlayers = arg0;
-    } else {
-        gNumPlayers = gGameOptions[3];
-    }
-    lbl_80344760 = arg2;
-}
-
-void fn_800520C8(void)
-{
 }
