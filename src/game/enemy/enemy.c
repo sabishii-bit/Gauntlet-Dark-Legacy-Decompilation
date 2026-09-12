@@ -644,19 +644,19 @@ extern s32 sFlags;            /* 0x803445CC packed config flags */
 extern u64 gControllerButtons;      /* 0x803445C8 config-word pair (hi) + sFlags (lo) */
 extern LookoutParam sLookoutParams[]; /* 0x802584A8, 0x6C-byte waypoints */
 extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
-extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
 extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
 
 /* World-node tables owned by items.c: LookoutParam is 0x6C bytes and
- * MilestoneParam is 0x68. Xbox MILESTONE contains one OBJGRP, corroborated by
+ * MILESTONE is 0x68. Xbox MILESTONE contains one OBJGRP, corroborated by
  * GC's 104-byte milestone stride, matrix basis at 0x20/0x28, and position
  * at 0x30..0x38. Reuse the established object-group type rather than calling
  * its attention/collision vectors arbitrary positions and padding.
  * This TU-local view preserves the complete native object; items.c's older
  * flattened declaration and its traversal forms are a separate cleanup. */
-typedef struct MilestoneParam {
+typedef struct MILESTONE {
     OBJGRP objgrp;
-} MilestoneParam;
+} MILESTONE;
+extern MILESTONE sMilestones[]; /* 0x8025B604; same view as gamemain.c */
 extern void GetMilestonePos(s32 idx, f32* out);  /* 0x80066054 */
 extern s32 fn_800511D0(s32 idx, f32 turn);        /* 0x800511D0 next-node picker */
 
@@ -4669,12 +4669,12 @@ void move_logic22(s32 index)
     }
     switch (e->mode1) {
     case 0: {
-        MilestoneParam* node;
+        MILESTONE* node;
         s32 i;
         s32 best_idx = -1;
         f32 best_dist = 100000.0f;
 
-        for (node = (MilestoneParam*)sMilestones, i = 0;
+        for (node = sMilestones, i = 0;
              i < sNumMilestones; i++, node++) {
             f32 dx = e->objgrp.worldmat[3][0] - node->objgrp.worldmat[3][0];
             f32 dy = e->objgrp.worldmat[3][1] - node->objgrp.worldmat[3][1];
@@ -4699,7 +4699,7 @@ void move_logic22(s32 index)
         e->mode1 = 1;
     }
     default: {
-        MilestoneParam* node = (MilestoneParam*)sMilestones;
+        MILESTONE* node = sMilestones;
         f32 dist;
 
         node += e->flag1;
@@ -5262,9 +5262,11 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
     }
     {
         /* These component bases still preserve an unrecovered address-sharing
-         * form. Direct MilestoneParam fields change the GC indexed loads;
+         * form. Direct MILESTONE fields change the GC indexed loads;
          * the vector copies and magnitude calls below are independently
-         * recoverable without retaining the old padding or math expansion. */
+         * recoverable without retaining the old padding or math expansion.
+         * Derive byte views from the whole array, not a four-byte component
+         * object; use the verified member offsets and complete record stride. */
         u8* milestoneY;
         u8* milestoneX;
         u8* milestoneZ;
@@ -5274,18 +5276,18 @@ s32 find_neighbor_milestone(s32 ms, s32 nth)
         f32 dhi;
 
         m_lo = sEnemyMilestoneRoute[lo];
-        milestoneX = sMilestones + 0x30;
-        milestoneY = sMilestones + 0x34;
-        milestoneZ = sMilestones + 0x38;
-        p1[0] = *(f32*)(milestoneX + m_lo * 0x68);
-        p1[1] = *(f32*)(milestoneY + m_lo * 0x68);
-        p1[2] = *(f32*)(milestoneZ + m_lo * 0x68);
+        milestoneX = (u8*)&sMilestones + offsetof(MILESTONE, objgrp.worldmat[3][0]);
+        milestoneY = (u8*)&sMilestones + offsetof(MILESTONE, objgrp.worldmat[3][1]);
+        milestoneZ = (u8*)&sMilestones + offsetof(MILESTONE, objgrp.worldmat[3][2]);
+        p1[0] = *(f32*)(milestoneX + m_lo * sizeof(MILESTONE));
+        p1[1] = *(f32*)(milestoneY + m_lo * sizeof(MILESTONE));
+        p1[2] = *(f32*)(milestoneZ + m_lo * sizeof(MILESTONE));
         dlo = fn_80034C88(p1[2] * p1[2] +
                 (p1[0] * p1[0] + p1[1] * p1[1]));
         m_hi = sEnemyMilestoneRoute[hi];
-        p2[0] = *(f32*)(milestoneX + m_hi * 0x68);
-        p2[1] = *(f32*)(milestoneY + m_hi * 0x68);
-        p2[2] = *(f32*)(milestoneZ + m_hi * 0x68);
+        p2[0] = *(f32*)(milestoneX + m_hi * sizeof(MILESTONE));
+        p2[1] = *(f32*)(milestoneY + m_hi * sizeof(MILESTONE));
+        p2[2] = *(f32*)(milestoneZ + m_hi * sizeof(MILESTONE));
         dhi = fn_80034C88(p2[2] * p2[2] +
                 (p2[0] * p2[0] + p2[1] * p2[1]));
         if (dlo < dhi) {
@@ -7796,7 +7798,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     f64 k2Pi;
     f64 kNegPi;
     f64 kPi;
-    MilestoneParam* m;
+    MILESTONE* m;
     s32 i;
     s32 best;
     s32 second;
@@ -7812,12 +7814,12 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
         return milestone;
     }
 
-    pos[0] = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[3][0];
-    pos[1] = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[3][1];
-    pos[2] = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[3][2];
+    pos[0] = sMilestones[milestone].objgrp.worldmat[3][0];
+    pos[1] = sMilestones[milestone].objgrp.worldmat[3][1];
+    pos[2] = sMilestones[milestone].objgrp.worldmat[3][2];
     {
-        f32 x = ((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[2][2];
-        f32 r = atan2(((MilestoneParam*)sMilestones)[milestone].objgrp.worldmat[2][0], x);
+        f32 x = sMilestones[milestone].objgrp.worldmat[2][2];
+        f32 r = atan2(sMilestones[milestone].objgrp.worldmat[2][0], x);
         f32 a = (f32)(3.141592654 + r);
         base = a > 3.141592654 ? a - 6.283185308 :
             (a <= -3.141592654 ? 6.283185308 + a : a);
@@ -7829,7 +7831,7 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     kNegPi = (-3.141592654);
     k2Pi = 6.283185308;
     kPi = 3.141592654;
-    m = (MilestoneParam*)sMilestones;
+    m = sMilestones;
     for (i = 0; i < sNumMilestones; i++, m++) {
         f32 d;
         f32 dist;
@@ -7894,7 +7896,7 @@ s32 fn_80051480(f32* pos)
     f32 d;
     s32 best_idx = -1;
     f32 best_dist = 100000.0f;
-    MilestoneParam* node = (MilestoneParam*)sMilestones;
+    MILESTONE* node = sMilestones;
     s32 i;
 
     for (i = 0; i < sNumMilestones; i++, node++) {
