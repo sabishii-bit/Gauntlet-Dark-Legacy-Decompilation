@@ -1885,7 +1885,7 @@ void DoPlayerAction(void* player)
                          action_names[cur], action_names[act],
                          action_names[next], mode, didt, adv);
         dbgTextPrintfCol(1, 0x1D, "  SEQ:%s  frame:%.1f/%d      ",
-                         (char*)((s32)atree->seqheader + atree->animseq * 0x30),
+                         atree->seqheader[atree->animseq].name,
                          atree->frame, (s32)atree->numframes);
     }
 
