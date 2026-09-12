@@ -153,7 +153,6 @@ u32 pool_new(MemList* list) {
 /* 0x800D5390  coalesce free blocks (qsort) */
 s32 pool_garbage_collect(MemPoolLists* pool,
                          s32 (*gapCallback)(MemListNode*, u32)) {
-    MemListNode** entries = gcSort;
     s32 result;
     s32 count;
     MemListNode* node;
@@ -162,16 +161,17 @@ s32 pool_garbage_collect(MemPoolLists* pool,
 
     result = 1;
     count = 0;
-    if ((node = pool->secondary.head) != NULL) {
+    node = pool->secondary.head;
+    if (node != NULL) {
         do {
-            entries[count++] = node;
+            gcSort[count++] = node;
             node = node->next;
         } while (node != pool->secondary.head);
     }
 
-    qsort(entries, count, sizeof(MemListNode*), pool_query);
+    qsort(gcSort, count, sizeof(MemListNode*), pool_query);
 
-    currentEnd = entries[0]->address;
+    currentEnd = gcSort[0]->address;
     node = pool->primary.head;
     if (node != NULL) {
         do {
@@ -183,12 +183,12 @@ s32 pool_garbage_collect(MemPoolLists* pool,
     }
 
     for (i = 0; i < count; i++) {
-        if (entries[i]->address > currentEnd &&
-            gapCallback(entries[i], currentEnd) != 0) {
+        if (gcSort[i]->address > currentEnd &&
+            gapCallback(gcSort[i], currentEnd) != 0) {
             result = 0;
             break;
         }
-        currentEnd += entries[i]->size;
+        currentEnd += gcSort[i]->size;
     }
     return result;
 }
