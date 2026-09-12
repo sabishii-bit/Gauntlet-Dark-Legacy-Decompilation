@@ -7218,12 +7218,12 @@ extern s32   gSceneRoot;
 extern f32   gIdentityMatrix[];
 extern void* sGoodWizObj;
 extern char* lbl_8011BFF8[];
-extern u8    lbl_80126EC0[];
+extern char* lbl_80126EC0[];
 extern s32   stricmp(const char* a, const char* b);
 extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
 extern s32   fn_80011BBC(void* model, const char* name, void* atreeOut,
                          const char* work, s32 workSize);
-extern void  InitActions(void* atree, void* actionList, void* actionTable);
+extern void  InitActions(atree* tree, ACTIONANIM* defs, char** names);
 extern void* MBOX_NewObject(const char* name, f32* matrix, void* parent, u32 flags);
 extern void* MBOX_ReallyFindObject(const char* name, s32 type1, s32 type2, s32 exact);
 extern void* MBNewObject(void* object, f32* matrix, void* parent, u32 flags);
@@ -7549,7 +7549,7 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
         enemy->objgrp.node = MBNewNode(lbl_8034473C,
                                       (void*)gIdentityMatrix, 1);
         MBNodeSetParent(*(void**)enemy->atree.root, enemy->objgrp.node);
-        InitActions(&enemy->atree.root, enemy->actionlist, lbl_80126EC0);
+        InitActions(&enemy->atree, enemy->actionlist, lbl_80126EC0);
     } else {
         InitActions(0, enemy->actionlist, lbl_80126EC0);
     }
