@@ -9,16 +9,16 @@
  *
  * Address range 0x800B53B4..0x800B5AA8 (6 functions), sitting between mb_blit
  * (ends 0x800B53B0) and mb_font (starts 0x800B5AA8). Delimited from mb_font by
- * its own sdata2 pool (0x80348B20..0x80348B44, disjoint from mb_font's 0x80348B48+)
- * and by callee signature (projection math, no font/message globals). Names come
- * from the Xbox shell3D PDB (mb_camera.obj); the world/screen-projection pairing
- * to Xbox names is by callee + caller behaviour (MBScreenToWorld/3D appear to be
- * inlined on GC, so only 6 of the 8 PDB functions are present).
+ * its referenced sdata2 run (0x80348B20..0x80348B44, before mb_font's 0x80348B48+)
+ * and by callee signature (projection math, no font/message globals). Only
+ * 0x80348B30..0x80348B38 is currently claimed by this TU. Names come
+ * from an earlier Xbox shell3D PDB (mb_camera.obj) correspondence. Some legacy
+ * GC names disagree with the actual direction of projection; see below.
  *
- * cflags_demo (-O4 no-peephole, -Cpp_exceptions on, -str reuse,readonly).
+ * Stock GC 1.2.5, cflags_demo (-O4, -Cpp_exceptions on, -str reuse,readonly).
  *
- * Status: NonMatching - reconstructed from the GCN implementation; remaining
- * differences are compiler scheduling/register allocation.
+ * Status: NonMatching - five native bodies are exact. The remaining inverse
+ * projection residual has not yet been resolved through source reconstruction.
  */
 #include "types.h"
 #include "game/pbwindow.h"
@@ -70,7 +70,12 @@ extern const f32 lbl_80348B40;
 
 int MBWorldSphereClip(f32* sphere, f32 radius);
 
-/* 0x800B53B4 - MBWorldToScreen3D : project a world point (with depth). */
+/* 0x800B53B4 - legacy GC name retained: this is screen-to-world using the
+ * supplied view-space depth (PS2/Xbox MBScreenToWorld), not forward projection.
+ * The four-component view matches vec4ApplyTrans's input and the Xbox view[4]
+ * local; its fourth component is not initialized because that helper reads
+ * only X/Y/Z. The pre-existing eight-byte reservation remains unrecovered:
+ * removing it with this view extent changes the frame from 136 to 128 bytes. */
 void MBWorldToScreen3D(f32* dst, f32* world)
 {
     PBWINGLOBALS* globals = gWinGlobals;
@@ -86,7 +91,7 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     f64 centeredX;
     f64 centeredY;
     u8 unused[8];
-    f32 projected[3];
+    f32 projected[4];
 
     if (globals->current->proj_dirty != 0 ||
         ((PBSCREEN*)globals->screen)->dirty != 0) {
@@ -157,10 +162,12 @@ void MBWorldToScreen(f32* dst, f32* world)
     dst[3] = lbl_80348B20;
 }
 
-/* 0x800B56B4 - MBWorldSphereVisible : sphere visibility (calls clip). */
+/* 0x800B56B4 - MBWorldSphereVisible : sphere visibility (calls clip).
+ * Xbox MBWorldSphereVisible3 records center_w as float[4]. Only X/Y/Z are
+ * copied and consumed by the transform path; the fourth component is unused. */
 int MBWorldSphereVisible(f32* sphere, f32 radius)
 {
-    f32 copy[3];
+    f32 copy[4];
 
     copy[0] = sphere[0];
     copy[1] = sphere[1];
@@ -181,10 +188,11 @@ int MBWorldSphereVisible3(f32* sphere, f32 radius)
 }
 
 /* 0x800B5738 - MBWorldSphereClip : transform a sphere centre and test it
- * against the view frustum. NonMatching stub. */
+ * against the view frustum. vec4ApplyTrans writes all four components into
+ * center_v (also float[4] in the Xbox PDB), though clipping reads only X/Y/Z. */
 int MBWorldSphereClip(f32* sphere, f32 radius)
 {
-    f32 transformed[3];
+    f32 transformed[4];
     f32 bound;
     f32 scaled;
     PBWINGLOBALS* globals = gWinGlobals;
