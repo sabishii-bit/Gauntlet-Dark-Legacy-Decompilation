@@ -1225,8 +1225,9 @@ extern void MBRemoveBlit(u32 blit);
 extern void mbInitBlitEntry(u32 blit, u32 id, int a);
 extern void mbBlitCalcRect(u32 blit, s32* x, s32* y, int a);
 extern void mbBlitCalcWidth(u32 blit, s32 x, s32 y, f32 v);
-extern u32 mbBlitStub343C(void);
-void pbDiagDrawTexLabel();
+struct MBBLIT;
+extern s32 mbBlitStub343C(struct MBBLIT* blit);
+void pbDiagDrawTexLabel(DiagTexBank* tb, int bank);
 
 /* texture-browser screen: backdrop blit, 6-tile grid or single zoom blit,
  * per-bank texture cursor, tile refresh + highlight toggling */
@@ -1348,7 +1349,7 @@ s32 pbDiagDrawTexture(void)
     }
     cp = (u32*)((u8*)wg->f30 + 16);
     if (((TexBankEnt*)cp)[gDiag_F4].a == 0) {
-        pbDiagDrawTexLabel(tb);
+        pbDiagDrawTexLabel(tb, gDiag_F4);
         saved = fn_800C02F4(0x00FFFFFF);
         if (tb->nslots != 0) {
             texdef = tb->defs + (&b[gDiag_F4])[28] * 16;
@@ -1394,7 +1395,10 @@ s32 pbDiagDrawTexture(void)
     bp = &b[5];
     if (b[5] & 0x04000000) {
         if (gDiag_D04 != 0) {
-            mbBlitUpdateEntry(gDiag_D04, -1, mbBlitStub343C() ^ 256);
+            /* This legacy integer handle represents the blit read by the
+             * getter; the retail call passes it in r3 after the null test. */
+            mbBlitUpdateEntry(gDiag_D04, -1,
+                mbBlitStub343C((struct MBBLIT*)gDiag_D04) ^ 256);
         }
     }
     if (*bp & 0x02000000) {
@@ -1421,9 +1425,7 @@ s32 pbDiagDrawTexture(void)
 }
 
 /* one label row per texture slot of bank `bank`, windowed like MenuA */
-void pbDiagDrawTexLabel(tb, bank)
-DiagTexBank* tb;
-int bank;
+void pbDiagDrawTexLabel(DiagTexBank* tb, int bank)
 {
     int line;
     u32 color;
