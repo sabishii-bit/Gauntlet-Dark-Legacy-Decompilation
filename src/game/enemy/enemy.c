@@ -436,7 +436,7 @@ void move_logic00(int index);
 void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s32 index);
 void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
 void move_logic07(s32 index); void move_logic08(s32 index); void move_logic10(int index);
-void move_logic12(int index); void move_logic13(s32 index); void move_logic14(int index);
+void move_logic12(int index); void move_logic13(int index); void move_logic14(int index);
 void move_logic15(int index); void move_logic16(s32 index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
 void move_logic22(int index); void move_logic23(s32 index); void move_logic24(s32 index);
@@ -861,7 +861,7 @@ void move_logic07(s32 index);
 void move_logic08(s32 index);
 void move_logic10(int index);
 void move_logic12(int index);
-void move_logic13(s32 index);
+void move_logic13(int index);
 void move_logic14(int index);
 void move_logic15(int index);
 void move_logic16(s32 index);
@@ -3743,50 +3743,15 @@ void move_logic12(int index)
  * prev/next indices.  Each frame it faces its parent, measures the gap (inline
  * sqrt), and after 180 frames "lost" (parent too far) snaps the whole downstream
  * chain to the idle algorithm and cuts itself loose. */
-#pragma opt_propagation off
-void move_logic13(s32 index)
+void move_logic13(int index)
 {
-    u8* base = (u8*)mbdesc;
     Enemy* e;
     struct Item* gen;
-    u8* p;
-    s32 it;
-    s32 flee;
-    u8 _pad[32];
 
-    p = base + index * 916;
-    it = lbl_80344748;
-    gen = ((Enemy *)(p + ENEMY_POOL_OFF))->generator;
-    p += ENEMY_POOL_OFF;
-    e = (Enemy*)(u8*)p;
-    if (it < 0) {
-        flee = 0;
-    } else {
-        u8* other = base + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
-            flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist >
-                   ((Enemy *)p)->sight) {
-            flee = 0;
-        } else if (index == it || ((Enemy *)p)->birth_style != 0 ||
-                   ((Enemy *)p)->dead_end > 0) {
-            goto flee_zero13;
-        } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] -
-                     ((Enemy *)p)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] -
-                     ((Enemy *)p)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] -
-                     ((Enemy *)p)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero13:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    e = &gEnemies[index];
+    /* This snapshot survives the bomber query and diagnostic calls. */
+    gen = e->generator;
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
@@ -3817,55 +3782,39 @@ void move_logic13(s32 index)
     }
     {
         Enemy* prev;
-        f32 dy;
-        f32 dx;
-        f32 dz;
+        /* PS2 also materializes this three-component post-move delta. */
+        f32 delta[3];
         f32 dist2;
 
-        p = base + e->prev_enemy * 916;
-        {
-            f32* ysrc = (f32*)(p + 3660);
-            prev = (Enemy*)(p += 3608);
-            e->ang = get_yaw(ysrc, &e->objgrp.worldmat[3][0]);
-        }
+        prev = &gEnemies[e->prev_enemy];
+        e->ang = get_yaw(prev->objgrp.worldmat[3], e->objgrp.worldmat[3]);
         set_enemy_trans(e, 1.0f, e->ang);
         e->pyr[1] = turn_enemy_ang(e, e->ang);
         do_enemy_move(index);
-        dx = prev->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
-        dy = prev->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
-        dz = prev->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-        dist2 = dx * dx + dy * dy + dz * dz;
-        if (dist2 > 0.0f) {
-            volatile f32 tmp;
-            f64 y = __frsqrte(dist2);
-            y = 0.5 * y * (3.0 - y * y * dist2);
-            y = 0.5 * y * (3.0 - y * y * dist2);
-            y = 0.5 * y * (3.0 - y * y * dist2);
-            tmp = (f32)(dist2 * (0.5 * y * (3.0 - y * y * dist2)));
-            dist2 = tmp;
-        }
+        delta[0] = prev->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
+        delta[1] = prev->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
+        delta[2] = prev->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
+        dist2 = fn_80034C88(delta[0] * delta[0] +
+                           delta[1] * delta[1] + delta[2] * delta[2]);
         if (dist2 >= 15.0) {
             e->lost += gFrameTicks;
             if (e->lost >= 180) {
-                s32 n;
-                Enemy* q;
-                q = (Enemy*)(base + e->prev_enemy * 916);
-                q = (Enemy*)((u8*)q + 3608);
+                int n;
+
+                prev = &gEnemies[e->prev_enemy];
                 do {
-                    q->algorithm = 7;
-                    q->old_ai = 7;
-                    q->next_enemy = -1;
-                    n = q->prev_enemy;
-                    q->prev_enemy = -1;
-                    q = (Enemy*)(base + n * 916);
-                    q = (Enemy*)((u8*)q + 3608);
+                    prev->algorithm = 7;
+                    prev->old_ai = 7;
+                    prev->next_enemy = -1;
+                    n = prev->prev_enemy;
+                    prev->prev_enemy = -1;
+                    prev = &gEnemies[n];
                 } while (n >= 0);
                 e->prev_enemy = -1;
             }
         }
     }
 }
-#pragma opt_propagation reset
 
 /* move_logic14 @0x80049FD4 (state 14, plague zig-zag skirmisher).  If a player is
  * within 8 units it switches to the chase algorithm; otherwise it strafes: swing
