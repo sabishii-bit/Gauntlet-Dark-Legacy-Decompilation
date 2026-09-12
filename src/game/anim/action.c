@@ -543,7 +543,6 @@ void DoPlayerAction(void* player)
     s32 adv;
     f32 ang;
     s32 dance;
-    u8 unused[8];
 
     act = pl->anim_20C;
     cur = pl->anim_208;
@@ -581,7 +580,7 @@ void DoPlayerAction(void* player)
     if ((atkD < 2 || atkD > 6) && atkD != 8) {
         pl->field_908 = 0;
     }
-    p[0x201] = 0;
+    pl->field_800[1] = 0;
     dance = 0;
     switch (d) {
     case P_ACTION_INIT:
@@ -820,7 +819,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_SLOW1:
-        p[0x201] = 1;
+        pl->field_800[1] = 1;
         act = P_ATTACK_SLOW1_R;
         break;
     case P_ATTACK_SLOW1_R:
@@ -983,7 +982,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_360:
-        p[0x201] = 1;
+        pl->field_800[1] = 1;
         if ((pl->field_8F8 & 0x400U) != 0 && pl->field_908 != 0) {
             act = P_ATTACK_PWRA_MED;
         } else {
@@ -1008,7 +1007,7 @@ void DoPlayerAction(void* player)
         act = P_ATTACK_PWRA_CLOSE_R;
         break;
     case P_ATTACK_PWRA_MED:
-        p[0x201] = 1;
+        pl->field_800[1] = 1;
         if (rpt < 2) {
             mode = 0;
         }
