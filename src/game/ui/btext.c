@@ -14,18 +14,12 @@
  * names come from the Xbox shell3D.pdb BTEXT.OBJ roster, mapped to PPC by
  * strings / call-graph.
  *
- * Status: NonMatching.  Functions are emitted in target address order.  The
- * TU-local .bss pool (font_info .. gTextFormatBuf) is defined in-unit, in
- * declaration order, so font_info anchors the section at offset 0 and the list
- * accessors reproduce the font_info-relative sibling pooling.  21/45 functions
- * are byte-exact (all the leaf accessors/setters + the GetScroll/GetString
- * resolvers + DrawNormalText/DrawTextKeepScale).  The remaining full-bodied
- * functions (Find, Sub workers, DrawTextMLines, DrawGlowText) are
- * structurally complete with register/schedule residuals (opcode streams match;
- * see PARKED.txt).  DrawText and DrawStringText now reproduce the variadic
- * FP-save ABI exactly; DrawStringTextMLines is behavior-complete with only
- * loop-register residuals.  StringInitSub and the scroll wrappers are now
- * complete native translations with only register/scheduling residuals.
+ * Status: NonMatching. The TU defines its font_info and message work buffers,
+ * but the pool overlays and unrecovered locals remain reconstruction debt.
+ * DrawStringTextMLines has an exact native instruction body after reusing
+ * its live line index. Its error literal's bytes agree with the target, but
+ * .rodata ownership/placement is still unproven. Other body differences also
+ * remain; the configured build links this TU's extracted fallback object.
  */
 
 /* ---- message-resource structures (SCROLLS files) ---- */
@@ -537,7 +531,6 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     s32 fontHeight;
     s32 msgLine;
     s32 lineCount;
-    s32 line;
     char* text;
     u32 rv;
     va_list ap;
@@ -586,11 +579,11 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     va_start(ap, msg);
     vsprintf((char*)info->workBuf, (char*)info->workBuf + 0x400, ap);
     FixMLineText((s32*)info->workBuf, (s32*)info->formatBuf, (s32*)lines);
-    line = (msgLine = 0);
-    while (line < lineCount) {
-        DrawTextSub(scale, shScale, x, y, font, color, (u8*)lines[line]);
+    msgLine = 0;
+    while (msgLine < lineCount) {
+        DrawTextSub(scale, shScale, x, y, font, color, (u8*)lines[msgLine]);
         y += spacing;
-        line++;
+        msgLine++;
     }
     gDrawTextY = y;
     return y;
