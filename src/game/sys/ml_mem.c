@@ -13,9 +13,10 @@
  * Real Xbox-PDB names used where confirmed by error strings + behaviour
  * (AllocMem/AllocMem32/GetMemBase/ResetAllocTot/AllocFile/FileSize/FileExists/
  * get_path/MBSetupWad/MBGetFromWad/StartFileRead/InitMemHandler/BytesFree).
- * NonMatching: AllocFile retains a two-instruction argument-copy ordering
- * residual. The remaining native bodies are exact. The empty mlmRootPath
- * buffer still relies on extracted data pending its original extent. */
+ * All 26 native bodies, their bindings and owned data/EH are exact with
+ * stock GC 1.2.5; the source-selected complete DOL is checksum-verified.
+ * The external empty mlmRootPath buffer still relies on extracted data
+ * pending its original extent; this is not an all-source program claim. */
 
 /* ---- OS / heap ---- */
 extern s32 DemoHeap;
@@ -611,6 +612,21 @@ int FileExists(char* wad, char* name)
     return sceFileExists(full) & 0xff;
 }
 
+/* Shared checked-reader behavior is visible in both native callers. The
+ * original helper name and header placement have not been recovered. */
+static inline int MLMReadFileInline(char* wad, char* name, int maxLen, void* dest)
+{
+    int read;
+
+    read = xReadFileSection(wad, name, maxLen, dest);
+    if (maxLen > 0 && read > maxLen) {
+        gErrorCode = 0x80;
+        FatalErrorf("File read overflowed: %s size:%d max:%d",
+                    temp_finfo.filename, read, maxLen);
+    }
+    return read;
+}
+
 void* AllocFile(char* wad, char* name)
 {
     int avail;
@@ -618,18 +634,9 @@ void* AllocFile(char* wad, char* name)
     void* dest;
     int used0;
 
-    if (mlmMemReserved != 0) {
-        gErrorCode = 0xe0e000;
-        FatalErrorf("GetMemBase() called while mem reserved");
-    }
-    dest = mlmMemBase + (mlmMemUsed / 4) * 4;
-    avail = mlmMemLimit - mlmMemUsed;
-    read = xReadFileSection(wad, name, avail, dest);
-    if (avail > 0 && read > avail) {
-        gErrorCode = 0x80;
-        FatalErrorf("File read overflowed: %s size:%d max:%d",
-                    temp_finfo.filename, read, avail);
-    }
+    dest = GetMemBase();
+    avail = BytesFree();
+    read = MLMReadFileInline(wad, name, avail, dest);
     if (read < 0) {
         gErrorCode = 0xff;
         FatalErrorf("AllocFile: Read failed.");
@@ -644,15 +651,7 @@ void* AllocFile(char* wad, char* name)
 
 int MLMReadFile(char* wad, char* name, int maxLen, void* dest)
 {
-    int read;
-
-    read = xReadFileSection(wad, name, maxLen, dest);
-    if (maxLen > 0 && read > maxLen) {
-        gErrorCode = 0x80;
-        FatalErrorf("File read overflowed: %s size:%d max:%d",
-                    temp_finfo.filename, read, maxLen);
-    }
-    return read;
+    return MLMReadFileInline(wad, name, maxLen, dest);
 }
 
 #pragma opt_propagation off
