@@ -437,7 +437,7 @@ void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s3
 void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
 void move_logic07(s32 index); void move_logic08(s32 index); void move_logic10(int index);
 void move_logic12(int index); void move_logic13(int index); void move_logic14(int index);
-void move_logic15(int index); void move_logic16(s32 index); void move_logic18(s32 index);
+void move_logic15(int index); void move_logic16(int index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
 void move_logic22(int index); void move_logic23(s32 index); void move_logic24(s32 index);
 void move_logic28(s32 index); void move_logic29(s32 index); void move_logic30(s32 index);
@@ -864,7 +864,7 @@ void move_logic12(int index);
 void move_logic13(int index);
 void move_logic14(int index);
 void move_logic15(int index);
-void move_logic16(s32 index);
+void move_logic16(int index);
 void move_logic18(s32 index);
 void move_logic19(s32 index);
 void move_logic20(s32 index);
@@ -4003,53 +4003,20 @@ void move_logic15(int index)
  * when the player is at a shallow height difference it arms (flag1) inside 0.6*
  * sight; once armed and inside 0.8*sight it charges a leap speed off lbl_8011BF60,
  * then fires a run-attack action, aiming the leap 180deg + a ramp offset. */
-void move_logic16(s32 index)
+void move_logic16(int index)
 {
     s32 stuck;
-    u8* base = (u8*)mbdesc;
-    u8* row16;
-    u8* e0;
     Enemy* e;
-    s32 it;
-    s32 dend;
     f32 leapspeed = 0.0f;
-    s32 flee;
     f32 a;
-    u8 _pad16[24];
 
-    row16 = base + index * 916;
-    dend = ((Enemy *)(row16 + ENEMY_POOL_OFF))->dead_end;
-    e0 = row16 + 3608;
-    e = (Enemy*)(u8*)e0;
-    if (dend > 0) {
+    e = &gEnemies[index];
+    if (e->dead_end > 0) {
         stuck = 1;
     } else {
         stuck = 0;
     }
-    it = lbl_80344748;
-    if (it < 0) {
-        flee = 0;
-    } else {
-        u8* other = base + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
-            flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
-            flee = 0;
-        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dend > 0) {
-            goto flee_zero16;
-        } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero16:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
@@ -4057,18 +4024,7 @@ void move_logic16(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    {
-        s16 c = e->closest;
-        if (c >= 0) {
-            if (gPlayers[c].field_A1C > 2) {
-                a = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-            } else {
-                a = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-            }
-        } else {
-            a = e->ang;
-        }
-    }
+    a = get_face_ang(e, 1);
     e->ang = a;
     {
     s16 c16 = e->closest;
