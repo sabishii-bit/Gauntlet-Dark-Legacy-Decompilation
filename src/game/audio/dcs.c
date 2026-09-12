@@ -137,12 +137,17 @@ extern volatile u8 dcsSampleBusy;
 extern volatile u8 dcsAramBusy;
 extern ARQRequest dcsAramReq;
 
-extern u32 pool_new(void* list);
-extern void* pool_alloc(void* list, void* node);
-extern void pool_free(void* pool, void* node);
-extern void pool_dispose(void* pool, s32 handle, void* base, s32 size);
-extern void pool_dispose_and_alloc(void* pool, void* node, u32 size, s32 arg, void* pool2);
-extern void* pool_alloc_at(void* pool, void* node, u32 size, u32 arg, void* pool2);
+typedef struct MemList MemList;
+typedef struct MemListNode MemListNode;
+typedef struct MemPoolLists MemPoolLists;
+
+/* Pool addresses and lengths are numeric byte values, including ARAM. */
+extern u32 pool_new(MemList* list);
+extern MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node);
+extern void pool_free(MemPoolLists* pool, MemListNode* node);
+extern s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size, s32 alignment);
+extern s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size);
+extern s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size, u32 address);
 extern ARQRequest dcsSampleReq;
 extern u32 BytesFree(void);
 extern void* AllocHiMem(); /* K&R: dcsReadVags passes 1 arg, others 2 */
@@ -419,7 +424,7 @@ s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
 
 /* 0x800D2314  reset the sample allocator (-> pool_new) */
 void dcsAllocReset(s32* high, s32* current, s32* low) {
-    *high = pool_new(lbl_802F5F60);
+    *high = pool_new((MemList*)lbl_802F5F60);
 }
 
 /* 0x800D2350  look up bank handle/size in dcsBankData */
@@ -568,7 +573,7 @@ s32 AudioQueUpdate(s32 bank) {
                 sample = &d->samples[sampleIndex];
                 if (sample->sampleRate != 0) {
                     if (sample->aramAddress != 0) {
-                        pool_alloc((u8*)&d->callInstr[10240], sample);
+                        pool_alloc((MemPoolLists*)&d->callInstr[10240], (MemListNode*)sample);
                     }
                     sample->sampleRate = 0;
                     sample->predScale = 0;
@@ -705,7 +710,7 @@ s32 dcsBankUnload(void* bank) {
     s32 i;
 
     if (p[0] != 0) {
-        pool_dispose(lbl_802F5F60, p[0], (void*)p[1], 0x40);
+        pool_dispose((MemPoolLists*)lbl_802F5F60, p[0], p[1], 0x40);
     }
     lbl_80345208 = 0;
     lbl_80343FF8 = p[7];
@@ -803,7 +808,7 @@ read_done:
             if (slot >= 0 && slot < 2048) {
                 if (smp->sampleRate != 0) {
                     if (smp->aramAddress != 0) {
-                        pool_alloc(data->stagingPool, smp);
+                        pool_alloc((MemPoolLists*)data->stagingPool, (MemListNode*)smp);
                     }
                     smp->sampleRate = 0;
                     smp->predScale = 0;
@@ -1121,7 +1126,7 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
         AXSetVoiceSrcType(sVoice[channel], AX_SRC_TYPE_LINEAR);
 
         if (dcsVoiceStartAx(channel) != 0) {
-            pool_free(d->stagingPool, data);
+            pool_free((MemPoolLists*)d->stagingPool, (MemListNode*)data);
             if ((call & 0x2000) != 0) {
                 s32 call_offset = sample * sizeof(u16);
 
@@ -1155,7 +1160,7 @@ s32 dcsSampleStream(void* sample, u32 uploadArg) {
     u8 pad[8];
 
     dcsSampleAllocUpload(sample, 0);
-    pool_alloc(lbl_802F5F60, sample);
+    pool_alloc((MemPoolLists*)lbl_802F5F60, (MemListNode*)sample);
     result = dcsSampleUpload(state, uploadArg);
     state[0] = 0;
     state[1] = 0;
@@ -1174,9 +1179,9 @@ s32 dcsSampleUpload(void* state, u32 uploadArg) {
     void* pool = (u8*)d + 0x2C080;
 
     if (uploadArg != 0) {
-        pool_alloc_at(pool, node, p[1], uploadArg, pool);
+        pool_alloc_at(pool, (MemListNode*)node, p[1], uploadArg);
     } else {
-        pool_dispose_and_alloc(pool, node, p[1], uploadArg, pool);
+        pool_dispose_and_alloc(pool, (MemListNode*)node, p[1]);
     }
     if (*node == 0) {
         return 0xfffffffe;
