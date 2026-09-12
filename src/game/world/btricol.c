@@ -253,8 +253,6 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         }
         cross = 0;
     } else {
-        f32 ayA;
-        f32 ayB;
         f32 sum;
         f32 t;
 
@@ -262,7 +260,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         dx = tpA.x - tpB.x;
         dz = tpA.z - tpB.z;
         if ((f64)fqdist(dx, dz) > (0.001)) {
-            sum = (ayB = btri_fabsf(tpB.y)) + (ayA = btri_fabsf(tpA.y));
+            sum = btri_fabsf(tpB.y) + btri_fabsf(tpA.y);
             if (0.0 == sum) {
                 cross = 0;
             } else {
