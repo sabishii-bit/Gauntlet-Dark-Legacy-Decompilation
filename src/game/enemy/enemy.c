@@ -7152,28 +7152,21 @@ s32 find_enemy_slot(s32 type, s32 level) {
  * floor at `pos`, its per-type variables are initialised, and its shadow node
  * is parked underneath it.
  */
-/* init_enemy followed do_enemies in the pre-reorder file and so compiled under
- * the `#pragma opt_propagation off` that do_enemies' body opens (its bare
- * `#pragma reset` does not close it).  The reorder moves init_enemy out of that
- * region, so the bracket is now explicit here. */
-#pragma opt_propagation off
 void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
     Enemy* e = &gEnemies[slot];
-    f32 zero;
     f32 health;
 
     e->type = type;
-    zero = 0.0f;
-    e->attn_offset[0] = zero;
+    e->attn_offset[0] = 0.0f;
     e->attn_offset[1] = ene_attn[type];
-    e->attn_offset[2] = zero;
-    e->coll_offset[0] = zero;
+    e->attn_offset[2] = 0.0f;
+    e->coll_offset[0] = 0.0f;
     e->coll_offset[1] = ene_coll[type];
-    e->coll_offset[2] = zero;
-    e->pyr[0] = zero;
-    e->pyr[1] = zero;
-    e->pyr[2] = zero;
+    e->coll_offset[2] = 0.0f;
+    e->pyr[0] = 0.0f;
+    e->pyr[1] = 0.0f;
+    e->pyr[2] = 0.0f;
     e->state = ACTIVE;
     e->endurance = 0;
     SetEnemyObj(e, type, level);
@@ -7188,8 +7181,8 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         health = health * gCurLevel->ene_health;
     }
     if (type < E_NTYPES) {
-        f64 scaled = 0.333 * health;
-        health = (f32)(scaled * level);
+        /* Both multiplies precede the final single-precision rounding. */
+        health = (f32)((0.333 * health) * level);
     }
     fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
     if (e->objgrp.node != NULL) {
@@ -7220,7 +7213,6 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         AnimateATree(&e->atree, 0, 2);
     }
 }
-#pragma opt_propagation reset
 
 /* Enemy loading, targeting and milestone tail: recovered TU ownership. */
 extern s32  lbl_802577CC[];
