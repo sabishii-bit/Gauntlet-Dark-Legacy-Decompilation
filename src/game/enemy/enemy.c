@@ -7585,8 +7585,6 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
     }
 }
 
-/* Keep the per-index resource base shared by the two table reads. */
-#pragma opt_propagation off
 void fn_800508A0(void)
 {
     s32 i;
@@ -7600,7 +7598,6 @@ void fn_800508A0(void)
         }
     }
 }
-#pragma opt_propagation reset
 
 void fn_80050910(s32 arg0)
 {
@@ -7729,7 +7726,6 @@ void fn_800510A4(void)
 
 /* InitEnemies in the Xbox symbols corroborates these as three distinct
  * 45-entry resource arrays.  GC combines their stores into one counted loop. */
-#pragma opt_propagation off
 void fn_80051164(void)
 {
     s32 i;
@@ -7745,7 +7741,6 @@ void fn_80051164(void)
     lbl_8034471C = 0;
     lbl_80344738 = -1;
 }
-#pragma opt_propagation reset
 
 #pragma opt_propagation off
 s32 fn_800511D0(s32 milestone, f32 tolerance)
