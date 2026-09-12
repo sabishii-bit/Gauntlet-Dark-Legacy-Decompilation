@@ -21,9 +21,9 @@
  * DoPlayerAction's GC-only dbgTextPrintfCol debug block; the action-name
  * pointer table lbl_80126C68 it prints from is owned by an earlier TU.
  *
- * Status: NonMatching. All five functions are translated. The enemy and
- * player dispatchers retain native instruction differences; the configured
- * build still links the extracted fallback object for this TU.
+ * Status: NonMatching. Four functions are native-exact, including the enemy
+ * dispatcher. The player dispatcher retains native instruction differences;
+ * the configured build still links the extracted fallback object for this TU.
  */
 #include "types.h"
 #include "game/enemy.h"
@@ -88,10 +88,11 @@ s32 e_actpri[33] = {
  * effects and the 0x18..0x1A walk-cycle timer. */
 enemy_action_type DoEnemyAction(Enemy* en)
 {
-    animinfo* e70 = &en->atree.animinfo;
+    /* Playback state belongs to the same tree instance passed to AnimateATree. */
+    atree* node = &en->atree;
+    animinfo* e70 = &node->animinfo;
     ACTIONANIM* defs = en->actionlist;
     s32 next = en->daction;   /* +0xD0 requested action */
-    atree* node;          /* embedded playback instance at +0x6C */
     s32 act;
     s32 cur;
     s32 mode = 2;
@@ -101,7 +102,6 @@ enemy_action_type DoEnemyAction(Enemy* en)
     s32 result;
     s32 type;
 
-    node = &en->atree;
     cur = en->action;        /* +0xCC current action */
     act = next;
     if (act >= E_HIT_REACT1) {
@@ -543,7 +543,6 @@ void DoPlayerAction(void* player)
     s32 adv;
     f32 ang;
     s32 dance;
-    u8 unused[8];
 
     act = pl->anim_20C;
     cur = pl->anim_208;
@@ -581,7 +580,7 @@ void DoPlayerAction(void* player)
     if ((atkD < 2 || atkD > 6) && atkD != 8) {
         pl->field_908 = 0;
     }
-    p[0x201] = 0;
+    pl->field_800[1] = 0;
     dance = 0;
     switch (d) {
     case P_ACTION_INIT:
@@ -820,7 +819,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_SLOW1:
-        p[0x201] = 1;
+        pl->field_800[1] = 1;
         act = P_ATTACK_SLOW1_R;
         break;
     case P_ATTACK_SLOW1_R:
@@ -983,7 +982,7 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_360:
-        p[0x201] = 1;
+        pl->field_800[1] = 1;
         if ((pl->field_8F8 & 0x400U) != 0 && pl->field_908 != 0) {
             act = P_ATTACK_PWRA_MED;
         } else {
@@ -1008,7 +1007,7 @@ void DoPlayerAction(void* player)
         act = P_ATTACK_PWRA_CLOSE_R;
         break;
     case P_ATTACK_PWRA_MED:
-        p[0x201] = 1;
+        pl->field_800[1] = 1;
         if (rpt < 2) {
             mode = 0;
         }
