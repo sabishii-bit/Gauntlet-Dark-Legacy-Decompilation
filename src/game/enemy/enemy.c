@@ -3110,6 +3110,25 @@ void move_logic07(s32 index)
 }
 #pragma opt_propagation reset
 
+/* Xbox symbols and the PS2 callers retain these two helpers. GC inlines the
+ * same item validation and translation-vector inputs into move_logic08. */
+static inline f32 get_chest_ang(Enemy* e)
+{
+    return get_yaw(sItems[e->guard_closest].objgrp.worldmat[3],
+                   e->objgrp.worldmat[3]);
+}
+
+static inline int is_chest(Item* ip)
+{
+    if (ip == 0) {
+        return 0;
+    }
+    if (ip->active == -1 || ip->info->type != 2 || ip->minoff != 0) {
+        return 0;
+    }
+    return -1;
+}
+
 /* move_logic08 @0x80048408 (state 8, guard/warlock corner-hug chase).  Sibling of
  * move_logic07 but with a guard target: fn_80051568 refreshes guard_closest, which
  * (when >=0) overrides the milestone bearing with the guarded item's heading.  When
@@ -3172,8 +3191,7 @@ void move_logic08(s32 index)
     }
     fn_80051568(index);
     if (e->guard_closest >= 0) {
-        lbl_80344720 = get_yaw(sItems[e->guard_closest].objgrp.worldmat[3],
-                               &e->objgrp.worldmat[3][0]);
+        lbl_80344720 = get_chest_ang(e);
     } else {
         s16 c = e->closest;
         f32 f;
@@ -3208,16 +3226,7 @@ void move_logic08(s32 index)
             lbl_80344720 = f;
         } else {
             Item* ip = e->coll_ip;
-            s32 valid;
-            if (ip == 0) {
-                valid = 0;
-            } else if (ip->active == -1 || ip->info->type != 2
-                       || ip->minoff != 0) {
-                valid = 0;
-            } else {
-                valid = -1;
-            }
-            if (valid != 0) {
+            if (is_chest(ip)) {
                 cand = lbl_80344720;
             } else if (e->area == 1) {
                 s32 col;
