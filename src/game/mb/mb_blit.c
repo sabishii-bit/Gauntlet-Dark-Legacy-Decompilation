@@ -51,8 +51,8 @@ typedef struct MBBLIT {
     /* 0x08 */ s16 x;          /* screen x (12.4 or pixel) */
     /* 0x0A */ s16 y;          /* screen y */
     /* 0x0C */ u32 depth;      /* z / scale, from float via __cvt_fp2unsigned */
-    /* 0x10 */ s16 width;
-    /* 0x12 */ s16 height;
+    /* 0x10 */ u16 width;
+    /* 0x12 */ u16 height;
     /* 0x14 */ u16 u0;
     /* 0x16 */ u16 u1;
     /* 0x18 */ u16 v0;
@@ -354,16 +354,16 @@ void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale) {
     u8 unused[16];
 
     if (xScale > 0.0) {
-        scaled = (s32)(0.5 + (f32)((f32)*(u16*)&b->width * xScale));
+        scaled = (s32)(0.5 + (f32)((f32)b->width * xScale));
         if ((b->flags & 0x1000) != 0) {
-            b->x -= (s16)(0.5 * (scaled - *(u16*)&b->width));
+            b->x -= (s16)(0.5 * (scaled - b->width));
         }
         b->width = (s16)scaled;
     }
     if (yScale > 0.0) {
-        scaled = (s32)(0.5 + (f32)((f32)*(u16*)&b->height * yScale));
+        scaled = (s32)(0.5 + (f32)((f32)b->height * yScale));
         if ((b->flags & 0x1000) != 0) {
-            b->y -= (s16)(0.5 * (scaled - *(u16*)&b->height));
+            b->y -= (s16)(0.5 * (scaled - b->height));
         }
         b->height = (s16)scaled;
     }
@@ -461,12 +461,12 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
         b->flags = newFlags;
     }
     if ((changed & 0x20) != 0) {
-        swap = *(s16*)&b->u0;
+        swap = b->u0;
         b->u0 = b->u1;
         b->u1 = swap;
     }
     if ((changed & 0x80) != 0) {
-        swap = *(s16*)&b->v0;
+        swap = b->v0;
         b->v0 = b->v1;
         b->v1 = swap;
     }
@@ -1544,7 +1544,7 @@ void mbBlitProject(MBBLIT* b, int width, int height) {
         } else {
             width = width * win->scale->x;
         }
-        *(u16*)&b->width = width;
+        b->width = width;
         b->flags &= ~0x400;
     }
     if (height != 0) {
@@ -1553,7 +1553,7 @@ void mbBlitProject(MBBLIT* b, int width, int height) {
         } else {
             height = height * win->scale->y;
         }
-        *(u16*)&b->height = height;
+        b->height = height;
         b->flags &= ~0x800;
     }
     b->flags |= autoFlags;
