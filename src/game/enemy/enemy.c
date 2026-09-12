@@ -3708,9 +3708,9 @@ void move_logic12(s32 index)
     Enemy* e;
     struct Item* gen;
     s32 flee;
-    f32 a;
     u8* p;
     s32 it;
+    /* Existing stack reservation; its original local object is unrecovered. */
     u8 unused[16];
 
     p = base + index * 916;
@@ -3758,16 +3758,7 @@ void move_logic12(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (e->closest >= 0) {
-        if (gPlayers[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-        } else {
-            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
-        }
-    } else {
-        a = e->ang;
-    }
-    e->ang = a;
+    e->ang = get_face_ang(e, 1);
     e->pyr[1] = turn_enemy_ang(e, e->ang);
     do_enemy_move(index);
     switch (e->mode1) {
