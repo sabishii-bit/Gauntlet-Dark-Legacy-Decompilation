@@ -249,7 +249,7 @@ extern void AudioKillBySound(int soundId);
 extern f32 AudioGetSoundVol(int a);
 extern int AudioSoundExists(int a);
 extern int AudioMaskByEvent(int a);
-extern void AudioKillMask(void);
+extern s32 AudioKillMask(s32 mask);
 extern int AudioAng(int a);
 extern void AudioSetTrackPan(int a, int b);
 extern int RandInt(int a);
@@ -764,8 +764,10 @@ int fn_8009D694(int a, int pos, int idx)
     int id2;
 
     if (a < 0) {
-        if (AudioMaskByEvent(115) != 0) {
-            AudioKillMask();
+        int mask = AudioMaskByEvent(115);
+
+        if (mask != 0) {
+            AudioKillMask(mask);
         }
         return 0;
     }

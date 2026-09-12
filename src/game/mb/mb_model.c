@@ -43,7 +43,7 @@ extern int   MLMReadFile(const char* dir, const char* name, void* buf, int size)
 extern void* AllocMem(int size);
 extern void* GetMemBase(void);
 extern int   BytesFree(void);
-extern void  LockMem(void);
+extern void  LockMem(int slot);
 extern void  FreeUnlockedMem(int slot);
 extern void  FatalError(const char* fmt, int code);
 extern void  ErrorPrintf(const char* fmt, ...);
@@ -747,7 +747,7 @@ int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
 
 /* ---- 0x800B89EC : lock the current model set at a slot ---- */
 void MBOX_LockModels(int slot) {
-    LockMem();
+    LockMem(slot);
     MBLockFonts(slot);
     lbl_802A5D0C[slot] = lbl_80344E8C;
 }
