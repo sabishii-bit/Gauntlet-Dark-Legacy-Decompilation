@@ -133,7 +133,6 @@ extern u8 gDefaultFontData[];   /* 0x80237C60 */
 extern char sFontFileFormat[7]; /* "%s.fnt" */
 extern char sFontDirectory[6];  /* "fonts" */
 extern const f64 sBTextIntBias;
-extern const f32 sBTextOne;
 extern const f64 sBTextZero;
 extern const f64 sBTextShadowSpacing;
 extern const f64 sBTextOneDouble;
@@ -1169,7 +1168,7 @@ s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
 MBTextMsg* DrawTextKeepScale(f32 scale, s32 x, s32 y, u32 font, u32 color, u8* str)
 {
     /* DrawTextSub still exposes its queued-message pointer as s32. */
-    return (MBTextMsg*)DrawTextSub(scale, sBTextOne, x, y, font, color, str);
+    return (MBTextMsg*)DrawTextSub(scale, 1.0f, x, y, font, color, str);
 }
 
 /* ==== 0x800209E0 DrawText (variadic; skeleton) ==== */
@@ -1211,7 +1210,7 @@ s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
     } else if ((f64)shScale < sBTextZero) {
         shScale = -shScale;
     } else {
-        shScale = sBTextOne;
+        shScale = 1.0f;
     }
 
     MBSetFont(font);
@@ -1238,7 +1237,7 @@ s32 DrawTextSub(register f32 scale, f32 shScale, s32 x, s32 y, u32 flags,
         MBSetFontFlags(oldFlags);
     }
     if (sBTextOneDouble != (f64)shScale) {
-        MBSetFontScale(sBTextOne, sBTextOne);
+        MBSetFontScale(1.0f, 1.0f);
     }
     return result;
 }
