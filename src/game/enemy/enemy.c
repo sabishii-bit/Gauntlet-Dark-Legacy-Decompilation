@@ -500,7 +500,7 @@ extern f32 gClockFrameStep;   /* knockback integration scale */
 static s32 lbl_80344718;
 static s32 lbl_8034471C;
 static f32 lbl_80344720;      /* current retreat/turn base angle */
-extern void* lbl_80344730;    /* last worldobj hit by an enemy move */
+extern WorldObj* lbl_80344730; /* last world object hit by an enemy move */
 extern s32 lbl_80344728;
 extern s32 default_gen_count;
 extern Player gPlayers[4]; /* Four GC records, sizeof(Player) == 0x335C. */
@@ -618,7 +618,7 @@ extern f32 get_yaw(f32* to, f32* from);       /* dir angle from->to */
 extern void format_brain(s32 index);           /* AI-change transition hook */
 extern void set_enemy_trans(Enemy* e, f32 spd, f32 ang); /* accel along angle */
 extern f32 lbl_8011BF60[];    /* 0x8011BF60 imp retreat-speed ramp table */
-extern s32 lbl_80344748;      /* 0x80344748 current "IT" enemy slot */
+extern s32 lbl_80344748;      /* current suicide-bomber slot; -1 when absent */
 extern s32 RandInt(s32 n);
 extern level_data* gCurLevel;         /* 0x8034483C active level record */
 extern f32 sin(f32 x);
@@ -1129,7 +1129,7 @@ void do_enemy_move(int index)
                 lbl_80344730 = EnemyWallCollide(rad2, oldpos, half, enemy_wall_collp);
                 if (lbl_80344730 != 0) {
                     EnemyWorldDamage(e, lbl_80344730, oldpos, enemy_wall_collp);
-                    if (((WorldObj*)lbl_80344730)->flags & 0x38) {
+                    if (lbl_80344730->flags & 0x38) {
                         result = 0;
                     } else if (!(e->ai_flags & 1)
                                && SlideAlongWall(rad2, oldpos, e->trans,
@@ -1467,7 +1467,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
             if (lbl_80344730 != 0) {
                 EnemyWorldDamage(enemy, lbl_80344730, oldpos,
                                  enemy_wall_collp);
-                if (((WorldObj*)lbl_80344730)->flags & 0x38) {
+                if (lbl_80344730->flags & 0x38) {
                     wallResult = 0;
                 } else {
                     if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
@@ -1501,7 +1501,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
             if (lbl_80344730 != 0) {
                 EnemyWorldDamage(enemy, lbl_80344730, oldpos,
                                  enemy_wall_collp);
-                if (((WorldObj*)lbl_80344730)->flags & 0x38) {
+                if (lbl_80344730->flags & 0x38) {
                     wallResult = 0;
                 } else {
                     if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
