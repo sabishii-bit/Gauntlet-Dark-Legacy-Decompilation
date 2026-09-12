@@ -61,14 +61,6 @@ typedef struct StrList {  /* 0x44 - a loaded SCROLLS resource */
     /* 0x40 */ s32 nLdef;
 } StrList;
 
-/* Local view of game/mb/mb_font.c's MBTextMsg (per-drawtext message record,
- * MB_FONT.OBJ); only the leading fields up to the one this TU writes are
- * modelled. Verified against mb_font.c: seq is a s16 at offset 0x26. */
-typedef struct MBTextMsgView {
-    u8 _pad[0x26];
-    s16 seq; /* 0x26 */
-} MBTextMsgView;
-
 /* Local view of game/mb/mb_font.c's MBFontDef (MBNewFont input descriptor,
  * MB_FONT.OBJ); the loaded font-file blob is laid out to match it directly
  * (texname@0x0, flags@0x4, glyphs@0x8). */
@@ -157,7 +149,7 @@ extern u32 MBSetFontFlags(u32 flags);            /* 0x800B63B0 */
 extern void MBSetFontAlpha(s32 alpha);           /* 0x800B63C0 */
 extern void MBSetFontScale(f32 sx, f32 sy);      /* 0x800B63F4 */
 extern void MBSetFontScaleSpace(f32 sx, f32 sy); /* 0x800B6418 */
-extern void* MBDrawText(s32 x, s32 y, u8* str);  /* 0x800B6588 */
+extern MBTextMsg* MBDrawText(s32 x, s32 y, u8* str);  /* 0x800B6588 */
 extern s32 MBNewFont(void* def, s32 space, s32 nglyphs, s32 perRow); /* 0x800B66E8 */
 extern void MBInitFonts(void);                   /* 0x800B6B08 */
 extern void* strcpy(void* dst, const void* src); /* 0x800E80D4 */
@@ -310,7 +302,7 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     u32 divisor;
     u32 prevFlags;
     u32 a;
-    void* q;
+    MBTextMsg* q;
     u8* text;
     u8 unused[8];
 
@@ -332,7 +324,7 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     a = (glow_radius + phase * 0xFF - 1) / glow_radius;
     MBSetFontAlpha(0x7F - (s32)a / 2);
     q = MBDrawText(x, y, text);
-    *(s16*)((u8*)q + offsetof(MBTextMsgView, seq)) = (s16)lbl_803443E4;
+    q->seq = (s16)lbl_803443E4;
     MBSetFontFlags(prevFlags);
     MBSetFontColor(0xFFFFFF);
     MBSetFontAlpha(0);
