@@ -148,7 +148,7 @@ extern void pbResetDORegs(void);
 extern void fn_800C1120(s32);
 extern int fn_800C7558(s32 texture);
 extern int fn_800C780C(s32 id, s32 index, u32 mask);
-extern void fn_800C7928(void* texture, s32);
+extern void fn_800C7928(u32 handle, u32 stage);
 extern f32 floorf(f32 value);
 extern PADStatus* G3DGetPadStatusBuffer(void);
 extern void __dl__FPv(void* object);
@@ -1287,7 +1287,7 @@ void pbBlitSetTexture(u32 tex) {
             }
             fn_800C780C(high, low, -1);
         }
-        fn_800C7928((void*)tex, 0);
+        fn_800C7928(tex, 0);
     }
 }
 

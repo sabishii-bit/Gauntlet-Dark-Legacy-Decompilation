@@ -43,7 +43,7 @@ void DCFlushRange(void* start, u32 len);
 void* memset(void* dst, int c, u32 len);
 long long __shl2i(int hi, int lo, int shift);
 void* AllocMem32(u32 size);
-void pbSetTexture(void* texObj);                     /* pb_objregs.c */
+void pbSetTexture(u32 handle, u32 stage);            /* pb_objregs.c */
 extern void fn_800C6AB4(int);                        /* pb_objregs.c */
 extern void* MBRomTexPtr(int);                       /* pb model helper */
 extern void FatalErrorf(char* fmt, ...); /* dbg printf */
@@ -760,9 +760,9 @@ void fn_800C7914(s32* a, s32* b) {
     *b = lbl_80343F74;
 }
 
-/* thin forwarder to pbSetTexture (framed: pbSetTexture may throw) */
-void fn_800C7928(void* texObj) {
-    pbSetTexture(texObj);
+/* Forward the packed texture handle and destination GX texture stage. */
+void fn_800C7928(u32 handle, u32 stage) {
+    pbSetTexture(handle, stage);
 }
 
 /* Bind a default per-texture context if none, and mark it dirty (unk2b0=-1). */

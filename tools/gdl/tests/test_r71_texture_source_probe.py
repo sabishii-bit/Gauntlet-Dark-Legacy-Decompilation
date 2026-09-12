@@ -9,6 +9,23 @@ class TextureSourceControlTests(unittest.TestCase):
     def setUpClass(cls):
         cls.source = (probe.ROOT / 'src/game/pb/pb_texture.c').read_text()
 
+    def restore_historical_interface(self, source):
+        """Undo only the reviewed forwarding repair, never experimental axes."""
+        replacements = (
+            ('void pbSetTexture(u32 handle, u32 stage);            /* pb_objregs.c */',
+             'void pbSetTexture(void* texObj);                     /* pb_objregs.c */'),
+            ('/* Forward the packed texture handle and destination GX texture stage. */\n'
+             'void fn_800C7928(u32 handle, u32 stage) {\n'
+             '    pbSetTexture(handle, stage);',
+             '/* thin forwarder to pbSetTexture (framed: pbSetTexture may throw) */\n'
+             'void fn_800C7928(void* texObj) {\n'
+             '    pbSetTexture(texObj);'),
+        )
+        for current, historical in replacements:
+            self.assertEqual(source.count(current), 1)
+            source = source.replace(current, historical)
+        return source
+
     def test_original_and_crlf_produce_the_same_control_forms(self):
         forms = probe.source_forms(self.source)
         self.assertEqual(forms, probe.source_forms(self.source.replace('\n', '\r\n')))
@@ -19,7 +36,8 @@ class TextureSourceControlTests(unittest.TestCase):
         self.assertEqual(len(set(forms[name] for name in declarations)), 24)
 
     def test_reviewed_r89_context_preserves_historical_controls(self):
-        old = self.source.replace(
+        reviewed = self.restore_historical_interface(self.source)
+        old = reviewed.replace(
             '    PbTexMgr* wg = gWinGlobals;\n    s32 m;\n    s32 loaded = 0;',
             '    s32 m;\n    s32 loaded = 0;\n    PbTexMgr* wg = gWinGlobals;')
         old = old.replace('        u8** ep = &((TEXDESCENT*)wg->tbl)[m].desc;',
@@ -30,8 +48,8 @@ class TextureSourceControlTests(unittest.TestCase):
         old = old.replace('                            ((TEXDESCENT*)wg->tbl)[m].desc);',
                           '                            *(void**)(m * 0x10 + tb));')
         self.assertEqual(probe.sha(old.encode()), probe.SOURCE_SHA256)
-        self.assertEqual(probe.sha(self.source.encode()), probe.R89_SOURCE_SHA256)
-        historical, current = probe.source_forms(old), probe.source_forms(self.source)
+        self.assertEqual(probe.sha(reviewed.encode()), probe.R89_SOURCE_SHA256)
+        historical, current = probe.source_forms(old), probe.source_forms(reviewed)
         self.assertEqual(len(historical), 61)
         self.assertEqual(historical.keys(), current.keys())
         def exclude_changed_function(source):
@@ -42,9 +60,28 @@ class TextureSourceControlTests(unittest.TestCase):
             self.assertEqual(exclude_changed_function(historical[name]),
                              exclude_changed_function(current[name]), name)
 
+    def test_handle_stage_repair_preserves_every_historical_control(self):
+        reviewed = self.restore_historical_interface(self.source)
+        self.assertEqual(probe.sha(reviewed.encode()), probe.R89_SOURCE_SHA256)
+        self.assertEqual(probe.sha(self.source.encode()), probe.HANDLE_STAGE_SOURCE_SHA256)
+        historical = probe.source_forms(reviewed)
+        current = probe.source_forms(self.source)
+        self.assertEqual(len(historical), 61)
+        self.assertEqual(historical.keys(), current.keys())
+        for name in historical:
+            with self.subTest(form=name):
+                self.assertEqual(self.restore_historical_interface(current[name]),
+                                 historical[name])
+
     def test_source_drift_cannot_silently_turn_a_control_into_a_noop(self):
         for source in ('', self.source + '\n', self.source.replace('u32 tlut_size', 'int tlut_size'),
-                       self.source.replace('slot + 0x30,', 'slot + 0x40,')):
+                       self.source.replace('slot + 0x30,', 'slot + 0x40,'),
+                       self.source.replace('pbSetTexture(handle, stage);',
+                                           'pbSetTexture(stage, handle);'),
+                       self.source.replace('pbSetTexture(handle, stage);',
+                                           'pbSetTexture(handle);'),
+                       self.source.replace('fn_800C7928(u32 handle, u32 stage)',
+                                           'fn_800C7928(void* handle, u32 stage)')):
             with self.subTest(source=source[-60:]), self.assertRaises(ValueError):
                 probe.source_forms(source)
 
