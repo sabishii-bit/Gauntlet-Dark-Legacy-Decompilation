@@ -75,7 +75,7 @@ void AdsInit(s32 memory, s32 block, s32 mode);
 void* AdsNew(s32 size);
 s32 AdsOpen(void* ads, void* desc);
 void* FileBufStart(void* desc);
-s32 AdsPutBuffer(void* ads, void* data, s32 size, s32 flags);
+s32 AdsPutBuffer(void* ads, void* data, u32 size, s32 flags);
 s32 adsUpdateStream(void* ads);
 extern s32 lbl_80345244;
 extern char lbl_80117294[];
