@@ -24,14 +24,6 @@ typedef struct Vec {
     f32 x, y, z;
 } Vec;
 
-/* Trig frame passed to the vector-frame transforms: cos/sin/tan of the
- * surface orientation packed at offsets 0/4/8. */
-typedef struct ColFrame {
-    f32 c; /* 0x0 cos */
-    f32 s; /* 0x4 sin */
-    f32 t; /* 0x8 */
-} ColFrame;
-
 typedef struct WorldTri {
     s16 layerLo;
     s16 layerHi;
@@ -55,9 +47,9 @@ extern f32 SlowNormalVector(Vec* vector);
 /* forward decls (address order) */
 s32         TriLineCol(WorldTri* tri, Vec* out);
 f32         BTriLineCol(WorldTri* tri, Vec* out, f32 radius);
-static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c);
+static void BodyVectorNorm(Vec* in, Vec* out, Vec* f, f32 c);
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
-                            ColFrame* f);
+                            Vec* f);
 static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
                              Vec* b0, Vec* b1, s32 flattenY);
 static f32  LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
@@ -107,7 +99,7 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     v1.x = lbl_8023F7E8[4] - cx;
     v1.y = lbl_8023F7E8[5] - cy;
     v1.z = lbl_8023F7E8[6] - cz;
-    BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpB, &norm, tri->scale);
     if ((f64)tpB.y < 0.0) {
         return 0;
     }
@@ -115,7 +107,7 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     v1.x = lbl_8023F7E8[0] - cx;
     v1.y = lbl_8023F7E8[1] - cy;
     v1.z = lbl_8023F7E8[2] - cz;
-    BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpA, &norm, tri->scale);
     if (tpB.y < tpA.y) {
         return 0;
     }
@@ -163,7 +155,7 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     }
 
     if (out != 0) {
-        WorldVectorNorm(out, tpx, 0.0f, tpz, tri->scale, (ColFrame*)&norm);
+        WorldVectorNorm(out, tpx, 0.0f, tpz, tri->scale, &norm);
         out->x += cx;
         out->y += cy;
         out->z += cz;
@@ -222,14 +214,14 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     v1.x = lbl_8023F7E8[4] - cx;
     v1.y = lbl_8023F7E8[5] - cy;
     v1.z = lbl_8023F7E8[6] - cz;
-    BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpB, &norm, tri->scale);
     if ((f64)tpB.y < 0.0) {
         return (-1.0f);
     }
     v1.x = lbl_8023F7E8[0] - cx;
     v1.y = lbl_8023F7E8[1] - cy;
     v1.z = lbl_8023F7E8[2] - cz;
-    BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpA, &norm, tri->scale);
     if (tpB.y < tpA.y) {
         return (-1.0f);
     }
@@ -403,7 +395,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         }
     }
     if (out != NULL) {
-        WorldVectorNorm(out, o2.x, o2.y, o2.z, tri->scale, (ColFrame*)&norm);
+        WorldVectorNorm(out, o2.x, o2.y, o2.z, tri->scale, &norm);
         out->x += cx;
         out->y += cy;
         out->z += cz;
@@ -411,12 +403,12 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     return dist;
 }
 /* ------------------------------------------------------------------ */
-/* Rotate a body-space vector into world space using a packed cos/sin  */
-/* surface frame.  Degenerate frames (|sin| ~ 1) collapse to identity  */
-/* or a 180-degree flip.                                               */
+/* Rotate into the triangle normal's body frame. The input is the     */
+/* copied tri->norm vector: x/y/z at offsets 0/4/8, not a separate      */
+/* trigonometric aggregate. Normals near either Y pole are special.    */
 /* ------------------------------------------------------------------ */
-static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
-    f32 s = f->s;
+static void BodyVectorNorm(Vec* in, Vec* out, Vec* f, f32 c) {
+    f32 s = f->y;
     if ((f64)s > (0.999999)) {
         out->x = in->x;
         out->y = in->y;
@@ -447,13 +439,13 @@ static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
         f32 negix_cs_scaled;
         f32 negiz_s;
 
-        cs = f->c;
+        cs = f->x;
         iy = in->y;
         cs_scaled = cs * c;
         iz = in->z;
         ix = in->x;
         iy_s = iy * s;
-        t = f->t;
+        t = f->z;
         neg_ix = -ix;
         mid_y = ix * cs + iy_s;
         t_scaled = t * c;
@@ -472,12 +464,12 @@ static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Inverse of BodyVectorNorm: fold a world-space vector back into the  */
-/* surface body frame.                                                 */
+/* Inverse of BodyVectorNorm: rotate from the normal's body frame      */
+/* back into world space.                                              */
 /* ------------------------------------------------------------------ */
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
-                            ColFrame* f) {
-    f32 s = f->s;
+                            Vec* f) {
+    f32 s = f->y;
     if ((f64)s > (0.999999)) {
         out->x = x;
         out->y = y;
@@ -496,8 +488,8 @@ static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
         f32 t;
         f32 t_scaled;
 
-        cs = f->c;
-        t = f->t;
+        cs = f->x;
+        t = f->z;
         cs_scaled = cs * c;
         t_scaled = t * c;
 
