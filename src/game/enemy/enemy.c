@@ -1852,11 +1852,26 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
     }
 }
 
+/* PS2 enemy_dies and the Xbox pointer/int formals corroborate
+ * this death-state, optional explosion and generator-detach boundary. */
+static inline void enemy_dies(Enemy* enemy, s32 player)
+{
+    s32 index = enemy - gEnemies;
+
+    enemy->health = 0.0f;
+    enemy->state = DYING;
+    enemy->area = (s16)player;
+    if (enemy->algorithm == 18) {
+        SuicideExplosion(enemy->objgrp.coll_pos,
+            (f32)(50.0 * gCurLevel->ene_damage));
+        fn_8009DAC8(enemy->objgrp.coll_pos);
+    }
+    uncouple_enemy(index);
+}
+
 void fn_80046140(s32 index)
 {
-    u8* pool = (u8*)mbdesc;
-    Enemy* enemy = (Enemy*)(pool + index * 0x394 + 0xE18);
-    s32 playerIndex;
+    Enemy* enemy = &gEnemies[index];
     s32 damaged;
 
     if (enemy->type == E_DEATH) {
@@ -1895,17 +1910,7 @@ void fn_80046140(s32 index)
                     } else {
                         enemy->flag2 = 1;
                         AudioPlayEvt104(&enemy->objgrp.worldmat[3][0]);
-                        playerIndex = enemy->coll_pnum;
-                        pool = (u8*)(enemy - (Enemy*)(pool + 0xE18));
-                        enemy->health = 0.0f;
-                        enemy->state = DYING;
-                        enemy->area = (s16)playerIndex;
-                        if (enemy->algorithm == 18) {
-                            SuicideExplosion(&enemy->objgrp.coll_pos[0],
-                                (f32)(50.0 * gCurLevel->ene_damage));
-                            fn_8009DAC8(&enemy->objgrp.coll_pos[0]);
-                        }
-                        uncouple_enemy((s32)pool);
+                        enemy_dies(enemy, enemy->coll_pnum);
                     }
                 }
             }
@@ -1921,17 +1926,7 @@ void fn_80046140(s32 index)
         msgPost(0x32, gPlayers[lbl_80344B24].index,
                 &gPlayers[lbl_80344B24].col_pos[0]);
 
-        playerIndex = lbl_80344B24;
-        pool = (u8*)(enemy - (Enemy*)(pool + 0xE18));
-        enemy->health = 0.0f;
-        enemy->state = DYING;
-        enemy->area = (s16)playerIndex;
-        if (enemy->algorithm == 18) {
-            SuicideExplosion(&enemy->objgrp.coll_pos[0],
-                (f32)(50.0 * gCurLevel->ene_damage));
-            fn_8009DAC8(&enemy->objgrp.coll_pos[0]);
-        }
-        uncouple_enemy((s32)pool);
+        enemy_dies(enemy, lbl_80344B24);
     } else if (enemy->algorithm != 31) {
         enemy->attack_index = (s16)enemy->coll_pnum;
         if ((enemy->attack_count & 7) == 7) {
@@ -6106,7 +6101,6 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     f32 effect_pos[3];
     u8 unused1[4];
     f32 saved_matrix[16];
-    s32 enemy_index;
 
     if (e->state == DECORATION) {
         return -1;
@@ -6175,16 +6169,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             if (play_effects != 0) {
                 AudioPlayEvt101(&e->objgrp.worldmat[3][0]);
             }
-            e->health = 0.0f;
-            enemy_index = (s32)(e - gEnemies);
-            e->state = DYING;
-            e->area = (s16)player_index;
-            if (e->algorithm == 18) {
-                SuicideExplosion(e->objgrp.coll_pos,
-                    (f32)(50.0 * gCurLevel->ene_damage));
-                fn_8009DAC8(e->objgrp.coll_pos);
-            }
-            uncouple_enemy(enemy_index);
+            enemy_dies(e, player_index);
             if (player != NULL) {
                 player->save.stats[player->character].enemies_killed++;
             }
@@ -6291,16 +6276,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             }
             fn_8009DF7C(e, play_effects);
         }
-        e->health = 0.0f;
-        enemy_index = (s32)(e - gEnemies);
-        e->state = DYING;
-        e->area = (s16)player_index;
-        if (e->algorithm == 18) {
-            SuicideExplosion(e->objgrp.coll_pos,
-                (f32)(50.0 * gCurLevel->ene_damage));
-            fn_8009DAC8(e->objgrp.coll_pos);
-        }
-        uncouple_enemy(enemy_index);
+        enemy_dies(e, player_index);
         if (player != NULL) {
             player->save.stats[player->character].enemies_killed++;
         }
