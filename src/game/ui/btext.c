@@ -16,10 +16,11 @@
  *
  * Status: NonMatching. The TU defines its font_info and message work buffers,
  * but the pool overlays and unrecovered locals remain reconstruction debt.
- * DrawStringTextMLines has an exact native instruction body after reusing
- * its live line index. Its error literal's bytes agree with the target, but
- * .rodata ownership/placement is still unproven. Other body differences also
- * remain; the configured build links this TU's extracted fallback object.
+ * The font tables establish the native string-pool order, including the
+ * diagnostics and resource filenames. DrawStringTextMLines has an exact
+ * native body and literal binding after reusing its live line index.
+ * Seven target bodies still differ; the configured build links this TU's
+ * extracted fallback object rather than certifying a complete native TU.
  */
 
 /* ---- message-resource structures (SCROLLS files) ---- */
@@ -95,6 +96,18 @@ StrList gScrollMsgList[2];      /* 0x8023F318 - scroll lists */
 StrList gStringMsgList;         /* 0x8023F3A0 - default list */
 u8 gTextFormatBuf[0x404];       /* 0x8023F3E4 - vsprintf output */
 
+/* GC font names and horizontal spacing; the Xbox PDB corroborates
+ * separate char *[13] and int[13] tables (font_desc / font_space).
+ * The 13 pointer bindings cover .rodata 0x801118D0..0x80111924 and
+ * .sdata2 0x80345C70..0x80345CA0. These real initializers precede the
+ * function literals; StringInitSub's shared pool base is compiler-generated. */
+char* gFontDefs8x8[13] = {
+    "font8x8", "8Hifonts", "bars", "arrows", "score", "scoratt", "font32",
+    "initials", "scoratt8", "namefont", "kanji10a", "kanji10b", "kanji20a"
+};
+s32 gFontDefs[13] = {8, 8, 4, 8, 9, 12, 16, 12, 8, 8, 10, 10, 20};
+static char* gScrollModes[2] = {"scroll", "hints"};
+
 /* .sdata (initialised) */
 s32 scroll_level_msg = -1;      /* 0x80343BB8 */
 f32 DrawStringScale = 1.0f;     /* 0x80343BBC */
@@ -109,7 +122,6 @@ s32 shadow_color;               /* 0x803443D8 */
 extern s32 lbl_803443E4;        /* 0x803443E4 - shared: also written as a
                                  * texture handle by gamemain.c and read as a
                                  * font override by options.c; NOT glow-only */
-extern s32 gScrollModes_80343BB0[2]; /* extracted TU-local table, 0x80343BB0 */
 extern u32 glow_color;          /* 0x80343BC4 */
 extern s32 glow_radius;         /* 0x80343BCC */
 extern s32 glow_period;         /* 0x80343BD0 */
@@ -118,12 +130,6 @@ extern s32 gFontsInited;        /* 0x80344F5C */
 extern s32 pbLoad;
 extern s32 gLanguageId;
 extern u8 gDefaultFontData[];   /* 0x80237C60 */
-extern char* gFontDefs8x8[];    /* 0x80118AF8 */
-extern s32 gFontDefs[];         /* 0x80118B2C */
-extern char sBTextStringPool[]; /* 0x801118D0 */
-extern char sScrollResourceFormat[]; /* "SCROLLS%s" */
-extern char sDrawStringTextMultiRangeError[41];
-extern char sDrawScrollTextRangeError[36];
 extern char sFontFileFormat[7]; /* "%s.fnt" */
 extern char sFontDirectory[6];  /* "fonts" */
 extern const f64 sBTextIntBias;
@@ -629,7 +635,7 @@ s32 DrawStringTextMulti(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg)
                                        &defaultFont);
         if (text == NULL) {
             if (idx == 0) {
-                ErrorPrintf(sDrawStringTextMultiRangeError, msg, idx);
+                ErrorPrintf("DrawStringTextMulti: Msg=%d idx=%d > max", msg, idx);
             }
             break;
         }
@@ -743,7 +749,7 @@ s32 DrawScrollText(s32 list, s32 x, s32 y, s32 spacing, s32 font,
     }
     text = result;
     if (text == NULL) {
-        ErrorPrintf(sDrawScrollTextRangeError, msg, idx);
+        ErrorPrintf("DrawScrollText: Msg=%d idx=%d > max", msg, idx);
         return 0;
     }
     if (font < 0 || (font < 10 && (s32)defaultFont >= 10)) {
@@ -836,7 +842,7 @@ s32 FindStringMessageSub(StrList* p, const u8* name);
 void SetScrollLevelMsgList(s32 level, const char* suffix)
 {
     u8 buf[32];
-    sprintf((char*)buf, sScrollResourceFormat, suffix);
+    sprintf((char*)buf, "SCROLLS%s", suffix);
     scroll_level_msg = FindStringMessageSub(&gScrollMsgList[level], buf);
 }
 
@@ -971,7 +977,7 @@ char* GetStringTextSub(StrList* p, s32 msg, s32 idx, u32* fontOut)
 }
 
 /* ==== 0x8001FFF4 StringInitSub (SCROLLS loader) ==== */
-void StringInitSub(u32 mode, StrList* p)
+void StringInitSub(const char* mode, StrList* p)
 {
     char name[64];
     s32 textSize;
@@ -1016,18 +1022,16 @@ void StringInitSub(u32 mode, StrList* p)
 #define p list
 
     {
-        register char* stringPool = sBTextStringPool;
-
         if (mode != 0) {
             if (gLanguageId == 1) {
-                sprintf(name, stringPool + 0x100, mode);
+                sprintf(name, "%s_j.rom", mode);
             } else {
-                sprintf(name, stringPool + 0x10C, mode);
+                sprintf(name, "%s_e.rom", mode);
             }
         } else if (gLanguageId == 1) {
-            strcpy(name, stringPool + 0x118);
+            strcpy(name, "japanese.rom");
         } else {
-            strcpy(name, stringPool + 0x128);
+            strcpy(name, "english.rom");
         }
     }
 
@@ -1317,7 +1321,7 @@ void FontInit(void)
     i = 0;
     modeIndex = i;
     for (; (s32)i < 2; i++, modeIndex++) {
-        StringInitSub(gScrollModes_80343BB0[modeIndex], &gScrollMsgList[i]);
+        StringInitSub(gScrollModes[modeIndex], &gScrollMsgList[i]);
     }
     for (i = 1; i < 0xd; i++) {
         LoadFonts(i, gFontDefs8x8[i], gFontDefs[i]);

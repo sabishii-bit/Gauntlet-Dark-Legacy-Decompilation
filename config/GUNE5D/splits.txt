@@ -89,10 +89,12 @@ game/ui/btext.c:
 	extab       start:0x80005970 end:0x80005A68
 	extabindex  start:0x80008E78 end:0x80008FEC
 	.text       start:0x8001EAE0 end:0x8002109C
+	.rodata     start:0x801118D0 end:0x80111A08
+	.data       start:0x80118AF8 end:0x80118B60
 	.bss        start:0x8023EAE0 end:0x8023F7E8
-	.sdata      start:0x80343BB8 end:0x80343BC4
+	.sdata      start:0x80343BB0 end:0x80343BC4
 	.sbss       start:0x803443D8 end:0x803443E4
-	.sdata2     start:0x80345CB0 end:0x80345CC4
+	.sdata2     start:0x80345C70 end:0x80345CC4
 
 game/world/btricol.c:
 	extab       start:0x80005A68 end:0x80005A80
