@@ -3146,6 +3146,8 @@ void move_logic08(s32 index)
     s32 found = 0;
     f32 cand;
     f32 probe[3];
+    /* Unrecovered local storage. The real helper graph without these arrays
+     * still places probe four bytes late under normal propagation. */
     u8 unusedA[20];
     f32 d1;
     f32 d2;
@@ -3193,35 +3195,14 @@ void move_logic08(s32 index)
     if (e->guard_closest >= 0) {
         lbl_80344720 = get_chest_ang(e);
     } else {
-        s16 c = e->closest;
-        f32 f;
-        if (c >= 0) {
-            if (gPlayers[c].field_A1C > 2) {
-                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-            } else {
-                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-            }
-        } else {
-            f = e->ang;
-        }
-        lbl_80344720 = f;
+        lbl_80344720 = get_face_ang(e, 1);
     }
     if (e->dead_end > 0) {
         e->dead_end -= gFrameTicks;
     }
     if (e->dead_end <= 0) {
         if (e->coll_pnum >= 0) {
-            s16 c = e->closest;
-            f32 f;
-            if (c >= 0) {
-                if (gPlayers[c].field_A1C > 2) {
-                    f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-                } else {
-                    f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-                }
-            } else {
-                f = e->ang;
-            }
+            f32 f = get_face_ang(e, 1);
             cand = f;
             lbl_80344720 = f;
         } else {
