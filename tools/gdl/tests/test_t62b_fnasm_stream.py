@@ -22,10 +22,13 @@ dishonesty was that nothing said so. `select_stream` is now the one decision
 point, `--raw implies --ours` is in the help, and `stream_header` prints the
 label and the actual file on the FIRST line of every dump.
 """
+import contextlib
+import io
 import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 TOOLS = Path(__file__).resolve().parents[1]
 ROOT = TOOLS.parents[1]
@@ -105,6 +108,34 @@ class HeaderText(unittest.TestCase):
         self.assertNotIn(str(ROOT).replace("\\", "/"), line)
 
 
+class ControlledStreamRouting(unittest.TestCase):
+    """Keep unequal and equal inputs without requiring unfinished game code."""
+
+    def test_headers_and_bodies_follow_the_selected_input(self):
+        for same_body in (False, True):
+            for flags, ours in (((), False), (("--raw",), True),
+                                (("--ours",), True)):
+                with self.subTest(same_body=same_body, flags=flags):
+                    target_ins = "addi r30,r5,0"
+                    our_ins = target_ins if same_body else "addi r29,r5,0"
+
+                    def parse(unit, fn, *, ours, raw=False, info=None):
+                        info["object"] = "ours.o" if ours else "target.o"
+                        return [(0x10, our_ins if ours else target_ins)], [fn], None
+
+                    out = io.StringIO()
+                    with mock.patch.object(fnasm, "parse_fn", side_effect=parse), \
+                            mock.patch.object(fnasm, "pin_warning", return_value=None), \
+                            mock.patch.object(sys, "argv", ["fnasm", UNIT, FN, *flags]), \
+                            contextlib.redirect_stdout(out):
+                        self.assertEqual(fnasm.main(), 0)
+                    lines = out.getvalue().splitlines()
+                    self.assertIn("OURS" if ours else "TARGET", lines[0])
+                    self.assertIn("ours.o" if ours else "target.o", lines[0])
+                    self.assertEqual(lines[1].strip(),
+                                     "10: " + (our_ins if ours else target_ins))
+
+
 @unittest.skipUnless(LIVE, "needs the extracted target and our built object")
 class LiveStreams(unittest.TestCase):
     def dump(self, *flags):
@@ -128,15 +159,17 @@ class LiveStreams(unittest.TestCase):
         # The whole failure mode: the old marker was the LAST line.
         self.assertIn("OURS", "\n".join(self.dump("--raw").splitlines()[:5]))
 
-    def test_the_two_streams_really_do_differ_here(self):
-        # If they ever stop differing this test is meaningless, so it asserts
-        # the premise the defect report rests on rather than assuming it.
-        target = [line for line in self.dump("0x0:0x40").splitlines()
-                  if line.strip().startswith("10:")]
-        ours = [line for line in self.dump("--raw", "0x0:0x40").splitlines()
-                if line.strip().startswith("10:")]
-        self.assertTrue(target and ours)
-        self.assertNotEqual(target[0], ours[0])
+    def test_live_listings_contain_the_selected_objects_instructions(self):
+        # dcsHandleRequest can become exact. Object selection must remain
+        # correct in either state; the controlled test exercises unequal data.
+        for flags, ours in (((), False), (("--raw",), True)):
+            with self.subTest(flags=flags):
+                expected, _, error = fnasm.parse_fn(UNIT, FN, ours=ours, raw=ours)
+                self.assertIsNone(error)
+                expected = [f"{off:x}: {ins}" for off, ins in expected if off < 0x40]
+                self.assertTrue(expected)
+                actual = self.dump(*flags, "0x0:0x40").splitlines()[1:-1]
+                self.assertEqual([line.strip() for line in actual], expected)
 
     def test_the_footer_agrees_with_the_header(self):
         for flags, label in ((("--raw",), "OURS"), (("--ours",), "OURS"),
