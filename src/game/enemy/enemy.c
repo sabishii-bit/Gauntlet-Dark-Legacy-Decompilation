@@ -459,7 +459,7 @@ extern int fn_80046680(int index, int b, f32* oldc, f32* newc, f32 rad,
 s32 fn_8004CFAC(f32* pos, f32* target);             /* turn direction (route) */
 void fn_8004D030(s32 index, s32 ticks);             /* set dead_end/turn timer */
 void fn_8004DB3C(Enemy* enemy, s32 delta);           /* fade enemy tree alpha */
-void fn_8004E448(Enemy* enemy, s32 arg, f32* pos);   /* missile/audio dispatch */
+void fn_8004E448(Enemy* enemy, f32* aimPosition, f32* pos); /* missile/audio dispatch */
 void adjust_msidx(Enemy* enemy);                     /* update milestone history */
 void enemy_update(void);                             /* update enemy texmods */
 s32 check_vacancy(s32 index, f32* pos);             /* validate spawn position */
@@ -483,7 +483,7 @@ extern void MBTreeClearFlags(struct mbnode* n, s32 a, s32 b); /* node update */
 extern s32 MBTreeGetAlpha(struct mbnode* n);
 extern void MBTreeSetAlpha(struct mbnode* n, s32 alpha, s32 propagate);
 extern void DoTexMods(void* data);
-extern s32 EnemyStartMissile(Enemy* enemy, s32 arg, f32* pos, s32 kind);
+extern s32 EnemyStartMissile(void* enemy, f32* aimPosition, f32* pos, s32 kind);
 extern void fn_8009DCE4(f32* pos);
 extern void fn_8009DDFC(f32* pos);
 extern void fn_8009DE2C(f32* pos);
@@ -889,7 +889,7 @@ s32 fn_8004D958(s32 index);
 void fn_8004DB3C(Enemy* enemy, s32 delta);
 void fn_8004DC2C(Enemy* enemy);
 void fn_8004DF58(Enemy* enemy);
-void fn_8004E448(Enemy* enemy, s32 arg, f32* pos);
+void fn_8004E448(Enemy* enemy, f32* aimPosition, f32* pos);
 void update_enemy_milestone(Enemy* enemy);
 void adjust_msidx(Enemy* enemy);
 void enemy_update(void);
@@ -5829,7 +5829,7 @@ void fn_8004DF58(Enemy* enemy)
                 missilePosition[2] = (f32)(20.0 * cos(enemy->pyr[1]) +
                                            missilePosition[2]);
             }
-            fn_8004E448(enemy, (s32)missilePosition,
+            fn_8004E448(enemy, missilePosition,
                         enemy->objgrp.coll_pos);
             enemy->attack_flag &= ~0xF;
         }
@@ -5949,15 +5949,17 @@ void fn_8004DF58(Enemy* enemy)
             missilePosition[2] = (f32)(20.0 * cos(enemy->pyr[1]) +
                                        missilePosition[2]);
         }
-        fn_8004E448(enemy, (s32)missilePosition,
+        fn_8004E448(enemy, missilePosition,
                     enemy->objgrp.coll_pos);
         enemy->flag1 = 1;
         enemy->attack_flag &= ~0x10;
     }
 }
 
-/* Select and launch an enemy missile, then dispatch its positional sound. */
-void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
+/* Select and launch an enemy missile, then dispatch its positional sound.
+ * GC forwards the caller's three-float aim position in r4; combat's
+ * EnemyStartMissile subtracts pos from it. It is not an integer handle. */
+void fn_8004E448(Enemy* enemy, f32* aimPosition, f32* pos)
 {
     s32 kind;
 
@@ -5971,7 +5973,7 @@ void fn_8004E448(Enemy* enemy, s32 arg, f32* pos)
         kind = 2;
     }
 
-    if (EnemyStartMissile(enemy, arg, pos, kind) != 0) {
+    if (EnemyStartMissile(enemy, aimPosition, pos, kind) != 0) {
         if (kind == 0) {
             fn_8009DE2C(pos);
         }
