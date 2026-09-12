@@ -1,8 +1,11 @@
 //! In-process tree-sitter parsing and small node helpers.
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 
 use tree_sitter::{Node, Parser, Tree};
+
+use crate::lexer::{TokKind, tokenize};
 
 thread_local! {
     static PARSER: RefCell<Parser> = RefCell::new({
@@ -15,12 +18,109 @@ thread_local! {
 
 /// Parse C/C++ text with the C++ grammar. The reconstructed sources use MWCC
 /// C++ regions even in `.c` files, so one grammar is used consistently.
+/// The narrow `offsetof` compatibility projection below preserves every
+/// source byte position; callers still retrieve excerpts from the original.
 pub fn parse(text: &str) -> Tree {
     PARSER.with(|p| {
         let mut p = p.borrow_mut();
+        let text = project_offsetof(text, &mut p);
         p.reset();
-        p.parse(text, None).expect("parser has a language and no cancellation")
+        p.parse(text.as_ref(), None).expect("parser has a language and no cancellation")
     })
+}
+
+/// tree-sitter-cpp 0.23's `offsetof_expression` accepts only one
+/// `_field_identifier`, not valid subobject designators such as
+/// `offsetof(MILESTONE, objgrp.worldmat[3][0])`. Parse those as ordinary
+/// macro calls by changing only the eight-byte keyword in a private buffer.
+/// This is not macro expansion or error suppression: every member/index
+/// operand remains in the AST and is scanned using the original source.
+///
+/// Limit the workaround to a single typedef-name type and a separately
+/// parsed, error-free member/subscript chain. More complex type spellings,
+/// malformed designators, comments and strings are never rewritten. Their
+/// normal parse/recovery behavior remains visible; no validation of types,
+/// index constantness or actual member layout is implied.
+fn project_offsetof<'a>(text: &'a str, parser: &mut Parser) -> Cow<'a, str> {
+    if !text.contains("offsetof") {
+        return Cow::Borrowed(text);
+    }
+    let tokens: Vec<_> = tokenize(text)
+        .into_iter()
+        .filter(|t| !matches!(t.kind, TokKind::Space | TokKind::Comment))
+        .collect();
+    let mut projected: Option<Vec<u8>> = None;
+    for (i, token) in tokens.iter().enumerate() {
+        if token.kind != TokKind::Id || token.text(text) != "offsetof" {
+            continue;
+        }
+        let Some(head) = tokens.get(i + 1..i + 4) else { continue };
+        if head[0].text(text) != "(" || head[1].kind != TokKind::Id || head[2].text(text) != "," {
+            continue;
+        }
+        let mut depth = 0;
+        let mut end = None;
+        for t in &tokens[i + 1..] {
+            // Punctuation inside string tokens must not delimit the call.
+            if t.kind != TokKind::Op {
+                continue;
+            }
+            match t.text(text) {
+                "(" => depth += 1,
+                ")" => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = Some(t.end);
+                        break;
+                    }
+                }
+                ";" | "{" | "}" => break,
+                _ => {}
+            }
+        }
+        let Some(end) = end else { continue };
+        let candidate = format!("void f(){{ off_set_{}; }}", &text[token.end..end]);
+        parser.reset();
+        let tree = parser.parse(&candidate, None).expect("parser has a language and no cancellation");
+        if tree.root_node().has_error() {
+            continue;
+        }
+        let nodes = all_nodes(&tree);
+        let Some(call) = nodes.iter().find(|n| n.kind() == "call_expression") else { continue };
+        let Some(args) = call.child_by_field_name("arguments") else { continue };
+        let mut cursor = args.walk();
+        let args: Vec<_> = args.named_children(&mut cursor).filter(|n| !n.is_extra()).collect();
+        if args.len() != 2 || args[0].kind() != "identifier"
+            || args[1].kind() == "identifier" || !member_designator(args[1])
+        {
+            continue;
+        }
+        projected.get_or_insert_with(|| text.as_bytes().to_vec())[token.start..token.end]
+            .copy_from_slice(b"off_set_");
+    }
+    match projected {
+        Some(bytes) => Cow::Owned(String::from_utf8(bytes).expect("only ASCII keyword bytes changed")),
+        None => Cow::Borrowed(text),
+    }
+}
+
+fn member_designator(node: Node<'_>) -> bool {
+    match node.kind() {
+        "identifier" => true,
+        "field_expression" => {
+            node.child_by_field_name("operator").is_some_and(|n| n.kind() == ".")
+                && node.child_by_field_name("field").is_some_and(|n| n.kind() == "field_identifier")
+                && node.child_by_field_name("argument").is_some_and(member_designator)
+        }
+        "subscript_expression" => {
+            node.child_by_field_name("argument").is_some_and(member_designator)
+                && node.child_by_field_name("indices").is_some_and(|indices| {
+                    let mut cursor = indices.walk();
+                    indices.named_children(&mut cursor).filter(|n| !n.is_extra()).count() == 1
+                })
+        }
+        _ => false,
+    }
 }
 
 /// Every node of the tree in pre-order, including anonymous nodes.
@@ -212,5 +312,31 @@ mod tests {
         assert!(has_descendant(*body, "compound_statement"));
         let inner = nodes.iter().filter(|n| n.kind() == "compound_statement").nth(1).unwrap();
         assert!(!has_descendant(*inner, "compound_statement"));
+    }
+
+    #[test]
+    fn offsetof_projection_is_narrow_and_preserves_source_ranges() {
+        let text = "// offsetof(T, member[3])\r\n\
+            const char *s = \"offsetof(T, member[3])\";\r\n\
+            void f(){ use(offsetof(T, member), offsetof(T, member[3])); }";
+        let mut expected = text.to_string();
+        let at = expected.rfind("offsetof").unwrap();
+        expected.replace_range(at..at + 8, "off_set_");
+        PARSER.with(|p| assert_eq!(project_offsetof(text, &mut p.borrow_mut()), expected));
+        let tree = parse(text);
+        assert!(!tree.root_node().has_error());
+        let nodes = all_nodes(&tree);
+        let simple = nodes.iter().find(|n| n.kind() == "offsetof_expression").unwrap();
+        assert_eq!(node_text(*simple, text), "offsetof(T, member)");
+        let projected = nodes.iter().find(|n| {
+            n.kind() == "call_expression" && node_text(**n, text) == "offsetof(T, member[3])"
+        }).unwrap();
+        let keyword = projected.child_by_field_name("function").unwrap();
+        assert_eq!(node_text(keyword, text), "offsetof");
+        assert_eq!(tree.root_node().end_byte(), text.len());
+        assert!(nodes.iter().any(|n| n.kind() == "comment"
+            && node_text(*n, text).trim_end() == "// offsetof(T, member[3])"));
+        assert!(nodes.iter().any(|n| n.kind() == "string_literal"
+            && node_text(*n, text) == "\"offsetof(T, member[3])\""));
     }
 }

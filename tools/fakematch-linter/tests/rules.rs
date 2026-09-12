@@ -346,6 +346,62 @@ fn parse_recovery_is_reported() {
 }
 
 #[test]
+fn offsetof_nested_members_and_indices_do_not_require_parser_recovery() {
+    let source = "void f(){\n\
+        use(offsetof(MILESTONE, objgrp.worldmat[3][0]));\n\
+        use(offsetof(MILESTONE, route[INDEX + 1].position));\n\
+        use(offsetof /* layout */ (MILESTONE, objgrp /* member */ .worldmat[3][1]));\n\
+    }";
+    let result = scan_source(source, "src/game/a.c", &Config::default()).unwrap();
+    assert!(result.recovery.is_empty(), "{:?}", result.recovery);
+    assert!(result.findings.is_empty(), "{:?}", result.findings);
+}
+
+#[test]
+fn offsetof_compatibility_retains_operand_and_neighbor_diagnostics() {
+    let source = "// café λ\r\nvoid f(){\r\n\
+        use(offsetof(MILESTONE, objgrp.worldmat[*(int*)(p+0x18)]));\r\n\
+        use(*(int*)(p+8));\r\n\
+    }";
+    let result = scan_source(source, "src/game/a.c", &Config::default()).unwrap();
+    assert!(result.recovery.is_empty(), "{:?}", result.recovery);
+    let offsets: Vec<_> = result.findings.iter().filter(|r| r.rule == "FM001").collect();
+    assert_eq!(offsets.len(), 2);
+    assert_eq!((offsets[0].line, offsets[0].column), (3, 41));
+    assert_eq!(offsets[0].excerpt, "*(int*)(p+0x18)");
+    assert_eq!((offsets[1].line, offsets[1].column), (4, 5));
+    assert_eq!(offsets[1].excerpt, "*(int*)(p+8)");
+    assert!(result.findings.iter().any(|r| r.rule == "FM007" && r.excerpt == "0x18"));
+}
+
+#[test]
+fn malformed_offsetof_and_unrelated_syntax_still_report_recovery() {
+    for expression in [
+        "offsetof(MILESTONE, objgrp.worldmat[3][)",
+        "offsetof(MILESTONE, objgrp.)",
+        "offsetof(MILESTONE, objgrp + worldmat)",
+        "offsetof(MILESTONE, objgrp.worldmat[]) ",
+        "offsetof(MILESTONE, objgrp.worldmat[3], extra)",
+        "offsetof(MILESTONE, objgrp->worldmat[3])",
+        "offsetof(MILESTONE, objgrp.worldmat[3, 4])",
+    ] {
+        let source = format!("void f(){{ use({expression}); }}");
+        let result = scan_source(&source, "src/game/a.c", &Config::default()).unwrap();
+        assert!(!result.recovery.is_empty(), "silenced invalid input: {expression}");
+    }
+    let source = "void f(){ use(offsetof(MILESTONE, objgrp.worldmat[3][0])); @@@ }";
+    let result = scan_source(source, "src/game/a.c", &Config::default()).unwrap();
+    assert!(result.recovery.iter().any(|r| r.excerpt.contains('@')));
+}
+
+#[test]
+fn unsupported_offsetof_types_are_not_silently_projected() {
+    let source = "void f(){ use(offsetof(struct Milestone, objgrp.worldmat[3][0])); }";
+    let result = scan_source(source, "src/game/a.c", &Config::default()).unwrap();
+    assert!(!result.recovery.is_empty());
+}
+
+#[test]
 fn whole_file_mwcc_asm_is_not_silently_skipped() {
     let result = scan_source(
         "#include \"types.h\"\nasm void f(){ nofralloc\n psq_l f0,0(src),0,qr0\n blr\n }",
