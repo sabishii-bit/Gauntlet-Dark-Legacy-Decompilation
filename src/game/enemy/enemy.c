@@ -589,7 +589,7 @@ extern void MBNodeSetParent(void* node, void* parent);
 extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
 s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
                  f32* effect_position, f32* hit_direction, s32 play_effects);
-extern s32 lbl_8034473C;
+extern struct mbnode* lbl_8034473C;
 extern s32 AddExp(s32 player, s32 amount, s32 mode);
 extern s32 damage_player(s32 player, f32 amount, s32 mode, u32 flags,
                          f32* direction);
@@ -1559,7 +1559,7 @@ reparent:
         if ((parent = hit->nodeptr) != NULL && (hit->flags & 0x1000)) {
             MBNodeSetParent(enemy->objgrp.node, parent);
         } else {
-            MBNodeSetParent(enemy->objgrp.node, (void*)lbl_8034473C);
+            MBNodeSetParent(enemy->objgrp.node, lbl_8034473C);
         }
     }
     enemy->floor_surf = (hit != NULL) ? hit->flags : 0;
@@ -6991,13 +6991,13 @@ extern s32   lbl_80344760;
 extern s32   lbl_80344738;
 extern s32   lbl_80344750;
 extern s32   lbl_8034474C;
-extern s32   gSceneRoot;
+extern struct mbnode* gSceneRoot;
 extern f32   gIdentityMatrix[];
 extern void* sGoodWizObj;
 extern char* lbl_8011BFF8[];
 extern char* lbl_80126EC0[];
 extern s32   stricmp(const char* a, const char* b);
-extern void* MBNewNode(s32 parent, void* tmpl, s32 arg2);
+extern struct mbnode* MBNewNode(struct mbnode* parent, const f32* matrix, s32 type);
 extern s32   fn_80011BBC(void* model, const char* name, void* atreeOut,
                          const char* work, s32 workSize);
 extern void  InitActions(atree* tree, ACTIONANIM* defs, char** names);
@@ -7324,7 +7324,7 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
 
     if (enemy->atree.root != 0) {
         enemy->objgrp.node = MBNewNode(lbl_8034473C,
-                                      (void*)gIdentityMatrix, 1);
+                                      gIdentityMatrix, 1);
         MBNodeSetParent(*(void**)enemy->atree.root, enemy->objgrp.node);
         InitActions(&enemy->atree, enemy->actionlist, lbl_80126EC0);
     } else {
@@ -7334,7 +7334,7 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
     if (enemy->objgrp.node == 0) {
         char* name = fn_80051E1C(type, level, 1);
         enemy->objgrp.node = MBOX_NewObject(name, (f32*)gIdentityMatrix,
-                                            (void*)lbl_8034473C, 0);
+                                            lbl_8034473C, 0);
         MBTreeSetFlags(enemy->objgrp.node, 2048, 0);
     }
 
@@ -7489,7 +7489,7 @@ void fn_800510A4(void)
         e->shadow = 0;
         e++;
     }
-    lbl_8034473C = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
+    lbl_8034473C = MBNewNode(gSceneRoot, gIdentityMatrix, 1);
     gNumEnemies = gCurLevel->maxenemies;
     lbl_80344740 = 0;
     lbl_80344748 = -1;
