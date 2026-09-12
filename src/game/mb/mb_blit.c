@@ -1,12 +1,14 @@
 #include "types.h"
-/* The game calls GXSetChanMatColor through its own pointer-taking prototype
- * (see mb_particle.c); hide the SDK by-value declaration so the TU can
- * declare the shape the original code generation proves. */
+/* Reconstruction debt: the SDK passes GXColor by value using indirect EABI.
+ * This pointer override and the explicit argument copies remain because the
+ * value API currently changes two stack-slot words in otherwise exact DrawBlit.
+ * The override is not evidence of the original game header declaration. */
 #define GXSetChanMatColor GXSetChanMatColor_sdk_byval
 #include "dolphin/gx.h"
 #undef GXSetChanMatColor
 extern void GXSetChanMatColor(s32 chan, void* color);
 #include "dolphin/pad.h"
+#include "dolphin/os.h"
 #include "MWCPlusLib.h"
 #include "NMWException.h"
 
@@ -83,21 +85,30 @@ typedef struct MBTextureDef {
     u16 height;
 } MBTextureDef;
 
-typedef struct MBScale {
-    f32 x;
-    f32 y;
-    s32 originX;
-    s32 originY;
-    s32 viewport0;
-    s32 viewport1;
-} MBScale;
+/* PBGLOBAL_BLIT: scale and screen rectangle, not a PBWINDOW. */
+typedef struct MBBlitState {
+    f32 scale_x;
+    f32 scale_y;
+    s32 screen_left;
+    s32 screen_top;
+    s32 screen_width;
+    s32 screen_height;
+} MBBlitState;
 
-typedef struct MBWindow {
+/* GC-verified partial view of PBGLOBAL_FRAME. pbFrameMode sets zmax
+ * to the selected depth format's maximum; both blit emitters divide by it. */
+typedef struct MBFrameState {
+    u8 _unrecovered00[0x34];
+    s32 zmax;
+} MBFrameState;
+
+/* Partial PBGLOBAL view: only the frame and blit module pointers used here. */
+typedef struct MBGlobalState {
     u8 _pad00[0x10];
-    void* obj10;          /* +0x10 draw-context object (+52 = depth divisor) */
+    MBFrameState* frame; /* +0x10 PBGLOBAL::frame_p */
     u8 _pad14[0x24];
-    MBScale* scale;
-} MBWindow;
+    MBBlitState* blit; /* +0x38 PBGLOBAL::blit_p */
+} MBGlobalState;
 
 typedef struct PBBlendState {
     u8 group : 2;
@@ -156,7 +167,7 @@ extern u8 lbl_80296450[];
 extern const char gIdentityMatrix[]; /* render-node name block used by MBInitBlits */
 extern MBTextureDef* MBRomTexPtr(s32 texture);
 extern u32 __cvt_fp2unsigned(f64 value);
-extern MBWindow* gWinGlobals;
+extern MBGlobalState* gWinGlobals;
 extern const f32 lbl_80348AD0;
 extern const f32 lbl_80348AA0;
 extern f32 lbl_80348AD4;            /* 1.0f viewport normalization constant */
@@ -189,7 +200,6 @@ void mbBlitCalcX(MBBLIT* b, s32* width, s32* height);
 void mbBlitPadTest(s32* manager);
 extern void G3DInitPadStatus(int a, int b);
 extern void G3DUpdatePadStatus(void);
-extern s64 OSGetTime(void);
 
 /* Definitions below follow the target text order. */
 MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h);
@@ -221,15 +231,15 @@ void fn_800B27C4(void)
     G3DInitPadStatus(0, 0);
     G3DUpdatePadStatus();
 
-    tpms = (*(u32*)0x800000F8 >> 2) / 1000;
+    tpms = OSMillisecondsToTicks(1);
     deadline = (f32)(u32)(OSGetTime() / tpms) + 500.0f;
-    tpms = (*(u32*)0x800000F8 >> 2) / 1000;
+    tpms = OSMillisecondsToTicks(1);
     while ((f32)(u32)(OSGetTime() / tpms) < deadline) {
     }
     mbBlitPadTest((s32*)(mgr + 12));
 
     deadline += 500.0f;
-    tpms = (*(u32*)0x800000F8 >> 2) / 1000;
+    tpms = OSMillisecondsToTicks(1);
     while ((f32)(u32)(OSGetTime() / tpms) < deadline) {
     }
     mbBlitPadTest((s32*)(mgr + 12));
@@ -377,7 +387,7 @@ void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1) {
 
 
 void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
-    MBWindow* window = gWinGlobals;
+    MBGlobalState* window = gWinGlobals;
     f64 round;
     f32 fr;
     s32 coord;
@@ -394,7 +404,7 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
         if ((b->flags & 0x40) != 0) {
             value = coord << 4;
         } else {
-            value = (s32)(fr + (f32)coord / window->scale->x);
+            value = (s32)(fr + (f32)coord / window->blit->scale_x);
         }
         *x = value;
     }
@@ -409,7 +419,7 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
         if ((b->flags & 0x40) != 0) {
             value = coord << 4;
         } else {
-            value = (s32)(fr + (f32)coord / window->scale->y);
+            value = (s32)(fr + (f32)coord / window->blit->scale_y);
         }
         *y = value;
     }
@@ -422,19 +432,19 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
 
 
 void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f32 depth) {
-    MBWindow* window = gWinGlobals;
+    MBGlobalState* window = gWinGlobals;
     s32 value;
 
     if ((b->flags & 0x40) != 0) {
         value = x << 4;
     } else {
-        value = x * window->scale->x;
+        value = x * window->blit->scale_x;
     }
     b->x = (s16)value;
     if ((b->flags & 0x40) != 0) {
         value = y << 4;
     } else {
-        value = y * window->scale->y;
+        value = y * window->blit->scale_y;
     }
     b->y = (s16)value;
     if (depth >= 0.0) {
@@ -453,13 +463,13 @@ void mbBlitCvtCoord(MBBLIT* b, f64 depth) {
 
 
 void mbBlitCalcY(MBBLIT* b, s32 y) {
-    MBWindow* window = gWinGlobals;
+    MBGlobalState* window = gWinGlobals;
     s32 value;
 
     if ((b->flags & 0x40) != 0) {
         value = y << 4;
     } else {
-        value = (s32)(y * window->scale->y);
+        value = (s32)(y * window->blit->scale_y);
     }
     b->y = (s16)value;
 }
@@ -487,14 +497,14 @@ void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale) {
 
 
 void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
-    MBWindow* window = gWinGlobals;
+    MBGlobalState* window = gWinGlobals;
 
     if (width != 0) {
         s32 value = (u16)b->width;
         if ((b->flags & 0x40) != 0) {
             value >>= 4;
         } else {
-            value = (s32)((f32)value / window->scale->x);
+            value = (s32)((f32)value / window->blit->scale_x);
         }
         *width = value;
     }
@@ -503,7 +513,7 @@ void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
         if ((b->flags & 0x140) != 0) {
             value >>= 4;
         } else {
-            value = (s32)((f32)value / window->scale->y);
+            value = (s32)((f32)value / window->blit->scale_y);
         }
         *height = value;
     }
@@ -511,7 +521,7 @@ void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
 
 
 void mbBlitProject(MBBLIT* b, int width, int height) {
-    MBWindow* win = gWinGlobals;
+    MBGlobalState* win = gWinGlobals;
     u32 autoFlags = 0;
 
     if (width < 0 || height < 0) {
@@ -538,7 +548,7 @@ void mbBlitProject(MBBLIT* b, int width, int height) {
         if ((b->flags & 0x40) != 0) {
             width <<= 4;
         } else {
-            width = width * win->scale->x;
+            width = width * win->blit->scale_x;
         }
         b->width = width;
         b->flags &= ~0x400;
@@ -547,7 +557,7 @@ void mbBlitProject(MBBLIT* b, int width, int height) {
         if ((b->flags & 0x140) != 0) {
             height <<= 4;
         } else {
-            height = height * win->scale->y;
+            height = height * win->blit->scale_y;
         }
         b->height = height;
         b->flags &= ~0x800;
@@ -598,7 +608,7 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
         s32 width;
         s32 height;
         volatile s32 pad;
-        MBWindow* window;
+        MBGlobalState* window;
         s32 xValue;
         s32 yValue;
 
@@ -611,13 +621,13 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
         if ((b->flags & 0x40) != 0) {
             xValue <<= 4;
         } else {
-            xValue = (s32)(xValue * window->scale->x);
+            xValue = (s32)(xValue * window->blit->scale_x);
         }
         b->x = (s16)xValue;
         if ((b->flags & 0x40) != 0) {
             yValue <<= 4;
         } else {
-            yValue = (s32)(yValue * window->scale->y);
+            yValue = (s32)(yValue * window->blit->scale_y);
         }
         b->y = (s16)yValue;
         if (lbl_80348AD0 >= 0.0) {
@@ -645,7 +655,7 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
 /* Per-frame temporary blit (32-entry ring, not linked to a node). */
 MBBLIT* MBNewTempBlit(int a, int b, int c, int d, int e) {
     MBBLIT* blit;
-    MBWindow* window;
+    MBGlobalState* window;
     s32 value;
     if (tempBlitCount >= MB_TEMPBLIT_MAX) {
         FatalError(str_TooManyTempBlits, 0x800000);
@@ -665,13 +675,13 @@ MBBLIT* MBNewTempBlit(int a, int b, int c, int d, int e) {
     if ((blit->flags & 0x40) != 0) {
         value = b << 4;
     } else {
-        value = b * window->scale->x;
+        value = b * window->blit->scale_x;
     }
     blit->x = (s16)value;
     if ((blit->flags & 0x40) != 0) {
         value = c << 4;
     } else {
-        value = c * window->scale->y;
+        value = c * window->blit->scale_y;
     }
     blit->y = (s16)value;
     if (lbl_80348AD4 >= 0.0) {
@@ -809,7 +819,7 @@ static inline int mbFindFreeBlitSlot(int count, int slot) {
 MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
     MBBLIT* b;
     MBBLIT* p;
-    MBWindow* window;
+    MBGlobalState* window;
     s32 value;
     int slot;
     if (node == 0) {
@@ -858,13 +868,13 @@ MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
     if ((b->flags & 0x40) != 0) {
         value = x << 4;
     } else {
-        value = x * window->scale->x;
+        value = x * window->blit->scale_x;
     }
     b->x = (s16)value;
     if ((b->flags & 0x40) != 0) {
         value = y << 4;
     } else {
-        value = y * window->scale->y;
+        value = y * window->blit->scale_y;
     }
     b->y = (s16)value;
     if (lbl_80348AD4 >= 0.0) {
@@ -966,7 +976,7 @@ void MBResetBlits(void) {
 s32 MBDrawBlits(MBNODE* node) {
     s32* stats;
     MBBLIT* b;
-    MBWindow* window = gWinGlobals;
+    MBGlobalState* window = gWinGlobals;
     f32 load;
     s32 i;
 
@@ -978,7 +988,7 @@ s32 MBDrawBlits(MBNODE* node) {
     lbl_80343EA8 = -1;
     lbl_80343EAC = -1;
     lbl_80344DDC =
-        (f32)(window->scale->viewport0 + window->scale->viewport1);
+        (f32)(window->blit->screen_width + window->blit->screen_height);
     lbl_80344DE0 = (f32)(1.0 / (f64)lbl_80344DDC);
     load = (f32)pbLoad;
     load -= lbl_80343EA0 * floorf(load / lbl_80343EA0);
@@ -1036,7 +1046,7 @@ int mbBlitGetPage(void) {
 
 
 void DrawBlitFlatQuad(MBBLIT* b) {
-    MBWindow* g = gWinGlobals;
+    MBGlobalState* g = gWinGlobals;
     u8 unused[96];
     f32 mtx[3][4];
     GXColor c;
@@ -1062,15 +1072,15 @@ void DrawBlitFlatQuad(MBBLIT* b) {
     {
         f32 ratio;
 
-        ratio = (f32)(b->x * 2) / (f32)g->scale->viewport0;
+        ratio = (f32)(b->x * 2) / (f32)g->blit->screen_width;
         x0 = ratio - lbl_80348AD4;
-        ratio = (f32)((b->x + (u16)b->width) * 2) / (f32)g->scale->viewport0;
+        ratio = (f32)((b->x + (u16)b->width) * 2) / (f32)g->blit->screen_width;
         x1 = ratio - lbl_80348AD4;
-        ratio = (f32)(b->y * 2) / (f32)g->scale->viewport1;
+        ratio = (f32)(b->y * 2) / (f32)g->blit->screen_height;
         y0 = lbl_80348AD4 - ratio;
-        ratio = (f32)((b->y + (u16)b->height) * 2) / (f32)g->scale->viewport1;
+        ratio = (f32)((b->y + (u16)b->height) * 2) / (f32)g->blit->screen_height;
         y1 = lbl_80348AD4 - ratio;
-        ratio = (f32)(b->depth * 2) / (f32)*(s32*)((u8*)g->obj10 + 52);
+        ratio = (f32)(b->depth * 2) / (f32)g->frame->zmax;
         z = ratio - lbl_80348AD4;
     }
 
@@ -1101,7 +1111,7 @@ void DrawBlitFlatQuad(MBBLIT* b) {
 
 
 void DrawBlit(MBBLIT* b) {
-    MBWindow* window;
+    MBGlobalState* window;
     u8 unused[84];
     s32 textureWidth;
     s32 textureHeight;
@@ -1145,9 +1155,9 @@ void DrawBlit(MBBLIT* b) {
     pbBlitSetTexture(texture);
     pbBlitSetDrawRegs(flags, 0, drawMode);
 
-    x0i = b->x + window->scale->originX;
+    x0i = b->x + window->blit->screen_left;
     x1i = x0i + (u16)b->width;
-    y0i = b->y + window->scale->originY;
+    y0i = b->y + window->blit->screen_top;
     y1i = y0i + (u16)b->height;
 
     SetMultiPassTextureParams(0);
@@ -1163,15 +1173,15 @@ void DrawBlit(MBBLIT* b) {
     v0 = ((f32)((s32)b->v0 + 8) / (f32)textureHeight) / 16.0f;
     v1 = ((f32)((s32)b->v1 - 8) / (f32)textureHeight) / 16.0f;
 
-    x0 = (f32)(b->x * 2) / (f32)window->scale->viewport0 - 1.0f;
+    x0 = (f32)(b->x * 2) / (f32)window->blit->screen_width - 1.0f;
     x1 = (f32)((b->x + (u16)b->width) * 2) /
-             (f32)window->scale->viewport0 - 1.0f;
+             (f32)window->blit->screen_width - 1.0f;
     y0 = 1.0f - (f32)(b->y * 2) /
-             (f32)window->scale->viewport1;
+             (f32)window->blit->screen_height;
     y1 = 1.0f - (f32)((b->y + (u16)b->height) * 2) /
-             (f32)window->scale->viewport1;
+             (f32)window->blit->screen_height;
     z = (f32)(b->depth * 2) /
-            (f32)*(s32*)((u8*)window->obj10 + 52) - 1.0f;
+            (f32)window->frame->zmax - 1.0f;
 
     if ((flags & 0x10) != 0) {
         light = 0;
@@ -1181,9 +1191,9 @@ void DrawBlit(MBBLIT* b) {
         flags &= 0x4000;
         if (flags != 0) {
             light = mbBlitCalcLight(
-                lightX = x0i - window->scale->originX,
-                lightY = window->scale->viewport1 -
-                         (y0i - window->scale->originY));
+                lightX = x0i - window->blit->screen_left,
+                lightY = window->blit->screen_height -
+                         (y0i - window->blit->screen_top));
         }
         {
             s32 color;
@@ -1211,7 +1221,7 @@ void DrawBlit(MBBLIT* b) {
         }
 
         if (flags != 0) {
-            light = mbBlitCalcLight(x1i - window->scale->originX, lightY);
+            light = mbBlitCalcLight(x1i - window->blit->screen_left, lightY);
         }
         {
             s32 color;
@@ -1240,9 +1250,9 @@ void DrawBlit(MBBLIT* b) {
 
         if (flags != 0) {
             light = mbBlitCalcLight(
-                lightX = x0i - window->scale->originX,
-                lightY = window->scale->viewport1 -
-                         (y1i - window->scale->originY));
+                lightX = x0i - window->blit->screen_left,
+                lightY = window->blit->screen_height -
+                         (y1i - window->blit->screen_top));
         }
         {
             s32 color;
@@ -1270,7 +1280,7 @@ void DrawBlit(MBBLIT* b) {
         }
 
         if (flags != 0) {
-            light = mbBlitCalcLight(x1i - window->scale->originX, lightY);
+            light = mbBlitCalcLight(x1i - window->blit->screen_left, lightY);
         }
         {
             s32 color;
