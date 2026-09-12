@@ -589,7 +589,7 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
     if (node != NULL) {
         next = node->next;
         while (next != NULL && next != pool->primary.head) {
-            node->address = (u32)freeNode;
+            node->address = 0;
             node = next;
             next = next->next;
         }
