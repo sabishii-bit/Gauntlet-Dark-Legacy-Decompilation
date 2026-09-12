@@ -663,6 +663,7 @@ game/audio/mempool.c:
 	.text       start:0x800D5260 end:0x800D6234
 	.rodata     start:0x801172A0 end:0x801174A8
 	.bss        start:0x8031EB00 end:0x80320B00
+	.sbss       start:0x80345250 end:0x80345264
 
 game/audio/adstream.c:
 	extab       start:0x80008118 end:0x800081A8

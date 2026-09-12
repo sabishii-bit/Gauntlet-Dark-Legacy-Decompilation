@@ -19,11 +19,14 @@
 extern s32 lbl_80345248;
 extern u32 lbl_8031EAF0[];
 struct MemListNode;
-extern struct MemListNode* lbl_80345250;
-extern u32 lbl_80345254;
-extern u32 lbl_80345258;
-extern volatile s32 lbl_8034525C;
-extern s32 lbl_80345260;
+/* File-local pool state: block table/count, semaphore, owner and lock depth.
+ * GC accesses five four-byte objects at 0x80345250..0x80345264; MEMPOOL.OBJ's
+ * gBlk/gBlk_z/sPoolSem/gLockThid/gnLock records corroborate these types. */
+static struct MemListNode* lbl_80345250;
+static s32 lbl_80345254;
+static volatile s32 lbl_80345258;
+static volatile s32 lbl_8034525C;
+static s32 lbl_80345260;
 extern char lbl_80349300[8];
 
 #define MEMPOOL_STRINGS                                                       \
@@ -153,7 +156,6 @@ u32 pool_new(MemList* list) {
 /* 0x800D5390  coalesce free blocks (qsort) */
 s32 pool_garbage_collect(MemPoolLists* pool,
                          s32 (*gapCallback)(MemListNode*, u32)) {
-    MemListNode** entries = gcSort;
     s32 result;
     s32 count;
     MemListNode* node;
@@ -162,16 +164,17 @@ s32 pool_garbage_collect(MemPoolLists* pool,
 
     result = 1;
     count = 0;
-    if ((node = pool->secondary.head) != NULL) {
+    node = pool->secondary.head;
+    if (node != NULL) {
         do {
-            entries[count++] = node;
+            gcSort[count++] = node;
             node = node->next;
         } while (node != pool->secondary.head);
     }
 
-    qsort(entries, count, sizeof(MemListNode*), pool_query);
+    qsort(gcSort, count, sizeof(MemListNode*), pool_query);
 
-    currentEnd = entries[0]->address;
+    currentEnd = gcSort[0]->address;
     node = pool->primary.head;
     if (node != NULL) {
         do {
@@ -183,12 +186,12 @@ s32 pool_garbage_collect(MemPoolLists* pool,
     }
 
     for (i = 0; i < count; i++) {
-        if (entries[i]->address > currentEnd &&
-            gapCallback(entries[i], currentEnd) != 0) {
+        if (gcSort[i]->address > currentEnd &&
+            gapCallback(gcSort[i], currentEnd) != 0) {
             result = 0;
             break;
         }
-        currentEnd += entries[i]->size;
+        currentEnd += gcSort[i]->size;
     }
     return result;
 }
@@ -236,7 +239,7 @@ static inline MemListNode* pool_new_block(void)
     s32 i;
 
     node = NULL;
-    for (i = 0; i < (s32)lbl_80345254; i++) {
+    for (i = 0; i < lbl_80345254; i++) {
         MemListNode* candidate = &lbl_80345250[i];
 
         if (candidate->address == 0) {

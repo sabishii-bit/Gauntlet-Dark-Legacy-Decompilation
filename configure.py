@@ -500,7 +500,8 @@ config.libs = [
             Object(Matching, "game/audio/buffile.c", cflags=cflags_demo),
             # Native code/data/EH exact; external driver-state ownership remains open.
             Object(Matching, "game/audio/dcsdrv.c", cflags=cflags_demo),
-            Object(NonMatching, "game/audio/mempool.c", cflags=cflags_demo),
+            # Stock native code/data/BSS/EH and the complete source-selected link are exact.
+            Object(Matching, "game/audio/mempool.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/adstream.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/g3dpad.c", cflags=cflags_demo),
             Object(NonMatching, "game/movie/movieplayer.cpp", cflags=cflags_demo),
