@@ -55,6 +55,24 @@ static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
 static f32  LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                          Vec* pointA, Vec* dirA, f32 lenB, f32 lenA);
 static f32  PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out);
+/* Four-refinement form from MSL math_ppc.h's sqrtf_accurate. The volatile
+ * float is its single-precision rounding round-trip, not stack filler.
+ * Keeping the inline argument/local boundary recovers the caller's value
+ * lifetimes. LineLineDist3D2D's older expansion is still unresolved below. */
+static inline f32 sqrtf_accurate(f32 x) {
+    volatile f32 y;
+    if (x > 0.0f) {
+        f64 guess = __frsqrte((f64)x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        y = (f32)(x * guess);
+        return y;
+    }
+    return x;
+}
+
 static inline f32 btri_fabsf(f32 x) {
     *(u32*)&x &= 0x7fffffff;
     return x;
@@ -846,54 +864,41 @@ done:
 #pragma opt_propagation reset
 
 /* ------------------------------------------------------------------ */
-/* 2D (xz-plane) distance from the segment [p0,p1] to a point, writing */
-/* the closest point to *out.  Uses the PPC frsqrte + Newton-Raphson   */
-/* reciprocal-square-root idiom for the segment length.                */
+/* Squared XZ distance from point p0 to the segment starting at p1     */
+/* with displacement dir, writing the closest point to *out. The     */
+/* normalization uses the four-refinement square-root inline above.   */
 /* ------------------------------------------------------------------ */
 #pragma opt_propagation off
 static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
-    u8 unused[40];
-    struct {
-        f32 pad;
-        volatile f32 result;
-    } sqrtLocal;
-    register f32 length;
-    f64 guess;
+    Vec dirA;
+    f32 length;
     f32 inverse;
-    f32 nx;
-    f32 ny;
-    f32 nz;
     f32 distance;
 
-    length = dir->x * dir->x + dir->z * dir->z;
-    if (length > 0.0f) {
-        guess = __frsqrte((f64)length);
-
-        guess = (0.5) * guess *
-                ((3.0) - guess * guess * length);
-        guess = (0.5) * guess *
-                ((3.0) - guess * guess * length);
-        guess = (0.5) * guess *
-                ((3.0) - guess * guess * length);
-        sqrtLocal.result = (f32)(length *
-                                 ((0.5) * guess *
-                                  ((3.0) - guess * guess * length)));
-        length = sqrtLocal.result;
-    }
+    length = sqrtf_accurate(dir->x * dir->x + dir->z * dir->z);
     if (0.0 == (f64)length) {
-        f32 dx = p1->x - p0->x;
-        f32 dz = p1->z - p0->z;
+        Vec dvec;
+        dvec.x = p1->x - p0->x;
+        dvec.z = p1->z - p0->z;
         out->x = p1->x;
         out->y = p1->y;
         out->z = p1->z;
-        return dx * dx + dz * dz;
+        return dvec.x * dvec.x + dvec.z * dvec.z;
     }
 
     inverse = (f32)((1.0) / (f64)length);
-    nx = dir->x * inverse;
-    ny = dir->y * inverse;
-    nz = dir->z * inverse;
-    distance = nx * (p0->x - p1->x) + nz * (p0->z - p1->z);
+    dirA.x = dir->x * inverse;
+    dirA.y = dir->y * inverse;
+    dirA.z = dir->z * inverse;
+    {
+        /* The segment projection starts with a three-dimensional vector
+         * subtraction, then uses only its XZ components. */
+        Vec dvec;
+        dvec.x = p0->x - p1->x;
+        dvec.y = p0->y - p1->y;
+        dvec.z = p0->z - p1->z;
+        distance = dirA.x * dvec.x + dirA.z * dvec.z;
+    }
     if (distance < 0.0f) {
         out->x = p1->x;
         out->y = p1->y;
@@ -903,9 +908,9 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
         out->y = dir->y + p1->y;
         out->z = dir->z + p1->z;
     } else {
-        out->x = nx * distance + p1->x;
-        out->y = ny * distance + p1->y;
-        out->z = nz * distance + p1->z;
+        out->x = dirA.x * distance + p1->x;
+        out->y = dirA.y * distance + p1->y;
+        out->z = dirA.z * distance + p1->z;
     }
 
     {
