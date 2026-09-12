@@ -1,5 +1,6 @@
 /*
- * dcsdrv.c - DCS driver front-end (DCS_PS2.OBJ aud_* layer), GameCube port.
+ * dcsdrv.c - DCS driver request/worker layer, GameCube port.
+ * Xbox DCS.OBJ corroborates the file-open and bank-init descriptors below.
  *
  * Text 0x800D4960-0x800D5260.  Owns driver init, the per-frame poll, and the
  * numeric command dispatcher that game code (game/audio/soundmgr.c) posts
@@ -11,23 +12,39 @@
 #include "types.h"
 #include "game/dcs.h"
 
+/* FileBufStart consumes these three words at offsets 0, 4 and 8. */
+typedef struct FILEBUF_OPEN {
+    char* pathname;
+    u32 start;
+    u32 length;
+} FILEBUF_OPEN;
+
+/* GC dcsBankUnload consumes +0/+4 as numeric ARAM address/size and +28 as
+ * duckScale. addrEE is retained as the stored RPC address word on this port;
+ * unlike the Xbox pointer spelling, neither address is dereferenced here.
+ * The two reserved spans are present in the BankInitInfo PDB field records. */
+typedef struct BankInitInfo {
+    u32 addrSPU;
+    s32 sizeSPU;
+    u8 pad[8];
+    u32 addrEE;
+    u8 pad1[4];
+    s32 padPools;
+    s32 duckScale;
+} BankInitInfo;
+
+/* GC-verified address-range view, not a recovered original aggregate:
+ * fileopen is 12 bytes and bankInfo is a separate 32-byte descriptor.
+ * Ownership of the following pathname buffers remains unrecovered. */
 typedef struct DcsDriverState {
-    void* streamFile;
-    s32 streamArg0;
-    s32 streamArg1;
-    s32 bank;
-    s32 memoryTop;
-    u8 pad14[8];
-    s32 initArg0;
-    u8 pad20[4];
-    s32 initArg1;
-    s32 initArg2;
+    FILEBUF_OPEN file;
+    BankInitInfo bank;
     char streamPath[240];
     char streamName[240];
 } DcsDriverState;
 
 extern DcsDriverState lbl_8031E0E0;
-extern u8 lbl_8031E0EC[];
+extern BankInitInfo lbl_8031E0EC;
 extern char lbl_80117268[];
 extern u8 lbl_80345238;
 extern u32 lbl_8034523C;
@@ -80,10 +97,10 @@ void dcsInit(void)
         mathStub1b__Fv(i | 0xA80, 0x3FFF);
     }
     pool_init(0x2000);
-    state->bank = 0x4000;
-    state->memoryTop = 0x9D8000;
-    state->initArg0 = 0;
-    state->initArg1 = 0;
+    state->bank.addrSPU = 0x4000;
+    state->bank.sizeSPU = 0x9D8000;
+    state->bank.addrEE = 0;
+    state->bank.padPools = 0;
 }
 
 /* 0x800D49E4  per-frame driver tick ("dcs_driver") */
@@ -103,7 +120,7 @@ void dcsMain(void)
         case 1:
         case 19:
             AudioStillLoading();
-            dcsBankUnload(lbl_8031E0EC);
+            dcsBankUnload(&lbl_8031E0EC);
             if (lbl_80345240 != 0) {
                 AdsSetVolumeDirect(lbl_80345240, 0);
                 ads = lbl_80345240;
@@ -195,9 +212,9 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
 
     switch (request) {
     case 19:
-        state->initArg0 = input[0];
-        state->initArg1 = input[2];
-        state->initArg2 = input[3];
+        state->bank.addrEE = input[0];
+        state->bank.padPools = input[2];
+        state->bank.duckScale = input[3];
 
     case 1:
         dcsRequestReset();
@@ -207,7 +224,7 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
 
     case 25:
         dcsAllocReset(output + 5, output + 4, output + 3);
-        output[2] = state->memoryTop - output[5];
+        output[2] = state->bank.sizeSPU - output[5];
         output[1] = 0;
         break;
 
@@ -234,9 +251,9 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
                input[1] < 240 ? input[1] : 240);
         strcpy(state->streamPath, lbl_80117294);
         strcat(state->streamPath, state->streamName);
-        state->streamFile = state->streamPath;
-        state->streamArg0 = input[2];
-        state->streamArg1 = input[3];
+        state->file.pathname = state->streamPath;
+        state->file.start = input[2];
+        state->file.length = input[3];
         output[0] = 0;
         output[1] = 1;
         sPending = -1;
@@ -351,9 +368,9 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
                value < 240 ? value : 240);
         strcpy(state->streamPath, lbl_80117294);
         strcat(state->streamPath, state->streamName);
-        state->streamFile = state->streamPath;
-        state->streamArg0 = input[2];
-        state->streamArg1 = input[3];
+        state->file.pathname = state->streamPath;
+        state->file.start = input[2];
+        state->file.length = input[3];
         if (lbl_80345240 == 0) {
             AdsInit(0x9DC000, 0x2000, 2);
             lbl_80345240 = AdsNew(0x40000);
@@ -386,7 +403,7 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
             lbl_80345240 = AdsNew(input[0] << 2);
             if (lbl_80345240 != 0) {
                 AdsSetVolume(lbl_80345240, 0x1FFF1FFF);
-                state->streamFile = 0;
+                state->file.pathname = 0;
                 output[0] = (s32)FileBufStart(state) + 0x40;
             } else {
                 output[0] = -4;
