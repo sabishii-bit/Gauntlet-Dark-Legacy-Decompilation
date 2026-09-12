@@ -21,14 +21,9 @@
  * DoPlayerAction's GC-only dbgTextPrintfCol debug block; the action-name
  * pointer table lbl_80126C68 it prints from is owned by an earlier TU.
  *
- * Status: NonMatching.  InitActions / RequestEnemyAction / PlayerAttackType
- * are full translations; the two giant dispatchers are documented skeletons
- * (DoEnemyAction: 34-case switch on enemy action via jumptable_801270EC +
- * three inner jumptables, SFX attach/detach via SfxSetParent/
- * SfxDeleteParented, gCurLevel checks; DoPlayerAction: player anim-action
- * sequencer over p->seq/p->nextSeq with PlayerAttackType classification,
- * three jumptables 0x80127174/80127384/80127540, atree frame stepping via
- * DoAnimateTree, mb_tree node color pokes MBTreeClearFlags/MBTreeSetFlags).
+ * Status: NonMatching. All five functions are translated. The enemy and
+ * player dispatchers retain native instruction differences; the configured
+ * build still links the extracted fallback object for this TU.
  */
 #include "types.h"
 #include "game/enemy.h"
@@ -77,7 +72,7 @@ typedef struct ENEMYACT {
 s32 AtreeFindSeq(ATREE* atree, char* name);
 void SfxSetParent(void* sfx, void* parent);
 void SfxDeleteParented(void* parent, s32 a, s32 b);
-s32 AnimateATree(void* node, s32 seq, s32 mode);
+s32 AnimateATree(atree* node, s32 seq, s32 mode);
 u32 DoAnimateTree(f32 t, void* node, s32 seq, u32 frame, s32 mode, s32 e);
 s32 StartEnemyAtkFX(void* a, s32 b);
 void MBTreeSetFlags(void* obj, u32 flags, s32 recurse);
@@ -88,7 +83,7 @@ extern u64 gControllerButtons; /* 0x803445C8 config-word pair */
 extern level_data* gCurLevel;   /* game/leveldata.h; 0x8034483C */
 extern char* lbl_80126C68[]; /* action-name table (owned by an earlier TU) */
 
-s32 DoEnemyAction(void* enemy);
+enemy_action_type DoEnemyAction(Enemy* enemy);
 void DoPlayerAction(void* player);
 s32 PlayerAttackType(s32 seq);
 void InitActions(ATREE* atree, ACTIONDEF* defs, char** names);
@@ -106,16 +101,12 @@ s32 e_actpri[33] = {
  * next action id, substitute fallbacks when the sequence table has no entry,
  * step the atree via AnimateATree, then run the SFX attach/detach side
  * effects and the 0x18..0x1A walk-cycle timer. */
-s32 DoEnemyAction(void* enemy)
+enemy_action_type DoEnemyAction(Enemy* en)
 {
-    s32* e = (s32*)enemy;
-    Enemy* en = (Enemy*)enemy;
-    f32* ef = (f32*)enemy;
-    animinfo* e70 = (animinfo*)((u8*)e + 0x70); /* == &enemy->atree.animinfo: repeat (interruptible
-                                 flag) at +0x34, numframes at +0x10 */
-    s32* defs = e + 0x35; /* ACTIONDEF[34] at +0xD4 */
+    animinfo* e70 = &en->atree.animinfo;
+    ACTIONANIM* defs = en->actionlist;
     s32 next = en->daction;   /* +0xD0 requested action */
-    s32* node;            /* atree node at +0x6C */
+    atree* node;          /* embedded playback instance at +0x6C */
     s32 act;
     s32 cur;
     s32 mode = 2;
@@ -125,7 +116,7 @@ s32 DoEnemyAction(void* enemy)
     s32 result;
     s32 type;
 
-    node = (s32*)&en->atree;
+    node = &en->atree;
     cur = en->action;        /* +0xCC current action */
     act = next;
     if (act >= E_HIT_REACT1) {
@@ -139,7 +130,7 @@ s32 DoEnemyAction(void* enemy)
         mode = 0;
         interruptible = 0;
         if (type == E_TROLL || type == E_GRUNT || type == E_LIZARDMAN || type == E_SORCERER) {
-            if (defs[E_WALK * 2] >= 0) {
+            if (defs[E_WALK].animidx >= 0) {
                 act = E_WALK;
             } else {
                 act = E_RUN;
@@ -157,10 +148,10 @@ s32 DoEnemyAction(void* enemy)
         }
         if (en->type == E_GARM2) {
             mode = 2;
-        } else if (next == E_WALK && defs[E_READYTOWALK * 2] >= 0) {
+        } else if (next == E_WALK && defs[E_READYTOWALK].animidx >= 0) {
             act = E_READYTOWALK;
             mode = 0;
-        } else if (next == E_RUN && defs[E_READYTORUN * 2] >= 0) {
+        } else if (next == E_RUN && defs[E_READYTORUN].animidx >= 0) {
             act = E_READYTORUN;
             mode = 0;
         } else if (next == E_ATTACK || next == E_ATTACK2 || next == E_ATTACK_PWR) {
@@ -173,7 +164,7 @@ s32 DoEnemyAction(void* enemy)
         } else {
             mode = 0;
             interruptible = 0;
-            if (defs[E_RUN * 2] >= 0) {
+            if (defs[E_RUN].animidx >= 0) {
                 act = E_RUN;
             } else {
                 act = E_WALK;
@@ -186,7 +177,7 @@ s32 DoEnemyAction(void* enemy)
         } else {
             mode = 0;
             interruptible = 0;
-            if (defs[E_WALK * 2] >= 0) {
+            if (defs[E_WALK].animidx >= 0) {
                 act = E_WALK;
             } else {
                 act = E_RUN;
@@ -213,14 +204,14 @@ s32 DoEnemyAction(void* enemy)
             act = E_READY;
         }
         if (next == E_READY) {
-            if (defs[E_WALKTOREADY * 2] >= 0) {
+            if (defs[E_WALKTOREADY].animidx >= 0) {
                 act = E_WALKTOREADY;
             }
             mode = 0;
         }
         break;
     case E_RUN:
-        if (next == E_READY && defs[E_RUNTOREADY * 2] >= 0) {
+        if (next == E_READY && defs[E_RUNTOREADY].animidx >= 0) {
             act = E_RUNTOREADY;
             mode = 0;
         }
@@ -232,7 +223,7 @@ s32 DoEnemyAction(void* enemy)
     case E_HIT_REACT2:
         mode = 0;
         interruptible = 0;
-        if (defs[E_GETUP * 2] >= 0) {
+        if (defs[E_GETUP].animidx >= 0) {
             act = E_GETUP;
         }
         break;
@@ -267,7 +258,7 @@ s32 DoEnemyAction(void* enemy)
         if (next >= E_HIT_REACT1) {
             mode = 2;
         } else {
-            if (defs[E_ATTACK2 * 2] >= 0) {
+            if (defs[E_ATTACK2].animidx >= 0) {
                 act = E_ATTACK2;
             } else {
                 if (next == E_ATTACK) {
@@ -363,7 +354,7 @@ s32 DoEnemyAction(void* enemy)
         }
         break;
     case E_THROW:
-        if (defs[E_THROW * 2] < 0) {
+        if (defs[E_THROW].animidx < 0) {
             act = E_THROW2;
             cur = E_THROW2;
         }
@@ -408,43 +399,43 @@ s32 DoEnemyAction(void* enemy)
     case E_ATTACK_PWR:
     case E_ATTACK4:
     case E_ATTACK5:
-        if (defs[act * 2] < 0) {
+        if (defs[act].animidx < 0) {
             act = E_ATTACK;
         }
         break;
     case E_WALK:
     case E_READYTORUN:
-        if (defs[act * 2] < 0) {
+        if (defs[act].animidx < 0) {
             act = E_RUN;
         }
         break;
     case E_RUN:
     case E_READYTOWALK:
-        if (defs[act * 2] < 0) {
+        if (defs[act].animidx < 0) {
             act = E_WALK;
         }
         break;
     case E_WALKTOREADY:
     case E_RUNTOREADY:
     case E_THROWTOREADY:
-        if (defs[act * 2] < 0) {
+        if (defs[act].animidx < 0) {
             act = E_READY;
         }
         break;
     case E_THROW2:
-        if (defs[act * 2] < 0) {
+        if (defs[act].animidx < 0) {
             act = E_THROW;
         }
         break;
     }
 
-    seq = defs[act * 2];
+    seq = defs[act].animidx;
     if (seq < 0 && act == E_DYING) {
-        seq = defs[0x3A];
+        seq = defs[E_HIT_REACT2].animidx;
     }
     if (seq < 0) {
-        if (defs[0] >= 0) {
-            seq = defs[0];
+        if (defs[E_READY].animidx >= 0) {
+            seq = defs[E_READY].animidx;
         } else {
             seq = 0;
         }
@@ -489,12 +480,12 @@ s32 DoEnemyAction(void* enemy)
         case E_ATTACK:
         case E_ATTACK2:
             if (en->type == E_GARM2) {
-                SfxSetParent((void*)StartEnemyAtkFX(0, 0), (void*)e[0x19]);
+                SfxSetParent((void*)StartEnemyAtkFX(0, 0), en->objgrp.node);
             }
             break;
         case E_ATTACK_PWR:
             if (en->type == E_GARM2) {
-                SfxSetParent((void*)StartEnemyAtkFX(0, 1), (void*)e[0x19]);
+                SfxSetParent((void*)StartEnemyAtkFX(0, 1), en->objgrp.node);
             }
             break;
         case E_ATTACK_R:
@@ -505,7 +496,7 @@ s32 DoEnemyAction(void* enemy)
             break;
         default:
             if (en->type == E_GARM2) {
-                SfxDeleteParented((void*)e[0x19], 0, -1);
+                SfxDeleteParented(en->objgrp.node, 0, -1);
             }
             break;
         }
