@@ -622,9 +622,18 @@ typedef struct MBFontDef {    /* MBNewFont input descriptor */
     MBGlyphDef* glyphs; /* 0x8 */
 } MBFontDef;
 
-typedef struct MBTexHdr { u8 _p[32]; u16 w; u16 h; } MBTexHdr;
+/* GC texture definition: MBOX_FindTexture_Sub searches 36-byte records,
+ * texcmp compares the first 30 bytes, and texidxcmp loads the signed index
+ * at +30. MBNewFont reads unsigned dimensions at +32/+34. Xbox TEXDEF
+ * (PDB 0x3AD3) corroborates the complete layout. */
+typedef struct MBTexHdr {
+    char Name[30];
+    s16 Index;
+    u16 Width;
+    u16 Height;
+} MBTexHdr;
 
-extern MBTexHdr* MBOX_FindTexture_Err(char* name, MBTexHdr** out, s32 err);
+extern s32 MBOX_FindTexture_Err(const char* name, void** out, s32 err);
 
 /* 0x800B66E8 - MBNewFont : register a font.  Finds the texture, sizes the
  * glyph-cell table from the highest glyph code, builds one projected blit
@@ -632,7 +641,7 @@ extern MBTexHdr* MBOX_FindTexture_Err(char* name, MBTexHdr** out, s32 err);
  * the font table.  Returns the new font index. */
 int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
 {
-    MBTexHdr* tex = 0;
+    void* tex = 0;
     f32 su = 0.125f;
     f32 sv = su;
     MBFont* fnt;
@@ -651,8 +660,8 @@ int MBNewFont(MBFontDef* def, int space, int nglyphs, int perRow)
         FatalError("MBNewFont: MBNewBlit failed", 0x800000);
     }
     if (tex != 0) {
-        su = 1.0 / tex->w;
-        sv = 1.0 / tex->h;
+        su = 1.0 / ((MBTexHdr*)tex)->Width;
+        sv = 1.0 / ((MBTexHdr*)tex)->Height;
     }
     maxCode = 0;
     g = def->glyphs;
