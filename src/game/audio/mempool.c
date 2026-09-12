@@ -19,11 +19,14 @@
 extern s32 lbl_80345248;
 extern u32 lbl_8031EAF0[];
 struct MemListNode;
-extern struct MemListNode* lbl_80345250;
-extern u32 lbl_80345254;
-extern u32 lbl_80345258;
-extern volatile s32 lbl_8034525C;
-extern s32 lbl_80345260;
+/* File-local pool state: block table/count, semaphore, owner and lock depth.
+ * GC accesses five four-byte objects at 0x80345250..0x80345264; MEMPOOL.OBJ's
+ * gBlk/gBlk_z/sPoolSem/gLockThid/gnLock records corroborate these types. */
+static struct MemListNode* lbl_80345250;
+static s32 lbl_80345254;
+static volatile s32 lbl_80345258;
+static volatile s32 lbl_8034525C;
+static s32 lbl_80345260;
 extern char lbl_80349300[8];
 
 #define MEMPOOL_STRINGS                                                       \
@@ -236,7 +239,7 @@ static inline MemListNode* pool_new_block(void)
     s32 i;
 
     node = NULL;
-    for (i = 0; i < (s32)lbl_80345254; i++) {
+    for (i = 0; i < lbl_80345254; i++) {
         MemListNode* candidate = &lbl_80345250[i];
 
         if (candidate->address == 0) {
