@@ -53,9 +53,12 @@ void qsort(void* base, u32 count, u32 width,
            s32 (*compare)(const void*, const void*));
 s32 pool_query(const void* lhs, const void* rhs);
 
+/* GC uses these numeric byte addresses for ARAM, including ARQ destinations.
+ * Xbox _memblk names the corresponding fields addr/size, but its pointer type
+ * does not establish a CPU-accessible pointer for this device-address pool. */
 typedef struct MemListNode {
-    u32 flags;
-    u32 key;
+    u32 address;
+    u32 size;
     struct MemListNode* prev;
     struct MemListNode* next;
 } MemListNode;
@@ -136,7 +139,7 @@ u32 pool_new(MemList* list) {
         node = NULL;
     }
     if (node != NULL) {
-        result = node->key;
+        result = node->size;
     }
 
     if (--lbl_80345260 <= 0) {
@@ -168,24 +171,24 @@ s32 pool_garbage_collect(MemPoolLists* pool,
 
     qsort(entries, count, sizeof(MemListNode*), pool_query);
 
-    currentEnd = entries[0]->flags;
+    currentEnd = entries[0]->address;
     node = pool->primary.head;
     if (node != NULL) {
         do {
-            if (currentEnd > node->flags) {
-                currentEnd = node->flags;
+            if (currentEnd > node->address) {
+                currentEnd = node->address;
             }
             node = node->next;
         } while (node != pool->primary.head);
     }
 
     for (i = 0; i < count; i++) {
-        if (entries[i]->flags > currentEnd &&
+        if (entries[i]->address > currentEnd &&
             gapCallback(entries[i], currentEnd) != 0) {
             result = 0;
             break;
         }
-        currentEnd += entries[i]->key;
+        currentEnd += entries[i]->size;
     }
     return result;
 }
@@ -236,7 +239,7 @@ static inline MemListNode* pool_new_block(void)
     for (i = 0; i < (s32)lbl_80345254; i++) {
         MemListNode* candidate = &lbl_80345250[i];
 
-        if (candidate->flags == 0) {
+        if (candidate->address == 0) {
             node = candidate;
             break;
         }
@@ -248,18 +251,23 @@ static inline MemListNode* pool_new_block(void)
     return node;
 }
 
+/* The pointer-equality casts below remain reconstruction debt: ordinary
+ * unsigned comparisons transpose two native pool_alloc operands. They do not
+ * establish that an ARAM address can be dereferenced by the CPU. */
 static inline s32 pool_merge_adjacent(MemPoolLists* pool,
                                       MemListNode* candidate,
-                                      MemListNode* node, s32 merged)
+                                      MemListNode* node)
 {
-    if ((void*)(candidate->flags + candidate->key) == (void*)node->flags) {
-        node->flags = candidate->flags;
-        node->key += candidate->key;
+    s32 merged = 0;
+
+    if ((void*)(candidate->address + candidate->size) == (void*)node->address) {
+        node->address = candidate->address;
+        node->size += candidate->size;
         list_remove(&pool->primary, candidate);
         merged = 1;
     } else {
-        if ((void*)(node->flags + node->key) == (void*)candidate->flags) {
-            node->key += candidate->key;
+        if ((void*)(node->address + node->size) == (void*)candidate->address) {
+            node->size += candidate->size;
             list_remove(&pool->primary, candidate);
             merged = 1;
         }
@@ -278,7 +286,7 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     s32 remaining;
 
     result = NULL;
-    if (node->flags == 0) {
+    if (node->address == 0) {
         return NULL;
     }
 
@@ -301,13 +309,13 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
             if (scan != pool->primary.head) {
                 scan = scan->prev;
             }
-            merged = pool_merge_adjacent(pool, candidate, node, 0);
+            merged = pool_merge_adjacent(pool, candidate, node);
 
             if (merged != 0) {
                 if (result == NULL) {
                     result = candidate;
                 } else {
-                    candidate->flags = 0;
+                    candidate->address = 0;
                 }
                 remaining--;
             }
@@ -319,11 +327,11 @@ MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node) {
     }
 
     if (result != NULL) {
-        result->flags = node->flags;
-        result->key = node->key;
+        result->address = node->address;
+        result->size = node->size;
         list_insert_size(&pool->primary, result);
-        node->flags = 0;
-        node->key = 0;
+        node->address = 0;
+        node->size = 0;
         list_verify(&pool->secondary);
         if (node == node->next) {
             pool->secondary.head = NULL;
@@ -367,9 +375,9 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     result = 0;
     totalSize = 0;
     lastSize = 0;
-    if (node->flags != 0) {
+    if (node->address != 0) {
         printf(MEMPOOL_STRINGS + 32);
-        printf(MEMPOOL_STRINGS + 196, node->flags);
+        printf(MEMPOOL_STRINGS + 196, node->address);
         return 0;
     }
     if (size == 0) {
@@ -396,12 +404,12 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
     if (head != NULL) {
         endAddress = address + alignedSize;
         do {
-            if (freeNode->flags <= address &&
-                freeNode->flags + freeNode->key > endAddress) {
+            if (freeNode->address <= address &&
+                freeNode->address + freeNode->size > endAddress) {
                 u32 blockSize;
 
-                node->key = alignedSize;
-                node->flags = address;
+                node->size = alignedSize;
+                node->address = address;
                 list_insert_tail(&pool->secondary, node);
                 pool->secondary.head = node;
 
@@ -417,31 +425,31 @@ s32 pool_alloc_at(MemPoolLists* pool, MemListNode* node, s32 size,
                 }
                 list_verify(&pool->primary);
 
-                blockSize = freeNode->key;
+                blockSize = freeNode->size;
                 if (blockSize == alignedSize) {
-                    freeNode->flags = 0;
-                } else if (freeNode->flags == address) {
-                    freeNode->flags += alignedSize;
-                    freeNode->key -= alignedSize;
+                    freeNode->address = 0;
+                } else if (freeNode->address == address) {
+                    freeNode->address += alignedSize;
+                    freeNode->size -= alignedSize;
                     list_insert_size(&pool->primary, freeNode);
                 } else {
-                    freeNode->key = address - freeNode->flags;
+                    freeNode->size = address - freeNode->address;
                     remainderSize = blockSize - alignedSize;
-                    remainderSize -= freeNode->key;
+                    remainderSize -= freeNode->size;
                     list_insert_size(&pool->primary, freeNode);
                     if (remainderSize != 0) {
                         remainderNode = pool_new_block();
                         if (remainderNode == NULL) {
                             break;
                         }
-                        remainderNode->flags = endAddress;
-                        remainderNode->key = remainderSize;
+                        remainderNode->address = endAddress;
+                        remainderNode->size = remainderSize;
                     }
                 }
                 result = alignedSize;
                 break;
             }
-            blockSize = freeNode->key;
+            blockSize = freeNode->size;
             freeNode = freeNode->next;
             lastSize = blockSize;
             totalSize += blockSize;
@@ -476,9 +484,9 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
     result = 0;
     totalSize = 0;
     lastSize = 0;
-    if (node->flags != 0) {
+    if (node->address != 0) {
         printf(MEMPOOL_STRINGS + 32);
-        printf(MEMPOOL_STRINGS + 196, node->flags);
+        printf(MEMPOOL_STRINGS + 196, node->address);
         return 0;
     }
     if (size == 0) {
@@ -504,17 +512,17 @@ s32 pool_dispose_and_alloc(MemPoolLists* pool, MemListNode* node, s32 size) {
     freeNode = head;
     if (head != NULL) {
         do {
-            blockSize = freeNode->key;
+            blockSize = freeNode->size;
             if (blockSize >= alignedSize) {
-                node->key = alignedSize;
-                node->flags = freeNode->flags;
+                node->size = alignedSize;
+                node->address = freeNode->address;
                 list_remove(&pool->primary, freeNode);
-                if (freeNode->key > alignedSize) {
-                    freeNode->flags += alignedSize;
-                    freeNode->key -= alignedSize;
+                if (freeNode->size > alignedSize) {
+                    freeNode->address += alignedSize;
+                    freeNode->size -= alignedSize;
                     list_insert_size(&pool->primary, freeNode);
                 } else {
-                    freeNode->flags = 0;
+                    freeNode->address = 0;
                 }
                 list_insert_tail(&pool->secondary, node);
                 pool->secondary.head = node;
@@ -567,7 +575,7 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
             next = node->next;
             node->next = NULL;
             node->prev = NULL;
-            node->flags = 0;
+            node->address = 0;
             node = next;
             if (node == NULL) {
                 break;
@@ -581,7 +589,7 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
     if (node != NULL) {
         next = node->next;
         while (next != NULL && next != pool->primary.head) {
-            node->flags = (u32)freeNode;
+            node->address = (u32)freeNode;
             node = next;
             next = next->next;
         }
@@ -593,8 +601,8 @@ s32 pool_dispose(MemPoolLists* pool, u32 address, u32 size,
     if (node == NULL) {
         pool->primary.head = NULL;
     } else {
-        node->flags = address;
-        node->key = size;
+        node->address = address;
+        node->size = size;
         node->next = node;
         node->prev = node;
         pool->primary.head = node;
@@ -646,7 +654,7 @@ void list_insert_size(MemList* list, MemListNode* node) {
             node->next = node;
             list->head = node;
         } else {
-            while (node->key > (current = *link)->key) {
+            while (node->size > (current = *link)->size) {
                 link = &current->next;
                 if (*link == head) {
                     break;
@@ -725,7 +733,7 @@ void list_verify(MemList* list) {
 }
 
 /* 0x800D621C  qsort comparator for pool_garbage_collect: order block
- * entries by start offset (flags word). Final fn of MEMPOOL.OBJ. */
+ * entries by numeric start address. Final fn of MEMPOOL.OBJ. */
 s32 pool_query(const void* lhs, const void* rhs) {
-    return (s32)((*(MemListNode**)lhs)->flags - (*(MemListNode**)rhs)->flags);
+    return (s32)((*(MemListNode**)lhs)->address - (*(MemListNode**)rhs)->address);
 }
