@@ -587,8 +587,8 @@ extern void* fn_80045C30(Enemy* e, f32 rad, f32 arg, f32* oldpos, f32* trans,
                          s32 collided);
 extern void MBNodeSetParent(void* node, void* parent);
 extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
-extern s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c,
-                        s32 d);
+s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
+                 f32* effect_position, f32* hit_direction, s32 play_effects);
 extern s32 lbl_8034473C;
 extern s32 AddExp(s32 player, s32 amount, s32 mode);
 extern s32 damage_player(s32 player, f32 amount, s32 mode, u32 flags,
@@ -626,7 +626,8 @@ extern f32 cos(f32 x);
 extern void fn_8009DDCC(f32* pos);   /* skeleton assemble fx */
 extern void fn_8009DD9C(f32* pos);   /* skeleton attack fx */
 extern void fn_8009DD6C(f32* pos);   /* dog pounce-ready fx */
-s32 damage_enemy(Enemy* e, f32 amount, s32 dtype, s32 a, s32 b, s32 c, s32 d);
+s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
+                 f32* effect_position, f32* hit_direction, s32 play_effects);
 extern void fn_8009E03C(Enemy* e);   /* skeleton bone-toss fx */
 extern s32 fn_8004C8CC(f32* pos, s32 index);   /* wall/object clearance probe */
 extern s32 FastWallCollide(f32* from, f32* to, void* hit, s32 mode); /* ray wall probe */
@@ -893,7 +894,8 @@ void fn_8004E448(Enemy* enemy, f32* aimPosition, f32* pos);
 void update_enemy_milestone(Enemy* enemy);
 void adjust_msidx(Enemy* enemy);
 void enemy_update(void);
-s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type, s32 effect_position_arg, s32 hit_direction_arg, s32 play_effects);
+s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
+                 f32* effect_position, f32* hit_direction, s32 play_effects);
 void kill_enemy(s32 index);
 void fn_8004F1DC(Enemy* enemy);
 void uncouple_enemy(s32 index);
@@ -1835,15 +1837,15 @@ void EnemyWorldDamage(Enemy* e, void* wobj, f32* oldpos, f32* hitnrm)
     flags &= 0xF0000;
     switch (flags) {
     case 0x10000:
-        damage_enemy(e, 5.0f, -1, 0, (s32)hitnrm, (s32)dir, 1);
+        damage_enemy(e, 5.0f, -1, 0, hitnrm, dir, 1);
         break;
     case 0x20000:
-        damage_enemy(e, 5.0f, -1, 16, (s32)hitnrm, (s32)dir, 1);
+        damage_enemy(e, 5.0f, -1, 16, hitnrm, dir, 1);
         break;
     case 0x30000:
     case 0x40000:
     case 0x50000:
-        damage_enemy(e, 15.0f, -1, 32, (s32)hitnrm, (s32)dir, 1);
+        damage_enemy(e, 15.0f, -1, 32, hitnrm, dir, 1);
         break;
     case 0x60000:
         break;
@@ -5869,8 +5871,8 @@ void fn_8004DF58(Enemy* enemy)
                 player->effectpos[2] =
                     healedPosition[2] - healedPosition[2];
                 damage_enemy(enemy, amount, -1, 0x200,
-                             (s32)player->effectpos,
-                             (s32)healedPosition, 1);
+                             player->effectpos,
+                             healedPosition, 1);
                 heal_player(player, amount);
                 amount = 0.0f;
                 playerFlags = 0x40000000;
@@ -5886,8 +5888,8 @@ void fn_8004DF58(Enemy* enemy)
                 player->effectpos[2] =
                     reflectedPosition[2] - reflectedPosition[2];
                 damage_enemy(enemy, amount, -1, 0,
-                             (s32)player->effectpos,
-                             (s32)reflectedPosition, 1);
+                             player->effectpos,
+                             reflectedPosition, 1);
                 amount = 0.0f;
                 playerFlags = 0x40000000;
                 StartGemFX(player->col_pos, 1);
@@ -6097,12 +6099,9 @@ done:
 /* Apply damage and accumulated hit direction, then run the enemy-specific
  * heal, reaction, death, sound, skin and burst-effect cascades. */
 s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
-                 s32 effect_position_arg, s32 hit_direction_arg,
-                 s32 play_effects)
+                 f32* effect_position, f32* hit_direction, s32 play_effects)
 {
     Player* player = NULL;
-    f32* effect_position = (f32*)effect_position_arg;
-    f32* hit_direction = (f32*)hit_direction_arg;
     f32 old_health = e->health;
     f32 effect_pos[3];
     u8 unused1[4];
