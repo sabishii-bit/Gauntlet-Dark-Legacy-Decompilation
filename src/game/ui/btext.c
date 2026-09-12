@@ -380,7 +380,9 @@ s32 ScrollTextHeight(f32 scale, s32 list, s32 msg, s32 idx, s32 spacing)
 }
 
 /* ==== 0x8001EDD0 StringTextHeight ==== */
-s32 StringTextHeight(f32 scale, s32 msg, s32 idx, s32 spacing)
+/* Xbox parameter records and existing camera/combat callers put scale last.
+ * GC passes it in f1 independently of the three integer arguments. */
+s32 StringTextHeight(s32 msg, s32 idx, s32 spacing, f32 scale)
 {
     return StringTextHeightSub(scale, &gStringMsgList, msg, idx, spacing);
 }
@@ -455,7 +457,7 @@ s32 ScrollTextWidth(f32 scale, s32 list, s32 msg, s32 idx)
 }
 
 /* ==== 0x8001F020 StringTextWidth ==== */
-s32 StringTextWidth(f32 scale, s32 msg, s32 idx)
+s32 StringTextWidth(s32 msg, s32 idx, f32 scale)
 {
     return StringTextWidthSub(scale, &gStringMsgList, msg, idx);
 }

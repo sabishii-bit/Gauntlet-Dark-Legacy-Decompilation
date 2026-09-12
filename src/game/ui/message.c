@@ -82,8 +82,8 @@ extern int sFlags;
 
 /* --- text library --- */
 int  StringTextNum(int text);
-int  StringTextHeight(float scale, int text, int param, int lines);
-int  StringTextWidth(float scale, int text, int param);
+int  StringTextHeight(int text, int param, int lines, float scale);
+int  StringTextWidth(int text, int param, float scale);
 void DrawStringTextMLines(int x, int y, int flags, int color, int lines,
                           int text, ...);
 int  DrawStringTextMulti(int x, int y, int spacing, int font, int color,
@@ -569,7 +569,7 @@ int msgPost(int idx, int param, char* position)
     }
     textType = desc->type;
     textParam = desc->param;
-    height = StringTextHeight(1.0f, textType, textParam, lineCount) + 0x10;
+    height = StringTextHeight(textType, textParam, lineCount, 1.0f) + 0x10;
     top = centerY - (height >> 1);
     if (top < 2) {
         centerY += 2 - top;
@@ -730,12 +730,12 @@ void msgDraw(void)
         }
         worldText = GetStringText(2, playerWorld, (u32*)scratch);
         classText = GetStringText(3, playerClass, 0);
-        lineHeight = StringTextHeight(1.0f, 0x18, 0, 2) + 2;
+        lineHeight = StringTextHeight(0x18, 0, 2, 1.0f) + 2;
 
         if (gLanguageId == 1) {
-            worldWidth = StringTextWidth(1.0f, 2, playerWorld);
-            classWidth = StringTextWidth(1.0f, 3, playerClass);
-            labelWidth = StringTextWidth(1.0f, 0x18, 0);
+            worldWidth = StringTextWidth(2, playerWorld, 1.0f);
+            classWidth = StringTextWidth(3, playerClass, 1.0f);
+            labelWidth = StringTextWidth(0x18, 0, 1.0f);
             y = worldWidth + classWidth;
             labelWidth = y + labelWidth;
             x = gMessageCenterX - (labelWidth + 0x14) / 2;
@@ -756,8 +756,8 @@ void msgDraw(void)
                 textMsg = GetStringListMsg(0, playerClass);
                 classWidth = tens >> 1;
             }
-            numberWidth = StringTextWidth(1.25f, textMsg, classWidth);
-            labelWidth = StringTextWidth(1.0f, 0x18, 2);
+            numberWidth = StringTextWidth(textMsg, classWidth, 1.25f);
+            labelWidth = StringTextWidth(0x18, 2, 1.0f);
             labelWidth = numberWidth + labelWidth;
             worldWidth = gMessageCenterX - (labelWidth + 0x10) / 2;
             SetDrawStringScale(1.25f);
@@ -782,7 +782,7 @@ void msgDraw(void)
                    gCurrentMessage == 0x5D) {
             specialWorldText = GetStringText(2, playerWorld, 0);
             text = GetStringText(3, playerClass, 0);
-            lineHeight = StringTextHeight(1.0f, desc->type, 0, 2) + 2;
+            lineHeight = StringTextHeight(desc->type, 0, 2, 1.0f) + 2;
             lineHeight >>= 1;
             if ((gPlayers[gCurWorld].flags & 0x400) != 0 &&
                 gCurrentMessage != 0x5D) {
@@ -833,11 +833,11 @@ int msgWidth(int p0, int idx)
     int fc;
     int w;
 
-    w = StringTextWidth(1.0f, gMsgDescTable[idx].type, gMsgDescTable[idx].param);
+    w = StringTextWidth(gMsgDescTable[idx].type, gMsgDescTable[idx].param, 1.0f);
     if (idx == 50 || idx == 89 || idx == 93) {
-        a = StringTextWidth(1.0f, 3, gPlayers[gCurWorld].character);
+        a = StringTextWidth(3, gPlayers[gCurWorld].character, 1.0f);
         p0 = gCurWorld;
-        b = StringTextWidth(1.0f, 2, p0);
+        b = StringTextWidth(2, p0, 1.0f);
         c = a + 12;
         c = b + c;
         if (gLanguageId == 1) {
@@ -852,9 +852,9 @@ int msgWidth(int p0, int idx)
             s32 branchWidth;
 
             fc = gPlayers[gCurWorld].character;
-            a = StringTextWidth(1.0f, 2, gCurWorld);
-            b = StringTextWidth(1.0f, 3, fc);
-            branchWidth = StringTextWidth(1.0f, 24, 1);
+            a = StringTextWidth(2, gCurWorld, 1.0f);
+            b = StringTextWidth(3, fc, 1.0f);
+            branchWidth = StringTextWidth(24, 1, 1.0f);
             sum = a + b;
             branchWidth = sum + branchWidth;
             branchWidth += 20;

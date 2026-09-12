@@ -451,8 +451,8 @@ extern char* GetScrollText(s32 a, s32 list, s32 msg, void* d);
 extern s32 GetStringListMsg(s32 list, s32 msg);
 extern s32 GetScrollListMsg(s32 a, s32 list, s32 msg);
 extern void ScrollTextListNum(s32 a, s32 list);
-extern s32 StringTextWidth(f32 scale, s32 msg, s32 line);
-extern s32 StringTextHeight(f32 scale, s32 msg, s32 line, s32 b);
+extern s32 StringTextWidth(s32 msg, s32 line, f32 scale);
+extern s32 StringTextHeight(s32 msg, s32 line, s32 b, f32 scale);
 
 /* audio */
 extern void AudioSetVolMusic(s32 vol);
@@ -1613,8 +1613,8 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
         gLineSpacing = OPTCTL_DY;
         for (i = 0, off = 0; i < 16; i++, off += 12) {
             s32 msg = GetStringListMsg(3, style);
-            w = StringTextWidth(OPTCTL_SCALE, msg, i);
-            h = StringTextHeight(OPTCTL_SCALE, msg, i, -1);
+            w = StringTextWidth(msg, i, OPTCTL_SCALE);
+            h = StringTextHeight(msg, i, -1, OPTCTL_SCALE);
             {
             s32* L = (s32*)(base + off);
             if (*(L += 1862) == 1) {
