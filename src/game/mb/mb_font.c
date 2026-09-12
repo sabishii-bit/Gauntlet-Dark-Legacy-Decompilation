@@ -57,7 +57,28 @@ static MBTextMsg lbl_8029F494[500]; /* messages */
 static s32 lbl_802A4A84[8];        /* lock_message_count */
 MBFont* lbl_802A4AA4[35];          /* fonts */
 
-typedef struct MBBlitCell { u8 _p[32]; u16 w; u16 h; } MBBlitCell;
+/* GC letter record: 36-byte stride/copy in MBNewFont. The same record is
+ * MBRenderText's local at SP+32..SP+67 (next live local at SP+68), not a
+ * 32-byte record plus anonymous padding. Xbox blitinst_letter (PDB 0x3AFE)
+ * corroborates all field extents, including the trailing glyph dimensions.
+ * x/y are signed here because GC's glow adjustment loads them with lha;
+ * the width/height fields are loaded with lhz. */
+typedef struct MBBlitCell {
+    u32 flags;     /* 0x00 */
+    u32 tex;       /* 0x04 */
+    s16 x;         /* 0x08 */
+    s16 y;         /* 0x0A */
+    s32 depth;     /* 0x0C */
+    u16 width;     /* 0x10 */
+    u16 height;    /* 0x12 */
+    u16 s_left;    /* 0x14 */
+    u16 s_right;   /* 0x16 */
+    u16 t_top;     /* 0x18 */
+    u16 t_bot;     /* 0x1A */
+    u32 color;     /* 0x1C */
+    u16 w;         /* 0x20: original glyph width */
+    u16 h;         /* 0x22: original glyph height */
+} MBBlitCell;
 
 struct MBFont {
     s32 height;   /* 0x0 */
@@ -226,34 +247,10 @@ extern f64 lbl_80348B60;
 extern f32 lbl_80348B68;
 extern f64 lbl_80348B70;
 
-/* Documentation-only: glyph record sub-layout of MBBlitEnt.rec (offsets
- * relative to rec, i.e. ent+4) -- projected screen position/depth and
- * blit-source uv; trailing bytes (rec+0xc..0x18) are still unresolved.
- * NOT used by MBRenderText's code below: both a typed `MBBlitRec rec;`
- * member (real 74->96) and an offsetof()-renamed raw form (single-field
- * depth alone: 74->76; full field set: 74->96) regressed the function,
- * even though offsetof-renaming a bare-hex displacement is neutral
- * elsewhere in this file and TU (see claim.law.offsetof-rename-preserves-
- * protected-web) -- re-verify before reusing this struct in an expression;
- * `rec` stays a raw byte array with bare-hex displacements. */
-typedef struct MBBlitRec {
-    s16 px;         /* 0x00 */
-    s16 py;         /* 0x02 */
-    s32 depth;      /* 0x04 */
-    u16 u;          /* 0x08 */
-    u16 v;          /* 0x0A */
-} MBBlitRec;
-
-/* local blit-entry scratch handed to the mbBlit pipeline */
-typedef struct MBBlitEnt {
-    u32 flags;     /* 0x00 copied from msg->flags */
-    u8  rec[0x18]; /* 0x04 glyph record; see MBBlitRec for the sub-layout */
-    u32 color;     /* 0x1C */
-} MBBlitEnt;
-
-/* stored glyph cell (font->cells[cc], 36B each; built by MBNewFont, rescaled
- * by MBFontUpdateWindow): a projected MBBlitEnt-shaped template (_p) plus
- * the glyph's own on-screen size (w/h) used by MBRenderText's width lookup. */
+/* The rasteriser uses the same letter record as the stored glyph cells.
+ * Stored cells carry w/h glyph metrics; the renderer copies tex through
+ * t_bot only. */
+typedef MBBlitCell MBBlitEnt;
 
 /* 0x800B5DEC - MBRenderText : rasterise queued messages through the pb blit
  * pipeline in two layer passes (flag-8 messages render on the second). */
@@ -261,7 +258,6 @@ void MBRenderText(void)
 {
     u8* wg = gWinGlobals;
     s32 layer = 2;
-    u8 stackGap[4];
     MBBlitEnt e;
     u8 unused[20];
     MBBlitEnt* ent = &e;
@@ -299,7 +295,7 @@ void MBRenderText(void)
     sx = (s32)(0.5 + lbl_80343EB4 * wp[0]);
     sy = (s32)(0.5 + lbl_80343EB4 * wp[1]);
     mbBlitGetPage();
-    pRec = e.rec;
+    pRec = (u8*)&e.tex;
     sx2 = sx << 1;
     sy2 = sy << 1;
     white = 0x80808080;
@@ -412,7 +408,7 @@ void MBRenderText(void)
                         }
                     }
                 }
-                memcpy(pRec, font->cells[c]._p + 4, 0x18);
+                memcpy(pRec, (u8*)&font->cells[c].tex, 0x18);
                 if (hb > 0) {
                     text++;
                     glyph = font->height + 4;
@@ -434,20 +430,20 @@ void MBRenderText(void)
                     }
                 }
                 wp = *(f32**)(wg + 0x38);
-                *(s16*)(ent->rec + 4) =
+                ent->x =
                     (s16)(s32)(0.5 + (f32)x * wp[0]);
                 wp = *(f32**)(wg + 0x38);
-                *(s16*)(ent->rec + 6) =
+                ent->y =
                     (s16)(s32)(0.5 + (f32)y * wp[1]);
-                *(s32*)(ent->rec + 8) = (s32)(32.0 * msg->z);
+                ent->depth = (s32)(32.0 * msg->z);
                 if (doClip) {
                     mbBlitCalcClip(ent, clipX, clipY);
                 }
                 if (msg->flags & 0x4000) {
-                    *(s16*)(ent->rec + 4) -= sx;
-                    *(s16*)(ent->rec + 6) -= sy;
-                    *(u16*)(ent->rec + 0xc) += sx2;
-                    *(u16*)(ent->rec + 0xe) += sy2;
+                    ent->x -= sx;
+                    ent->y -= sy;
+                    ent->width += sx2;
+                    ent->height += sy2;
                 }
                 x += (s32)((f32)glyph * msg->xscale);
                 DrawBlit(ent);
