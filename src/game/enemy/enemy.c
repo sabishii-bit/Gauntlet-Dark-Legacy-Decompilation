@@ -4457,20 +4457,7 @@ void move_logic20(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    {
-        s16 c = e->closest;
-        f32 f;
-        if (c >= 0) {
-            if (gPlayers[c].field_A1C > 2) {
-                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-            } else {
-                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-            }
-        } else {
-            f = e->ang;
-        }
-        lbl_80344720 = f;
-    }
+    lbl_80344720 = get_face_ang(e, 1);
     if (e->dead_end > 0) {
         e->dead_end -= gFrameTicks;
     }
@@ -7923,7 +7910,6 @@ s32 fn_80051480(f32* pos)
     return best_idx;
 }
 
-#pragma opt_propagation off
 void fn_80051568(s32 index)
 {
     Enemy* e = &gEnemies[index];
@@ -7934,11 +7920,10 @@ void fn_80051568(s32 index)
     f32 dy;
     f32 dz;
     f32 dist2;
-    f64 kHalf;
-    f32 kZero;
-    f64 kThree;
+    /* Pre-existing unrecovered local extent, not an identified game object.
+     * Sharing the real sqrt removes the old additional eight-byte reservation;
+     * these remaining 24 bytes still lack original-local provenance. */
     u8 _spare[24];
-    u8 unused[8];
 
     if (e->closest >= 0 &&
         e->actual_dist <= 14.0) {
@@ -7951,9 +7936,6 @@ void fn_80051568(s32 index)
         return;
     }
     StartEnemyGrid(e->objgrp.worldmat[3], 20.0f);
-    kZero = 0.0f;
-    kHalf = 0.5;
-    kThree = 3.0;
     while ((i = NextGridEnemy()) >= 0) {
         it = &sItems[i];
         hdr = it->info;
@@ -7969,17 +7951,7 @@ void fn_80051568(s32 index)
         dx = it->objgrp.worldmat[3][0] - e->objgrp.worldmat[3][0];
         dy = it->objgrp.worldmat[3][1] - e->objgrp.worldmat[3][1];
         dz = it->objgrp.worldmat[3][2] - e->objgrp.worldmat[3][2];
-        dist2 = dx * dx + dy * dy + dz * dz;
-        if (dist2 > kZero) {
-            volatile f32 tmp;
-            f64 y = __frsqrte(dist2);
-            y = kHalf * y * (kThree - y * y * dist2);
-            y = kHalf * y * (kThree - y * y * dist2);
-            y = kHalf * y * (kThree - y * y * dist2);
-            dist2 = (f32)(dist2 * (kHalf * y * (kThree - y * y * dist2)));
-            tmp = dist2;
-            dist2 = tmp;
-        }
+        dist2 = fn_80034C88(dx * dx + dy * dy + dz * dz);
         if (dist2 < e->guard_dist) {
             e->guard_dist = dist2;
             e->guard_closest = i;
@@ -7987,7 +7959,6 @@ void fn_80051568(s32 index)
         }
     }
 }
-#pragma opt_propagation reset
 
 void fn_800516F8(s32 slot)
 {
