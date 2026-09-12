@@ -440,7 +440,7 @@ void move_logic12(int index); void move_logic13(int index); void move_logic14(in
 void move_logic15(int index); void move_logic16(int index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
 void move_logic22(int index); void move_logic23(s32 index); void move_logic24(s32 index);
-void move_logic28(s32 index); void move_logic29(s32 index); void move_logic30(s32 index);
+void move_logic28(s32 index); void move_logic29(int index); void move_logic30(s32 index);
 void move_logic31(s32 index);
 extern void CreateYPRMatrix(f32* mat, f32* pyr);        /* pyr -> rotation matrix (fwd) */
 extern void CopyMat3(f32* src, f32* dst);           /* 0x800BE8C8 (fwd) */
@@ -873,7 +873,7 @@ void move_logic22(int index);
 void move_logic23(s32 index);
 void move_logic24(s32 index);
 void move_logic28(s32 index);
-void move_logic29(s32 index);
+void move_logic29(int index);
 void move_logic30(s32 index);
 static inline void update_vel(Enemy* e, f32 k);
 void move_logic31(s32 index);
@@ -2358,6 +2358,17 @@ static inline int FoundSuicideBomber(int num)
         }
     }
     return 0;
+}
+
+/* The Xbox/PS2 turn_enemy wrapper takes the enemy's stored heading and returns
+ * turn_enemy_ang's float result. Keep that returned value's inline lifetime;
+ * flattening this real call boundary loses part of the caller's local frame.
+ * The retained debug records omit optimized locals, so this explicit result
+ * declaration and its name are a reconstruction, not recovered source text. */
+static inline f32 turn_enemy(Enemy* e)
+{
+    f32 angle = turn_enemy_ang(e, e->ang);
+    return angle;
 }
 
 /* get_face_ang(Enemy*, int) is retained in the Xbox executable. GC callers
@@ -4729,53 +4740,20 @@ void move_logic28(s32 index)
  * player is within 6, then runs a range state machine (flag1): near hits swing
  * attacks (alternating 12/14, or a heavy 16 at high level); at leap range it charges
  * off lbl_8011BF60 and fires a lunge (action 3) aimed 180deg + ramp when flag1==1. */
-void move_logic29(s32 index)
+void move_logic29(int index)
 {
-    s32 stuck;
-    u8* base = (u8*)mbdesc;
-    u8* row29;
-    u8* e0;
+    int stuck;
     Enemy* e;
-    s32 it;
-    s32 dend;
     f32 leapspeed = 0.0f;
-    s32 flee;
     f32 a;
-    u8 _pad29[32];
 
-    row29 = base + index * 916;
-    dend = ((Enemy *)(row29 + ENEMY_POOL_OFF))->dead_end;
-    e0 = row29 + 3608;
-    e = (Enemy*)(u8*)e0;
-    if (dend > 0) {
+    e = &gEnemies[index];
+    if (e->dead_end > 0) {
         stuck = 1;
     } else {
         stuck = 0;
     }
-    it = lbl_80344748;
-    if (it < 0) {
-        flee = 0;
-    } else {
-        u8* other = base + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
-            flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist > ((Enemy *)e0)->sight) {
-            flee = 0;
-        } else if (index == it || ((Enemy *)e0)->birth_style != 0 || dend > 0) {
-            goto flee_zero29;
-        } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero29:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
@@ -4788,18 +4766,7 @@ void move_logic29(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    {
-        s16 c = e->closest;
-        if (c >= 0) {
-            if (gPlayers[c].field_A1C > 2) {
-                a = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-            } else {
-                a = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-            }
-        } else {
-            a = e->ang;
-        }
-    }
+    a = get_face_ang(e, 1);
     e->ang = a;
     {
     s16 c29 = e->closest;
@@ -4845,32 +4812,20 @@ void move_logic29(s32 index)
                     RequestEnemyAction(e, 14);
                 }
             } else {
-                f32 v;
-                f32 la;
                 if (e->flag1 == 1) {
-                    v = 3.141592654 + e->ang + leapspeed;
+                    a = 3.141592654 + e->ang + leapspeed;
                 } else {
-                    v = e->ang + leapspeed;
+                    a = e->ang + leapspeed;
                 }
-                {
-                    f64 nv;
-                    if (v > 3.141592654) {
-                        nv = v - 6.283185308;
-                    } else if (v <= -3.141592654) {
-                        nv = 6.283185308 + v;
-                    } else {
-                        nv = v;
-                    }
-                    la = nv;
-                }
-                set_enemy_trans(e, 0.8f, la);
+                a = enemy_normalized_heading(a);
+                set_enemy_trans(e, 0.8f, a);
                 RequestEnemyAction(e, 3);
                 e->dead_end = 0;
             }
         }
     }
     }
-    e->pyr[1] = turn_enemy_ang(e, e->ang);
+    e->pyr[1] = turn_enemy(e);
     do_enemy_move(index);
     if (e->moved != 0) {
         e->dead_end = 0;
