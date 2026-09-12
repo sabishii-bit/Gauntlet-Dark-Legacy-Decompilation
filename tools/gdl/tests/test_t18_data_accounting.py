@@ -190,22 +190,22 @@ class LegacyBaselines(unittest.TestCase):
 class LiveShape(unittest.TestCase):
     """The measured reproduction, against real objects when they are built."""
 
-    def test_btext_exception_sections_price_all_or_nothing(self):
+    def test_btext_exact_exception_sections_receive_full_credit(self):
         ours = REPO / "build/GUNE5D/src/game/ui/btext.o"
         tgt = REPO / "build/GUNE5D/obj/game/ui/btext.o"
         if not (ours.exists() and tgt.exists()):
             self.skipTest("game/ui/btext objects not built")
         rows = dg.data_section_digests(ours, tgt)
-        # The historical reproduction concerns these exception sections,
-        # not the TU's changing data ownership. R69 recovered another exact
-        # 12-byte .sdata section; including it made the old TU totals stale
-        # without changing the partial-extabindex defect tested here.
+        # StringTextHeightSub's native closure repaired the one-byte function
+        # extent in extabindex. Both EH sections now match in full. Keep the
+        # old partial-section counterexample in ImageAccounting above; a live
+        # reconstruction must not be required to retain that historical gap.
         exception_rows = [rows[name] for name in ("extab", "extabindex")]
         image = sum(r.get("matched_image") or 0 for r in exception_rows)
         positional = sum(r.get("matched") or 0 for r in exception_rows)
         total = sum(r.get("target_size") or 0 for r in exception_rows)
-        self.assertEqual((image, total), (248, 620))
-        self.assertEqual((positional, total), (619, 620))
+        self.assertEqual((image, total), (620, 620))
+        self.assertEqual((positional, total), (620, 620))
 
 
 if __name__ == "__main__":
