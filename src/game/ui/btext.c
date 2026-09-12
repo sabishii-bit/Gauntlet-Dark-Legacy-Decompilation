@@ -19,7 +19,7 @@
  * The font tables establish the native string-pool order, including the
  * diagnostics and resource filenames. DrawStringTextMLines has an exact
  * native body and literal binding after reusing its live line index.
- * Seven target bodies still differ; the configured build links this TU's
+ * Six target bodies still differ; the configured build links this TU's
  * extracted fallback object rather than certifying a complete native TU.
  */
 
@@ -409,7 +409,6 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
     s32 fh;
     f32 lh;
     s32 total;
-    s32 line;
     u32 color;
     u8 unused[24];
 
@@ -418,21 +417,23 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
         spacing = gLineSpacing;
     }
     lh = (f32)(scale * (f32)e->scale);
-    fh = (s32)((f32)MBFontHeight(color) * lh);
+    scale = (f32)MBFontHeight(color);
+    fh = (s32)(scale * lh);
     total = 0;
     if (idx >= 0) {
         if (idx >= e->count) {
             return 0;
         }
-        return TextLineHeight(
-            (char*)(p->textData + p->textOff[e->first + idx]), fh, spacing);
-    }
-    for (line = 0;; line++) {
-        if (line >= e->count) {
-            break;
-        }
         total += TextLineHeight(
-            (char*)(p->textData + p->textOff[e->first + line]), fh, spacing);
+            (char*)(p->textData + p->textOff[e->first + idx]), fh, spacing);
+    } else {
+        for (idx = 0;; idx++) {
+            if (idx >= e->count) {
+                break;
+            }
+            total += TextLineHeight(
+                (char*)(p->textData + p->textOff[e->first + idx]), fh, spacing);
+        }
     }
     return total;
 }
