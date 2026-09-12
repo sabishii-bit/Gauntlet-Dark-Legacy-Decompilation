@@ -191,6 +191,12 @@ extern void G3DInitPadStatus(int a, int b);
 extern void G3DUpdatePadStatus(void);
 extern s64 OSGetTime(void);
 
+/* Definitions below follow the target text order. */
+MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h);
+void g3dcolorDtorThunk(void);
+void* g3dcolorDtor(void* object, s16 shouldDelete);
+void* mbBlitColorArrayDtor(void* object, s16 shouldDelete);
+
 /* ------------------------------------------------------------------ *
  * TU head 0x800B27C4-0x800B2988 (previously an unclaimed map gap).
  * fn_800B27C4 keeps its fn_ name: it is called by Matching main.c.
@@ -204,6 +210,7 @@ extern s64 OSGetTime(void);
 /* 0x800B27C4  boot-time pad service + pad-test screen: reset the pad
  * manager count, init/poll G3D pad status, then show the blit pad-test
  * twice with a 500 ms busy-wait before each (bus-clock ms timing). */
+
 void fn_800B27C4(void)
 {
     u8* mgr = lbl_80296450;
@@ -228,6 +235,7 @@ void fn_800B27C4(void)
     mbBlitPadTest((s32*)(mgr + 12));
 }
 
+
 /* 0x800B28EC  set all four corner colors (= MBBlitSetColor4); flag 0x10
  * marks per-corner colors active. */
 void MBBlitSetColor4(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
@@ -239,6 +247,7 @@ void MBBlitSetColor4(MBBLIT* b, u32 c0, u32 c1, u32 c2, u32 c3)
     b->color3 = c3;
 }
 
+
 /* 0x800B290C  set blit fade (= MBBlitSetAlpha): fade 0..255 maps to GX
  * alpha 128..1 in color0's top byte; clears the per-corner flag. */
 void MBBlitSetAlpha(MBBLIT* b, u32 fade)
@@ -249,6 +258,7 @@ void MBBlitSetAlpha(MBBLIT* b, u32 fade)
     b->color0 |= fade << 24;
 }
 
+
 /* 0x800B2940  set blit brightness (= MBBlitSetColor): 0..255 maps to a
  * grey 0x010101..0x808080 in color0's RGB; clears the per-corner flag. */
 void MBBlitSetColor(MBBLIT* b, u32 bright)
@@ -258,11 +268,113 @@ void MBBlitSetColor(MBBLIT* b, u32 bright)
     b->color0 |= ((bright >> 1) & 0x007F7F7F) + 0x00010101;
 }
 
+
 /* 0x800B2980  return the blit's texture handle (= MBBlitGetTex). */
 s32 MBBlitGetTex(MBBLIT* b)
 {
     return b->tex;
 }
+
+
+/* =====================================================================
+ * Coordinate / vertex helpers (descriptive names) - stubbed
+ * ===================================================================== */
+
+u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
+    s32 old;
+    s32 projectWidth;
+    s32 projectHeight;
+    s32 oldWidth;
+    s32 oldHeight;
+    s32 newTex;
+    MBTextureDef* texture;
+    s32 newWidth;
+    s32 newHeight;
+    f32 scale;
+
+    projectWidth = 0;
+    projectHeight = 0;
+    old = b->tex;
+
+    if (tex >= 0) {
+        newTex = tex;
+    } else {
+        newTex = b->tex;
+    }
+    newTex += delta;
+    b->tex = newTex;
+    if (newTex == old) {
+        return old;
+    }
+
+    if ((b->flags & 0x400) != 0) {
+        projectWidth = -1;
+    }
+    if ((b->flags & 0x800) != 0) {
+        projectHeight = -1;
+    }
+    if (projectWidth == -1 || projectHeight == -1) {
+        mbBlitProject(b, projectWidth, projectHeight);
+    }
+
+    if (old >= 0) {
+        texture = MBRomTexPtr(old);
+        oldWidth = texture->width;
+        oldHeight = texture->height;
+    } else {
+        oldWidth = 1;
+        oldHeight = 1;
+    }
+
+    texture = MBRomTexPtr(newTex);
+    newWidth = texture->width;
+    newHeight = texture->height;
+    if (oldWidth != newWidth) {
+        scale = (f32)newWidth / (f32)oldWidth;
+        b->u0 = (s16)(0.5 + (f64)((f32)(u16)b->u0 * scale));
+        b->u1 = (s16)(0.5 + (f64)((f32)(u16)b->u1 * scale));
+    }
+    if (oldHeight != newHeight) {
+        scale = (f32)newHeight / (f32)oldHeight;
+        b->v0 = (s16)(0.5 + (f64)((f32)(u16)b->v0 * scale));
+        b->v1 = (s16)(0.5 + (f64)((f32)(u16)b->v1 * scale));
+    }
+    return old;
+}
+
+
+void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1) {
+    MBTextureDef* texture = MBRomTexPtr(b->tex);
+    s16 swap;
+    f32 width;
+    f32 height;
+
+    if ((b->flags & 0x20) != 0) {
+        swap = u0;
+        u0 = u1;
+        u1 = swap;
+    }
+    if ((b->flags & 0x80) != 0) {
+        swap = v0;
+        v0 = v1;
+        v1 = swap;
+    }
+    width = texture->width;
+    height = texture->height;
+    if (u0 >= 0.0f) {
+        b->u0 = (s16)(u0 * width * 16.0 + 0.5);
+    }
+    if (u1 >= 0.0f) {
+        b->u1 = (s16)(u1 * width * 16.0 + 0.5);
+    }
+    if (v0 >= 0.0f) {
+        b->v0 = (s16)(v0 * height * 16.0 + 0.5);
+    }
+    if (v1 >= 0.0f) {
+        b->v1 = (s16)(v1 * height * 16.0 + 0.5);
+    }
+}
+
 
 void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
     MBWindow* window = gWinGlobals;
@@ -308,6 +420,7 @@ void mbBlitCalcRect(MBBLIT* b, s32* x, s32* y, f32* depth) {
     }
 }
 
+
 void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f32 depth) {
     MBWindow* window = gWinGlobals;
     s32 value;
@@ -329,6 +442,7 @@ void mbBlitCalcWidth(MBBLIT* b, s32 x, s32 y, f32 depth) {
     }
 }
 
+
 void mbBlitCvtCoord(MBBLIT* b, f64 depth) {
     if (depth >= 0.0) {
         b->depth = (u32)(f32)(s32)(32.0 * depth);
@@ -336,6 +450,7 @@ void mbBlitCvtCoord(MBBLIT* b, f64 depth) {
         b->depth = (s32)depth + 0x1000000;
     }
 }
+
 
 void mbBlitCalcY(MBBLIT* b, s32 y) {
     MBWindow* window = gWinGlobals;
@@ -348,6 +463,7 @@ void mbBlitCalcY(MBBLIT* b, s32 y) {
     }
     b->y = (s16)value;
 }
+
 
 void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale) {
     f32 scaled;
@@ -368,6 +484,7 @@ void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale) {
         b->height = (s16)scaled;
     }
 }
+
 
 void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
     MBWindow* window = gWinGlobals;
@@ -392,12 +509,60 @@ void mbBlitCalcX(MBBLIT* b, s32* width, s32* height) {
     }
 }
 
+
+void mbBlitProject(MBBLIT* b, int width, int height) {
+    MBWindow* win = gWinGlobals;
+    u32 autoFlags = 0;
+
+    if (width < 0 || height < 0) {
+        MBTextureDef* texture = MBRomTexPtr(b->tex);
+
+        if (width < 0) {
+            width = texture->width;
+            if ((texture->flags & 1) != 0 &&
+                (b->flags & 0x1000000) == 0) {
+                width <<= 1;
+            }
+            autoFlags |= 0x400;
+        }
+        if (height < 0) {
+            height = texture->height;
+            if ((texture->flags & 1) != 0 &&
+                (b->flags & 0x1000000) == 0) {
+                height <<= 1;
+            }
+            autoFlags |= 0x800;
+        }
+    }
+    if (width != 0) {
+        if ((b->flags & 0x40) != 0) {
+            width <<= 4;
+        } else {
+            width = width * win->scale->x;
+        }
+        b->width = width;
+        b->flags &= ~0x400;
+    }
+    if (height != 0) {
+        if ((b->flags & 0x140) != 0) {
+            height <<= 4;
+        } else {
+            height = height * win->scale->y;
+        }
+        b->height = height;
+        b->flags &= ~0x800;
+    }
+    b->flags |= autoFlags;
+}
+
+
 s32 mbBlitReset33F8(MBBLIT* b) {
     if ((b->flags & 1) != 0) {
         return 1;
     }
     return 0;
 }
+
 
 void mbBlitInit3414(MBBLIT* b, s32 enabled) {
     if (enabled != 0) {
@@ -407,9 +572,11 @@ void mbBlitInit3414(MBBLIT* b, s32 enabled) {
     }
 }
 
+
 s32 mbBlitStub343C(MBBLIT* b) {
     return b->flags;
 }
+
 
 u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
     u32 oldFlags;
@@ -474,6 +641,154 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
     return oldFlags;
 }
 
+
+/* Per-frame temporary blit (32-entry ring, not linked to a node). */
+MBBLIT* MBNewTempBlit(int a, int b, int c, int d, int e) {
+    MBBLIT* blit;
+    MBWindow* window;
+    s32 value;
+    if (tempBlitCount >= MB_TEMPBLIT_MAX) {
+        FatalError(str_TooManyTempBlits, 0x800000);
+    }
+    tempBlitCount++;
+    blit = (MBBLIT*)&tempBlitPool[(tempBlitCount - 1) * 0x38];
+    blit->flags = 0;
+    blit->prev = 0;
+    blit->next = 0;
+    blit->tex = -1;
+    blit->color0 = 0x80808080;
+    blit->color1 = 0x80808080;
+    blit->color2 = 0x80808080;
+    blit->color3 = 0x80808080;
+    mbInitBlitEntry(blit, a, 0);
+    window = gWinGlobals;
+    if ((blit->flags & 0x40) != 0) {
+        value = b << 4;
+    } else {
+        value = b * window->scale->x;
+    }
+    blit->x = (s16)value;
+    if ((blit->flags & 0x40) != 0) {
+        value = c << 4;
+    } else {
+        value = c * window->scale->y;
+    }
+    blit->y = (s16)value;
+    if (lbl_80348AD4 >= 0.0) {
+        blit->depth = (u32)(f32)(s32)(32.0 * lbl_80348AD4);
+    }
+    mbBlitProject(blit, d, e);
+    mbBlitSetupVerts(blit, 0.0f, 1.0f, 0.0f, 1.0f);
+    return blit;
+}
+
+
+/* Per-frame temporary solid quad (256-entry ring, 0x24 stride). */
+void* MBNewTempQuad(void) {
+    u8* q;
+    if (tempQuadCount >= MB_TEMPQUAD_MAX) {
+        FatalError(str_TooManyQuads, 0x800000);
+    }
+    tempQuadCount++;
+    q = &tempQuadPool[(tempQuadCount - 1) * 0x24];
+    *(s32*)(q + 0x00) = 0;
+    *(s32*)(q + 0x2C) = 0;
+    *(s32*)(q + 0x30) = 0;
+    *(s32*)(q + 0x04) = -1;
+    *(u32*)(q + 0x1C) = 0x80808080;
+    *(u32*)(q + 0x20) = 0x80808080;
+    *(u32*)(q + 0x24) = 0x80808080;
+    *(u32*)(q + 0x28) = 0x80808080;
+    return &tempQuadPool[(tempQuadCount - 1) * 0x24];
+}
+
+
+/* MBNewBlit variant with explicit width/height. */
+MBBLIT* mbNewBlitSized(int name, int x, int y, int w, int h) {
+    int tex = MBOX_FindTexture_Err(name, 0, 1);
+    return MBCreateBlit(0, tex, x, y, w, h);
+}
+
+
+/* MBNewBlit(name, x, y): look up texture by name, create an auto-sized blit. */
+MBBLIT* MBNewBlit(int name, int x, int y) {
+    int tex = MBOX_FindTexture_Err(name, 0, 1);
+    return MBCreateBlit(0, tex, x, y, -1, -1);
+}
+
+
+/* Initialise the whole blit system + default render nodes. */
+void MBInitBlits(int makeNodes) {
+    MBNODE* n;
+    u8 unused[8];
+    memset(blitPool, 0, MB_BLIT_POOL_MAX * 0x38);
+    blitPool[0].tex = -1;
+    blitCount = 0;
+
+    if (makeNodes) {
+        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
+        if (n != 0) {
+            n->flags = 0;
+            n->blits = 0;
+            n->unk6C = 0;
+        }
+        gDiag_DEC = n;
+        n->flags |= 4;
+        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
+        if (n != 0) {
+            n->flags = 0;
+            n->blits = 0;
+            n->unk6C = 0;
+        }
+        defaultBlitList = n;
+        n->flags |= 4;
+        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
+        if (n != 0) {
+            n->flags = 0;
+            n->blits = 0;
+            n->unk6C = 0;
+        }
+        gDiag_DE8 = n;
+        n->flags |= 4;
+    } else {
+        gDiag_DEC = 0;
+        defaultBlitList = 0;
+        gDiag_DE8 = 0;
+    }
+    tempQuadCount = 0;
+    lbl_80344E00 = 0;
+    tempBlitCount = 0;
+    lbl_80344DF8 = 0;
+    lbl_80344E04 = 0;
+}
+
+
+/* Order two blits within the same node (draw-order swap). */
+void MBBlitOrder(MBBLIT* a, MBBLIT* b) {
+    if (a->node != b->node) {
+        ErrorPrintf(str_BlitOrderDiffNodes);
+        return;
+    }
+    if (b->prev != 0) {
+        b->prev->next = b->next;
+        if (b->next != 0) {
+            b->next->prev = b->prev;
+        }
+    } else {
+        ((MBNODE*)b->node)->blits = b->next;
+        if (b->next != 0) {
+            b->next->prev = 0;
+        }
+    }
+    b->next = a->next;
+    if (b->next != 0) {
+        b->next->prev = b;
+    }
+    b->prev = a;
+    a->next = b;
+}
+
+
 /* =====================================================================
  * Blit creation / pool management
  * ===================================================================== */
@@ -487,6 +802,7 @@ static inline int mbFindFreeBlitSlot(int count, int slot) {
     }
     return slot;
 }
+
 
 /* Core allocator: find a free slot in blitPool, initialise it, link it into
  * node's list and place it at (x,y). Called by MBNewBlit / mbNewBlitSized. */
@@ -559,131 +875,6 @@ MBBLIT* MBCreateBlit(MBNODE* node, int tex, int x, int y, int w, int h) {
     return b;
 }
 
-/* MBNewBlit(name, x, y): look up texture by name, create an auto-sized blit. */
-MBBLIT* MBNewBlit(int name, int x, int y) {
-    int tex = MBOX_FindTexture_Err(name, 0, 1);
-    return MBCreateBlit(0, tex, x, y, -1, -1);
-}
-
-/* MBNewBlit variant with explicit width/height. */
-MBBLIT* mbNewBlitSized(int name, int x, int y, int w, int h) {
-    int tex = MBOX_FindTexture_Err(name, 0, 1);
-    return MBCreateBlit(0, tex, x, y, w, h);
-}
-
-/* Per-frame temporary blit (32-entry ring, not linked to a node). */
-MBBLIT* MBNewTempBlit(int a, int b, int c, int d, int e) {
-    MBBLIT* blit;
-    MBWindow* window;
-    s32 value;
-    if (tempBlitCount >= MB_TEMPBLIT_MAX) {
-        FatalError(str_TooManyTempBlits, 0x800000);
-    }
-    tempBlitCount++;
-    blit = (MBBLIT*)&tempBlitPool[(tempBlitCount - 1) * 0x38];
-    blit->flags = 0;
-    blit->prev = 0;
-    blit->next = 0;
-    blit->tex = -1;
-    blit->color0 = 0x80808080;
-    blit->color1 = 0x80808080;
-    blit->color2 = 0x80808080;
-    blit->color3 = 0x80808080;
-    mbInitBlitEntry(blit, a, 0);
-    window = gWinGlobals;
-    if ((blit->flags & 0x40) != 0) {
-        value = b << 4;
-    } else {
-        value = b * window->scale->x;
-    }
-    blit->x = (s16)value;
-    if ((blit->flags & 0x40) != 0) {
-        value = c << 4;
-    } else {
-        value = c * window->scale->y;
-    }
-    blit->y = (s16)value;
-    if (lbl_80348AD4 >= 0.0) {
-        blit->depth = (u32)(f32)(s32)(32.0 * lbl_80348AD4);
-    }
-    mbBlitProject(blit, d, e);
-    mbBlitSetupVerts(blit, 0.0f, 1.0f, 0.0f, 1.0f);
-    return blit;
-}
-
-/* Per-frame temporary solid quad (256-entry ring, 0x24 stride). */
-void* MBNewTempQuad(void) {
-    u8* q;
-    if (tempQuadCount >= MB_TEMPQUAD_MAX) {
-        FatalError(str_TooManyQuads, 0x800000);
-    }
-    tempQuadCount++;
-    q = &tempQuadPool[(tempQuadCount - 1) * 0x24];
-    *(s32*)(q + 0x00) = 0;
-    *(s32*)(q + 0x2C) = 0;
-    *(s32*)(q + 0x30) = 0;
-    *(s32*)(q + 0x04) = -1;
-    *(u32*)(q + 0x1C) = 0x80808080;
-    *(u32*)(q + 0x20) = 0x80808080;
-    *(u32*)(q + 0x24) = 0x80808080;
-    *(u32*)(q + 0x28) = 0x80808080;
-    return &tempQuadPool[(tempQuadCount - 1) * 0x24];
-}
-
-/* Initialise the whole blit system + default render nodes. */
-void MBInitBlits(int makeNodes) {
-    MBNODE* n;
-    u8 unused[8];
-    memset(blitPool, 0, MB_BLIT_POOL_MAX * 0x38);
-    blitPool[0].tex = -1;
-    blitCount = 0;
-
-    if (makeNodes) {
-        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
-        if (n != 0) {
-            n->flags = 0;
-            n->blits = 0;
-            n->unk6C = 0;
-        }
-        gDiag_DEC = n;
-        n->flags |= 4;
-        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
-        if (n != 0) {
-            n->flags = 0;
-            n->blits = 0;
-            n->unk6C = 0;
-        }
-        defaultBlitList = n;
-        n->flags |= 4;
-        n = (MBNODE*)MBNewNode(0, gIdentityMatrix, 13);
-        if (n != 0) {
-            n->flags = 0;
-            n->blits = 0;
-            n->unk6C = 0;
-        }
-        gDiag_DE8 = n;
-        n->flags |= 4;
-    } else {
-        gDiag_DEC = 0;
-        defaultBlitList = 0;
-        gDiag_DE8 = 0;
-    }
-    tempQuadCount = 0;
-    lbl_80344E00 = 0;
-    tempBlitCount = 0;
-    lbl_80344DF8 = 0;
-    lbl_80344E04 = 0;
-}
-
-/* Reset the per-frame temp counters. */
-void MBResetBlits(void) {
-    if (lbl_80344E04 == 0) {
-        tempQuadCount = 0;
-        tempBlitCount = 0;
-    }
-    lbl_80344E00 = 0;
-    lbl_80344DF8 = 0;
-}
 
 /* Remove a blit: mark removed and unlink from its node list. */
 int MBRemoveBlit(MBBLIT* b) {
@@ -709,30 +900,6 @@ int MBRemoveBlit(MBBLIT* b) {
     return 0;
 }
 
-/* Order two blits within the same node (draw-order swap). */
-void MBBlitOrder(MBBLIT* a, MBBLIT* b) {
-    if (a->node != b->node) {
-        ErrorPrintf(str_BlitOrderDiffNodes);
-        return;
-    }
-    if (b->prev != 0) {
-        b->prev->next = b->next;
-        if (b->next != 0) {
-            b->next->prev = b->prev;
-        }
-    } else {
-        ((MBNODE*)b->node)->blits = b->next;
-        if (b->next != 0) {
-            b->next->prev = 0;
-        }
-    }
-    b->next = a->next;
-    if (b->next != 0) {
-        b->next->prev = b;
-    }
-    b->prev = a;
-    a->next = b;
-}
 
 /* Recompute every live blit's screen position after a window change. */
 #pragma opt_propagation off
@@ -779,6 +946,18 @@ void MBBlitUpdateWindow(f32 xScale, f32 yScale) {
     }
 }
 #pragma opt_propagation reset
+
+
+/* Reset the per-frame temp counters. */
+void MBResetBlits(void) {
+    if (lbl_80344E04 == 0) {
+        tempQuadCount = 0;
+        tempBlitCount = 0;
+    }
+    lbl_80344E00 = 0;
+    lbl_80344DF8 = 0;
+}
+
 
 /* =====================================================================
  * Drawing (GX pipeline) - stubbed pending full decompile
@@ -838,6 +1017,88 @@ s32 MBDrawBlits(MBNODE* node) {
     pbResetDORegs();
     return 0;
 }
+
+
+void mbBlitSetPage(void) {
+    lbl_80343EA4 = -1;
+    lbl_80343EA8 = -1;
+    lbl_80343EAC = -1;
+    fn_800C36F8();
+    pbResetDORegs();
+}
+
+
+int mbBlitGetPage(void) {
+    lbl_80343EA4 = -1;
+    lbl_80343EA8 = -1;
+    lbl_80343EAC = -1;
+}
+
+
+void DrawBlitFlatQuad(MBBLIT* b) {
+    MBWindow* g = gWinGlobals;
+    u8 unused[96];
+    f32 mtx[3][4];
+    GXColor c;
+    GXColor c2;
+    f32 y1, z, x0, y0, x1;
+    s32 a2;
+    u32 rr, gg, bb;
+    u8 unused2[36];
+
+    SetMultiPassTextureParams(3);
+    SetCullMode(0);
+    SetPerspectiveMode(0);
+    SetViewportHeight(lbl_80348AD4);
+    SetVertexFormat(3);
+    PSMTXIdentity(mtx);
+    GXLoadPosMtxImm(mtx, 0);
+
+    a2 = (b->color0 >> 23) & 0x1FE;
+    rr = (b->color0 >> 16) & 0xFF;
+    gg = (b->color0 >> 8) & 0xFF;
+    bb = b->color0 & 0xFF;
+
+    {
+        f32 ratio;
+
+        ratio = (f32)(b->x * 2) / (f32)g->scale->viewport0;
+        x0 = ratio - lbl_80348AD4;
+        ratio = (f32)((b->x + (u16)b->width) * 2) / (f32)g->scale->viewport0;
+        x1 = ratio - lbl_80348AD4;
+        ratio = (f32)(b->y * 2) / (f32)g->scale->viewport1;
+        y0 = lbl_80348AD4 - ratio;
+        ratio = (f32)((b->y + (u16)b->height) * 2) / (f32)g->scale->viewport1;
+        y1 = lbl_80348AD4 - ratio;
+        ratio = (f32)(b->depth * 2) / (f32)*(s32*)((u8*)g->obj10 + 52);
+        z = ratio - lbl_80348AD4;
+    }
+
+    if (a2 == 256) {
+        a2--;
+    }
+    c.r = rr;
+    c.g = gg;
+    c.b = bb;
+    c.a = a2;
+    c2 = c;
+    GXSetChanMatColor(GX_COLOR0A0, &c2);
+
+    GXBegin(GX_TRIANGLESTRIP, GX_VTXFMT0, 4);
+    GXWGFifo.f32 = x0;
+    GXWGFifo.f32 = y0;
+    GXWGFifo.f32 = z;
+    GXWGFifo.f32 = x0;
+    GXWGFifo.f32 = y1;
+    GXWGFifo.f32 = z;
+    GXWGFifo.f32 = x1;
+    GXWGFifo.f32 = y0;
+    GXWGFifo.f32 = z;
+    GXWGFifo.f32 = x1;
+    GXWGFifo.f32 = y1;
+    GXWGFifo.f32 = z;
+}
+
 
 void DrawBlit(MBBLIT* b) {
     MBWindow* window;
@@ -1085,69 +1346,86 @@ void DrawBlit(MBBLIT* b) {
     lbl_80345130++;
 }
 
-void DrawBlitFlatQuad(MBBLIT* b) {
-    MBWindow* g = gWinGlobals;
-    u8 unused[96];
-    f32 mtx[3][4];
-    GXColor c;
-    GXColor c2;
-    f32 y1, z, x0, y0, x1;
-    s32 a2;
-    u32 rr, gg, bb;
-    u8 unused2[36];
 
-    SetMultiPassTextureParams(3);
-    SetCullMode(0);
-    SetPerspectiveMode(0);
-    SetViewportHeight(lbl_80348AD4);
-    SetVertexFormat(3);
-    PSMTXIdentity(mtx);
-    GXLoadPosMtxImm(mtx, 0);
+s32 mbBlitCalcLight(s32 x, s32 y) {
+    f64 value;
+    f64 phase;
+    f64 result;
+    f64 output;
 
-    a2 = (b->color0 >> 23) & 0x1FE;
-    rr = (b->color0 >> 16) & 0xFF;
-    gg = (b->color0 >> 8) & 0xFF;
-    bb = b->color0 & 0xFF;
-
-    {
-        f32 ratio;
-
-        ratio = (f32)(b->x * 2) / (f32)g->scale->viewport0;
-        x0 = ratio - lbl_80348AD4;
-        ratio = (f32)((b->x + (u16)b->width) * 2) / (f32)g->scale->viewport0;
-        x1 = ratio - lbl_80348AD4;
-        ratio = (f32)(b->y * 2) / (f32)g->scale->viewport1;
-        y0 = lbl_80348AD4 - ratio;
-        ratio = (f32)((b->y + (u16)b->height) * 2) / (f32)g->scale->viewport1;
-        y1 = lbl_80348AD4 - ratio;
-        ratio = (f32)(b->depth * 2) / (f32)*(s32*)((u8*)g->obj10 + 52);
-        z = ratio - lbl_80348AD4;
+    value = (f64)(f32)(lbl_80344DE0 * (f32)(x + y));
+    phase = (f64)(f32)(7.0 * (f64)lbl_80344DD8);
+    if (value < 0.5) {
+        if (phase < 1.0) {
+            value = (f64)(f32)-(4.0 * value - phase);
+        } else {
+            if (phase < 2.0) {
+                value =
+                    (f64)(f32)(2.0 * (value * (phase - 3.0)) + 1.0);
+            } else {
+                if (phase < 3.0) {
+                    value = (f64)(f32)(
+                        2.0 * ((3.0 - phase) * (0.5 - value)) +
+                        2.0 * ((phase - 2.0) * value));
+                } else {
+                    if (phase < 4.0) {
+                        value = (f64)(f32)(
+                            2.0 * value +
+                            2.0 * ((3.0 - phase) * (0.5 - value)));
+                    } else {
+                        if (phase < 5.0) {
+                            value = (f64)(f32)(
+                                2.0 * ((3.0 - phase) * (0.5 - value)) +
+                                2.0 * ((5.0 - phase) * value));
+                        } else {
+                            value = (f64)lbl_80348AA0;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        value = (f64)(f32)(1.0 - value);
+        if (phase < 2.0) {
+            value = (f64)lbl_80348AA0;
+        } else {
+            if (phase < 3.0) {
+                value = (f64)(f32)(
+                    2.0 * ((phase - 4.0) * (0.5 - value)) +
+                    2.0 * ((phase - 2.0) * value));
+            } else {
+                if (phase < 4.0) {
+                    value = (f64)(f32)(
+                        2.0 * value +
+                        2.0 * ((phase - 4.0) * (0.5 - value)));
+                } else {
+                    if (phase < 5.0) {
+                        value = (f64)(f32)(
+                            2.0 * ((phase - 4.0) * (0.5 - value)) +
+                            2.0 * ((5.0 - phase) * value));
+                    } else {
+                        if (phase < 6.0) {
+                            value = (f64)(f32)(
+                                2.0 * (value * (4.0 - phase)) + 1.0);
+                        } else {
+                            value =
+                                (f64)(f32)-(4.0 * value - (7.0 - phase));
+                        }
+                    }
+                }
+            }
+        }
     }
-
-    if (a2 == 256) {
-        a2--;
+    value *= 127.0;
+    result = (f64)(f32)value;
+    if (result < 0.0) {
+        output = 0.0;
+    } else {
+        output = result > 127.0 ? 127.0 : result;
     }
-    c.r = rr;
-    c.g = gg;
-    c.b = bb;
-    c.a = a2;
-    c2 = c;
-    GXSetChanMatColor(GX_COLOR0A0, &c2);
-
-    GXBegin(GX_TRIANGLESTRIP, GX_VTXFMT0, 4);
-    GXWGFifo.f32 = x0;
-    GXWGFifo.f32 = y0;
-    GXWGFifo.f32 = z;
-    GXWGFifo.f32 = x0;
-    GXWGFifo.f32 = y1;
-    GXWGFifo.f32 = z;
-    GXWGFifo.f32 = x1;
-    GXWGFifo.f32 = y0;
-    GXWGFifo.f32 = z;
-    GXWGFifo.f32 = x1;
-    GXWGFifo.f32 = y1;
-    GXWGFifo.f32 = z;
+    return (s32)(f32)output;
 }
+
 
 void pbBlitSetDrawRegs(u32 flags, u32 mode) {
     PBBlendState state;
@@ -1264,6 +1542,7 @@ void pbBlitSetDrawRegs(u32 flags, u32 mode) {
     }
 }
 
+
 void pbBlitSetTexture(u32 tex) {
     int loaded;
     u32 high;
@@ -1291,98 +1570,6 @@ void pbBlitSetTexture(u32 tex) {
     }
 }
 
-s32 mbBlitCalcLight(s32 x, s32 y) {
-    f64 value;
-    f64 phase;
-    f64 result;
-    f64 output;
-
-    value = (f64)(f32)(lbl_80344DE0 * (f32)(x + y));
-    phase = (f64)(f32)(7.0 * (f64)lbl_80344DD8);
-    if (value < 0.5) {
-        if (phase < 1.0) {
-            value = (f64)(f32)-(4.0 * value - phase);
-        } else {
-            if (phase < 2.0) {
-                value =
-                    (f64)(f32)(2.0 * (value * (phase - 3.0)) + 1.0);
-            } else {
-                if (phase < 3.0) {
-                    value = (f64)(f32)(
-                        2.0 * ((3.0 - phase) * (0.5 - value)) +
-                        2.0 * ((phase - 2.0) * value));
-                } else {
-                    if (phase < 4.0) {
-                        value = (f64)(f32)(
-                            2.0 * value +
-                            2.0 * ((3.0 - phase) * (0.5 - value)));
-                    } else {
-                        if (phase < 5.0) {
-                            value = (f64)(f32)(
-                                2.0 * ((3.0 - phase) * (0.5 - value)) +
-                                2.0 * ((5.0 - phase) * value));
-                        } else {
-                            value = (f64)lbl_80348AA0;
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        value = (f64)(f32)(1.0 - value);
-        if (phase < 2.0) {
-            value = (f64)lbl_80348AA0;
-        } else {
-            if (phase < 3.0) {
-                value = (f64)(f32)(
-                    2.0 * ((phase - 4.0) * (0.5 - value)) +
-                    2.0 * ((phase - 2.0) * value));
-            } else {
-                if (phase < 4.0) {
-                    value = (f64)(f32)(
-                        2.0 * value +
-                        2.0 * ((phase - 4.0) * (0.5 - value)));
-                } else {
-                    if (phase < 5.0) {
-                        value = (f64)(f32)(
-                            2.0 * ((phase - 4.0) * (0.5 - value)) +
-                            2.0 * ((5.0 - phase) * value));
-                    } else {
-                        if (phase < 6.0) {
-                            value = (f64)(f32)(
-                                2.0 * (value * (4.0 - phase)) + 1.0);
-                        } else {
-                            value =
-                                (f64)(f32)-(4.0 * value - (7.0 - phase));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    value *= 127.0;
-    result = (f64)(f32)value;
-    if (result < 0.0) {
-        output = 0.0;
-    } else {
-        output = result > 127.0 ? 127.0 : result;
-    }
-    return (s32)(f32)output;
-}
-
-void mbBlitSetPage(void) {
-    lbl_80343EA4 = -1;
-    lbl_80343EA8 = -1;
-    lbl_80343EAC = -1;
-    fn_800C36F8();
-    pbResetDORegs();
-}
-
-int mbBlitGetPage(void) {
-    lbl_80343EA4 = -1;
-    lbl_80343EA8 = -1;
-    lbl_80343EAC = -1;
-}
 
 void mbBlitStub51E0(void) {
     lbl_80343EA4 = -1;
@@ -1390,28 +1577,16 @@ void mbBlitStub51E0(void) {
     lbl_80343EAC = -1;
 }
 
-void g3dcolorDtorThunk(void) {
+
+void mbBlitStaticInit(void) {
+    u8* manager = lbl_80296450 + 12;
+    u8 pad[8];
+
+    __construct_array(manager + 4, (ConstructorDestructor)g3dcolorDtorThunk,
+                      (ConstructorDestructor)g3dcolorDtor, 1, 4);
+    __register_global_object(manager, mbBlitColorArrayDtor, lbl_80296450);
 }
 
-void* g3dcolorDtor(void* object, s16 shouldDelete) {
-    if (object != 0 && shouldDelete > 0) {
-        __dl__FPv(object);
-    }
-    return object;
-}
-
-void* mbBlitColorArrayDtor(void* object, s16 shouldDelete) {
-    if (object != 0) {
-        if (object != 0) {
-            __destroy_arr((u8*)object + 4,
-                          (ConstructorDestructor*)g3dcolorDtor, 1, 4);
-        }
-        if (shouldDelete > 0) {
-            __dl__FPv(object);
-        }
-    }
-    return object;
-}
 
 void mbBlitPadTest(s32* manager) {
     u32 disconnected = 0;
@@ -1439,154 +1614,28 @@ void mbBlitPadTest(s32* manager) {
     }
 }
 
-void mbBlitStaticInit(void) {
-    u8* manager = lbl_80296450 + 12;
-    u8 pad[8];
 
-    __construct_array(manager + 4, (ConstructorDestructor)g3dcolorDtorThunk,
-                      (ConstructorDestructor)g3dcolorDtor, 1, 4);
-    __register_global_object(manager, mbBlitColorArrayDtor, lbl_80296450);
+void* mbBlitColorArrayDtor(void* object, s16 shouldDelete) {
+    if (object != 0) {
+        if (object != 0) {
+            __destroy_arr((u8*)object + 4,
+                          (ConstructorDestructor*)g3dcolorDtor, 1, 4);
+        }
+        if (shouldDelete > 0) {
+            __dl__FPv(object);
+        }
+    }
+    return object;
 }
 
-/* =====================================================================
- * Coordinate / vertex helpers (descriptive names) - stubbed
- * ===================================================================== */
 
-u32 mbInitBlitEntry(MBBLIT* b, int tex, int delta) {
-    s32 old;
-    s32 projectWidth;
-    s32 projectHeight;
-    s32 oldWidth;
-    s32 oldHeight;
-    s32 newTex;
-    MBTextureDef* texture;
-    s32 newWidth;
-    s32 newHeight;
-    f32 scale;
-
-    projectWidth = 0;
-    projectHeight = 0;
-    old = b->tex;
-
-    if (tex >= 0) {
-        newTex = tex;
-    } else {
-        newTex = b->tex;
+void* g3dcolorDtor(void* object, s16 shouldDelete) {
+    if (object != 0 && shouldDelete > 0) {
+        __dl__FPv(object);
     }
-    newTex += delta;
-    b->tex = newTex;
-    if (newTex == old) {
-        return old;
-    }
-
-    if ((b->flags & 0x400) != 0) {
-        projectWidth = -1;
-    }
-    if ((b->flags & 0x800) != 0) {
-        projectHeight = -1;
-    }
-    if (projectWidth == -1 || projectHeight == -1) {
-        mbBlitProject(b, projectWidth, projectHeight);
-    }
-
-    if (old >= 0) {
-        texture = MBRomTexPtr(old);
-        oldWidth = texture->width;
-        oldHeight = texture->height;
-    } else {
-        oldWidth = 1;
-        oldHeight = 1;
-    }
-
-    texture = MBRomTexPtr(newTex);
-    newWidth = texture->width;
-    newHeight = texture->height;
-    if (oldWidth != newWidth) {
-        scale = (f32)newWidth / (f32)oldWidth;
-        b->u0 = (s16)(0.5 + (f64)((f32)(u16)b->u0 * scale));
-        b->u1 = (s16)(0.5 + (f64)((f32)(u16)b->u1 * scale));
-    }
-    if (oldHeight != newHeight) {
-        scale = (f32)newHeight / (f32)oldHeight;
-        b->v0 = (s16)(0.5 + (f64)((f32)(u16)b->v0 * scale));
-        b->v1 = (s16)(0.5 + (f64)((f32)(u16)b->v1 * scale));
-    }
-    return old;
+    return object;
 }
 
-void mbBlitProject(MBBLIT* b, int width, int height) {
-    MBWindow* win = gWinGlobals;
-    u32 autoFlags = 0;
 
-    if (width < 0 || height < 0) {
-        MBTextureDef* texture = MBRomTexPtr(b->tex);
-
-        if (width < 0) {
-            width = texture->width;
-            if ((texture->flags & 1) != 0 &&
-                (b->flags & 0x1000000) == 0) {
-                width <<= 1;
-            }
-            autoFlags |= 0x400;
-        }
-        if (height < 0) {
-            height = texture->height;
-            if ((texture->flags & 1) != 0 &&
-                (b->flags & 0x1000000) == 0) {
-                height <<= 1;
-            }
-            autoFlags |= 0x800;
-        }
-    }
-    if (width != 0) {
-        if ((b->flags & 0x40) != 0) {
-            width <<= 4;
-        } else {
-            width = width * win->scale->x;
-        }
-        b->width = width;
-        b->flags &= ~0x400;
-    }
-    if (height != 0) {
-        if ((b->flags & 0x140) != 0) {
-            height <<= 4;
-        } else {
-            height = height * win->scale->y;
-        }
-        b->height = height;
-        b->flags &= ~0x800;
-    }
-    b->flags |= autoFlags;
-}
-
-void mbBlitSetupVerts(MBBLIT* b, f32 u0, f32 u1, f32 v0, f32 v1) {
-    MBTextureDef* texture = MBRomTexPtr(b->tex);
-    s16 swap;
-    f32 width;
-    f32 height;
-
-    if ((b->flags & 0x20) != 0) {
-        swap = u0;
-        u0 = u1;
-        u1 = swap;
-    }
-    if ((b->flags & 0x80) != 0) {
-        swap = v0;
-        v0 = v1;
-        v1 = swap;
-    }
-    width = texture->width;
-    height = texture->height;
-    if (u0 >= 0.0f) {
-        b->u0 = (s16)(u0 * width * 16.0 + 0.5);
-    }
-    if (u1 >= 0.0f) {
-        b->u1 = (s16)(u1 * width * 16.0 + 0.5);
-    }
-    if (v0 >= 0.0f) {
-        b->v0 = (s16)(v0 * height * 16.0 + 0.5);
-    }
-    if (v1 >= 0.0f) {
-        b->v1 = (s16)(v1 * height * 16.0 + 0.5);
-    }
+void g3dcolorDtorThunk(void) {
 }
