@@ -504,6 +504,8 @@ game/sys/ml_mem.c:
 	.text       start:0x800BE964 end:0x800BFC80
 	.rodata     start:0x801161B0 end:0x80116450
 	.bss        start:0x802C4348 end:0x802C45C0
+	.sbss       start:0x80344F18 end:0x80344F50
+	.sdata2     start:0x80348ED8 end:0x80348EF0
 
 game/ps2/ml_text.c:
 	extab       start:0x80007B70 end:0x80007B98

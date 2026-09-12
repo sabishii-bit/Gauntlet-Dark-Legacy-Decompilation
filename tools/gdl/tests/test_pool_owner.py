@@ -5,7 +5,8 @@ readable from the test itself; the report is then calibrated on three live
 units of this checkout with DIFFERENT shapes, so a passing suite means the
 tool distinguishes them rather than printing one plausible page:
 
-    game/sys/ml_mem     owns its .rodata run and its pool order AGREES
+    game/sys/ml_mem     owns its .rodata and recovered path-literal runs;
+                        its modelled pool order AGREES
     game/enemy/enemy    owns its .sdata2 run, references datums outside it,
                         and its pool order DISAGREES
     game/game/gamemain  now owns its exact .sdata2 run; its string pool remains
@@ -194,7 +195,7 @@ def run_cli(*args):
 
 
 class LiveUnitTests(unittest.TestCase):
-    """The three live shapes, with the numbers measured at 306e80654."""
+    """Live shapes, updated as verified source/data ownership is recovered."""
 
     @classmethod
     def setUpClass(cls):
@@ -209,21 +210,49 @@ class LiveUnitTests(unittest.TestCase):
             # mlmGameSubdirectory, lbl_80116388) were split into the literals
             # the DOL terminates, so symbols.txt now names every one of them.
             "size": 672, "named_datums_in_symbols": 17,
-            "target_section_bytes": 672}])
+            "target_section_bytes": 672}, {
+            # Recovered from real path literals, not an equal-value pool
+            # guess: all 16 target references bind at the original offsets.
+            "section": ".sdata2", "start": "0x80348ED8", "end": "0x80348EF0",
+            "size": 24, "named_datums_in_symbols": 4,
+            "target_section_bytes": 24}])
         self.assertFalse(result["claims_no_pool_run"])
         own = [d for d in result["datums"] if d["owned_by_this_unit"]]
-        self.assertEqual(len(own), 11)
+        self.assertEqual(len(own), 15)
         self.assertTrue(result["first_use_prediction"]["orders_agree"])
         self.assertEqual(result["first_use_prediction"]["modelled_generated_literals"], 10)
 
     def test_ml_mem_names_its_foreign_and_unclaimed_reads(self):
         result = po.analyze("game/sys/ml_mem")
         self.assertEqual(result["referenced_foreign"], ["dolphin/os/OSAlloc"])
-        self.assertEqual(result["referenced_unclaimed"], 5)
+        self.assertEqual(result["referenced_unclaimed"], 1)
+        self.assertEqual([d["name"] for d in result["datums"]
+                          if d["owner"] == "UNCLAIMED"], ["gErrorCode"])
         heap = next(d for d in result["datums"] if d["name"] == "__OSCurrHeap")
         self.assertEqual(heap["owner"], "dolphin/os/OSAlloc")
         self.assertEqual(heap["disposition"], "DATA")
         self.assertEqual(heap["value"]["preferred"], "u32")
+
+    def test_ml_mem_path_literals_have_their_exact_owned_addresses_and_offsets(self):
+        result = po.analyze("game/sys/ml_mem")
+        rows = {d["name"]: d for d in result["datums"]}
+        expected = [
+            ("mlmPathFmtWad", "0x80348ED8", 0, "%s/%s", 5),
+            ("mlmPathFmt", "0x80348EE0", 8, "%s", 5),
+            ("mlmExtDefault", "0x80348EE4", 12, ".ps2", 5),
+            ("mlmPathSeparator", "0x80348EEC", 20, "/", 1),
+        ]
+        self.assertEqual(result["derived_section_bases"][".sdata2"], "0x80348ED8")
+        for name, address, offset, value, references in expected:
+            with self.subTest(datum=name):
+                row = rows[name]
+                self.assertEqual(row["owner"], "game/sys/ml_mem")
+                self.assertEqual(row["address"], address)
+                self.assertEqual(row["section"], ".sdata2")
+                self.assertEqual(row["value"]["string"], value)
+                self.assertEqual(len(row["reference_sites"]), references)
+                self.assertEqual(row["our_equal_value_count"], 1)
+                self.assertEqual(row["our_equal_value_entries"][0]["offset"], offset)
 
     def test_ml_mem_unmerged_string_run_matches_as_one_whole_datum(self):
         """Once the run is not merged, the whole-run byte compare SUCCEEDS.

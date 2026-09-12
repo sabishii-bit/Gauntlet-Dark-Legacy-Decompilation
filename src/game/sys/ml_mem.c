@@ -14,8 +14,8 @@
  * (AllocMem/AllocMem32/GetMemBase/ResetAllocTot/AllocFile/FileSize/FileExists/
  * get_path/MBSetupWad/MBGetFromWad/StartFileRead/InitMemHandler/BytesFree).
  * NonMatching: AllocFile retains a two-instruction argument-copy ordering
- * residual. The remaining native bodies are exact; some module globals and
- * path literals still rely on extracted data ownership. */
+ * residual. The remaining native bodies are exact. The empty mlmRootPath
+ * buffer still relies on extracted data pending its original extent. */
 
 /* ---- OS / heap ---- */
 extern s32 DemoHeap;
@@ -51,17 +51,29 @@ extern int sceFileExists(const char* path);
 extern int uncompress(void* dest, int* destLen, void* src, int srcLen);
 
 /* ================= allocator state (.sbss / .bss) ================= */
-extern int alloctot;      /* bytes taken from the high pool             */
-extern int mlmLockSave;   /* saved low-watermark (lock bookkeeping)     */
-extern int mlmLockSaveTop;
-extern int mlmMemReserved; /* nonzero => alloc calls are illegal        */
-extern int mlmMemLimit;   /* high boundary; hi-alloc decrements it      */
-extern int mlmMemUsed;    /* low watermark; lo-alloc increments it      */
-extern u8* mlmMemBase;    /* base of the managed block                  */
+/* Separate module state, not a synthetic aggregate. GC accesses are all
+ * 32-bit words; InitMemHandler also resets the public pbLoad counter.
+ * MWCC emits these tentative definitions in reverse declaration order,
+ * covering 0x80344F18..0x80344F4B followed by four alignment bytes. */
+u8* mlmMemBase;    /* base of the managed block */
+int mlmMemUsed;    /* low watermark; lo-alloc increments it */
+int mlmMemLimit;   /* high boundary; hi-alloc decrements it */
+int mlmMemReserved; /* nonzero prohibits allocation */
+int mlmLastFileSize;
+int mlmCurFileSlot;
+/* pbPulseTime produces this as u32. Some consumer extern declarations
+ * still disagree on signedness/volatile qualification; that shared
+ * interface debt is not resolved by establishing ownership here. */
+u32 pbLoad;
+int mlmReadRes;
+int mlmCloseRes;
+int mlmServeTimeout;
+int mlmLockSaveTop;
+int mlmLockSave;   /* saved low watermark */
+int alloctot;      /* bytes taken from the high pool */
 extern int gLowMemMode;   /* selects a smaller managed block            */
 extern int gDemoMode;
 extern int __OSCurrHeap;
-extern int pbLoad;
 
 /* ================= file-system state ================= */
 enum FinfoState {
@@ -103,17 +115,8 @@ typedef struct fileinfo {
 static MLFILE finfo_list[1];
 static MLFILE temp_finfo;
 static int mlmLockStack[8];
-extern int mlmCurFileSlot;
-extern int mlmServeTimeout;
-extern int mlmCloseRes;
-extern int mlmReadRes;
-extern int mlmLastFileSize;
 
 extern char mlmRootPath[];
-extern const char mlmPathFmtWad[6]; /* "%s/%s" */
-extern const char mlmPathFmt[3];    /* "%s"    */
-extern const char mlmExtDefault[5]; /* ".ps2"  */
-extern const char mlmPathSeparator[2];
 extern void ErrorPrintf(const char* fmt, ...);
 
 /* forward decls (address order kept) */
@@ -268,13 +271,13 @@ MLFILE* StartFileRead(char* wad, char* name, int mode, int sizeHint,
     }
     f = &finfo_list[slot];
     if (wad != NULL) {
-        sprintf(path, mlmPathFmtWad, wad, name);
+        sprintf(path, "%s/%s", wad, name);
     } else {
-        sprintf(path, mlmPathFmt, name);
+        sprintf(path, "%s", name);
     }
     if ((name[0] != 'W' || name[1] != 'A' || name[2] != 'D') &&
         strrchr(path, '.') == NULL) {
-        strcat(path, mlmExtDefault);
+        strcat(path, ".ps2");
     }
     strcpy(full, mlmRootPath);
     if (path[0] != '/') {
@@ -545,13 +548,13 @@ static inline void get_path_inline(char* out, char* wad, char* name)
     char tmp[256];
 
     if (wad != NULL) {
-        sprintf(tmp, mlmPathFmtWad, wad, name);
+        sprintf(tmp, "%s/%s", wad, name);
     } else {
-        sprintf(tmp, mlmPathFmt, name);
+        sprintf(tmp, "%s", name);
     }
     if (!(name[0] == 'W' && name[1] == 'A' && name[2] == 'D') &&
         strrchr(tmp, '.') == NULL) {
-        strcat(tmp, mlmExtDefault);
+        strcat(tmp, ".ps2");
     }
     strcpy(out, mlmRootPath);
     if (tmp[0] != '/') {
@@ -576,7 +579,7 @@ int FileMap(char* wad, char* name, char* dst, s32 n, u32* handle, s32* sizeOut)
         strncpy(dst, wad, n);
         n = n - strlen(wad);
         if (n > 0) {
-            strcat(dst, mlmPathSeparator);
+            strcat(dst, "/");
             if (n - 1 > 0) {
                 strncat(dst, name, n - 1);
             }
@@ -667,13 +670,13 @@ int xReadFileSection(char* wad, char* name, register int maxLen, register void* 
     output = dest;
 
     if (wad != NULL) {
-        sprintf(tmp, mlmPathFmtWad, wad, name);
+        sprintf(tmp, "%s/%s", wad, name);
     } else {
-        sprintf(tmp, mlmPathFmt, name);
+        sprintf(tmp, "%s", name);
     }
     if (!(name[0] == 'W' && name[1] == 'A' && name[2] == 'D') &&
         strrchr(tmp, '.') == NULL) {
-        strcat(tmp, mlmExtDefault);
+        strcat(tmp, ".ps2");
     }
     strcpy(full, mlmRootPath);
     if (tmp[0] != '/') {
@@ -715,13 +718,13 @@ void get_path(char* out, char* wad, char* name)
     char tmp[256];
 
     if (wad != NULL) {
-        sprintf(tmp, mlmPathFmtWad, wad, name);
+        sprintf(tmp, "%s/%s", wad, name);
     } else {
-        sprintf(tmp, mlmPathFmt, name);
+        sprintf(tmp, "%s", name);
     }
     if (!(name[0] == 'W' && name[1] == 'A' && name[2] == 'D') &&
         strrchr(tmp, '.') == NULL) {
-        strcat(tmp, mlmExtDefault);
+        strcat(tmp, ".ps2");
     }
     strcpy(out, mlmRootPath);
     if (tmp[0] != '/') {
