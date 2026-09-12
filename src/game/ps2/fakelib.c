@@ -4,19 +4,17 @@
  * File API backed by DVD*, pad API backed by G3D pad layer.
  */
 #include "types.h"
+#include "dolphin/dvd.h"
 
-s32 DVDConvertPathToEntrynum(const char* path);
-int DVDClose(void* fileInfo);
-int DVDReadAsyncPrio(void* fileInfo, void* buf, int len, int offset, void* cb, int prio);
-int DVDOpen(const char* path, void* fileInfo);
-int DVDGetCommandBlockStatus(void* block);
-
+s32 DVDGetCommandBlockStatus(DVDCommandBlock* block);
 void ScrollMessageBox(char* msg);   /* disc-error message display (MESSAGE.OBJ) */
 void sysHandleReset(void);        /* frame yield while waiting on DVD */
 void sndTestStartAll(void);    /* post-error recovery after the error screen */
 
 extern u8 gDiskErrorShown;       /* error-screen-shown flag (other TU) */
-extern u8 gDvdScratchFileInfo[]; /* shared scratch DVDFileInfo (.bss) */
+/* The shared declaration remains byte-based until its main.c owner is typed.
+ * Target storage is one 0x3C-byte DVDFileInfo, opened by main_init. */
+extern u8 gDvdScratchFileInfo[];
 extern u8 sFileSlots[];          /* records @+1440+i*88, buffers @+1528+i*16416 */
 extern u8 sDvdBusy;
 extern u8 DiskErrorStr[];        /* Xbox PDB name */
@@ -48,9 +46,7 @@ typedef struct SCEFILE {
     u32 winOff;     /* 0x10 window start (file offset) */
     u32 cursor;     /* 0x14 read cursor (file offset) */
     s32 pos;        /* 0x18 */
-    u8 fileInfo[0x34]; /* 0x1C DVDFileInfo head */
-    u32 size;       /* 0x50 (DVDFileInfo.length) */
-    u8 rest[0x4];
+    DVDFileInfo fileInfo; /* 0x1C, length at 0x50 */
 } SCEFILE;
 
 typedef struct SCEBUFFER_SLOT {
@@ -117,28 +113,30 @@ u8 sceFileExists(const char* path)
     return DVDConvertPathToEntrynum(path) >= 0;
 }
 
+int sDvdReadSync(DVDFileInfo* fileInfo, void* buf, int len, int offset);
+
 /* File size probe - open with retry, take length, close. */
 int sceFileSize(const char* path)
 {
-    u8 fi[0x3C]; /* DVDFileInfo */
+    DVDFileInfo fi;
     u8 bufo[64];
     u8 bufc[64];
     int r;
     int size;
 
     do {
-        r = DVDOpen(path, fi);
+        r = DVDOpen((char*) path, &fi);
         if (r == 0) {
             int off = (int) (((u32) &bufo[31] & ~31) - (u32) &bufo);
-            sDvdReadSync(gDvdScratchFileInfo, bufo + off, 32, 0);
+            sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, bufo + off, 32, 0);
         }
     } while (r == 0);
-    size = *(u32*) (fi + 0x34); /* DVDFileInfo.length */
+    size = fi.length;
     do {
-        r = DVDClose(fi);
+        r = DVDClose(&fi);
         if (r == 0) {
             int off = (int) (((u32) &bufc[31] & ~31) - (u32) &bufc);
-            sDvdReadSync(gDvdScratchFileInfo, bufc + off, 32, 0);
+            sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, bufc + off, 32, 0);
         }
     } while (r == 0);
     return size;
@@ -153,10 +151,10 @@ int sceLseek(int fd, int offset, int whence)
     } else if (whence == 1) {
         f->pos = f->pos + offset;
     } else {
-        f->pos = f->size + offset;
+        f->pos = f->fileInfo.length + offset;
     }
     if (f->pos >= 0) {
-        if (f->pos <= f->size) {
+        if (f->pos <= f->fileInfo.length) {
             return f->pos;
         }
     }
@@ -168,23 +166,26 @@ int sceWrite(int fd, const void* buf, int len)
     return 0;
 }
 
+/* Reconstruction debt: the scalar message form restores the 48-byte target
+ * frame but emits an extra zero load (87 target / 88 native instructions).
+ * This historical carrier still leaves five frame words unmatched. */
 typedef struct SDvdMessageCarrier {
     char* message;
 } SDvdMessageCarrier;
 
 /* 0x800AEBF4: synchronous DVD read with disc-error UI (0x15C) */
-int sDvdReadSync(void* fileInfo, void* buf, int len, int offset)
+int sDvdReadSync(DVDFileInfo* fileInfo, void* buf, int len, int offset)
 {
     SDvdMessageCarrier carrier;
     char* base = (char*) DiskErrorStr;
     int status;
 
     carrier.message = 0;
-    gDiskErrorShown = (u32)carrier.message;
-    sDvdBusy = (u32)carrier.message;
+    gDiskErrorShown = 0;
+    sDvdBusy = 0;
     if (DVDReadAsyncPrio(fileInfo, buf, len, offset, 0, 2) == 0) {
         sDvdBusy = 1;
-        switch (DVDGetCommandBlockStatus(fileInfo)) {
+        switch (DVDGetCommandBlockStatus(&fileInfo->cb)) {
         case -1:
             carrier.message = base + 176;
             break;
@@ -204,7 +205,7 @@ int sDvdReadSync(void* fileInfo, void* buf, int len, int offset)
         }
     }
     do {
-        status = DVDGetCommandBlockStatus(fileInfo);
+        status = DVDGetCommandBlockStatus(&fileInfo->cb);
         if (status == 3) {
             goto dvd_busy;
         }
@@ -285,7 +286,7 @@ int sceRead(int fd, void* buf, int len)
             f->cursor = a;
         }
         if (n > 0) {
-            if (sDvdReadSync(f->fileInfo, f->buf + (f->bufOff + a - f->winOff), n,
+            if (sDvdReadSync(&f->fileInfo, f->buf + (f->bufOff + a - f->winOff), n,
                             f->cursor) != n) {
                 return -1;
             }
@@ -305,7 +306,7 @@ int sceRead(int fd, void* buf, int len)
 
     while (span > f->chunk) {
         f->winOff = f->cursor;
-        if (sDvdReadSync(f->fileInfo, f->buf + f->bufOff, f->chunk, f->cursor) !=
+        if (sDvdReadSync(&f->fileInfo, f->buf + f->bufOff, f->chunk, f->cursor) !=
             f->chunk) {
             return -1;
         }
@@ -319,7 +320,7 @@ int sceRead(int fd, void* buf, int len)
 
     if (span > 0) {
         f->winOff = f->cursor;
-        if (sDvdReadSync(f->fileInfo, f->buf + f->bufOff, span, f->cursor) != span) {
+        if (sDvdReadSync(&f->fileInfo, f->buf + f->bufOff, span, f->cursor) != span) {
             return -1;
         }
         f->cursor += span;
@@ -339,14 +340,14 @@ int sceClose(int fd)
     int r;
 
     do {
-        r = DVDClose(f->fileInfo);
+        r = DVDClose(&f->fileInfo);
         if (r == 0) {
             /* off declared INSIDE the loop body: MWCC's LICM hoists only the
                subf (aligned-base -> r29) and keeps the base+off add at the
                callsite inside the loop, matching Midway. Declaring off in the
                outer scope folds base+off -> aligned and hoists it whole. */
             int off = (int) (((u32) &buf[31] & ~31) - (u32) &buf[0]);
-            sDvdReadSync(gDvdScratchFileInfo, buf + off, 32, 0);
+            sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, buf + off, 32, 0);
         }
     } while (r == 0);
     f->open = 0;
@@ -360,7 +361,7 @@ int sceOpen(const char* path, int flags, ...)
     SCEFILE* f;
     u8* base;
     int off;
-    u8* fi;
+    DVDFileInfo* fi;
     int i;
     int r;
     u8 rbuf[64];
@@ -382,12 +383,12 @@ int sceOpen(const char* path, int flags, ...)
     }
     f->buf = ((SCEBUFFER_SLOT*) (base + 1528))[i].data;
 
-    fi = f->fileInfo;
+    fi = &f->fileInfo;
     do {
-        r = DVDOpen(path, fi);
+        r = DVDOpen((char*) path, fi);
         if (r == 0) {
             off = (int) (((u32) &rbuf[31] & ~31) - (u32) &rbuf[0]);
-            sDvdReadSync(gDvdScratchFileInfo, rbuf + off, 32, 0);
+            sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, rbuf + off, 32, 0);
         }
     } while (r == 0);
 
