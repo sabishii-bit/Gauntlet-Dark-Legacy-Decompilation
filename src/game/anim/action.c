@@ -34,26 +34,19 @@
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 #endif
 
-/* atree (animation tree): +0x04 sequence table, 48-byte entries with the
- * frame count at +0x20 of each entry (see ATREESEQ below).  DoEnemyAction's
- * e70 and DoPlayerAction's atree locals both point at an embedded
- * `animinfo` (include/game/enemy.h) - the enemy and player atree wrappers
- * share that same playback-state layout at the byte level (animseq +0x0E,
- * numframes +0x10, repeat +0x34, stage +0x36 all verified equal in both
- * functions' target asm). */
-typedef struct ATREE {
-    /* 0x00 */ s32 unk00;
-    /* 0x04 */ char* seqs;
-} ATREE;
-
-/* one atreeseq sequence-table entry (48 bytes, InitActions' `seq * 48 + 32`).
- * Only the frame-count field this TU reads is named; the rest of the entry
- * is unresolved and kept as explicit padding. */
-typedef struct ATREESEQ {
-    /* 0x00 */ u8 _pad00[0x20];
-    /* 0x20 */ s16 frames;
-    /* 0x22 */ u8 _pad22[0x30 - 0x22];
-} ATREESEQ;
+/* Sequence records are shared with atree.c: InitActions reads signed
+ * numframes at +0x20 with a 0x30 stride. The other fields follow that
+ * existing GC-verified definition, not a synthetic byte-index view. */
+typedef struct atreeseq {
+    char name[0x20];
+    s16 numframes;
+    s16 framerate;
+    s16 repeat;
+    s16 fixpos;
+    s16 ntexmods;
+    s16 flags;
+    struct TEXMOD* texmods;
+} atreeseq;
 
 /* per-action init record filled by InitActions */
 typedef struct ACTIONDEF {
@@ -61,15 +54,7 @@ typedef struct ACTIONDEF {
     /* 0x04 */ s32 frames; /* sequence frame count */
 } ACTIONDEF;
 
-/* minimal enemy view (full struct: include/game/enemy.h, stride 0x394) */
-typedef struct ENEMYACT {
-    /* 0x000 */ u8 _pad0[0xD0];
-    /* 0x0D0 */ s32 action;    /* current action id (e_actpri index) */
-    /* 0x0D4 */ u8 _pad1[0x2A8];
-    /* 0x37C */ f32 actTimer;  /* in-progress timer; >0 = uninterruptible */
-} ENEMYACT;
-
-s32 AtreeFindSeq(ATREE* atree, char* name);
+s32 AtreeFindSeq(atree* tree, char* name);
 void SfxSetParent(void* sfx, void* parent);
 void SfxDeleteParented(void* parent, s32 a, s32 b);
 s32 AnimateATree(atree* node, s32 seq, s32 mode);
@@ -86,8 +71,8 @@ extern char* lbl_80126C68[]; /* action-name table (owned by an earlier TU) */
 enemy_action_type DoEnemyAction(Enemy* enemy);
 void DoPlayerAction(void* player);
 s32 PlayerAttackType(s32 seq);
-void InitActions(ATREE* atree, ACTIONDEF* defs, char** names);
-void RequestEnemyAction(ENEMYACT* e, s32 action);
+void InitActions(atree* tree, ACTIONANIM* defs, char** names);
+void RequestEnemyAction(Enemy* e, s32 action);
 
 /* 0x80126F48  action priority table (Xbox PDB: e_actpri).  A new action is
  * accepted only when its priority exceeds the current action's. */
@@ -1969,40 +1954,40 @@ s32 PlayerAttackType(s32 seq)
 /* 0x800ADD24  resolve a NULL-terminated action-name list against an atree:
  * defs[i] = { AtreeFindSeq(atree, names[i]), frame count } (-1/0 when the
  * atree is missing or the sequence is not found). */
-void InitActions(ATREE* atree, ACTIONDEF* defs, char** names)
+void InitActions(atree* tree, ACTIONANIM* defs, char** names)
 {
     s32 i;
     s32 seq;
 
     for (i = 0; names[i] != 0; i++) {
-        if (atree != 0) {
-            seq = AtreeFindSeq(atree, names[i]);
+        if (tree != 0) {
+            seq = AtreeFindSeq(tree, names[i]);
         } else {
             seq = -1;
         }
-        defs[i].seq = seq;
+        defs[i].animidx = seq;
         if (seq >= 0) {
-            defs[i].frames = *(s16*)(atree->seqs + seq * sizeof(ATREESEQ) +
-                                      offsetof(ATREESEQ, frames));
+            defs[i].nframes = tree->animinfo.seqheader[seq].numframes;
         } else {
-            defs[i].frames = 0;
+            defs[i].nframes = 0;
         }
     }
 }
 
 /* 0x800ADDBC  request a new enemy action: refused while an interrupt-locked
  * action band (12..20, 24..26) still has time on its timer, or when the
- * current action's priority is not lower than the request's. */
-void RequestEnemyAction(ENEMYACT* e, s32 action)
+ * already-requested action's priority is not lower than the new request's.
+ * This reads/writes daction at +0xD0, not the active action at +0xCC. */
+void RequestEnemyAction(Enemy* e, s32 action)
 {
-    if (action >= E_ATTACK && action <= E_ATTACK5 && e->actTimer > 0.0f) {
+    if (action >= E_ATTACK && action <= E_ATTACK5 && e->idle_secs > 0.0f) {
         return;
     }
-    if (action >= E_THROW && action <= E_THROW_FINISH && e->actTimer > 0.0f) {
+    if (action >= E_THROW && action <= E_THROW_FINISH && e->idle_secs > 0.0f) {
         return;
     }
-    if (e_actpri[e->action] >= e_actpri[action]) {
+    if (e_actpri[e->daction] >= e_actpri[action]) {
         return;
     }
-    e->action = action;
+    e->daction = action;
 }
