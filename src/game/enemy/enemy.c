@@ -436,10 +436,10 @@ void move_logic00(int index);
 void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s32 index);
 void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
 void move_logic07(s32 index); void move_logic08(s32 index); void move_logic10(int index);
-void move_logic12(s32 index); void move_logic13(s32 index); void move_logic14(int index);
+void move_logic12(int index); void move_logic13(s32 index); void move_logic14(int index);
 void move_logic15(int index); void move_logic16(s32 index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
-void move_logic22(s32 index); void move_logic23(s32 index); void move_logic24(s32 index);
+void move_logic22(int index); void move_logic23(s32 index); void move_logic24(s32 index);
 void move_logic28(s32 index); void move_logic29(s32 index); void move_logic30(s32 index);
 void move_logic31(s32 index);
 extern void CreateYPRMatrix(f32* mat, f32* pyr);        /* pyr -> rotation matrix (fwd) */
@@ -860,7 +860,7 @@ void move_logic06(s32 index);
 void move_logic07(s32 index);
 void move_logic08(s32 index);
 void move_logic10(int index);
-void move_logic12(s32 index);
+void move_logic12(int index);
 void move_logic13(s32 index);
 void move_logic14(int index);
 void move_logic15(int index);
@@ -869,7 +869,7 @@ void move_logic18(s32 index);
 void move_logic19(s32 index);
 void move_logic20(s32 index);
 void move_logic21(s32 index);
-void move_logic22(s32 index);
+void move_logic22(int index);
 void move_logic23(s32 index);
 void move_logic24(s32 index);
 void move_logic28(s32 index);
@@ -3694,7 +3694,7 @@ void move_logic10(int index)
  * chase gate, then runs a small generator-egg state machine: snap to the dest,
  * flag the egg, and hatch back when the egg reports ready. */
 #pragma opt_propagation off
-void move_logic12(s32 index)
+void move_logic12(int index)
 {
     u8* base = (u8*)mbdesc;
     Enemy* e;
@@ -4599,7 +4599,7 @@ void move_logic21(s32 index)
  * it scans the milestone-node network for the nearest node, then walks the linked
  * path: when it reaches a node (within 1.5) it asks fn_800511D0 for the next node,
  * ending (mode1 -1) when the path loops back on itself. */
-void move_logic22(s32 index)
+void move_logic22(int index)
 {
     u8* row22;
     u8* base = (u8*)mbdesc;
