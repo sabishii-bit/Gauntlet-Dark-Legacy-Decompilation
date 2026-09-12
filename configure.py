@@ -498,7 +498,8 @@ config.libs = [
             Object(Matching, "game/ps2/mathfunc.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/dcs.c", cflags=cflags_demo),
             Object(Matching, "game/audio/buffile.c", cflags=cflags_demo),
-            Object(NonMatching, "game/audio/dcsdrv.c", cflags=cflags_demo),
+            # Native code/data/EH exact; external driver-state ownership remains open.
+            Object(Matching, "game/audio/dcsdrv.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/mempool.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/adstream.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/g3dpad.c", cflags=cflags_demo),

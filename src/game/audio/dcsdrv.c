@@ -5,7 +5,8 @@
  * numeric command dispatcher that game code (game/audio/soundmgr.c) posts
  * sound/resource requests through.  Debug: "dcs_driver", "/gauntlet/".
  *
- * NonMatching: reconstruction scaffold.
+ * Driver-state ownership and the existing frame/inline scaffolding remain
+ * incompletely recovered.
  */
 #include "types.h"
 #include "game/dcs.h"
@@ -69,20 +70,20 @@ extern char lbl_80117294[];
 /* 0x800D4960  init driver + block pool (-> pool_init) */
 void dcsInit(void)
 {
-    u8* state;
+    DcsDriverState* state;
     s32 i;
 
-    state = (u8*)&lbl_8031E0E0;
+    state = &lbl_8031E0E0;
     lbl_80345238 = 1;
     for (i = 0; i < 2; i++) {
         mathStub1b__Fv(i | 0x980, 0x3FFF);
         mathStub1b__Fv(i | 0xA80, 0x3FFF);
     }
     pool_init(0x2000);
-    *(s32*)(state + 0x0C) = 0x4000;
-    *(s32*)(state + 0x10) = 0x9D8000;
-    *(s32*)(state + 0x1C) = 0;
-    *(s32*)(state + 0x24) = 0;
+    state->bank = 0x4000;
+    state->memoryTop = 0x9D8000;
+    state->initArg0 = 0;
+    state->initArg1 = 0;
 }
 
 /* 0x800D49E4  per-frame driver tick ("dcs_driver") */
@@ -176,9 +177,11 @@ void dcsMain(void)
     }
 }
 
+/* This existing inline boundary has no recovered original-helper provenance.
+ * Flattening it still changes the entry setup with the recovered reply cursor. */
 static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
 {
-    s32 resultOffset;
+    s32 resultIndex;
     u32 index;
     s32 i;
     s32 value;
@@ -263,7 +266,8 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
         break;
 
     case 17:
-        output[0] = resultOffset = index = 0;
+        index = resultIndex = 0;
+        output[0] = 0;
         while (index < 32 && (opcode = input[index]) != 0) {
             switch (opcode) {
             case 0x55AA:
@@ -320,15 +324,16 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
                 result = dcsVoiceStart(input[index], input[index + 1],
                                        input[index + 2]);
                 if (result >= 0) {
-                    *(s32*)((u8*)output + resultOffset + 4) = 0;
-                    *(s32*)((u8*)output + resultOffset + 8) = 0;
-                    *(s32*)((u8*)output + resultOffset + 12) = (1 << result) << 16;
+                    output[resultIndex + 1] = 0;
+                    output[resultIndex + 2] = 0;
+                    output[resultIndex + 3] = (1 << result) << 16;
                 } else {
-                    *(s32*)((u8*)output + resultOffset + 4) = -2;
-                    *(s32*)((u8*)output + resultOffset + 8) = 0;
-                    *(s32*)((u8*)output + resultOffset + 12) = 0;
+                    output[resultIndex + 1] = -2;
+                    output[resultIndex + 2] = 0;
+                    output[resultIndex + 3] = 0;
                 }
-                resultOffset += 12;
+                /* sndSysFlush consumes a count followed by three-word replies. */
+                resultIndex += 3;
                 index += 3;
                 output[0]++;
                 break;
