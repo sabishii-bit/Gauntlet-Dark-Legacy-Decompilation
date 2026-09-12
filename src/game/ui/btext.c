@@ -19,7 +19,7 @@
  * The font tables establish the native string-pool order, including the
  * diagnostics and resource filenames. DrawStringTextMLines has an exact
  * native body and literal binding after reusing its live line index.
- * Six target bodies still differ; the configured build links this TU's
+ * Five target bodies still differ; the configured build links this TU's
  * extracted fallback object rather than certifying a complete native TU.
  */
 
@@ -1309,27 +1309,29 @@ void FontInitDefault(void)
     LoadFonts(0, gFontDefs8x8[0], gFontDefs[0]);
 }
 
+/* The Xbox BTEXT roster also retains StringInit as a local wrapper.
+ * GC inlines its default-resource and scroll-resource initialization here. */
+static inline void StringInit(void)
+{
+    s32 i;
+
+    StringInitSub(0, &gStringMsgList);
+    for (i = 0; i < 2; i++) {
+        StringInitSub(gScrollModes[i], &gScrollMsgList[i]);
+    }
+}
+
 /* ==== 0x80020DA8 FontInit ==== */
-#pragma opt_lifetimes off
-#pragma opt_propagation off
 void FontInit(void)
 {
     u32 i;
-    u32 modeIndex;
 
-    StringInitSub(0, &gStringMsgList);
-    i = 0;
-    modeIndex = i;
-    for (; (s32)i < 2; i++, modeIndex++) {
-        StringInitSub(gScrollModes[modeIndex], &gScrollMsgList[i]);
-    }
+    StringInit();
     for (i = 1; i < 0xd; i++) {
         LoadFonts(i, gFontDefs8x8[i], gFontDefs[i]);
     }
     gFontsInited = 1;
 }
-#pragma opt_propagation on
-#pragma opt_lifetimes reset
 
 /* ==== 0x80020E5C FontEndFrame ==== */
 void FontEndFrame(void)
