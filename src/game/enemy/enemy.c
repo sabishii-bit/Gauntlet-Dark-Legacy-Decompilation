@@ -440,8 +440,8 @@ void move_logic12(int index); void move_logic13(int index); void move_logic14(in
 void move_logic15(int index); void move_logic16(int index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
 void move_logic22(int index); void move_logic23(s32 index); void move_logic24(s32 index);
-void move_logic28(s32 index); void move_logic29(int index); void move_logic30(s32 index);
-void move_logic31(s32 index);
+void move_logic28(int index); void move_logic29(int index); void move_logic30(s32 index);
+void move_logic31(int index);
 extern void CreateYPRMatrix(f32* mat, f32* pyr);        /* pyr -> rotation matrix (fwd) */
 extern void CopyMat3(f32* src, f32* dst);           /* 0x800BE8C8 (fwd) */
 
@@ -872,11 +872,11 @@ void move_logic21(s32 index);
 void move_logic22(int index);
 void move_logic23(s32 index);
 void move_logic24(s32 index);
-void move_logic28(s32 index);
+void move_logic28(int index);
 void move_logic29(int index);
 void move_logic30(s32 index);
 static inline void update_vel(Enemy* e, f32 k);
-void move_logic31(s32 index);
+void move_logic31(int index);
 s32 fn_8004C8CC(f32* pos, s32 index);
 s32 find_neighbor_milestone(s32 ms, s32 nth);
 f32 turn_enemy_ang(Enemy* e, f32 want);
@@ -4689,11 +4689,10 @@ void move_logic24(s32 index)
 /* move_logic28 @0x8004BDDC (state 28, imp close-quarters).  If the target is
  * in melee range, switch to the run algorithm and re-dispatch; otherwise face
  * the target and, when lined up, throw / power-attack on a cadence. */
-void move_logic28(s32 index)
+void move_logic28(int index)
 {
     Enemy* e = &gEnemies[index];
     f32 a;
-    u8 unused[8];
 
     if (e->closest >= 0 && e->actual_dist <= 6.0) {
         e->algorithm = 7;
@@ -4703,15 +4702,7 @@ void move_logic28(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (e->closest >= 0) {
-        if (gPlayers[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-        } else {
-            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
-        }
-    } else {
-        a = e->ang;
-    }
+    a = get_face_ang(e, 1);
     e->ang = a;
     if (e->closest >= 0) {
         Player* player = &gPlayers[e->closest];
@@ -4935,24 +4926,15 @@ static inline void update_vel(Enemy* e, f32 k)
 /* move_logic31 @0x8004C650 (state 31, IT tag-runner).  Face the closest player,
  * then per current action integrate a sin/cos velocity along the heading (scaled
  * by a per-type speed table), roll cooldown timers, and cue attacks. */
-void move_logic31(s32 index)
+void move_logic31(int index)
 {
     Enemy* e = &gEnemies[index];
     f32 a;
-    u8 unused[16];
 
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    if (e->closest >= 0) {
-        if (gPlayers[e->closest].field_A1C > 2) {
-            a = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-        } else {
-            a = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
-        }
-    } else {
-        a = e->ang;
-    }
+    a = get_face_ang(e, 1);
     e->ang = a;
     if (e->closest >= 0) {
         e->daction = 0;
@@ -4990,7 +4972,7 @@ action_done31:
             ;
         }
     }
-    e->pyr[1] = turn_enemy_ang(e, e->ang);
+    e->pyr[1] = turn_enemy(e);
     do_enemy_move(index);
 }
 
