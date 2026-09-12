@@ -26,19 +26,61 @@
  * names are flagged in the per-function comments.  adsPoll is the per-frame
  * entry called by main.c and soundmgr.c.
  *
- * NonMatching: the lifecycle/allocation helpers are reconstructed; the large
- * pipeline movers and command processor remain scaffolds. Extracted bytes are
- * linked from the DOL.
+ * NonMatching: _AdsThread and AdsPutBuffer retain native instruction residuals.
+ * The other 24 bodies match; the build still links the extracted fallback.
  */
 #include "types.h"
 #include "dolphin/ax.h"
 #include "game/dcs.h"
 #include "game/sndvoice.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /*
- * The streaming state block (single global gAdsStream, 0x13C bytes).  Only the
- * fields touched by the reconstructed bodies are named; the rest is padding.
+ * PDB AdsHeader/AdsBody/NGCADPCMHeader records, corroborated by GC field
+ * accesses and all 111 shipped STREAMS/*.ads files: 32-byte header, 8-byte
+ * body header, then 96 bytes per active channel. The GC ADS block stores the
+ * records at +0x54, +0x74 and +0x7C respectively (total size 0x13C).
+ * UnknownBlock is the PDB's unresolved 22-byte ADPCM suffix, not added padding.
  */
+typedef struct AdsHeader {
+    u8 id[4];
+    u32 size;
+    u32 format;
+    u32 rate;
+    u32 channels;
+    u32 sizeBlock;
+    s32 loopStart;
+    s32 loopEnd;
+} AdsHeader;
+
+typedef struct AdsBody {
+    u8 id[4];
+    u32 size;
+} AdsBody;
+
+typedef struct NGCADPCMHeader {
+    u32 Samples;
+    u32 Nibbles;
+    u32 SampleRate;
+    u16 LoopFlag;
+    u16 Format;
+    u32 StartAddr;
+    u32 EndAddr;
+    u32 CurAddr;
+    u16 Coefficients[16];
+    u16 Gain;
+    u16 Pred_Scale;
+    u16 YMinus1;
+    u16 YMinus2;
+    u16 LoopPred_Scale;
+    u16 LoopYMinus1;
+    u16 LoopYMinus2;
+    u8 UnknownBlock[22];
+} NGCADPCMHeader;
+
 typedef struct ADSTREAM {
     /* 0x00 */ u32 mode;               /* mode/flag bits */
     /* 0x04 */ void* file;              /* FileBuf handle */
@@ -60,14 +102,9 @@ typedef struct ADSTREAM {
     /* 0x48 */ s32 loopCount;          /* loop/refill counter */
     /* 0x4C */ s32 endCount;           /* end-of-stream counter */
     /* 0x50 */ s32 status;             /* 0 / 0x1000 (playing) / 0x2000 */
-    /* 0x54 */ u8 _pad54[0x5C - 0x54];
-    /* 0x5C */ u32 sampleBits;
-    /* 0x60 */ u32 sampleRate;
-    /* 0x64 */ u32 blocks;
-    /* 0x68 */ u32 frameAlign;
-    /* 0x6C */ u8 _pad6C[0x78 - 0x6C];
-    /* 0x78 */ u32 fileLoopSize;
-    /* 0x7C */ u8 _pad7C[0x13C - 0x7C];
+    /* 0x54 */ AdsHeader hd;
+    /* 0x74 */ AdsBody bd;
+    /* 0x7C */ NGCADPCMHeader ADPCMInfo[2];
 } ADSTREAM;
 
 typedef void (*ARQCallback)(u32 request);
@@ -103,7 +140,7 @@ extern u32 lbl_80345288;   /* global ADS flags */
 extern s32 sConfig;   /* music duck request */
 extern s32 dcsMemLockOwner();
 extern s32 sConfig;
-extern ADSTREAM gADS;
+extern ADSTREAM gADS[1]; /* PDB file-local ADS[1]; BSS ownership not yet claimed. */
 extern AXVPB* sVoice[14];
 extern ARQRequest lbl_80320C3C[];
 extern ARQCallback lbl_80345294;
@@ -123,11 +160,6 @@ extern f32 lbl_80349308;   /* SRC ratio divisor */
 extern f64 lbl_80349310;   /* SRC fraction scale (65536.0) */
 extern f64 lbl_80349318;   /* u32->f64 conversion bias */
 extern f64 lbl_80349320;   /* s32->f64 conversion bias */
-const char lbl_801174A8[] = "DCSERROR: ";
-const char lbl_801174B4[] =
-    "SPU UNDERRUN, loop-glitch likely\n\0\0\0"
-    "AdsPutBuffer EOF -- %d bytes UNSENT\n\0\0\0\0"
-    "AdsPutBuffer overrun! %d bytes UNSENT\n\0";
 extern char lbl_80349328[6]; /* short EOF tag (sdata2) */
 extern char lbl_80349330[5];
 extern char lbl_80349338[5];
@@ -172,11 +204,11 @@ void adsPoll(void) {
 
     if ((lbl_80345288 & 0x2000) != 0) {
         voice = sVoice[13];
-        stream = &gADS;
+        stream = gADS;
         addr = &voice->pb.addr;
         current = ((u32)addr->currentAddressHi << 16) +
                   addr->currentAddressLo;
-        if (stream->sampleBits == 32) {
+        if (stream->hd.format == 32) {
             current >>= 1;
             refillState = current >= stream->spuReadBase + halfVoiceLoop;
         } else {
@@ -188,6 +220,21 @@ void adsPoll(void) {
             lbl_80345274 = 13;
             _AdsThread();
         }
+    }
+}
+
+/* PDB AdsMute(ADS*, int); both pipeline and command paths preserve the
+ * requested volume while muting the actual voices. */
+static inline void AdsMute(ADSTREAM* stream, s32 mute) {
+    s32 volume = stream->vol;
+
+    if (mute) {
+        AdsSetVolumeDirect(stream, 0);
+        stream->vol = volume;
+        stream->mode |= 0x80;
+    } else {
+        stream->mode &= ~0x80;
+        AdsSetVolumeDirect(stream, volume);
     }
 }
 
@@ -210,25 +257,20 @@ s32 adsMoveCookedToSpu(ADSTREAM* stream) {
     if ((cookedSize = self->ringWrite) < halfVoiceLoop &&
         (self->fileRemaining > 0 || self->ringRead > 0)) {
         if (self->status != 0) {
-            s32 volume;
-
-            printf(lbl_801174A8);
-            printf(lbl_801174B4);
+            printf("DCSERROR: ");
+            printf("SPU UNDERRUN, loop-glitch likely\n");
             dcsMemTryLock(self->spuReadBase +
                               self->refillState * halfVoiceLoop,
                           self->voice[0], adsLockCallback, 0);
             lbl_80345288 |= 1 << self->voice[0];
-            volume = self->vol;
-            AdsSetVolumeDirect(self, 0);
-            self->vol = volume;
-            self->mode |= 0x80;
+            AdsMute(self, 1);
         }
     } else {
         s32 requestOffset;
         s32 voiceOffset;
 
         source = self->cookedPtr;
-        if (self->sampleBits >= 32) {
+        if (self->hd.format >= 32) {
             destination = self->spuReadBase +
                           self->refillState * halfVoiceLoop;
         } else {
@@ -239,7 +281,7 @@ s32 adsMoveCookedToSpu(ADSTREAM* stream) {
         i = 0;
         requestOffset = 0;
         voiceOffset = 0;
-        while (i < self->blocks) {
+        while (i < self->hd.channels) {
             if (self->refillState == 0) {
                 loop.loop_pred_scale = *source;
                 loop.loop_yn1 = 0;
@@ -250,7 +292,7 @@ s32 adsMoveCookedToSpu(ADSTREAM* stream) {
             }
             DCFlushRange(source, transferSize);
             lbl_80345294 = NULL;
-            if (i == self->blocks - 1) {
+            if (i == self->hd.channels - 1) {
                 lbl_80345294 = (ARQCallback)adsArqDone;
             }
             ARQPostRequest((ARQRequest*)((u8*)lbl_80320C3C + requestOffset),
@@ -264,10 +306,7 @@ s32 adsMoveCookedToSpu(ADSTREAM* stream) {
         }
         if (self->status != 0) {
             if ((self->mode & 0x80) != 0) {
-                s32 volume = self->vol;
-
-                self->mode &= ~0x80;
-                AdsSetVolumeDirect(self, volume);
+                AdsMute(self, 0);
             }
             {
                 u32 lockAddress = destination - sizeVoiceLoop;
@@ -338,7 +377,7 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
     u32 dead;
 
     self = stream;
-    divisor = adsBlockDivisor(self->blocks);
+    divisor = adsBlockDivisor(self->hd.channels);
 
     ringRead = self->ringRead;
     padding = 0;
@@ -348,7 +387,7 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
     ringWrite = self->ringWrite;
     half = halfVoiceLoop;
     space = half - ringWrite;
-    chunk = self->frameAlign;
+    chunk = self->hd.sizeBlock;
     rawEnd = (u8*)self->buffer + (ringSize = self->ringSize);
     destination = (u8*)self->cookedPtr + ringWrite;
 
@@ -384,7 +423,7 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
 
         blockDestination = destination;
         blockIndex = 0;
-        while (blockIndex < self->blocks) {
+        while (blockIndex < self->hd.channels) {
             if (source + chunk > rawEnd) {
                 firstPart = rawEnd - source;
                 memcpy(blockDestination, source, firstPart);
@@ -408,7 +447,7 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
             u32 amount;
 
             self->loopMarker = amount = 0;
-            if (self->frameAlign != 0) {
+            if (self->hd.sizeBlock != 0) {
                 if ((s32)(destination - (u8*)self->cookedPtr) >= 16) {
                     for (; (s32)blockIndex > 0; blockIndex--) {
                         blockDestination -= halfVoiceLoop;
@@ -437,7 +476,7 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
     }
 
     if ((s32)copySize >= 16) {
-        u32 count = self->blocks;
+        u32 count = self->hd.channels;
         s32 i;
         u8* end = destination;
 
@@ -472,13 +511,13 @@ s32 adsMoveFileToRaw(ADSTREAM* stream) {
     result = isEmpty;
     if (isEmpty != 0) {
         if (stream->endCount == 0 && (stream->mode & 2) != 0) {
-            if (stream->sampleBits == 32) {
+            if (stream->hd.format == 32) {
                 FileBufSeek(stream->file,
-                            ((stream->blocks * 192) >> 1) + 40, 0);
+                            ((stream->hd.channels * 192) >> 1) + 40, 0);
             } else {
                 FileBufSeek(stream->file, 40, 0);
             }
-            stream->fileRemaining += stream->fileLoopSize;
+            stream->fileRemaining += stream->bd.size;
         }
     } else {
         s32 remaining;
@@ -559,8 +598,7 @@ s32 _AdsThread(void) {
     s32 count;
     s32 j;
     u32 i;
-    ADSTREAM* base = &gADS;
-    s32 sv;
+    ADSTREAM* base = gADS;
     s32 lock;
     u8 unused[8];
 
@@ -587,9 +625,8 @@ s32 _AdsThread(void) {
             if (s->endCount != 0) {
                 s->endCount = i;
             } else {
-                s->mode &= ~0x80;
-                AdsSetVolumeDirect(s, s->vol);
-                for (; i < s->blocks; i++) {
+                AdsMute(s, 0);
+                for (; i < s->hd.channels; i++) {
                     while (lbl_80345268 == 0) {
                     }
                     AXSetVoiceState(sVoice[s->voice[i]], 1);
@@ -612,18 +649,15 @@ s32 _AdsThread(void) {
         if (s->loopCount != 0) {
             s->loopCount = 0;
             if (s->endCount != 0) {
-                gAddrSpuNext -= sizeVoiceLoop * s->blocks;
+                gAddrSpuNext -= sizeVoiceLoop * s->hd.channels;
                 s->status = 0;
                 AdsStart(s);
             } else {
                 s->status = 0x2000;
-                for (i = 0; i < s->blocks; i++) {
+                for (i = 0; i < s->hd.channels; i++) {
                     AXSetVoiceState(sVoice[s->voice[i]], 0);
                 }
-                sv = s->vol;
-                AdsSetVolumeDirect(s, 0);
-                s->vol = sv;
-                s->mode |= 0x80;
+                AdsMute(s, 1);
                 sConfig = 0;
             }
         } else {
@@ -683,7 +717,7 @@ void AdsSetVolumeDirect(ADSTREAM* stream, s32 volume) {
     if (stream != NULL) {
         stream->vol = volume;
         if ((stream->mode & 0x80) == 0) {
-            if (stream->blocks == 2) {
+            if (stream->hd.channels == 2) {
                 if ((stream->mode & 0x10) != 0) {
                     mono = ((((u32)volume >> 16) * 0x2D40) >> 14);
                     dcsVoiceSetMaster(stream->voice[0], mono, mono);
@@ -697,7 +731,7 @@ void AdsSetVolumeDirect(ADSTREAM* stream, s32 volume) {
                 }
                 sndVoiceSetVolume(sVoice[stream->voice[0]], 0);
                 sndVoiceSetVolume(sVoice[stream->voice[1]], 0x7F);
-            } else if (stream->blocks == 1) {
+            } else if (stream->hd.channels == 1) {
                 mono = (s32)(((((u32)volume >> 16) +
                                 (volume & 0xFFFF)) >> 1) * 0x2D40) >> 14;
                 dcsVoiceSetMaster(stream->voice[0], mono, mono);
@@ -730,7 +764,6 @@ void adsInitFromHeader(ADSTREAM* stream) {
     u32 bits;
     f32 ratio;
     s32 j;
-    u8* ch;
     u16 addr[8];
     u16 srcb[8];
     u16 adp[20];
@@ -738,23 +771,22 @@ void adsInitFromHeader(ADSTREAM* stream) {
     k48 = 48000;
     aram = stream->spuReadBase;
     vnum = 13;
-    for (i = 0; i < stream->blocks; i++) {
-        bits = stream->sampleBits;
+    for (i = 0; i < stream->hd.channels; i++) {
+        bits = stream->hd.format;
         if (bits >= 32) {
-            ratio = (f32)((((stream->sampleRate << 12) / k48) * k48) >> 12);
+            ratio = (f32)((((stream->hd.rate << 12) / k48) * k48) >> 12);
         } else {
-            ratio = (f32)((((stream->sampleRate << 12) / k48) * 12000) >> 12);
+            ratio = (f32)((((stream->hd.rate << 12) / k48) * 12000) >> 12);
         }
         if (bits == 32) {
-            ch = (u8*)stream + i * 96;
             for (j = 0; j < 8; j++) {
-                adp[j * 2] = *(u16*)(ch + j * 4 + 152);
-                adp[j * 2 + 1] = *(u16*)(ch + j * 4 + 154);
+                adp[j * 2] = stream->ADPCMInfo[i].Coefficients[j * 2];
+                adp[j * 2 + 1] = stream->ADPCMInfo[i].Coefficients[j * 2 + 1];
             }
-            adp[16] = *(u16*)(ch + 184);
-            adp[17] = *(u16*)(ch + 186);
-            adp[18] = *(u16*)(ch + 188);
-            adp[19] = *(u16*)(ch + 190);
+            adp[16] = stream->ADPCMInfo[i].Gain;
+            adp[17] = stream->ADPCMInfo[i].Pred_Scale;
+            adp[18] = stream->ADPCMInfo[i].YMinus1;
+            adp[19] = stream->ADPCMInfo[i].YMinus2;
             AXSetVoiceAdpcm(sVoice[vnum], (AXPBADPCM*)adp);
             cur = aram * 2 + 2;
             end = (aram + sizeVoiceLoop) * 2 - 1;
@@ -838,11 +870,35 @@ s32 adsUpdateStream(ADSTREAM* stream) {
     return result;
 }
 
+/* Shared header-initialization body in AdsStart and AdsPutBuffer. The PDB
+ * has int adsInitFromHeader(ADS*) separately from void adsAssignVoices(ADS*).
+ * The latter matches the AX setup currently named adsInitFromHeader at
+ * 0x800D6F30;
+ * keep that linked name until its symbol-map correction is coordinated.
+ * This local descriptive name avoids conflating the two helper boundaries. */
+static inline s32 adsInitHeaderState(ADSTREAM* stream) {
+    s32 result = -1;
+
+    if (gAddrSpuNext + sizeVoiceLoop * stream->hd.channels <= (u32)gAddrSpuTop &&
+        sizeVoiceLoop % stream->hd.sizeBlock == 0) {
+        stream->spuReadBase = gAddrSpuNext;
+        gAddrSpuNext += sizeVoiceLoop * stream->hd.channels;
+        stream->ringSize += stream->ringUsed;
+        stream->ringUsed = halfVoiceLoop * stream->hd.channels;
+        stream->ringSize -= stream->ringUsed;
+        stream->cookedPtr = (u8*)stream->buffer + stream->ringSize;
+        adsInitFromHeader(stream);
+        stream->fileRemaining += stream->bd.size;
+        result = stream->bd.size;
+    }
+    return result;
+}
+
 /* 0x800D72AC  submit a decoded buffer into the pipeline: parse header on the
  * first buffer (AdsParseHeader), init voices (adsInitFromHeader), feed the
  * ring; prints "AdsPutBuffer EOF/overrun -- %d bytes UNSENT".
  * Xbox: AdsPutBuffer. */
-s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
+s32 AdsPutBuffer(ADSTREAM* s, u8* src, u32 len, s32 local) {
     s32 hres = 0;
     u8* wrEnd;
     u8* wp;
@@ -854,9 +910,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
     s32 cofsz;
     char* dst;
     s32 saved;
-    u8 unused[8];
 
-    dst = lbl_801174A8;
     wrEnd = (u8*)s->buffer + s->ringSize;
     wp = (u8*)s->ringPtr + s->ringRead;
     if (wp > wrEnd) {
@@ -866,7 +920,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
     over = (s->ringRead + len) - s->ringSize;
     if ((u32)len >= (u32)s->fileRemaining && s->fileRemaining > 0) {
         printf(lbl_80349328);
-        printf(dst + 48, len - s->fileRemaining);
+        printf("AdsPutBuffer EOF -- %d bytes UNSENT\n", len - s->fileRemaining);
         amt = s->fileRemaining;
         amt16 = (s->fileRemaining + 15) & ~15;
     } else {
@@ -875,8 +929,8 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         }
         amt16 = len & ~15;
         if (over > 0) {
-            printf(dst);
-            printf(dst + 88, len - amt16);
+            printf("DCSERROR: ");
+            printf("AdsPutBuffer overrun! %d bytes UNSENT\n", len - amt16);
         }
         amt = amt16;
         len = amt16;
@@ -899,7 +953,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         goto done;
     }
     s->fileRemaining += 40;
-    dst = (char*)s->_pad54;
+    dst = (char*)s + offsetof(ADSTREAM, hd);
     if ((u8*)s->ringPtr + 40 > wrEnd) {
         part = wrEnd - (u8*)s->ringPtr;
         memcpy(dst, s->ringPtr, part);
@@ -911,8 +965,8 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         s->ringPtr = (u8*)s->ringPtr + 40;
         s->ringRead -= 40;
     }
-    cofsz = (s->blocks * 192) >> 1;
-    dst = (char*)s->_pad7C;
+    cofsz = (s->hd.channels * 192) >> 1;
+    dst = (char*)s->ADPCMInfo;
     s->fileRemaining += cofsz;
     if ((u8*)s->ringPtr + cofsz > wrEnd) {
         part = wrEnd - (u8*)s->ringPtr;
@@ -925,27 +979,15 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, s32 len) {
         s->ringPtr = (u8*)s->ringPtr + cofsz;
         s->ringRead -= cofsz;
     }
-    saved = s->sampleBits;
-    s->sampleBits = 16;
-    hres = AdsParseHeader(s, (u32*)(&s->status + 1), (u32*)((u8*)s + 0x74));
-    s->sampleBits = saved;
+    saved = s->hd.format;
+    s->hd.format = 16;
+    hres = AdsParseHeader(s, (u32*)&s->hd, (u32*)&s->bd);
+    s->hd.format = saved;
     if (hres < 0) {
         len = hres;
         goto done;
     }
-    hres = -1;
-    if ((u32)(gAddrSpuNext + sizeVoiceLoop * s->blocks) <= (u32)gAddrSpuTop &&
-        sizeVoiceLoop - (sizeVoiceLoop / s->frameAlign) * s->frameAlign == 0) {
-        s->spuReadBase = gAddrSpuNext;
-        gAddrSpuNext = gAddrSpuNext + sizeVoiceLoop * s->blocks;
-        s->ringSize += s->ringUsed;
-        s->ringUsed = halfVoiceLoop * s->blocks;
-        s->ringSize -= s->ringUsed;
-        s->cookedPtr = (u8*)s->buffer + s->ringSize;
-        adsInitFromHeader(s);
-        s->fileRemaining += s->fileLoopSize;
-        hres = s->fileLoopSize;
-    }
+    hres = adsInitHeaderState(s);
     if (hres < 0) {
         len = hres;
     }
@@ -974,8 +1016,6 @@ done:
 s32 AdsStart(ADSTREAM* stream) {
     s32 parseResult;
     u32 setupResult;
-    u32 frameSize;
-    u32 aramNext;
     s32 result = -1;
 
     if (stream->file != NULL) {
@@ -984,29 +1024,14 @@ s32 AdsStart(ADSTREAM* stream) {
             result = 0;
         } else if (stream->status == 0) {
             lbl_80345268 = 0;
-            if (FileBufGet(stream->file, (u8*)stream + 0x54, 40) == 40) {
+            if (FileBufGet(stream->file,
+                           (u8*)stream + offsetof(ADSTREAM, hd), 40) == 40) {
                 stream->fileRemaining = 0;
                 parseResult =
-                    AdsParseHeader(stream, (u32*)(&stream->status + 1),
-                                   (u32*)((u8*)stream + 0x74));
+                    AdsParseHeader(stream, (u32*)&stream->hd,
+                                   (u32*)&stream->bd);
                 if (parseResult >= 0) {
-                    setupResult = -1;
-                    frameSize = sizeVoiceLoop;
-                    aramNext = gAddrSpuNext;
-                    if (aramNext + frameSize * stream->blocks <=
-                            (u32)gAddrSpuTop &&
-                        frameSize % stream->frameAlign == 0) {
-                        stream->spuReadBase = aramNext;
-                        gAddrSpuNext += sizeVoiceLoop * stream->blocks;
-                        stream->ringSize += stream->ringUsed;
-                        stream->ringUsed = halfVoiceLoop * stream->blocks;
-                        stream->ringSize -= stream->ringUsed;
-                        stream->cookedPtr =
-                            (u8*)stream->buffer + stream->ringSize;
-                        adsInitFromHeader(stream);
-                        stream->fileRemaining += stream->fileLoopSize;
-                        setupResult = stream->fileLoopSize;
-                    }
+                    setupResult = adsInitHeaderState(stream);
                     if ((s32)setupResult >= 0) {
                         if (stream->endCount == 0) {
                             stream->refillState = 0;
@@ -1039,7 +1064,7 @@ void AdsClose(ADSTREAM* s) {
     }
     s->ringSize += s->ringUsed;
     s->ringUsed = 0;
-    gAddrSpuNext -= sizeVoiceLoop * s->blocks;
+    gAddrSpuNext -= sizeVoiceLoop * s->hd.channels;
 }
 
 /* 0x800D78B8  open the stream file (FileBufOpen/FileBufStart) and register it
@@ -1052,7 +1077,7 @@ s32 AdsOpen(ADSTREAM* s, void* desc) {
             if (s->status == 0x2000) {
                 lbl_80345288 &= ~0x2000;
                 s->status = 0;
-                gAddrSpuNext -= sizeVoiceLoop * s->blocks;
+                gAddrSpuNext -= sizeVoiceLoop * s->hd.channels;
             } else {
                 s->endCount++;
             }
@@ -1085,7 +1110,7 @@ s32 AdsDelete(ADSTREAM* s) {
  * 0x13C struct and set the ring pointers/size.  Xbox: AdsNew. */
 ADSTREAM* AdsNew(s32 size) {
     ADSTREAM* result = 0;
-    ADSTREAM* s = &gADS;
+    ADSTREAM* s = gADS;
     s32 active;
     s32 minimum;
 
