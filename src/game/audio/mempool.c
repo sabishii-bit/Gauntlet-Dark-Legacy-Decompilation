@@ -18,7 +18,8 @@
 
 extern s32 lbl_80345248;
 extern u32 lbl_8031EAF0[];
-extern void* lbl_80345250;
+struct MemListNode;
+extern struct MemListNode* lbl_80345250;
 extern u32 lbl_80345254;
 extern u32 lbl_80345258;
 extern volatile s32 lbl_8034525C;
@@ -232,8 +233,8 @@ static inline MemListNode* pool_new_block(void)
     s32 i;
 
     node = NULL;
-    for (i = (s32)node; i < (s32)lbl_80345254; i++) {
-        MemListNode* candidate = &((MemListNode*)lbl_80345250)[i];
+    for (i = 0; i < (s32)lbl_80345254; i++) {
+        MemListNode* candidate = &lbl_80345250[i];
 
         if (candidate->flags == 0) {
             node = candidate;
