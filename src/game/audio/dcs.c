@@ -44,14 +44,21 @@ typedef struct DcsStream {
     u32 oneShot;
 } DcsStream;
 
+/* GC pool nodes hold numeric byte addresses: ARAM is not CPU memory.
+ * The Sample memSPU/memEE nodes are corroborated by BANK.OBJ, with GC
+ * accesses confirming 16-byte nodes at +0 and +0x10 and a 0x4C stride. */
+typedef struct MemListNode {
+    u32 address;
+    u32 size;
+    struct MemListNode* prev;
+    struct MemListNode* next;
+} MemListNode;
+typedef struct MemList MemList;
+typedef struct MemPoolLists MemPoolLists;
+
 typedef struct DcsSampleData {
-    u32 aramAddress;      /* 0x00 ARAM pool node (address/size/links) */
-    u32 swappedLength;    /* 0x04 */
-    u8 _pad08[8];         /* 0x08 */
-    u32 buffer;           /* 0x10 staging RAM pool node (addr) */
-    u32 bufferSize;       /* 0x14 */
-    u32* bufPrev;         /* 0x18 */
-    u32* bufNext;         /* 0x1C */
+    MemListNode memSPU;   /* 0x00 ARAM allocation */
+    MemListNode memEE;    /* 0x10 staging RAM allocation */
     u32 sampleRate;       /* 0x20 nonzero = slot in use */
     u32 length;           /* 0x24 */
     u16 coefficients[16]; /* 0x28 */
@@ -137,11 +144,6 @@ extern volatile u8 dcsSampleBusy;
 extern volatile u8 dcsAramBusy;
 extern ARQRequest dcsAramReq;
 
-typedef struct MemList MemList;
-typedef struct MemListNode MemListNode;
-typedef struct MemPoolLists MemPoolLists;
-
-/* Pool addresses and lengths are numeric byte values, including ARAM. */
 extern u32 pool_new(MemList* list);
 extern MemListNode* pool_alloc(MemPoolLists* pool, MemListNode* node);
 extern void pool_free(MemPoolLists* pool, MemListNode* node);
@@ -572,8 +574,8 @@ s32 AudioQueUpdate(s32 bank) {
             if (sampleIndex >= 0 && sampleIndex < 0x800) {
                 sample = &d->samples[sampleIndex];
                 if (sample->sampleRate != 0) {
-                    if (sample->aramAddress != 0) {
-                        pool_alloc((MemPoolLists*)&d->callInstr[10240], (MemListNode*)sample);
+                    if (sample->memSPU.address != 0) {
+                        pool_alloc((MemPoolLists*)&d->callInstr[10240], &sample->memSPU);
                     }
                     sample->sampleRate = 0;
                     sample->predScale = 0;
@@ -731,7 +733,7 @@ s32 dcsReadVags(void* file, u32* header) {
     s32 error;
     s32 remaining;
     s32 prevEnd;
-    u32* node;
+    MemListNode* node;
     u32 aligned;
     s32 length;
     u32 room;
@@ -763,7 +765,7 @@ s32 dcsReadVags(void* file, u32* header) {
         }
 
         smp = &dcsBankData.samples[slot];
-        if (smp->aramAddress != 0 || smp->buffer != 0) {
+        if (smp->memSPU.address != 0 || smp->memEE.address != 0) {
             printf(strs + 44);
             printf(strs + 56, slot);
             listVerifyHook();
@@ -779,16 +781,16 @@ s32 dcsReadVags(void* file, u32* header) {
         if ((s32)room < (s32)aligned) {
             goto room_error;
         }
-        smp->buffer = (u32)AllocHiMem(aligned);
-        node = &smp->buffer;
-        smp->bufferSize = aligned;
-        smp->bufPrev = node;
-        smp->bufNext = node;
-        memset((void*)smp->buffer, 0, aligned);
-        if (length == (s32)FileBufGet(file, (void*)smp->buffer, length)) {
+        smp->memEE.address = (u32)AllocHiMem(aligned);
+        node = &smp->memEE;
+        smp->memEE.size = aligned;
+        smp->memEE.prev = node;
+        smp->memEE.next = node;
+        memset((void*)smp->memEE.address, 0, aligned);
+        if (length == (s32)FileBufGet(file, (void*)smp->memEE.address, length)) {
             dcsSampleUpload(node, 0);
-            smp->buffer = 0;
-            smp->bufferSize = 0;
+            smp->memEE.address = 0;
+            smp->memEE.size = 0;
             if (lbl_803451FC <= slot) {
                 lbl_803451FC = slot + 1;
             }
@@ -807,8 +809,8 @@ read_done:
         if (error != 0 || dcsResetPending != 0) {
             if (slot >= 0 && slot < 2048) {
                 if (smp->sampleRate != 0) {
-                    if (smp->aramAddress != 0) {
-                        pool_alloc((MemPoolLists*)data->stagingPool, (MemListNode*)smp);
+                    if (smp->memSPU.address != 0) {
+                        pool_alloc((MemPoolLists*)data->stagingPool, &smp->memSPU);
                     }
                     smp->sampleRate = 0;
                     smp->predScale = 0;
@@ -1112,8 +1114,8 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
         adpcm.pred_scale = data->predScale;
         AXSetVoiceAdpcm(sVoice[channel], &adpcm);
 
-        start = data->aramAddress * 2 + 2;
-        end = (data->aramAddress + data->length) * 2 - 1;
+        start = data->memSPU.address * 2 + 2;
+        end = (data->memSPU.address + data->length) * 2 - 1;
         addr.loopFlag = 0;
         addr.format = 0;
         addr.loopAddressHi = start >> 16;
@@ -1126,7 +1128,7 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
         AXSetVoiceSrcType(sVoice[channel], AX_SRC_TYPE_LINEAR);
 
         if (dcsVoiceStartAx(channel) != 0) {
-            pool_free((MemPoolLists*)d->stagingPool, (MemListNode*)data);
+            pool_free((MemPoolLists*)d->stagingPool, &data->memSPU);
             if ((call & 0x2000) != 0) {
                 s32 call_offset = sample * sizeof(u16);
 
@@ -1156,14 +1158,14 @@ s32 dcsSampleUpload(void* state, u32 uploadArg);
 
 s32 dcsSampleStream(void* sample, u32 uploadArg) {
     s32 result;
-    u32* state = (u32*)((u8*)sample + 16);
+    MemListNode* state = &((DcsSampleData*)sample)->memEE;
     u8 pad[8];
 
     dcsSampleAllocUpload(sample, 0);
-    pool_alloc((MemPoolLists*)lbl_802F5F60, (MemListNode*)sample);
+    pool_alloc((MemPoolLists*)lbl_802F5F60, &((DcsSampleData*)sample)->memSPU);
     result = dcsSampleUpload(state, uploadArg);
-    state[0] = 0;
-    state[1] = 0;
+    state->address = 0;
+    state->size = 0;
     ResetAllocTot();
     return result;
 }
@@ -1173,23 +1175,23 @@ void dcsSampleCallback(u32 request);
 
 s32 dcsSampleUpload(void* state, u32 uploadArg) {
     DcsData* d = &dcsBankData;
-    u32* p = (u32*)state;
-    u32* node = (u32*)((u8*)state +
-                       ((u8*)&d->samples[0] - (u8*)&d->samples[0].buffer));
-    void* pool = (u8*)d + 0x2C080;
+    MemListNode* p = (MemListNode*)state;
+    MemListNode* node = (MemListNode*)((u8*)state +
+                       ((u8*)&d->samples[0].memSPU - (u8*)&d->samples[0].memEE));
+    MemPoolLists* pool = (MemPoolLists*)((u8*)d + 0x2C080);
 
     if (uploadArg != 0) {
-        pool_alloc_at(pool, (MemListNode*)node, p[1], uploadArg);
+        pool_alloc_at(pool, node, p->size, uploadArg);
     } else {
-        pool_dispose_and_alloc(pool, (MemListNode*)node, p[1]);
+        pool_dispose_and_alloc(pool, node, p->size);
     }
-    if (*node == 0) {
+    if (node->address == 0) {
         return 0xfffffffe;
     }
-    DCFlushRange((void*)p[0], p[1]);
+    DCFlushRange((void*)p->address, p->size);
     dcsSampleBusy = 1;
-    ARQPostRequest((ARQRequest*)((u8*)d + 0x2C17C), 0, 0, 1, p[0], *node,
-                   p[1], dcsSampleCallback);
+    ARQPostRequest((ARQRequest*)((u8*)d + 0x2C17C), 0, 0, 1, p->address, node->address,
+                   p->size, dcsSampleCallback);
     while (dcsSampleBusy != 0) {
     }
     return 0;
@@ -1216,24 +1218,24 @@ static inline s32 sampleInUse(DcsSampleData* sample) {
 /* 0x800D374C  alloc ARAM + ARQ upload */
 s32 dcsSampleAllocUpload(void* sample, s32 arg) {
     DcsSampleData* p = (DcsSampleData*)sample;
-    u32* stagingNode = &p->buffer;
+    MemListNode* stagingNode = &p->memEE;
 
     if (sampleInUse((DcsSampleData*)sample)) {
         return 0xffffffff;
     }
-    if (BytesFree() < ((p->swappedLength + 0x3f) & 0xffffffc0)) {
+    if (BytesFree() < ((p->memSPU.size + 0x3f) & 0xffffffc0)) {
         return 0xfffffffe;
     }
-    *stagingNode = (u32)AllocHiMem((p->swappedLength + 0x3f) & 0xffffffc0, p->swappedLength);
-    stagingNode[1] = (p->swappedLength + 0x3f) & 0xffffffc0;
-    stagingNode[2] = (u32)stagingNode;
-    stagingNode[3] = (u32)stagingNode;
-    DCFlushRange((void*)*stagingNode, p->swappedLength);
+    stagingNode->address = (u32)AllocHiMem((p->memSPU.size + 0x3f) & 0xffffffc0, p->memSPU.size);
+    stagingNode->size = (p->memSPU.size + 0x3f) & 0xffffffc0;
+    stagingNode->prev = stagingNode;
+    stagingNode->next = stagingNode;
+    DCFlushRange((void*)stagingNode->address, p->memSPU.size);
     dcsSampleBusy = 1;
-    ARQPostRequest(&dcsSampleReq, 0, 1, 1, p->aramAddress, *stagingNode, p->swappedLength, dcsSampleCallback);
+    ARQPostRequest(&dcsSampleReq, 0, 1, 1, p->memSPU.address, stagingNode->address, p->memSPU.size, dcsSampleCallback);
     while (dcsSampleBusy != 0) {
     }
-    DCInvalidateRange((void*)*stagingNode, p->swappedLength);
+    DCInvalidateRange((void*)stagingNode->address, p->memSPU.size);
     return 0;
 }
 
@@ -1551,12 +1553,12 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
         sample->predScale = 0;
 
         if (strncmp(signature, "pGAV", 4) == 0) {
-            *(u32*)(sample->length = (u32)&sample->swappedLength) =
+            *(u32*)(sample->length = (u32)&sample->memSPU.size) =
                 DCS_SWAP32(header[3]);
             sample->sampleRate = (DCS_SWAP32(header[4]) << 12) / 48000;
             header[1] = DCS_SWAP32(header[1]);
         } else if (strncmp(signature, "VAGp", 4) == 0) {
-            sample->swappedLength = sample->length = header[3];
+            sample->memSPU.size = sample->length = header[3];
             sample->sampleRate = (header[4] << 12) / 48000;
         } else {
             printf("DCSERROR: ");
@@ -1564,7 +1566,7 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
             sample->sampleRate = 0;
             result = -1;
             sample->length = 0;
-            sample->swappedLength = 0;
+            sample->memSPU.size = 0;
         }
     }
 
