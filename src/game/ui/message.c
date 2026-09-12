@@ -1,6 +1,7 @@
 #include "types.h"
 #include "game/sndid.h"
 #include "game/gamemode.h"
+#include "game/player.h"
 
 /* GDL in-game message / notification queue (GCN MESSAGE.OBJ region,
  * 0x800A4870-0x800A573C). Names are provisional (no clean PDB anchor on GCN).
@@ -34,21 +35,8 @@ typedef struct MsgCfgBlock {
     u32 cfg[5];
 } MsgCfgBlock;
 
-typedef struct World {
-    /* 0x0000 */ char _pad0[4];
-    /* 0x0004 */ int class_id;
-    /* 0x0008 */ char _pad8[4];
-    /* 0x000C */ int character;
-    /* 0x0010 */ char _pad10[0xD8];
-    /* 0x00E8 */ int state;
-    /* 0x00EC */ char _padEC[0x38];
-    /* 0x0124 */ int flags;
-    /* 0x0128 */ char _pad128[0x1C8C];
-    /* 0x1DB4 */ u8 items[0x15A8];
-} World;
-
 /* --- shared externs (owned by other TUs) --- */
-extern World gPlayers[];                /* stride 0x335C */
+extern Player gPlayers[];               /* stride 0x335C */
 extern void* gMsgBoxes[4];
 extern short lbl_80120240[];          /* lbl_80120240 */
 
@@ -609,7 +597,7 @@ int msgPost(int idx, int param, char* position)
     gMessageFontFlags = msgData->cfg[fontIndex];
     gCurWorld = param;
     gCurrentMessage = idx;
-    gMessageValue = *(int*)((u8*)&gPlayers[param] + 0x3324);
+    gMessageValue = gPlayers[param].level;
     gMessageActive = 1;
     msgDraw();
     gMessageTimer = descOffset * 0x3C + 0x1E;
@@ -627,9 +615,9 @@ int msgPost(int idx, int param, char* position)
             last = param;
         }
         for (i = first; i <= last; i++) {
-            World* world = &gPlayers[i];
+            Player* world = &gPlayers[i];
             if (world->state != 0) {
-                world->items[idx] |= 0x11;
+                world->save.help_disp[idx] |= 0x11;
             }
         }
         break;
@@ -637,9 +625,9 @@ int msgPost(int idx, int param, char* position)
     case 3:
     default:
         for (i = 0; i < 4; i++) {
-            World* world = &gPlayers[i];
+            Player* world = &gPlayers[i];
             if (world->state != 0) {
-                world->items[idx] |= 0x11;
+                world->save.help_disp[idx] |= 0x11;
             }
         }
         break;
@@ -878,9 +866,9 @@ int msgWorldFlags(int who, int worldMask)
         last = worldMask;
     }
     for (i = worldMask; i <= last; i++) {
-        World* w = &gPlayers[i];
+        Player* w = &gPlayers[i];
         if (w->state != 0) {
-            b = w->items[who];
+            b = w->save.help_disp[who];
             if (b != 0) {
                 acc |= b;
             } else {
