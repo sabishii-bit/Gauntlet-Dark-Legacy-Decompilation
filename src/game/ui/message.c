@@ -689,7 +689,6 @@ int msgPost(int idx, int param, char* position)
 }
 
 /* Render the active message, including the localized player/world variants. */
-#pragma opt_propagation off
 void msgDraw(void)
 {
     MsgDesc* desc;
@@ -708,7 +707,6 @@ void msgDraw(void)
     int labelWidth;
     int numberWidth;
     int x;
-    int y;
     int textMsg;
     int scratch[6];
     u32 color;
@@ -736,9 +734,7 @@ void msgDraw(void)
             worldWidth = StringTextWidth(2, playerWorld, 1.0f);
             classWidth = StringTextWidth(3, playerClass, 1.0f);
             labelWidth = StringTextWidth(0x18, 0, 1.0f);
-            y = worldWidth + classWidth;
-            labelWidth = y + labelWidth;
-            x = gMessageCenterX - (labelWidth + 0x14) / 2;
+            x = gMessageCenterX - (worldWidth + 10 + classWidth + 10 + labelWidth) / 2;
             labelWidth = centerY - lineHeight;
             DrawStringText(x, labelWidth, -1, gMessageFontFlags, 2, playerWorld);
             worldWidth = x + worldWidth;
@@ -804,7 +800,6 @@ void msgDraw(void)
         MBSetFontFlags(oldFlags);
     }
 }
-#pragma opt_propagation reset
 
 /* msgInit */
 void msgInit(void)
