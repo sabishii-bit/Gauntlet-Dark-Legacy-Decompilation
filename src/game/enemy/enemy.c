@@ -3693,51 +3693,12 @@ void move_logic10(int index)
 /* move_logic12 @0x80049A1C (state 12, maggot-egg tether).  Shares the IT-flee /
  * chase gate, then runs a small generator-egg state machine: snap to the dest,
  * flag the egg, and hatch back when the egg reports ready. */
-#pragma opt_propagation off
 void move_logic12(int index)
 {
-    u8* base = (u8*)mbdesc;
-    Enemy* e;
-    struct Item* gen;
-    s32 flee;
-    u8* p;
-    s32 it;
-    /* Existing stack reservation; its original local object is unrecovered. */
-    u8 unused[16];
+    Enemy* e = &gEnemies[index];
+    Item* gen = e->generator;
 
-    p = base + index * 916;
-    it = lbl_80344748;
-    gen = ((Enemy *)(p + ENEMY_POOL_OFF))->generator;
-    p += ENEMY_POOL_OFF;
-    e = (Enemy*)(u8*)p;
-    if (it < 0) {
-        flee = 0;
-    } else {
-        u8* other = base + it * 916;
-        if (((Enemy *)(other + ENEMY_POOL_OFF))->state != ACTIVE) {
-            flee = 0;
-        } else if (((Enemy *)(other + ENEMY_POOL_OFF))->actual_dist >
-                   ((Enemy *)p)->sight) {
-            flee = 0;
-        } else if (index == it || ((Enemy *)p)->birth_style != 0 ||
-                   ((Enemy *)p)->dead_end > 0) {
-            goto flee_zero;
-        } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] -
-                     ((Enemy *)p)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] -
-                     ((Enemy *)p)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] -
-                     ((Enemy *)p)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
@@ -3766,10 +3727,9 @@ void move_logic12(int index)
         break;
     case 1:
         if (gen != 0 && gen->data.gen.flags == 7) {
-            f32 z = 0.0f;
-            e->dest[0] = z;
-            e->dest[1] = z;
-            e->dest[2] = z;
+            e->dest[0] = 0.0f;
+            e->dest[1] = 0.0f;
+            e->dest[2] = 0.0f;
             e->mode1 = 2;
         }
         break;
@@ -3778,8 +3738,6 @@ void move_logic12(int index)
         break;
     }
 }
-#pragma opt_propagation reset
-
 /* move_logic13 @0x80049C70 (state 13, zombie chain-follower).  Follows its
  * prev_enemy link toward the chain head; if the debug flag is set it dumps the
  * prev/next indices.  Each frame it faces its parent, measures the gap (inline
