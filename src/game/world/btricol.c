@@ -24,14 +24,6 @@ typedef struct Vec {
     f32 x, y, z;
 } Vec;
 
-/* Trig frame passed to the vector-frame transforms: cos/sin/tan of the
- * surface orientation packed at offsets 0/4/8. */
-typedef struct ColFrame {
-    f32 c; /* 0x0 cos */
-    f32 s; /* 0x4 sin */
-    f32 t; /* 0x8 */
-} ColFrame;
-
 typedef struct WorldTri {
     s16 layerLo;
     s16 layerHi;
@@ -55,14 +47,32 @@ extern f32 SlowNormalVector(Vec* vector);
 /* forward decls (address order) */
 s32         TriLineCol(WorldTri* tri, Vec* out);
 f32         BTriLineCol(WorldTri* tri, Vec* out, f32 radius);
-static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c);
+static void BodyVectorNorm(Vec* in, Vec* out, Vec* f, f32 c);
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
-                            ColFrame* f);
+                            Vec* f);
 static f32  LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
                              Vec* b0, Vec* b1, s32 flattenY);
 static f32  LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                          Vec* pointA, Vec* dirA, f32 lenB, f32 lenA);
 static f32  PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out);
+/* Four-refinement form from MSL math_ppc.h's sqrtf_accurate. The volatile
+ * float is its single-precision rounding round-trip, not stack filler.
+ * Keeping the inline argument/local boundary recovers the caller's value
+ * lifetimes. LineLineDist3D2D's older expansion is still unresolved below. */
+static inline f32 sqrtf_accurate(f32 x) {
+    volatile f32 y;
+    if (x > 0.0f) {
+        f64 guess = __frsqrte((f64)x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        guess = 0.5 * guess * (3.0 - guess * guess * x);
+        y = (f32)(x * guess);
+        return y;
+    }
+    return x;
+}
+
 static inline f32 btri_fabsf(f32 x) {
     *(u32*)&x &= 0x7fffffff;
     return x;
@@ -107,7 +117,7 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     v1.x = lbl_8023F7E8[4] - cx;
     v1.y = lbl_8023F7E8[5] - cy;
     v1.z = lbl_8023F7E8[6] - cz;
-    BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpB, &norm, tri->scale);
     if ((f64)tpB.y < 0.0) {
         return 0;
     }
@@ -115,7 +125,7 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     v1.x = lbl_8023F7E8[0] - cx;
     v1.y = lbl_8023F7E8[1] - cy;
     v1.z = lbl_8023F7E8[2] - cz;
-    BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpA, &norm, tri->scale);
     if (tpB.y < tpA.y) {
         return 0;
     }
@@ -163,7 +173,7 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     }
 
     if (out != 0) {
-        WorldVectorNorm(out, tpx, 0.0f, tpz, tri->scale, (ColFrame*)&norm);
+        WorldVectorNorm(out, tpx, 0.0f, tpz, tri->scale, &norm);
         out->x += cx;
         out->y += cy;
         out->z += cz;
@@ -222,14 +232,14 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     v1.x = lbl_8023F7E8[4] - cx;
     v1.y = lbl_8023F7E8[5] - cy;
     v1.z = lbl_8023F7E8[6] - cz;
-    BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpB, &norm, tri->scale);
     if ((f64)tpB.y < 0.0) {
         return (-1.0f);
     }
     v1.x = lbl_8023F7E8[0] - cx;
     v1.y = lbl_8023F7E8[1] - cy;
     v1.z = lbl_8023F7E8[2] - cz;
-    BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
+    BodyVectorNorm(&v1, &tpA, &norm, tri->scale);
     if (tpB.y < tpA.y) {
         return (-1.0f);
     }
@@ -403,7 +413,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         }
     }
     if (out != NULL) {
-        WorldVectorNorm(out, o2.x, o2.y, o2.z, tri->scale, (ColFrame*)&norm);
+        WorldVectorNorm(out, o2.x, o2.y, o2.z, tri->scale, &norm);
         out->x += cx;
         out->y += cy;
         out->z += cz;
@@ -411,12 +421,12 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     return dist;
 }
 /* ------------------------------------------------------------------ */
-/* Rotate a body-space vector into world space using a packed cos/sin  */
-/* surface frame.  Degenerate frames (|sin| ~ 1) collapse to identity  */
-/* or a 180-degree flip.                                               */
+/* Rotate into the triangle normal's body frame. The input is the     */
+/* copied tri->norm vector: x/y/z at offsets 0/4/8, not a separate      */
+/* trigonometric aggregate. Normals near either Y pole are special.    */
 /* ------------------------------------------------------------------ */
-static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
-    f32 s = f->s;
+static void BodyVectorNorm(Vec* in, Vec* out, Vec* f, f32 c) {
+    f32 s = f->y;
     if ((f64)s > (0.999999)) {
         out->x = in->x;
         out->y = in->y;
@@ -447,13 +457,13 @@ static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
         f32 negix_cs_scaled;
         f32 negiz_s;
 
-        cs = f->c;
+        cs = f->x;
         iy = in->y;
         cs_scaled = cs * c;
         iz = in->z;
         ix = in->x;
         iy_s = iy * s;
-        t = f->t;
+        t = f->z;
         neg_ix = -ix;
         mid_y = ix * cs + iy_s;
         t_scaled = t * c;
@@ -472,12 +482,12 @@ static void BodyVectorNorm(Vec* in, Vec* out, ColFrame* f, f32 c) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Inverse of BodyVectorNorm: fold a world-space vector back into the  */
-/* surface body frame.                                                 */
+/* Inverse of BodyVectorNorm: rotate from the normal's body frame      */
+/* back into world space.                                              */
 /* ------------------------------------------------------------------ */
 static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
-                            ColFrame* f) {
-    f32 s = f->s;
+                            Vec* f) {
+    f32 s = f->y;
     if ((f64)s > (0.999999)) {
         out->x = x;
         out->y = y;
@@ -496,8 +506,8 @@ static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
         f32 t;
         f32 t_scaled;
 
-        cs = f->c;
-        t = f->t;
+        cs = f->x;
+        t = f->z;
         cs_scaled = cs * c;
         t_scaled = t * c;
 
@@ -854,54 +864,41 @@ done:
 #pragma opt_propagation reset
 
 /* ------------------------------------------------------------------ */
-/* 2D (xz-plane) distance from the segment [p0,p1] to a point, writing */
-/* the closest point to *out.  Uses the PPC frsqrte + Newton-Raphson   */
-/* reciprocal-square-root idiom for the segment length.                */
+/* Squared XZ distance from point p0 to the segment starting at p1     */
+/* with displacement dir, writing the closest point to *out. The     */
+/* normalization uses the four-refinement square-root inline above.   */
 /* ------------------------------------------------------------------ */
 #pragma opt_propagation off
 static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
-    u8 unused[40];
-    struct {
-        f32 pad;
-        volatile f32 result;
-    } sqrtLocal;
-    register f32 length;
-    f64 guess;
+    Vec dirA;
+    f32 length;
     f32 inverse;
-    f32 nx;
-    f32 ny;
-    f32 nz;
     f32 distance;
 
-    length = dir->x * dir->x + dir->z * dir->z;
-    if (length > 0.0f) {
-        guess = __frsqrte((f64)length);
-
-        guess = (0.5) * guess *
-                ((3.0) - guess * guess * length);
-        guess = (0.5) * guess *
-                ((3.0) - guess * guess * length);
-        guess = (0.5) * guess *
-                ((3.0) - guess * guess * length);
-        sqrtLocal.result = (f32)(length *
-                                 ((0.5) * guess *
-                                  ((3.0) - guess * guess * length)));
-        length = sqrtLocal.result;
-    }
+    length = sqrtf_accurate(dir->x * dir->x + dir->z * dir->z);
     if (0.0 == (f64)length) {
-        f32 dx = p1->x - p0->x;
-        f32 dz = p1->z - p0->z;
+        Vec dvec;
+        dvec.x = p1->x - p0->x;
+        dvec.z = p1->z - p0->z;
         out->x = p1->x;
         out->y = p1->y;
         out->z = p1->z;
-        return dx * dx + dz * dz;
+        return dvec.x * dvec.x + dvec.z * dvec.z;
     }
 
     inverse = (f32)((1.0) / (f64)length);
-    nx = dir->x * inverse;
-    ny = dir->y * inverse;
-    nz = dir->z * inverse;
-    distance = nx * (p0->x - p1->x) + nz * (p0->z - p1->z);
+    dirA.x = dir->x * inverse;
+    dirA.y = dir->y * inverse;
+    dirA.z = dir->z * inverse;
+    {
+        /* The segment projection starts with a three-dimensional vector
+         * subtraction, then uses only its XZ components. */
+        Vec dvec;
+        dvec.x = p0->x - p1->x;
+        dvec.y = p0->y - p1->y;
+        dvec.z = p0->z - p1->z;
+        distance = dirA.x * dvec.x + dirA.z * dvec.z;
+    }
     if (distance < 0.0f) {
         out->x = p1->x;
         out->y = p1->y;
@@ -911,9 +908,9 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
         out->y = dir->y + p1->y;
         out->z = dir->z + p1->z;
     } else {
-        out->x = nx * distance + p1->x;
-        out->y = ny * distance + p1->y;
-        out->z = nz * distance + p1->z;
+        out->x = dirA.x * distance + p1->x;
+        out->y = dirA.y * distance + p1->y;
+        out->z = dirA.z * distance + p1->z;
     }
 
     {
