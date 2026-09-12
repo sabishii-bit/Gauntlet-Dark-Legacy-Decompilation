@@ -12,24 +12,26 @@
  * NextDynGrid, CreateDynobjGrid, InitDynobjGrid.  CalcMaxObjSize and
  * InitDynobjList were inlined into InitDynobjGrid by the GC compiler.
  *
- * MATCH STATUS (parked residuals, all regalloc/copy-quirk class - do not
- * regrind without a new allocator lever):
- *  - InitDynobjGrid: 1 insn (target mr r3,r8 copy of zeroed total; ours
- *    const-propagates to li 0 - the gcontrolpads remat-vs-copy quirk).
- *  - WorldDynCollide: target keeps an extra addi r6,r3,0 copy web for d +
- *    nonvolatile color rotation (r28..r31); opcode stream otherwise exact.
- *  - CreateDynobjGrid: native exact, with entry write before cell lookup.
- *  - NextDynGrid: complete semantic translation (255 target insns).
+ * WorldDynCollide updates the shared collision result; it has no return
+ * value. Its WorldObjCollide call supplies this object's cached transform.
+ * The former missing argument and incorrect return type were source errors,
+ * not evidence of an unavoidable compiler register-allocation difference.
+ * Existing unused local reservations and partial WorldObj/WorldInfo views
+ * remain reconstruction debt, not recovered original declarations.
  */
 
 /* A per-object record tracked by the grid (0x44 bytes). */
 typedef struct DynObj {
-    u8 _00[0x30];
-    f32 bbox[3];   /* +0x30 world-space footprint centre (x,_,z) */
-    u8 _3c[0x04];
+    f32 mat[4][4]; /* +0x00 world transform; translation at +0x30 */
     s16 obj_idx;   /* +0x40 index of the source world object */
     u16 mark;      /* +0x42 last ObjCheckNum that visited this entry */
 } DynObj;
+
+/* GC loads the object index signed and the next-entry index unsigned. */
+typedef struct DynGridEntry {
+    s16 dynobj_idx;
+    u16 next;
+} DynGridEntry;
 
 /* A collidable world object (stride 0x3C = 60 bytes). */
 typedef struct WorldObj {
@@ -74,7 +76,7 @@ extern s32 ObjCheckNum;      /* rolling per-query stamp */
 extern s32 dyngrid_index;    /* write cursor into dyngrid_list */
 extern DynObj* dynobj_list;  /* per-object records */
 extern s32 dynobj_count;
-extern s16* dyngrid_list;    /* pool of {obj, next} entry pairs */
+extern DynGridEntry* dyngrid_list; /* pool of object/next-entry pairs */
 extern s32 dyngrid_count;
 extern f32 dyngrid_width;    /* cell size */
 extern f32 dyngrid_invwidth; /* 1.0 / cell size */
@@ -85,17 +87,17 @@ extern void* memset(void* p, s32 c, s32 n);
 extern void GetWorldMat(void* a, void* b, s32 c);
 extern void FatalError(const char* msg, s32 code);
 extern const char aGridError[]; /* 0x80112360 == "GRID ERROR" */
-extern s32 WorldObjCollide();
+extern void WorldObjCollide(f32 rad, WorldObj* obj, int count, s16* list, f32* mtx);
 extern s32 ExitCollisionEarly();
 
 s32 NextDynGrid(s32* cellx, s32* cellz, f32 vx, f32 vy, f32 vz, f32 r,
                 s32 ix, s32 iy, s32 iz, s32 iy2);
 
-s32 WorldDynCollide(u32 objmask, u32 sidemask, f32 x, f32 y, f32 z, f32 f4,
+void WorldDynCollide(int objmask, int sidemask, f32 x, f32 y, f32 z, f32 f4,
                     f32 vx, f32 vy, f32 vz, f32 r)
 {
     s32 cx, cz;
-    s16* e;
+    DynGridEntry* e;
     DynObj* d;
     WorldObj* o;
     s32 side;
@@ -115,8 +117,8 @@ s32 WorldDynCollide(u32 objmask, u32 sidemask, f32 x, f32 y, f32 z, f32 f4,
     for (;;) {
         head = dyngrid[cz * num_dyngridx + cx];
         while (head != 0) {
-            e = &dyngrid_list[head * 2];
-            d = &dynobj_list[e[0]];
+            e = &dyngrid_list[head];
+            d = &dynobj_list[e->dynobj_idx];
             if (d->mark != ObjCheckNum) {
                 d->mark = ObjCheckNum;
                 o = &gWorldInfo.objs[d->obj_idx];
@@ -125,13 +127,13 @@ s32 WorldDynCollide(u32 objmask, u32 sidemask, f32 x, f32 y, f32 z, f32 f4,
                     side |= o->link->side;
                 if ((o->flags & objmask) && !(side & sidemask) &&
                     !(o->flags & 0x10000000) && o->field38 >= 0) {
-                    WorldObjCollide(o, o->field36, 0, r);
+                    WorldObjCollide(r, o, o->field36, NULL, &d->mat[0][0]);
                     ret = ExitCollisionEarly();
                     if (ret)
                         goto exit;
                 }
             }
-            head = ((u16*)e)[1];
+            head = e->next;
         }
         ret = ExitCollisionEarly();
         if (ret)
@@ -141,7 +143,7 @@ s32 WorldDynCollide(u32 objmask, u32 sidemask, f32 x, f32 y, f32 z, f32 f4,
             break;
     }
 exit:
-    return ret;
+    return;
 }
 
 /* DDA step: advance (*cellx,*cellz) to the next grid cell the swept segment
@@ -262,10 +264,10 @@ void CreateDynobjGrid(void)
         d = &dynobj_list[i];
         o = &gWorldInfo.objs[d->obj_idx];
         if (o->flags & 0x01000000)
-            GetWorldMat(o->prep, d, 0);
+            GetWorldMat(o->prep, &d->mat[0][0], 0);
         d->mark = 0;
         if (o->flags & 0x01000000)
-            p = d->bbox;
+            p = d->mat[3];
         else if (o->flags & 0x00001000)
             p = ((MBObject*)o->prep)->mat[3];
         else
@@ -285,11 +287,11 @@ void CreateDynobjGrid(void)
             for (cx = xlo; cx <= xhi; cx++) {
                 u16* cell;
                 dyngrid_index++;
-                dyngrid_list[dyngrid_index * 2] = (s16)i;
+                dyngrid_list[dyngrid_index].dynobj_idx = (s16)i;
                 /* Link the written entry into its cell. Computing this
                  * address earlier changes MWCC's hoisted-load order. */
                 cell = &dyngrid[cz * num_dyngridx + cx];
-                ((u16*)dyngrid_list)[dyngrid_index * 2 + 1] = *cell;
+                dyngrid_list[dyngrid_index].next = *cell;
                 *cell = dyngrid_index;
             }
         }
@@ -341,7 +343,7 @@ void InitDynobjGrid(void)
 
     total = CalcMaxObjSize();
     dyngrid_count = total + 1;
-    dyngrid_list = (s16*)AllocMem(dyngrid_count * 4);
+    dyngrid_list = (DynGridEntry*)AllocMem(dyngrid_count * 4);
     memset(dyngrid_list, 0, dyngrid_count * 4);
     dyngrid_index = 0;
 }
