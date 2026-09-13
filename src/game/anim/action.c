@@ -538,9 +538,9 @@ void DoPlayerAction(void* player)
     s32 adv;
     s32 dance;
 
-    act = pl->anim_20C;
+    next = pl->anim_20C;
     cur = pl->anim_208;
-    next = act;
+    act = next;
     *((u8*)p + 0x93) |= 2;
     atkNext = PlayerAttackType(next);
     atkCur = PlayerAttackType(cur);
