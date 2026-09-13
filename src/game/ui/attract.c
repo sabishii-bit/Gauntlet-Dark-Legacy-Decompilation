@@ -164,6 +164,9 @@ extern const char lbl_80345918;
 
 /* Real .sdata/.sbss globals of ATTRACT.OBJ, named by their DOL address so
  * the EMB_SDA21 relocations carry the target symbol names. */
+/* Current attract wave; also reset by main after leaving diagnostics.
+ * The Xbox PDB's global int attract_wave precedes these five local states. */
+int lbl_80343B00 = -1;
 int lbl_80343B04 = -1;
 int lbl_80343B08 = -1;
 int lbl_80343B0C = -1;
@@ -945,7 +948,6 @@ int ExitAttract(void) {
 extern u32 sMainFrames;
 extern int lbl_80344200;
 extern int lbl_80344A2C;
-extern int lbl_80343B00;
 extern int lbl_80345030;
 extern unsigned char lbl_8034421C;
 extern int lbl_80344288;
