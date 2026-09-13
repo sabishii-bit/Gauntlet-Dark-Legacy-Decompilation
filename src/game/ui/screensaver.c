@@ -749,13 +749,14 @@ int fn_80055F68(int a, int b);
 void DoTexMods(void* seq);
 void PlayerControls(void);
 
-/* lbl_80274600+0x240 (576): last-seen owning MB node per weapon slot,
- * immediately after the ScreenSaverWeapon[4] array; used only to detect a
- * controller-focus change that exits the screensaver. */
-typedef struct ScreenSaverControlNodes {
+/* GC-verified partial view: four saved PlayerControl[].levels words at
+ * lbl_80274600+0x240. These are held-button masks, not MB node pointers.
+ * Unsigned storage preserves the target's logical word comparisons.
+ * The offset view does not establish that the preceding BSS is one object. */
+typedef struct ScreenSaverControlState {
     u8 _pad00[0x240];
-    void* node[4];
-} ScreenSaverControlNodes;
+    u32 levels[4];
+} ScreenSaverControlState;
 
 
 void ScreenSaver(void)
@@ -771,8 +772,8 @@ void ScreenSaver(void)
         lbl_80344A48 += gClockStepTicks;
         for (i = 0; i < 4; i++) {
             u8* wr = weap + i * 4;
-            if (*(void**)(wr + offsetof(ScreenSaverControlNodes, node)) !=
-                (void*)PlayerControl[i].levels) {
+            if (*(u32*)(wr + offsetof(ScreenSaverControlState, levels)) !=
+                PlayerControl[i].levels) {
                 lbl_80344A48 = 0;
             }
         }
@@ -782,8 +783,8 @@ void ScreenSaver(void)
         if ((u32)lbl_80344A48 < 36000) {
             for (i = 0; i < 4; i++) {
                 u8* wr = weap + i * 4;
-                *(void**)(wr + offsetof(ScreenSaverControlNodes, node)) =
-                    (void*)PlayerControl[i].levels;
+                *(u32*)(wr + offsetof(ScreenSaverControlState, levels)) =
+                    PlayerControl[i].levels;
             }
         } else {
             ScreenSaverStart();
@@ -799,9 +800,9 @@ void ScreenSaver(void)
                 PlayerControls();
                 for (i = 0; i < 4; i++) {
                     u8* wr = weap + i * 4;
-                    if ((void*)PlayerControl[i].levels !=
-                        *(void**)(wr +
-                                  offsetof(ScreenSaverControlNodes, node))) {
+                    if (PlayerControl[i].levels !=
+                        *(u32*)(wr +
+                                offsetof(ScreenSaverControlState, levels))) {
                         exit = 1;
                     }
                 }
