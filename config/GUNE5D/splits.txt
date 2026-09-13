@@ -534,7 +534,7 @@ game/pb/pb_error.c:
 	.text       start:0x800C1174 end:0x800C151C
 	.rodata     start:0x801164C0 end:0x801164D4
 	.bss        start:0x802C4DB8 end:0x802C4DE0
-	.sbss       start:0x80344F94 end:0x80344F98
+	.sbss       start:0x80344F90 end:0x80344F98
 
 game/pb/pb_frame.c:
 	extab       start:0x80007BF0 end:0x80007C20
