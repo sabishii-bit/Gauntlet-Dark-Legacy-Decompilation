@@ -15,14 +15,13 @@
  * analog->stick response curve) into this separate TU.  It has no Xbox PDB
  * counterpart (Xbox used XInput), so the two internal names are behavioural.
  *
- * sdata2 pool: 0x80349350-0x80349388 (the analog curve constants).
- * Analog response table: lbl_80320C80 (three parallel f32[128] curves at
+ * sdata2 pool: 0x80349350-0x80349390 (the analog curve constants).
+ * Analog response table: lbl_80320C80 (three parallel f32[129] curves at
  * +0x000/+0x204/+0x408), built once by G3DInitStickCurve, guarded by
  * lbl_803452A4.
  *
- * All four functions are translated. G3DUpdatePadStatus's final allocator-only
- * residual is handled by the audited, hash-guarded WebFrank rule; the source
- * must still emit the target function layout and literal pool exactly.
+ * All four functions compile natively to the target code. The final four bytes
+ * of the 64-byte literal claim are zero alignment supplied by the linker.
  */
 #include "types.h"
 #include "dolphin/pad.h"
@@ -30,6 +29,19 @@
 #include "game/g3dpad.h"
 
 extern f64 __frsqrte(f64 value);
+
+/* MWCC's integer absolute-value intrinsic preserves the signed-axis operation.
+ * Every argument below is an s8 promoted to int (-128..127), not INT_MIN. */
+#ifdef __MWERKS__
+extern int __abs(int value);
+#else
+#ifdef __cplusplus
+extern "C" int abs(int value);
+#else
+extern int abs(int value);
+#endif
+#define __abs abs
+#endif
 
 static inline f32 g3dSqrt(f32 value)
 {
@@ -159,7 +171,7 @@ void G3DAnalogToStickXY(f32* outX, f32* outY, int rawX, int rawY) {
 /*
  * 0x800D7F44  G3DInitStickCurve(void)
  * Build the analog->stick response table lbl_80320C80 once (guarded by the
- * lbl_803452A4 init-once flag): a 128-entry curve for each of three parallel
+ * lbl_803452A4 init-once flag): a 129-entry curve for each of three parallel
  * f32 arrays.
  */
 void G3DInitStickCurve(void) {
@@ -307,32 +319,16 @@ void G3DUpdatePadStatus(void) {
             aggregate->buttons |= pad->status.button;
             aggregate->repeat |= pad->repeat;
 
-            if (((((s32)aggregate->stickX >> 31) ^ aggregate->stickX) -
-                 ((s32)aggregate->stickX >> 31)) <
-                ((((s32)pad->status.stickX >> 31) ^ pad->status.stickX) -
-                 ((s32)pad->status.stickX >> 31))) {
+            if (__abs(aggregate->stickX) < __abs(pad->status.stickX)) {
                 aggregate->stickX = pad->status.stickX;
             }
-            if (((((s32)aggregate->stickY >> 31) ^ aggregate->stickY) -
-                 ((s32)aggregate->stickY >> 31)) <
-                ((((s32)pad->status.stickY >> 31) ^ pad->status.stickY) -
-                 ((s32)pad->status.stickY >> 31))) {
+            if (__abs(aggregate->stickY) < __abs(pad->status.stickY)) {
                 aggregate->stickY = pad->status.stickY;
             }
-            if (((((s32)aggregate->substickX >> 31) ^
-                  aggregate->substickX) -
-                 ((s32)aggregate->substickX >> 31)) <
-                ((((s32)pad->status.substickX >> 31) ^
-                  pad->status.substickX) -
-                 ((s32)pad->status.substickX >> 31))) {
+            if (__abs(aggregate->substickX) < __abs(pad->status.substickX)) {
                 aggregate->substickX = pad->status.substickX;
             }
-            if (((((s32)aggregate->substickY >> 31) ^
-                  aggregate->substickY) -
-                 ((s32)aggregate->substickY >> 31)) <
-                ((((s32)pad->status.substickY >> 31) ^
-                  pad->status.substickY) -
-                 ((s32)pad->status.substickY >> 31))) {
+            if (__abs(aggregate->substickY) < __abs(pad->status.substickY)) {
                 aggregate->substickY = pad->status.substickY;
             }
             if (aggregate->triggerLeft < pad->status.triggerLeft) {

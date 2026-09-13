@@ -503,7 +503,7 @@ config.libs = [
             # Stock native code/data/BSS/EH and the complete source-selected link are exact.
             Object(Matching, "game/audio/mempool.c", cflags=cflags_demo),
             Object(NonMatching, "game/audio/adstream.c", cflags=cflags_demo),
-            Object(NonMatching, "game/g3d/g3dpad.c", cflags=cflags_demo),
+            Object(Matching, "game/g3d/g3dpad.c", cflags=cflags_demo),
             Object(NonMatching, "game/movie/movieplayer.cpp", cflags=cflags_demo),
             Object(NonMatching, "game/pb/pb_window.c", cflags=cflags_demo),
             Object(Matching, "game/g3d/g3dMath3D.cpp", cflags=cflags_demo),
