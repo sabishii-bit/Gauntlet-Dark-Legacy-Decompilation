@@ -56,12 +56,22 @@ def ninja_base_cmd(src: Path):
             i = next(j for j, t in enumerate(toks) if t.endswith("mwcceppc.exe"))
             cc_default = toks[i]
             args = toks[i + 1:]
+            # Tokens BEFORE the compiler are the wrapper ninja runs it under:
+            # empty on Windows native, `build/tools/wibo` on Linux/macOS. They
+            # were dropped, so every variant tried to exec a PE directly and
+            # died with PermissionError on non-Windows hosts.
+            wrapper = toks[:i]
             # strip -MMD, -c src, -o out, -lang (re-added later)
             keep, skip = [], 0
             for j, t in enumerate(args):
                 if skip:
                     skip -= 1
                     continue
+                # ninja chains the dep transform after the compile with `&&`;
+                # everything from the operator on belongs to that second
+                # command, not to mwcc's argv.
+                if t in ("&&", "&", "||", ";", "|"):
+                    break
                 if t in ("-MMD",):
                     continue
                 if t in ("-c", "-o"):
@@ -71,7 +81,7 @@ def ninja_base_cmd(src: Path):
                     continue
                 keep.append(t)
             m = re.search(r"compilers/GC/([^/]+)/mwcceppc", cc_default)
-            return keep, (m.group(1) if m else "1.2.5n")
+            return keep, (m.group(1) if m else "1.2.5n"), wrapper
     raise SystemExit(f"no mwcc command found for {objpath}")
 
 
@@ -146,7 +156,7 @@ def disasm_fn(obj: Path, fn: str):
 
 
 def compile_variant(src: Path, variant: str, tag: str, base):
-    base_flags, cc_default = base
+    base_flags, cc_default, wrapper = base
     cc_dir = cc_default
     frank_body = None
     flags = list(base_flags)
@@ -186,7 +196,7 @@ def compile_variant(src: Path, variant: str, tag: str, base):
         messages = []
         for compiler, output_dir in ((vanilla, vanilla_dir), (cc, profile_dir)):
             r = subprocess.run(
-                [str(compiler)] + args + ["-o", str(output_dir)],
+                wrapper + [str(compiler)] + args + ["-o", str(output_dir)],
                 capture_output=True, text=True, cwd=str(ROOT),
             )
             messages.append(r.stdout + r.stderr)
@@ -203,7 +213,7 @@ def compile_variant(src: Path, variant: str, tag: str, base):
             msg = "\n".join(messages).strip().replace("\n", " | ")[:200]
             return None, f"compile failed: {msg}"
     else:
-        cmd = [str(cc)] + args + ["-o", str(outdir)]
+        cmd = wrapper + [str(cc)] + args + ["-o", str(outdir)]
         r = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
         if r.returncode != 0 or not obj.exists():
             msg = (r.stdout + r.stderr).strip().replace("\n", " | ")[:200]
