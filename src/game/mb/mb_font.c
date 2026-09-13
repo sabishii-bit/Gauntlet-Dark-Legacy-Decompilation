@@ -736,14 +736,16 @@ void MBFontUpdateWindow(f32 scaleX, f32 scaleY)
         MBFont* font = lbl_802A4AA4[fontIndex];
 
         for (cellIndex = 0; cellIndex < font->count; cellIndex++) {
-            u8* cell = (u8*)&font->cells[cellIndex];
+            MBBlitCell* cell = &font->cells[cellIndex];
 
-            if (*(u16*)(cell + 16) != 0 && (*(u32*)cell & 0x40) == 0) {
-                *(u16*)(cell + 8) = (u16)((f32)*(u16*)(cell + 8) * scaleX);
-                *(u16*)(cell + 10) = (u16)((f32)*(u16*)(cell + 10) * scaleY);
-                *(u16*)(cell + 16) = (u16)((f32)*(u16*)(cell + 16) * scaleX);
-                if ((*(u32*)cell & 0x100) == 0) {
-                    *(u16*)(cell + 18) = (u16)((f32)*(u16*)(cell + 18) * scaleY);
+            if (cell->width != 0 && (cell->flags & 0x40) == 0) {
+                /* This updater treats positions as unsigned (GC lhz at
+                 * +0x5C/+0x84), unlike the renderer's signed glow adjustment. */
+                cell->x = (u16)((f32)(u16)cell->x * scaleX);
+                cell->y = (u16)((f32)(u16)cell->y * scaleY);
+                cell->width = (u16)((f32)cell->width * scaleX);
+                if ((cell->flags & 0x100) == 0) {
+                    cell->height = (u16)((f32)cell->height * scaleY);
                 }
             }
         }
