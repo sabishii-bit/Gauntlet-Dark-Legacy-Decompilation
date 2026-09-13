@@ -15,7 +15,7 @@
  * .text 0x800C1174-0x800C151C. Compiled -Cpp_exceptions on (cflags_demo).
  * Reconstructed in plain C (2026-08): the allocator-resistant schedules that
  * used to be pinned by hand-written instruction blocks are now expressed as
- * ordinary C statements. Two functions still have native code differences;
+ * ordinary C statements. fn_800C1174 still has native code differences;
  * this TU remains NonMatching until those and its link obligations close.
  */
 
@@ -38,7 +38,9 @@ typedef struct WinGlobals {
 extern WinGlobals* gWinGlobals;
 
 extern int sceGsExecLoadImage();
-extern int sceGsSetDefLoadImage();
+/* GC callers retain the PS2 load-image API's seven signed-short arguments. */
+extern int sceGsSetDefLoadImage(void* image, s16 dbp, s16 dbw, s16 dpsm,
+                              s16 x, s16 y, s16 w, s16 h);
 extern int sceGsSwapDBuff();
 extern int sceGsSetDefDBuff();
 extern int sceGsResetPath();
@@ -195,7 +197,7 @@ void fn_800C1174(register s8* text)
             x += 12;
             text++;
         }
-        sceGsSetDefLoadImage(image, 0, 10, 0, 50, (s16)y, 256, 8);
+        sceGsSetDefLoadImage(image, 0, 10, 0, 50, y, 256, 8);
         FlushCache(0);
         sceGsExecLoadImage(image, pixels);
         fn_800C1148(0, 0, lbl_801164C0);
@@ -218,7 +220,7 @@ void fn_800C13CC(void)
 
     i = 0;
     do {
-        sceGsSetDefLoadImage(image, (s16)(i * 16), 4, 0, 0, 0, 32, 32);
+        sceGsSetDefLoadImage(image, i * 16, 4, 0, 0, 0, 32, 32);
         if (lbl_80343EE8 != 0) {
             FlushCache(0);
         }

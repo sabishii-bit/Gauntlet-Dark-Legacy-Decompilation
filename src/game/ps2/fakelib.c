@@ -567,7 +567,8 @@ int sceGsExecLoadImage(void)
     return 0;
 }
 
-int sceGsSetDefLoadImage(void)
+int sceGsSetDefLoadImage(void* image, s16 dbp, s16 dbw, s16 dpsm,
+                        s16 x, s16 y, s16 w, s16 h)
 {
     return 0;
 }
