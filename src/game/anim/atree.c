@@ -1306,7 +1306,6 @@ anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
 {
     s32 rootIndex;
     anode* nodes;
-    s32 nodeOffset;
     s32 i;
     anode* root;
     anode* node;
@@ -1346,9 +1345,8 @@ anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
 
     i = 0;
     definitionOffset = 0;
-    nodeOffset = 0;
     while (i < definition->nodeCount) {
-        node = (anode*)((u8*)nodes + nodeOffset);
+        node = &nodes[i];
         nodeDefinition =
             (AtreeNodeDef*)((u8*)definition->nodes + definitionOffset);
 
@@ -1406,7 +1404,6 @@ anode* AtreeInitSub(AtreeDefinition* definition, atree* tree,
 
         i++;
         definitionOffset += sizeof(AtreeNodeDef);
-        nodeOffset += sizeof(anode);
     }
 
     tree->nanodes = definition->nodeCount;
