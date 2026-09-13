@@ -918,13 +918,39 @@ int AtreeModel(void* bank)
     return -1;
 }
 
+/* Private reconstruction of the AtreeMatch body, not a recovered symbol.
+ * PS2 AtreeListInit (00112090) calls AtreeMatch(list, desc, 1); GCN's wrapper
+ * contains that lookup body in place. Keep the public definition below:
+ * routing it through this helper changes its native loop initialization.
+ * The original inline/outline declaration arrangement remains unrecovered. */
+static inline void* AtreeMatchSub(atreeheader* hdr, char* name, s32 report)
+{
+    int i;
+    atreematch* list;
+
+    if (hdr == NULL) {
+        FatalError("AtreeMatch with NULL atree", 0x804060);
+    }
+    list = hdr->list;
+    for (i = 0; i < hdr->num; i++) {
+        if (strcmp(name, list[i].name) == 0) {
+            return (char*)hdr + list[i].offset;
+        }
+    }
+    if (report != 0) {
+        ErrorPrintf("No AtreeMatch: %s", name);
+    }
+    return NULL;
+}
+
 /* Match an animation tree, remember its per-bank scroll name, and instantiate
  * the selected tree into the caller's playback state. */
-#pragma opt_propagation off
 void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
                   u32 flags)
 {
     s32 i = 0;
+    /* Original local provenance remains unrecovered: removing this existing
+     * reservation shrinks the target's 0x50-byte frame to 0x48 bytes. */
     u8 unused[8];
 
     for (; i < natreelists; i++) {
@@ -934,24 +960,7 @@ void* fn_80011BBC(atreeheader* hdr, char* name, void* state, char* scrollName,
     }
 
     if (name != NULL) {
-        s32 matchIndex;
-        atreematch* list;
-        void* node;
-
-        if (hdr == NULL) {
-            FatalError("AtreeMatch with NULL atree", 0x804060);
-        }
-        list = hdr->list;
-        matchIndex = 0;
-        for (; matchIndex < hdr->num; matchIndex++) {
-            if (strcmp(name, list[matchIndex].name) == 0) {
-                node = (u8*)hdr + list[matchIndex].offset;
-                goto found;
-            }
-        }
-        ErrorPrintf("No AtreeMatch: %s", name);
-        node = NULL;
-found:
+        void* node = AtreeMatchSub(hdr, name, 1);
         {
             AtreeDefinition* def = (AtreeDefinition*)node;
             if (node == NULL) {
@@ -965,7 +974,6 @@ found:
         (AtreeDefinition*)((u8*)hdr + hdr->list[0].offset), (atree*)state,
         scrollName, flags, 1);
 }
-#pragma opt_propagation reset
 
 /* ---------------- match table ---------------- */
 
