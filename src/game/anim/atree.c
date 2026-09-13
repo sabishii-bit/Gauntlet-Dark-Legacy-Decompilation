@@ -484,21 +484,16 @@ static inline void AnimFixPos(anode* root, animinfo* info)
 static inline void DoSeqTexMods(void* context, s32 frame, atreeseq* seq)
 {
     s32 i;
-    s32 offset;
     TEXMOD* texmod;
     s32 period;
 
-    i = 0;
-    offset = i;
-    while (i < seq->ntexmods) {
-        texmod = (TEXMOD*)((u8*)seq->texmods + offset);
+    for (i = 0; i < seq->ntexmods; i++) {
+        texmod = &seq->texmods[i];
         period = texmod->frames * texmod->rate;
         if (frame > period && seq->repeat != 0 && period > 1) {
             frame %= period;
         }
         DoTexModSeqSub(context, texmod, frame);
-        i++;
-        offset += sizeof(TEXMOD);
     }
 }
 
