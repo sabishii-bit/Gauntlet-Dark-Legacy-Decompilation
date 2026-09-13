@@ -6909,8 +6909,9 @@ extern char* lbl_8011BFF8[];
 extern char* lbl_80126EC0[];
 extern s32   stricmp(const char* a, const char* b);
 extern struct mbnode* MBNewNode(struct mbnode* parent, const f32* matrix, s32 type);
-extern s32   fn_80011BBC(void* model, const char* name, void* atreeOut,
-                         const char* work, s32 workSize);
+struct atreeheader;
+extern void* fn_80011BBC(struct atreeheader* model, char* name, void* atreeOut,
+                        char* scrollName, u32 flags);
 extern void  InitActions(atree* tree, ACTIONANIM* defs, char** names);
 extern void* MBOX_NewObject(const char* name, f32* matrix, void* parent, u32 flags);
 extern void* MBOX_ReallyFindObject(const char* name, s32 type1, s32 type2, s32 exact);
@@ -7224,13 +7225,13 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
     enemy->flooroffset = 0.0f;
 
     if (type == 31) {
-        enemy->atree.root = (void*)fn_80011BBC(
-            sGoodWizObj, "IT", &enemy->atree.root, "IT", 2048);
+        enemy->atree.root = (anode*)fn_80011BBC(
+            (struct atreeheader*)sGoodWizObj, "IT", &enemy->atree.root, "IT", 2048);
         enemy->flooroffset = 3.0f;
     } else if (((void**)gWadAtreeHeaders)[type] != 0) {
         char* name = fn_80051E1C(type, level, 0);
-        enemy->atree.root = (void*)fn_80011BBC(
-            ((void**)gWadAtreeHeaders)[type], name, &enemy->atree.root, name, 2048);
+        enemy->atree.root = (anode*)fn_80011BBC(
+            ((struct atreeheader**)gWadAtreeHeaders)[type], name, &enemy->atree.root, name, 2048);
     }
 
     if (enemy->atree.root != 0) {
