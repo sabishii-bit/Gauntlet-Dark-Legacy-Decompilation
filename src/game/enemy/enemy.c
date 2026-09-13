@@ -445,8 +445,21 @@ void move_logic31(int index);
 extern void CreateYPRMatrix(f32* mat, f32* pyr);        /* pyr -> rotation matrix (fwd) */
 extern void CopyMat3(f32* src, f32* dst);           /* 0x800BE8C8 (fwd) */
 
-/* branchless-abs idiom (srawi/xor/subf at -O4) */
-#define ABS(x) (((x) ^ ((x) >> 31)) - ((x) >> 31))
+/* MWCC provides the integer route-magnitude operation directly. */
+#ifdef __MWERKS__
+extern int __abs(int value);
+#else
+#ifdef __cplusplus
+extern "C" int abs(int value);
+#else
+extern int abs(int value);
+#endif
+#define __abs abs
+#endif
+
+/* blocked10 retains this expanded form: replacing its inlined magnitude
+ * with __abs currently shrinks do_enemy_move's frame by eight bytes. Its
+ * original local/helper storage remains unresolved; direct callers use __abs. */
 #define ABS_REVERSED(x) ((((x) >> 31) ^ (x)) - ((x) >> 31))
 
 /* --- same-TU statics not yet reconstructed (extern until written) --- */
@@ -1187,13 +1200,13 @@ void do_enemy_move(int index)
                 }
             } else if (other != 0
                        && (alg == 7 || alg == 8 || alg == 10 || alg == 20)) {
-                if (e->route == 0 || ABS_REVERSED(e->route) > 2) {
+                if (e->route == 0 || __abs(e->route) > 2) {
                     e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
                                            &other->objgrp.worldmat[3][0]);
                     e->collided = 0;
                 }
                 if (alg == 7) {
-                    if (ABS_REVERSED(e->route) <= 2) {
+                    if (__abs(e->route) <= 2) {
                         e->collided++;
                         fn_8004D030(index, 15);
                     } else {
@@ -1208,7 +1221,7 @@ void do_enemy_move(int index)
                         e->collided = 0;
                     }
                 } else if (alg == 8) {
-                    if (ABS_REVERSED(e->route) <= 2) {
+                    if (__abs(e->route) <= 2) {
                         e->collided++;
                         fn_8004D030(index, 10);
                     } else {
@@ -1225,7 +1238,7 @@ void do_enemy_move(int index)
                 } else if (alg == 10) {
                     blocked10(index, 15, 50);
                 } else if (alg == 20) {
-                    if (ABS_REVERSED(e->route) <= 2) {
+                    if (__abs(e->route) <= 2) {
                         e->collided++;
                         fn_8004D030(index, 10);
                     } else {
@@ -1282,13 +1295,13 @@ void do_enemy_move(int index)
             } else if (alg == 7 || alg == 8 || alg == 10 || alg == 20) {
                 const Enemy* contactOwner = e;
                 if (e->coll_ip->objgrp.node != 0) {
-                    if (e->route == 0 || ABS_REVERSED(e->route) > 2) {
+                    if (e->route == 0 || __abs(e->route) > 2) {
                         e->route = fn_8004CFAC(&e->objgrp.worldmat[3][0],
                                                contactOwner->coll_ip->objgrp.worldmat[3]);
                         e->collided = 0;
                     }
                     if (alg == 7) {
-                        if (ABS_REVERSED(e->route) <= 2) {
+                        if (__abs(e->route) <= 2) {
                             e->collided++;
                             fn_8004D030(index, 15);
                         } else {
@@ -1303,7 +1316,7 @@ void do_enemy_move(int index)
                             e->collided = 0;
                         }
                     } else if (alg == 8) {
-                        if (ABS_REVERSED(e->route) <= 2) {
+                        if (__abs(e->route) <= 2) {
                             e->collided++;
                             fn_8004D030(index, 15);
                         } else {
@@ -1320,7 +1333,7 @@ void do_enemy_move(int index)
                     } else if (alg == 10) {
                         blocked10(index, 15, 15);
                     } else if (alg == 20) {
-                        if (ABS_REVERSED(e->route) <= 2) {
+                        if (__abs(e->route) <= 2) {
                             e->collided++;
                             fn_8004D030(index, 15);
                         } else {
@@ -1569,7 +1582,7 @@ reparent:
     }
 
     if (behavior == 0) {
-        if (ABS_REVERSED(enemy->route) <= 2) {
+        if (__abs(enemy->route) <= 2) {
             enemy->collided++;
             fn_8004D030(index, 5);
         } else {
@@ -1579,13 +1592,13 @@ reparent:
         if (enemy->collided >= 9) {
             enemy->route = -enemy->route * 2;
             enemy->collided = 0;
-            if (ABS_REVERSED(enemy->route) > 2) {
+            if (__abs(enemy->route) > 2) {
                 enemy->ang = lbl_80344720;
                 enemy->pyr[1] = lbl_80344720;
             }
         }
     } else if (behavior == 7) {
-        if (ABS_REVERSED(enemy->route) <= 2) {
+        if (__abs(enemy->route) <= 2) {
             enemy->collided++;
             fn_8004D030(index, 0xA);
         } else {
@@ -1600,7 +1613,7 @@ reparent:
             enemy->collided = 0;
         }
     } else if (behavior == 8) {
-        if (ABS_REVERSED(enemy->route) <= 2) {
+        if (__abs(enemy->route) <= 2) {
             enemy->collided++;
             fn_8004D030(index, 5);
         } else {
@@ -1615,7 +1628,7 @@ reparent:
             enemy->collided = 0;
         }
     } else if (behavior == 0xA) {
-        if (ABS_REVERSED(enemy->route) <= 2) {
+        if (__abs(enemy->route) <= 2) {
             enemy->collided++;
             fn_8004D030(index, 0xA);
         } else {
@@ -1630,7 +1643,7 @@ reparent:
             enemy->collided = 0;
         }
     } else if (behavior == 0x14) {
-        if (ABS_REVERSED(enemy->route) <= 2) {
+        if (__abs(enemy->route) <= 2) {
             enemy->collided++;
             fn_8004D030(index, 3);
         } else {
