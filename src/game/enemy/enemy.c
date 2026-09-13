@@ -4340,7 +4340,6 @@ void move_logic22(int index)
     f32 buf1[3];
     f32 buf2[3];
     volatile f32 tmp;
-    u8 _pad22_lo[12];
 
     e0 = (row22 = base + index * 916) + 3608;
     e = (Enemy*)(u8*)e0;
@@ -4355,10 +4354,14 @@ void move_logic22(int index)
         } else if (index == it || ((Enemy *)e0)->birth_style != 0 || ((Enemy *)e0)->dead_end > 0) {
             goto flee_zero22;
         } else {
-            f32 dx = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
-            f32 dy = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
-            f32 dz = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
+            /* Same proximity delta as FoundSuicideBomber. The caller still
+             * expands that helper; this real vector replaces an old unused
+             * 12-byte reservation, not the unrecovered high reservation. */
+            f32 delta[3];
+            delta[0] = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][0] - ((Enemy *)e0)->objgrp.worldmat[3][0];
+            delta[1] = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][1] - ((Enemy *)e0)->objgrp.worldmat[3][1];
+            delta[2] = ((Enemy *)(other + ENEMY_POOL_OFF))->objgrp.worldmat[3][2] - ((Enemy *)e0)->objgrp.worldmat[3][2];
+            if (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2] < 100.0) {
                 flee = -1;
             } else {
             flee_zero22:
