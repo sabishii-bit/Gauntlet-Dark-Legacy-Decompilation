@@ -38,6 +38,11 @@ FOUR TRAPS THIS FILE PINS.
 4. THE OBJECT MUST COME BACK. The restore is verified by digest, not assumed;
    a mismatch is RESTORE-FAILED and aborts the run rather than reporting a
    verdict against a tree that no longer matches the baseline.
+5. THIRTY-TWO INDIVIDUAL PROOFS ARE NOT A PROOF OF THE BATCH. Six DEAD sites
+   are in ONE function (btricol::LineLineDist3D2D) and four more in another
+   (camera::DiffRate_8002951C); each was measured alone, and removing all six
+   together can free a frame slot that no single removal could. `apply_dead`
+   re-gates each TU on the same digest and reverts the TU WHOLE if it moves.
 
 TWO-SIDED throughout. Positive: pad and named forms match and rebuild without
 the keyword, `register` survives, a body line resolves to its function, an
@@ -249,6 +254,117 @@ class AuditVolatileTest(unittest.TestCase):
         self.mod.build_tu = lambda tu: False
         r = self.mod.audit_volatile("tu", 3, "target")
         self.assertEqual(r["verdict"], "BUILD-FAILED")
+        self.assertEqual(self.src.read_text(), self.text)
+
+
+class ApplyDeadTest(unittest.TestCase):
+    """The batch gate. Individual DEAD proofs do not license a batch."""
+
+    def setUp(self):
+        self.mod = load_module()
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.src = Path(self.dir.name) / "x.c"
+        self.text = ("void target(void)\n{\n    volatile f32 a;\n"
+                     "    volatile f32 b;\n    int plain;\n}\n")
+        self.src.write_text(self.text)
+        self.mod.source_of = lambda tu: self.src
+
+    def results(self, *verdicts):
+        return [{"tu": "tu", "line": ln, "verdict": v}
+                for ln, v in verdicts]
+
+    # ---------- positive ----------
+
+    def test_strip_rewrites_every_named_line_in_one_pass(self):
+        original, done = self.mod.strip_volatile_lines("tu", [3, 4])
+        self.assertEqual(done, [3, 4])
+        self.assertEqual(original, self.text)
+        self.assertEqual(self.src.read_text(),
+                         "void target(void)\n{\n    f32 a;\n"
+                         "    f32 b;\n    int plain;\n}\n")
+
+    def test_an_unchanged_digest_keeps_the_whole_tu(self):
+        self.mod.obj_sha1 = lambda tu: "aaa"
+        self.mod.build_tu = lambda tu: True
+        out = self.mod.apply_dead(self.results((3, "DEAD"), (4, "DEAD")))
+        self.assertEqual(len(out), 1)
+        self.assertTrue(out[0]["kept"])
+        self.assertEqual(out[0]["lines"], [3, 4])
+        self.assertNotIn("volatile", self.src.read_text())
+
+    # ---------- negative ----------
+
+    def test_a_moved_digest_reverts_the_tu_whole(self):
+        """Trap 5: the batch can move an object no single site moved."""
+        digests = iter(["aaa", "bbb", "aaa"])
+        self.mod.obj_sha1 = lambda tu: next(digests)
+        self.mod.build_tu = lambda tu: True
+        out = self.mod.apply_dead(self.results((3, "DEAD"), (4, "DEAD")))
+        self.assertFalse(out[0]["kept"])
+        self.assertEqual(out[0]["why"], "object digest moved")
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_a_build_failure_reverts_and_never_reads_a_digest_as_equal(self):
+        self.mod.obj_sha1 = lambda tu: "aaa"
+        self.mod.build_tu = lambda tu: False
+        out = self.mod.apply_dead(self.results((3, "DEAD")))
+        self.assertFalse(out[0]["kept"])
+        self.assertEqual(out[0]["why"], "build failed")
+        self.assertIsNone(out[0]["sha1_after"])
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_only_dead_verdicts_are_applied(self):
+        self.mod.obj_sha1 = lambda tu: "aaa"
+        self.mod.build_tu = lambda tu: True
+        out = self.mod.apply_dead(self.results((3, "HARMFUL"),
+                                               (4, "LOAD-BEARING")))
+        self.assertEqual(out, [])
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_a_non_volatile_line_is_skipped_not_corrupted(self):
+        _original, done = self.mod.strip_volatile_lines("tu", [3, 5])
+        self.assertEqual(done, [3])
+        self.assertIn("    int plain;", self.src.read_text())
+
+
+class ConfirmVolatileTest(unittest.TestCase):
+    """The fuzzy arbiter for a HARMFUL volatile, and its restore contract."""
+
+    def setUp(self):
+        self.mod = load_module()
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.src = Path(self.dir.name) / "x.c"
+        self.text = "void t(void)\n{\n    volatile s32 leave;\n}\n"
+        self.src.write_text(self.text)
+        self.mod.source_of = lambda tu: self.src
+
+    def fuzzies(self, *vals):
+        it = iter(vals)
+        self.mod.tu_fuzzy = lambda tu: next(it)
+
+    def test_a_fuzzy_gain_confirms(self):
+        self.fuzzies(90.0, 90.5, 90.0)
+        c = self.mod.confirm_volatile("tu", 3)
+        self.assertIs(c["confirmed"], True)
+        self.assertEqual(c["delta"], 0.5)
+
+    def test_a_fuzzy_loss_does_not_confirm_and_restores(self):
+        """`real` improving while fuzzy falls is exactly what this catches."""
+        self.fuzzies(90.0, 89.8, 90.0)
+        c = self.mod.confirm_volatile("tu", 3)
+        self.assertIs(c["confirmed"], False)
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_an_unchanged_fuzzy_does_not_confirm(self):
+        self.fuzzies(90.0, 90.0, 90.0)
+        self.assertIs(self.mod.confirm_volatile("tu", 3)["confirmed"], False)
+
+    def test_a_non_volatile_line_is_not_confirmed_and_touches_nothing(self):
+        self.fuzzies(90.0)
+        c = self.mod.confirm_volatile("tu", 2)
+        self.assertIsNone(c["confirmed"])
         self.assertEqual(self.src.read_text(), self.text)
 
 

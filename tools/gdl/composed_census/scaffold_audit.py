@@ -361,6 +361,88 @@ def audit_volatile(tu, line_no, fn):
             "worse": worse, "better": better}
 
 
+def strip_volatile_lines(tu, line_nos):
+    """Strip `volatile` from several lines of one TU at once.
+
+    Returns (original_text, [lines actually rewritten]). Stripping a keyword
+    never changes the line count, so recorded line numbers stay valid across
+    every site in the same file -- which is what makes a per-TU batch safe to
+    express as a list of independent line edits.
+    """
+    path = source_of(tu)
+    original = path.read_text(errors="replace")
+    lines = original.split("\n")
+    done = []
+    for n in line_nos:
+        m = VOLATILE.match(lines[n - 1])
+        if m:
+            lines[n - 1] = m.group(1) + m.group(2) + m.group(3).lstrip()
+            done.append(n)
+    path.write_text("\n".join(lines))
+    return original, done
+
+
+def apply_dead(results):
+    """Apply every DEAD site, one TU at a time, gated on the object digest.
+
+    THIRTY-TWO INDIVIDUAL PROOFS ARE NOT A PROOF OF THE BATCH. Six of the DEAD
+    sites are in ONE function (btricol::LineLineDist3D2D) and four more in
+    another (camera::DiffRate_8002951C); each was measured alone, and removing
+    all six together can free a frame slot that any one of them alone could
+    not. So the batch is re-gated per TU on the same sha1 that made each site
+    DEAD, and a TU whose digest moves is reverted whole and reported -- never
+    kept on the strength of the individual measurements.
+    """
+    by_tu = {}
+    for r in results:
+        if r.get("verdict") == "DEAD":
+            by_tu.setdefault(r["tu"], []).append(r["line"])
+    out = []
+    for tu in sorted(by_tu):
+        lines = sorted(by_tu[tu])
+        before = obj_sha1(tu)
+        original, done = strip_volatile_lines(tu, lines)
+        ok = build_tu(tu)
+        after = obj_sha1(tu) if ok else None
+        kept = ok and after == before
+        if not kept:
+            source_of(tu).write_text(original)
+            build_tu(tu)
+        out.append({"tu": tu, "lines": done, "kept": kept,
+                    "sha1": before, "sha1_after": after,
+                    "why": None if kept else
+                    ("build failed" if not ok else "object digest moved")})
+        print(f"{'KEPT  ' if kept else 'REVERT'} {tu:26} "
+              f"{len(done)} site(s) {done}"
+              + ("" if kept else f"  -- {out[-1]['why']}"), flush=True)
+    return out
+
+
+def confirm_volatile(tu, line_no):
+    """Re-measure one HARMFUL volatile against the ARBITER: fresh objdiff fuzzy.
+
+    Same contract as confirm_harmful for pragmas, and the same reason: `real`
+    counts differing diff lines while fuzzy scores stream similarity, and an
+    edit can cut the line count while making the stream less similar. Three of
+    three HARMFUL pragma regions did exactly that.
+    """
+    path = source_of(tu)
+    before = tu_fuzzy(tu)
+    original, done = strip_volatile_lines(tu, [line_no])
+    if not done:
+        path.write_text(original)
+        return {"confirmed": None, "why": f"line {line_no} is not volatile"}
+    try:
+        after = tu_fuzzy(tu)
+    finally:
+        path.write_text(original)
+        tu_fuzzy(tu)
+    if before is None or after is None:
+        return {"confirmed": None, "why": "fuzzy unavailable"}
+    return {"confirmed": after > before, "fuzzy_before": before,
+            "fuzzy_after": after, "delta": round(after - before, 4)}
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -369,6 +451,10 @@ def main():
     ap.add_argument("--list", action="store_true",
                     help="enumerate regions without building anything")
     ap.add_argument("--out", help="write results as JSON here")
+    ap.add_argument("--apply-dead", metavar="JSON",
+                    help="apply every DEAD volatile site from a --volatiles "
+                         "run, one TU at a time, gated per TU on the object "
+                         "digest -- individual proofs are not a batch proof")
     ap.add_argument("--volatiles", action="store_true",
                     help="audit `volatile` locals instead of pragma regions — "
                          "the other half of what probe.py's reminder names")
@@ -384,6 +470,18 @@ def main():
     tus = sorted(nonmatching_tus())
     if args.tu:
         tus = [t for t in tus if args.tu in t]
+
+    if args.apply_dead:
+        results = json.loads(Path(args.apply_dead).read_text())
+        applied = apply_dead(results)
+        kept = [a for a in applied if a["kept"]]
+        n = sum(len(a["lines"]) for a in kept)
+        print(f"\n{n} site(s) across {len(kept)} TU(s) kept byte-identical; "
+              f"{len(applied) - len(kept)} TU(s) reverted")
+        print("Still to run: the WHOLE-PROJECT gate. A per-TU digest says the "
+              "object did not move; only `ninja -j2` plus a report read says "
+              "the project did not.")
+        return 0 if len(kept) == len(applied) else 1
 
     if args.volatiles:
         sites = [(tu, ln, fn, txt) for tu in tus
@@ -407,6 +505,16 @@ def main():
             if r["verdict"] == "RESTORE-FAILED":
                 print(f"ABORTING: {r['why']}", file=sys.stderr)
                 break
+        if args.confirm:
+            print("\nconfirming HARMFUL against a fresh objdiff fuzzy")
+            for r in vres:
+                if r["verdict"] != "HARMFUL":
+                    continue
+                c = confirm_volatile(r["tu"], r["line"])
+                r["confirm"] = c
+                if c.get("confirmed") is False:
+                    r["verdict"] = "REFUTED-BY-FUZZY"
+                print(f"  {r['tu']:24} :{r['line']:<5} {c}", flush=True)
         tally = {}
         for r in vres:
             tally[r["verdict"]] = tally.get(r["verdict"], 0) + 1
