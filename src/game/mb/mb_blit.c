@@ -102,11 +102,27 @@ typedef struct MBFrameState {
     s32 zmax;
 } MBFrameState;
 
-/* Partial PBGLOBAL view: only the frame and blit module pointers used here. */
+/* PBGLOBAL_MODEL / PBMODELINFO: GC allocation uses a four-byte count,
+ * 21 entries with 0x10 stride, and readiness at entry +0x0C. */
+typedef struct MBModelInfo {
+    struct MBModelHeader* header;
+    u32 geo_size;
+    u32 tex_size;
+    s32 unready;
+} MBModelInfo;
+
+typedef struct MBModelState {
+    s32 count;
+    MBModelInfo info[21];
+} MBModelState;
+
+/* Partial PBGLOBAL view: only the frame, model and blit module pointers used here. */
 typedef struct MBGlobalState {
     u8 _pad00[0x10];
     MBFrameState* frame; /* +0x10 PBGLOBAL::frame_p */
-    u8 _pad14[0x24];
+    u8 _pad14[0x1C];
+    MBModelState* model; /* +0x30 PBGLOBAL::model_p */
+    u8 _pad34[4];
     MBBlitState* blit; /* +0x38 PBGLOBAL::blit_p */
 } MBGlobalState;
 
@@ -1145,7 +1161,10 @@ void DrawBlit(MBBLIT* b) {
     window = gWinGlobals;
     texture = b->tex;
     modelIndex = texture >> 16;
-    modelTable = *(u8**)((u8*)window + 48);
+    /* Typed info indexing currently changes exact DrawBlit: direct 74 words,
+     * local entry pointer 9 words, both original locals +1 instruction.
+     * Keep the measured raw row addressing until its value web is recovered. */
+    modelTable = (u8*)window->model;
     if (*(s32*)((modelRecord = modelTable + modelIndex * 16) + 16) != 0) {
         return;
     }
