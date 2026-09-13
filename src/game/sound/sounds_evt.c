@@ -295,21 +295,23 @@ extern f32 lbl_80348498;
 #pragma opt_propagation off
 int AudioFindPlayerSlot(int pidx, int class_, int type)
 {
-    u8* slot = (u8*)gPlayers[pidx].powerup;
+    PlayerPowerup* slot = gPlayers[pidx].powerup;
     f32 value;
     f32 threshold;
     int i;
 
     for (i = 0; i < 11; i++) {
-        value = *(f32*)slot;
+        value = slot->timeleft;
         threshold = lbl_8034832C;
         if (value <= threshold) {
+            /* Retail also leaves the cursor on an inactive slot here. */
             continue;
         }
-        if (*(int*)(slot + 12) == type && *(int*)(slot + 4) == class_) {
+        /* The flag field is unsigned; the lookup compares its int value. */
+        if ((int)slot->specialflags == type && slot->type == class_) {
             return i;
         }
-        slot += 16;
+        slot++;
     }
     return -1;
 }
