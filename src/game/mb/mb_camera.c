@@ -137,11 +137,10 @@ void MBWorldToScreen3D(f32* dst, f32* world)
         (f32)((f64)viewport->xoff + centeredX);
     xNumerator *= projected[2];
     yNumerator *= projected[2];
-    xNumerator -= projected[2] * camera->viewport[3][0];
-    projected[0] = xNumerator /
+    projected[0] = (xNumerator - projected[2] * camera->viewport[3][0]) /
         (camera->projection[0][0] * camera->viewport[0][0]);
-    yNumerator -= projected[2] * yDepthScale;
-    projected[1] = yNumerator / (yDenomA * yDenomB);
+    projected[1] = (yNumerator - projected[2] * yDepthScale) /
+        (yDenomA * yDenomB);
 
     vec4ApplyTrans__FR4vec4R4vec4R5mat44(
         dst, projected, (f32*)globals->current->icamera);
