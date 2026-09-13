@@ -50,6 +50,22 @@ typedef struct PBSCREEN {
     /* 0x40 */ s32 dirty;
 } PBSCREEN;
 
+/* GC-verified partial view of mb_window.c's current MBWINDOW. Its camera
+ * node begins at 0x64; this TU writes the node's fourth row/component and
+ * builds the inverse view in the following 4x4 region at 0xA4. The matrix
+ * at 0xE4 is initialized from gIdentityMatrix by fn_800BBA34 and seeds
+ * pbTreeTraverse's matrix stack; it is not another inverse camera matrix.
+ * These names describe verified roles, not recovered original member names.
+ * This local overlay retains the existing cross-TU partial-view aliasing
+ * limitation until MBWINDOW has one shared, fully recovered declaration. */
+typedef struct MBCameraWindowView {
+    // lint-allow-next-line FM007: MBWINDOW's existing projection fields occupy bytes 0x00..0x63; this view does not allocate storage or invent local padding.
+    u8 window_parameters[0x64];
+    f32 camera_to_world[4][4];
+    f32 world_to_camera[4][4];
+    f32 traversal_matrix[4][4];
+} MBCameraWindowView;
+
 extern u8* lbl_80344EE8;
 extern s32 lbl_80344E08;
 extern s32 lbl_80344E0C;
@@ -231,16 +247,15 @@ void MBCameraUpdate(f32* position, f32* matrix)
 {
     f32* saved = lbl_8029E378;
     int row;
-    f32* camera = (f32*)lbl_80344EE8;
-    f32* copied = &camera[25];
-    f32* view3 = &camera[41];
-    f32* inverse = &camera[57];
+    MBCameraWindowView* camera = (MBCameraWindowView*)lbl_80344EE8;
+    f32 (*copied)[4] = camera->camera_to_world;
+    f32 (*view3)[4] = camera->world_to_camera;
+    f32 (*traversal)[4] = camera->traversal_matrix;
     f32 y;
     f32 x;
     f32 z;
     int col;
     f32 (*inputRows)[4];
-    f32 (*outputRows)[4];
 
     z = lbl_80348B3C;
     for (row = 0; row < 3; row++) {
@@ -276,43 +291,42 @@ void MBCameraUpdate(f32* position, f32* matrix)
         }
     }
 
-    inverse[0] = lbl_80348B20;
-    inverse[1] = lbl_80348B3C;
-    inverse[2] = lbl_80348B3C;
-    inverse[4] = lbl_80348B3C;
-    inverse[5] = lbl_80348B20;
-    inverse[6] = lbl_80348B3C;
-    inverse[8] = lbl_80348B3C;
-    inverse[9] = lbl_80348B3C;
-    inverse[10] = lbl_80348B20;
-    inverse[12] = lbl_80348B3C;
-    inverse[13] = lbl_80348B3C;
-    inverse[14] = lbl_80348B3C;
+    traversal[0][0] = lbl_80348B20;
+    traversal[0][1] = lbl_80348B3C;
+    traversal[0][2] = lbl_80348B3C;
+    traversal[1][0] = lbl_80348B3C;
+    traversal[1][1] = lbl_80348B20;
+    traversal[1][2] = lbl_80348B3C;
+    traversal[2][0] = lbl_80348B3C;
+    traversal[2][1] = lbl_80348B3C;
+    traversal[2][2] = lbl_80348B20;
+    traversal[3][0] = lbl_80348B3C;
+    traversal[3][1] = lbl_80348B3C;
+    traversal[3][2] = lbl_80348B3C;
 
-    CopyMat3(matrix, copied);
-    copied[12] = position[0];
-    copied[13] = position[1];
-    copied[14] = position[2];
-    copied[15] = lbl_80348B20;
+    CopyMat3(matrix, &copied[0][0]);
+    copied[3][0] = position[0];
+    copied[3][1] = position[1];
+    copied[3][2] = position[2];
+    copied[3][3] = lbl_80348B20;
 
     row = 0;
     z = lbl_80348B3C;
     inputRows = (f32 (*)[4])matrix;
-    outputRows = (f32 (*)[4])view3;
     do {
         for (col = 0; col < 3; col++) {
-            outputRows[row][col] = inputRows[col][row];
+            view3[row][col] = inputRows[col][row];
         }
-        outputRows[row][3] = z;
-        outputRows[3][row] = position[row];
+        view3[row][3] = z;
+        view3[3][row] = position[row];
         row++;
     } while (row < 3);
-    view3[15] = lbl_80348B20;
+    view3[3][3] = lbl_80348B20;
 
-    x = -view3[13];
-    y = -view3[12];
-    z = -view3[14];
-    view3[12] = view3[0] * y + view3[4] * x + view3[8] * z;
-    view3[13] = view3[1] * y + view3[5] * x + view3[9] * z;
-    view3[14] = view3[2] * y + view3[6] * x + view3[10] * z;
+    x = -view3[3][1];
+    y = -view3[3][0];
+    z = -view3[3][2];
+    view3[3][0] = view3[0][0] * y + view3[1][0] * x + view3[2][0] * z;
+    view3[3][1] = view3[0][1] * y + view3[1][1] * x + view3[2][1] * z;
+    view3[3][2] = view3[0][2] * y + view3[1][2] * x + view3[2][2] * z;
 }
