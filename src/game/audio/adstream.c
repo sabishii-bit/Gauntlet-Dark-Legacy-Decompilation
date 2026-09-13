@@ -182,7 +182,7 @@ void AdsSetVolumeDirect(ADSTREAM* stream, s32 volume);
 s32 adsMoveCookedToSpu(ADSTREAM* stream);
 s32 adsMoveRawToCooked(ADSTREAM* stream);
 s32 adsMoveFileToRaw(ADSTREAM* stream);
-s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body);
+s32 AdsParseHeader(ADSTREAM* stream, AdsHeader* header, AdsBody* body);
 
 /* Mark a stream's volume dirty (inlined helper). */
 static inline void adsMarkVol(ADSTREAM* s, s32 vol) {
@@ -992,7 +992,7 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, u32 len, s32 local) {
     }
     saved = s->hd.format;
     s->hd.format = 16;
-    hres = AdsParseHeader(s, (u32*)&s->hd, (u32*)&s->bd);
+    hres = AdsParseHeader(s, &s->hd, &s->bd);
     s->hd.format = saved;
     if (hres < 0) {
         len = hres;
@@ -1042,8 +1042,8 @@ s32 AdsStart(ADSTREAM* stream) {
                            (u8*)stream + offsetof(ADSTREAM, hd), 40) == 40) {
                 stream->fileRemaining = 0;
                 parseResult =
-                    AdsParseHeader(stream, (u32*)&stream->hd,
-                                   (u32*)&stream->bd);
+                    AdsParseHeader(stream, &stream->hd,
+                                   &stream->bd);
                 if (parseResult >= 0) {
                     setupResult = adsInitHeaderState(stream);
                     if ((s32)setupResult >= 0) {
@@ -1197,10 +1197,13 @@ s32 adsLockCallback(s32 command) {
 /* 0x800D7B3C  parse the ".ss" header: match the "SShd"/"SSbd" chunk tags
  * (strncmp), byte-swap the header fields, and FileBufGet the ADPCM coef table.
  * Xbox: AdsParseHeader. */
-s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body) {
+s32 AdsParseHeader(ADSTREAM* stream, AdsHeader* header, AdsBody* body) {
     s32 result = 0;
-    u32 headerTag = header[0];
-    u32 bodyTag = body[0];
+    /* Both tags start four-byte-aligned records. Preserve the GC packed-word
+     * reads before byte extraction; the u32 interpretation of byte storage
+     * remains aliasing/portability debt. Fixed-size memcpy changes native code. */
+    u32 headerTag = *(u32*)header->id;
+    u32 bodyTag = *(u32*)body->id;
     u8 headerName[4];
     u8 bodyName[4];
     u32 value;
@@ -1222,42 +1225,42 @@ s32 AdsParseHeader(ADSTREAM* stream, u32* header, u32* body) {
         if (strncmp((char*)bodyName, lbl_80349348, 4) != 0) {
             result = -1;
         } else {
-            value = header[1];
-            header[1] = (value << 24) | ((value << 8) & 0x00FF0000) |
+            value = header->size;
+            header->size = (value << 24) | ((value << 8) & 0x00FF0000) |
                         (value >> 24) | ((value >> 8) & 0x0000FF00);
-            value = header[2];
-            header[2] = (value << 24) | ((value << 8) & 0x00FF0000) |
+            value = header->format;
+            header->format = (value << 24) | ((value << 8) & 0x00FF0000) |
                         (value >> 24) | ((value >> 8) & 0x0000FF00);
-            value = header[3];
-            header[3] = (value << 24) | ((value << 8) & 0x00FF0000) |
+            value = header->rate;
+            header->rate = (value << 24) | ((value << 8) & 0x00FF0000) |
                         (value >> 24) | ((value >> 8) & 0x0000FF00);
-            value = header[4];
-            header[4] = (value << 24) | ((value << 8) & 0x00FF0000) |
+            value = header->channels;
+            header->channels = (value << 24) | ((value << 8) & 0x00FF0000) |
                         (value >> 24) | ((value >> 8) & 0x0000FF00);
-            value = header[5];
-            header[5] = (value << 24) | ((value << 8) & 0x00FF0000) |
+            value = header->sizeBlock;
+            header->sizeBlock = (value << 24) | ((value << 8) & 0x00FF0000) |
                         (value >> 24) | ((value >> 8) & 0x0000FF00);
-            value = body[1];
-            body[1] = (value << 24) | ((value << 8) & 0x00FF0000) |
+            value = body->size;
+            body->size = (value << 24) | ((value << 8) & 0x00FF0000) |
                         (value >> 24) | ((value >> 8) & 0x0000FF00);
         }
     } else {
         result = -1;
     }
 
-    if (header[4] != 1 && header[4] != 2) {
+    if (header->channels != 1 && header->channels != 2) {
         result = -1;
     }
     if (result < 0) {
-        header[1] = 0;
-        header[2] = 0;
-        header[3] = 0;
-        header[4] = 0;
-        header[5] = 0;
+        header->size = 0;
+        header->format = 0;
+        header->rate = 0;
+        header->channels = 0;
+        header->sizeBlock = 0;
     }
-    if (header[2] == 32) {
-        FileBufGet(stream->file, (u8*)stream + 0x7C,
-                   (header[4] * 192) >> 1);
+    if (header->format == 32) {
+        FileBufGet(stream->file, stream->ADPCMInfo,
+                   (header->channels * 192) >> 1);
     }
     return result;
 }
