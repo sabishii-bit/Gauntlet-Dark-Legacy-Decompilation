@@ -24,9 +24,7 @@ extern void  AudioClick2(s32 player, s32 select);
 
 s32 get_initials(s32 pnum);
 
-/* the twenty random names and, directly after them in .data, the four
- * per-player text colours (get_initials addresses the colours by their own
- * symbol; DoGetName reads them through the name-table pointer, see there) */
+/* Separate name and colour tables; MWCC shares their .data base in DoGetName. */
 static char* sRandomNames[20] = {
     "LARRY",  "PELE",   "CHUCK", "TRENT", "SPENCR", "JOFFRY", "PABLO",
     "JUSTIN", "MAT",    "CHIP ", "FRED",  "SHAWN",  "JAKE",   "CJ",
@@ -39,7 +37,6 @@ static s16 sNameX[4] = { 64, 192, 320, 448 };
 /* Drive one player's name entry: -1 = skipped (random name), 1 = done. */
 s32 DoGetName(s32 player)
 {
-    char** names = sRandomNames;
     Player* p = &gPlayers[player];
     s32 ret = 0;
     s16 t;
@@ -47,7 +44,7 @@ s32 DoGetName(s32 player)
                    * DoGetName has no stack locals, so it is unrecovered */
 
     if (gGameOptions.skip & 1) {
-        strcpy(p->save.name, names[RandInt(20)]);
+        strcpy(p->save.name, sRandomNames[RandInt(20)]);
         return -1;
     }
     if (p->world_text_active == 0) {
@@ -58,7 +55,7 @@ s32 DoGetName(s32 player)
         p->name_timer = 60;
         ret = 0;
         if (p->save.name[0] == 0) {
-            strcpy(p->save.name, names[RandInt(20)]);
+            strcpy(p->save.name, sRandomNames[RandInt(20)]);
         }
     } else {
         t = p->name_timer - gFrameTicks;
@@ -67,10 +64,7 @@ s32 DoGetName(s32 player)
             p->name_timer = 0;
             ret = 1;
         } else if (p->name_timer & 16) {
-            /* the retail loads this player's colour as names[player + 20]: the
-             * colour table is read through the name-table pointer, 80 bytes past
-             * its start, not through its own symbol */
-            DrawTextKeepScale(0.75f, -sNameX[player], 340, 7, (u32)names[player + 20],
+            DrawTextKeepScale(0.75f, -sNameX[player], 340, 7, sNameColors[player],
                               (u8*)p->save.name);
         }
     }
