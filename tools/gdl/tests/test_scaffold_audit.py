@@ -88,6 +88,39 @@ class ScaffoldAuditTest(unittest.TestCase):
         self.assertIsNone(self.mod.FNDEF.match("void msgPost(int idx);"))
         self.assertIsNone(self.mod.FNDEF.match("extern int helptab_num(void);"))
 
+    def test_an_exact_function_reads_as_real_zero_not_unmeasured(self):
+        """fndiff prints `OK <fn>` with no `real` field for an exact function.
+
+        Reading only the `real` token returned None for every exact function
+        and reported the region UNMEASURED -- 55 of 139 at a9c09f62, and
+        exactly the ones that matter: an EXACT function going non-zero is the
+        regression signal. Verified after the fix on game/audio/adstream,
+        whose four regions went from UNMEASURED to LOAD-BEARING, one of them
+        protecting adsMoveRawToCooked from real 0 -> 97.
+        """
+        import subprocess
+        from types import SimpleNamespace
+        calls = {}
+
+        def fake_run(cmd, *a, **kw):
+            return SimpleNamespace(stdout=calls["out"], stderr="",
+                                   returncode=0)
+        real_sub = self.mod.subprocess
+        self.mod.subprocess = SimpleNamespace(run=fake_run,
+                                              PIPE=subprocess.PIPE)
+        self.addCleanup(setattr, self.mod, "subprocess", real_sub)
+
+        calls["out"] = "(rebuilt adstream.o)\nOK   adsMoveRawToCooked\n"
+        self.assertEqual(self.mod.real_of("game/audio/adstream",
+                                          "adsMoveRawToCooked"), 0)
+        calls["out"] = "POOL msgWidth  (0 real diff lines after pool-name)\n"
+        self.assertEqual(self.mod.real_of("game/ui/message", "msgWidth"), 0)
+        calls["out"] = "DIFF msgPost  insns 387/387  lines 700  real 8\n"
+        self.assertEqual(self.mod.real_of("game/ui/message", "msgPost"), 8)
+        # a name that appears in NO verdict line stays unmeasured, not 0
+        calls["out"] = "OK   someOtherFunction\n"
+        self.assertIsNone(self.mod.real_of("game/ui/message", "msgPost"))
+
     def test_a_non_pragma_line_is_not_matched(self):
         for line in ("/* #pragma opt_propagation off */",
                      "#include <stdio.h>",

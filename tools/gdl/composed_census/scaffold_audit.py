@@ -106,6 +106,15 @@ def regions(tu, scores):
 
 
 def real_of(tu, fn):
+    """`real` for one function, with 0 for an already-exact one.
+
+    fndiff prints `DIFF <fn> ... real N` only for a function that differs; an
+    exact one is `OK <fn>` and a pool-name-only one is `POOL <fn>`, NEITHER of
+    which carries a `real` field. Reading only the `real` token returned None
+    for all of them, and they were reported UNMEASURED -- 55 of 139 regions at
+    a9c09f62, and exactly the ones that matter, because an EXACT function going
+    non-zero is the regression signal this audit exists to catch.
+    """
     r = subprocess.run([sys.executable, "tools/gdl/fndiff.py", f"{tu}.c", fn,
                         "--count"], capture_output=True, text=True, cwd=REPO,
                        timeout=600)
@@ -113,6 +122,8 @@ def real_of(tu, fn):
         m = REAL_RE.search(line)
         if m:
             return int(m.group(1))
+        if re.match(rf"^(OK|POOL)\s+{re.escape(fn)}\b", line.strip()):
+            return 0
     return None
 
 
