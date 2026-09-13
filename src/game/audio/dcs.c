@@ -21,6 +21,19 @@
 #include "game/dcs.h"
 #include "game/sndvoice.h"
 
+/* The pan triangle waves are in [-255, 256], so abs never receives INT_MIN.
+ * MWCC's integer intrinsic has the standard abs fallback on other compilers. */
+#ifdef __MWERKS__
+extern int __abs(int value);
+#else
+#ifdef __cplusplus
+extern "C" int abs(int value);
+#else
+extern int abs(int value);
+#endif
+#define __abs abs
+#endif
+
 typedef void (*ARQCallback)(u32 request);
 
 typedef struct ARQRequest {
@@ -308,8 +321,6 @@ s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
                         s32 currentVolume;
                         s32 scaled;
                         s32 excess;
-                        s32 curvePan;
-                        s32 sign;
 
                         currentVolume = info->volume;
                         if (currentVolume < 0) {
@@ -326,18 +337,12 @@ s32 dcsChannelSetVolPan(u32 channels, s16 pan) {
                             master -= 0x3FFF - excess;
                         }
 
-                        curvePan = 0x100 - ((info->pan + 0x100) & 0x1FF);
-                        sign = curvePan >> 31;
-                        curvePan = (sign ^ curvePan) - sign;
                         sndVoiceSetVolume(
                             *(AXVPB**)((u8*)voices + voiceOffset),
-                            curvePan >> 1);
-                        curvePan = 0x100 - ((info->pan + 0x180) & 0x1FF);
-                        sign = curvePan >> 31;
-                        curvePan = (sign ^ curvePan) - sign;
+                            __abs(0x100 - ((info->pan + 0x100) & 0x1FF)) >> 1);
                         sndVoiceSetPan(
                             *(AXVPB**)((u8*)voices + voiceOffset),
-                            curvePan >> 1);
+                            __abs(0x100 - ((info->pan + 0x180) & 0x1FF)) >> 1);
                         dcsVoiceSetMaster(channel, master, master);
                     }
                 }
@@ -380,8 +385,6 @@ s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
             s32 currentVolume;
             s32 scaled;
             s32 excess;
-            s32 pan;
-            s32 sign;
 
             if (delta < -8) {
                 delta = -8;
@@ -406,14 +409,12 @@ s32 dcsChannelSetVolPan2(s32 channels, s32 volume) {
                 master -= 0x3FFF - excess;
             }
 
-            pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
-            sign = pan >> 31;
-            pan = (sign ^ pan) - sign;
-            sndVoiceSetVolume(*(AXVPB**)((u8*)voices + voiceOffset), pan >> 1);
-            pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
-            sign = pan >> 31;
-            pan = (sign ^ pan) - sign;
-            sndVoiceSetPan(*(AXVPB**)((u8*)voices + voiceOffset), pan >> 1);
+            sndVoiceSetVolume(
+                *(AXVPB**)((u8*)voices + voiceOffset),
+                __abs(0x100 - ((info->pan + 0x100) & 0x1FF)) >> 1);
+            sndVoiceSetPan(
+                *(AXVPB**)((u8*)voices + voiceOffset),
+                __abs(0x100 - ((info->pan + 0x180) & 0x1FF)) >> 1);
             dcsVoiceSetMaster(channel, master, master);
         }
         mask >>= 1;
@@ -1308,8 +1309,6 @@ s32 dcsVoiceStartAx(s32 channel) {
     AXVPB** voiceSlot;
     DcsSampleData* data = info->sampleData;
     s32 volume = info->volume;
-    s32 pan;
-    s32 sign;
     f32 ratio;
     union {
         u64 align;
@@ -1331,13 +1330,10 @@ s32 dcsVoiceStartAx(s32 channel) {
     }
 
     voiceSlot = &sVoice[channel];
-    pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
-    sign = pan >> 31;
-    sndVoiceSetVolume(*voiceSlot, ((sign ^ pan) - sign) >> 1);
-    pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
-    sign = pan >> 31;
-    pan = (sign ^ pan) - sign;
-    sndVoiceSetPan(*voiceSlot, pan >> 1);
+    sndVoiceSetVolume(
+        *voiceSlot, __abs(0x100 - ((info->pan + 0x100) & 0x1FF)) >> 1);
+    sndVoiceSetPan(
+        *voiceSlot, __abs(0x100 - ((info->pan + 0x180) & 0x1FF)) >> 1);
     dcsVoiceSetMaster(channel, master, master);
 
     ratio = (f32)(((data->sampleRate << lbl_80345214) * 48000) >> 12) /
@@ -1385,8 +1381,6 @@ void dcsVoiceUpdate(s32 channel) {
     u16 master;
     s32 excess;
     s32 scaled;
-    s32 pan;
-    s32 sign;
     AXVPB **voiceSlot;
     volatile u8 unused[8];
 
@@ -1405,13 +1399,10 @@ void dcsVoiceUpdate(s32 channel) {
     }
 
     voiceSlot = &sVoice[channel];
-    pan = 0x100 - ((info->pan + 0x100) & 0x1FF);
-    sign = pan >> 31;
-    sndVoiceSetVolume(*voiceSlot, ((sign ^ pan) - sign) >> 1);
-    pan = 0x100 - ((info->pan + 0x180) & 0x1FF);
-    sign = pan >> 31;
-    pan = (sign ^ pan) - sign;
-    sndVoiceSetPan(*voiceSlot, pan >> 1);
+    sndVoiceSetVolume(
+        *voiceSlot, __abs(0x100 - ((info->pan + 0x100) & 0x1FF)) >> 1);
+    sndVoiceSetPan(
+        *voiceSlot, __abs(0x100 - ((info->pan + 0x180) & 0x1FF)) >> 1);
     dcsVoiceSetMaster(channel, master, master);
 }
 
