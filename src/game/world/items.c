@@ -5,6 +5,7 @@
 #include "game/gamemode.h"
 #include "game/worldinfo.h"
 #include "game/worldobj.h"
+#include "game/worldcol.h"
 #include "game/player.h"
 #include "game/camera.h"
 #include "game/leveldata.h"
@@ -118,11 +119,6 @@ typedef struct ItemStrings {
     char file1Format[1];
 } ItemStrings;
 
-typedef struct ItemSceneContext {
-    u8    _pad00[0x44];
-    void* current;
-} ItemSceneContext;
-
 extern ItemRuntime    sItemRuntime;
 extern f32            sPlayerStartPositions[14][3];
 extern LookoutParam   sLookoutParams[];
@@ -223,7 +219,7 @@ extern s32   RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid,
                               s32 z_grid, s32 value);
 extern s32   PlayerSelecting(s32 idx);
 extern Player gPlayers[];
-extern ItemSceneContext gFloorCollisionResult;
+extern FloorCollisionResult gFloorCollisionResult;
 extern s64   gControllerButtons;
 extern char  sBadItemFloorPosFmt[];
 extern char  sDeathIconName[0xB];
@@ -5611,7 +5607,7 @@ void AddItemSub(Item* item)
     u8 unused_before[4];
     f32 position[3];
     u8 unused_after[4];
-    void** current;
+    WorldObj** current;
 
     if (item == 0) {
         return;
@@ -5630,17 +5626,17 @@ void AddItemSub(Item* item)
         sItemFloorYOffset + FloorPos(position[1], sItemFloorRadius,
                                    position, 0);
 
-    current = &gFloorCollisionResult.current;
+    current = &gFloorCollisionResult.obj;
     if (*current == 0 && (gControllerButtons & 0x10) != 0) {
         ErrorPrintf(sBadItemFloorPosFmt, item->info->item.desc,
                     position[0], position[1], position[2]);
     }
 
     if (*current != 0 &&
-        *(void**)((u8*)*current + offsetof(WorldObj, nodeptr)) != 0 &&
-        (*(u32*)((u8*)*current + offsetof(WorldObj, flags)) & 0x1000) != 0) {
+        (*current)->nodeptr != 0 &&
+        ((*current)->flags & 0x1000) != 0) {
         MBNodeSetParent(item->objgrp.node,
-                        *(void**)((u8*)*current + offsetof(WorldObj, nodeptr)));
+                        (*current)->nodeptr);
     }
 
     UpdateObjWorldMat(&item->objgrp);
@@ -5652,7 +5648,7 @@ void AddItemSub(Item* item)
     }
     {
         void* linked;
-        void* scene;
+        WorldObj* scene;
 
         if ((item->data.trigger.flags & 0x400) == 0) {
             goto done;
@@ -5666,7 +5662,7 @@ void AddItemSub(Item* item)
             goto done;
         }
         if (linked != scene &&
-            linked != *(void**)((u8*)scene + offsetof(WorldObj, parent))) {
+            linked != scene->parent) {
             goto done;
         }
         item->data.trigger.flags |= 0x100;
