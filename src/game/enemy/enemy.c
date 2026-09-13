@@ -996,12 +996,80 @@ next_enemy:
     return best_distance;
 }
 
-/* Algorithm 10's repeated blocked response; the target inlines this
- * index/short-wait/long-wait helper at both movement collision sites. */
+/* Distinct blocked responses from the original helper family. GC repeats
+ * these index/short-wait/long-wait bodies at both movement collision sites;
+ * Xbox ENEMY.OBJ corroborates blocked07/08/10/20 and their integer APIs.
+ * blocked20 preserves GC's float store/reload before the double wrap. */
 static inline void blocked10(int i, int short_wait, int long_wait)
 {
     Enemy* e = &gEnemies[i];
     if (ABS_REVERSED(e->route) <= 2) {
+        e->collided++;
+        fn_8004D030(i, short_wait);
+    } else {
+        fn_8004D030(i, long_wait);
+        e->ang = lbl_80344720;
+        e->pyr[1] = lbl_80344720;
+        e->collided = 0;
+        e->route = 0;
+    }
+    if (e->collided >= 7) {
+        e->route = -e->route * 2;
+        e->collided = 0;
+    }
+}
+
+static inline void blocked20(int i, int short_wait, int long_wait)
+{
+    Enemy* e = &gEnemies[i];
+    if (__abs(e->route) <= 2) {
+        e->collided++;
+        fn_8004D030(i, short_wait);
+    } else {
+        fn_8004D030(i, long_wait);
+        {
+            f64 a;
+            e->ang = (f32)(3.141592654 + lbl_80344720);
+            if ((a = e->ang) > 3.141592654) {
+                a -= 6.283185308;
+            } else if (a <= (-3.141592654)) {
+                a = 6.283185308 + a;
+            }
+            e->ang = a;
+            e->pyr[1] = a;
+        }
+        e->collided = 0;
+        e->route = 0;
+    }
+    if (e->collided >= 7) {
+        e->route = -e->route * 2;
+        e->collided = 0;
+    }
+}
+
+static inline void blocked08(int i, int short_wait, int long_wait)
+{
+    Enemy* e = &gEnemies[i];
+    if (__abs(e->route) <= 2) {
+        e->collided++;
+        fn_8004D030(i, short_wait);
+    } else {
+        fn_8004D030(i, long_wait);
+        e->ang = lbl_80344720;
+        e->pyr[1] = lbl_80344720;
+        e->collided = 0;
+        e->route = 0;
+    }
+    if (e->collided >= 7) {
+        e->route = -e->route * 2;
+        e->collided = 0;
+    }
+}
+
+static inline void blocked07(int i, int short_wait, int long_wait)
+{
+    Enemy* e = &gEnemies[i];
+    if (__abs(e->route) <= 2) {
         e->collided++;
         fn_8004D030(i, short_wait);
     } else {
@@ -1206,61 +1274,13 @@ void do_enemy_move(int index)
                     e->collided = 0;
                 }
                 if (alg == 7) {
-                    if (__abs(e->route) <= 2) {
-                        e->collided++;
-                        fn_8004D030(index, 15);
-                    } else {
-                        fn_8004D030(index, 50);
-                        e->ang = lbl_80344720;
-                        e->pyr[1] = lbl_80344720;
-                        e->collided = 0;
-                        e->route = 0;
-                    }
-                    if (e->collided >= 7) {
-                        e->route = -e->route * 2;
-                        e->collided = 0;
-                    }
+                    blocked07(index, 15, 50);
                 } else if (alg == 8) {
-                    if (__abs(e->route) <= 2) {
-                        e->collided++;
-                        fn_8004D030(index, 10);
-                    } else {
-                        fn_8004D030(index, 60);
-                        e->ang = lbl_80344720;
-                        e->pyr[1] = lbl_80344720;
-                        e->collided = 0;
-                        e->route = 0;
-                    }
-                    if (e->collided >= 7) {
-                        e->route = -e->route * 2;
-                        e->collided = 0;
-                    }
+                    blocked08(index, 10, 60);
                 } else if (alg == 10) {
                     blocked10(index, 15, 50);
                 } else if (alg == 20) {
-                    if (__abs(e->route) <= 2) {
-                        e->collided++;
-                        fn_8004D030(index, 10);
-                    } else {
-                        fn_8004D030(index, 30);
-                        {
-                            f64 a;
-                            e->ang = (f32)(3.141592654 + lbl_80344720);
-                            if ((a = e->ang) > 3.141592654) {
-                                a -= 6.283185308;
-                            } else if (a <= (-3.141592654)) {
-                                a = 6.283185308 + a;
-                            }
-                            e->ang = a;
-                            e->pyr[1] = a;
-                        }
-                        e->collided = 0;
-                        e->route = 0;
-                    }
-                    if (e->collided >= 7) {
-                        e->route = -e->route * 2;
-                        e->collided = 0;
-                    }
+                    blocked20(index, 10, 30);
                 }
             } else {
                 if (e->dead_end <= 0) {
@@ -1301,61 +1321,13 @@ void do_enemy_move(int index)
                         e->collided = 0;
                     }
                     if (alg == 7) {
-                        if (__abs(e->route) <= 2) {
-                            e->collided++;
-                            fn_8004D030(index, 15);
-                        } else {
-                            fn_8004D030(index, 15);
-                            e->ang = lbl_80344720;
-                            e->pyr[1] = lbl_80344720;
-                            e->collided = 0;
-                            e->route = 0;
-                        }
-                        if (e->collided >= 7) {
-                            e->route = -e->route * 2;
-                            e->collided = 0;
-                        }
+                        blocked07(index, 15, 15);
                     } else if (alg == 8) {
-                        if (__abs(e->route) <= 2) {
-                            e->collided++;
-                            fn_8004D030(index, 15);
-                        } else {
-                            fn_8004D030(index, 15);
-                            e->ang = lbl_80344720;
-                            e->pyr[1] = lbl_80344720;
-                            e->collided = 0;
-                            e->route = 0;
-                        }
-                        if (e->collided >= 7) {
-                            e->route = -e->route * 2;
-                            e->collided = 0;
-                        }
+                        blocked08(index, 15, 15);
                     } else if (alg == 10) {
                         blocked10(index, 15, 15);
                     } else if (alg == 20) {
-                        if (__abs(e->route) <= 2) {
-                            e->collided++;
-                            fn_8004D030(index, 15);
-                        } else {
-                            fn_8004D030(index, 15);
-                            {
-                                f64 a;
-                                e->ang = (f32)(3.141592654 + lbl_80344720);
-                                if ((a = e->ang) > 3.141592654) {
-                                    a -= 6.283185308;
-                                } else if (a <= (-3.141592654)) {
-                                    a = 6.283185308 + a;
-                                }
-                                e->ang = a;
-                                e->pyr[1] = a;
-                            }
-                            e->collided = 0;
-                            e->route = 0;
-                        }
-                        if (e->collided >= 7) {
-                            e->route = -e->route * 2;
-                            e->collided = 0;
-                        }
+                        blocked20(index, 15, 15);
                     }
                 } else {
                     if (e->dead_end <= 0) {
