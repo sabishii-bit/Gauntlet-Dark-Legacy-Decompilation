@@ -642,7 +642,7 @@ u32 WorldCollide(f32 radius, void* fromv, void* tov, f32* result,
             }
         }
         ((FloorCollisionResult*)result)->obj = (struct worldobj*)lbl_80344160;
-        result[16] = lbl_80344164;
+        ((FloorCollisionResult*)result)->hitScore = lbl_80344164;
     }
     return (u32)lbl_80344160;
 }

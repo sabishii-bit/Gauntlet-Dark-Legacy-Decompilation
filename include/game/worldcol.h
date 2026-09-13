@@ -25,6 +25,13 @@ struct worldobj;
  *   worldcol.c FloorCollide  clears the word at +0x44 before probing, and
  *                            takes the record by pointer (`FloorCollisionResult*
  *                            result`), so it is one record and not a bare array.
+ *   worldcol.c WorldCollide  +0x738/+0x73C load lbl_80344164 with lfs and
+ *                            store it at result+0x40 with stfs. WorldObjCollide
+ *                            +0x364..+0x384 keeps the smaller CTriListCollide
+ *                            return there. This is a float selection score,
+ *                            not an integer: it can be a weighted squared
+ *                            distance or the early-hit zero. hitScore is a
+ *                            descriptive name, not a recovered original name.
  *   sfx.c                    CopyMat4(gFloorCollisionResult, mat) -- a full
  *                            0x40-byte 4x4 matrix starts at +0x00.
  *   critter.c                CopyMat3((f32*)gFloorCollisionResult, c->shadow)
@@ -48,7 +55,7 @@ struct worldobj;
 
 typedef struct FloorCollisionResult {
     /* 0x00 */ f32 mtx[4][4]; /* rows 0..2 surface basis, row 3 contact point */
-    /* 0x40 */ s32 _unk40;    /* never read on GC                            */
+    /* 0x40 */ f32 hitScore;  /* selected collision score; valid with obj    */
     /* 0x44 */ struct worldobj* obj; /* surface owner; NULL == no floor     */
 } FloorCollisionResult;       /* size 0x48                                   */
 
