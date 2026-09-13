@@ -5914,24 +5914,20 @@ void fn_8004E448(Enemy* enemy, f32* aimPosition, f32* pos)
     }
 }
 
-/* Advance an enemy after it reaches its assigned milestone. */
+/* Advance an enemy after it reaches its assigned milestone. The Xbox locals
+ * corroborate pos/mpos as three-float vectors; GC keeps the horizontal delta
+ * in registers and passes the vertical component through fabsf_. */
 void update_enemy_milestone(Enemy* enemy)
 {
-    u8 frame_pad[12];
-    f32 milestone[3];
-    f32 vertical;
-    u8 local_pad[12];
-    f32 dx;
-    f32 dz;
+    f32 pos[3];
+    f32 mpos[3];
 
     if (enemy->plr_ms >= 0) {
-        GetMilestonePos(enemy->plr_ms, milestone);
-        dx = enemy->objgrp.worldmat[3][0] - milestone[0];
-        dz = enemy->objgrp.worldmat[3][2] - milestone[2];
-        vertical = enemy->objgrp.worldmat[3][1] - milestone[1];
-        *(u32*)&vertical &= 0x7FFFFFFF;
-        if ((f64)vertical < 2.5 &&
-            (f64)fqdist(dx, dz) < 1.4) {
+        GetMilestonePos(enemy->plr_ms, mpos);
+        pos[0] = enemy->objgrp.worldmat[3][0] - mpos[0];
+        pos[1] = enemy->objgrp.worldmat[3][1] - mpos[1];
+        pos[2] = enemy->objgrp.worldmat[3][2] - mpos[2];
+        if (fabsf_(pos[1]) < 2.5 && fqdist(pos[0], pos[2]) < 1.4) {
             adjust_msidx(enemy);
             enemy->plr_ms = -1;
             enemy->operation_count = enemy->operation_speed;
