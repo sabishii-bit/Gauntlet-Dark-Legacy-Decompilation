@@ -14,18 +14,11 @@
  * `buttons` control-state block. pbDiagCtrlInt / pbDiagCtrlFloat adjust a
  * menu value from D-pad/stick input with key-repeat + wrap.
  *
- * Status: NonMatching. 6/15 functions reconstructed:
- *   pbDiagCtrlInt   - MATCHING (byte-exact)
- *   pbDiagCtrlFloat - MATCHING (byte-exact)
- *   pbResetDiag     - equivalent, insn-count exact; volatile-reg allocation
- *                     (buttons r5-vs-r6) differs; parked (regalloc-only).
- *   pbInitDiag      - equivalent, insn-count exact; gDiagData hoist +
- *                     sdata2 pool ordering differ; parked (regalloc/pool).
- *   pbDiagDrawMenuA - equivalent, insn-count exact; saved-reg numbering
- *                     (line/off/colorbase permute) differs; parked.
- *   pbDiagDrawMenuB - MATCHING (byte-exact).
- * The 9 larger draw functions (audio/soundrow/info/texture/texlabel/object/
- * colorbars/strrow/menu) are not yet reconstructed. */
+ * Status (2026-09-13, stock GC 1.2.5): all 15 function bodies are present;
+ * 8 have byte-exact native instruction bodies. Audio, SoundRow, Info,
+ * Texture, Object, Menu and Reset retain code residuals. The TU remains
+ * NonMatching: data ownership/placement and complete native equivalence
+ * are still open; the default link uses the extracted fallback object. */
 
 typedef struct WinGlobals {
     u8 _pad0[0x30];
@@ -1181,13 +1174,17 @@ typedef struct BtnView {
     u32 f424;               /* 0x1A8 */
 } BtnView;
 
-/* wg->f30 texture-bank entry: 16-byte stride, bank ptr at +4, lock flag read at +16 */
-typedef struct TexBankEnt {
-    s32 a;                  /* 0x0 */
-    struct DiagTexBank* bank; /* 0x4 */
-    s32 c;
-    s32 d;
-} TexBankEnt;
+/* wg->f30 starts with a count word, followed by 16-byte model-info rows.
+ * pbDiagDrawTexture reads the header at table + 4 + index*16 and tests
+ * unready at table + 16 + index*16; pb_winglobals' fn_800C1004 independently
+ * uses both accesses. These agree with Xbox PBMODELINFO.header/unready,
+ * not with an entry starting at the count word. The two size fields are
+ * outside this diagnostic view's accesses and remain opaque here. */
+typedef struct DiagModelInfo {
+    struct DiagTexBank* header; /* 0x00: MODELHEADER texture-browser view */
+    u8 _pad04[8];
+    s32 unready;               /* 0x0C: zero means the model is ready */
+} DiagModelInfo;
 
 /* one 16-byte texdef record (DiagTexBank.defs[]); flags@2 confirmed by two
  * consumers in pbDiagDrawTexture sharing the identical offset/size (a
@@ -1315,8 +1312,8 @@ s32 pbDiagDrawTexture(void)
     v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, old2);
     gDiag_F4 = v;
     old = (s32)(&b[v])[28];
-    tb = ((DiagTexBank**)&((s32*)wg->f30)[v * 4])[1];
-    if ((&((s32*)wg->f30)[v * 4])[4] == 0) {
+    tb = ((DiagModelInfo*)(wg->f30 + 1))[v].header;
+    if (((DiagModelInfo*)(wg->f30 + 1))[v].unready == 0) {
         old2 = pbDiagCtrlInt(1, 0, old, 1, 0, tb->nslots);
         v = gDiag_F4;
         (&b[v])[28] = old2;
@@ -1347,8 +1344,7 @@ s32 pbDiagDrawTexture(void)
     if (*(s8*)tb->name != 0) {
         fn_800C008C(0x00FFFF00, 61 - strlen(tb->name), 3, tb->name);
     }
-    cp = (u32*)((u8*)wg->f30 + 16);
-    if (((TexBankEnt*)cp)[gDiag_F4].a == 0) {
+    if (((DiagModelInfo*)(wg->f30 + 1))[gDiag_F4].unready == 0) {
         pbDiagDrawTexLabel(tb, gDiag_F4);
         saved = fn_800C02F4(0x00FFFFFF);
         if (tb->nslots != 0) {
