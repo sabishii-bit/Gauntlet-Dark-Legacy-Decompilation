@@ -434,8 +434,8 @@ f32 turn_enemy_ang(Enemy* e, f32 want);
 s32 do_ai(s32 index);
 void move_logic00(int index);
 void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s32 index);
-void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
-void move_logic07(int index); void move_logic08(s32 index); void move_logic10(int index);
+void move_logic04(int index); void move_logic05(int index); void move_logic06(int index);
+void move_logic07(int index); void move_logic08(int index); void move_logic10(int index);
 void move_logic12(int index); void move_logic13(int index); void move_logic14(int index);
 void move_logic15(int index); void move_logic16(int index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
@@ -869,10 +869,10 @@ void move_logic01(s32 index);
 void move_logic02(int index);
 void move_logic03(s32 index);
 void move_logic04(int index);
-void move_logic05(s32 index);
-void move_logic06(s32 index);
+void move_logic05(int index);
+void move_logic06(int index);
 void move_logic07(int index);
-void move_logic08(s32 index);
+void move_logic08(int index);
 void move_logic10(int index);
 void move_logic12(int index);
 void move_logic13(int index);
@@ -2658,7 +2658,7 @@ void move_logic04(int index)
 }
 
 #pragma opt_propagation off
-void move_logic05(s32 index)
+void move_logic05(int index)
 {
     Enemy* e;
     Enemy* e0;
@@ -2777,7 +2777,7 @@ void move_logic05(s32 index)
  * two-probe clearance search, but every heading correction rotates +pi/2 instead
  * of -pi/2, so it sweeps the opposite way around an obstacle. */
 #pragma opt_propagation off
-void move_logic06(s32 index)
+void move_logic06(int index)
 {
     Enemy* e;
     Enemy* e0;
@@ -3013,7 +3013,7 @@ static inline int is_chest(Item* ip)
  * cornered it also validates the collided item (a live spawner of type 2) before
  * choosing a corner-avoidance offset from lbl_8011C084. */
 #pragma opt_propagation off
-void move_logic08(s32 index)
+void move_logic08(int index)
 {
     Enemy* e;
     Enemy* e0;
