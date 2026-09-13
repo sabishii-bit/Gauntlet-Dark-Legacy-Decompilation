@@ -137,11 +137,8 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     dx1 = tpA.x - tpB.x;
     dz1 = tpA.z - tpB.z;
     if ((f64)fqdist(dx1, dz1) > 0.01) {
-        f32 ayB;
-        f32 ayA;
         f32 sum;
-        sum = (ayB = btri_fabsf(tpB.y)) +
-              (ayA = btri_fabsf(tpA.y));
+        sum = btri_fabsf(tpB.y) + btri_fabsf(tpA.y);
         if (sum == 0.0f) {
             t = (f32)(1000.0 * (f64)btri_fabsf(tpB.y));
         } else {
