@@ -998,8 +998,29 @@ next_enemy:
 
 /* Distinct blocked responses from the original helper family. GC repeats
  * these index/short-wait/long-wait bodies at both movement collision sites;
- * Xbox ENEMY.OBJ corroborates blocked07/08/10/20 and their integer APIs.
+ * Xbox ENEMY.OBJ corroborates blocked00/07/08/10/20 and their integer APIs.
+ * blocked00 takes only the enemy index; PS2 retains its collision-core call.
  * blocked20 preserves GC's float store/reload before the double wrap. */
+static inline void blocked00(int i)
+{
+    Enemy* e = &gEnemies[i];
+    if (__abs(e->route) <= 2) {
+        e->collided++;
+        fn_8004D030(i, 5);
+    } else {
+        e->collided++;
+        fn_8004D030(i, 0x3C);
+    }
+    if (e->collided >= 9) {
+        e->route = -e->route * 2;
+        e->collided = 0;
+        if (__abs(e->route) > 2) {
+            e->ang = lbl_80344720;
+            e->pyr[1] = lbl_80344720;
+        }
+    }
+}
+
 static inline void blocked10(int i, int short_wait, int long_wait)
 {
     Enemy* e = &gEnemies[i];
@@ -1390,12 +1411,6 @@ void do_enemy_move(int index)
 
 int do_enemy_collide(int index, f32 retryThreshold)
 {
-    u8* e0;
-    /* Reconstruction debt: the two wall ai_flags reads still use this byte
-     * view. Converting them together with the typed routing/gravity region
-     * splits retail's prologue lwzu (490 -> 492 instructions); direct array
-     * ownership gives 491. Recheck after recovering the caller/helper shape. */
-    u8* e;
     Enemy* enemy;
     s32 type;
     f32* tr;
@@ -1413,10 +1428,8 @@ int do_enemy_collide(int index, f32 retryThreshold)
     (void)framePad;
     (void)unused;
 
-    e0 = (u8*)mbdesc + index * 916;
-    type = *(s32*)(e0 += ENEMY_POOL_OFF);
-    e = e0;
-    enemy = (Enemy*)e0;
+    enemy = &gEnemies[index];
+    type = enemy->type;
     tr = enemy->trans;
     dt = (f32)((-16.0) * gClockFrameStep);
     behavior = enemy->algorithm;
@@ -1457,7 +1470,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
                 if (lbl_80344730->flags & 0x38) {
                     wallResult = 0;
                 } else {
-                    if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
+                    if (!(enemy->ai_flags & 1) &&
                         SlideAlongWall(slideRad, oldpos, tr,
                                        enemy_wall_collp,
                                        lbl_8023CA98[1]) < 0) {
@@ -1491,7 +1504,7 @@ int do_enemy_collide(int index, f32 retryThreshold)
                 if (lbl_80344730->flags & 0x38) {
                     wallResult = 0;
                 } else {
-                    if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
+                    if (!(enemy->ai_flags & 1) &&
                         SlideAlongWall(slideRad, oldpos, tr,
                                        enemy_wall_collp,
                                        lbl_8023CA98[1]) < 0) {
@@ -1554,52 +1567,16 @@ reparent:
     }
 
     if (behavior == 0) {
-        if (__abs(enemy->route) <= 2) {
-            enemy->collided++;
-            fn_8004D030(index, 5);
-        } else {
-            enemy->collided++;
-            fn_8004D030(index, 0x3C);
-        }
-        if (enemy->collided >= 9) {
-            enemy->route = -enemy->route * 2;
-            enemy->collided = 0;
-            if (__abs(enemy->route) > 2) {
-                enemy->ang = lbl_80344720;
-                enemy->pyr[1] = lbl_80344720;
-            }
-        }
+        blocked00(index);
     } else if (behavior == 7) {
-        if (__abs(enemy->route) <= 2) {
-            enemy->collided++;
-            fn_8004D030(index, 0xA);
-        } else {
-            fn_8004D030(index, 0x3C);
-            enemy->ang = lbl_80344720;
-            enemy->pyr[1] = lbl_80344720;
-            enemy->collided = 0;
-            enemy->route = 0;
-        }
-        if (enemy->collided >= 7) {
-            enemy->route = -enemy->route * 2;
-            enemy->collided = 0;
-        }
+        blocked07(index, 10, 60);
     } else if (behavior == 8) {
-        if (__abs(enemy->route) <= 2) {
-            enemy->collided++;
-            fn_8004D030(index, 5);
-        } else {
-            fn_8004D030(index, 0x3C);
-            enemy->ang = lbl_80344720;
-            enemy->pyr[1] = lbl_80344720;
-            enemy->collided = 0;
-            enemy->route = 0;
-        }
-        if (enemy->collided >= 7) {
-            enemy->route = -enemy->route * 2;
-            enemy->collided = 0;
-        }
+        blocked08(index, 5, 60);
     } else if (behavior == 0xA) {
+        /* Keep this expanded response until the shared blocked10 helper's
+         * retained manual magnitude is recovered. Calling that helper here
+         * creates a four-byte receiver clone and shifts all three vectors;
+         * the real __abs operation in this branch preserves retail storage. */
         if (__abs(enemy->route) <= 2) {
             enemy->collided++;
             fn_8004D030(index, 0xA);
@@ -1615,31 +1592,7 @@ reparent:
             enemy->collided = 0;
         }
     } else if (behavior == 0x14) {
-        if (__abs(enemy->route) <= 2) {
-            enemy->collided++;
-            fn_8004D030(index, 3);
-        } else {
-
-            fn_8004D030(index, 0x1E);
-            enemy->ang = (f32)(3.141592654 + lbl_80344720);
-            {
-                f64 a;
-
-                if ((a = enemy->ang) > 3.141592654) {
-                    a -= 6.283185308;
-                } else if (a <= (-3.141592654)) {
-                    a = 6.283185308 + a;
-                }
-                enemy->ang = (f32)a;
-                enemy->pyr[1] = (f32)a;
-            }
-            enemy->collided = 0;
-            enemy->route = 0;
-        }
-        if (enemy->collided >= 7) {
-            enemy->route = -enemy->route * 2;
-            enemy->collided = 0;
-        }
+        blocked20(index, 3, 30);
     } else {
         if (enemy->dead_end <= 0) {
             enemy->dead_end = 0x14;
