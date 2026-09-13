@@ -435,7 +435,7 @@ s32 do_ai(s32 index);
 void move_logic00(int index);
 void move_logic01(s32 index); void move_logic02(int index); void move_logic03(s32 index);
 void move_logic04(int index); void move_logic05(s32 index); void move_logic06(s32 index);
-void move_logic07(s32 index); void move_logic08(s32 index); void move_logic10(int index);
+void move_logic07(int index); void move_logic08(s32 index); void move_logic10(int index);
 void move_logic12(int index); void move_logic13(int index); void move_logic14(int index);
 void move_logic15(int index); void move_logic16(int index); void move_logic18(s32 index);
 void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
@@ -858,7 +858,7 @@ void move_logic03(s32 index);
 void move_logic04(int index);
 void move_logic05(s32 index);
 void move_logic06(s32 index);
-void move_logic07(s32 index);
+void move_logic07(int index);
 void move_logic08(s32 index);
 void move_logic10(int index);
 void move_logic12(int index);
@@ -2961,49 +2961,16 @@ void move_logic06(s32 index)
  * pick a corner-avoidance heading (fn_8004CE38 route + lbl_8011C0A4 offset table),
  * normalize it, probe clearance, and count consecutive stuck frames; bail back to
  * the straight bearing after 10.  Rats (type 3) poke a walk action at the end. */
-#pragma opt_propagation off
-void move_logic07(s32 index)
+void move_logic07(int index)
 {
-    Enemy* e;
-    Enemy* e0;
-    s32 it = lbl_80344748;
-    s32 type;
+    Enemy* e = &gEnemies[index];
     f32 speed;
-    s32 flee;
     s32 found = 0;
     f32 cand;
     f32 probe[3];
-    u8 unusedA[20];
-    f32 d1;
-    f32 d2;
-    u8 unusedB[16];
 
-    e0 = &gEnemies[index];
-    type = e0->type;
-    e = e0;
-    speed = lbl_80250E40[type];
-    if (it < 0) {
-        flee = 0;
-    } else {
-        if (gEnemies[it].state != ACTIVE) {
-            flee = 0;
-        } else if (gEnemies[it].actual_dist > e0->sight) {
-            flee = 0;
-        } else if (index == it || e0->birth_style != 0 || e0->dead_end > 0) {
-            goto flee_zero07;
-        } else {
-            f32 dx = gEnemies[it].objgrp.worldmat[3][0] - e0->objgrp.worldmat[3][0];
-            f32 dy = gEnemies[it].objgrp.worldmat[3][1] - e0->objgrp.worldmat[3][1];
-            f32 dz = gEnemies[it].objgrp.worldmat[3][2] - e0->objgrp.worldmat[3][2];
-            if (dx * dx + dy * dy + dz * dz < 100.0) {
-                flee = -1;
-            } else {
-            flee_zero07:
-                flee = 0;
-            }
-        }
-    }
-    if (flee != 0) {
+    speed = lbl_80250E40[e->type];
+    if (FoundSuicideBomber(index) != 0) {
         e->algorithm = 24;
         do_ai(index);
         return;
@@ -3016,20 +2983,7 @@ void move_logic07(s32 index)
     if (e->algorithm != e->prev_ai) {
         format_brain(index);
     }
-    {
-        s16 c = e->closest;
-        f32 f;
-        if (c >= 0) {
-            if (gPlayers[c].field_A1C > 2) {
-                f = get_yaw(gPlayers[c].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-            } else {
-                f = get_yaw(gPlayers[c].pos, &e->objgrp.worldmat[3][0]);
-            }
-        } else {
-            f = e->ang;
-        }
-        lbl_80344720 = f;
-    }
+    lbl_80344720 = get_face_ang(e, 1);
     if (e->dead_end > 0) {
         e->dead_end -= gFrameTicks;
     }
@@ -3060,28 +3014,15 @@ void move_logic07(s32 index)
         } else {
             cand = lbl_80344720;
         }
-        {
-            f64 a;
-            if (cand > 3.141592654) {
-                a = cand - 6.283185308;
-            } else if (cand <= -3.141592654) {
-                a = 6.283185308 + cand;
-            } else {
-                a = cand;
-            }
-            cand = a;
-        }
+        cand = enemy_normalized_heading(cand);
         probe[0] = e->objgrp.worldmat[3][0];
         probe[1] = e->objgrp.worldmat[3][1];
         probe[2] = e->objgrp.worldmat[3][2];
         probe[1] += 0.1 + e->rad;
         probe[0] += speed * sin(cand);
         probe[2] += speed * cos(cand);
-        d1 = e->ang - e->angbak;
-        *(u32*)&d1 &= 0x7FFFFFFF;
-        if ((d1 > 0.034906585044444445
-             && ((d2 = cand - e->angbak), (*(u32*)&d2 &= 0x7FFFFFFF),
-                 d2 <= 0.034906585044444445))
+        if ((fabsf_(e->ang - e->angbak) > 0.034906585044444445
+             && fabsf_(cand - e->angbak) <= 0.034906585044444445)
             || fn_8004C8CC(probe, index) == 0) {
             found = 1;
             e->stuck_count++;
@@ -3108,7 +3049,6 @@ void move_logic07(s32 index)
         RequestEnemyAction(e, 3);
     }
 }
-#pragma opt_propagation reset
 
 /* Xbox symbols and the PS2 callers retain these two helpers. GC inlines the
  * same item validation and translation-vector inputs into move_logic08. */
