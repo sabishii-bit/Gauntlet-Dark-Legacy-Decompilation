@@ -438,7 +438,7 @@ void move_logic04(int index); void move_logic05(int index); void move_logic06(in
 void move_logic07(int index); void move_logic08(int index); void move_logic10(int index);
 void move_logic12(int index); void move_logic13(int index); void move_logic14(int index);
 void move_logic15(int index); void move_logic16(int index); void move_logic18(s32 index);
-void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(s32 index);
+void move_logic19(s32 index); void move_logic20(s32 index); void move_logic21(int index);
 void move_logic22(int index); void move_logic23(s32 index); void move_logic24(s32 index);
 void move_logic28(int index); void move_logic29(int index); void move_logic30(s32 index);
 void move_logic31(int index);
@@ -882,7 +882,7 @@ void move_logic16(int index);
 void move_logic18(s32 index);
 void move_logic19(s32 index);
 void move_logic20(s32 index);
-void move_logic21(s32 index);
+void move_logic21(int index);
 void move_logic22(int index);
 void move_logic23(s32 index);
 void move_logic24(s32 index);
@@ -4276,13 +4276,12 @@ skip20:
  * recognized a target yet, bounce to a wander algorithm; otherwise ramp a
  * retreat speed, face away from the closest player (facing + pi), normalize,
  * accelerate + turn + move, and refresh the corner state. */
-void move_logic21(s32 index)
+void move_logic21(int index)
 {
     s32 stuck;
     Enemy* e = &gEnemies[index];
     f32 spd = 0.0f;
     s32 c;
-    f32 face;
 
     if (e->dead_end > 0) {
         stuck = 1;
@@ -4302,16 +4301,7 @@ void move_logic21(s32 index)
         spd = lbl_8011BF60[c];
         e->dead_end = 0;
     }
-    if (e->closest >= 0) {
-        if (gPlayers[e->closest].field_A1C > 2) {
-            face = get_yaw(gPlayers[e->closest].mikey_worldmat[3], &e->objgrp.worldmat[3][0]);
-        } else {
-            face = get_yaw(gPlayers[e->closest].pos, &e->objgrp.worldmat[3][0]);
-        }
-    } else {
-        face = e->ang;
-    }
-    e->ang = spd + (3.141592654 + face);
+    e->ang = spd + (3.141592654 + get_face_ang(e, 1));
     {
         f64 a;
 
