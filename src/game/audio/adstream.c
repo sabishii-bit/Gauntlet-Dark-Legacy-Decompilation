@@ -26,8 +26,8 @@
  * names are flagged in the per-function comments.  adsPoll is the per-frame
  * entry called by main.c and soundmgr.c.
  *
- * NonMatching: _AdsThread and AdsPutBuffer retain native instruction residuals.
- * The other 24 bodies match; the build still links the extracted fallback.
+ * NonMatching: AdsPutBuffer retains a native instruction residual.
+ * The other 25 bodies match; the build still links the extracted fallback.
  */
 #include "types.h"
 #include "dolphin/ax.h"
@@ -588,6 +588,20 @@ s32 adsFeed(ADSTREAM* stream) {
     return result;
 }
 
+/* PDB AdsKeyVoices(ADS*, int), distinct from the currently named GC
+ * one-argument stop/request function. */
+static inline void adsKeyHardwareVoices(ADSTREAM* stream, s32 key) {
+    u32 i;
+
+    for (i = 0; i < stream->hd.channels; i++) {
+        if (key != 0) {
+            while (lbl_80345268 == 0) {
+            }
+        }
+        AXSetVoiceState(sVoice[stream->voice[i]], key);
+    }
+}
+
 /* 0x800D6A8C  command/state processor: consumes the pending command
  * (lbl_80345274), walks the voices (dcsMemLockOwner / AXSetVoiceState) and
  * dispatches start/stop/loop by stream state (+0x50: 0/0x1000/0x2000).
@@ -597,21 +611,22 @@ s32 _AdsThread(void) {
     s32 v;
     s32 count;
     s32 j;
-    u32 i;
-    ADSTREAM* base = gADS;
     s32 lock;
     u8 unused[8];
 
     s = 0;
     v = lbl_80345274;
     lbl_80345274 = -1;
-    j = 0;
-    for (count = 0; count < 2; count++) {
-        if (v == base->voice[j]) {
-            s = base;
+    for (count = 0; count < 1; count++) {
+        for (j = 0; j < 2; j++) {
+            if (v == gADS[count].voice[j]) {
+                s = &gADS[count];
+                break;
+            }
+        }
+        if (s != NULL) {
             break;
         }
-        j++;
     }
     if (s == 0) {
         return 0;
@@ -620,17 +635,13 @@ s32 _AdsThread(void) {
     case 0x2000:
         lock = dcsMemLockOwner(0, 0);
         if (s->keyCount != 0) {
-            s->keyCount = (i = 0);
+            s->keyCount = 0;
             s->status = 0x1000;
             if (s->endCount != 0) {
-                s->endCount = i;
+                s->endCount = 0;
             } else {
                 AdsMute(s, 0);
-                for (; i < s->hd.channels; i++) {
-                    while (lbl_80345268 == 0) {
-                    }
-                    AXSetVoiceState(sVoice[s->voice[i]], 1);
-                }
+                adsKeyHardwareVoices(s, 1);
             }
             lbl_80345288 |= 0x2000;
             dcsMemLockOwner(0, 1);
@@ -654,9 +665,7 @@ s32 _AdsThread(void) {
                 AdsStart(s);
             } else {
                 s->status = 0x2000;
-                for (i = 0; i < s->hd.channels; i++) {
-                    AXSetVoiceState(sVoice[s->voice[i]], 0);
-                }
+                adsKeyHardwareVoices(s, 0);
                 AdsMute(s, 1);
                 sConfig = 0;
             }
@@ -824,7 +833,9 @@ void adsInitFromHeader(ADSTREAM* stream) {
 }
 
 /* 0x800D719C  if playing (status==0x1000) reset the voice-keying counters and
- * bump the loop counter.  Xbox: AdsKeyVoices (behavioural mapping). */
+ * bump the loop counter. The PDB's AdsStop has this one-argument signature;
+ * AdsKeyVoices instead takes a second key-state argument. Keep the linked
+ * name pending coordinated symbol-map and caller verification. */
 s32 AdsKeyVoices(ADSTREAM* s) {
     s32 ret = -1;
     if (s->status == 0x1000) {
@@ -987,9 +998,12 @@ s32 AdsPutBuffer(ADSTREAM* s, u8* src, u32 len, s32 local) {
         len = hres;
         goto done;
     }
-    hres = adsInitHeaderState(s);
-    if (hres < 0) {
-        len = hres;
+    {
+        s32 setupResult = adsInitHeaderState(s);
+        hres = setupResult;
+        if (setupResult < 0) {
+            len = setupResult;
+        }
     }
 done:
     if (amt > 0 && hres >= 0) {
