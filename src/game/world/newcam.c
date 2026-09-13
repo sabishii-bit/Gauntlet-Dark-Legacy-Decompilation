@@ -247,8 +247,9 @@ extern s32 lbl_80344768;
 extern u8  lbl_80344A74;
 extern f32 lbl_80344B34;
 extern void* lbl_80344B38;
-extern s32 gControllerButtons;
-extern s32 sFlags;
+/* The low half of the 64-bit debug flag word is labeled sFlags in
+ * the target. Use the same wide view as the other debug consumers. */
+extern u64 gControllerButtons;
 extern char lbl_801137D0[];
 
 extern const f32 lbl_80127D20[3];  /* up ref: general */
@@ -331,15 +332,6 @@ extern s32 lbl_80343CF8;         /* current selection (3D selector) */
 
 /* fast 2D (XZ) distance approximation (ps2/ml_fmath.c). */
 extern f32 fqdist(f32 x, f32 y);
-
-/* Per-frame debug-camera update. */
-static inline u32 NcMaskMismatch(u32 value, u32 expected) {
-    return value ^ expected;
-}
-
-static inline u32 NcApplyMask(u32 value, u32 mask) {
-    return value & mask;
-}
 
 static inline void NcCamMinMaxAvgPos(Vec3* vmin, Vec3* vmax, Vec3* point)
 {
@@ -582,10 +574,6 @@ s32 fn_8006DF34(NcCamera* cam) {
     s32 end2;
     s32 idx2;
     s32 count2;
-    u32 controller;
-    u32 zero;
-    u32 one;
-    u32 flags;
 
     if (CamGetPlayerAvgPos(&avg, 5) == 0) {
         return 1;
@@ -721,12 +709,7 @@ s32 fn_8006DF34(NcCamera* cam) {
             1.0 / cam->aspect);
     }
 
-    controller = gControllerButtons;
-    zero = 0;
-    one = 1;
-    flags = sFlags;
-    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
-         NcMaskMismatch(controller & zero, zero)) != 0) {
+    if ((gControllerButtons & 1) != 0) {
         dbgTextPrintfCell(
             0xFFFF00, 1, 0x20, lbl_801137D0,
             0.31830988614222805 * (180.0 * cam->yaw),
@@ -808,10 +791,6 @@ void fn_8006E654(void) {
     s32 result;
     s32 i;
     NcCamera* cam;
-    u32 controller;
-    u32 zero;
-    u32 one;
-    u32 flags;
 
     if (lbl_80344A70 == lbl_80343CD4) {
         CamReset(&tmp);
@@ -923,12 +902,7 @@ void fn_8006E654(void) {
             1.0 / cam->aspect);
     }
 
-    controller = gControllerButtons;
-    zero = 0;
-    one = 1;
-    flags = sFlags;
-    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
-         NcMaskMismatch(controller & zero, zero)) != 0) {
+    if ((gControllerButtons & 1) != 0) {
         dbgTextPrintfCell(
             0xFFFF00, 1, 0x20, lbl_801137D0,
             0.31830988614222805 * (180.0 * cam->yaw),
@@ -1628,10 +1602,6 @@ void fn_8006FE30(void) {
 s32 fn_8006FF1C(void) {
     NcCamera* cam;
     f32 pitch;
-    u32 controller;
-    u32 zero;
-    u32 one;
-    u32 flags;
 
     if (lbl_80344A7C == 0) {
         lbl_80344A68 = &lbl_80274AA0;
@@ -1668,12 +1638,7 @@ s32 fn_8006FF1C(void) {
             1.0 / cam->aspect);
     }
 
-    controller = gControllerButtons;
-    zero = 0;
-    one = 1;
-    flags = sFlags;
-    if ((NcMaskMismatch(NcApplyMask(flags, one), zero) |
-         NcMaskMismatch(controller & zero, zero)) != 0) {
+    if ((gControllerButtons & 1) != 0) {
         dbgTextPrintfCell(
             0xFFFF00, 1, 0x20, lbl_801137D0,
             0.31830988614222805 * (180.0 * cam->yaw),
