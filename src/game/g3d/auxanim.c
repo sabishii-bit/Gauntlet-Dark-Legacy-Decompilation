@@ -473,40 +473,39 @@ void InitOAnimList(OANIMHDR* hdr, int arg)
     u16 h2;
     u8 unused[16];
     u8* s;
-    int off;
     int i;
-    char* p;
+    OANIM* p;
 
     if (hdr == 0) {
         FatalError("Bad header passed in to InitOAnimList.", 0x804060);
     }
-    p = (char*)((int)hdr + hdr->offset);
-    for (i = 0, off = 0; i < hdr->count; i++, off += 0x28) {
-        v = *(u32*)(p + off + 0x20);
+    p = (OANIM*)((char*)hdr + hdr->offset);
+    for (i = 0; i < hdr->count; i++) {
+        v = p[i].tex;
         s = (u8*)&v;
         r[0] = s[3];
         r[1] = s[2];
         r[2] = s[1];
         r[3] = s[0];
-        *(u32*)(p + off + 0x20) = *(u32*)r;
-        h1 = *(u16*)(p + off + 0x24);
+        p[i].tex = *(u32*)r;
+        h1 = p[i].frames;
         s = (u8*)&h1;
-        *(u16*)(p + off + 0x24) = (s[1] << 8) | s[0];
-        h2 = *(u16*)(p + off + 0x26);
+        p[i].frames = s[0] | (s[1] << 8);
+        h2 = p[i].start;
         s = (u8*)&h2;
-        *(u16*)(p + off + 0x26) = (s[1] << 8) | s[0];
+        p[i].start = s[0] | (s[1] << 8);
     }
     i = 0;
     while (i < hdr->count) {
-        if (*p != '\0') {
-            ((OANIM*)p)->tex = MBOX_ReallyFindObject((OANIM*)p, arg, arg, -1);
-            if (((OANIM*)p)->tex == -1) {
-                ErrorPrintf("InitOAnimList: Unable to find %s (%d)", p, i);
+        if (p->name[0] != '\0') {
+            p->tex = MBOX_ReallyFindObject(p, arg, arg, -1);
+            if (p->tex == -1) {
+                ErrorPrintf("InitOAnimList: Unable to find %s (%d)", p->name, i);
             }
         } else {
-            ((OANIM*)p)->tex = -1;
+            p->tex = -1;
         }
         i++;
-        p += 0x28;
+        p++;
     }
 }
