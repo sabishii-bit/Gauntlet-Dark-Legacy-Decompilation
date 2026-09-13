@@ -672,7 +672,7 @@ typedef struct MILESTONE {
 } MILESTONE;
 extern MILESTONE sMilestones[]; /* 0x8025B604; same view as gamemain.c */
 extern void GetMilestonePos(s32 idx, f32* out);  /* 0x80066054 */
-extern s32 fn_800511D0(s32 idx, f32 turn);        /* 0x800511D0 next-node picker */
+extern int fn_800511D0(int idx, f32 turn);        /* 0x800511D0 next-node picker */
 
 /* move_logic05 @0x80047844 (state 5, one of the two "wander" fallbacks reached
  * from the recognized/closest gate).  IT-flee, drift a heading on a dead_end
@@ -7431,37 +7431,24 @@ void fn_80051164(void)
     lbl_80344738 = -1;
 }
 
-#pragma opt_propagation off
-s32 fn_800511D0(s32 milestone, f32 tolerance)
+int fn_800511D0(int milestone, f32 tolerance)
 {
-    /* find_next_milestone's Xbox locals include temp and cpos vectors.
-     * The GC distance calculation keeps temp in registers; pos escapes to
-     * get_yaw. Recover the real delta vector instead of the old 12-byte pad. */
-    f32 temp[3];
-    f32 pos[3];
-    /* The GC magnitude operations clear the IEEE single-precision sign bit.
-     * Give each value an explicit word view, as in MSL's FloatU32, instead
-     * of accessing a float through an unrelated integer pointer. */
-    union { f32 value; u32 bits; } ad;
-    volatile f32 tmp;
-    union { f32 value; u32 bits; } t1;
-    union { f32 value; u32 bits; } t2;
+    /* find_next_milestone's Xbox locals identify the distance/height scalars
+     * and two float[3] vectors. GC passes pos to get_yaw and scalarizes temp.
+     * Reusing temp for the initial direction is a plausible reconstruction,
+     * not proof of the original statement order. Shared math helpers replace
+     * the former manual expansions, constant caches and frame reservation. */
     f32 bestDist;
+    f32 base;
     f32 secondDist;
     f32 bestDy;
     f32 secondDy;
-    f32 base;
-    f64 kThree;
-    f64 kHalf;
-    f32 kZero;
-    f64 k2Pi;
-    f64 kNegPi;
-    f64 kPi;
+    f32 temp[3];
+    f32 pos[3];
     MILESTONE* m;
-    s32 i;
-    s32 best;
-    s32 second;
-    u8 unusedLo[28];
+    int i;
+    int best;
+    int second;
 
     bestDist = 100000.0f;
     best = -1;
@@ -7476,20 +7463,11 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     pos[0] = sMilestones[milestone].objgrp.worldmat[3][0];
     pos[1] = sMilestones[milestone].objgrp.worldmat[3][1];
     pos[2] = sMilestones[milestone].objgrp.worldmat[3][2];
-    {
-        f32 x = sMilestones[milestone].objgrp.worldmat[2][2];
-        f32 r = atan2(sMilestones[milestone].objgrp.worldmat[2][0], x);
-        f32 a = (f32)(3.141592654 + r);
-        base = a > 3.141592654 ? a - 6.283185308 :
-            (a <= -3.141592654 ? 6.283185308 + a : a);
-    }
-
-    kZero = 0.0f;
-    kHalf = 0.5;
-    kThree = 3.0;
-    kNegPi = (-3.141592654);
-    k2Pi = 6.283185308;
-    kPi = 3.141592654;
+    temp[0] = sMilestones[milestone].objgrp.worldmat[2][0];
+    temp[1] = sMilestones[milestone].objgrp.worldmat[2][1];
+    temp[2] = sMilestones[milestone].objgrp.worldmat[2][2];
+    base = 3.141592654 + atan2(temp[0], temp[2]);
+    base = enemy_normalized_heading(base);
     m = sMilestones;
     for (i = 0; i < sNumMilestones; i++, m++) {
         f32 d;
@@ -7499,39 +7477,22 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
             continue;
         }
         d = get_yaw(&m->objgrp.worldmat[3][0], pos) - base;
-        ad.value = d > kPi ? d - k2Pi :
-            (d <= kNegPi ? k2Pi + d : d);
-        ad.bits &= 0x7FFFFFFF;
-        if (ad.value <= tolerance) {
+        if (fabsf_(enemy_normalized_heading(d)) <= tolerance) {
             temp[0] = m->objgrp.worldmat[3][0] - pos[0];
             temp[1] = m->objgrp.worldmat[3][1] - pos[1];
             temp[2] = m->objgrp.worldmat[3][2] - pos[2];
-            dist = temp[2] * temp[2] +
-                   (temp[0] * temp[0] + temp[1] * temp[1]);
-            if (dist > kZero) {
-                f64 y = __frsqrte(dist);
-                y = kHalf * y * (kThree - y * y * dist);
-                y = kHalf * y * (kThree - y * y * dist);
-                y = kHalf * y * (kThree - y * y * dist);
-                y = kHalf * y * (kThree - y * y * dist);
-                tmp = (f32)(dist * y);
-                dist = tmp;
-            }
-            if (dist < bestDist) {
-                t1.value = temp[1];
+            if ((dist = fn_80034C88(temp[2] * temp[2] +
+                    (temp[0] * temp[0] + temp[1] * temp[1]))) < bestDist) {
                 secondDist = bestDist;
                 second = best;
                 secondDy = bestDy;
-                t1.bits &= 0x7FFFFFFF;
                 bestDist = dist;
                 best = i;
-                bestDy = t1.value;
+                bestDy = fabsf_(temp[1]);
             } else if (dist < secondDist) {
-                t2.value = temp[1];
                 secondDist = dist;
                 second = i;
-                t2.bits &= 0x7FFFFFFF;
-                secondDy = t2.value;
+                secondDy = fabsf_(temp[1]);
             }
         }
     }
@@ -7547,8 +7508,6 @@ s32 fn_800511D0(s32 milestone, f32 tolerance)
     }
     return best;
 }
-#pragma opt_propagation reset
-
 s32 fn_80051480(f32* pos)
 {
     f32 delta[3];

@@ -409,7 +409,7 @@ extern CameraMilestone sMilestones[];
 
 f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
 f32 fqdist(f32 x, f32 y);
-s32 fn_800511D0(s32 milestone, f32 turnLimit);
+int fn_800511D0(int milestone, f32 turnLimit);
 f32 get_yaw(f32* to, f32* from);
 void CreateYPRMatrix(f32* matrix, const f32* angles);
 void WorldVector(const f32* vector, f32* out, const f32* matrix);

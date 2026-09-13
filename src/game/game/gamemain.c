@@ -317,7 +317,7 @@ void fn_80050DD8(char* buf, s32 id, s32 qty);
 s32 GetEnemyType(s32 w, s32 l);
 void fn_800510A4(void);
 void fn_80051164(void);
-s32 fn_800511D0(s32 arg0, f32 arg1);
+int fn_800511D0(int arg0, f32 arg1);
 s32 fn_80051480(f32* pos);
 void fn_80051568(s32 index);
 void fn_800516F8(s32 slot);
