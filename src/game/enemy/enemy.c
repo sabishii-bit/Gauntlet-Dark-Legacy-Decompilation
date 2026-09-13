@@ -7236,7 +7236,7 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
     if (enemy->atree.root != 0) {
         enemy->objgrp.node = MBNewNode(lbl_8034473C,
                                       gIdentityMatrix, 1);
-        MBNodeSetParent(*(void**)enemy->atree.root, enemy->objgrp.node);
+        MBNodeSetParent(enemy->atree.root->obj, enemy->objgrp.node);
         InitActions(&enemy->atree, enemy->actionlist, lbl_80126EC0);
     } else {
         InitActions(0, enemy->actionlist, lbl_80126EC0);
