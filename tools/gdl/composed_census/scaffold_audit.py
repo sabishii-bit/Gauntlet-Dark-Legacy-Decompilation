@@ -216,6 +216,151 @@ def confirm_harmful(tu, a, b):
             "fuzzy_after": after, "delta": round(after - before, 4)}
 
 
+VOLATILE = re.compile(
+    r"^(\s*)((?:register\s+)?)volatile(\s+[A-Za-z_][\w \*]*\b\w+\s*"
+    r"(?:\[[^\]]*\])?\s*;.*)$")
+
+
+def brace_depth(lines, start, end):
+    """Net `{` minus `}` over lines[start:end], ignoring // comments."""
+    d = 0
+    for k in range(start, end):
+        s = re.sub(r"//.*", "", lines[k])
+        d += s.count("{") - s.count("}")
+    return d
+
+
+def enclosing_function(lines, index, scores, tu):
+    """The measured function whose BODY a line sits in, or None.
+
+    Nearest definition above is not sufficient: a FILE-SCOPE `volatile u32 g;`
+    placed after a function body would take that function's name and then be
+    audited, stripping `volatile` from a global -- the one case where the
+    keyword is least likely to be decoration. Requiring positive brace depth
+    between the definition and the line rejects that. Measured at 6547a375 the
+    guard rejects none of the 81 real sites, so it costs nothing and closes the
+    hazard.
+    """
+    for j in range(index - 1, -1, -1):
+        m = FNDEF.match(lines[j])
+        if m and (tu, m.group(1)) in scores:
+            if brace_depth(lines, j, index) > 0:
+                return m.group(1)
+            return None
+    return None
+
+
+def volatile_sites(tu, scores):
+    """[(line, function, text)] for every volatile local in a measured fn."""
+    path = source_of(tu)
+    if path is None:
+        return []
+    lines = path.read_text(errors="replace").split("\n")
+    out = []
+    for i, line in enumerate(lines):
+        if not VOLATILE.match(line):
+            continue
+        fn = enclosing_function(lines, i, scores, tu)
+        if fn:
+            out.append((i + 1, fn, line.strip()))
+    return out
+
+
+VERDICT_RE = re.compile(r"^(OK|POOL|DIFF)\s+(\S+)")
+
+
+def obj_path(tu):
+    return REPO / "build" / "GUNE5D" / "src" / (tu + ".o")
+
+
+def obj_sha1(tu):
+    """sha1 of this TU's object, or None. MWCC output here is deterministic:
+    two untouched rebuilds of bosscam.o gave the same digest (6547a375)."""
+    p = obj_path(tu)
+    if not p.exists():
+        return None
+    import hashlib
+    return hashlib.sha1(p.read_bytes()).hexdigest()
+
+
+def tu_reals(tu):
+    """{function: real} for EVERY function of one TU in a single fndiff call.
+
+    `real_of` spends a process per function. fndiff already prints the whole
+    TU -- `OK`/`POOL` rows are real 0, `DIFF` rows carry the count -- so one
+    call is both cheaper and COMPLETE, which matters because the pragma
+    campaign's one bad keep came from measuring a subset of the functions in
+    scope.
+    """
+    r = subprocess.run([sys.executable, "tools/gdl/fndiff.py", f"{tu}.c",
+                        "--count"], capture_output=True, text=True, cwd=REPO,
+                       timeout=900)
+    out = {}
+    for line in (r.stdout + r.stderr).splitlines():
+        m = VERDICT_RE.match(line.strip())
+        if not m:
+            continue
+        kind, name = m.group(1), m.group(2)
+        rm = REAL_RE.search(line)
+        out[name] = int(rm.group(1)) if rm else (0 if kind != "DIFF" else None)
+    return out
+
+
+def audit_volatile(tu, line_no, fn):
+    """Drop the `volatile` keyword on one local and re-measure the whole TU.
+
+    DEAD here is PROOF, not a screen: the object is compared by sha1, so a DEAD
+    verdict means MWCC emitted the identical object without the qualifier. When
+    the object does move, every function in the TU is re-measured, because a
+    local's frame slot is not guaranteed to be the only thing that shifts.
+
+    For a DECOMPILATION a dead `volatile` is removable even though `volatile`
+    is not semantically a no-op in C: the target object is the specification,
+    these qualifiers are scaffolds added to coerce codegen, and a byte-identical
+    object says this compiler at these flags ignored it. That reasoning does NOT
+    extend to a volatile that moves the object, nor to one on a global or a
+    hardware address -- `enclosing_function` rejects those by brace depth.
+    """
+    path = source_of(tu)
+    original = path.read_text(errors="replace")
+    lines = original.split("\n")
+    m = VOLATILE.match(lines[line_no - 1])
+    if not m:
+        return {"verdict": "SKIPPED", "why": f"line {line_no} is not volatile"}
+    before_sha = obj_sha1(tu)
+    base = tu_reals(tu)
+    lines[line_no - 1] = m.group(1) + m.group(2) + m.group(3).lstrip()
+    path.write_text("\n".join(lines))
+    after_sha = after = None
+    try:
+        if not build_tu(tu):
+            return {"verdict": "BUILD-FAILED"}
+        after_sha = obj_sha1(tu)
+        if after_sha != before_sha:
+            after = tu_reals(tu)
+    finally:
+        path.write_text(original)
+        build_tu(tu)
+        restored = obj_sha1(tu)
+    if restored != before_sha:
+        return {"verdict": "RESTORE-FAILED", "why": "object did not return to "
+                f"{before_sha}; tree left at {restored}"}
+    if after_sha == before_sha:
+        return {"verdict": "DEAD", "identical": True, "deltas": {},
+                "worse": [], "better": []}
+    deltas = {f: (base[f], after[f]) for f in base
+              if base.get(f) is not None and after.get(f) is not None}
+    if not deltas:
+        return {"verdict": "UNMEASURED"}
+    verdict, worse, better = verdict_for_deltas(deltas)
+    if verdict == "DEAD":
+        # object moved but no `real` did: a difference `real` cannot see.
+        verdict = "MOVED-UNSCORED"
+    return {"verdict": verdict, "identical": False,
+            "deltas": {f: d for f, d in deltas.items() if d[0] != d[1]},
+            "worse": worse, "better": better}
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -224,6 +369,9 @@ def main():
     ap.add_argument("--list", action="store_true",
                     help="enumerate regions without building anything")
     ap.add_argument("--out", help="write results as JSON here")
+    ap.add_argument("--volatiles", action="store_true",
+                    help="audit `volatile` locals instead of pragma regions — "
+                         "the other half of what probe.py's reminder names")
     ap.add_argument("--confirm", action="store_true",
                     help="re-measure every HARMFUL region against a fresh "
                          "objdiff fuzzy, the arbiter `real` cannot replace")
@@ -236,6 +384,40 @@ def main():
     tus = sorted(nonmatching_tus())
     if args.tu:
         tus = [t for t in tus if args.tu in t]
+
+    if args.volatiles:
+        sites = [(tu, ln, fn, txt) for tu in tus
+                 for ln, fn, txt in volatile_sites(tu, scores)]
+        if args.list:
+            print(f"{len(sites)} volatile local(s) inside a measured function")
+            for tu, ln, fn, txt in sites:
+                print(f"  {tu:26} :{ln:<5} {fn:28} {txt[:48]}")
+            return 0
+        print(f"{'TU':24} {'function':26} {'line':>5}  verdict")
+        print("-" * 96)
+        vres = []
+        for tu, ln, fn, txt in sites:
+            r = audit_volatile(tu, ln, fn)
+            r.update({"tu": tu, "line": ln, "function": fn, "text": txt})
+            vres.append(r)
+            moved = ", ".join(f"{f} {a}->{b}"
+                              for f, (a, b) in r.get("deltas", {}).items())
+            print(f"{tu:24} {fn:26} {ln:5}  {r['verdict']}"
+                  + (f"  [{moved}]" if moved else ""), flush=True)
+            if r["verdict"] == "RESTORE-FAILED":
+                print(f"ABORTING: {r['why']}", file=sys.stderr)
+                break
+        tally = {}
+        for r in vres:
+            tally[r["verdict"]] = tally.get(r["verdict"], 0) + 1
+        print("\n" + "  ".join(f"{k} {v}" for k, v in sorted(tally.items())))
+        print("\nDEAD here is PROOF, not a screen: the object is compared by "
+              "sha1. MOVED-UNSCORED means the object changed but no `real` "
+              "did, a difference `real` cannot see; treat it as LOAD-BEARING.")
+        if args.out:
+            Path(args.out).write_text(json.dumps(vres, indent=1))
+            print(f"wrote {args.out}")
+        return 0
 
     plan = []
     for tu in tus:

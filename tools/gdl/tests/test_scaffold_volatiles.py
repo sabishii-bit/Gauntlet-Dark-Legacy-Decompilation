@@ -1,0 +1,256 @@
+"""The `volatile` half of the scaffold re-audit, and the traps it closes.
+
+`probe.py`'s standing reminder names "pragma/volatile scaffold row(s)"; the
+campaign that landed 28 dead pragma removals covered only the pragma half.
+This is the other half: 81 `volatile` locals inside a measured function across
+the 57 NonMatching TUs, of which only 23 are frame-padding (`unused[8]`,
+`_pad0[12]`) and 58 are `volatile` on a NAMED, USED variable -- overwhelmingly
+`volatile f32 root` / `rootslot` / `tmp` / `result`, the idiom that forces a
+float store-reload round trip.
+
+WHY DEAD IS PROOF HERE AND NOT A SCREEN. The pragma path scores `real`, which
+counts differing diff lines. This path compares the TU object by sha1 first, so
+a DEAD verdict means MWCC emitted the byte-identical object without the
+qualifier. Determinism was checked: two untouched rebuilds of bosscam.o gave
+the same digest at 6547a375.
+
+WHY REMOVING A DEAD `volatile` IS LEGITIMATE IN A DECOMP, even though
+`volatile` is not a no-op in C: the target object is the specification, these
+qualifiers are scaffolds added to coerce codegen, and a byte-identical object
+says this compiler at these flags ignored it. The reasoning does not extend to
+one that moves the object, nor to a global or a hardware address -- which is
+what the brace-depth guard below exists to keep out of scope.
+
+FOUR TRAPS THIS FILE PINS.
+
+1. BRACE DEPTH. `enclosing_function` took the nearest definition above the
+   line. A file-scope `volatile u32 g;` sitting after a function body would
+   take that function's name and then be audited -- stripping `volatile` from a
+   global, the one case where the keyword is least likely to be decoration.
+   Measured at 6547a375 the guard rejects none of the 81 real sites, so it
+   costs nothing.
+2. AN INITIALIZED VOLATILE IS OUT OF SCOPE. `volatile int x = f();` is not
+   matched, so the audit never rewrites a declaration whose initializer it
+   would have to preserve.
+3. A `DIFF` ROW WITH NO `real` TOKEN IS None, NOT 0. Folding it to 0 would let
+   an unmeasured function read as exact and license a keep -- the same class of
+   error as the 55 UNMEASURED regions fixed at a9c09f62, inverted.
+4. THE OBJECT MUST COME BACK. The restore is verified by digest, not assumed;
+   a mismatch is RESTORE-FAILED and aborts the run rather than reporting a
+   verdict against a tree that no longer matches the baseline.
+
+TWO-SIDED throughout. Positive: pad and named forms match and rebuild without
+the keyword, `register` survives, a body line resolves to its function, an
+unchanged digest is DEAD. Negative: a post-body file-scope volatile resolves to
+None, an initialized one and a commented one do not match, a moved object with
+no `real` delta is MOVED-UNSCORED rather than DEAD, a failed restore is
+RESTORE-FAILED rather than a verdict, and the source is restored even when the
+build fails.
+"""
+import importlib.util
+import tempfile
+import unittest
+from pathlib import Path
+
+SPEC = (Path(__file__).resolve().parent.parent
+        / "composed_census" / "scaffold_audit.py")
+
+
+def load_module():
+    spec = importlib.util.spec_from_file_location("scaffold_audit", SPEC)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def rebuild_without_volatile(mod, line):
+    """What the audit writes back: the same line minus the keyword."""
+    m = mod.VOLATILE.match(line)
+    return None if m is None else m.group(1) + m.group(2) + m.group(3).lstrip()
+
+
+class VolatileMatchTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.mod = load_module()
+
+    # ---------- positive ----------
+
+    def test_pad_and_named_forms_match(self):
+        for line in ("    volatile u8 unused[8];",
+                     "    volatile u8 _pad0[12];",
+                     "    volatile f32 root;",
+                     "    volatile f32 rootslot;",
+                     "    volatile PBSCREEN* screen;",
+                     "        volatile f32 v[3];"):
+            self.assertIsNotNone(self.mod.VOLATILE.match(line), line)
+
+    def test_rebuild_drops_only_the_keyword(self):
+        self.assertEqual(rebuild_without_volatile(
+            self.mod, "    volatile u8 unused[8];"), "    u8 unused[8];")
+        self.assertEqual(rebuild_without_volatile(
+            self.mod, "\tvolatile f32 root;  /* forced spill */"),
+            "\tf32 root;  /* forced spill */")
+
+    def test_register_survives_the_rewrite(self):
+        self.assertEqual(rebuild_without_volatile(
+            self.mod, "    register volatile int x;"),
+            "    register int x;")
+
+    def test_brace_depth_counts_net_braces_ignoring_line_comments(self):
+        lines = ["void f(void)", "{", "    if (a) { b(); }",
+                 "    int x;  // } not a brace", "}"]
+        self.assertEqual(self.mod.brace_depth(lines, 0, 4), 1)
+        self.assertEqual(self.mod.brace_depth(lines, 0, 5), 0)
+
+    def test_a_body_line_resolves_to_its_function(self):
+        lines = ["void other(void)", "{", "}", "", "void target(int a)", "{",
+                 "    volatile f32 root;", "}"]
+        scores = {("tu", "target"): 90.0, ("tu", "other"): 100.0}
+        self.assertEqual(
+            self.mod.enclosing_function(lines, 6, scores, "tu"), "target")
+
+    def test_volatile_sites_reports_line_function_and_text(self):
+        mod = self.mod
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / "x.c"
+            src.write_text("void target(int a)\n{\n    volatile f32 root;\n"
+                           "    return;\n}\n")
+            self.addCleanup(setattr, mod, "source_of", mod.source_of)
+            mod.source_of = lambda tu: src
+            sites = mod.volatile_sites("tu", {("tu", "target"): 90.0})
+        self.assertEqual(sites, [(3, "target", "volatile f32 root;")])
+
+    def test_tu_reals_reads_ok_pool_and_diff_rows(self):
+        mod = self.mod
+        out = ("OK   PointViewDist\n"
+               "POOL msgWidth  (0 real diff lines after pool-name)\n"
+               "DIFF BossCamBossCalc  insns 905/905  lines 364  real 348\n"
+               "ONLY-IN-BASE  bosscam_unused_refs\n")
+        self.addCleanup(setattr, mod, "subprocess", mod.subprocess)
+        mod.subprocess = _FakeSubprocess(out)
+        self.assertEqual(mod.tu_reals("game/boss/bosscam"),
+                         {"PointViewDist": 0, "msgWidth": 0,
+                          "BossCamBossCalc": 348})
+
+    # ---------- negative ----------
+
+    def test_a_file_scope_volatile_after_a_body_is_not_attributed(self):
+        """Trap 1: stripping `volatile` from a global is never in scope."""
+        lines = ["void target(int a)", "{", "    return;", "}", "",
+                 "volatile u32 gHardwareLatch;"]
+        scores = {("tu", "target"): 90.0}
+        self.assertIsNone(
+            self.mod.enclosing_function(lines, 5, scores, "tu"))
+
+    def test_an_initialized_volatile_is_not_matched(self):
+        """Trap 2: the audit must not have to preserve an initializer."""
+        for line in ("    volatile int x = 0;",
+                     "    volatile f32 root = sqrtf(d);",
+                     "    volatile u8 buf[4] = {0};"):
+            self.assertIsNone(self.mod.VOLATILE.match(line), line)
+
+    def test_a_commented_or_parameter_volatile_is_not_matched(self):
+        for line in ("/* volatile f32 root; */",
+                     " * volatile f32 root;",
+                     "void f(volatile u32* p);",
+                     "static volatile int x;"):
+            self.assertIsNone(self.mod.VOLATILE.match(line), line)
+
+    def test_a_diff_row_without_a_real_token_is_none_not_zero(self):
+        """Trap 3: an unmeasured function must not read as exact."""
+        mod = self.mod
+        self.addCleanup(setattr, mod, "subprocess", mod.subprocess)
+        mod.subprocess = _FakeSubprocess("DIFF msgPost  insns 387/387\n")
+        self.assertIsNone(mod.tu_reals("game/ui/message")["msgPost"])
+
+
+class _FakeSubprocess:
+    def __init__(self, out, returncode=0):
+        self._out, self._rc = out, returncode
+
+    def run(self, *a, **kw):
+        from types import SimpleNamespace
+        return SimpleNamespace(stdout=self._out, stderr="",
+                               returncode=self._rc)
+
+
+class AuditVolatileTest(unittest.TestCase):
+    """audit_volatile's verdicts and its restore contract, with no compiler."""
+
+    def setUp(self):
+        self.mod = load_module()
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.src = Path(self.dir.name) / "x.c"
+        self.text = ("void target(int a)\n{\n    volatile f32 root;\n"
+                     "    root = a;\n}\n")
+        self.src.write_text(self.text)
+        self.mod.source_of = lambda tu: self.src
+        self.mod.build_tu = lambda tu: True
+
+    def stub(self, shas, reals):
+        """Serve digests then reals in call order."""
+        self.mod.obj_sha1 = lambda tu: shas.pop(0)
+        self.mod.tu_reals = lambda tu: reals.pop(0)
+
+    # ---------- positive ----------
+
+    def test_an_unchanged_digest_is_dead_and_the_source_is_restored(self):
+        self.stub(["aaa", "aaa", "aaa"], [{"target": 7}])
+        r = self.mod.audit_volatile("tu", 3, "target")
+        self.assertEqual(r["verdict"], "DEAD")
+        self.assertIs(r["identical"], True)
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_a_worsening_real_is_load_bearing(self):
+        self.stub(["aaa", "bbb", "aaa"],
+                  [{"target": 7}, {"target": 21}])
+        r = self.mod.audit_volatile("tu", 3, "target")
+        self.assertEqual(r["verdict"], "LOAD-BEARING")
+        self.assertEqual(r["worse"], ["target"])
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_an_improving_real_is_harmful(self):
+        self.stub(["aaa", "bbb", "aaa"],
+                  [{"target": 21}, {"target": 7}])
+        r = self.mod.audit_volatile("tu", 3, "target")
+        self.assertEqual(r["verdict"], "HARMFUL")
+        self.assertEqual(r["better"], ["target"])
+
+    # ---------- negative ----------
+
+    def test_a_moved_object_with_no_real_delta_is_not_dead(self):
+        """Trap: `real` drops reloc rows, so it cannot see every change."""
+        self.stub(["aaa", "bbb", "aaa"],
+                  [{"target": 7}, {"target": 7}])
+        r = self.mod.audit_volatile("tu", 3, "target")
+        self.assertEqual(r["verdict"], "MOVED-UNSCORED")
+        self.assertNotEqual(r["verdict"], "DEAD")
+
+    def test_a_failed_restore_is_reported_not_scored(self):
+        """Trap 4: never report a verdict against a tree that drifted."""
+        self.stub(["aaa", "aaa", "ccc"], [{"target": 7}])
+        r = self.mod.audit_volatile("tu", 3, "target")
+        self.assertEqual(r["verdict"], "RESTORE-FAILED")
+        self.assertIn("aaa", r["why"])
+        self.assertIn("ccc", r["why"])
+
+    def test_a_non_volatile_line_is_skipped_without_building(self):
+        built = []
+        self.mod.build_tu = lambda tu: built.append(tu) or True
+        r = self.mod.audit_volatile("tu", 4, "target")
+        self.assertEqual(r["verdict"], "SKIPPED")
+        self.assertEqual(built, [])
+
+    def test_the_source_is_restored_even_when_the_build_fails(self):
+        self.mod.obj_sha1 = lambda tu: "aaa"
+        self.mod.tu_reals = lambda tu: {"target": 7}
+        self.mod.build_tu = lambda tu: False
+        r = self.mod.audit_volatile("tu", 3, "target")
+        self.assertEqual(r["verdict"], "BUILD-FAILED")
+        self.assertEqual(self.src.read_text(), self.text)
+
+
+if __name__ == "__main__":
+    unittest.main()
