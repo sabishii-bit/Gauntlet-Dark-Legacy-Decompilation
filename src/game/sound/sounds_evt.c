@@ -1111,25 +1111,27 @@ extern int LevelLetter(int a);
 extern s32 lbl_802577CC[]; /* level -> boss-stream select code (0..29) */
 extern s32 lbl_8025778C[]; /* level -> boss rank/tier */
 
-/* gBossType 36/37/41 use a shared sample set: truncate the speech name
- * at 14 chars and append the variant letter before the lookup. */
-#define BossNameFixup(buffer)                                               \
-    if (gBossType > 0) {                                                    \
-        switch (gBossType) {                                                \
-        case 41:                                                            \
-            (buffer)[14] = 0;                                               \
-            strcat((buffer), "B");                                         \
-            break;                                                          \
-        case 37:                                                            \
-            (buffer)[14] = 0;                                               \
-            strcat((buffer), "D");                                         \
-            break;                                                          \
-        case 36:                                                            \
-            (buffer)[14] = 0;                                               \
-            strcat((buffer), "C");                                         \
-            break;                                                          \
-        }                                                                   \
+/* Xbox SOUNDS.OBJ records modify_boss_ene as void(char*); PS2 sounds.c
+ * retains its body and the caller's positive-BossType guard. The same
+ * switch is inlined at each GameCube lookup. These bosses share samples:
+ * truncate the name at 14 characters and append the variant letter. */
+static inline void modify_boss_ene(char* buffer)
+{
+    switch (gBossType) {
+    case 41:
+        buffer[14] = 0;
+        strcat(buffer, "B");
+        break;
+    case 37:
+        buffer[14] = 0;
+        strcat(buffer, "D");
+        break;
+    case 36:
+        buffer[14] = 0;
+        strcat(buffer, "C");
+        break;
     }
+}
 
 #pragma opt_propagation off
 /* One .bss object, split into two symbols by the extractor: its head is
@@ -1235,74 +1237,106 @@ void AudioSetupBossStreams(register int idx, register char* name)
     }
 
     sprintf(speech->name, "S_%s%sCLOSE", bufA, suffix);
-    BossNameFixup(speech->name);
+    if (gBossType > 0) {
+        modify_boss_ene(speech->name);
+    }
     speech->boss[0][idx] = AudioFindSound(speech->name, -1, 1);
 
     sprintf(speech->name, "S_%s%sCLOSE", bufB, suffix);
-    BossNameFixup(speech->name);
+    if (gBossType > 0) {
+        modify_boss_ene(speech->name);
+    }
     speech->boss[1][idx] = AudioFindSound(speech->name, -1, 1);
 
     sprintf(speech->name, "S_%s%sFAR", bufA, suffix);
-    BossNameFixup(speech->name);
+    if (gBossType > 0) {
+        modify_boss_ene(speech->name);
+    }
     speech->boss[2][idx] = AudioFindSound(speech->name, -1, 1);
 
     sprintf(speech->name, "S_%s%sFAR", bufB, suffix);
-    BossNameFixup(speech->name);
+    if (gBossType > 0) {
+        modify_boss_ene(speech->name);
+    }
     speech->boss[3][idx] = AudioFindSound(speech->name, -1, 1);
 
     if (nvar < 2) {
         sprintf(speech->name, "S_%sHITCLOSE", bufA);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[4][idx] = AudioFindSound(speech->name, -1, 1);
 
         sprintf(speech->name, "S_%sHITFAR", bufA);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[5][idx] = AudioFindSound(speech->name, -1, 1);
     }
 
     if (nvar != 0) {
         sprintf(speech->name, "S_%sHIT1CLOSE", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[6][idx] = AudioFindSound(speech->name, -1, 1);
 
         sprintf(speech->name, "S_%sHIT2CLOSE", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[7][idx] = AudioFindSound(speech->name, -1, 1);
 
         sprintf(speech->name, "S_%sHIT1FAR", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[8][idx] = AudioFindSound(speech->name, -1, 1);
 
         sprintf(speech->name, "S_%sHIT2FAR", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[9][idx] = AudioFindSound(speech->name, -1, 1);
     } else {
         sprintf(speech->name, "S_%sHITCLOSE", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[6][idx] = AudioFindSound(speech->name, -1, 1);
         speech->boss[7][idx] = speech->boss[6][idx];
 
         sprintf(speech->name, "S_%sHITFAR", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[8][idx] = AudioFindSound(speech->name, -1, 1);
         speech->boss[9][idx] = speech->boss[8][idx];
     }
 
     if (mode == 2) {
         sprintf(speech->name, "S_%sSTRIKE", bufA);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[10][idx] = AudioFindSound(speech->name, -1, 1);
 
         sprintf(speech->name, "S_%sSTRIKE", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     } else if (mode == 1) {
         sprintf(speech->name, "S_%sBITE", bufA);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[10][idx] = AudioFindSound(speech->name, -1, 1);
 
         sprintf(speech->name, "S_%sBITE", bufB);
-        BossNameFixup(speech->name);
+        if (gBossType > 0) {
+            modify_boss_ene(speech->name);
+        }
         speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     }
 }
