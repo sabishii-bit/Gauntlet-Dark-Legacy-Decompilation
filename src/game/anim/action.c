@@ -48,12 +48,6 @@ typedef struct atreeseq {
     struct TEXMOD* texmods;
 } atreeseq;
 
-/* per-action init record filled by InitActions */
-typedef struct ACTIONDEF {
-    /* 0x00 */ s32 seq;    /* atree sequence index, -1 = missing */
-    /* 0x04 */ s32 frames; /* sequence frame count */
-} ACTIONDEF;
-
 s32 AtreeFindSeq(atree* tree, char* name);
 void SfxSetParent(void* sfx, void* parent);
 void SfxDeleteParented(void* parent, s32 a, s32 b);
@@ -524,7 +518,8 @@ void DoPlayerAction(void* player)
     animinfo* atree = (animinfo*)((u8*)player + 0x80);
     char** action_names = lbl_80126C68;
     void* node = (u8*)player + 0x7C;
-    ACTIONDEF* defs = (ACTIONDEF*)((u8*)player + 0x210);
+    /* InitActions fills these same 8-byte records for both player and enemy maps. */
+    ACTIONANIM* defs = (ACTIONANIM*)((u8*)player + 0x210);
     s32 rpt = 0;
     s32 next;
     s32 cur;
@@ -534,14 +529,13 @@ void DoPlayerAction(void* player)
     f32 speed;
     s32 mode;
     s32 didt;
-    u32 frame;
+    int frame;
     s32 d;
     s32 act;
     s32 seq;
     s32 combo;
     s32 flags;
     s32 adv;
-    f32 ang;
     s32 dance;
 
     act = pl->anim_20C;
@@ -885,42 +879,14 @@ void DoPlayerAction(void* player)
             }
         } else if (flags != 0 || pl->field_8F4 != 0) {
             if ((pl->coll_flags & 8U) != 0) {
-                s32 gapAct;
-
-                if (cur == P_ATTACK_STEP2) {
-                    gapAct = 0x41;
-                } else {
-                    gapAct = 0x42;
-                }
-                act = gapAct;
+                act = cur == P_ATTACK_STEP2 ? P_ATTACK_STEP2_R : P_ATTACK_STEP3_R;
             } else if ((pl->coll_flags & 4U) != 0) {
-                s32 gapAct;
-
-                if (cur == P_ATTACK_STEP2) {
-                    gapAct = 0x40;
-                } else {
-                    gapAct = 0x3F;
-                }
-                act = gapAct;
+                act = cur == P_ATTACK_STEP2 ? P_ATTACK_STEP3 : P_ATTACK_STEP2;
             } else {
-                s32 gapAct;
-
-                if (cur == P_ATTACK_STEP2) {
-                    gapAct = 0x29;
-                } else {
-                    gapAct = 0x28;
-                }
-                act = gapAct;
+                act = cur == P_ATTACK_STEP2 ? P_ATTACK_QUICK3 : P_ATTACK_QUICK2;
             }
         } else {
-            s32 paired_action;
-
-            if (cur == P_ATTACK_STEP2) {
-                paired_action = 0x41;
-            } else {
-                paired_action = 0x42;
-            }
-            act = paired_action;
+            act = cur == P_ATTACK_STEP2 ? P_ATTACK_STEP2_R : P_ATTACK_STEP3_R;
         }
         break;
     case P_ATTACK_STEP2_R:
@@ -1031,9 +997,9 @@ void DoPlayerAction(void* player)
         break;
     case P_COMBO_ACTIVE1:
         mode = 1;
-        if (defs[0x59].seq >= 0) {
+        if (defs[P_COMBO_ACTIVE2].animidx >= 0) {
             act = P_COMBO_ACTIVE2;
-        } else if (defs[0x5A].seq >= 0) {
+        } else if (defs[P_COMBO_ACTIVE3].animidx >= 0) {
             act = P_COMBO_ACTIVE3;
         } else if (rpt < 2) {
             mode = 0;
@@ -1059,7 +1025,7 @@ void DoPlayerAction(void* player)
     case P_COMBO_DWF2:
         didt = 1;
         if (next != d) {
-            if (defs[d + P_IDLE1].seq >= 0) {
+            if (defs[d + P_IDLE1].animidx >= 0) {
                 act = d + P_IDLE1;
             }
             mode = 2;
@@ -1078,14 +1044,7 @@ void DoPlayerAction(void* player)
     case P_ATTACK_LOW:
     case P_ATTACK_LOW2:
         if (next == P_ATTACK_LOW) {
-            s32 gapAct;
-
-            if (cur == P_ATTACK_LOW) {
-                gapAct = 0x50;
-            } else {
-                gapAct = 0x4F;
-            }
-            act = gapAct;
+            act = cur == P_ATTACK_LOW ? P_ATTACK_LOW2 : P_ATTACK_LOW;
         } else {
             act = P_ATTACK_LOW_R;
         }
@@ -1095,7 +1054,7 @@ void DoPlayerAction(void* player)
             mode = 2;
         } else if (next == P_ATTACK_LOW) {
             act = P_ATTACK_LOW2;
-            if (defs[0x50].seq < 0) {
+            if (defs[P_ATTACK_LOW2].animidx < 0) {
                 act = P_ATTACK_LOW;
             }
         } else {
@@ -1148,14 +1107,7 @@ void DoPlayerAction(void* player)
         break;
     case P_THROW_RELEASE:
     case P_THROW2_RELEASE: {
-        s32 gapAct;
-
-        if (cur == P_THROW_RELEASE) {
-            gapAct = 0x61;
-        } else {
-            gapAct = 0x62;
-        }
-        act = gapAct;
+        act = cur == P_THROW_RELEASE ? P_THROW_RECOVER : P_THROW2_RECOVER;
         break;
     }
     case P_THROW_RECOVER:
@@ -1175,14 +1127,7 @@ void DoPlayerAction(void* player)
         } else if (next == P_USE_MAGIC || next == P_THROW_MAGIC) {
             mode = 2;
         } else if (next == P_THROW_STEP) {
-            s32 gapAct;
-
-            if (cur == P_THROW_STEP) {
-                gapAct = 0x66;
-            } else {
-                gapAct = 0x65;
-            }
-            act = gapAct;
+            act = cur == P_THROW_STEP ? P_THROW_STEP2 : P_THROW_STEP;
         }
         break;
     case P_SSHOT:
@@ -1361,8 +1306,8 @@ void DoPlayerAction(void* player)
         }
         break;
     case P_ATTACK_QUICK:
-    case P_ATTACK_QUICK3:
-        ang = pl->melee_yaw;
+    case P_ATTACK_QUICK3: {
+        f32 ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_180;
         } else if (ang < -2.3561944905) {
@@ -1373,8 +1318,9 @@ void DoPlayerAction(void* player)
             act = P_ATTACK_LEFT;
         }
         break;
-    case P_ATTACK_QUICK2:
-        ang = pl->melee_yaw;
+    }
+    case P_ATTACK_QUICK2: {
+        f32 ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_1802;
         } else if (ang < -2.3561944905) {
@@ -1385,6 +1331,7 @@ void DoPlayerAction(void* player)
             act = P_ATTACK_LEFT2;
         }
         break;
+    }
     case P_THROW:
         if (cur == P_WALK || cur == P_RUN) {
             act = P_THROW2;
@@ -1407,8 +1354,8 @@ void DoPlayerAction(void* player)
             act = P_ATTACK_Q3TOSTEP1;
         }
         /* fallthrough */
-    case P_ATTACK_STEP3:
-        ang = pl->melee_yaw;
+    case P_ATTACK_STEP3: {
+        f32 ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_180;
         } else if (ang < -2.3561944905) {
@@ -1419,8 +1366,9 @@ void DoPlayerAction(void* player)
             act = P_ATTACK_LEFT;
         }
         break;
-    case P_ATTACK_STEP2:
-        ang = pl->melee_yaw;
+    }
+    case P_ATTACK_STEP2: {
+        f32 ang = pl->melee_yaw;
         if (ang > 2.3561944905) {
             act = P_ATTACK_1802;
         } else if (ang < -2.3561944905) {
@@ -1431,6 +1379,7 @@ void DoPlayerAction(void* player)
             act = P_ATTACK_LEFT2;
         }
         break;
+    }
     case P_ATTACK_PWRA_CLOSE:
         if ((pl->coll_flags & 2U) != 0) {
             act = P_ATTACK_PWRA_LOW;
@@ -1442,19 +1391,19 @@ void DoPlayerAction(void* player)
     d = act;
     switch (act) {
     case P_ATTACK_PWRA_LOW:
-        if (defs[act].seq < 0) {
+        if (defs[act].animidx < 0) {
             d = P_ATTACK_PWRA_CLOSE;
         }
         break;
     case P_ATTACK_PWRA_LOW_R:
-        if (defs[act].seq < 0) {
+        if (defs[act].animidx < 0) {
             d = P_ATTACK_PWRA_CLOSE_R;
         }
         break;
     }
     atree->repeat = (s16)didt;
     {
-        s32 rawSeq = defs[d].seq;
+        s32 rawSeq = defs[d].animidx;
         seq = rawSeq;
         if (rawSeq < 0) {
             seq = 0;
