@@ -26,7 +26,6 @@ extern u32 lbl_80343F04;
 extern s32 lbl_80343F08;
 extern s32 lbl_80343EE8;
 extern s32 lbl_80343EEC;
-extern s32 lbl_80344F90;
 const char lbl_801164C0[] = "PB_ERROR.C:__LINE__";
 extern s8 ramfont[2030]; /* RFONT.OBJ: 58 glyphs, seven rows of five cells */
 u32 lbl_80344F94; /* four-byte PBGLOBAL_ERROR storage; only its address escapes */
@@ -235,11 +234,13 @@ void fn_800C13CC(void)
 /* Wait for the asynchronous PB error state and acknowledge it. */
 void fn_800C1498(void)
 {
+    /* PS2 pbErrorDie's local h.18; GC polls this four-byte state at 80344F90. */
+    static volatile s32 lbl_80344F90;
     s32 v;
 
-    while (*(volatile s32*)&lbl_80344F90 == 0) {
+    while (lbl_80344F90 == 0) {
     }
-    v = *(volatile s32*)&lbl_80344F90;
+    v = lbl_80344F90;
     switch (v) {
     case 2:
         break;
