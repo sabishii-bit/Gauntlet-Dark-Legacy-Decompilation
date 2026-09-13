@@ -9,14 +9,16 @@
  * from a 256-entry descriptor table, and renders localized messages with the
  * game's text library. */
 
+/* The pause selector and announcer sound ID agree with Xbox HELPTAB and
+ * the GC consumers below; sound is an event ID, not a bitfield. */
 typedef struct MsgDesc {
     /* 0x00 */ int f0;
-    /* 0x04 */ int f4;
+    /* 0x04 */ int pause;
     /* 0x08 */ int priority;
     /* 0x0C */ int category;
     /* 0x10 */ int type;
     /* 0x14 */ int param;
-    /* 0x18 */ int flags;
+    /* 0x18 */ int sound;
 } MsgDesc;
 
 typedef struct MsgData {
@@ -633,7 +635,7 @@ int msgPost(int idx, int param, char* position)
         break;
     }
 
-    category = desc->f4;
+    category = desc->pause;
     if (gGameMode == MA_INSTRUCT || gMessageState != 0) {
         category = -1;
     }
@@ -649,7 +651,7 @@ int msgPost(int idx, int param, char* position)
         break;
     }
 
-    if (desc->flags != 0) {
+    if (desc->sound != 0) {
         if (idx == 0x65 && gMessageValue >= 10) {
             if (gMessageValue >= 99) {
                 fn_8009CD80(param, 0, 99);
@@ -657,7 +659,7 @@ int msgPost(int idx, int param, char* position)
                 fn_8009CD80(param, gPlayers[param].character, gMessageValue);
             }
         } else {
-            fn_8009CB44(param, desc->flags, -1);
+            fn_8009CB44(param, desc->sound, -1);
         }
         if ((gControllerButtons & 0x10) == 0) {
             if (gGameMode == MA_INSTRUCT || gGameMode == MA_DEMO) {
