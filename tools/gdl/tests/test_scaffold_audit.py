@@ -128,5 +128,56 @@ class ScaffoldAuditTest(unittest.TestCase):
             self.assertIsNone(self.mod.PRAGMA.match(line), line)
 
 
+class ScaffoldConfirmTest(unittest.TestCase):
+    """The fuzzy gate that decides whether a HARMFUL verdict is actionable.
+
+    `real` counts differing diff lines; objdiff fuzzy scores stream
+    similarity, and an edit can cut the line count while making the stream
+    LESS similar. Every HARMFUL region found at 0681db82 did exactly that, so
+    all three were refuted: screensaver -0.1846, mb_particle -0.0144,
+    pb_diag -0.0032. Reproduced end-to-end on pb_diag: 97.4419 -> 97.4387.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.mod = load_module()
+
+    def patch_fuzzy(self, before, after):
+        seq = [before, after, before]  # baseline, without-pragma, restored
+
+        def fake(tu):
+            return seq.pop(0) if seq else before
+        self.mod.tu_fuzzy = fake
+        import pathlib as _p
+        src = _p.Path(self.mod.REPO) / "src" / "probe_tmp.c"
+        src.write_text("a\n#pragma x off\nb\n#pragma x reset\nc\n")
+        self.addCleanup(src.unlink)
+        self.mod.source_of = lambda tu: src
+        return src
+
+    def test_a_fuzzy_gain_confirms(self):
+        self.patch_fuzzy(96.0910, 96.0944)
+        c = self.mod.confirm_harmful("probe_tmp", 2, 4)
+        self.assertTrue(c["confirmed"])
+        self.assertAlmostEqual(c["delta"], 0.0034, places=4)
+
+    def test_a_fuzzy_loss_refutes_even_though_real_improved(self):
+        self.patch_fuzzy(97.4419, 97.4387)
+        c = self.mod.confirm_harmful("probe_tmp", 2, 4)
+        self.assertFalse(c["confirmed"])
+        self.assertLess(c["delta"], 0)
+
+    def test_an_unchanged_fuzzy_does_not_confirm(self):
+        """Equal is not better; a keep needs a measured gain."""
+        self.patch_fuzzy(98.1361, 98.1361)
+        self.assertFalse(self.mod.confirm_harmful("probe_tmp", 2, 4)["confirmed"])
+
+    def test_the_source_is_restored_even_on_success(self):
+        src = self.patch_fuzzy(96.0, 97.0)
+        before = src.read_text()
+        self.mod.confirm_harmful("probe_tmp", 2, 4)
+        self.assertEqual(src.read_text(), before)
+
+
 if __name__ == "__main__":
     unittest.main()

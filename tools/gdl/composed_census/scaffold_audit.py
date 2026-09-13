@@ -176,6 +176,46 @@ def audit_region(tu, pragma, a, b, fns):
             "worse": worse, "better": better}
 
 
+def tu_fuzzy(tu):
+    """This TU's objdiff fuzzy from a FRESH full report, or None."""
+    r = subprocess.run(["ninja", "-j2"], capture_output=True, text=True,
+                       cwd=REPO, timeout=3600)
+    if r.returncode != 0 or not REPORT.exists():
+        return None
+    for u in json.loads(REPORT.read_text())["units"]:
+        key = u["name"].split("/", 1)[1] if "/" in u["name"] else u["name"]
+        if key == tu:
+            return float(u["measures"]["fuzzy_match_percent"])
+    return None
+
+
+def confirm_harmful(tu, a, b):
+    """Re-measure a HARMFUL region against the ARBITER: fresh objdiff fuzzy.
+
+    `real` counts differing diff lines; fuzzy scores stream similarity, and an
+    edit can cut the line count while making the stream less similar. All three
+    HARMFUL regions found at 0681db82 did exactly that -- real improved,
+    TU fuzzy fell (screensaver -0.1846, mb_particle -0.0144, pb_diag -0.0032).
+    So a HARMFUL verdict is NOT actionable until this runs.
+    """
+    path = source_of(tu)
+    before = tu_fuzzy(tu)
+    original = path.read_text(errors="replace")
+    lines = original.split("\n")
+    del lines[b - 1]
+    del lines[a - 1]
+    path.write_text("\n".join(lines))
+    try:
+        after = tu_fuzzy(tu)
+    finally:
+        path.write_text(original)
+        tu_fuzzy(tu)
+    if before is None or after is None:
+        return {"confirmed": None, "why": "fuzzy unavailable"}
+    return {"confirmed": after > before, "fuzzy_before": before,
+            "fuzzy_after": after, "delta": round(after - before, 4)}
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -184,6 +224,9 @@ def main():
     ap.add_argument("--list", action="store_true",
                     help="enumerate regions without building anything")
     ap.add_argument("--out", help="write results as JSON here")
+    ap.add_argument("--confirm", action="store_true",
+                    help="re-measure every HARMFUL region against a fresh "
+                         "objdiff fuzzy, the arbiter `real` cannot replace")
     args = ap.parse_args()
 
     scores = fuzzy_index()
@@ -226,6 +269,26 @@ def main():
                 f"{f} {r['deltas'][f][0]}->{r['deltas'][f][1]}"
                 for f in r["worse"][:2])
         print(f"{tu:24} {pragma:22} {len(fns):5}  {r['verdict']}{extra[:44]}")
+    if args.confirm:
+        harmful = [r for r in results if r["verdict"] == "HARMFUL"]
+        if harmful:
+            print(f"\nconfirming {len(harmful)} HARMFUL region(s) against "
+                  f"fresh objdiff fuzzy")
+            for r in harmful:
+                c = confirm_harmful(r["tu"], *r["lines"])
+                r["confirmation"] = c
+                if c.get("confirmed") is True:
+                    print(f"  CONFIRMED  {r['tu']:24} fuzzy "
+                          f"{c['fuzzy_before']:.4f} -> {c['fuzzy_after']:.4f} "
+                          f"({c['delta']:+.4f})")
+                elif c.get("confirmed") is False:
+                    r["verdict"] = "REFUTED-BY-FUZZY"
+                    print(f"  REFUTED    {r['tu']:24} fuzzy "
+                          f"{c['fuzzy_before']:.4f} -> {c['fuzzy_after']:.4f} "
+                          f"({c['delta']:+.4f}) — real improved, fuzzy did not")
+                else:
+                    print(f"  UNCONFIRMED {r['tu']:24} {c.get('why')}")
+
     tally = {}
     for r in results:
         tally[r["verdict"]] = tally.get(r["verdict"], 0) + 1
