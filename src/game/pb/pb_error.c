@@ -130,7 +130,6 @@ void fn_800C1174(register s8* text)
     s32 y;
     s32 clr;
     s32 idx;
-    s32 x;
     s32 row;
     s32 col;
     s8 c8;
@@ -157,7 +156,6 @@ void fn_800C1174(register s8* text)
     y = 50;
     while (*text != 0) {
         idx = 0;
-        x = 0;
         for (clr = 0; clr < 2048; clr++) {
             pixels[clr] = 0;
         }
@@ -183,7 +181,7 @@ void fn_800C1174(register s8* text)
                 for (row = 0; row < 7; row++) {
                     for (col = 0; col < 5; col++) {
                         if (*glyph != 0) {
-                            plot = x + col * 2 + row * 256;
+                            plot = idx * 12 + col * 2 + row * 256;
                             pixels[plot] = 0x00FFFFFF;
                             plot++;
                             pixels[plot] = 0x00FFFFFF;
@@ -193,7 +191,6 @@ void fn_800C1174(register s8* text)
                 }
             }
             idx++;
-            x += 12;
             text++;
         }
         sceGsSetDefLoadImage(image, 0, 10, 0, 50, y, 256, 8);
