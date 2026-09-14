@@ -1510,12 +1510,32 @@ static void setupParms(Psys* p) {
 }
 #pragma opt_propagation reset
 
+/* Average a linear rate over the beginning, end, or all of its interval.
+ * The Xbox PDB retains these five parameters; the PS2 body and its calls
+ * corroborate the repeated inlined arithmetic in the GameCube setup path. */
+static inline f32 calcLineAvg(f32 start, f32 slope, f32 totaltime,
+                              f32 calctime, int section) {
+    f32 average;
+    switch (section) {
+    case 1:
+        start = start + slope * totaltime;
+        average = (f32)(start + 0.5 * (-slope * calctime));
+        break;
+    case 2:
+        average = (f32)(start + 0.5 * (slope * totaltime));
+        break;
+    default:
+        average = (f32)(start + 0.5 * (slope * calctime));
+        break;
+    }
+    return average;
+}
+
 /* 0x800CDCE4 - choose spawn generators + size the ring/index/usage buffers.
  * Wires dir_func/pos_func/ppos_func based on the emit distribution and
  * animation flags, then carves the per-psys buffers out of the block pool (or
  * the world arena). Giant (NonMatching); documented flow. */
 static void setupNewPMode_800CDCE4(Psys* p) {
-    u8 unused[88];
     f32 c0;
     f32 d0;
     f32 a0;
@@ -1569,44 +1589,31 @@ static void setupNewPMode_800CDCE4(Psys* p) {
             if (c0 <= 0.0f && d0 < 0.0f) {
                 if (pl > elife) {
                     f32 rem = pl - elife;
-                    f32 t0 = c0 * elife;
-                    f32 t1 = d0 * rem;
-                    f32 q0 = (f32)(0.5 * t0 + a0);
-                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q0 = calcLineAvg(a0, c0, elife, elife, 2);
+                    f32 q1 = calcLineAvg(b0, d0, efade, rem, 0);
                     q1 = q1 * rem;
                     est = (q0 * elife + q1) / pl;
                 } else {
-                    f32 t0 = c0 * pl;
-                    est = (f32)(0.5 * t0 + a0);
+                    est = calcLineAvg(a0, c0, elife, pl, 0);
                 }
             } else if (c0 <= 0.0f) {
                 if (pl > elife) {
                     f32 rem = pl - elife;
-                    f32 t0 = c0 * elife;
-                    f32 t1 = d0 * rem;
-                    f32 q0 = (f32)(0.5 * t0 + a0);
-                    f32 q1 = (f32)(0.5 * t1 + b0);
+                    f32 q0 = calcLineAvg(a0, c0, elife, elife, 2);
+                    f32 q1 = calcLineAvg(b0, d0, efade, rem, 0);
                     q1 = q1 * rem;
                     part1 = (q0 * elife + q1) / pl;
                 } else {
-                    f32 t0 = c0 * pl;
-                    part1 = (f32)(0.5 * t0 + a0);
+                    part1 = calcLineAvg(a0, c0, elife, pl, 0);
                 }
                 if (pl > efade) {
                     f32 rem = pl - efade;
-                    f32 nc = -c0;
-                    f32 t1 = d0 * efade;
-                    f32 mid = c0 * elife + a0;
-                    f32 t2 = nc * rem;
-                    f32 q1 = (f32)(0.5 * t1 + b0);
-                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    f32 q2 = calcLineAvg(a0, c0, elife, rem, 1);
+                    f32 q1 = calcLineAvg(b0, d0, efade, efade, 2);
                     q1 = q1 * efade;
                     est = (q2 * rem + q1) / pl;
                 } else {
-                    f32 nd = -d0;
-                    f32 mid = d0 * efade + b0;
-                    nd = nd * pl;
-                    est = (f32)(0.5 * nd + mid);
+                    est = calcLineAvg(b0, d0, efade, pl, 1);
                 }
                 if (part1 > est) {
                     est = part1;
@@ -1626,40 +1633,27 @@ static void setupNewPMode_800CDCE4(Psys* p) {
                     up = pl - efade;
                 }
                 {
-                    f32 nc = -c0;
-                    f32 t1 = d0 * dn;
-                    f32 mid = c0 * elife + a0;
-                    f32 t2 = nc * up;
-                    f32 q1 = (f32)(0.5 * t1 + b0);
-                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    f32 q2 = calcLineAvg(a0, c0, elife, up, 1);
+                    f32 q1 = calcLineAvg(b0, d0, efade, dn, 0);
                     q1 = q1 * dn;
                     est = (q2 * up + q1) / pl;
                 }
             } else {
                 if (pl > efade) {
                     f32 rem = pl - efade;
-                    f32 nc = -c0;
-                    f32 t1 = d0 * efade;
-                    f32 mid = c0 * elife + a0;
-                    f32 t2 = nc * rem;
-                    f32 q1 = (f32)(0.5 * t1 + b0);
-                    f32 q2 = (f32)(0.5 * t2 + mid);
+                    f32 q2 = calcLineAvg(a0, c0, elife, rem, 1);
+                    f32 q1 = calcLineAvg(b0, d0, efade, efade, 2);
                     q1 = q1 * efade;
                     est = (q2 * rem + q1) / pl;
                 } else {
-                    f32 nd = -d0;
-                    f32 mid = d0 * efade + b0;
-                    nd = nd * pl;
-                    est = (f32)(0.5 * nd + mid);
+                    est = calcLineAvg(b0, d0, efade, pl, 1);
                 }
             }
         } else {
-            f32 t1 = d0 * efade;
-            f32 t0 = c0 * elife;
             pl = part1;
             {
-                f32 q1 = (f32)(0.5 * t1 + b0);
-                f32 q0 = (f32)(0.5 * t0 + a0);
+                f32 q0 = calcLineAvg(a0, c0, elife, elife, 2);
+                f32 q1 = calcLineAvg(b0, d0, efade, efade, 2);
                 q1 = q1 * efade;
                 q0 = q0 * elife + q1;
                 est = q0 / part1;
