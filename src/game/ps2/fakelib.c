@@ -8,7 +8,7 @@
 
 s32 DVDGetCommandBlockStatus(DVDCommandBlock* block);
 void ScrollMessageBox(char* msg);   /* disc-error message display (MESSAGE.OBJ) */
-void sysHandleReset(void);        /* frame yield while waiting on DVD */
+void sysHandleReset(void);        /* reset polling while waiting on DVD */
 void sndTestStartAll(void);    /* post-error recovery after the error screen */
 
 extern u8 gDiskErrorShown;       /* error-screen-shown flag (other TU) */
@@ -166,87 +166,61 @@ int sceWrite(int fd, const void* buf, int len)
     return 0;
 }
 
-/* Reconstruction debt: the scalar message form restores the 48-byte target
- * frame but emits an extra zero load (87 target / 88 native instructions).
- * This historical carrier still leaves five frame words unmatched. */
-typedef struct SDvdMessageCarrier {
-    char* message;
-} SDvdMessageCarrier;
+/* Both the initial request failure and the polling loop contain this same
+ * status-to-message switch in the target. Keep its message local to the
+ * display operation; no aggregate carrier or reserved stack member is needed.
+ * The descriptive helper name is reconstructed, not a recovered symbol. */
+static inline void sDvdShowError(int status, char* base)
+{
+    char* message = 0;
+
+    switch (status) {
+    case -1:
+        message = base + 176;
+        break;
+    case 5:
+        message = base + 304;
+        break;
+    case 4:
+    case 6:
+        message = base + 336;
+        break;
+    case 11:
+        message = base + 388;
+        break;
+    }
+    if (message != 0) {
+        ScrollMessageBox(message);
+    }
+}
 
 /* 0x800AEBF4: synchronous DVD read with disc-error UI (0x15C) */
 int sDvdReadSync(DVDFileInfo* fileInfo, void* buf, int len, int offset)
 {
-    SDvdMessageCarrier carrier;
     char* base = (char*) DiskErrorStr;
     int status;
 
-    carrier.message = 0;
     gDiskErrorShown = 0;
     sDvdBusy = 0;
     if (DVDReadAsyncPrio(fileInfo, buf, len, offset, 0, 2) == 0) {
         sDvdBusy = 1;
-        switch (DVDGetCommandBlockStatus(&fileInfo->cb)) {
-        case -1:
-            carrier.message = base + 176;
-            break;
-        case 5:
-            carrier.message = base + 304;
-            break;
-        case 4:
-        case 6:
-            carrier.message = base + 336;
-            break;
-        case 11:
-            carrier.message = base + 388;
-            break;
-        }
-        if (carrier.message != 0) {
-            ScrollMessageBox(carrier.message);
-        }
+        sDvdShowError(DVDGetCommandBlockStatus(&fileInfo->cb), base);
     }
     do {
         status = DVDGetCommandBlockStatus(&fileInfo->cb);
-        if (status == 3) {
-            goto dvd_busy;
-        }
-        /* Keep the busy block between the range tests and error dispatch.
-         * This is the source layout MWCC uses for the original block order. */
-        if (status >= 3 || status < 0) {
-            goto dvd_error;
-        }
-        goto dvd_done;
-
-    dvd_busy:
-        sDvdBusy = 1;
-        goto dvd_done;
-
-    dvd_error:
-        {
-            char* msg2;
-
+        switch (status) {
+        case 3:
             sDvdBusy = 1;
-            msg2 = 0;
-            switch (status) {
-            case -1:
-                msg2 = base + 176;
-                break;
-            case 5:
-                msg2 = base + 304;
-                break;
-            case 4:
-            case 6:
-                msg2 = base + 336;
-                break;
-            case 11:
-                msg2 = base + 388;
-                break;
-            }
-            if (msg2 != 0) {
-                ScrollMessageBox(msg2);
-            }
+            break;
+        case 0:
+        case 1:
+        case 2:
+            break;
+        default:
+            sDvdBusy = 1;
+            sDvdShowError(status, base);
+            break;
         }
-
-    dvd_done:
         sysHandleReset();
     } while (status != 0);
     if (gDiskErrorShown != 0) {
