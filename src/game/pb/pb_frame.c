@@ -18,7 +18,9 @@
  * pb_global.c ABOVE 0x800C33FC -- this TU stops at 0x800C33FC.
  *
  * .text 0x800C151C-0x800C33FC. Compiled -Cpp_exceptions on (cflags_demo).
- * NonMatching: pbFrameMode still differs, and native BSS ownership is open.
+ * Native code, mode-name pool, debug state, positional bindings and exception
+ * records match in the source-selected DOL. The frame-buffer BSS ownership
+ * and remaining raw register views are still reconstruction debt.
  */
 
 #include "types.h"
@@ -71,19 +73,6 @@ typedef struct WinGlobals {
 
 extern WinGlobals* gWinGlobals;
 
-/* frame-control block (*lbl_80343EFC) */
-typedef struct PbFrameCtl {
-    s32 m00;           /* 0x00 */
-    u8  _pad04[0xc];
-    s32 m10;           /* 0x10 */
-    s32 m14;           /* 0x14 : apply-decoded-registers flag */
-    s32 m18;           /* 0x18 : current frame index */
-    u8  _pad1c[0xc];
-    u8* m28;           /* 0x28 */
-    u8* m2c;           /* 0x2C */
-} PbFrameCtl;
-
-extern PbFrameCtl* lbl_80343EFC;
 extern u32* lbl_80343F20;
 extern u32* lbl_80343E7C;
 extern u32* lbl_80343E80;
@@ -172,6 +161,59 @@ typedef struct PBFRAMEBUF {
     PBGSReg o2_dispfb;
     PBGSReg o2_display;
 } PBFRAMEBUF;
+
+/* PBFRAMEINFO: comments give offsets within the enclosing debug record.
+ * Existing GC field views remain pending further naming cleanup. */
+typedef struct PbFrameDecode {
+    /* +0x18 */ s32 frameIdx;
+    /* +0x1C */ u8  m1C;
+    u8 _pad1d[3];
+    /* +0x20 */ u32 m20;
+    /* +0x24 */ u32 m24;
+    /* +0x28 */ PBFRAMEBUF* m28;
+    /* +0x2C */ u8* regs;
+    /* +0x30 */ u32 m30;
+    /* +0x34 */ u32 m34;
+    u32 m38, m3C, m40, m44, m48, m4C, m50, m54, m58, m5C, m60;
+    /* +0x64 */ f32 f64;
+    /* +0x68 */ f32 f68;
+    /* +0x6C */ u32 m6C;
+    /* +0x70 */ u32 m70;
+    u32 m74, m78, m7C, m80, m84, m88, m8C, m90, m94, m98, m9C;
+    /* +0xA0 */ f32 fA0;
+    /* +0xA4 */ f32 fA4;
+} PbFrameDecode;
+
+/* PBFRAMEDEBUG is the existing 176-byte fdb record. Its six switches,
+ * nested 144-byte PBFRAMEINFO and trailing GS TEST word agree with the
+ * Xbox PDB and the GC debug grab/set accesses. Keep the existing linker
+ * identity; the original GC storage-class spelling remains unproven. */
+typedef struct PbFrameCtl {
+    s32 enable;
+    s32 show_draw_buffer;
+    s32 show_z_buffer;
+    s32 show_a_eq_1;
+    s32 grab_frminfo;
+    s32 use_frminfo;
+    PbFrameDecode frminfo;
+    u64 test_for_a_eq_1;
+} PbFrameCtl;
+
+extern PbFrameCtl* lbl_80343EFC;
+
+/* Frame-mode diagnostic names, indexed by the existing PBFB enum.
+ * Their eight target pointers precede fdb; the diagnostic string below
+ * follows this pool rather than starting a separate aligned section. */
+char* lbl_80128088[8] = {
+    "PBFB_NOCHANGE", "PBFB_CLOSED", "PBFB_FIRST", "PBFB_640_224_C16_Z24",
+    "PBFB_640_448_C16_Z24", "PBFB_640_224_C16_Z16",
+    "PBFB_640_448_C16_Z16", "PBFB_LAST"
+};
+
+/* Initially grab/apply frame information; GS TEST uses DATE=1 and DATM=1. */
+// lint-allow-next-line FM007: Packed GS TEST value: DATE at bit 14 and DATM at bit 15 select destination alpha = 1, matching fdb's trailing target word.
+PbFrameCtl lbl_801280A8 = {0, 0, 0, 0, 1, 1, {0}, 0xC000};
+
 /* Per-field sceGs display-environment record (40 bytes; dispenv[] holds
  * two back to back). No PDB struct match -- GC target displacements only,
  * placeholder mNN field names in this file's established idiom. */
@@ -225,12 +267,26 @@ typedef struct PbTplC {
     u8 _pad24[4];
     P8 m28;
 } PbTplC;
+/* tGS_DISPLAY2 in the Xbox PDB: two 32-bit GS display-register words.
+ * GC accesses confirm DX at bits 0..11 and MAGH at bits 23..26 in the
+ * compiler's big-endian bitfield layout. MAGH + 1 is the width of one
+ * magnified pixel; the second display is displaced by that width. */
+typedef struct PbGSDisplay {
+    u32 DX : 12;
+    u32 DY : 11;
+    u32 MAGH : 4;
+    u32 MAGV : 2;
+    u32 p0 : 3;
+    u32 DW : 12;
+    u32 DH : 11;
+    u32 p1 : 9;
+} PbGSDisplay;
+
 typedef struct GsFldB5b1 { u8 a : 5; u8 b : 1; u8 c : 2; } GsFldB5b1;
 extern s32 lbl_80343F00;
 extern f64 lbl_80348F18;
-extern u32 lbl_80343EF8;
+extern char* lbl_80343EF8;
 extern s32 lbl_80343F04;
-extern u32 lbl_80128088[];
 extern s32 lbl_80344FA0;
 extern s32 lbl_80344FA4;
 extern s32 lbl_80344FA8;
@@ -263,7 +319,7 @@ void fn_800C151C(s32 which)
         lbl_80344F98 = 0;
         return;
     }
-    lbl_80343EFC->m18 = which;
+    lbl_80343EFC->frminfo.frameIdx = which;
     g->frame = g->screen->frames + which * 0x200;
     *lbl_80343F20 = (u32)(g->screen->frames + which * 0x200);
     frame = (PBFRAMEBUF*)g->frame;
@@ -298,7 +354,7 @@ void fn_800C1624(void)
     if (*q != 0) {
         pbFrameMode(*q, 1);
         g->screen->m14 = 0;
-        if (lbl_80343EFC->m10 != 0) {
+        if (lbl_80343EFC->grab_frminfo != 0) {
             fn_800C2C74();
         }
         DIntr();
@@ -308,9 +364,29 @@ void fn_800C1624(void)
     } else if (s->m48 != 0) {
         pbFrameMode(s->m10, 0);
     }
-    if (lbl_80343EFC->m00 != 0) {
+    if (lbl_80343EFC->enable != 0) {
         fn_800C2618();
     }
+}
+
+/* PS2 pbSetScreenSize (0x001A8C98) and Xbox's corresponding 0x000A28B0
+ * take three floats, store width/height/mask, supply virtual-size defaults,
+ * then call pbSetupFrameSize. All four GC mode arms contain that body.
+ * Its original GC linkage is unproven; this local inline recovers the
+ * argument-conversion boundary without adding an outlined function. */
+static inline void pbSetScreenSize(f32 width, f32 height, f32 mask)
+{
+    WinGlobals* g = gWinGlobals;
+    g->screen->width = (s32)width;
+    g->screen->height = (s32)height;
+    g->screen->m30 = 1;
+    g->screen->m34 = (s32)mask;
+    if (g->screen->m28 == 0 || g->screen->m2c == 0) {
+        WinGlobals* defaults = gWinGlobals;
+        defaults->screen->m28 = 512;
+        defaults->screen->m2c = 384;
+    }
+    fn_800C2F88();
 }
 
 /* Display frame-mode state machine (0xEF8; the PB_FRAME namesake).
@@ -322,6 +398,10 @@ void pbFrameMode(s32 mode, s32 flag)
     WinGlobals* g;
     s32 sync0;
     MBScreen* scr;
+    /* Existing template storage: the SDK double-buffer call and PS2/Xbox
+     * sceGsDBuffDc corroborate one original object here, but its complete
+     * GC member layout has not yet been recovered. Keep these extents;
+     * the obsolete standalone spare/constant locals are no longer needed. */
     u8 tplC2[64];                         /* 616..679 */
     u8 tplB2[88];                         /* 528..615 */
     u8 tplA1[88];                         /* 440..527 */
@@ -331,11 +411,7 @@ void pbFrameMode(s32 mode, s32 flag)
     u8 dispenv[96];                       /* 88..183: two 40B + slack */
     u32 gifTag2;                          /* 684 */
     u32 colorMask;                        /* 688 */
-    u32 kTest1;                           /* 692.. spare consts */
-    u8 _spare[16];
-    u32 kAlpha1;                          /* 736 */
     u32 kBig;                             /* 740 */
-    u32 kTexFlush;                        /* 744 */
     u32 kNop;                             /* 748 */
     u8* tplA2p;                           /* 752 */
     s32 loopW;                            /* r27 */
@@ -360,8 +436,6 @@ void pbFrameMode(s32 mode, s32 flag)
     u8* tA;
     u8* tB;
     u8* tC;
-    s32 convW;
-    s32 convH;
     s32 smode;
 
     g = gWinGlobals;
@@ -371,18 +445,7 @@ void pbFrameMode(s32 mode, s32 flag)
     }
     switch (mode) {
     case 3:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)(lbl_80343F0C / 2);
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x1000000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)(lbl_80343F0C / 2), (f32)(0x1000000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08 / 2;
         g->screen->m00 = 2;
@@ -392,18 +455,7 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 4:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)lbl_80343F0C;
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x1000000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)lbl_80343F0C, (f32)(0x1000000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08;
         g->screen->m00 = 1;
@@ -413,18 +465,7 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 0;
         break;
     case 5:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)(lbl_80343F0C / 2);
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x10000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)(lbl_80343F0C / 2), (f32)(0x10000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08 / 2;
         g->screen->m00 = 2;
@@ -434,18 +475,7 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 6:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)lbl_80343F0C;
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x10000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)lbl_80343F0C, (f32)(0x10000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08;
         g->screen->m00 = 1;
@@ -491,7 +521,6 @@ void pbFrameMode(s32 mode, s32 flag)
     pC2 = tplC2;
     gifTag2 = 0x60712435;
     colorMask = 0x1000000 - 1;
-    kAlpha1 = 0x10000 - 32743;
     kNop = 0x7000001A;
     kBig = 0x10000000;
     bufOff = envOff = k = 0;
@@ -537,15 +566,10 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->b = one;
             ((GsFldH4*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 2)))->b = ((GsFldH4*)(env + (offsetof(PbDispEnvRec, m18) + 2)))->b;
             ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
-            {
-            u32 displaySum;
-            displaySum = ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
-                         ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF);
-            displaySum += lbl_80344FA4;
-            displaySum += lbl_80344FAC;
-            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->hi =
-                displaySum + 1;
-            }
+            ((PbGSDisplay*)(buf + offsetof(PBFRAMEBUF, o2_display)))->DX =
+                ((PbGSDisplay*)(env + offsetof(PbDispEnvRec, m18)))->DX +
+                (((PbGSDisplay*)(env + offsetof(PbDispEnvRec, m18)))->MAGH + 1) +
+                lbl_80344FA4 + lbl_80344FAC;
             ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->b =
                 (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + lbl_80344FA8 + xoff;
             ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->hi =
@@ -773,28 +797,6 @@ void fn_800C25F0(u32 x, u32 y)
     gWinGlobals->screen->m48 = 1;
 }
 
-/* GS display-register decode block, viewed at lbl_80343EFC+0x18. */
-typedef struct PbFrameDecode {
-    /* +0x18 */ s32 frameIdx;
-    /* +0x1C */ u8  m1C;
-    u8 _pad1d[3];
-    /* +0x20 */ u32 m20;
-    /* +0x24 */ u32 m24;
-    /* +0x28 */ PBFRAMEBUF* m28;
-    /* +0x2C */ u8* regs;
-    /* +0x30 */ u32 m30;
-    /* +0x34 */ u32 m34;
-    u32 m38, m3C, m40, m44, m48, m4C, m50, m54, m58, m5C, m60;
-    /* +0x64 */ f32 f64;
-    /* +0x68 */ f32 f68;
-    /* +0x6C */ u32 m6C;
-    /* +0x70 */ u32 m70;
-    u32 m74, m78, m7C, m80, m84, m88, m8C, m90, m94, m98, m9C;
-    /* +0xA0 */ f32 fA0;
-    /* +0xA4 */ f32 fA4;
-} PbFrameDecode;
-
-
 /* Re-pack the decode block back into the GS DISPLAY/DISPFB register shadows
  * (both field mirrors), refresh the scale ratios, and rebuild PMODE. */
 void fn_800C2618(void)
@@ -802,8 +804,8 @@ void fn_800C2618(void)
     PbFrameDecode* s;
     u8 unused[8];
 
-    if (lbl_80343EFC->m14 != 0) {
-        s = (PbFrameDecode*)&lbl_80343EFC->m18;
+    if (lbl_80343EFC->use_frminfo != 0) {
+        s = &lbl_80343EFC->frminfo;
         if (s->m28 != 0) {
             s->f64 = (f32)(s32)s->m5C / (f32)(s32)s->m54;
             s->f68 = (f32)(s32)s->m60 / (f32)(s32)s->m58;
@@ -884,7 +886,7 @@ void fn_800C2618(void)
  * block (widths, positions, magnifications) and derive the scale ratios. */
 void fn_800C2C74(void)
 {
-    PbFrameDecode* s = (PbFrameDecode*)&lbl_80343EFC->m18;
+    PbFrameDecode* s = &lbl_80343EFC->frminfo;
     u8 unused[8];
 
     if (s->m28 != 0) {
@@ -987,8 +989,8 @@ void fn_800C31C4(void)
     g->screen->m10 = 0;
     g->screen->m14 = 4;
     g->screen->m18 = 4;
-    lbl_80343EFC->m28 = fb;
-    lbl_80343EFC->m2c = fb;
+    lbl_80343EFC->frminfo.m28 = (PBFRAMEBUF*)fb;
+    lbl_80343EFC->frminfo.regs = fb;
 }
 
 /* Force the default screen block + reset it
@@ -1011,8 +1013,8 @@ void fn_800C32D0(void)
     g->screen->m10 = zero;
     g->screen->m14 = 4;
     g->screen->m18 = 4;
-    lbl_80343EFC->m28 = fb;
-    lbl_80343EFC->m2c = fb;
+    lbl_80343EFC->frminfo.m28 = (PBFRAMEBUF*)fb;
+    lbl_80343EFC->frminfo.regs = fb;
 }
 
 /* Install the default m60 hook if unset
