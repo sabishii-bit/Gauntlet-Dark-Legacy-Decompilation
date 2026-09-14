@@ -197,6 +197,38 @@ extern void SetViewportHeight(f32 h);
 extern void SetVertexFormat(s32 fmt);
 extern void PSMTXIdentity(f32 mtx[3][4]);
 
+/* GC view of gcontrolpadmanager, also consumed by gcontrolpads.c: count at
+ * +0, four one-byte controller subobjects at +4, PADStatus pointer at +8,
+ * and four channel indices at +0x0C. The startup iterator independently
+ * confirms the controller extent (size 1, count 4); these are not colors.
+ * This C storage view does not reconstruct the C++ construction/linkage. */
+typedef struct MBPadManager {
+    s32 count;
+    u8 controllers[4];
+    PADStatus* status;
+    s32 map[4];
+} MBPadManager;
+
+/* Xbox's gcontrolpadmanager_c declares RemoveAllActiveControllers,
+ * GetActivePadCount and AddController. GC's read-state body clears count,
+ * reads it for the map store, then reloads/increments it. Preserving those
+ * member boundaries as C inlines recovers its 40-byte frame without the
+ * former unused eight-byte array. Local spellings/linkage are descriptive. */
+static inline void mbPadRemoveAllActiveControllers(MBPadManager* manager)
+{
+    manager->count = 0;
+}
+
+static inline s32 mbPadGetActiveCount(MBPadManager* manager)
+{
+    return manager->count;
+}
+
+static inline s32 mbPadAddController(MBPadManager* manager)
+{
+    return manager->count++;
+}
+
 /* internal helpers (defined below / same TU) */
 u32 mbInitBlitEntry(MBBLIT* b, int arg, int z);
 void mbBlitProject(MBBLIT* b, int a, int c);
@@ -213,7 +245,7 @@ void mbBlitCvtCoord(MBBLIT* b, f64 depth);
 void mbBlitCalcY(MBBLIT* b, s32 y);
 void mbBlitCalcClip(MBBLIT* b, f32 xScale, f32 yScale);
 void mbBlitCalcX(MBBLIT* b, s32* width, s32* height);
-void mbBlitPadTest(s32* manager);
+void mbBlitPadTest(MBPadManager* manager);
 extern void G3DInitPadStatus(int a, int b);
 extern void G3DUpdatePadStatus(void);
 
@@ -252,13 +284,13 @@ void fn_800B27C4(void)
     tpms = OSMillisecondsToTicks(1);
     while ((f32)(u32)(OSGetTime() / tpms) < deadline) {
     }
-    mbBlitPadTest((s32*)(mgr + 12));
+    mbBlitPadTest((MBPadManager*)(mgr + 12));
 
     deadline += 500.0f;
     tpms = OSMillisecondsToTicks(1);
     while ((f32)(u32)(OSGetTime() / tpms) < deadline) {
     }
-    mbBlitPadTest((s32*)(mgr + 12));
+    mbBlitPadTest((MBPadManager*)(mgr + 12));
 }
 
 
@@ -1617,27 +1649,26 @@ void mbBlitStaticInit(void) {
 }
 
 
-void mbBlitPadTest(s32* manager) {
+void mbBlitPadTest(MBPadManager* manager) {
     u32 disconnected = 0;
     u32 present = 0;
     s32 i;
-    u8 unused[8];
 
-    manager[0] = 0;
-    manager[2] = (s32)G3DGetPadStatusBuffer();
+    mbPadRemoveAllActiveControllers(manager);
+    manager->status = G3DGetPadStatusBuffer();
     for (i = 0; i < 4; i++) {
-        u32 bit = 0x80000000U >> i;
-        s8 err = ((s8*)manager[2])[i * 12 + 10];
+        u32 bit = PAD_CHAN0_BIT >> i;
+        s8 err = manager->status[i].err;
 
         switch (err) {
-        case -1:
+        case PAD_ERR_NO_CONTROLLER:
             disconnected |= bit;
-        case -3:
-        case -2:
-        case 0:
+        case PAD_ERR_TRANSFER:
+        case PAD_ERR_NOT_READY:
+        case PAD_ERR_NONE:
             present |= bit;
-            manager[manager[0] + 3] = i;
-            manager[0]++;
+            manager->map[mbPadGetActiveCount(manager)] = i;
+            mbPadAddController(manager);
             break;
         }
     }
