@@ -3084,16 +3084,16 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
 
         if (critterClass != 4 &&
             gCurLevel->plevel > lbl_80346470) {
-            s32 level;
+            f32 level;
 
             playerData = &gPlayers[player];
             level = playerData->level;
             damageScale = lbl_803464A8;
-            if ((f32)level < gCurLevel->plevel) {
+            if (level < gCurLevel->plevel) {
                 damageScale = (f32)(lbl_80346490 -
                     lbl_80346568 *
                     (f64)(gCurLevel->plevel -
-                          (f32)level));
+                          level));
             }
             if ((f64)damageScale < lbl_803464B0) {
                 damageScale = lbl_80346570;
