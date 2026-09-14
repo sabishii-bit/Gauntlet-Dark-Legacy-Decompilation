@@ -380,7 +380,7 @@ s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode);
 void CamReset(NcCamera* cam);
 void StdCamFreeze(void);
 void DebugCamInit(void);
-void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode);
+f32 GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode);
 s32 CamGetPlayerAvgPos(Vec3* out, s32 flags);
 void fn_8006F16C(s32 initialise);
 void fn_8006F418(NcCamera* cbase, f32* target);
@@ -1299,9 +1299,12 @@ void fn_8006F418(NcCamera* cbase, f32* target)
  * A player counts only if state==1; its source point is altpos (0xDC) when the
  * 0x964 bit26 flag is set, else campos (0x54).  When no player is valid the
  * default position (gDefaultPlayerPosition) is used.  bmax/bmin, when non-NULL, receive
- * the bounding box (meaningful only for mode>0).  [callers: bosscam, tower]
+ * the bounding box (meaningful only for mode>0). Returns zero when no player
+ * is valid, otherwise the reciprocal count, including bounding-box modes.
+ * BOSSCAM consumes this f32 weight; the Xbox PDB also declares a float return.
+ * [callers: bosscam, tower]
  */
-void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
+f32 GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
     s32 i;
     f32 count;
     s32 k;
@@ -1343,11 +1346,11 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
         avg[1] = gDefaultPlayerPosition[1];
         avg[2] = gDefaultPlayerPosition[2];
     } else {
-        f32 scale = 1.0 / count;
+        count = 1.0 / count;
         if (mode == 0) {
-            avg[0] *= scale;
-            avg[1] *= scale;
-            avg[2] *= scale;
+            avg[0] *= count;
+            avg[1] *= count;
+            avg[2] *= count;
         } else {
             for (k = 0; k < 3; k++) {
                 avg[k] = 0.5 * (boxMin[k] + boxMax[k]);
@@ -1378,6 +1381,7 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
             avg[k] = v;
         }
     }
+    return count;
 }
 
 #pragma opt_propagation reset
