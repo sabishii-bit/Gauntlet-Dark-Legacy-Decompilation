@@ -1626,7 +1626,7 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     descriptor = c->hdr->descriptor;
     if (descriptor->type != 4 &&
         (f64)lbl_803447D8 < damageGate) {
-        damage = (f32)((f64)damage * damageScale);
+        damage *= damageScale;
     }
     damage_player(playerIndex, damage, 1, damageFlags, direction);
     hit = (u8 *)gPlayers + playerIndex * sizeof(Player);
@@ -1663,7 +1663,7 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
     descriptor = c->hdr->descriptor;
     if (descriptor->type != 4 &&
         (f64)lbl_803447D8 < damageGate) {
-        *damage = (f32)((f64)*damage * damageScale);
+        *damage *= damageScale;
     }
     damage_player(playerIndex, *damage, 1, damageFlags, direction);
     hit = (u8 *)gPlayers + playerIndex * sizeof(Player);
@@ -1694,10 +1694,6 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
     f32 minDistance;
     f32 distance;
     f32 halfForCollision;
-    f64 hitTimeBase;
-    f32 zeroForDamage;
-    f64 damageScale;
-    f64 damageGate;
     s32 i;
 
     maxDistance = ((CritterDamageDef *)dmg)->maxDistance;
@@ -1717,11 +1713,6 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
     end[0] = delta[0] * maxDistance + start[0];
     end[1] = delta[1] * maxDistance + start[1];
     end[2] = delta[2] * maxDistance + start[2];
-    damageGate = *(volatile f64 *)&lbl_80346490;
-    damageScale = *(volatile f64 *)&lbl_803464F8;
-    halfForCollision = *(volatile f32 *)&lbl_803464E8;
-    zeroForDamage = *(volatile f32 *)&lbl_80346470;
-    hitTimeBase = *(volatile f64 *)&lbl_80346500;
 
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
@@ -1744,6 +1735,7 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
                                  start, end, transformed, 0)) {
             continue;
         }
+        halfForCollision = 0.5f;
         if (fn_8005FB48(halfForCollision, start, playerPos, playerPos, 1) >= 0) {
             continue;
         }
@@ -1751,8 +1743,8 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
         delta[1] = end[1] - start[1];
         delta[2] = end[2] - start[2];
         NormalVector2D(delta);
-        CritterDamagePlayerInline(player, c, dmg, 0, delta, 1, damageGate,
-                                  damageScale, zeroForDamage, hitTimeBase);
+        CritterDamagePlayerInline(player, c, dmg, 0, delta, 1, 1.0,
+                                  0.5, 0.0f, 0.25);
     }
 }
 
@@ -1773,13 +1765,6 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     f32 playerPos[3];
     u8 unused[12];
     Player *player;
-    f64 hitTimeBase;
-    f32 zeroDamage;
-    f64 damageScale;
-    f64 damageGate;
-    f64 half;
-    f32 oneForY;
-    f64 zeroRadius;
     f32 playerDamage;
     f32 distance;
     f32 nodeX;
@@ -1796,7 +1781,7 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                                gCurLevel->ene_damage)
                        : lbl_80346488);
     expansion = ((CritterDamageDef *)dmg)->maxDistance;
-    bestDistance = lbl_80346508;
+    bestDistance = 2.0e21f;
     bestPlayer = -1;
     MulVecMat3(((CritterDamageDef *)dmg)->offset, transformed,
                c->worldMoveMatrix);
@@ -1806,20 +1791,13 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     start[0] = c->moveOrigin[0] + transformed[0];
     start[1] = c->moveOrigin[1] + transformed[1];
     start[2] = c->moveOrigin[2] + transformed[2];
-    half = *(volatile f64 *)&lbl_80346478;
-    damageGate = *(volatile f64 *)&lbl_80346490;
-    damageScale = *(volatile f64 *)&lbl_803464F8;
-    oneForY = *(volatile f32 *)&lbl_803464A8;
-    zeroRadius = *(volatile f64 *)&lbl_80346488;
-    zeroDamage = *(volatile f32 *)&lbl_80346470;
-    hitTimeBase = *(volatile f64 *)&lbl_80346500;
 
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
         if (player->state != 1 || player_can_be_damaged(player) == 0) {
             continue;
         }
-        if (radius > zeroRadius && sMusicFadeBase < player->fxhittime) {
+        if (radius > 0.0 && sMusicFadeBase < player->fxhittime) {
             continue;
         }
         playerPos[0] = player->effectpos[0];
@@ -1838,23 +1816,23 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
         *(volatile f32 *)&deltaFromCritter[1] =
             playerPos[1] - c->pos[1];
         deltaFromCritter[2] = playerPos[2] - c->pos[2];
-        deltaFromCritter[1] = oneForY;
+        deltaFromCritter[1] = 1.0f;
         NormalVector(deltaFromNode);
         distance = NormalVector(deltaFromCritter);
         if (distance < bestDistance) {
             bestPlayer = i;
             bestDistance = distance;
         }
-        if (radius > zeroRadius) {
+        if (radius > 0.0) {
             transformed[0] = deltaFromNode[0] + deltaFromCritter[0];
             transformed[1] = deltaFromNode[1] + deltaFromCritter[1];
             transformed[2] = deltaFromNode[2] + deltaFromCritter[2];
-            transformed[0] = (f32)(half * (f64)transformed[0]);
-            transformed[1] = (f32)(half * (f64)transformed[1]);
-            transformed[2] = (f32)(half * (f64)transformed[2]);
+            transformed[0] = (f32)(2.0 * (f64)transformed[0]);
+            transformed[1] = (f32)(2.0 * (f64)transformed[1]);
+            transformed[2] = (f32)(2.0 * (f64)transformed[2]);
             CritterDamagePlayerInlineNode(player, c, dmg, 0, transformed, 1,
-                                          damageGate, damageScale, zeroDamage,
-                                          hitTimeBase, &playerDamage);
+                                          1.0, 0.5, 0.0f,
+                                          0.25, &playerDamage);
         }
     }
     return bestPlayer;
@@ -1914,7 +1892,7 @@ s32 CritterDamagePlayer(Player *player, Critter *c,
     descriptor = c->hdr->descriptor;
     if (descriptor->type != 4 &&
         (f64)lbl_803447D8 < lbl_80346490) {
-        damage = (f32)((f64)damage * lbl_803464F8);
+        damage *= 0.5;
     }
 
     result = damage_player(playerIndex, damage, 1, damageFlags, direction);
@@ -1923,7 +1901,7 @@ s32 CritterDamagePlayer(Player *player, Critter *c,
         Player *hit;
         hit = &gPlayers[playerIndex];
         hit->bossdamage = lbl_80346470;
-        hit->fxhittime = (f32)(lbl_80346500 + (f64)sMusicFadeBase);
+        hit->fxhittime = (f32)(0.25 + (f64)sMusicFadeBase);
         CritterDamagedPlayerSub(playerIndex, c, damage);
     }
     return result;
@@ -2024,7 +2002,7 @@ done:
     f32 bestScore;
 
     best = -1;
-    bestScore = lbl_80346508;
+    bestScore = 2.0e21f;
     if (target != NULL && (f64)target[6] > lbl_80346488 &&
         c->unk4AC > target[6]) {
         return -1;
@@ -2037,7 +2015,7 @@ done:
             bestScore = score;
         }
     }
-    if (mode == 0 && (f64)bestScore >= lbl_80346510) {
+    if (mode == 0 && (f64)bestScore >= 1.0e21) {
         best = -1;
     }
     if (best >= 0) {
@@ -2061,28 +2039,28 @@ f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
     entry = (f32 *)&c->targets[target];
     if (moveTarget != NULL) {
         if (c->rateScale < moveTarget[4]) {
-            return lbl_80346518;
+            return 1.2e21f;
         }
         if (moveTarget[5] > moveTarget[4] &&
             c->rateScale >= moveTarget[5]) {
-            return lbl_80346518;
+            return 1.2e21f;
         }
     }
 
     range = entry[2];
     if (moveTarget != NULL) {
         if (range < moveTarget[0]) {
-            return lbl_8034651C;
+            return 1.01e21f;
         }
         if (moveTarget[1] > lbl_80346488 && range > moveTarget[1]) {
-            return lbl_80346520;
+            return 1.02e21f;
         }
         YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget[2]);
         forward[1] = lbl_80346470;
         SlowNormalVector(forward);
         dot = entry[5] * forward[0] + entry[7] * forward[2];
         if (dot < moveTarget[3]) {
-            return lbl_80346524;
+            return 1.1e21f;
         }
     }
     range = range * entry[4];
@@ -2097,17 +2075,11 @@ void CritterGetSingleTargetPlayer(Critter *c)
     Player *player;
     s32 i;
     f32 score;
-    f32 one;
-    f64 thousand;
-    f64 zero;
 
     c->targetCount = 0;
     if (c->health <= 0.0f) {
         return;
     }
-    one = lbl_803464A8;
-    thousand = lbl_80346528;
-    zero = lbl_80346488;
     player = gPlayers;
     for (i = 0; i < 4; i++, player++) {
         if (player->state != 1 || (player->flags & 4) != 0) {
@@ -2119,18 +2091,18 @@ void CritterGetSingleTargetPlayer(Critter *c)
         score = CritterCalcTarget(c, (f32 *)&c->hdr->target,
                                   targetpos,
                                   &candidate);
-        if (c->particle != NULL && c->visrad > zero && score > c->visrad) {
+        if (c->particle != NULL && c->visrad > 0.0 && score > c->visrad) {
             continue;
         }
         if (sMusicFadeBase < player->fxhittime) {
-            score = score * thousand;
+            score *= 1000.0;
         }
         if (c->targetCount == 0 ||
             score < c->targets[0].testdist) {
             c->targetCount = 1;
             candidate.testdist = score;
             candidate.pidx = i;
-            candidate.invanger = one;
+            candidate.invanger = 1.0f;
             c->targets[0] = candidate;
         }
     }
@@ -2164,7 +2136,7 @@ void CritterResolveMultipleTargets(Critter *c)
         player = (s32)record->pidx;
         if (record->invanger > lbl_80346490) {
             threshold = 2;
-        } else if (record->invanger > lbl_80346530) {
+        } else if (record->invanger > 0.75) {
             threshold = 3;
         } else {
             threshold = 4;
@@ -2209,13 +2181,27 @@ void CritterResolveMultipleTargets(Critter *c)
     }
 }
 
+/* Original helper, inlined into target selection.  Damage counters and the
+ * quotient are single precision; the clamp bounds are double literals.  The
+ * local static cap is one shared object, not part of each target record. */
+static inline f32 CritterPlayerAnger(Critter *c, s32 player)
+{
+    static f32 maxinvanger = 10.0f;
+    f32 damage = c->playerDamage[player].dealt;
+    f32 received = c->playerDamage[player].received;
+    f32 quotient;
+
+    if (damage < 1.0) {
+        return 1.0 + maxinvanger;
+    }
+    quotient = received / damage;
+    return quotient < 0.01 ? 0.01 :
+           quotient > maxinvanger ? maxinvanger : quotient;
+}
+
 /* 0x80036FBC -- collect and distance-sort all eligible player targets. */
 void CritterGetTargetPlayers(Critter *c)
 {
-    /* Original CritterPlayerAnger local static.  That helper's computation
-     * is still flattened below; retain its one shared object here until
-     * the helper is recovered, not a separate cap per player or call. */
-    static f32 maxinvanger = 10.0f;
     u8 unused2[4];
     f32 targetpos[3];
     CritterTargetInfo record;
@@ -2223,27 +2209,12 @@ void CritterGetTargetPlayers(Critter *c)
     Player *player;
     s32 i;
     f32 score;
-    f32 damage;
-    f32 base;
-    f64 ratio;
-    f64 quot;
     f32 thr;
-    f32 result;
-    f64 pt01;
-    f64 one;
-    f64 huge;
-    f64 thousand;
-    f64 zero;
 
     c->targetCount = 0;
     if (c->health <= 0.0f) {
         return;
     }
-    pt01 = lbl_80346540;
-    one = lbl_80346490;
-    thousand = lbl_80346528;
-    zero = lbl_80346488;
-    huge = lbl_80346510;
     player = gPlayers;
     for (i = 0; i < 4; i++, player++) {
         if (player->state != 1) {
@@ -2261,30 +2232,16 @@ void CritterGetTargetPlayers(Critter *c)
                                   &record);
         if (c->particle != NULL) {
             thr = c->visrad;
-            if (thr > zero && score > thr) {
+            if (thr > 0.0 && score > thr) {
                 continue;
             }
         }
         if (sMusicFadeBase < player->fxhittime) {
-            record.testdist = record.testdist * thousand;
+            record.testdist *= 1000.0;
         }
-        if (score < huge) {
+        if (score < 1.0e21) {
             record.pidx = i;
-            damage = c->playerDamage[i].dealt;
-            base = c->playerDamage[i].received;
-            if (damage < one) {
-                result = one + maxinvanger;
-            } else {
-                if ((quot = base / damage) < pt01) {
-                    ratio = pt01;
-                } else if (quot > maxinvanger) {
-                    ratio = maxinvanger;
-                } else {
-                    ratio = quot;
-                }
-                result = ratio;
-            }
-            record.invanger = result;
+            record.invanger = CritterPlayerAnger(c, i);
             record.testdist = record.testdist * record.invanger;
             CritterInsertTarget(c, &record);
         }
