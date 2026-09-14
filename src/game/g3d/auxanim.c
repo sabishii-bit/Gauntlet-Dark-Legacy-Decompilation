@@ -47,9 +47,10 @@ typedef struct ROMTEXTURE {
     } scrollIdx;
 } ROMTEXTURE;
 
-extern TEXMOD special_texmods[5];
-extern int special_texmod_num;
-extern int texmod_scrollidx;
+/* AUXANIM-local in PDB/PS2; GC bounds are five 0x58-byte records and two ints. */
+static TEXMOD special_texmods[5];
+static int special_texmod_num;
+static int texmod_scrollidx;
 extern int InfFrame;
 extern SCROLL lbl_802C2E28[64];
 
