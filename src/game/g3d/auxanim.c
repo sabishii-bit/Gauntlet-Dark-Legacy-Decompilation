@@ -451,14 +451,31 @@ void DoObjAnimation(OANIM* nodes, int ctx, int idx, int frame)
     }
 }
 
+/* GC reverses value-parameter bytes like the animation/model loaders. The
+ * word result is a u32 object, not a potentially unaligned byte-array cast.
+ * These are descriptive helper names; original GC names are not preserved. */
+static inline u16 OAnimSwapHalf(u16 value)
+{
+    u8* bytes = (u8*)&value;
+
+    return (u16)(bytes[0] | (bytes[1] << 8));
+}
+
+static inline u32 OAnimSwapWord(u32 value)
+{
+    u32 result;
+    u8* source = (u8*)&value;
+    u8* destination = (u8*)&result;
+
+    destination[0] = source[3];
+    destination[1] = source[2];
+    destination[2] = source[1];
+    destination[3] = source[0];
+    return result;
+}
+
 void InitOAnimList(OANIMHDR* hdr, int arg)
 {
-    u8 r[4];
-    u32 v;
-    u16 h1;
-    u16 h2;
-    u8 unused[16];
-    u8* s;
     int i;
     OANIM* p;
 
@@ -467,19 +484,9 @@ void InitOAnimList(OANIMHDR* hdr, int arg)
     }
     p = (OANIM*)((char*)hdr + hdr->offset);
     for (i = 0; i < hdr->count; i++) {
-        v = p[i].tex;
-        s = (u8*)&v;
-        r[0] = s[3];
-        r[1] = s[2];
-        r[2] = s[1];
-        r[3] = s[0];
-        p[i].tex = *(u32*)r;
-        h1 = p[i].frames;
-        s = (u8*)&h1;
-        p[i].frames = s[0] | (s[1] << 8);
-        h2 = p[i].start;
-        s = (u8*)&h2;
-        p[i].start = s[0] | (s[1] << 8);
+        p[i].tex = OAnimSwapWord(p[i].tex);
+        p[i].frames = OAnimSwapHalf(p[i].frames);
+        p[i].start = OAnimSwapHalf(p[i].start);
     }
     i = 0;
     while (i < hdr->count) {
