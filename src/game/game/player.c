@@ -1216,10 +1216,10 @@ void WritePlayerInfo(s32 pnum) {
                 case 0:
                 case 3:
                     break;
-                case 6:
+                case 10:
                     write_health_and_items(i);
                     break;
-                case 10:
+                case 6:
                     write_health_and_items(i);
                     break;
                 default:
