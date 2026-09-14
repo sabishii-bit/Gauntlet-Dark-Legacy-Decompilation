@@ -61,7 +61,7 @@ extern int   AudioSoundPlaying(int a);
 extern int   fn_80057BC8(int item);
 extern int   sprintf(char* buf, const char* fmt, ...);
 extern void  ErrorPrintf(const char* fmt, ...);
-extern void  GetPlayerAvgPos(f32* avg, f32* bmax, f32* bmin, int mode);
+extern f32   GetPlayerAvgPos(f32* avg, f32* bmax, f32* bmin, s32 mode);
 extern int   ClosestStartPos(f32* pos);
 extern void  HintMenu(void);
 extern f32   sMusicFadeBase;

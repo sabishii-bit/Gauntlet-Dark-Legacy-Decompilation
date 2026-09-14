@@ -549,7 +549,7 @@ static void BossCamBossCalc(void);
 static void BossCamPlayerCalc(void);
 static void BossCameraStart(void);
 extern void FatalError(char* fmt, u32 code);
-extern f32 GetPlayerAvgPos(f32* out, void* a, f32* b, s32 c);
+extern f32 GetPlayerAvgPos(f32* out, f32* a, f32* b, s32 c);
 extern void GetYawPitch(f32* dir, f32* yaw, f32* pitch);
 extern void DoShake(f32* pos, f32* attn);
 extern void ExtractYPR(void* mtx, f32* pyr);
