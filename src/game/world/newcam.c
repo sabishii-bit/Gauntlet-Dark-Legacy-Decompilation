@@ -392,7 +392,7 @@ void DebugCamControlInputs(void);
 
 /* CalcLookdir is the original two-angle direction helper, preserved
  * as an outlined function by the PS2 and Xbox versions of NEWCAM. */
-static inline void CalcLookdir(f32 yaw, f32 pitch, Vec3* direction)
+static inline void CalcLookdir(Vec3* direction, f32 yaw, f32 pitch)
 {
     YawVec3(lbl_80127D40, direction, -yaw);
     PitchVec3((f32*)direction, (f32*)direction, -pitch);
@@ -561,6 +561,42 @@ s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode) {
 
 #pragma opt_propagation off
 
+/* LimitTranslate is a real NEWCAM helper on PS2/Xbox. Its PDB locals vel
+ * and desiredVel are both float[3]; these replace the old caller's 8- and
+ * 16-byte unexplained reservations. Preserve the GC signed-byte history
+ * cursor and double averaging intermediate. The remaining 40-byte caller
+ * reservation is still unrecovered source debt. */
+static inline s32 LimitTranslate(NcCamera* cam)
+{
+    f32 vel[3];
+    f32 desiredVel[3];
+    f64 inv;
+    s32 count, end, idx;
+    s8 i;
+
+    count = lbl_80343CD0;
+    desiredVel[0] = 0.0f;
+    desiredVel[1] = 0.0f;
+    desiredVel[2] = 0.0f;
+    i = cam->field_1A4;
+    end = cam->field_1A4 + count;
+    for (; i < end; i++) {
+        idx = i % count;
+        desiredVel[0] += cam->ring_pos[idx].x - cam->attention.x;
+        desiredVel[1] += cam->ring_pos[idx].y - cam->attention.y;
+        desiredVel[2] += cam->ring_pos[idx].z - cam->attention.z;
+    }
+    inv = 1.0 / count;
+    vel[0] = desiredVel[0] * inv;
+    vel[1] = desiredVel[1] * inv;
+    vel[2] = desiredVel[2] * inv;
+    cam->attention.x += vel[0];
+    cam->attention.y += vel[1];
+    cam->attention.z += vel[2];
+
+    return vel[0] != 0.0 || vel[1] != 0.0 || vel[2] != 0.0;
+}
+
 /*
  * fn_8006DF34 -- standard-camera per-frame update (UpdateCam's normal path).
  * Pulls the player average into the attention-history ring, converges yaw/pitch
@@ -572,9 +608,7 @@ s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode) {
  * [callers: UpdateCam, fn_8006F16C, fn_8006E654]
  */
 s32 fn_8006DF34(NcCamera* cam) {
-    u8 unused0[8];
     Vec3 avg;
-    u8 unused1[16];
     u8 unused2[40];
     NcMarker* marker;
     CameraData* bounds;
@@ -584,23 +618,12 @@ s32 fn_8006DF34(NcCamera* cam) {
     f32 pitch;
     f64 d;
     f64 inv;
-    f32 sx;
-    f32 sy;
-    f32 sz;
-    f32 dx;
-    f32 dy;
-    f32 dz;
     f32 sd;
     f32 mn;
     f32 mx;
     s32 interp;
     s32 moved;
-    s32 move2d;
     s32 distMoved;
-    s32 end;
-    s32 count;
-    s8 i;
-    s32 idx;
     s8 i2;
     s32 end2;
     s32 idx2;
@@ -656,33 +679,7 @@ s32 fn_8006DF34(NcCamera* cam) {
 
     interp = fn_80070144(yawT, pitchT, cam);
 
-    count = lbl_80343CD0;
-    sx = 0.0f;
-    sy = 0.0f;
-    sz = 0.0f;
-    i = cam->field_1A4;
-    end = cam->field_1A4 + count;
-    for (; i < end; i++) {
-        idx = i % count;
-        sx += cam->ring_pos[idx].x - cam->attention.x;
-        sy += cam->ring_pos[idx].y - cam->attention.y;
-        sz += cam->ring_pos[idx].z - cam->attention.z;
-    }
-    inv = 1.0 / count;
-    moved = 1;
-    dx = sx * inv;
-    dy = sy * inv;
-    dz = sz * inv;
-    cam->attention.x += dx;
-    cam->attention.y += dy;
-    cam->attention.z += dz;
-    move2d = moved;
-    if (dx == 0.0 && dy == 0.0) {
-        move2d = 0;
-    }
-    if (move2d == 0 && dz == 0.0) {
-        moved = 0;
-    }
+    moved = LimitTranslate(cam);
 
     bounds = ((NcLevelData*)gCurLevel)->camera;
     mn = bounds->minrad;
@@ -1178,8 +1175,8 @@ void fn_8006F16C(s32 initialise)
                 *camera, -((NcLevelData*)gCurLevel)->camera->minpitch);
         }
 
-        CalcLookdir(lbl_80344A6C->yaw, lbl_80344A6C->pitch,
-                    &lbl_80344A6C->direction);
+        CalcLookdir(&lbl_80344A6C->direction, lbl_80344A6C->yaw,
+                    lbl_80344A6C->pitch);
 
         lbl_80344A6C->attention.x = average.x;
         lbl_80344A6C->attention.y = average.y;
