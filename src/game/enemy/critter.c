@@ -1679,16 +1679,14 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
 {
     u8 *dmg = (u8 *)damage;
-    u8 framePad[8];
-    f32 start[3];
-    u8 startPad[4];
-    f32 end[3];
-    u8 endPad[4];
-    f32 delta[3];
-    u8 deltaPad[4];
-    f32 transformed[3];
-    u8 transformedPad[4];
-    f32 playerPos[3];
+    /* Original vectors have four components (Xbox locals; GC homes are
+     * 16 bytes apart).  This path reads and writes only XYZ. */
+    f32 start[4];
+    f32 end[4];
+    f32 delta[4];
+    f32 transformed[4];
+    f32 playerPos[4];
+    /* Remaining reservation is not yet associated with an original local. */
     u8 unused[16];
     Player *player;
     f32 maxDistance;
