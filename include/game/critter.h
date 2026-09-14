@@ -262,7 +262,7 @@ typedef struct CritterHitNode {
                                * `file->nodes + (hdr->colBase + i) * 0x50`,
                                * so the pointee is one stride-0x50 NODE entry
                                * (the WAD directory proves that stride) */
-    void *volatile active;    /* 0x04 live atree/scene node; NULL == inactive  */
+    void *active;             /* 0x04 live atree/scene node; NULL == inactive  */
     void *boundNode;          /* 0x08 secondary node handle; walked via the
                                  * MBNode parent/child links in
                                  * CritterInitColnodes                          */

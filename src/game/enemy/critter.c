@@ -2993,7 +2993,7 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
 s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source)
 {
-    u8 *hitNode;
+    CritterHitNode *hitNode;
     CritterMove *move;
     Critter *child;
     Critter *parent;
@@ -3105,53 +3105,40 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
 
     if ((flags & (DMG_SUPER | DMG_MAGIC | DMG_KNOCKOVER | DMG_KNOCKDOWN)) == 0 &&
         c->unkAB8 >= 0) {
-        /* Measured load-bearing (banked-object comparison, this lane):
-          * retyping `hitNode` to `CritterHitNode *` and spelling these as
-          * members rebuilds CritterDamage at 2424 bytes (target 604 insns vs
-          * ours 606) with 286 differing words, whether the cursor is written
-          * `&c->hitnodes[c->unkAB8]` or as the cast byte offset below, and
-          * whether or not the descriptor chain is also converted -- all three
-          * measured the same 2416 -> 2424 B / 286 words.  The element type is
-          * recovered (CritterHitNode, 0x5C, in game/critter.h); only the access
-          * spelling is held back, so the residual is a separate matching
-          * obligation on this function's register web. */
-        hitNode = (u8 *)c + offsetof(Critter, hitnodes) + c->unkAB8 * 0x5C;
-        if (*(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom)) >= *(f32 *)(hitNode + offsetof(CritterHitNode, activeUntil))) {
+        hitNode = &c->hitnodes[c->unkAB8];
+        if (hitNode->activeFrom >= hitNode->activeUntil) {
             damage = lbl_80346470;
         } else {
-            damage *= *(f32 *)(*(u8 **)hitNode +
-                               offsetof(CritterColDescriptor, damageScale));
-            if (*(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom)) + damage >
-                *(f32 *)(hitNode + offsetof(CritterHitNode, activeUntil))) {
-                damage = *(f32 *)(hitNode + offsetof(CritterHitNode, activeUntil)) -
-                         *(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom));
-                if (*(s16 *)(*(u8 **)hitNode +
-                             offsetof(CritterColDescriptor, flags)) & 2) {
+            damage *= hitNode->descriptor->damageScale;
+            if (hitNode->activeFrom + damage >
+                hitNode->activeUntil) {
+                damage = hitNode->activeUntil -
+                         hitNode->activeFrom;
+                if (hitNode->descriptor->flags & 2) {
                     char objectName[40];
                     s32 object;
                     CritterDescriptor *hitCritterDesc;
                     s32 modelIndex;
 
-                    if (*(s16 *)(*(u8 **)hitNode +
-                                 offsetof(CritterColDescriptor, sfxIndex)) >= 0) {
+                    if (hitNode->descriptor->sfxIndex >= 0) {
                         CritterDoTexmodNode(c,
-                            *(s16 *)(*(u8 **)hitNode + offsetof(CritterColDescriptor, sfxIndex)), 0,
-                            (f32 *)(hitNode + offsetof(CritterHitNode, position)));
+                            hitNode->descriptor->sfxIndex, 0,
+                            hitNode->position);
                     }
                     hitCritterDesc =
                         c->hdr->descriptor;
                     modelIndex = hitCritterDesc->modelIndex;
                     sprintf(objectName, "%sD%s", hitCritterDesc->prefix,
-                            ((CritterColDescriptor *)*(u8 **)hitNode)->nodeName);
+                            hitNode->descriptor->nodeName);
                     object = (s32)MBOX_ReallyFindObject(objectName, modelIndex,
                                                         modelIndex, 1);
-                    if (*(void **)(hitNode + offsetof(CritterHitNode, active)) != NULL) {
+                    if (hitNode->active != NULL) {
                         void *activeNode;
 
                         if (object >= 0) {
-                            MBSetObject(*(void **)(hitNode + offsetof(CritterHitNode, active)), object);
+                            MBSetObject(hitNode->active, object);
                         }
-                        activeNode = *(void **)(hitNode + offsetof(CritterHitNode, active));
+                        activeNode = hitNode->active;
                         for (i = 0; i < c->atree.nanodes; i++) {
                             u8 *anode;
 
@@ -3172,21 +3159,19 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                                 }
                             }
                         }
-                        if ((*(s16 *)(*(u8 **)hitNode +
-                                      offsetof(CritterColDescriptor, flags)) & 4) &&
-                            *(void **)((u8 *)*(void **)(hitNode + offsetof(CritterHitNode, active)) + offsetof(MBObject, child)) != NULL) {
+                        if ((hitNode->descriptor->flags & 4) &&
+                            ((MBObject *)hitNode->active)->child != NULL) {
                             CritterRemoveColnodeSub(c,
-                                *(MBObject **)
-                                    ((u8 *)*(void **)(hitNode + offsetof(CritterHitNode, active)) + offsetof(MBObject, child)), 2);
+                                ((MBObject *)hitNode->active)->child, 2);
                         }
                     }
-                    if (*(void **)(hitNode + offsetof(CritterHitNode, dmgfx)) != NULL) {
-                        MBRemoveNode(*(void **)(hitNode + offsetof(CritterHitNode, dmgfx)), 1);
-                        *(void **)(hitNode + offsetof(CritterHitNode, dmgfx)) = NULL;
+                    if (hitNode->dmgfx != NULL) {
+                        MBRemoveNode(hitNode->dmgfx, 1);
+                        hitNode->dmgfx = NULL;
                     }
                 }
             }
-            *(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom)) += damage;
+            hitNode->activeFrom += damage;
         }
     }
 
