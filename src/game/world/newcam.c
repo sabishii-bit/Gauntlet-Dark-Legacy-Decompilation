@@ -144,8 +144,9 @@ typedef struct NcPlayer {
 /* ----- module globals (NEWCAM.OBJ .bss/.data; label names from the disasm) --- */
 extern NcPlayer  gPlayers[4];   /* the 4 player records (game/player.h Player[]) */
 extern f32       gDefaultPlayerPosition[3];   /* default position when no player is valid */
-extern NcCamera  lbl_80274AA0;      /* DebugCamera instance */
-extern NcCamera  lbl_80274C50;      /* standard camera instance */
+/* PDB/PS2 file-static cameras; GC init references and adjacent 0x1B0 extents agree. */
+static NcCamera  lbl_80274AA0;      /* DebugCamera instance */
+static NcCamera  lbl_80274C50;      /* StdCamera instance */
 extern NcCamera* lbl_80344A68;      /* DebugCam: pointer to the live debug camera */
 extern s32       lbl_80344A70;
 extern s32       lbl_80344A7C;      /* debug-camera active flag */
