@@ -18,7 +18,9 @@
  * pb_global.c ABOVE 0x800C33FC -- this TU stops at 0x800C33FC.
  *
  * .text 0x800C151C-0x800C33FC. Compiled -Cpp_exceptions on (cflags_demo).
- * NonMatching: pbFrameMode still differs, and native BSS ownership is open.
+ * All 14 native function bodies match. Source-selected linking still exposes
+ * the diagnostic string's 8-byte alignment against a 4-mod-8 target start;
+ * native data ownership/placement remains a separate closure obligation.
  */
 
 #include "types.h"
@@ -225,6 +227,21 @@ typedef struct PbTplC {
     u8 _pad24[4];
     P8 m28;
 } PbTplC;
+/* tGS_DISPLAY2 in the Xbox PDB: two 32-bit GS display-register words.
+ * GC accesses confirm DX at bits 0..11 and MAGH at bits 23..26 in the
+ * compiler's big-endian bitfield layout. MAGH + 1 is the width of one
+ * magnified pixel; the second display is displaced by that width. */
+typedef struct PbGSDisplay {
+    u32 DX : 12;
+    u32 DY : 11;
+    u32 MAGH : 4;
+    u32 MAGV : 2;
+    u32 p0 : 3;
+    u32 DW : 12;
+    u32 DH : 11;
+    u32 p1 : 9;
+} PbGSDisplay;
+
 typedef struct GsFldB5b1 { u8 a : 5; u8 b : 1; u8 c : 2; } GsFldB5b1;
 extern s32 lbl_80343F00;
 extern f64 lbl_80348F18;
@@ -313,6 +330,26 @@ void fn_800C1624(void)
     }
 }
 
+/* PS2 pbSetScreenSize (0x001A8C98) and Xbox's corresponding 0x000A28B0
+ * take three floats, store width/height/mask, supply virtual-size defaults,
+ * then call pbSetupFrameSize. All four GC mode arms contain that body.
+ * Its original GC linkage is unproven; this local inline recovers the
+ * argument-conversion boundary without adding an outlined function. */
+static inline void pbSetScreenSize(f32 width, f32 height, f32 mask)
+{
+    WinGlobals* g = gWinGlobals;
+    g->screen->width = (s32)width;
+    g->screen->height = (s32)height;
+    g->screen->m30 = 1;
+    g->screen->m34 = (s32)mask;
+    if (g->screen->m28 == 0 || g->screen->m2c == 0) {
+        WinGlobals* defaults = gWinGlobals;
+        defaults->screen->m28 = 512;
+        defaults->screen->m2c = 384;
+    }
+    fn_800C2F88();
+}
+
 /* Display frame-mode state machine (0xEF8; the PB_FRAME namesake).
  * Modes 3-6 reprogram the GS display (width/height/interlace) and rebuild
  * both 512-byte GIF A+D register packets from the sceGs display-env
@@ -322,6 +359,10 @@ void pbFrameMode(s32 mode, s32 flag)
     WinGlobals* g;
     s32 sync0;
     MBScreen* scr;
+    /* Existing template storage: the SDK double-buffer call and PS2/Xbox
+     * sceGsDBuffDc corroborate one original object here, but its complete
+     * GC member layout has not yet been recovered. Keep these extents;
+     * the obsolete standalone spare/constant locals are no longer needed. */
     u8 tplC2[64];                         /* 616..679 */
     u8 tplB2[88];                         /* 528..615 */
     u8 tplA1[88];                         /* 440..527 */
@@ -331,11 +372,7 @@ void pbFrameMode(s32 mode, s32 flag)
     u8 dispenv[96];                       /* 88..183: two 40B + slack */
     u32 gifTag2;                          /* 684 */
     u32 colorMask;                        /* 688 */
-    u32 kTest1;                           /* 692.. spare consts */
-    u8 _spare[16];
-    u32 kAlpha1;                          /* 736 */
     u32 kBig;                             /* 740 */
-    u32 kTexFlush;                        /* 744 */
     u32 kNop;                             /* 748 */
     u8* tplA2p;                           /* 752 */
     s32 loopW;                            /* r27 */
@@ -360,8 +397,6 @@ void pbFrameMode(s32 mode, s32 flag)
     u8* tA;
     u8* tB;
     u8* tC;
-    s32 convW;
-    s32 convH;
     s32 smode;
 
     g = gWinGlobals;
@@ -371,18 +406,7 @@ void pbFrameMode(s32 mode, s32 flag)
     }
     switch (mode) {
     case 3:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)(lbl_80343F0C / 2);
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x1000000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)(lbl_80343F0C / 2), (f32)(0x1000000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08 / 2;
         g->screen->m00 = 2;
@@ -392,18 +416,7 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 4:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)lbl_80343F0C;
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x1000000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)lbl_80343F0C, (f32)(0x1000000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08;
         g->screen->m00 = 1;
@@ -413,18 +426,7 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 0;
         break;
     case 5:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)(lbl_80343F0C / 2);
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x10000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)(lbl_80343F0C / 2), (f32)(0x10000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08 / 2;
         g->screen->m00 = 2;
@@ -434,18 +436,7 @@ void pbFrameMode(s32 mode, s32 flag)
         fieldB = 1;
         break;
     case 6:
-        convW = (s32)(f32)lbl_80343F04;
-        convH = (s32)(f32)lbl_80343F0C;
-        g->screen->width = convW;
-        g->screen->height = convH;
-        g->screen->m30 = 1;
-        g->screen->m34 = 0x10000 - 1;
-        if (g->screen->m28 == 0 || g->screen->m2c == 0) {
-            WinGlobals* defaults = gWinGlobals;
-            defaults->screen->m28 = 512;
-            defaults->screen->m2c = 384;
-        }
-        fn_800C2F88();
+        pbSetScreenSize((f32)lbl_80343F04, (f32)lbl_80343F0C, (f32)(0x10000 - 1));
         loopW = lbl_80343F04;
         loopH = lbl_80343F08;
         g->screen->m00 = 1;
@@ -491,7 +482,6 @@ void pbFrameMode(s32 mode, s32 flag)
     pC2 = tplC2;
     gifTag2 = 0x60712435;
     colorMask = 0x1000000 - 1;
-    kAlpha1 = 0x10000 - 32743;
     kNop = 0x7000001A;
     kBig = 0x10000000;
     bufOff = envOff = k = 0;
@@ -537,15 +527,10 @@ void pbFrameMode(s32 mode, s32 flag)
             ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->b = one;
             ((GsFldH4*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 2)))->b = ((GsFldH4*)(env + (offsetof(PbDispEnvRec, m18) + 2)))->b;
             ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
-            {
-            u32 displaySum;
-            displaySum = ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
-                         ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF);
-            displaySum += lbl_80344FA4;
-            displaySum += lbl_80344FAC;
-            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->hi =
-                displaySum + 1;
-            }
+            ((PbGSDisplay*)(buf + offsetof(PBFRAMEBUF, o2_display)))->DX =
+                ((PbGSDisplay*)(env + offsetof(PbDispEnvRec, m18)))->DX +
+                (((PbGSDisplay*)(env + offsetof(PbDispEnvRec, m18)))->MAGH + 1) +
+                lbl_80344FA4 + lbl_80344FAC;
             ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->b =
                 (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + lbl_80344FA8 + xoff;
             ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->hi =
