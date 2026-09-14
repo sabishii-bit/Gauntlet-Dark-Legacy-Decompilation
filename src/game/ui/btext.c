@@ -265,6 +265,17 @@ static inline char* find_newline(const char* s)
     return 0;
 }
 
+/* The PS2 DrawGlowText calls FontHeight here; the GC caller expands it.
+ * Share that implementation while retaining the public definition's order. */
+static inline s32 FontHeightImpl(f32 scale, s32 font)
+{
+    f32 height;
+
+    height = (f32)MBFontHeight(font);
+    height *= scale;
+    return (s32)height;
+}
+
 /* ==== 0x8001EAE0 DrawGlowTextMLines ==== */
 void DrawGlowTextMLines(f32 scale, s32 x, s32 y, s32* str);
 void DrawGlowText(f32 scale, s32 x, s32 y, u8* str);
@@ -304,7 +315,6 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     u32 a;
     MBTextMsg* q;
     u8* text;
-    u8 unused[8];
 
     load = pbLoad;
     divisor = (u32)(glow_period + span);
@@ -330,10 +340,7 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     MBSetFontAlpha(0);
     MBDrawText(x, y, text);
     MBSetFontScaleSpace(1.0f, 1.0f);
-    {
-        f32 h = (f32)MBFontHeight(glow_font);
-        gDrawTextY = y + (s32)(h *= scale);
-    }
+    gDrawTextY = y + FontHeightImpl(scale, glow_font);
 }
 
 /* ==== 0x8001ED24 ScrollTextNum ==== */
@@ -1117,11 +1124,7 @@ s32 TextHeightMLines(f32 scale, s32 font, char* str)
 /* ==== 0x8002081C FontHeight ==== */
 s32 FontHeight(f32 scale, s32 font)
 {
-    f32 height;
-
-    height = (f32)MBFontHeight(font);
-    height *= scale;
-    return (s32)height;
+    return FontHeightImpl(scale, font);
 }
 
 /* ==== 0x80020874 DrawNormalText ==== */
