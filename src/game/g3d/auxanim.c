@@ -76,23 +76,22 @@ float CalcTexScroll(float t, float lo, float hi, int frame, float* out);
 void DoSpecialTexmods(void)
 {
     int i;
+    TEXMOD* tm;
     void* p;
     u32 rate;
     int tex;
-    int c;
 
     for (i = 0; i < special_texmod_num; i++) {
-        rate = special_texmods[i].rate;
+        tm = &special_texmods[i];
+        rate = tm->rate;
         if ((int)rate <= 0 || InfFrame % rate == 0) {
-            tex = special_texmods[i].tex;
+            tex = tm->tex;
             if (tex >= 0) {
-                p = MBRomTexPtr(special_texmods[i].src + special_texmods[i].counter);
+                p = MBRomTexPtr(tm->src + tm->counter);
                 MBSetRomTexture(tex, p);
             }
-            c = special_texmods[i].counter + 1;
-            special_texmods[i].counter = c;
-            if (c >= special_texmods[i].frames) {
-                ((volatile TEXMOD*)&special_texmods[i])->counter = 0;
+            if (++tm->counter >= tm->frames) {
+                tm->counter = 0;
             }
         }
     }
