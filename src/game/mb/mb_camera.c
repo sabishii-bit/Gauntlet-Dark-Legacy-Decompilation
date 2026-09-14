@@ -19,8 +19,7 @@
  *
  * Stock GC 1.2.5, cflags_demo (-O4, -Cpp_exceptions on, -str reuse,readonly).
  *
- * Status: NonMatching - five native bodies are exact. The remaining inverse
- * projection residual has not yet been resolved through source reconstruction.
+ * All six native bodies are exact under the compiler settings above.
  */
 #include "types.h"
 #include "game/pbwindow.h"
@@ -89,7 +88,9 @@ int MBWorldSphereClip(f32* sphere, f32 radius);
  * local; its fourth component is not initialized because that helper reads
  * only X/Y/Z. Initializing the depth-scaled X numerator in one expression
  * retains the explicit f32 rounding before the multiply and recovers the
- * target's 136-byte frame without the old unused eight-byte reservation. */
+ * target's 136-byte frame without the old unused eight-byte reservation.
+ * Complete the X viewport centering in double precision before narrowing
+ * the coordinate for its depth multiply; the addition is not reassociated. */
 void MBWorldToScreen3D(f32* dst, f32* world)
 {
     PBWINGLOBALS* globals = gWinGlobals;
@@ -120,8 +121,9 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     xScale = (f32)viewport->w / (f32)viewport->wref;
     yScale = (f32)viewport->h / (f32)viewport->href;
     centeredX =
-        (f64)(world[0] * xScale) -
-        0.5 * (f64)viewport->w;
+        (f64)viewport->xoff +
+        ((f64)(world[0] * xScale) -
+         0.5 * (f64)viewport->w);
     centeredY =
         (f64)(world[1] * yScale) -
         0.5 * (f64)viewport->h;
@@ -131,7 +133,7 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     yNumerator =
         (f32)((f64)viewport->yoff + centeredY);
     xNumerator =
-        (f32)((f64)viewport->xoff + centeredX) * projected[2];
+        (f32)centeredX * projected[2];
     yNumerator *= projected[2];
     projected[0] = (xNumerator - projected[2] * camera->viewport[3][0]) /
         (camera->projection[0][0] * camera->viewport[0][0]);
