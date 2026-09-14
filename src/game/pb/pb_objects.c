@@ -1,22 +1,23 @@
 #include "types.h"
 #include "game/mbobject.h"
 
-/* pb_objects.c -- Midway "pb" graphics library object layer (pb_objects.obj on
- * Xbox). .text 0x800C3674-0x800C3F58. Sits between pb_global.c (below) and
- * pb_objregs.c (above) in the PB C++ library run; compiled cflags_demo
- * (-O4 no-peephole, -Cpp_exceptions on, -str reuse,readonly), GC/1.2.5n.
+/* pb_objects.c -- current GameCube PB memory/model/object reconstruction
+ * envelope, .text 0x800C3674-0x800C3F58. Xbox divides these routines between
+ * PB_MEM.OBJ and PB_OBJECTS.OBJ; that roster is not proof of one original GC TU.
+ * Sits between pb_global.c and pb_objregs.c; compiled cflags_demo
+ * (-O4 -inline auto, -Cpp_exceptions on, -str reuse,readonly), GC/1.2.5n.
  *
  * The GameCube build of this TU differs from the Xbox pb_objects.obj: the
  * GX/DEMO port keeps the object push-buffer allocator + module bring-up/reset
  * hooks (called by pb_global.c/pb_window.c/mb_*), the object draw dispatch
  * (pbDrawObject), the texture upload path (pbSendObjTextures) and the
- * interactive object-debug single-stepper (pbDebugObjSStep); the PC-only debug
- * helpers (pbObjectBsearch/printSelObj/pbDebugObjStart/End/calcObjCnt) are
- * dead-stripped.
+ * interactive object-debug single-stepper (pbDebugObjSStep); other debug
+ * helpers (pbObjectBsearch/printSelObj/calcObjCnt) are dead-stripped;
+ * pbDebugObjStart/End are inlined into the texture-upload path.
  *
  * Function names: pbSendObjTextures / pbDebugObjSStep from shell3D.pdb and the
  * "NO-ObjDef" / "Obj Textures Larger than a page" / "PB_ODB_*" strings;
- * pbObjTexSub / pbSendObjTexturesSub are the two TU-local statics. The push-
+ * pbObjTexSub / pbSendObjTexturesSub are the outlined texture statics. The push-
  * buffer allocator + bring-up hooks stay fn_<addr> because pb_global.c (already
  * Matching) and pb_window/mb_* reference them by that name.
  *
@@ -27,9 +28,17 @@
  */
 
 /* --- shared pb-global block (see pb_global.c) --- */
+/* PBSPRBUF is the witnessed 0x800-byte free-list record: the 2044-byte buf is
+ * its real payload. PBObjPool models only the first eight bytes of
+ * PBGLOBAL_MEM, not the complete Xbox 0x14/GC external 0x18 control storage. */
+typedef struct PBSPRBUF {
+    struct PBSPRBUF* next;
+    u8 buf[2044];
+} PBSPRBUF;
+
 typedef struct PBObjPool {
-    void* buf;        /* 0x00 : aligned scratch buffer (CreateSema result) */
-    u8** freehead;    /* 0x04 : head of the 0x800-stride free list */
+    int spr_buf_sema_id; /* 0x00 : semaphore ID returned by CreateSema */
+    PBSPRBUF* freehead;    /* 0x04 : head of the 0x800-stride free list */
 } PBObjPool;
 
 typedef struct PBGlobal {
@@ -82,13 +91,19 @@ extern s16 lbl_80345018;       /* per-frame object counter (reset each frame) */
 extern int lbl_80345020;       /* "objects module open" flag */
 extern int lbl_80345024;       /* ping-pong buffer toggle */
 extern int lbl_80345028;       /* alloc mode: 0 = ping-pong, else free-list */
-extern int lbl_80343F28;       /* pooled scratch buffer ptr (init -1) */
-extern void* lbl_80343F2C;     /* { buf0, buf1, 0 } ping-pong buffers (SDA21) */
+extern int lbl_80343F28;       /* scratch-buffer semaphore ID (init -1) */
+/* The target holds three pointers { arena, arena + 0x2000, NULL } here.
+ * This legacy scalar adapter preserves SDA addressing; declaring the actual
+ * 12-byte array currently changes the native allocator. Extent remains debt. */
+extern void* lbl_80343F2C;
 extern int lbl_80343F3C;       /* draw-hook enable flag (init 1) */
 
 extern u8 lbl_802C52C0[0x18];  /* PBObjPool storage */
 extern u8 lbl_802C52D8[0x158]; /* secondary object block storage */
-extern u8 lbl_802913C0[0x2000];/* object push-buffer pool (8 x 0x800 nodes) */
+/* GC walks eight 0x800-byte nodes across the two current 0x2000 linker
+ * symbols at 802913C0/802933C0. The incomplete extern describes the accessed
+ * record, without claiming allocation or changing those storage boundaries. */
+extern PBSPRBUF lbl_802913C0[];
 extern u8 lbl_802913C0_hi[];   /* == lbl_802933C0, upper half of the pool */
 
 extern u8 lbl_80128178[0x18];  /* semaphore parameter block */
@@ -102,9 +117,9 @@ typedef struct PBObjSlot {
 } PBObjSlot;
 
 typedef struct PBObjDebug {
-    int state;      /* 0x00 : current PB_ODB_* state */
+    int state;      /* 0x00 : sstep, enables the single-stepper */
     u8 _pad04[0x30];
-    int step;       /* 0x34 : last stepped state */
+    int step;       /* 0x34 : cur_state, the current PB_ODB_* state */
     void* obj;      /* 0x38 : object being inspected */
     char* defName;  /* 0x3c : "NO-ObjDef" or the def name */
 } PBObjDebug;
@@ -119,10 +134,10 @@ extern char lbl_80348F3C[];    /* "busy" */
 extern char lbl_80348F44[];    /* "idle" */
 
 /* --- externs into other TUs / the SDK --- */
-extern void WaitSema(void* sema);
-extern void DIntr(void);
-extern void EIntr(void);
-extern void* CreateSema(void* param);
+extern int WaitSema(int sema);
+extern int DIntr(void);
+extern int EIntr(void);
+extern int CreateSema(void* param);
 
 extern void pbSetupPosLights(f32 extra, int, void*, void*); /* pb_objregs pos-light setup */
 extern s32 pbSetDORegs(s32, u32, s32, u32, u32, s32, f32*, void*, u8*);
@@ -141,7 +156,7 @@ void fn_800C37C4(void);
 void fn_800C3880(void);
 void fn_800C38A0(void);
 int fn_800C38C0(void* a, MBObject* obj);
-static u32 pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags);
+static int pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags);
 int pbSendObjTextures(MBObject* obj);
 static int pbSendObjTexturesSub(int idx, PBRomObjectView* def);
 void pbDebugObjSStep(MBObject* obj, int state);
@@ -162,11 +177,11 @@ void* fn_800C3680(void)
         return r;
     } else {
         PBGlobal* g = gWinGlobals;
-        u8** head;
-        WaitSema(g->objPool->buf);
+        PBSPRBUF* head;
+        WaitSema(g->objPool->spr_buf_sema_id);
         DIntr();
         head = g->objPool->freehead;
-        g->objPool->freehead = (u8**)head[0];
+        g->objPool->freehead = head->next;
         EIntr();
         return head;
     }
@@ -176,21 +191,21 @@ void* fn_800C3680(void)
 void fn_800C36F8(void)
 {
     PBGlobal* g;
-    u8* base;
+    PBSPRBUF* base;
     int i;
 
     g = gWinGlobals;
     if (lbl_80343F28 == -1) {
-        lbl_80343F28 = (int)CreateSema(lbl_80128178);
+        lbl_80343F28 = CreateSema(lbl_80128178);
     }
-    g->objPool->buf = (void*)lbl_80343F28;
-    g->objPool->freehead = (u8**)lbl_802913C0;
+    g->objPool->spr_buf_sema_id = lbl_80343F28;
+    g->objPool->freehead = lbl_802913C0;
     for (i = 0; i < 7; i++) {
-        base = (u8*)g->objPool->freehead;
-        *(u8**)(base + i * 0x800) = base + (i + 1) * 0x800;
+        base = g->objPool->freehead;
+        base[i].next = &base[i + 1];
     }
-    base = (u8*)g->objPool->freehead;
-    *(u8**)(base + 0x3800) = 0;
+    base = g->objPool->freehead;
+    base[7].next = 0;
 }
 
 /* Light reset hook: attach the pool control block, flag the module open. */
@@ -203,27 +218,14 @@ void fn_800C379C(void)
     lbl_80345020 = 1;
 }
 
-/* Full bring-up hook: attach the pool control block and build the free list. */
+/* pbInitMem attaches the control then calls the existing pbSPFreeAll helper
+ * (fn_800C36F8), as also witnessed by PS2/PDB PB_MEM. The GC call is inlined. */
 void fn_800C37C4(void)
 {
-    PBGlobal* g;
-    u8* base;
-    int i;
-    u8 unused[8];
+    u8 unused[8]; /* Unrecovered reservation: removing it shrinks frame 24 to 16. */
 
     gWinGlobals->objPool = (PBObjPool*)lbl_802C52C0;
-    g = gWinGlobals;
-    if (lbl_80343F28 == -1) {
-        lbl_80343F28 = (int)CreateSema(lbl_80128178);
-    }
-    g->objPool->buf = (void*)lbl_80343F28;
-    g->objPool->freehead = (u8**)lbl_802913C0;
-    for (i = 0; i < 7; i++) {
-        base = (u8*)g->objPool->freehead;
-        *(u8**)(base + i * 0x800) = base + (i + 1) * 0x800;
-    }
-    base = (u8*)g->objPool->freehead;
-    *(u8**)(base + 0x3800) = 0;
+    fn_800C36F8();
     lbl_80345020 = 1;
 }
 
@@ -311,7 +313,7 @@ int fn_800C38C0(void* a, MBObject* obj)
 }
 
 /* Resolve a texture-shift descriptor into a packed tex address / flag word. */
-static u32 pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags)
+static int pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags)
 {
     s32 t = obj->texchangeidx;
 
@@ -348,6 +350,29 @@ static u32 pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags)
     }
 }
 
+/* PS2/PDB pbDebugObjStart/End are the original debug entry/exit helpers.
+ * GC inlines both. In particular, ObjDef is read before either debug store;
+ * OBJDEF starts with its name array, so the pointer itself is the name. */
+static inline void pbDebugObjStart(MBObject* obj, int state)
+{
+    char* defName = (char*)((PBRomObjectView*)obj->data.romobj)->ObjDef;
+
+    lbl_80343F40->step = state;
+    lbl_80343F40->obj = obj;
+    lbl_80343F40->defName = defName ? defName : lbl_801167A4;
+    if (lbl_80343F40->state != 0) {
+        pbDebugObjSStep(obj, state);
+    }
+}
+
+static inline void pbDebugObjEnd(MBObject* obj, int state)
+{
+    lbl_80343F40->step = state;
+    if (lbl_80343F40->state != 0) {
+        pbDebugObjSStep(obj, state);
+    }
+}
+
 /* Upload an object's textures, retrying once via a cache flush; fatal if the
  * texture set will not fit a page. */
 int pbSendObjTextures(MBObject* obj)
@@ -356,16 +381,7 @@ int pbSendObjTextures(MBObject* obj)
     int shift = -1;
     int isTexShift;
 
-    lbl_80343F40->step = 2;
-    lbl_80343F40->obj = obj;
-    /* OBJDEF begins with its name array; the target prints that base address
-     * directly, with no intervening string-pointer load. */
-    lbl_80343F40->defName = ((PBRomObjectView*)obj->data.romobj)->ObjDef
-                                ? (char*)((PBRomObjectView*)obj->data.romobj)->ObjDef
-                                : lbl_801167A4;
-    if (lbl_80343F40->state != 0) {
-        pbDebugObjSStep(obj, 2);
-    }
+    pbDebugObjStart(obj, 2);
 
     switch (obj->texchangeidx) {
     case -1:
@@ -414,10 +430,7 @@ int pbSendObjTextures(MBObject* obj)
         }
     }
 
-    lbl_80343F40->step = 3;
-    if (lbl_80343F40->state != 0) {
-        pbDebugObjSStep(obj, 3);
-    }
+    pbDebugObjEnd(obj, 3);
     return tex;
 }
 
