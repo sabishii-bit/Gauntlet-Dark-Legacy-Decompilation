@@ -5765,8 +5765,7 @@ void PlayerProcessPowerups(Player* p) {
                     lbl_80282930[p->index]->weapon_fx_offset[tier][1];
                 ((mbnode*)p->weaphold_tree.root->obj)->mat[3][2] =
                     lbl_80282930[p->index]->weapon_fx_offset[tier][2];
-                if (lbl_80282930[p->index]->weapon_fx_scale[tier][0] !=
-                    0.0f) {
+                if (lbl_80282930[p->index]->weapon_fx_scale[tier][0]) {
                     ((mbnode*)p->weaphold_tree.root->obj)->flags |= 8;
                     ((mbnode*)p->weaphold_tree.root->obj)->scale[0] =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][0];
