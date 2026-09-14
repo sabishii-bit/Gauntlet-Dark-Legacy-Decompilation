@@ -90,8 +90,9 @@ int MBWorldSphereClip(f32* sphere, f32 radius);
  * supplied view-space depth (PS2/Xbox MBScreenToWorld), not forward projection.
  * The four-component view matches vec4ApplyTrans's input and the Xbox view[4]
  * local; its fourth component is not initialized because that helper reads
- * only X/Y/Z. The pre-existing eight-byte reservation remains unrecovered:
- * removing it with this view extent changes the frame from 136 to 128 bytes. */
+ * only X/Y/Z. Initializing the depth-scaled X numerator in one expression
+ * retains the explicit f32 rounding before the multiply and recovers the
+ * target's 136-byte frame without the old unused eight-byte reservation. */
 void MBWorldToScreen3D(f32* dst, f32* world)
 {
     PBWINGLOBALS* globals = gWinGlobals;
@@ -106,7 +107,6 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     f32 yDenomB;
     f64 centeredX;
     f64 centeredY;
-    u8 unused[8];
     f32 projected[4];
 
     if (globals->current->proj_dirty != 0 ||
@@ -134,8 +134,7 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     yNumerator =
         (f32)((f64)viewport->yoff + centeredY);
     xNumerator =
-        (f32)((f64)viewport->xoff + centeredX);
-    xNumerator *= projected[2];
+        (f32)((f64)viewport->xoff + centeredX) * projected[2];
     yNumerator *= projected[2];
     projected[0] = (xNumerator - projected[2] * camera->viewport[3][0]) /
         (camera->projection[0][0] * camera->viewport[0][0]);
