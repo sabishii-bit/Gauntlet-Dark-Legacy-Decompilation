@@ -367,7 +367,7 @@ extern f64 lbl_803474A0;
 
 /* TU-local declarations; definitions follow retail code order. */
 s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam);
-void CamLookInDir(f32* dir, u32 mat);
+void CamLookInDir(f32* dir, NcCamera* camera);
 s32 UpdateCam(void);
 void* fn_8006FBAC(f32* pos);
 void* fn_8006FCDC(f32* pos);
@@ -692,7 +692,7 @@ s32 fn_8006DF34(NcCamera* cam) {
     cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
     cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
     cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
-    CamLookInDir((f32*)&cam->direction, (u32)cam);
+    CamLookInDir((f32*)&cam->direction, cam);
 
     CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
     gCameras[0].wpos[0] = cam->position.x;
@@ -885,7 +885,7 @@ void fn_8006E654(void) {
     cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
     cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
     cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
-    CamLookInDir((f32*)&cam->direction, (u32)cam);
+    CamLookInDir((f32*)&cam->direction, cam);
 
     CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
     gCameras[0].wpos[0] = cam->position.x;
@@ -1185,7 +1185,7 @@ void fn_8006F16C(s32 initialise)
         lbl_80344A6C->position.z =
             lbl_80344A6C->direction.z * -lbl_80344A6C->distance + lbl_80344A6C->attention.z;
 
-        CamLookInDir((f32*)&lbl_80344A6C->direction, (u32)lbl_80344A6C);
+        CamLookInDir((f32*)&lbl_80344A6C->direction, lbl_80344A6C);
         MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
         MBWindowZoom(lbl_80344A6C->zoom);
         if ((f64)lbl_80344A6C->aspect > 0.0) {
@@ -1266,7 +1266,7 @@ void fn_8006F418(NcCamera* cbase, f32* target)
     }
 
     cbase->dist_current = ((NcLevelData*)gCurLevel)->camera->maxrad;
-    CamLookInDir((f32*)&cbase->direction, (u32)cbase);
+    CamLookInDir((f32*)&cbase->direction, cbase);
     MBCameraUpdate((f32*)&cbase->position, (f32*)cbase);
     MBWindowZoom(cbase->zoom);
     if (cbase->aspect > 0.0) {
@@ -1621,7 +1621,7 @@ s32 fn_8006FF1C(void) {
     cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
     cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
     cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
-    CamLookInDir((f32*)&cam->direction, (u32)cam);
+    CamLookInDir((f32*)&cam->direction, cam);
 
     CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
     gCameras[0].wpos[0] = cam->position.x;
@@ -1723,13 +1723,13 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
  * up reference by sign, otherwise a general up reference; then two cross products
  * (with a re-normalize) orthonormalize the basis.  [5 internal callers]
  */
-void CamLookInDir(f32* dir, u32 mat) {
+void CamLookInDir(f32* dir, NcCamera* camera) {
     f32* m;
     f32* up;
     f32* fwd;
     f32 len;
 
-    m = (f32*)mat;
+    m = (f32*)camera;
     up = m + 4;
     fwd = m + 8;
     m[8] = dir[0];
