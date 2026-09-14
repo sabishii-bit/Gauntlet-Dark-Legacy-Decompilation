@@ -7,9 +7,13 @@
  * 0x18C CAMERA.OBJ element that game/camera.h models as `Camera` and that
  * gCameras[] holds.
  *
- * This record has no Xbox PDB struct in research/xbox_symbols; every field
- * below was read out of the GameCube target asm of src/game/world/newcam.c,
- * where it lived as a file-local view until it gained a second consumer.
+ * The Xbox PDB does contain struct newcam: full type 0x4050, reached through
+ * pointer type 0x4052 and forward type 0x4051, size 0x1B0. It corroborates
+ * the attention/direction/history fields and supplies names for further
+ * reconstruction. The partial layout below was independently read from
+ * the GameCube target asm of src/game/world/newcam.c; do not substitute
+ * cross-platform member types or nested array dimensions without checking
+ * the GC accesses. This was a file-local view before its second consumer.
  * Ranges with no named field stay explicit `u8` runs rather than invented
  * members, so the 0x1B0 stride the target assumes is exact either way.
  *
