@@ -136,17 +136,21 @@ typedef struct CardMgr {
 /* One in-RAM savegame-directory entry (0x5B40 bytes). The dir table that
  * memcard.c hands to cardDoLoad is an array of these. The first 0x5A00 bytes
  * are the icon/banner/comment/save-data workspace; the metadata trailer keeps
- * the CARD fileNo, a copy of the CARDStat, and the recomputed icon offsets. */
+ * the CARD fileNo, a copy of the CARDStat, and the icon animation timeline.
+ * The target appends up to six reverse steps after the eight forward steps
+ * when bannerFormat bit 2 requests bouncing: both arrays therefore hold 14
+ * words. Their bases are 0x5AB4 and 0x5AEC (14 words apart), and the final
+ * reverse stores reach 0x5AE8 and 0x5B20. This is a GC-verified partial view;
+ * the trailing 0x1C bytes remain unidentified. */
 typedef struct CardDirEntry {
     u8 data[0x5A00];      /* 0x0000 icon+banner+comment+save workspace */
     u8 comment[0x40];     /* 0x5A00 32x2 comment block */
     s32 fileNo;           /* 0x5A40 CARD file number */
     CARDStat stat;        /* 0x5A44 status snapshot (0x6C) */
-    u32 dataOffset;       /* 0x5AB0 running icon-data offset */
-    u32 iconOffset[8];    /* 0x5AB4 per-frame image offset */
-    u32 _gap[6];          /* 0x5AD4 */
-    u32 iconTlut[8];      /* 0x5AEC per-frame tlut index */
-    u8 _tail[0x34];       /* 0x5B0C pad to stride */
+    u32 dataOffset;       /* 0x5AB0 accumulated iconSpeed * 4, not a byte offset */
+    u32 iconOffset[14];   /* 0x5AB4 cumulative animation time per step */
+    u32 iconTlut[14];     /* 0x5AEC image index per step, not a TLUT offset */
+    u8 _tail[0x1C];       /* 0x5B24 unresolved bytes to stride */
 } CardDirEntry;           /* 0x5B40 */
 
 /* gCardBuf-based overlay: the control block lives just past the work area. */
@@ -657,8 +661,7 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
                 for (k = 0; k < count; k++) {
                     s32 sp = (e->stat.iconSpeed >> shift) & 3;
                     *(u32*)((u8*)e->iconOffset + dstOff) = e->dataOffset;
-                    *(u32*)((u8*)e->iconTlut + dstOff) =
-                        ((u32*)e)[srcIndex + (0x5aec / sizeof(u32))];
+                    *(u32*)((u8*)e->iconTlut + dstOff) = e->iconTlut[srcIndex];
                     e->dataOffset += sp << 2;
                     srcIndex--;
                     shift -= 2;
