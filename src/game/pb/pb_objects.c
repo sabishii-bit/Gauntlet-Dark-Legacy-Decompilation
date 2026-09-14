@@ -259,8 +259,8 @@ u32* fn_800C38C0(f32* a, MBObject* obj, u32* buffer)
     int hi;
     u32* v1c;
     int tex;
-    int v25;
-    int v24;
+    int lodk;
+    int lmidx;
     u32 packed;
     PBSubObject* prim;
     int stride;
@@ -283,9 +283,9 @@ u32* fn_800C38C0(f32* a, MBObject* obj, u32* buffer)
     }
     flags = obj->flags & 0x1090D7C0;
     tex = pbObjTexSub(obj, def->SubObj0_TexIdx, hi, &flags);
-    v25 = def->SubObj0_LodK;
+    lodk = def->SubObj0_LodK;
     v1c = def->DataPtr;
-    v24 = def->SubObj0_LMIdx;
+    lmidx = def->SubObj0_LMIdx;
     if (def->Flags & 0x100) {
         flags |= 0x20000;
     }
@@ -295,17 +295,21 @@ u32* fn_800C38C0(f32* a, MBObject* obj, u32* buffer)
     if (lbl_80343F3C != 0) {
         pbSetupPosLights(def->BndRad, 0, obj, a);
     }
-    pbSetDORegs(0, tex, v25, v24, flags, hi, a, v1c, (u8*)obj);
+    pbSetDORegs(0, tex, lodk, lmidx, flags, hi, a, v1c, (u8*)obj);
     pcount = def->SubObjCnt - 1;
     if (pcount != 0) {
         prim = def->SubObjPtr;
         stride = def->SubObj0_QWC;
         do {
-            u32 tx;
             v1c += stride << 2;
-            tx = pbObjTexSub(obj, prim->TexIdx, hi, &flags);
+            tex = pbObjTexSub(obj, prim->TexIdx, hi, &flags);
+            /* The first subobject and the loop share these scalar locals.
+             * PS2 loads LodK/LMIdx before QWC too; reading them as call
+             * operands instead changes GC scheduling across the stride load. */
+            lodk = prim->LodK;
+            lmidx = prim->LMIdx;
             stride = prim->QWC;
-            pbSetDORegs(0, tx, prim->LodK, prim->LMIdx, flags,
+            pbSetDORegs(0, tex, lodk, lmidx, flags,
                         hi, 0, v1c, 0);
             prim++;
         } while (--pcount != 0);
