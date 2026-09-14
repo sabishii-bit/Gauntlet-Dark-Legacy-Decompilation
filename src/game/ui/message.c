@@ -74,7 +74,7 @@ extern int sFlags;
 int  StringTextNum(int text);
 int  StringTextHeight(int text, int param, int lines, float scale);
 int  StringTextWidth(int text, int param, float scale);
-void DrawStringTextMLines(int x, int y, int flags, int color, int lines,
+int  DrawStringTextMLines(int x, int y, int spacing, int font, u32 color,
                           int text, ...);
 int  DrawStringTextMulti(int x, int y, int spacing, int font, int color,
                          int text);
@@ -90,7 +90,7 @@ void mbBlitInit3414(void* box, int flag);
 void MBRemoveBlit(void* box);
 void* MBNewBlit(char* name, int x, int y);
 void mbBlitProject(void* box, int width, int height);
-void MBBlitSetAlpha(void* box, int alpha);
+void MBBlitSetAlpha(void* box, u32 alpha);
 void get_screen_pos(int camera, int* x, int* y, void* position);
 void fn_8009CD80(int player, int value, int count);
 void fn_8009CB44(int player, u32 flags, int arg);
@@ -698,6 +698,7 @@ void msgDraw(void)
     int numberWidth;
     int x;
     int textMsg;
+    int textIndex;
     int scratch[6];
     u32 color;
     volatile u32 stackPad;
@@ -736,19 +737,19 @@ void msgDraw(void)
 
             if (gMessageValue == 99) {
                 textMsg = 0x15;
-                classWidth = 0;
+                textIndex = 0;
             } else {
                 textMsg = GetStringListMsg(0, playerClass);
-                classWidth = tens >> 1;
+                textIndex = tens >> 1;
             }
-            numberWidth = StringTextWidth(textMsg, classWidth, 1.25f);
+            numberWidth = StringTextWidth(textMsg, textIndex, 1.25f);
             labelWidth = StringTextWidth(0x18, 2, 1.0f);
             labelWidth = numberWidth + labelWidth;
             worldWidth = gMessageCenterX - (labelWidth + 0x10) / 2;
             SetDrawStringScale(1.25f);
             x = centerY + lineHeight;
             DrawStringText(worldWidth, x + 2, color,
-                           gMessageFontFlags, textMsg, classWidth);
+                           gMessageFontFlags, textMsg, textIndex);
             RestoreDrawStringScale();
             DrawStringText(worldWidth + numberWidth + 0x10, x, -1,
                            gMessageFontFlags, 0x18, 2);
