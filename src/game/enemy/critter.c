@@ -3228,7 +3228,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         }                                                                      \
     } while (0)
 
-    if ((f64)c->health <= lbl_80346488) {
+    if ((f64)c->health <= 0.0) {
         if (c->state != 1) {
             CRITTER_DIE(c);
         }
@@ -3244,13 +3244,15 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     if (c->parent != NULL) {
         c->parent->health -= damage;
         parent = c->parent;
-        if ((f64)parent->health <= lbl_80346488) {
+        if ((f64)parent->health <= 0.0) {
             if (parent->state != 1) {
                 CRITTER_DIE(parent);
             }
             return 1;
         }
-    } else if (c->childcnt > 0) {
+    }
+    /* The GC parent-survived branch also reaches this child-count test. */
+    if (c->childcnt > 0) {
         f64 childZero;
         f32 childOne;
         f64 childAwardScale;
