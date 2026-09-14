@@ -289,7 +289,9 @@ static inline void DoTexScrollSub(int node, TEXMOD* tm, int iframe,
 
 /* AUXANIM's Xbox symbols identify this five-argument fade helper and its
  * fframe/nframes locals. Keep the GC node-handle interface used by this TU.
- * Both fade directions inline here; nframes becomes the normalized alpha. */
+ * Both fade directions inline here; nframes becomes the normalized alpha.
+ * PS2's caller passes seqidx, but the helper ignores idx and always recurses.
+ * GC's inlined calls likewise pass 1 to MBTreeSetAlpha. */
 static inline void DoTexFadeSub(int node, TEXMOD* tm, int iframe,
                                 int idx, int fadeout)
 {
@@ -306,7 +308,7 @@ static inline void DoTexFadeSub(int node, TEXMOD* tm, int iframe,
         nframes = (f32)(1.0 - nframes);
     }
     nframes *= 255.0;
-    MBTreeSetAlpha(node, (s32)nframes, idx);
+    MBTreeSetAlpha(node, (s32)nframes, 1);
 }
 
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
@@ -325,10 +327,10 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         DoTexScrollSub(ctx, tm, frame, 1, 1);
         break;
     case -4:
-        DoTexFadeSub(ctx, tm, frame, 1, 1);
+        DoTexFadeSub(ctx, tm, frame, tm->scrollIdx, 1);
         break;
     case -5:
-        DoTexFadeSub(ctx, tm, frame, 1, 0);
+        DoTexFadeSub(ctx, tm, frame, tm->scrollIdx, 0);
         break;
     case -6:
         break;
