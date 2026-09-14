@@ -210,7 +210,7 @@ static void setupParms(Psys* p);
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wp, f32* over);
 static Psys* allocPsys(s32 flag);
 static s32* listFindHandle(s32 id, s32 base);
-static void freePsys(MBObject* node);
+static void freePsys(Psys* p);
 static void* allocPsysMem(s32 size, s32 tag);
 static void freePsysMem(void* blk);
 static void initPresetList(void);
@@ -3405,8 +3405,9 @@ void MBPsysStartFrame(void) {
     u8* pi = (u8*)psysInfo;
     u8* g = pi + offsetof(PsysInfoCoreView, runtime);
     u32 clock;
-    MBObject* node;
-    MBObject* next;
+    Psys* p;
+    Psys* next;
+    void* config;
     u8* g2;
     u8* g3;
     u32 dbg;
@@ -3443,17 +3444,17 @@ void MBPsysStartFrame(void) {
             (f32)(s32)*(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac));
     }
 
-    node = *(MBObject**)(pi + offsetof(PsysInfoCoreView, runtime.retiredList));
+    p = *(Psys**)(pi + offsetof(PsysInfoCoreView, runtime.retiredList));
     g2 = pi + offsetof(PsysInfoCoreView, runtime);
-    while (node != NULL) {
-        next = *(MBObject**)((u8*)node + 36);
-        freePsys(node);
-        node = next;
+    while (p != NULL) {
+        next = p->next;
+        freePsys(p);
+        p = next;
     }
     *(s32*)(g2 + offsetof(PsysInfoRuntimeView, retiredList)) = 0;
     *(s32*)(g2 + offsetof(PsysInfoRuntimeView, retiredCount)) = 0;
 
-    if ((next = *(MBObject**)(g +
+    if ((config = *(void**)(g +
                               offsetof(PsysInfoCoreView, deferredConfig) -
                                   offsetof(PsysInfoCoreView, runtime))) != NULL) {
         g3 = pi + offsetof(PsysInfoCoreView, runtime);
@@ -3462,7 +3463,7 @@ void MBPsysStartFrame(void) {
         }
         *(s32*)(g3 + offsetof(PsysInfoCoreView, deferredNode) -
                          offsetof(PsysInfoCoreView, runtime)) =
-            (s32)MBNewPsysDescrip(0, dbg, 0, next);
+            (s32)MBNewPsysDescrip(0, dbg, 0, config);
         *(s32*)(g + offsetof(PsysInfoCoreView, deferredConfig) -
                          offsetof(PsysInfoCoreView, runtime)) = 0;
     }
@@ -3519,28 +3520,29 @@ static s32* listFindHandle(s32 id, s32 base) {
     return link;
 }
 
-/* 0x800D138C - freePsys: release a psys node's buffers back to the pool.
- * Documented reconstruction (NonMatching). */
+/* 0x800D138C - release a Psys, its scene node and its pool-backed buffers.
+ * The argument is the retired-list record: GC loads Psys.node at +0x28,
+ * then clears that scene node's data.psys at +0x70 before removing it. */
 #pragma opt_common_subs off
-static void freePsys(MBObject* node) {
-    if (((Psys*)node)->node != NULL) {
-        ((MBObject*)((Psys*)node)->node)->data.psys = NULL;
-        MBRemoveNode((MBObject*)((Psys*)node)->node, 1);
-        ((Psys*)node)->node = NULL;
+static void freePsys(Psys* p) {
+    if (p->node != NULL) {
+        ((MBObject*)p->node)->data.psys = NULL;
+        MBRemoveNode((MBObject*)p->node, 1);
+        p->node = NULL;
     }
-    if (((Psys*)node)->worldname == NULL) {   /* not world-owned */
-        if (((Psys*)node)->p_lst != NULL) {
-            freePsysMem(((Psys*)node)->p_lst);
-            ((Psys*)node)->p_lst = NULL;
+    if (p->worldname == NULL) {   /* not world-owned */
+        if (p->p_lst != NULL) {
+            freePsysMem(p->p_lst);
+            p->p_lst = NULL;
         }
-        freePsysMem(node);
+        freePsysMem(p);
     }
 }
 #pragma opt_common_subs reset
 
 /* 0x800D1404 - allocPsysMem: first-fit split allocator over the block pool. */
 static void* allocPsysMem(s32 size, s32 tag) {
-    PsysMemPool* pool = (PsysMemPool*)((u8*)&lbl_80128710 + 0x24);
+    PsysMemPool* pool = &lbl_80128710.pool;
     PsysMemBlock* b;
     u32 need;
     PsysMemBlock* first;
@@ -3618,7 +3620,7 @@ static void freePsysMem(void* mem) {
     nextBytes = 0;
     prevBytes = 0;
     next = block->next;
-    pool = (PsysMemPool*)((u8*)&lbl_80128710 + 0x24);
+    pool = &lbl_80128710.pool;
     bytes = -block->bytes;
     prev = block->prev;
     mergeNext = next;
