@@ -203,7 +203,9 @@ game/world/items.c:
 	extab       start:0x800063E8 end:0x80006608
 	extabindex  start:0x80009E2C end:0x8000A15C
 	.text       start:0x8005ACE0 end:0x80067904
-	.data       start:0x8011C9D0 end:0x8011CD58
+	.rodata     start:0x80112AB8 end:0x80113028
+	.data       start:0x8011C8A8 end:0x8011CD58
+	.sdata2     start:0x80346DC0 end:0x80347180
 
 game/world/lights.c:
 	extab       start:0x80006608 end:0x80006618

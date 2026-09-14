@@ -20,10 +20,10 @@
  * while emitting symbols that objdiff can pair with those target functions.
  */
 /* Gauntlet item / world-object system (Xbox ITEMS.OBJ), region
- * 0x800631AC-0x80067904 -- followed by the separate LIGHTS.OBJ module.
+ * 0x8005ACE0-0x80067904 -- followed by the separate LIGHTS.OBJ module.
  *
  * This is the GameCube retail slice of ITEMS.OBJ.  The Xbox shell3D.pdb debug
- * build lists 103 functions in this module; the retail GC build keeps ~51.
+ * build lists 103 functions in this module; the current GC target has 81.
  * The loader / init / camera / waypoint / milestone tail (0x80065B60-end)
  * links in the *reverse* of the Xbox source order, so those names below are
  * anchored 1:1 to the PDB.  The front half (the item-spawn / collision block)
@@ -32,6 +32,9 @@
  * Wired NonMatching: the DOL links from the dtk-extracted asm object while
  * reconstruction continues.  The complete retail function range is mapped
  * below, including the large SetItem constructor and serialized file loaders.
+ * Its owned pools and initialized tables are now included in splits.txt;
+ * ownership does not mean their source definitions are complete. In particular,
+ * sArrowObjectNames and ItemRuntime still stand in for several real objects.
  *
  * NAMED (real Xbox-PDB names; string / call-graph / struct anchored):
  *   front (behavioural):  PlaceItem, AddItem, NewItemPtr, MatchTransporters,
