@@ -2124,6 +2124,22 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
 /* master driver                                                       */
 /* ------------------------------------------------------------------ */
 
+/* The original advance_ok helper is inlined in both waiting-player states. */
+static inline s32 advance_ok(s32 me) {
+    s32 j;
+
+    for (j = 0; j < 4; j++) {
+        s32 state;
+        if (me != j && (state = PT(j)->state) != 0 && state != 2 && state != 3) {
+            break;
+        }
+    }
+    if (j >= 4) {
+        return 0;
+    }
+    return -1;
+}
+
 /* WriteName is also a local helper in the Xbox/PS2 builds. The GC caller
  * places its eight-character buffer after the four-float screen vector.
  * MBWorldToScreen writes all four components, not only displayed X/Y. */
@@ -2607,30 +2623,14 @@ s32 do_players(void) {
                 break;
             case 2:
             {
-                s32 peer_found;
-
                 PlayerCheckMovingFloor_80088688(p);
-                for (j = 0; j < 4; j++) {
-                    s32 st;
-
-                    if (i != j && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
-                        break;
-                    }
-                }
-                if (j >= 4) {
-                    peer_found = 0;
-                } else {
-                    peer_found = -1;
-                }
-                if (peer_found == 0) {
+                if (advance_ok(i) == 0) {
                     loaded = 0;
                 }
                 break;
             }
             case 3:
             {
-                s32 peer_found;
-
                 PlayerCheckMovingFloor_80088688(p);
                 if (MBBackgroundLoading() == 0 && gGameMode != MG_LEVEL_ADVANCE &&
                     gGameMode != MG_GWIZ_SPEECH) {
@@ -2641,19 +2641,7 @@ s32 do_players(void) {
                     update_class_spec(i);
                     WritePlayerInfo(i);
                 }
-                for (j = 0; j < 4; j++) {
-                    s32 st;
-
-                    if (i != j && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
-                        break;
-                    }
-                }
-                if (j >= 4) {
-                    peer_found = 0;
-                } else {
-                    peer_found = -1;
-                }
-                if (peer_found == 0) {
+                if (advance_ok(i) == 0) {
                     loaded = 0;
                 }
                 break;
