@@ -4,6 +4,10 @@ Each probe compiles a complete scratch TU with the active Ninja compiler/flags.
 The unedited source must first reproduce the complete active raw object. Results
 are experiments, not a source-equivalence or universal source-exhaustion proof.
 Compiler diagnostics and each complete source/object are retained under build/.
+
+The current SDK-typed production source is outside this historical matrix.
+Use --historical to replay the authenticated pre-R48 fixture, with its own
+separately reproduced baseline; those results do not measure the current source.
 """
 import argparse
 import hashlib
@@ -29,17 +33,26 @@ R89_SOURCE_SHA256 = 'f485e02d0e68969ce8c3bfbcbb2103486d7019d99f6de46b8d5344b9a8f
 # fn_800C7928 forwarder. Tests round-trip that exact change across all 61 forms;
 # the actual-edge complete baseline ELF is unchanged. Keep all other drift loud.
 HANDLE_STAGE_SOURCE_SHA256 = 'ddbbaede778e0c21b44764d0df99ff607e60c2f5d84185f3be83cd1f6c6c080b'
+HISTORICAL_FIXTURE = ROOT / 'tools/gdl/tests/fixtures/r71_pb_texture_handle_stage.c.txt'
 
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def historical_source():
+    """Authenticate a frozen experiment input, never pin live production source."""
+    source = HISTORICAL_FIXTURE.read_text().replace('\r\n', '\n')
+    if sha(source.encode()) != HANDLE_STAGE_SOURCE_SHA256:
+        raise ValueError('R71 historical fixture authentication failed')
+    return source
+
+
 def source_forms(source):
     source = source.replace('\r\n', '\n')
     if sha(source.encode()) not in (SOURCE_SHA256, R89_SOURCE_SHA256,
                                    HANDLE_STAGE_SOURCE_SHA256):
-        raise ValueError('R71 source baseline changed; rederive the finite controls before updating the digest')
+        raise ValueError('R71 controls are inapplicable to this source; use --historical for the authenticated fixture')
     old = 'void GXInitTlutRegion(void* region, u32 tmem_addr, u32 tlut_size);'
     if source.count(old) != 1 or source.count('typedef u8 GXBool;') != 1:
         raise ValueError('source shape changed')
@@ -114,24 +127,24 @@ def section_layout(path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--only', nargs='+', help='Probe these named forms plus baseline')
+    parser.add_argument('--historical', action='store_true',
+                        help='Replay the authenticated pre-R48 fixture, not current-source controls')
     args = parser.parse_args(argv)
     edge = cv.read_edges()[UNIT]
     source_path, raw_path = ROOT / edge['src'], ROOT / edge['body_o']
     source_bytes, raw_bytes = source_path.read_bytes(), raw_path.read_bytes()
-    source = source_bytes.decode().replace('\r\n', '\n')
+    source = historical_source() if args.historical else source_bytes.decode().replace('\r\n', '\n')
     forms = source_forms(source)
     if args.only and not set(args.only) <= forms.keys():
         parser.error('unknown source forms: ' + repr(sorted(set(args.only) - forms.keys())))
     baseline = capture(UNIT)
     folder = Path(tempfile.mkdtemp(prefix='r71_texture_probe_', dir=ROOT / 'build'))
     target, _ = inventory(ROOT / 'build/GUNE5D/obj/game/pb/pb_texture.o')
-    before, before_data = inventory(raw_path)
-    before_layout = section_layout(raw_path)
-    result = dict(schema_version=1, unit=UNIT, function=FN, baseline=baseline, source=source,
-                  raw_bytes=raw_bytes.hex(), processed_bytes=(ROOT/'build/GUNE5D/src/game/pb/pb_texture.o').read_bytes().hex(),
+    result = dict(schema_version=2, unit=UNIT, function=FN, active_baseline=baseline, source=source,
+                  mode='historical' if args.historical else 'active',
+                  active_raw_bytes=raw_bytes.hex(),
                   compiler_sha256=sha((ROOT/'build/compilers'/edge['mw']/'mwcceppc.exe').read_bytes()),
-                  target=target[FN], baseline_layout=before_layout,
-                  config=json.loads((ROOT/'config/GUNE5D/webfrank.json').read_text()), probes={})
+                  target=target[FN], compiler=edge['mw'], flags=edge['cflags'], probes={})
     for label, fullsource in forms.items():
         if args.only and label not in ['baseline'] + args.only:
             continue
@@ -140,17 +153,34 @@ def main(argv=None):
         path = subdir / 'pb_texture.c'
         path.write_bytes(fullsource.encode())
         trial = dict(edge, src=str(path.relative_to(ROOT)), _command_trace=[])
-        obj, error = cv.compile_with(trial, edge['mw'], edge['cflags'], subdir/'r71_texture.o', subdir)
+        obj, error = cv.compile_with(trial, edge['mw'], edge['cflags'], subdir/'pb_texture.o', subdir)
         row = dict(source=str(path.relative_to(ROOT)), source_sha256=sha(path.read_bytes()), error=error, commands=trial['_command_trace'])
         result['probes'][label] = row
         if not obj or error:
+            if label == 'baseline':
+                raise ValueError(error or 'missing baseline object')
             row['status'] = 'COMPILE_FAILURE'
             print(label, row['status'], error)
             continue
         after, after_data = inventory(obj)
         raw = obj.read_bytes()
-        if label == 'baseline' and raw != raw_bytes:
-            raise ValueError('scratch source baseline failed full-object fidelity')
+        if label == 'baseline':
+            if not args.historical and raw != raw_bytes:
+                raise ValueError('scratch source baseline failed full-object fidelity')
+            replay_dir = subdir/'replay'
+            replay_dir.mkdir()
+            replay_trial = dict(trial, _command_trace=[])
+            replay, replay_error = cv.compile_with(replay_trial, edge['mw'], edge['cflags'],
+                                                   replay_dir/'pb_texture.o', replay_dir)
+            row['baseline_replay_commands'] = replay_trial['_command_trace']
+            if replay_error or not replay or replay.read_bytes() != raw:
+                raise ValueError('selected-source baseline failed complete-object replay')
+            before, before_data = after, after_data
+            before_layout = section_layout(obj)
+            comparison_bytes = raw
+            result.update(baseline_layout=before_layout, selected_baseline_sha256=sha(raw),
+                          selected_baseline_reproduced=True,
+                          selected_baseline_equals_active=raw == raw_bytes)
         elf = Elf(str(obj))
         sections = [h for i,h in enumerate(elf.sh) if elf.names[i] == '.text']
         if len(sections) != 1:
@@ -165,7 +195,7 @@ def main(argv=None):
                    changed_function_records=sorted(name for name in before.keys() | after.keys() if before.get(name) != after.get(name)),
                    nontext_equal={k:v for k,v in before_data.items() if k!='.text'} == {k:v for k,v in after_data.items() if k!='.text'},
                    allocated_layout_equal=before_layout == section_layout(obj),
-                   complete_bytes_outside_flagship_equal=(len(raw)==len(raw_bytes) and raw[:begin]==raw_bytes[:begin] and raw[begin+size:]==raw_bytes[begin+size:]))
+                   complete_bytes_outside_flagship_equal=(len(raw)==len(comparison_bytes) and raw[:begin]==comparison_bytes[:begin] and raw[begin+size:]==comparison_bytes[begin+size:]))
         print(label, f'{len(b)//4}/{len(a)//4}', 'words',len(words), 'bodies',row['changed_bodies'],
               'data',row['nontext_equal'], 'outside',row['complete_bytes_outside_flagship_equal'])
     if source_path.read_bytes()!=source_bytes or raw_path.read_bytes()!=raw_bytes:

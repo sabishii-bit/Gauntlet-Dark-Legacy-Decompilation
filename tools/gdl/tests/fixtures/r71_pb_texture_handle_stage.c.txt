@@ -16,21 +16,32 @@
  */
 
 #include "types.h"
-#include "dolphin/gx/GXTexture.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 #endif
 
 /* ------------------------------------------------------------------ */
-/* Cache maintenance used before GX consumes palette memory. */
+/* GX texture / TLUT SDK (already-matched gx lib -- treated as extern) */
 /* ------------------------------------------------------------------ */
+typedef u8 GXBool;
+void GXInitTlutRegion(void* region, u32 tmem_addr, u32 tlut_size);
+void GXSetTlutRegionCallback(void* cb);
+void GXInitTlutObj(void* tlut, void* data, u32 fmt, u16 n_entries);
+void GXInitTexObj(void* obj, void* data, u16 w, u16 h, u32 fmt, u32 ws, u32 wt,
+                  GXBool mipmap);
+void GXInitTexObjCI(void* obj, void* data, u16 w, u16 h, u32 fmt, u32 ws, u32 wt,
+                    GXBool mipmap, u32 tlut_name);
+void GXInitTexObjTlut(void* obj, u32 tlut_name);
+void GXInitTexObjUserData(void* obj, void* user);
+void GXLoadTlut(void* tlut, u32 tlut_name);
 void DCFlushRange(void* start, u32 len);
 
 /* ------------------------------------------------------------------ */
 /* game / MSL runtime externs                                          */
 /* ------------------------------------------------------------------ */
 void* memset(void* dst, int c, u32 len);
+long long __shl2i(int hi, int lo, int shift);
 void* AllocMem32(u32 size);
 void pbSetTexture(u32 handle, u32 stage);            /* pb_objregs.c */
 extern void fn_800C6AB4(int);                        /* pb_objregs.c */
@@ -64,17 +75,17 @@ extern PbTexMgr* gWinGlobals;
 /* module data (owned by dtk auto splits -- referenced as extern here) */
 /* ------------------------------------------------------------------ */
 
-/* TLUT region manager: 0x30-byte header, then GXTlutRegion[] at +0x30,
+/* TLUT region manager: 0x30-byte header, then GXTlutRegionObj[] at +0x30,
  * an s32 handle table at +0x320, and per-region bookkeeping at +0x52c/+0x580.
  * dtk splits it into lbl_802C7438 (header) + lbl_802C7468 (the +0x30 body). */
 typedef struct PbSpecialTlut {
-    GXTlutObj object;
+    u8 object[0x0c];
     s32 handle;
 } PbSpecialTlut;
 
 typedef struct PbTlutMgrView {
     u8  _00[0x30];           /* 0x000 : per-class use counts / header */
-    GXTlutRegion regions[0x2f]; /* 0x030 : 16-byte SDK region objects */
+    u8  regions[0x2f][0x10]; /* 0x030 : GXTlutRegionObj[] */
     s32 handles[0x2f];       /* 0x320 : per-region texture handle */
     u8  _3dc[0x150];         /* 0x3dc */
     u32 owners[0x15];        /* 0x52c : owning texture entry per lightmap */
@@ -85,10 +96,7 @@ typedef struct PbTlutMgrView {
 extern PbTlutMgrView lbl_802C7438; /* TLUT manager base (0x802C7438) */
 extern u8 lbl_802C7468[];   /* &mgr.regions[0]     (0x802C7468) */
 
-/* GC ROM texture record and its corresponding 0x30-byte texture entry.
- * GX calls select the 32-byte GXTexObj at +0 and 12-byte GXTlutObj at +0x20;
- * signed region selectors follow at +0x2c/+0x2d. These enclosing view names
- * are local reconstruction names, not recovered SDK or Xbox declarations. */
+/* GC ROM texture record and its corresponding 0x30-byte GX object. */
 typedef struct PbRomTexture {
     u8 format;       /* 0x00 */
     s8 model;        /* 0x01 */
@@ -101,8 +109,8 @@ typedef struct PbRomTexture {
 } PbRomTexture;
 
 typedef struct PbTextureObject {
-    GXTexObj object;
-    GXTlutObj tlutObject;
+    u8 _pad00[0x20];
+    u8 tlutObject[0x0C];
     s8 region;
     s8 paletteRegion;
     u8 _pad2E[2];
@@ -171,14 +179,10 @@ extern const u64 lbl_80116AB0[];
 
 /* ================================================================== */
 
-/* GX callback: map a tlut_name to its GXTlutRegion (stride 0x10). */
-static GXTlutRegion* sTlutRegionCallback(u32 name);
+/* GX callback: map a tlut_name to its GXTlutRegionObj (stride 0x10). */
+static void* sTlutRegionCallback(u32 name);
 
-/* Initialise all hardware TLUT regions and register the region callback.
- * The byte cursor is retained provisionally: with the SDK object types,
- * direct region-member and loop-local pointer forms changed the native
- * residual from 4 to 6/8 words; a separate array base removed an instruction
- * (2026-09-14). The original address-expression grouping is still unresolved. */
+/* Initialise all hardware TLUT regions and register the region callback. */
 void pbInitTlutRegions(void) {
     s32 i;
     u32 addr = 0xc0000;
@@ -187,12 +191,12 @@ void pbInitTlutRegions(void) {
 
     for (i = lbl_80348FC8[0]; i < lbl_80348FD0[0]; i++) {
         slot = mgr + i * 0x10;
-        GXInitTlutRegion((GXTlutRegion*)(slot + 0x30), addr, 1);
+        GXInitTlutRegion(slot + 0x30, addr, 1);
         addr += 0x200;
     }
     for (; i < lbl_80348FD0[1]; i++) {
         slot = mgr + i * 0x10;
-        GXInitTlutRegion((GXTlutRegion*)(slot + 0x30), addr, 0x10);
+        GXInitTlutRegion(slot + 0x30, addr, 0x10);
         addr += 0x2000;
     }
     GXSetTlutRegionCallback(sTlutRegionCallback);
@@ -201,15 +205,13 @@ void pbInitTlutRegions(void) {
     }
 }
 
-static GXTlutRegion* sTlutRegionCallback(u32 name) {
-    return (GXTlutRegion*)(lbl_802C7468 + name * 0x10);
+static void* sTlutRegionCallback(u32 name) {
+    return lbl_802C7468 + name * 0x10;
 }
 
 /* TLUT-region allocator: bump the per-region use counts, and if this size
  * class is not resident allocate the least-used region slot and remap it.
- * Returns the region index (a texture handle). GCN-only. The target bounds
- * are [0,16) and [16,47), so each residency/lock bit is an unsigned 64-bit
- * shift. MWCC emits its own __shl2i call for this operator. */
+ * Returns the region index (a texture handle). GCN-only. */
 int fn_800C6BB4(u8 sizeClass, s32 handle) {
     u8* mgr = (u8*)&lbl_802C7438;
     s32 last;
@@ -229,13 +231,13 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
     if ((lbl_80116AB0[sizeClass] & held) != lbl_80116AB0[sizeClass]) {
         s32 z = 0;
         while (first < last) {
-            if ((held & (1ULL << first)) == z)
+            if ((held & __shl2i(0, 1, first)) == z)
                 break;
             first++;
         }
         {
             u8* q;
-            lbl_803450D8 |= (1ULL << first);
+            lbl_803450D8 |= __shl2i(0, 1, first);
             q = mgr + first * 4;
             mgr[first] = z;
             *(s32*)(q += offsetof(PbTlutMgrView, handles)) = handle;
@@ -256,7 +258,7 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
         j++;
         p = mgr + j;
         for (; j < last; j++, p++) {
-            if ((locks & (1ULL << j)) == 0) {
+            if ((locks & __shl2i(0, 1, j)) == 0) {
                 if (*p > best) {
                     best = *p;
                     first = j;
@@ -371,7 +373,7 @@ void pbSetupTextures(s32 id) {
                             paletteEntries = 0x10;
                         }
                         DCFlushRange(data, paletteEntries << 1);
-                        GXInitTlutObj(&obj->tlutObject, data, 2,
+                        GXInitTlutObj(obj->tlutObject, data, 2,
                                      (u16)paletteEntries);
                         {
                             u8* entry = lookup;
@@ -411,14 +413,14 @@ void pbSetupTextures(s32 id) {
                     if (bitsPerPixel == 8) {
                         paletteClass = 1;
                     }
-                    GXInitTexObjCI(&obj->object, data, (u16)width, (u16)height,
+                    GXInitTexObjCI(obj, data, (u16)width, (u16)height,
                                    lbl_80348FD8[paletteClass], 1, 1, 0,
                                    lbl_80348FE0[paletteClass]);
                 } else {
-                    GXInitTexObj(&obj->object, data, (u16)width, (u16)height, 5,
+                    GXInitTexObj(obj, data, (u16)width, (u16)height, 5,
                                  1, 1, 0);
                 }
-                GXInitTexObjUserData(&obj->object, (void*)-1);
+                GXInitTexObjUserData(obj, (void*)-1);
             }
         }
         i++;
@@ -474,7 +476,7 @@ void fn_800C70C8(s32 id) {
         s32 loadedRegion = (s8)tex[i * 0x30 + 0x2d];
         region = loadedRegion;
         if (loadedRegion != -1) {
-            u64 bit = (1ULL << region);
+            u64 bit = __shl2i(0, 1, region);
             lbl_803450D8 &= ~bit;
             lbl_803450E0 &= ~bit;
             lbl_802C7438.handles[region] = -1;
@@ -560,22 +562,24 @@ void fn_800C73E0(void) {
 
     if (lbl_80345114 == 1) {
         DCFlushRange((void*)lbl_803450E8, 4);
-        GXInitTlutObj(&((PbTlutMgrView*)mgr)->special[0].object,
+        GXInitTlutObj(((PbTlutMgrView*)mgr)->special[0].object,
                       (void*)lbl_803450E8, 2, 16);
         DCFlushRange((void*)lbl_803450EC, 4);
-        GXInitTlutObj(&((PbTlutMgrView*)mgr)->special[1].object,
+        GXInitTlutObj(((PbTlutMgrView*)mgr)->special[1].object,
                       (void*)lbl_803450EC, 2, 0x100);
         lbl_80345114 = 2;
     }
     if (lbl_80345114 == 2) {
         s32* cur;
         s32 region;
+        u64 bit;
         if (*(cur = &((PbTlutMgrView*)mgr)->special[0].handle) == -1) {
             *cur = fn_800C6BB4(0, 0xFFFF0000);
             region = *cur;
-            lbl_803450E0 |= (1ULL << region);
+            bit = __shl2i(0, 1, region);
+            lbl_803450E0 |= bit;
             lbl_80345108 = lbl_80345108 + 1;
-            GXLoadTlut(&((PbTlutMgrView*)mgr)->special[0].object, region);
+            GXLoadTlut(((PbTlutMgrView*)mgr)->special[0].object, region);
         }
     }
     if (lbl_80345114 == 0) {
@@ -667,11 +671,11 @@ int fn_800C7558(s32 key) {
             }
             *(s32*)(special + offsetof(PbSpecialTlut, handle)) =
                 fn_800C6BB4(which, 0xFFFF0000 | (u16)region);
-            GXLoadTlut((GXTlutObj*)special, *(s32*)(special + offsetof(PbSpecialTlut, handle)));
+            GXLoadTlut(special, *(s32*)(special + offsetof(PbSpecialTlut, handle)));
             newLoad = 0;
         }
         if (texture->region != *(s32*)(special + offsetof(PbSpecialTlut, handle))) {
-            GXInitTexObjTlut(&texture->object, *(s32*)(special + offsetof(PbSpecialTlut, handle)));
+            GXInitTexObjTlut(texture, *(s32*)(special + offsetof(PbSpecialTlut, handle)));
             texture->region = (s8)*(s32*)(special + offsetof(PbSpecialTlut, handle));
         }
     } else {
@@ -689,8 +693,8 @@ int fn_800C7558(s32 key) {
                                   (u16)texnum | (model << 16));
             texture->region = (s8)region;
             texture->paletteRegion = (s8)region;
-            GXLoadTlut(&texture->tlutObject, texture->paletteRegion);
-            GXInitTexObjTlut(&texture->object, texture->paletteRegion);
+            GXLoadTlut(texture->tlutObject, texture->paletteRegion);
+            GXInitTexObjTlut(texture, texture->paletteRegion);
             newLoad = 0;
         }
     }

@@ -7,7 +7,26 @@ from tools.gdl.composed_census import r71_texture_source_probe as probe
 class TextureSourceControlTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.source = (probe.ROOT / 'src/game/pb/pb_texture.c').read_text()
+        cls.source = probe.historical_source()
+
+    def test_fixture_is_authenticated_and_changed_fixture_refuses(self):
+        self.assertEqual(probe.sha(self.source.encode()), probe.HANDLE_STAGE_SOURCE_SHA256)
+        with mock.patch.object(probe, 'HISTORICAL_FIXTURE') as fixture:
+            fixture.read_text.return_value = self.source + '\n'
+            with self.assertRaisesRegex(ValueError, 'fixture authentication'):
+                probe.historical_source()
+
+    def test_current_sdk_source_is_not_a_historical_control(self):
+        current = (probe.ROOT / 'src/game/pb/pb_texture.c').read_text()
+        self.assertIn('#include "dolphin/gx/GXTexture.h"', current)
+        with self.assertRaisesRegex(ValueError, 'inapplicable'):
+            probe.source_forms(current)
+        with mock.patch.object(probe.cv, 'read_edges', return_value={probe.UNIT: {
+                'src': 'src/game/pb/pb_texture.c', 'body_o': 'src/game/pb/pb_texture.c'}}), \
+             mock.patch.object(probe, 'capture') as capture:
+            with self.assertRaisesRegex(ValueError, 'inapplicable'):
+                probe.main(['--only', 'baseline'])
+            capture.assert_not_called()
 
     def restore_historical_interface(self, source):
         """Undo only the reviewed forwarding repair, never experimental axes."""
@@ -105,7 +124,7 @@ class TextureSourceControlTests(unittest.TestCase):
         with mock.patch.object(probe.cv, 'read_edges', return_value={probe.UNIT: {
                 'src': 'src/game/pb/pb_texture.c', 'body_o': 'src/game/pb/pb_texture.c'}}):
             with mock.patch.object(probe, 'capture') as capture, self.assertRaises(SystemExit) as error:
-                probe.main(['--only', 'not_a_real_form'])
+                probe.main(['--historical', '--only', 'not_a_real_form'])
             self.assertEqual(error.exception.code, 2)
             capture.assert_not_called()
 
