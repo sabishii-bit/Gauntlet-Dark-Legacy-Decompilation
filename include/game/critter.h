@@ -28,14 +28,15 @@
  *
  * GameCube (GUNE5D) anchors (config/GUNE5D/symbols.txt):
  *   Critter instance size  0xAE0  (2784 bytes)
- *   gCritterPool[16]  @0x80241204  == BigState gBig.blk234 (soundmgr.c),
+ *   gCritterPool[16]  @0x80241204  == CritterBigState gBig.pool (critter.c),
  *                                     16 * 0xAE0 == 0xAE00
- *   gCritterHeaders[9][6] @0x8024C004 == gBig.arrB034 - CritterHeader* table
+ *   gCritterHeaders[9][6] @0x8024C004 == gBig.typeTable - CritterHeader* table
  *                                     indexed [type*0x18 + subtype*4]
  *   gCritterNextID   @0x80343BE8  u16 rolling unique-id counter (== CritterNewID)
  *   gCritterCountMax @0x8034462C  s32 high-water active count
- *   (gNumCritters    @0x8034466C  s32 active count - kept as lbl_8034466C
- *    because it is referenced by the already-matched soundmgr.c sndSysInit)
+ *   (gNumCritters    @0x8034466C  s32 active count - currently lbl_8034466C)
+ *   CritterInit     @0x8004229C  formerly misnamed/misowned sndSysInit;
+ *    its complete PS2 counterpart initializes these same CRITTER objects.
  *
  * Offsets VERIFIED against the GC DOL asm (dtk-extracted, via
  * tools/gdl/fnasm.py) across CritterEmptyInst, CritterInitInst, CritterNewInst,
@@ -59,8 +60,8 @@
  *   next       0xAD8  lwz   (sibling in active critter list)
  *   parent     0xADC  lwz   (parent critter; NULL for a root critter)
  * GC-vs-Xbox delta: crit_inst is 0xae0 on both, and every offset checked above
- * agrees; the Xbox and GC also share the CRITTER.OBJ function roster 1:1 (see
- * research/xbox_symbols/functions_by_module.txt).  Xbox names remain
+ * agrees. Xbox CRITTER.OBJ also identifies helpers inlined in GC; the emitted
+ * function rosters are not necessarily identical. Xbox names remain
  * corroboration, not proof of GC layout: each one still has to be confirmed
  * against a GC access before it is adopted.
  */
@@ -384,9 +385,10 @@ typedef struct Critter {
 } Critter;                    /* size 0xAE0 (2784) */
 
 /* -- module globals (GC GUNE5D) -- */
-extern Critter gCritterPool[16];             /* 0x80241204 (== gBig.blk234)    */
+extern Critter gCritterPool[16];             /* 0x80241204 (== gBig.pool)      */
 extern struct CritterHeader *gCritterHeaders[9][6]; /* 0x8024C004 hdr table    */
 extern u16 gCritterNextID;                   /* 0x80343BE8 rolling unique id   */
+void CritterInit(void);
 extern s32 gCritterCountMax;                 /* 0x8034462C high-water count    */
 
 #endif /* GAME_CRITTER_H */

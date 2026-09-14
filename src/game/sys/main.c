@@ -82,7 +82,7 @@ void init_attract_mode(int screen);
 void ClockOncePerFrame(void);
 void LoadVU1GameLogic(void);
 void PlayerControls(void);
-void sndSysStub1(void);
+void CheckFingerLoModes(void);
 void ScreenSaver(void);
 int DoOptions(void);
 void sndFxQueUpdate(void);
@@ -101,7 +101,7 @@ void fn_8006FE30(void);
 void UpdateCam(void);
 void fn_80052134(void);
 void fn_800C0394(void);
-void sndSysStub0(void);
+void DoFingerLoModes(void);
 void default_options(void);
 void ResetClock(void);
 void InitMemHandler(void);
@@ -360,7 +360,7 @@ void main(void)
         sBootPhase = 3;
         PlayerControls();
         if (gDemoMode == 0) {
-            sndSysStub1();
+            CheckFingerLoModes();
         }
         sBootPhase = 11;
         ScreenSaver();
@@ -436,7 +436,7 @@ void main(void)
             fn_800C0394();
         }
         lbl_80344F80 = (gGameBusy != 0) ? 0 : 1;
-        sndSysStub0();
+        DoFingerLoModes();
         MBEndFrame();
         serve_io();
         sMainFrames++;

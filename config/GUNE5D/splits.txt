@@ -135,16 +135,23 @@ game/game/controls.c:
 	.sdata2     start:0x803463F8 end:0x80346470
 
 game/enemy/critter.c:
-	extab       start:0x80005CE0 end:0x80005F28
-	extabindex  start:0x800093A0 end:0x8000970C
-	.text       start:0x80034CFC end:0x8004229C
+	extab       start:0x80005CE0 end:0x80005F30
+	extabindex  start:0x800093A0 end:0x80009718
+	.text       start:0x80034CFC end:0x80042394
 	.rodata     start:0x801120E0 end:0x80112360
 	.data       start:0x8011AEA0 end:0x8011AF44
+	.bss        start:0x80240FD0 end:0x8024C0DC
+	.sdata      start:0x80343BE8 end:0x80343BF0
+	.sbss       start:0x80344628 end:0x80344670
+	.sdata2     start:0x80346470 end:0x803466A0
+
+game/sys/dbmodes.c:
+	.text       start:0x80042394 end:0x8004239C
 
 game/audio/soundmgr.c:
-	extab       start:0x80005F28 end:0x80005FF8
-	extabindex  start:0x8000970C end:0x80009844
-	.text       start:0x8004229C end:0x800433EC
+	extab       start:0x80005F30 end:0x80005FF8
+	extabindex  start:0x80009718 end:0x80009844
+	.text       start:0x8004239C end:0x800433EC
 
 game/world/dyngrid.c:
 	.text       start:0x800433EC end:0x80043A78

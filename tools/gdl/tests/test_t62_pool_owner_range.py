@@ -142,12 +142,13 @@ class LiveCritter(unittest.TestCase):
              *flags], cwd=str(ROOT), capture_output=True, text=True)
 
     def test_without_pool_claims_it_says_not_applicable_and_offers_a_range(self):
-        # CRITTER now claims its real rodata. Keep the original no-claim
+        # CRITTER now claims rodata and both initialized small-data pools.
+        # Keep the original no-claim
         # negative control explicit rather than depending on stale splits.
         live_runs = pool_owner.load_splits()
         runs = [r for r in live_runs
                 if not (r[0] == "game/enemy/critter"
-                        and r[1] in (".rodata", ".sdata2"))]
+                        and r[1] in pool_owner.POOL_SECTIONS)]
         self.assertLess(len(runs), len(live_runs))
         result = pool_owner.analyze("game/enemy/critter", runs=runs)
         self.assertTrue(result["datums"])
@@ -161,6 +162,8 @@ class LiveCritter(unittest.TestCase):
         done = self.run_tool()
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn(".rodata 0x801120E0...0x80112360 [splits.txt]", done.stdout)
+        self.assertIn(".sdata 0x80343BE8...0x80343BF0 [splits.txt]", done.stdout)
+        self.assertIn(".sdata2 0x80346470...0x803466A0 [splits.txt]", done.stdout)
         self.assertIn("FIRST-USE ORDER over", done.stdout)
         self.assertNotIn("FIRST-USE ORDER: NOT APPLICABLE", done.stdout)
         self.assertNotIn("CANDIDATE EXTENT (--range)", done.stdout)

@@ -3,7 +3,7 @@
 #include "game/dcs.h"
 
 /*
- * Sound / message-dispatch client (early game TU, text 0x8004229C-0x800433EC).
+ * Sound / message-dispatch client (text 0x8004239C-0x800433EC).
  *
  * A set of small "screen/query" helpers that marshal a 32-byte parameter
  * block and dispatch a numeric command to the audio/resource server via
@@ -11,12 +11,10 @@
  * voice bank (14 voices).  Names describe observed behaviour; exact Midway
  * identifiers are unconfirmed.
  *
- * NonMatching: the original reserves a small unused stack local in many of
- * these functions (reconstructed here as `volatile s32 _fpad[N]`).  A few
- * residuals remain: the deferred-callback loop (sndSysFlush/sndSysClear/
- * sndCmdD/sndCmd1) differs by one address-fold instruction, while sndSysInit
- * differs by register choice.
- * These are register/frame-allocation-only residuals; logic is verified.
+ * Matching does not certify the provenance of the existing volatile stack
+ * reservations and address-carrier forms. Those remain reconstruction debt.
+ * The preceding initializer belongs to CRITTER; the two empty hooks between
+ * it and this client belong to DBMODES (PS2 functions and Xbox module records).
  */
 
 void* memset(void* dst, int val, u32 n);
@@ -25,7 +23,6 @@ u32 strlen(const char* s);
 
 /* command dispatch to the sound/resource server: id + in/out param blocks */
 s32 dcsHandleRequest(s32 id, void* in, void* out);   /* server message dispatch */
-void HealthMeterInit(void);                      /* HealthMeterInit */
 s32 adsPoll(void);                               /* ADSTREAM per-frame poll (adsPoll) */
 
 /* GameCube audio (sndvoice.c / AX / AR) */
@@ -75,34 +72,6 @@ extern s32 sReset;          /* sReset */
 extern s32 sFlags;          /* sFlags */
 extern long long gControllerButtons; /* 64-bit word whose low half aliases sFlags */
 
-/*
- * The init state is a single aggregate the compiler anchors on: sndSysInit
- * reaches every member as base+offset from gBig (at 0x80240FD0).
- */
-typedef struct BigState {
-    /* 0x00000 */ f32 f0[0x14];
-    /* 0x00050 */ u8 _p50[0x40];
-    /* 0x00090 */ s32 arr90[4];
-    /* 0x000A0 */ u8 arrA0[4][0x50];
-    /* 0x001E0 */ u8 blk1E0[0x54];
-    /* 0x00234 */ u8 blk234[0xAE00];
-    /* 0x0B034 */ s32 arrB034[9][6];
-    /* 0x0B10C */ u8 _end[4];
-} BigState;
-extern BigState gBig;   /* gBig */
-
-extern s32 gBossDead;   /* gBossDead */
-extern s32 lbl_8034466C;
-extern s32 lbl_80344668;
-extern u16 lbl_80344664;
-extern s32 lbl_80344660;
-extern s32 lbl_8034465C;
-extern s32 lbl_80344658;
-extern s32 lbl_80344654;
-extern s32 lbl_80344650;
-extern f32 lbl_8034464C;
-extern f32 lbl_80346470;
-
 /* nodes[0x20]/defer and msgbuf are separate bss objects (dtk-labelled) when
  * accessed as top-level arrays (folded own-symbol address). */
 extern s32 lbl_8024C508[];  /* nodes[0x20] @0x8024C508 (== gSndState+0x428) */
@@ -112,58 +81,6 @@ s32 sndSysFlush(void);         /* sndSysFlush */
 void sndSysClear(void);        /* sndSysClear */
 void sndSysSync(void);         /* sndSysSync */
 void sndTestAXCallback(void);  /* sndTestAXCallback */
-
-/* 0x8004229C */
-#ifdef __MWERKS__
-#pragma opt_propagation off
-#endif
-void sndSysInit(void)
-{
-    BigState* big = &gBig;
-    u8* counterBase;
-    u8* row;
-    s32 i, j;
-
-    i = 0;
-    counterBase = (u8*)big + 0x10000;
-    while (i < 9) {
-        row = counterBase + i * 24;
-        row -= 20428;
-        for (j = 0; j < 6; j++) {
-            *(s32*)(row + j * 4) = 0;
-        }
-        i++;
-    }
-    lbl_8034466C = 0;
-    memset(big->blk234, 0, 0xAE00);
-    lbl_80344668 = 0;
-    memset(big->blk1E0, 0, 0x54);
-    lbl_80344664 = 0;
-    lbl_80344660 = 0;
-    for (i = 0; i < 4; i++) {
-        BigState* arrayEntry = (BigState*)((u8*)big + i * 80);
-        BigState* indexEntry = (BigState*)((u8*)big + i * 4);
-
-        *(s32*)arrayEntry->arrA0[0] = 0;
-        indexEntry->arr90[0] = 0;
-    }
-    lbl_8034465C = 0;
-    lbl_80344658 = 0;
-    lbl_80344654 = -1;
-    lbl_80344650 = 0;
-    lbl_8034464C = lbl_80346470;
-    gBossDead = 0;
-    HealthMeterInit();
-}
-#ifdef __MWERKS__
-#pragma opt_propagation reset
-#endif
-
-/* 0x80042394 */
-void sndSysStub0(void) {}
-
-/* 0x80042398 */
-void sndSysStub1(void) {}
 
 /* 0x8004239C */
 s32 sndSysFrameCallback(void)

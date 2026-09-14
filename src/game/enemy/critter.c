@@ -11,11 +11,11 @@
  * Every target function now has a translated body; remaining work is compiler
  * matching and replacing raw field offsets with recovered structures.
  *
- * .text       0x80034CFC..0x8004229C
+ * .text       0x80034CFC..0x80042394
  * .rodata     0x801120E0..0x80112360
  * .data       0x8011AEA0..0x8011AF44
- * extab       0x80005CE0..0x80005F28
- * extabindex  0x800093A0..0x8000970C
+ * extab       0x80005CE0..0x80005F30
+ * extabindex  0x800093A0..0x80009718
  */
 #include "types.h"
 #include "game/options.h"
@@ -31,13 +31,7 @@
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 
 /* -- module-local BigState siblings (bss, pooled off gBig) -- */
-typedef struct CritterBigState {
-    f32 scratch[4];
-    f32 safeRockTimers[16];
-    s32 safeRockIndices[16];
-    u8 _pad090[0x1A4];
-    Critter pool[16];
-} CritterBigState;
+typedef struct CritterBigState CritterBigState;
 
 /* -- CritterItemView (0xF0): a file-local partial view of game/item.h's
  *    verified GC-exact Item record, covering only the fields
@@ -513,6 +507,23 @@ typedef struct CritterFileHeader {
     s32 sfxCount;
     CritterSfxRecord *sfx;
 } CritterFileHeader;
+
+/* GC-verified view of the existing pooled BSS anchor. These are independent
+ * original arrays, not an original struct: PS2 CritterInit and Xbox CRITTER.OBJ
+ * identify the handles, four headers, one animation instance and 9x6 type
+ * table. Keep this staged view until their separate definitions reproduce
+ * the compiler's pooled addressing. The four bytes after typeTable are
+ * boundary alignment, not an invented final member. */
+struct CritterBigState {
+    f32 scratch[4];
+    f32 safeRockTimers[16];
+    s32 safeRockIndices[16];
+    void *fileHandles[4];
+    CritterFileHeader fileHeaders[4];
+    CritterSubnode animInstances[1];
+    Critter pool[16];
+    struct CritterHeader *typeTable[9][6];
+};
 
 /* -- CritterAddAnim (0x30): one file->addAnims[] entry, a singly-linked list
  *    node CritterInitHeader threads onto its owning type's
@@ -3327,19 +3338,17 @@ credited_damage_done:
     return 0;
 }
 #pragma dont_inline off
-/* 0x80038D18 -- per-frame critter list step: reset per-player scratch, count
- * active players, then process every live critter, summing their results. */
-s32 ProcessCritterList(void)
+/* Original local helper, also called by PS2 ProcessCritterList. The PS2
+ * instructions retain the count locally and publish it only after the scan;
+ * the decompiler's apparent per-iteration global writes are misleading. */
+static inline void CritterInitPlayerData(void)
 {
     Player *player;
     s32 activePlayers;
     s32 i;
-    s32 total;
 
     activePlayers = 0;
-    total = 0;
     player = gPlayers;
-    lbl_80344664++;
     for (i = 0; i < 4; i++, player++) {
         if (player->state == 1) {
             activePlayers++;
@@ -3347,6 +3356,18 @@ s32 ProcessCritterList(void)
         gBig.scratch[i] = 0.0f;
     }
     lbl_8034465C = activePlayers;
+}
+
+/* 0x80038D18 -- per-frame critter list step: reset per-player scratch, count
+ * active players, then process every live critter, summing their results. */
+s32 ProcessCritterList(void)
+{
+    s32 i;
+    s32 total;
+
+    total = 0;
+    lbl_80344664++;
+    CritterInitPlayerData();
 
     for (i = 0; i < lbl_8034466C; i++) {
         if (gCritterPool[i].hdr != NULL) {
@@ -7769,3 +7790,55 @@ void CritterInitHeader(void *hdr, void *file)
         }
     }
 }
+
+/* 0x8004229C -- CritterInit, formerly misowned/misnamed sndSysInit.
+ * The complete PS2 initializer and Xbox CRITTER.OBJ identify every operation.
+ * This move preserves the existing propagation pragma and address-carrier
+ * reconstruction debt; neither is evidence for original source spelling.
+ * Natural indexed stores currently change 14 instructions, so clean up that
+ * addressing separately without regressing the exact initializer. */
+extern void HealthMeterInit(void);
+#ifdef __MWERKS__
+#pragma opt_propagation off
+#endif
+void CritterInit(void)
+{
+    CritterBigState* big = &gBig;
+    u8* counterBase;
+    u8* row;
+    s32 i, j;
+
+    i = 0;
+    counterBase = (u8*)big + 0x10000;
+    while (i < 9) {
+        row = counterBase + i * 24;
+        row -= 20428;
+        for (j = 0; j < 6; j++) {
+            *(s32*)(row + j * 4) = 0;
+        }
+        i++;
+    }
+    lbl_8034466C = 0;
+    memset(big->pool, 0, 0xAE00);
+    lbl_80344668 = 0;
+    memset(big->animInstances, 0, 0x54);
+    lbl_80344664 = 0;
+    lbl_80344660 = 0;
+    for (i = 0; i < 4; i++) {
+        CritterBigState* arrayEntry = (CritterBigState*)((u8*)big + i * 80);
+        CritterBigState* indexEntry = (CritterBigState*)((u8*)big + i * 4);
+
+        arrayEntry->fileHeaders[0].state = 0;
+        indexEntry->fileHandles[0] = NULL;
+    }
+    lbl_8034465C = 0;
+    lbl_80344658 = 0;
+    lbl_80344654 = -1;
+    lbl_80344650 = 0;
+    lbl_8034464C = lbl_80346470;
+    gBossDead = 0;
+    HealthMeterInit();
+}
+#ifdef __MWERKS__
+#pragma opt_propagation reset
+#endif

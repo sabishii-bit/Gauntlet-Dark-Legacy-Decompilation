@@ -173,7 +173,6 @@ extern void  MBCompVertScaleAddUV(s32 a, s32 b, f32 x, f32 y, f32 z,
                                   f32 u, f32 v);
 extern void  ResetWorlds(void);
 extern void  InitItems(void);
-extern void  sndSysInit(void);
 extern s32   good_wiz_enabled;
 extern s32   good_wiz_state;
 extern void* lbl_803447A0;
@@ -1700,7 +1699,7 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
         bulletproof_printf("  Items... MEM=%d\n", BytesFree());
         InitItems();
         bulletproof_printf("  Critters... MEM=%d\n", BytesFree());
-        sndSysInit();
+        CritterInit();
         bulletproof_printf("  Game... MEM=%d\n", BytesFree());
         result = fn_80054070(wave, mode, -1);
         bulletproof_printf("  Done. MEM=%d\n", BytesFree());
