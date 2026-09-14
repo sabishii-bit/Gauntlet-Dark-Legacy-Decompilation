@@ -12,6 +12,8 @@
  * matching and replacing raw field offsets with recovered structures.
  *
  * .text       0x80034CFC..0x8004229C
+ * .rodata     0x801120E0..0x80112360
+ * .data       0x8011AEA0..0x8011AF44
  * extab       0x80005CE0..0x80005F28
  * extabindex  0x800093A0..0x8000970C
  */
@@ -286,8 +288,6 @@ extern f32   lbl_8034662C;
 extern f32   lbl_803464A8;
 extern f32   lbl_803464E8;
 extern f32   gClockTime;
-extern char  lbl_801121D4[];
-extern char  lbl_80112174[];
 extern Effect Effects[];
 extern void  MBPsysSetEVolume(void *psys, f32 a, f32 b);
 extern void  MBPsysSetPParm(void *psys, s32 n, f32 a, f32 b, f32 c, f32 d);
@@ -362,7 +362,6 @@ extern void  MulVec4Mat3(const f32 *src, f32 *dst, const f32 *matrix);
 extern void  UnparentMatrix(void *node, f32 *matrix);
 extern void *lbl_8034473C;
 extern s32   gBossType;
-extern f32   lbl_8011AEAC[];
 extern s32   gFrameTicks;
 extern u32   lbl_80344BF8;
 /* -- CritterSubnode (0x54): one auxiliary animation tree attached to a
@@ -382,7 +381,6 @@ extern s32  *lbl_80344640;
 extern s32   lbl_80344630;
 extern s32   lbl_80344634;
 extern s32   lbl_80344638;
-extern char  lbl_801120E0[];          /* 0x801120E0 rodata format-string anchor    */
 extern s32  *lbl_8025776C[8];         /* 0x8025776C item/def pointer table          */
 DECL_SECT(".sdata2") extern const char lbl_8034664C[]; /* 0x8034664C wad name       */
 extern void *gWorldData;              /* 0x80344838 world data record                */
@@ -600,13 +598,9 @@ extern s32   PlayerAttacking(s32 player, s32 mode);
 extern s32   player_can_be_damaged(void *player);
 extern void  GetPlayerColPos(s32 i, f32 *out);
 extern f64   __fabs(f64 x);
-extern char  lbl_8011221C[];          /* 0x8011221C critter-overflow message      */
-extern const char lbl_80112238[];
-extern char  lbl_801122F0[];
 extern f32   gIdentityMatrix[12];
 DECL_SECT(".sdata2") extern const char lbl_80346644[];
 extern level_data *gCurLevel;         /* current level record (game/leveldata.h)  */
-extern char  lbl_8011219C[];          /* move-type lookup failure message          */
 extern void *MBOX_ReallyFindObject(const char *name, s32 type1, s32 type2,
                                     s32 exact);
 extern void *MBNewObject(void *object, f32 *matrix, void *parent, u32 flags);
@@ -617,7 +611,11 @@ extern f32   lbl_8023CA98[];
 extern void *EnemyWallCollide(f32 radius, f32 *from, f32 *to, f32 *normal);
 extern s32   SlideAlongWall(f32 radius, f32 *pos, f32 *vel, f32 *wallpt,
                             f32 *normal);
-extern char *lbl_8011AEA0[3];         /* 0x8011AEA0 shadow model-name table        */
+/* CRITTER's file-static shadowdesc, roar_damage_mul and damage_mul tables.
+ * PDB scopes and GC consumers agree; these were formerly claimed by CONTROLS. */
+static char *lbl_8011AEA0[3] = { "SHADOW1L1", "SHADOW2L1", "SHADOW3L1" };
+static f32 lbl_8011AEAC[5] = { 1.0f, 1.0f, 1.5f, 2.0f, 2.0f };
+static f32 lbl_8011AEC0[5] = { 1.0f, 1.0f, 0.5f, 0.3f, 0.2f };
 extern f32   lbl_80346588;
 extern f32   lbl_8034658C;
 extern f32   lbl_80346618;
@@ -634,7 +632,6 @@ extern void  ShakeCamera(s32 type, s32 count, s32 delay, f32 radius,
                          s32 priority);
 extern void  SafeRockSetup(void);
 extern s32   lbl_802897B8[];          /* 0x802897B8 skinfx palette table          */
-extern char  lbl_801121C0[];          /* 0x801121C0 killfx overflow message       */
 extern f32   lbl_80346570;
 extern f32   lbl_8034464C;
 extern u32   sFlags;
@@ -642,8 +639,6 @@ extern s32   gBossDead;
 DECL_SECT(".sdata2") extern const char lbl_803465E0[];
 DECL_SECT(".sdata2") extern const char lbl_803465E4[];
 DECL_SECT(".sdata2") extern const char lbl_803465E8[];
-extern char  lbl_80112104[];
-extern char  lbl_8011213C[];
 extern char *strcpy(char *dst, const char *src);
 extern f32   acosf(f32 value);
 extern void  camera_request_change(s32 value, s32 mode);
@@ -657,7 +652,6 @@ extern void  do_heal_players(void *player, f32 *matrix, f32 amount);
 extern s32   fn_800945D0(f32 *position, f32 *matrix, s32 damageType,
                          s32 alternate, s32 kind, f32 scale);
 extern void  BossDying(void);
-extern f32   lbl_8011AEC0[];
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
@@ -4173,7 +4167,7 @@ s32 CritterBossAI(Critter *c)
             strcpy(moveName, lbl_803465E4);
         }
         /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
-        DrawText(8, 214, 0, 0xFFFFFF, lbl_80112104, moveName,
+        DrawText(8, 214, 0, 0xFFFFFF, "CRIT %s:%s HT:%d D:%d FR:%d TGT:%d DST:%d ANG:%d    ", moveName,
                  (u8 *)move + 0x10, (s32)c->health,
                  (s32)(10.0f * c->rateScale),
                  (s32)(0.5 + c->atree.animinfo.frame),
@@ -4218,7 +4212,7 @@ s32 CritterBossAI(Critter *c)
                 childFrame = (s32)c->atree.animinfo.frame;
             }
             /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
-            DrawText(8, y, 0, 0xFFFFFF, lbl_8011213C, i,
+            DrawText(8, y, 0, 0xFFFFFF, "CHLD %d %s:%s HT:%d D:d FR:%d TGT:%d DST:%d ANG:%d    ", i,
                      moveName,
                      c->curmove >= 0
                          ? (char *)((u8 *)&c->hdr->movesPtr[c->curmove] + 0x10)
@@ -5351,7 +5345,7 @@ void CritterAnimate(Critter *c)
 
     if (sequence < 0) {
         /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
-        FatalError(lbl_80112174, 0x800000);
+        FatalError("Critter has seq < 0 (shouldn't happen)", 0x800000);
     }
     if (current != next && transition == 0 && sMusicFadeBase > c->rate &&
         AnimDone(&c->atree.animinfo)) {
@@ -5542,7 +5536,7 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     }
 
     if (result < 0 && mode != 0) {
-        ErrorPrintf(lbl_8011219C, type, mode);
+        ErrorPrintf("Critter can not find move type: %d", type, mode);
         result = CritterFindMoveType(c, MOVE_READY, 1);
     }
     return result;
@@ -6102,7 +6096,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     }
     if ((entry->flags & 0x40000) != 0) {
         if (c->unkABA >= 0) {
-            ErrorPrintf(lbl_801121C0);
+            ErrorPrintf("Critter: > 1 killfx");
         } else {
             c->unkABA = (s16)result;
         }
@@ -6230,7 +6224,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
         break;
     }
     if (psys == NULL) {
-        ErrorPrintf(lbl_801121D4);
+        ErrorPrintf("Critter unable to generate psys");
     } else {
         ((MBObject *)psys)->mat[3][0] = ((CritterSfxRecord *)s)->color[0];
         ((MBObject *)psys)->mat[3][1] = ((CritterSfxRecord *)s)->color[1];
@@ -6374,7 +6368,7 @@ Critter *CritterEmptyInst(void)
         }
     }
     if (i >= 16) {
-        ErrorPrintf(lbl_8011221C, i, count);
+        ErrorPrintf("Too many Critter Insts: %d", i, count);
         return NULL;
     }
     if (i == count) {
@@ -6574,7 +6568,7 @@ void CritterAddHealthMeter(Critter *c)
                 c->hdr->healthbarOffset[2];
 
             c->damageflash =
-                AtreeFindNode(&c->healthbar[0], lbl_80112238, 9);
+                AtreeFindNode(&c->healthbar[0], "RED_FILLE", 9);
         }
     }
 }
@@ -6997,42 +6991,50 @@ s32 CritterLoadFile(const char *wad, const char *name)
     return idx;
 }
 
+/* PS2 retains this helper in all three loaders; PDB confirms void(char *,
+ * crit_desc *). GC inlines it into LoadDone, LoadStartNext and AllocType.
+ * The filename and diagnostic literals form the GC string pool. The world
+ * and enemy-description names retain GC-verified offsets in partial views. */
+static inline void GetCritterDesc(char *buf, CritterDescriptor *desc)
+{
+    s32 i;
+
+    switch (desc->type) {
+    case 3:
+    case 8:
+        sprintf(buf, "monsters/%s/%s", desc->name, (char *)gWorldData + 4);
+        break;
+    case 7:
+        for (i = 0; i < 8; i++) {
+            s32 *entry = lbl_8025776C[i];
+            if (*entry == 32) {
+                sprintf(buf, "monsters/%s_%s", desc->name, (char *)entry + 16);
+                break;
+            }
+        }
+        break;
+    default:
+        sprintf(buf, "monsters/%s", desc->name);
+        break;
+    }
+}
+
 /* 0x8003F414 -- poll the active background model request and advance it to
  * the texture/model-finalization stage. */
 s32 CritterLoadDone(s32 maxBytes)
 {
-    char buf[36];
+    char buf[32];
     CritterDescriptor *desc;
-    char *fmtbase;
     s32 result;
     s32 *handle;
     s32 size;
-    s32 i;
 
     result = 0;
-    fmtbase = lbl_801120E0;
     desc = (CritterDescriptor *)crit_load_desc;
     if (desc->loadState == 1) {
         if (MBOX_BGLoadModelDone() != 0) {
             desc->loadState = 2;
-            switch (desc->type) {
-            case 3:
-            case 8:
-                sprintf(buf, &fmtbase[416], desc, (u8 *)gWorldData + 4);
-                break;
-            case 7:
-                for (i = 0; i < 32; i += 4) {
-                    s32 *entry = *(s32 **)((u8 *)lbl_8025776C + i);
-                    if (*entry == 32) {
-                        sprintf(buf, &fmtbase[432], desc, (u8 *)entry + 16);
-                        break;
-                    }
-                }
-                break;
-            default:
-                sprintf(buf, &fmtbase[448], desc);
-                break;
-            }
+            GetCritterDesc(buf, desc);
             size = FileSize(buf, lbl_8034664C);
             if (maxBytes != 0 && size > maxBytes) {
                 size = maxBytes;
@@ -7072,16 +7074,13 @@ void CritterBGLoadFile(s32 *loader)
 s32 CritterLoadStartNext(void)
 {
     char buf[32];
-    u8 *fmtbase;
     u8 *tableBase;
     s32 i;
     s32 j;
     CritterFileHeader *entry;
     CritterPackedType *sub;
     CritterDescriptor *desc;
-    s32 offset;
 
-    fmtbase = (u8 *)lbl_801120E0;
     tableBase = (u8 *)lbl_80241070;
     for (i = 0; i < lbl_80344660; i++) {
         entry = (CritterFileHeader *)(tableBase + i * 80);
@@ -7098,27 +7097,7 @@ s32 CritterLoadStartNext(void)
             case 0:
                 break;
             case 1:
-                switch (desc->type) {
-                case 3:
-                case 8:
-                    sprintf(buf, (char *)&fmtbase[416], desc,
-                            (u8 *)gWorldData + 4);
-                    break;
-                case 7:
-                    for (offset = 0; offset < 32; offset += 4) {
-                        s32 *e2 =
-                            *(s32 **)((u8 *)lbl_8025776C + offset);
-                        if (*e2 == 32) {
-                            sprintf(buf, (char *)&fmtbase[432], desc,
-                                    (u8 *)e2 + 16);
-                            break;
-                        }
-                    }
-                    break;
-                default:
-                    sprintf(buf, (char *)&fmtbase[448], desc);
-                    break;
-                }
+                GetCritterDesc(buf, desc);
                 MBOX_BGLoadModelStart(buf, desc->modelIndex);
                 crit_load_desc = desc;
                 lbl_80344640 = NULL;
@@ -7173,34 +7152,14 @@ void CritterAllocType(void *hdr, void *move, s32 arg)
 {
     char buf[32];
     CritterDescriptor *desc;
-    u8 *fmtbase;
-    s32 k;
 #define M ((CritterPackedType *)move)
 
     M->file = (CritterFileHeader *)hdr;
-    fmtbase = (u8 *)lbl_801120E0;
     desc = &((CritterDescriptor *)((CritterFileHeader *)hdr)->descriptors)
         [M->descriptorIndex];
     M->descriptor = desc;
     if (desc->modelIndex < 0) {
-        switch (desc->type) {
-        case 3:
-        case 8:
-            sprintf(buf, (char *)&fmtbase[416], desc, (u8 *)gWorldData + 4);
-            break;
-        case 7:
-            for (k = 0; k < 8; k++) {
-                s32 *e2 = lbl_8025776C[k];
-                if (*e2 == 32) {
-                    sprintf(buf, (char *)&fmtbase[432], desc, (u8 *)e2 + 16);
-                    break;
-                }
-            }
-            break;
-        default:
-            sprintf(buf, (char *)&fmtbase[448], desc);
-            break;
-        }
+        GetCritterDesc(buf, desc);
         if (arg != 0) {
             desc->modelIndex = LoadModel(buf, &desc->model, 0, -1);
             desc->loadState = 2;
@@ -7349,7 +7308,7 @@ void CritterInitMoves(CritterPackedType *header)
             index = AtreeHeaderFindSeq(atree, entry->anim);
             entry->seqidx = (s16)index;
             if (entry->seqidx < 0) {
-                ErrorPrintf(lbl_801122F0, header->descriptor->prefix,
+                ErrorPrintf("Critter %s: unable to find anim %s", header->descriptor->prefix,
                             entry->anim);
                 entry->seqidx = 0;
             }

@@ -29,6 +29,11 @@ negative half: an unmeasured byte comparison never promotes a row to RELOC.
 TWO SIDES. Synthetic maps and relocation tables drive the classifier and
 every refusal; the live half re-measures controls and asserts the two tools
 now say compatible things about the same tree.
+
+R57 corrects the original ownership assumption: the final three pointers
+belong to CRITTER's shadowdesc, not CONTROLS. The eight retained CONTROLS
+pointers still exercise the same unclaimed-rodata mechanism; the historical
+eleven-row calibration above is not the current object layout.
 """
 import unittest
 from pathlib import Path
@@ -39,7 +44,7 @@ ROOT = Path(__file__).resolve().parents[3]
 CONTROLS = "main/game/game/controls"
 # controls.c's runs, as splits.txt has them.
 RUNS = [("extab", 0x80005C18, 0x80005CE0), (".text", 0x8003104C, 0x80034CFC),
-        (".data", 0x8011A220, 0x8011AED4), (".bss", 0x802407B8, 0x80240FD0),
+        (".data", 0x8011A220, 0x8011AEA0), (".bss", 0x802407B8, 0x80240FD0),
         (".sdata", 0x80343BE0, 0x80343BE8),
         (".sbss", 0x803445D8, 0x80344624),
         (".sdata2", 0x803463F8, 0x80346470)]
@@ -187,7 +192,7 @@ def live_objects(base):
                      and (ROOT / "build/GUNE5D/report.json").is_file(),
                      "controls objects or report.json are not built here")
 class LiveControls(unittest.TestCase):
-    """The regression fixture: lane H's eleven rows, and the agreement."""
+    """The eight retained CONTROLS rows and the two tools' agreement."""
 
     @classmethod
     def setUpClass(cls):
@@ -196,13 +201,12 @@ class LiveControls(unittest.TestCase):
     def test_controls_data_is_reloc_not_byte(self):
         self.assertEqual(self.row["verdict"], "RELOC")
 
-    def test_the_eleven_rows_are_the_ones_lane_h_measured(self):
+    def test_the_eight_retained_rows_exclude_critters_shadow_table(self):
         offsets = [row["offset"] for row in self.row["unpairable_relocs"]]
-        self.assertEqual(len(offsets), 11)
-        self.assertEqual(offsets[:8],
+        self.assertEqual(len(offsets), 8)
+        self.assertEqual(offsets,
                          [0xC48, 0xC4C, 0xC54, 0xC58, 0xC5C, 0xC60, 0xC64,
                           0xC68])
-        self.assertEqual(offsets[8:], [0xC80, 0xC84, 0xC88])
         self.assertTrue(all(row["our_symbol"] == "...rodata.0"
                             for row in self.row["unpairable_relocs"]))
 
@@ -215,7 +219,7 @@ class LiveControls(unittest.TestCase):
         note = datadiff.credit_note("game/game/controls.c",
                                     "game/game/controls", ".data")
         self.assertIsNotNone(note)
-        self.assertIn("11 relocation(s)", note)
+        self.assertIn("8 relocation(s)", note)
         self.assertIn("CLAIM work, not source work", note)
 
     def test_a_fully_paid_section_gets_no_credit_note(self):

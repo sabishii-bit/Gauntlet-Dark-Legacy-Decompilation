@@ -134,19 +134,36 @@ LIVE = ((ROOT / "build/GUNE5D/obj/game/enemy/critter.o").is_file()
 
 @unittest.skipUnless(LIVE, "needs the split target objects and symbols")
 class LiveCritter(unittest.TestCase):
-    """The reported unit: NOT APPLICABLE without a range, a verdict with one."""
+    """Explicitly unowned control plus current claimed and candidate extents."""
 
     def run_tool(self, *flags):
         return subprocess.run(
             [sys.executable, "tools/gdl/pool_owner.py", "game/enemy/critter",
              *flags], cwd=str(ROOT), capture_output=True, text=True)
 
-    def test_without_a_range_it_still_says_not_applicable_and_offers_one(self):
+    def test_without_pool_claims_it_says_not_applicable_and_offers_a_range(self):
+        # CRITTER now claims its real rodata. Keep the original no-claim
+        # negative control explicit rather than depending on stale splits.
+        live_runs = pool_owner.load_splits()
+        runs = [r for r in live_runs
+                if not (r[0] == "game/enemy/critter"
+                        and r[1] in (".rodata", ".sdata2"))]
+        self.assertLess(len(runs), len(live_runs))
+        result = pool_owner.analyze("game/enemy/critter", runs=runs)
+        self.assertTrue(result["datums"])
+        self.assertEqual(result["claimed_pool_extent"], [])
+        text = pool_owner.format_report(result, 1)
+        self.assertIn("FIRST-USE ORDER: NOT APPLICABLE", text)
+        self.assertIn("--range <section>:0xSTART-0xEND", text)
+        self.assertIn("claimable_sections.py", text)
+
+    def test_current_rodata_claim_produces_a_verdict_without_a_candidate(self):
         done = self.run_tool()
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertIn("FIRST-USE ORDER: NOT APPLICABLE", done.stdout)
-        self.assertIn("--range <section>:0xSTART-0xEND", done.stdout)
-        self.assertIn("claimable_sections.py", done.stdout)
+        self.assertIn(".rodata 0x801120E0...0x80112360 [splits.txt]", done.stdout)
+        self.assertIn("FIRST-USE ORDER over", done.stdout)
+        self.assertNotIn("FIRST-USE ORDER: NOT APPLICABLE", done.stdout)
+        self.assertNotIn("CANDIDATE EXTENT (--range)", done.stdout)
 
     def test_a_candidate_extent_produces_a_labelled_order_verdict(self):
         done = self.run_tool("--range", ".sdata2:0x80346470-0x80346559")

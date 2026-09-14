@@ -222,10 +222,31 @@ class LiveObject(unittest.TestCase):
 
     def test_a_renumbered_pool_entry_alone_stays_neutral(self):
         # Rename one anonymous entry IN THE BANK, same length, so the two
-        # objects differ only in a pool NUMBER.
+        # objects differ only in a pool NUMBER. Source reconstruction
+        # renumbers these labels; select an actual referenced entry, not a
+        # historical @131 which may no longer exist.
         data = self.object_path.read_bytes()
-        self.assertEqual(data.count(b"@131\x00"), 1)
-        self.object_path.write_bytes(data.replace(b"@131\x00", b"@931\x00"))
+        obj = objneutral.read_object(self.object_path)
+        names = sorted({r[2] for row in objneutral.function_rows(obj).values()
+                        for r in row["relocs"] if objneutral.is_anonymous(r[2])})
+        self.assertTrue(names, "fixture has no referenced anonymous pool entry")
+        rename = None
+        for name in names:
+            old = name.encode("ascii") + b"\x00"
+            if data.count(old) != 1:
+                continue
+            for digit in "9876543210":
+                candidate = "@" + digit + name[2:]
+                new = candidate.encode("ascii") + b"\x00"
+                if new not in data:
+                    rename = (name, candidate, old, new)
+                    break
+            if rename is not None:
+                break
+        self.assertIsNotNone(rename, "no collision-free same-length pool rename")
+        before_name, after_name, old, new = rename
+        self.assertEqual(len(old), len(new))
+        self.object_path.write_bytes(data.replace(old, new))
         done = self.run_tool("check", "--tag", self.TAG, "--json")
         self.assertEqual(done.returncode, 0, done.stdout[:400])
         result = json.loads(done.stdout)
@@ -235,7 +256,8 @@ class LiveObject(unittest.TestCase):
                       if row["verdict"] == "RENUMBERED"]
         self.assertTrue(renumbered)
         entry = renumbered[0]["renumbered_relocations"][0]
-        self.assertEqual({entry["before"], entry["after"]}, {"@931", "@131"})
+        self.assertEqual({entry["before"], entry["after"]},
+                         {before_name, after_name})
 
     def test_a_bank_for_another_unit_is_refused_not_compared(self):
         meta = json.loads(self.meta_path.read_text(encoding="utf-8"))

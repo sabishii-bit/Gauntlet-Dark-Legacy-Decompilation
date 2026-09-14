@@ -320,7 +320,9 @@ class LiveCalibration(unittest.TestCase):
         rows = self.run_unit("game/game/controls", drop={
             ("game/game/controls.c", section)
             for section in (".data", ".bss", ".sdata", ".sdata2")})
-        expected = {".data": ("0x8011A220", "0x8011AED4", "claimable"),
+        # R57: the final 52 bytes were CRITTER's three file-static tables,
+        # not CONTROLS data. Keep the independently verified corrected end.
+        expected = {".data": ("0x8011A220", "0x8011AEA0", "claimable"),
                     ".sdata": ("0x80343BE0", "0x80343BE8", "claimable"),
                     ".sdata2": ("0x803463F8", "0x80346470", "claimable"),
                     ".bss": ("0x802407B8", "0x80240FD0", "claimable-bss")}
