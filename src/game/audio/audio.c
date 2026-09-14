@@ -46,7 +46,7 @@ extern void sndCmd3(s32 a);
 extern s32  sndCmd4();   /* DCS async load request; arg shape varies by caller */
 extern void sndCmd6(void);
 extern s32  sndCmd7(s16 a, u16* b, u16* c);
-extern s32  sndCmd8(u16* a, s32 b, s32 c);
+extern s32  sndCmd8(char* name, s32 b, s32 c);
 extern s32  sndCmdA(u16 a, s32 b, s32 c, void* d);
 extern void sndCmdB(void);
 extern s32  sndCmdC(void);
@@ -1117,8 +1117,9 @@ extern void AudioStreamEndCbOnce(void);
 s32 AudioStreamPlay(s32 id, s32 loopMode, s32 vol)
 {
     u8* state = sAudioState;
-    volatile u8 unused[256];
-    s32 dataPtr;
+    /* FileMap writes the mapped OS filename here; sndCmd8 consumes that string.
+     * Xbox names this osfile, and the GC buffer occupies r1+28 through r1+283. */
+    char osfile[256];
     s32 sz1;
     s32 sz2;
     s32 result = -1;
@@ -1130,11 +1131,11 @@ s32 AudioStreamPlay(s32 id, s32 loopMode, s32 vol)
     if (lbl_803442A4 != 0) {
         return 0;
     }
-    if (FileMap((char*)lbl_803459A0, (char*)(state + 1048), &dataPtr, 256,
+    if (FileMap((char*)lbl_803459A0, (char*)(state + 1048), osfile, sizeof(osfile),
                 &sz1, &sz2) == 0) {
         ErrorPrintf("Audio Stream bad file: %s", (char*)(state + 1048));
     } else {
-        resp = sndCmd8((u16*)&dataPtr, sz1, sz2);
+        resp = sndCmd8(osfile, sz1, sz2);
         if (resp == -4) {
             ErrorPrintf("Audio Stream no buffer memory: %s", (char*)(state + 1048));
         } else if (resp < 0) {
