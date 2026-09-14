@@ -5,6 +5,7 @@
  */
 #include "types.h"
 #include "dolphin/dvd.h"
+#include "dolphin/os.h"
 
 s32 DVDGetCommandBlockStatus(DVDCommandBlock* block);
 void ScrollMessageBox(char* msg);   /* disc-error message display (MESSAGE.OBJ) */
@@ -127,7 +128,7 @@ int sceFileSize(const char* path)
     do {
         r = DVDOpen((char*) path, &fi);
         if (r == 0) {
-            int off = (int) (((u32) &bufo[31] & ~31) - (u32) &bufo);
+            int off = (int) (OSRoundUp32B(bufo) - (u32) bufo);
             sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, bufo + off, 32, 0);
         }
     } while (r == 0);
@@ -135,7 +136,7 @@ int sceFileSize(const char* path)
     do {
         r = DVDClose(&fi);
         if (r == 0) {
-            int off = (int) (((u32) &bufc[31] & ~31) - (u32) &bufc);
+            int off = (int) (OSRoundUp32B(bufc) - (u32) bufc);
             sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, bufc + off, 32, 0);
         }
     } while (r == 0);
@@ -240,8 +241,7 @@ int sceRead(int fd, void* buf, int len)
 
     f = SCEHANDLE(fd);
     rem = len;
-    a = rem + 31;
-    span = (f->pos + a) & ~31;
+    span = OSRoundUp32B((u32) f->pos + rem);
     a = f->pos & ~31;
     span = span - a;
 
@@ -320,7 +320,7 @@ int sceClose(int fd)
                subf (aligned-base -> r29) and keeps the base+off add at the
                callsite inside the loop, matching Midway. Declaring off in the
                outer scope folds base+off -> aligned and hoists it whole. */
-            int off = (int) (((u32) &buf[31] & ~31) - (u32) &buf[0]);
+            int off = (int) (OSRoundUp32B(buf) - (u32) buf);
             sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, buf + off, 32, 0);
         }
     } while (r == 0);
@@ -361,14 +361,14 @@ int sceOpen(const char* path, int flags, ...)
     do {
         r = DVDOpen((char*) path, fi);
         if (r == 0) {
-            off = (int) (((u32) &rbuf[31] & ~31) - (u32) &rbuf[0]);
+            off = (int) (OSRoundUp32B(rbuf) - (u32) rbuf);
             sDvdReadSync((DVDFileInfo*) gDvdScratchFileInfo, rbuf + off, 32, 0);
         }
     } while (r == 0);
 
     f->pad0[0] = 1;
     f->open = 1;
-    f->bufOff = (((u32) f->buf + 31) & ~31) - (u32) f->buf;
+    f->bufOff = OSRoundUp32B(f->buf) - (u32) f->buf;
     f->chunk = 16384;
     f->pos = 0;
     f->cursor = 0;
