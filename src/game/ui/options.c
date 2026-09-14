@@ -439,7 +439,7 @@ extern s32 StartFireScroll(char* name, s32 a, s32 x, s32 y, s32 w, s32 h, s32 e,
 extern void MBBlitOrder(s32 scroll, void* blit);
 
 /* text (auxscreen/btext) */
-extern s32 FontHeight(f32 scale, s32 font);
+extern s32 FontHeight(s32 font, f32 scale);
 extern void* DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, u32 rgb, char* text);
 extern s32 DrawNormalText(f32 scale, char* text, s32 font);
 extern void SetDrawStringScale(f32 scale);
@@ -1650,7 +1650,7 @@ static void do_audiomenu(OPTMENU* m)
     OPTGLOBALS* og = (OPTGLOBALS*)&optglobals;
 
     i = 0;
-    fh = FontHeight(m->scale, OPTMENU_FONT);
+    fh = FontHeight(OPTMENU_FONT, m->scale);
     sfx_sound_count += vb_elapsed_menu;
     sm = &og->sound_mode;
     for (;; i++) {
@@ -1986,7 +1986,7 @@ void show_optmenu(OPTMENU* m)
 
     savedFlags = MBSetFontFlags(0);
     y = m->y;
-    lh = FontHeight(m->scale, OPTMENU_FONT);
+    lh = FontHeight(OPTMENU_FONT, m->scale);
     MBSetFont(OPTMENU_FONT);
     sel = m->sel;
 
@@ -2517,7 +2517,7 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
 
     if (m->h <= 0) {
         i = OPTMENU_FONT;
-        fh = FontHeight(m->scale, i);
+        fh = FontHeight(i, m->scale);
         for (i = 0; i < m->num_items; i++) {
             h += fh + m->items[i].dy;
         }

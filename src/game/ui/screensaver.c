@@ -54,7 +54,7 @@
 /* ---- text / message-box library (other TUs) ---- */
 int FixMLineText(char* src, char* dst, void* lines);
 int DrawNormalText(f32 scale, char* text, int font);
-int FontHeight(f32 scale, int font);
+int FontHeight(int font, f32 scale);
 int TextMLines(char* text);
 void DrawTextSub(f32 scale, f32 x, u32 color, int y, int font, u32 flags, char* text);
 void msgUpdate();
@@ -289,7 +289,7 @@ void ScrollMessageBox(char* msg)
                 wmax = w;
             }
         }
-        wmax = FontHeight((boxw = wmax + 96, lbl_80344A50), lbl_80344A4C);
+        wmax = FontHeight(lbl_80344A4C, (boxw = wmax + 96, lbl_80344A50));
         boxh = (wmax + 4) * TextMLines(msg) + 60;
         if (boxw < 256) {
             boxw = 256;

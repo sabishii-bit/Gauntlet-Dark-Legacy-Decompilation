@@ -267,7 +267,7 @@ static inline char* find_newline(const char* s)
 
 /* The PS2 DrawGlowText calls FontHeight here; the GC caller expands it.
  * Share that implementation while retaining the public definition's order. */
-static inline s32 FontHeightImpl(f32 scale, s32 font)
+static inline s32 FontHeightImpl(s32 font, f32 scale)
 {
     f32 height;
 
@@ -340,7 +340,7 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     MBSetFontAlpha(0);
     MBDrawText(x, y, text);
     MBSetFontScaleSpace(1.0f, 1.0f);
-    gDrawTextY = y + FontHeightImpl(scale, glow_font);
+    gDrawTextY = y + FontHeightImpl(glow_font, scale);
 }
 
 /* ==== 0x8001ED24 ScrollTextNum ==== */
@@ -1123,9 +1123,11 @@ s32 TextHeightMLines(f32 scale, s32 font, char* str)
 }
 
 /* ==== 0x8002081C FontHeight ==== */
-s32 FontHeight(f32 scale, s32 font)
+/* Xbox named arguments and the GC callers agree on font, then scale.
+ * Their r3/f1 ABI homes had hidden conflicting mixed-class declarations. */
+s32 FontHeight(s32 font, f32 scale)
 {
-    return FontHeightImpl(scale, font);
+    return FontHeightImpl(font, scale);
 }
 
 /* ==== 0x80020874 DrawNormalText ==== */
