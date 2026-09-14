@@ -329,7 +329,8 @@ extern s32   fn_8005D5C8(Critter *c, u8 *item);
 extern void *FindClosestWaypoint(f32 maxDist, f32 *pos, s32 all);
 extern f32   fn_8005F0F4(void *item, f32 *nodepos, f32 *center, f32 *out,
                          f32 radius, f32 height);
-extern f32   fn_8005C1DC(u8 *item, s32 a, s32 b, void *hdr, f32 damage);
+struct Item;
+extern f32   fn_8005C1DC(struct Item *item, f32 damage, s32 flags, s32 owner);
 extern s32   NextGridItem(void);
 extern void  StartItemGrid(f32 *position, f32 radius);
 extern void  MulVecMat3(const f32 *vector, f32 *out, const f32 *matrix);
@@ -945,7 +946,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
                 if (type == 3) {
                     damage = c->hdr->damageScale *
                              gCurLevel->ene_damage;
-                    if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != 0.0f) {
+                    if (fn_8005C1DC((struct Item *)item, damage, 0, -1) != 0.0f) {
                         hit = 1;
                     }
                 } else {
