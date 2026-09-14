@@ -132,7 +132,8 @@ int MBFontHeight(int idx)
 int MBFontStringWidth(const char* s)
 {
     int width = 0;
-    const char* str = s;
+    /* GC lbz/lbzu consume unsigned glyph codes without modifying the text. */
+    const u8* str = (const u8*)s;
     int x;
     MBFont* font;
     int ch;
@@ -142,11 +143,11 @@ int MBFontStringWidth(const char* s)
     }
     font = lbl_802A4AA4[lbl_80344E14];
 
-    while (*(u8*)str != 0) {
-        ch = *(u8*)str;
+    while (*str != 0) {
+        ch = *str;
         switch (ch) {
         case '*':
-            if ((u8)str[1] < 'A' || (u8)str[1] > 'Z') {
+            if (str[1] < 'A' || str[1] > 'Z') {
                 goto add_width;
             }
             {
@@ -160,7 +161,7 @@ int MBFontStringWidth(const char* s)
 
         if (font->flags & 1) {
             if (ch >= 128) {
-                ch = *(u8*)++str;
+                ch = *++str;
             } else if (ch >= '0' && ch <= '9') {
                 /* Numeric glyphs are already in the remapped range. */
             } else if (ch == '.') {
@@ -279,7 +280,7 @@ void MBRenderText(void)
     f32 clipX;
     f32 clipY;
     f32* wp;
-    char* text;
+    const u8* text;
     s32 hb;
     MBFont* font;
     s32 glyph;
@@ -334,14 +335,14 @@ void MBRenderText(void)
                 doClip = u ? 1 : 0;
             }
             spaceW = (s32)(msg->xscale * (f32)mbfont_space[t]);
-            text = msg->text;
-            while ((ch = *(u8*)text) != 0) {
+            text = (const u8*)msg->text;
+            while ((ch = *text) != 0) {
                 y = baseY;
                 c = ch;
                 hb = -1;
                 extra = 0;
                 if ((s32)ch == 0x2a) {
-                    switch ((u8)text[1]) {
+                    switch (text[1]) {
                     case 'X':
                         hb = lbl_80344E48;
                         break;
@@ -381,7 +382,7 @@ void MBRenderText(void)
                     if (font->flags & 1) {
                         if (c >= 0x80) {
                             extra = c - 0x80;
-                            c = *(u8*)++text;
+                            c = *++text;
                         } else if (c >= '0' && c <= '9') {
                         } else if (c == '.') {
                             c = 0x3a;
