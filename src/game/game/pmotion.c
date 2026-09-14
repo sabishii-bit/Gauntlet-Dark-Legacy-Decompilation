@@ -483,6 +483,8 @@ typedef struct PSpawnView {
 s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
                  s32* resultItem, s32 findFloor);
 void get_player_pos(s32 playerIdx, s32 mode) {
+    /* Each spawn path computes and consumes its own radius. No value crosses
+     * these branch/loop scopes; the original lexical scopes remain unknown. */
     f32 pos2[3];
     f32 pos[3];
     f32 resultPos[3];
@@ -496,7 +498,6 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     Player* other;
     PSpawnView* sv;
     PSpawnView* osv;
-    f32 r;
     f32 sx;
     f32 sz;
     f32 s;
@@ -542,6 +543,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             found = -2;
         }
         if (i != playerIdx && i < 4) {
+            f32 r;
             other = &gPlayers[i];
             other->floor_base = other->pos[1];
             CopyMat4(other->mat, p->mat);
@@ -574,6 +576,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     if (found == -1) {
         thresh = lbl_80347B00;
         for (j = 0; j < 4; j++) {
+            f32 r;
             i = (rand4 + j) % 4;
             if (i == playerIdx) {
                 continue;
@@ -658,6 +661,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 ErrorPrintf(lbl_80114220);
             }
         } else {
+            f32 r;
             CopyMat4((f32*)gIdentityMatrix, mat);
             ang = gPlayerStartYaw;
             YawMat3(mat, ang);
@@ -683,6 +687,8 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             thresh = lbl_80347B28;
             do {
                 f32 d;
+                /* Unrecovered reservation: removing it in the witnessed
+                 * test_location inline context still shrinks the target frame. */
                 u8 unused_i[16];
                 if (ok != 0) {
                     break;
