@@ -1063,8 +1063,9 @@ f32 *delta;
 {
     f32 probe[3];
     f32 direction[3];
-    u8 unusedMid[12];
-    f32 floorResult[15];
+    /* FloorCollide writes all 72 bytes, including the score and object after
+     * the matrix. The GC stack extent and original worldcol local agree. */
+    FloorCollisionResult floorResult;
     f32 contact[3];
     u8 unusedLow[4];
     f32 *cpos;
@@ -1083,8 +1084,8 @@ f32 *delta;
     s32 i;
     u32 result;
     s32 grounded;
-    void *wallSurface;
-    void *surface;
+    WorldObj *wallSurface;
+    WorldObj *surface;
 
     minRise = (f32)(-16.0 * (f64)gClockFrameStep);
     cpos = c->pos;
@@ -1131,7 +1132,7 @@ f32 *delta;
 
     if (wallSurface != NULL) {
         CritterWorldDamage(c, wallSurface, cpos, contact);
-        if (((u32)((WorldObj *)wallSurface)->flags & 0x38) != 0) {
+        if (((u32)wallSurface->flags & 0x38) != 0) {
             result = 0;
         } else if (SlideAlongWall(wallRadius, from, delta, contact,
                                   lbl_8023CA98 + 4) < 0) {
@@ -1154,15 +1155,15 @@ f32 *delta;
     probe[2] = cpos[2] + direction[2] * reach;
     reachLimit = (f32)(2.0 * (f64)reach);
     bottom = -(f64)radius - 3.0;
-    if ((surface = FloorCollide(probe, (s32)floorResult, 0, 2,
+    if ((surface = FloorCollide(probe, (s32)&floorResult, 0, 2,
                                 1.0f, radius, bottom)) != NULL) {
         grounded = 1;
-        CritterWorldDamage(c, surface, cpos, floorResult + 12);
+        CritterWorldDamage(c, surface, cpos, floorResult.mtx[3]);
         baseY = c->vel[1] - c->hdr->floorOffset;
-        c->floorContact[0] = floorResult[12];
-        c->floorContact[1] = floorResult[13];
-        c->floorContact[2] = floorResult[14];
-        floorY = floorResult[13];
+        c->floorContact[0] = floorResult.mtx[3][0];
+        c->floorContact[1] = floorResult.mtx[3][1];
+        c->floorContact[2] = floorResult.mtx[3][2];
+        floorY = floorResult.mtx[3][1];
         difference = floorY - baseY;
         if (difference < 0.0f) {
             difference = -difference;
@@ -1174,27 +1175,27 @@ f32 *delta;
             probe[0] = cpos[0] + delta[0];
             probe[1] = cpos[1] + delta[1];
             probe[2] = cpos[2] + delta[2];
-            surface = FloorCollide(probe, (s32)floorResult, 0, 2,
+            surface = FloorCollide(probe, (s32)&floorResult, 0, 2,
                                    1.0f, radius, bottom);
             if (surface == NULL) {
                 grounded = 0;
             } else {
-                c->floorContact[0] = floorResult[12];
-                c->floorContact[1] = floorResult[13];
-                c->floorContact[2] = floorResult[14];
-                floorY = floorResult[13];
+                c->floorContact[0] = floorResult.mtx[3][0];
+                c->floorContact[1] = floorResult.mtx[3][1];
+                c->floorContact[2] = floorResult.mtx[3][2];
+                floorY = floorResult.mtx[3][1];
             }
         }
         if (grounded == 0) {
-            surface = FloorCollide(cpos, (s32)floorResult, 0, 2,
+            surface = FloorCollide(cpos, (s32)&floorResult, 0, 2,
                                    1.0f, radius, bottom);
             if (surface == NULL) {
                 floorY = baseY;
             } else {
-                floorY = floorResult[13];
-                c->floorContact[0] = floorResult[12];
-                c->floorContact[1] = floorResult[13];
-                c->floorContact[2] = floorResult[14];
+                floorY = floorResult.mtx[3][1];
+                c->floorContact[0] = floorResult.mtx[3][0];
+                c->floorContact[1] = floorResult.mtx[3][1];
+                c->floorContact[2] = floorResult.mtx[3][2];
             }
         }
         difference = floorY - baseY;
@@ -1211,22 +1212,20 @@ f32 *delta;
     }
     c->hitwall = result;
     if (surface != NULL) {
-        if (*(void **)((u8 *)surface + offsetof(WorldObj, nodeptr)) != NULL &&
-            ((u32)((WorldObj *)surface)->flags & 0x1000) !=
+        if (surface->nodeptr != NULL &&
+            ((u32)surface->flags & 0x1000) !=
                 0) {
-            MBNodeSetParent(c->mbnode,
-                            *(void **)((u8 *)surface +
-                                       offsetof(WorldObj, nodeptr)));
+            MBNodeSetParent(c->mbnode, surface->nodeptr);
         } else {
             MBNodeSetParent(c->mbnode, lbl_8034473C);
         }
         if (c->shadow != NULL) {
-            CopyMat3(floorResult, (f32 *)c->shadow);
+            CopyMat3(&floorResult.mtx[0][0], (f32 *)c->shadow);
             ((MBObject *)c->shadow)->mat[3][0] = c->vel[0];
             ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
             ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
             ((MBObject *)c->shadow)->mat[3][1] =
-                (f32)(0.1 + (f64)floorResult[13]);
+                (f32)(0.1 + (f64)floorResult.mtx[3][1]);
         }
     }
     return result;
