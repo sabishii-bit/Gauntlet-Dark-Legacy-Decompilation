@@ -390,6 +390,37 @@ s32 fn_8006DF34(NcCamera* cam);
 void fn_8006E654(void);
 void DebugCamControlInputs(void);
 
+/* CalcLookdir is the original two-angle direction helper, preserved
+ * as an outlined function by the PS2 and Xbox versions of NEWCAM. */
+static inline void CalcLookdir(f32 yaw, f32 pitch, Vec3* direction)
+{
+    YawVec3(lbl_80127D40, direction, -yaw);
+    PitchVec3((f32*)direction, (f32*)direction, -pitch);
+}
+
+/* NEWCAM's convergence helper is outlined on PS2/Xbox and inlined
+ * into both GC startup paths. Stop after enough stationary updates or 100
+ * total attempts, updating the projection matrices after each camera tick. */
+static inline void CalcDestination(NcCamera* camera)
+{
+    s32 iterations;
+    s32 successes;
+    s32 result;
+
+    iterations = 0;
+    successes = iterations;
+    while (successes < lbl_80343CD0 && iterations < 100) {
+        result = fn_8006DF34(camera);
+        pbUpdateMatricies();
+        if (result != 0) {
+            successes = 0;
+        } else {
+            successes++;
+        }
+        iterations++;
+    }
+}
+
 /*
  * fn_8006DC2C -- public frustum point-clip query.  Loads the live standard
  * camera (lbl_80344A6C) and forwards the caller's arguments to the clip core.
@@ -786,8 +817,6 @@ void fn_8006E654(void) {
     u8 unused[52];
     f64 d;
     f32 pitch;
-    s32 ok;
-    s32 iter;
     s32 result;
     s32 i;
     NcCamera* cam;
@@ -796,18 +825,7 @@ void fn_8006E654(void) {
         CamReset(&tmp);
         fn_8006F418(&tmp, CurTransmitter);
 
-        iter = 0;
-        ok = iter;
-        while (ok < lbl_80343CD0 && iter < 100) {
-            result = fn_8006DF34(&tmp);
-            pbUpdateMatricies();
-            if (result != 0) {
-                ok = 0;
-            } else {
-                ok++;
-            }
-            iter++;
-        }
+        CalcDestination(&tmp);
 
         if ((d = tmp.yaw - lbl_80344A6C->yaw) > 3.141592654) {
             d -= 6.283185308;
@@ -1127,14 +1145,7 @@ void fn_8006F16C(s32 initialise)
     NcMarker* marker;
     f32* camera;
     f32* yawp;
-    f32 yawv;
-    f32* dir;
-    s32 result;
-    f32 pitch;
     f64 yaw;
-    s32 successes;
-    s32 iterations;
-    f32* cbase;
 
     lbl_80344A6C = &lbl_80274C50;
     if (initialise != 0) {
@@ -1167,11 +1178,8 @@ void fn_8006F16C(s32 initialise)
                 *camera, -((NcLevelData*)gCurLevel)->camera->minpitch);
         }
 
-        yawv = lbl_80344A6C->yaw;
-        dir = (f32*)&lbl_80344A6C->direction;
-        pitch = lbl_80344A6C->pitch;
-        YawVec3(lbl_80127D40, (Vec3*)dir, -yawv);
-        PitchVec3(dir, dir, -pitch);
+        CalcLookdir(lbl_80344A6C->yaw, lbl_80344A6C->pitch,
+                    &lbl_80344A6C->direction);
 
         lbl_80344A6C->attention.x = average.x;
         lbl_80344A6C->attention.y = average.y;
@@ -1195,19 +1203,7 @@ void fn_8006F16C(s32 initialise)
         }
 
         pbUpdateMatricies();
-        iterations = 0;
-        cbase = (f32*)lbl_80344A6C;
-        successes = iterations;
-        while (successes < lbl_80343CD0 && iterations < 100) {
-            result = fn_8006DF34((NcCamera*)cbase);
-            pbUpdateMatricies();
-            if (result != 0) {
-                successes = 0;
-            } else {
-                successes++;
-            }
-            iterations++;
-        }
+        CalcDestination(lbl_80344A6C);
     } else {
         CamReset(lbl_80344A6C);
         fn_8006F418(lbl_80344A6C, CurTransmitter);
