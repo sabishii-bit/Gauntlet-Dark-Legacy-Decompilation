@@ -93,4 +93,19 @@ typedef struct atree {
     /* 0x44 */ struct anodeinfo* anodeinfo;
 } atree;                           /* size 0x48 */
 
+/* Serialized tree definition shared by AtreeInit and its callers. This is
+ * the existing atree.c layout, not the unrelated match-table atreeheader.
+ * Runtime identity is animinfo.animheader (+8 in an atree) versus this
+ * record's animheader (+4); AtreeInitSub copies that pointer on creation. */
+typedef struct AtreeDefinition {
+    /* 0x00 */ struct atreeseq* seqheader;
+    /* 0x04 */ void* animheader;
+    /* 0x08 */ void* oanimheader;
+    /* 0x0C */ struct AtreeNodeDef* nodes;
+    /* 0x10 */ s32 nodeCount;
+    /* 0x14 */ s32 sequenceCount;
+    /* 0x18 */ char objectPrefix[0x1E];
+    /* 0x36 */ s16 objectIndex;
+} AtreeDefinition; /* 0x38 */
+
 #endif /* GAME_ATREE_H */

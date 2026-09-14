@@ -128,18 +128,6 @@ typedef struct AtreeDataBases {
     u8* type2;
 } AtreeDataBases;
 
-/* -- one selected tree blob inside an atree resource -- */
-typedef struct AtreeDefinition {
-    /* 0x00 */ struct atreeseq* seqheader;
-    /* 0x04 */ void* animheader;
-    /* 0x08 */ void* oanimheader;
-    /* 0x0C */ AtreeNodeDef* nodes;
-    /* 0x10 */ s32 nodeCount;
-    /* 0x14 */ s32 sequenceCount;
-    /* 0x18 */ char objectPrefix[0x1E];
-    /* 0x36 */ s16 objectIndex;
-} AtreeDefinition; /* 0x38 */
-
 /* ================= external helpers ================= */
 extern int strcmp(const char* a, const char* b);
 extern int strncmp(const char* a, const char* b, u32 n);

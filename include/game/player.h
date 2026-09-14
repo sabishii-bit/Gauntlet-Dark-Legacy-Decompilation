@@ -2,6 +2,7 @@
 #define GAME_PLAYER_H
 
 #include "types.h"
+#include "game/atree.h"
 
 struct worldobj; /* game/worldobj.h (pointer-only here) */
 
@@ -446,10 +447,7 @@ typedef struct Player {
                                       * zeroed beside it (VERIFIED: not padding -- teardown
                                       * store/clear pair) [pmotion.c/player.c] */
     /* 0x06E0 */ void* weaphold_node;   /* node hidden/shown with the weapon-hold FX tree [player.c] */
-    /* 0x06E4 */ void* weaphold_atree;  /* weapon-hold FX atree handle [player.c] */
-    /* 0x06E8 */ u8  pad_06E8[4];
-    /* 0x06EC */ u32 weaphold_src_id;   /* weapon-hold source id, stale-tree check [player.c] */
-    /* 0x06F0 */ u8  pad_06F0[0x3C];
+    /* 0x06E4 */ struct atree weaphold_tree; /* runtime weapon FX, ends at 0x72C */
     /* 0x072C */ void* pup_object;      /* held powerup weapon model [player.c] */
     /* 0x0730 */ void* shield_object;   /* reflect/x-ray shield model (parent hand_node) [player.c] */
     /* 0x0734 */ void* wand_object;     /* levitate/anti-death wand model (parent weapon_node) [player.c] */
@@ -459,13 +457,8 @@ typedef struct Player {
     /* 0x0744 */ s32 field_744;      /* cleared with the attachment nodes in load_player_geo [player.c] */
     /* 0x0748 */ void* field_748;    /* atree handle, AtreeDelete-cleaned (VERIFIED: not padding -- remove_player_geo teardown) [player.c] */
     /* 0x074C */ u8  pad_074C[0x44];
-    /* 0x0790 */ void* atree;        /* familiar/overlay atree handle [pmotion.c/player.c] */
-    /* 0x0794 */ u8  pad_0794[4];
-    /* 0x0798 */ u32 atree_src_id;   /* familiar source id, stale-tree check [player.c] */
-    /* 0x079C */ u8  pad_079C[4];
-    /* 0x07A0 */ s16 field_7A0;      /* familiar anim gate counter [player.c] */
-    /* 0x07A2 */ s16 field_7A2;      /* familiar transition lock [player.c] */
-    /* 0x07A4 */ u8  pad_07A4[0x38];
+    /* 0x0790 */ struct atree familiar_tree; /* runtime powerup overlay, ends at 0x7D8 */
+    /* 0x07D8 */ u8 pad_07D8[4];
     /* 0x07DC */ f32 skinfx_timer;   /* SetSkinFX/ProcessSkinFX state head [player.c] */
     /* 0x07E0 */ u8  pad_07E0[0x14];
     /* 0x07F4 */ s32 geo_handle;     /* loaded model/geo handle (load_player_model) [player.c] */

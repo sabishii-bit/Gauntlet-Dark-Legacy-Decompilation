@@ -81,7 +81,7 @@
  *   0x8007C298 init_players            0x8007C3FC create_player_blits (L, GC-only name)
  *   0x8007C938 reset_players           0x8007C998 setup_player_models
  *   0x8007CA8C GetMaxPlayerModelSize (L)  0x8007CC30 PlayerModel
- *   0x8007CC48 PlayerProcessPowerups (GIANT 0x18F8; skeleton, see body note)
+ *   0x8007CC48 PlayerProcessPowerups (0x18F8; implemented, see body note)
  *   0x8007E540 PlayerProcessSkinFX (L)    0x8007E950 PlayerProcessMikeyPUP
  *   0x8007EC24 AppendBigapePowerupsToScene  0x8007ECB0 AppendItemToLevel
  *   0x8007EDE8 do_see_thru (L; end_see_thru inlined)
@@ -104,12 +104,14 @@
  * inactivate_player / abort_player), end_see_thru (do_see_thru),
  * player_max_att (PlayerUpdateAtts x4), PlayerRestoreState's copy loop
  * (inactivate_player), LevelDeltaExp, GetFight..GetMissileSpd accessors,
- * PlayerProcessFamiliar / PlayerUsePowerup / DropMikey /
+ * PlayerUsePowerup / DropMikey /
  * player_find_powerup_from_typemask (PlayerProcessPowerups giant),
  * SetDebugNode/clearDebugNode, hide_power_meter, write_health, WriteName,
  * IncLevel/SetPlayerLevel/IncAtt, UserYes, CopyPlayer, def_char_type,
  * save_player_atts/load_player_atts, anybody_playing, advance_ok,
- * ReplaceTree, DropMikey (either inlined or hosted in other GC TUs).
+ * ReplaceTree (recovered below), DropMikey (inlined or hosted elsewhere).
+ * Xbox/PS2 PlayerProcessFamiliar corresponds to GC PlayerProcessSkinFX;
+ * it is not part of the seven-way temporary powerup tree selection.
  *
  * MATCH STATUS (2026-07-27 wiring pass, cflags_demo probed best on both
  * compilers): BYTE-EXACT (reloc-name noise only): PlayerAttacking,
@@ -178,6 +180,7 @@
 #include "game/controls.h"
 #include "game/gamemode.h"
 #include "game/player.h"
+#include "game/atree.h"
 #include "game/effect.h"
 #include "game/leveldata.h"
 #include "game/worldobj.h"
@@ -2823,9 +2826,12 @@ extern void AudioPlayerSeverePain(s32 player);
 extern void AudioPlayerDies(s32 player);
 extern void AudioPlayerHit(f32 dmg, s32 player, s32 kind);
 extern s32 do_vibe(s32 player, s32 lvl, s32 n);
-extern void AtreeDelete(void** h);
-extern s32 AtreeInit(void* atree, void* out, s32 a, s32 flags);
-extern void AnimateATree(void** h, s32 a, s32 b);
+extern void AtreeDelete(anode** root);
+/* Signatures from the animation-tree owner. Consumers outside the two
+ * typed Player trees still use explicit adapters for unrecovered records. */
+extern anode* AtreeInit(AtreeDefinition* header, atree* tree,
+                        const char* prefix, u32 flags);
+extern s32 AnimateATree(atree* tree, s32 a, s32 b);
 extern void StartGemFX(f32* pos, s32 n);
 extern s32 StartDeathFX(void* node, s32 kind, u32 flags);
 extern s32 DeleteEffect(s32 effect, s32 mode);
@@ -3546,7 +3552,7 @@ static inline void player_dies(s32 i) {
 
     del_target(p->mat);
     if (lbl_8025ECB8[i][0] != NULL) {
-        AtreeDelete(&lbl_8025ECB8[i][0]);
+        AtreeDelete((anode**)&lbl_8025ECB8[i][0]);
     }
     MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
     /* restore the see-thru chest proxy to its tree */
@@ -3717,13 +3723,13 @@ void remove_player_geo(s32 i) {
         p->weaphold_node = NULL;
     }
     if (p->field_748 != NULL) {
-        AtreeDelete(&p->field_748);
+        AtreeDelete((anode**)&p->field_748);
     }
-    if (p->atree != NULL) {
-        AtreeDelete(&p->atree);
+    if (p->familiar_tree.root != NULL) {
+        AtreeDelete(&p->familiar_tree.root);
     }
-    if (p->weaphold_atree != NULL) {
-        AtreeDelete(&p->weaphold_atree);
+    if (p->weaphold_tree.root != NULL) {
+        AtreeDelete(&p->weaphold_tree.root);
     }
     if (p->shield_object != NULL) {
         MBRemoveNode(p->shield_object, 0);
@@ -3750,11 +3756,11 @@ void remove_player_geo(s32 i) {
         p->gem_object = NULL;
     }
     if (p->field_96C != NULL) {
-        AtreeDelete(&p->field_96C);
+        AtreeDelete((anode**)&p->field_96C);
     }
     p->field_A1C = 0;
     if (p->field_96C != NULL) {
-        AtreeDelete(&p->field_96C);
+        AtreeDelete((anode**)&p->field_96C);
     }
     if (p->field_A14 != NULL) {
         MBRemoveNode(p->field_A14, 1);
@@ -3772,7 +3778,7 @@ void remove_player_geo(s32 i) {
         }
     }
     SfxDeleteParented(p->node, 1, i);
-    AtreeDelete(&p->platform);
+    AtreeDelete((anode**)&p->platform);
     if (p->node != NULL) {
         if (p->node != NULL && (u32)((mbnode*)p->node)->child != 0) {
             ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ATREEDELETE");
@@ -4567,8 +4573,8 @@ model_ready:
     p->pup_object = NULL;
     p->wand_object = NULL;
     p->field_748 = NULL;
-    p->atree = NULL;
-    p->weaphold_atree = NULL;
+    p->familiar_tree.root = NULL;
+    p->weaphold_tree.root = NULL;
     p->field_73C = NULL;
     p->death_effect = -1;
     p->marker_object = NULL;
@@ -5299,44 +5305,73 @@ void* PlayerModel(s32 i) {
 /* ------------------------------------------------------------------ */
 
 /*
- * GIANT (0x18F8) -- documented skeleton.  Per-frame powerup master:
+ * Per-frame powerup master (target size 0x18F8):
  * walks all 11 slots ticking timers, runs the per-type processors --
  * levitation/anti-death node juggling (AtreeInit overlays via
  * lbl_80282930 class colors), reflect-shot, x-ray (do_see_thru),
  * growth/shrink, invisibility/invuln node alpha (MBTreeSetScale family),
  * mikey (PlayerProcessMikeyPUP), skin FX (PlayerProcessSkinFX), timed
  * expiry sounds (fn_8009D4F0/fn_8009D560/fn_8009D5A0) and the HUD
- * mini-inventory dirty flags (PUP_DIRTY).  On Xbox this decomposes
- * into PlayerProcessPowerups + PlayerProcessFamiliar + PlayerUsePowerup
- * + DropMikey + player_find_powerup_from_typemask (all inlined here).
- * Real body next session -- transcribe from Ghidra 0x8007CC48.
+ * mini-inventory dirty flags (PUP_DIRTY). The familiar tier helper in
+ * Xbox/PS2 corresponds to the separate GC PlayerProcessSkinFX, not to this
+ * entire powerup body. Cross-platform helper names alone do not fix bounds.
  */
 /* The two per-weapon-tier tables at plyr_data+0x68 and +0xE0 are the PDB's
  * weapon_fx_offset[10][3] and weapon_fx_scale[10][3] (game/plyrdata.h); the
  * shipped PDATA values prove they are an XYZ offset and a scale triple, not
  * the colours this slice previously assumed.                                */
 
-#define PLAYER_SET_FAMILIAR(source_, parent_)                                  \
-    do {                                                                       \
-        void* familiar_source;                                                 \
-        void* familiar_parent;                                                 \
-        familiar_parent = (parent_);                                           \
-        familiar_source = (source_);                                           \
-        if (p->atree != NULL &&                                                \
-            (familiar_source == NULL ||                                        \
-             p->atree_src_id != ((u32*)familiar_source)[1])) {                 \
-            AtreeDelete(&p->atree);                                            \
-        }                                                                      \
-        if (p->atree == NULL && familiar_source != NULL) {                     \
-            p->atree = (void*)AtreeInit(familiar_source, &p->atree, 0, 0x800); \
-            MBTreeSetFlags(*(void**)p->atree, 0x10, 0);                        \
-            MBNodeSetParent(*(void**)p->atree, familiar_parent);               \
-            MBTreeSetAlpha(*(void**)p->atree, 0, 1);                           \
-        }                                                                      \
-    } while (0)
+/* ReplaceTree is a local helper in the Xbox PDB and PS2 executable.
+ * The GC powerup paths inline the same delete/identity/init/attach sequence.
+ * A nonzero return means a replacement was created, not merely present.
+ * The parent is an opaque scene-node handle, as in the local MB API. */
+static inline int ReplaceTree(atree* tree, AtreeDefinition* header,
+                              void* parent, s32 flags)
+{
+    if (tree->root != NULL) {
+        if (header == NULL || tree->animinfo.animheader != header->animheader) {
+            AtreeDelete(&tree->root);
+        }
+    }
+    if (tree->root == NULL && header != NULL) {
+        tree->root = AtreeInit(header, tree, 0, flags);
+        MBTreeSetFlags(tree->root->obj, 0x10, 0);
+        MBNodeSetParent(tree->root->obj, parent);
+        MBTreeSetAlpha(tree->root->obj, 0, 1);
+        return 1;
+    }
+    return 0;
+}
+
+/* Xbox/PS2's three-argument PlayerProcessScale is this setter. The GC
+ * function currently carrying that name instead drives pulse/skin effects;
+ * keep their identities distinct. GC inlines this setter with powerupsok=1. */
+static inline void PlayerApplyPowerupScale(Player* p, int powerupsok,
+                                          int old_flags)
+{
+    if (p->character == 12) {
+        MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
+    } else if (powerupsok && (p->flags & 0x100)) {
+        MBTreeSetScale(1.3f, 1.3f, 1.3f, p->node);
+    } else if (p->level >= 99) {
+        MBTreeSetScale(1.2f, 1.2f, 1.2f, p->node);
+    } else {
+        f32 scale;
+        MBTreeClearFlags(p->node, 8, 0);
+        scale = 1.0f;
+        ((mbnode*)p->node)->scale[0] = scale;
+        ((mbnode*)p->node)->scale[1] = scale;
+        ((mbnode*)p->node)->scale[2] = scale;
+        if (old_flags & 0x100) {
+            fn_8009D560(p->index);
+        }
+    }
+}
 
 #pragma opt_propagation off
 void PlayerProcessPowerups(Player* p) {
+    /* Existing unrecovered stack reservation. ReplaceTree does not account
+     * for it: removing it still shrinks the native frame from 208 to 96. */
     u8 unused[112];
     u32 old_flags;
     s32 index = p->index;
@@ -5463,7 +5498,7 @@ void PlayerProcessPowerups(Player* p) {
             do_see_thru(p);
         } else if (old_flags & 2) {
             if (lbl_8025ECB8[index][0] != NULL) {
-                AtreeDelete(&lbl_8025ECB8[index][0]);
+                AtreeDelete((anode**)&lbl_8025ECB8[index][0]);
             }
             MBTreeSetFlags((void*)lbl_8025EC68[index], 1, 0);
             if (lbl_8025EC88[index] != NULL &&
@@ -5709,64 +5744,45 @@ void PlayerProcessPowerups(Player* p) {
         if ((wnode = p->weaphold_node) != NULL) {
             MBTreeSetFlags(wnode, 2, 0);
         }
-        AtreeDelete(&p->weaphold_atree);
+        AtreeDelete(&p->weaphold_tree.root);
     } else {
         u32 kind = p->field_11C & 0xF;
         s32 fresh;
         void* wnode;
 
         if (kind != 0) {
-            void* source;
-            void* parent;
             s32 tree_flags = 0x81880;
 
-            parent = p->hand_node;
-            source = WeapHoldFxTree[index][kind];
-
-            if (p->weaphold_atree != NULL &&
-                (source == NULL ||
-                 p->weaphold_src_id != ((u32*)source)[1])) {
-                AtreeDelete(&p->weaphold_atree);
-            }
-            if (p->weaphold_atree == NULL && source != NULL) {
-                p->weaphold_atree = (void*)AtreeInit(source,
-                                                     &p->weaphold_atree, 0,
-                                                     tree_flags);
-                MBTreeSetFlags(*(void**)p->weaphold_atree, 0x10, 0);
-                MBNodeSetParent(*(void**)p->weaphold_atree, parent);
-                MBTreeSetAlpha(*(void**)p->weaphold_atree, 0, 1);
-                fresh = 1;
-            } else {
-                fresh = 0;
-            }
-            if (fresh != 0 && p->weaphold_atree != NULL) {
+            fresh = ReplaceTree(&p->weaphold_tree,
+                                WeapHoldFxTree[index][kind], p->hand_node, tree_flags);
+            if (fresh != 0 && p->weaphold_tree.root != NULL) {
                 s32 tier = p->level;
 
                 tier /= 10;
-                *(f32*)((u8*)*(void**)p->weaphold_atree + 0x30) =
+                ((mbnode*)p->weaphold_tree.root->obj)->mat[3][0] =
                     lbl_80282930[p->index]->weapon_fx_offset[tier][0];
-                *(f32*)((u8*)*(void**)p->weaphold_atree + 0x34) =
+                ((mbnode*)p->weaphold_tree.root->obj)->mat[3][1] =
                     lbl_80282930[p->index]->weapon_fx_offset[tier][1];
-                *(f32*)((u8*)*(void**)p->weaphold_atree + 0x38) =
+                ((mbnode*)p->weaphold_tree.root->obj)->mat[3][2] =
                     lbl_80282930[p->index]->weapon_fx_offset[tier][2];
                 if (lbl_80282930[p->index]->weapon_fx_scale[tier][0] !=
                     0.0f) {
-                    (*(struct mbnode**)p->weaphold_atree)->flags |= 8;
-                    (*(struct mbnode**)p->weaphold_atree)->scale[0] =
+                    ((mbnode*)p->weaphold_tree.root->obj)->flags |= 8;
+                    ((mbnode*)p->weaphold_tree.root->obj)->scale[0] =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][0];
-                    (*(struct mbnode**)p->weaphold_atree)->scale[1] =
+                    ((mbnode*)p->weaphold_tree.root->obj)->scale[1] =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][1];
-                    (*(struct mbnode**)p->weaphold_atree)->scale[2] =
+                    ((mbnode*)p->weaphold_tree.root->obj)->scale[2] =
                         lbl_80282930[p->index]->weapon_fx_scale[tier][2];
                 }
             }
         } else {
-            if (p->weaphold_atree != NULL) {
-                AtreeDelete(&p->weaphold_atree);
+            if (p->weaphold_tree.root != NULL) {
+                AtreeDelete(&p->weaphold_tree.root);
             }
         }
-        if (p->weaphold_atree != NULL) {
-            AnimateATree(&p->weaphold_atree, 0, 0);
+        if (p->weaphold_tree.root != NULL) {
+            AnimateATree(&p->weaphold_tree, 0, 0);
         }
         if ((wnode = p->weaphold_node) != NULL) {
             MBTreeClearFlags(wnode, 2, 0);
@@ -5774,24 +5790,24 @@ void PlayerProcessPowerups(Player* p) {
     }
 
     if (p->flags & 0x400) {
-        PLAYER_SET_FAMILIAR(PojoTree, p->node);
+        ReplaceTree(&p->familiar_tree, PojoTree, p->node, 0x800);
     } else if ((p->shield_flags & 0x200000) && p->anim_208 == 22) {
-        PLAYER_SET_FAMILIAR(FireShieldTree, p->node);
+        ReplaceTree(&p->familiar_tree, FireShieldTree, p->node, 0x800);
     } else if (p->flags & 0x80) {
-        PLAYER_SET_FAMILIAR(PhoenixTree, p->node);
+        ReplaceTree(&p->familiar_tree, PhoenixTree, p->node, 0x800);
     } else if (p->flags & 0x10) {
-        PLAYER_SET_FAMILIAR(BreatheFireTree, p->weapon_node);
+        ReplaceTree(&p->familiar_tree, BreatheFireTree, p->weapon_node, 0x800);
     } else if (p->flags & 0x20) {
-        PLAYER_SET_FAMILIAR(BreatheAcidTree, p->weapon_node);
+        ReplaceTree(&p->familiar_tree, BreatheAcidTree, p->weapon_node, 0x800);
     } else if (p->flags & 0x40) {
-        PLAYER_SET_FAMILIAR(BreatheElecTree, p->weapon_node);
+        ReplaceTree(&p->familiar_tree, BreatheElecTree, p->weapon_node, 0x800);
     } else if (p->flags & 1) {
-        void* parent = *(void**)((u8*)((mbnode*)p->node)->child + 0x78);
-        PLAYER_SET_FAMILIAR(WingsTree, parent);
-    } else if (p->atree != NULL) {
-        AtreeDelete(&p->atree);
+        void* parent = ((mbnode*)p->node)->child->child;
+        ReplaceTree(&p->familiar_tree, WingsTree, parent, 0x800);
+    } else if (p->familiar_tree.root != NULL) {
+        AtreeDelete(&p->familiar_tree.root);
     }
-    if (p->atree != NULL) {
+    if (p->familiar_tree.root != NULL) {
         s32 anim = 0;
         s32 transition = 0;
 
@@ -5833,18 +5849,18 @@ void PlayerProcessPowerups(Player* p) {
                 transition = 2;
             }
             p->act_bits &= ~0x20000000;
-        } else if ((p->act_bits & 0x10000000) && p->field_7A0 > 1) {
+        } else if ((p->act_bits & 0x10000000) && p->familiar_tree.animinfo.numseqs > 1) {
             anim = 1;
             transition = 2;
         }
-        if (p->field_7A2 == 0) {
+        if (p->familiar_tree.animinfo.animseq == 0) {
             transition = 2;
         }
-        AnimateATree(&p->atree, anim, transition);
+        AnimateATree(&p->familiar_tree, anim, transition);
         if (familiar_time >= 0.0 && familiar_time < 1.0) {
             s32 familiar_alpha =
                 (s32)(255.0 * (1.0 - familiar_time));
-            MBTreeSetAlpha(*(void**)p->atree, familiar_alpha, 1);
+            MBTreeSetAlpha(p->familiar_tree.root->obj, familiar_alpha, 1);
         }
     }
 
@@ -5888,23 +5904,7 @@ void PlayerProcessPowerups(Player* p) {
         }
     }
 
-    if (p->character == 12) {
-        MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
-    } else if (p->flags & 0x100) {
-        MBTreeSetScale(1.3f, 1.3f, 1.3f, p->node);
-    } else if (p->level >= 99) {
-        MBTreeSetScale(1.2f, 1.2f, 1.2f, p->node);
-    } else {
-        f32 scale;
-        MBTreeClearFlags(p->node, 8, 0);
-        scale = 1.0f;
-        *(f32*)((u8*)p->node + 0x40) = scale;
-        *(f32*)((u8*)p->node + 0x44) = scale;
-        *(f32*)((u8*)p->node + 0x48) = scale;
-        if (old_flags & 0x100) {
-            fn_8009D560(p->index);
-        }
-    }
+    PlayerApplyPowerupScale(p, 1, old_flags);
     if ((p->flags & 1) == 0 && (old_flags & 1)) {
         fn_8009D4F0(index);
     }
@@ -5960,11 +5960,11 @@ typedef struct PlayerSkinView {
 static inline int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
     if (p->atree != NULL) {
         if (atree == NULL || p->src_id != ((u32*)atree)[1]) {
-            AtreeDelete(&p->atree);
+            AtreeDelete((anode**)&p->atree);
         }
     }
     if (p->atree == NULL && atree != NULL) {
-        p->atree = (void*)AtreeInit(atree, &p->atree, 0, 0x800);
+        p->atree = (void*)AtreeInit(atree, (struct atree*)&p->atree, 0, 0x800);
         MBTreeSetFlags(*(void**)p->atree, 0x10, 0);
         MBNodeSetParent(*(void**)p->atree, parent);
         MBTreeSetAlpha(*(void**)p->atree, 0, 1);
@@ -5985,7 +5985,7 @@ static void PlayerProcessSkinFX(void* vp) {
         fresh = PlayerSetupSkinTree(ps, FamiliarTree[p->index][0], p->node);
     } else {
         if (ps->atree != NULL) {
-            AtreeDelete(&ps->atree);
+            AtreeDelete((anode**)&ps->atree);
         }
     }
     if (fresh != 0 && ps->atree != NULL) {
@@ -6017,7 +6017,7 @@ static void PlayerProcessSkinFX(void* vp) {
                 a2 = 1;
                 a3 = 2;
             }
-            AnimateATree(&ps->atree, a2, a3);
+            AnimateATree((struct atree*)&ps->atree, a2, a3);
         }
     }
 }
@@ -6090,7 +6090,7 @@ hatch:
         return;
     }
     atree = AtreeMatch(sPowerupsBuf, "MIKEYPUP_ON", 1);
-    mp->atree = (void*)AtreeInit(atree, &mp->atree, 0, 0);
+    mp->atree = (void*)AtreeInit(atree, (struct atree*)&mp->atree, 0, 0);
     one = 1;
     mp->anim_state = one;
     mp->node = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
@@ -6117,7 +6117,7 @@ hatch:
 
 despawn:
     slot = PlayerFindMikeyPUP(p);
-    AtreeDelete(&mp->atree);
+    AtreeDelete((anode**)&mp->atree);
     MBRemoveNode(mp->node, 1);
     mp->node = NULL;
     mp->state = 0;
@@ -6127,7 +6127,7 @@ despawn:
 live:
     /* live: tick anim + sparkles */
     MBTreeClearFlags(*(void**)mp->atree, 2, 0);
-    AnimateATree(&mp->atree, 0, 0);
+    AnimateATree((struct atree*)&mp->atree, 0, 0);
     {
         s32 timer = mp->state;
         if (timer < 0x3C && timer % 10 == 0) {
@@ -6269,9 +6269,9 @@ static void do_see_thru(void* vp) {
             if ((fresh && lbl_8025ECB8[i][0] == NULL) || floor_id != lbl_8025EC78[i]) {
                 lbl_8025EC78[i] = floor_id;
                 if (lbl_8025ECB8[i][0] != NULL) {
-                    AtreeDelete(&lbl_8025ECB8[i][0]);
+                    AtreeDelete((anode**)&lbl_8025ECB8[i][0]);
                 }
-                lbl_8025ECB8[i][0] = (void*)AtreeInit(tree, &lbl_8025ECB8[i][0], 0, 0x80);
+                lbl_8025ECB8[i][0] = (void*)AtreeInit(tree, (struct atree*)&lbl_8025ECB8[i][0], 0, 0x80);
                 MBTreeSetFlags(*(void**)lbl_8025ECB8[i][0], 8, 0);
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 0.65f;
                 *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 0.65f;
@@ -6296,7 +6296,7 @@ static void do_see_thru(void* vp) {
     if (lbl_8025EC78[i] == -1) {
         /* end_see_thru (inlined) */
         if (lbl_8025ECB8[i][0] != NULL) {
-            AtreeDelete(&lbl_8025ECB8[i][0]);
+            AtreeDelete((anode**)&lbl_8025ECB8[i][0]);
         }
         MBTreeSetFlags((void*)lbl_8025EC68[i], 1, 0);
         if (lbl_8025EC88[i] != NULL) {

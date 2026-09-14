@@ -2535,12 +2535,12 @@ store_motion_state:
 
             if (effect >= 0) {
                 if ((p->flags & 0x400) != 0 &&
-                    p->atree != NULL) {
+                    p->familiar_tree.root != NULL) {
                     s32 object = MBOX_ReallyFindObject(
                         strings + 84, sPowerupsHandle,
                         sPowerupsHandle, 1);
                     s32* found;
-                    if ((found = AtreeFindMbidxNode(p->atree,
+                    if ((found = AtreeFindMbidxNode(p->familiar_tree.root,
                                                     object)) != NULL) {
                         SfxSetParent(effect, (void*)*found);
                     }

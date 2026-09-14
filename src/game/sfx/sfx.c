@@ -130,11 +130,6 @@ typedef struct SkinFx {
     /* 0x14 */ f32 alpha;    /* applied alpha (999 = untouched)      */
 } SkinFx;
 
-/* anim-tree node: first word is the owning scene node */
-struct anode {
-    struct mbnode* node;
-};
-
 /* def record hanging off the inline atree's animinfo (frame counts) */
 struct fxanimdef {
     /* 0x00 */ u8 _00[32];
@@ -618,7 +613,7 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
         MBNodeSetParent(e->node, parent);
         root = ATREE_ROOT(e);
         if (root != NULL) {
-            MBTreeSetFlags(root->node, 0x10, 0);
+            MBTreeSetFlags(root->obj, 0x10, 0);
         }
     }
     page->fx[idx].minendtime = 0.5 + gClockTime;
@@ -872,7 +867,7 @@ s32 StartBlockFX(f32 time, s32 pnum)
             MBNodeSetParent(n, parent);
             root = ATREE_ROOT(e);
             if (root != NULL) {
-                MBTreeSetFlags(root->node, 0x10, 0);
+                MBTreeSetFlags(root->obj, 0x10, 0);
             }
         }
     }
@@ -2102,7 +2097,7 @@ void SfxSetParent(s32 idx, struct mbnode* parent)
     if (idx >= 0) {
         MBNodeSetParent(Effects[idx].node, parent);
         if (ATREE_ROOT(&Effects[idx]) != NULL) {
-            MBTreeSetFlags(ATREE_ROOT(&Effects[idx])->node, 0x10, 0);
+            MBTreeSetFlags(ATREE_ROOT(&Effects[idx])->obj, 0x10, 0);
         }
     }
 }
@@ -2342,7 +2337,7 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
         AtreeDelete(&e->atree[0]);
         return -1;
     }
-    MBNodeSetParent(ATREE_ROOT(e)->node, e->node);
+    MBNodeSetParent(ATREE_ROOT(e)->obj, e->node);
 
     ai = (struct fxanim*)&e->atree[4];
     if (time > 0.0) {
@@ -3264,7 +3259,7 @@ void ProcessEffects(void)
                                                     critter->node);
                                     if (ATREE_ROOT(spawned) != NULL) {
                                         MBTreeSetFlags(
-                                            ATREE_ROOT(spawned)->node, 0x10,
+                                            ATREE_ROOT(spawned)->obj, 0x10,
                                             0);
                                     }
                                 }
@@ -3916,12 +3911,12 @@ void ChangeEffect(s32 idx, s32 type, u32 newflags)
                 e->childfx = -1;
             }
             root = ATREE_ROOT(e);
-            n = root->node;
+            n = root->obj;
             newflags |= n->flags & 0x890;
             oldframe = n->ambient_add;
             AtreeDelete(&e->atree[0]);
             ATREE_ROOT(e) = AtreeInit(h->atree, &e->atree[0], 0, 0);
-            MBNodeSetParent(ATREE_ROOT(e)->node, e->node);
+            MBNodeSetParent(ATREE_ROOT(e)->obj, e->node);
             MBTreeSetZsortAdd(e->node, h->zmod, 1);
             MBTreeSetAlpha(e->node, h->alpha, 1);
             if (oldframe != 0) {
