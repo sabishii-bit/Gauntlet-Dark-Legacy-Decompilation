@@ -8,9 +8,7 @@
 #endif
 
 /* Gauntlet world-object/scene module (Xbox WORLD.OBJ), region
- * 0x800A87C8 - 0x800AB8E0.  Wired NonMatching: the DOL bytes are substituted
- * for the linked image, but this TU is compiled for objdiff, so it just needs
- * to build cleanly.  It manages the loaded "worlds/<name>" scene: a tree of
+ * 0x800A87C8 - 0x800AB8E0. It manages the loaded "worlds/<name>" scene: a tree of
  * WorldObj nodes (0x3C stride), their g3d display nodes, particle systems
  * ("PSYS"-tagged objects), keyframe animation, and the save/restore of each
  * object's initial transform.
@@ -62,11 +60,10 @@
  * and only becomes the 0x534-byte byte-swap here because the GameCube is
  * big-endian.  GetWorldPsysIdx (Xbox local) is inlined into WorldPsysActivate.
  *
- * Most bodies are transcribed; the TU stays NonMatching (DOL bytes
- * substituted).  InitWorldInfo (0x1660 bytes) is fully reconstructed: opcode
- * streams are identical (1432/1432 insns) and only a single fcmpu operand-order
- * canonicalization (the gridsize != 0.0 test) plus semantic-name reloc
- * differences remain. */
+ * Native validation (2026-09-13) covers all 23 bodies, positional bindings,
+ * data and exception metadata, plus an exact source-selected DOL. This does
+ * not establish original source identity: combined-global addressing and the
+ * explicitly approved WorldNameRef wrapper remain reconstruction debt. */
 
 #define WORLD_BSWAP16(v) \
     ((u16)((((u16)(v) & 0xFF) << 8) | (((u16)(v) >> 8) & 0xFF)))
@@ -497,41 +494,46 @@ void NewWorld(void* parent) {
     world_root1 = MBNewNode(parent, gIdentityMatrix, 1);
 }
 
-/* WorldSaveInitState: init each world, snapshot every object's parent link and
- * position for later restore, and build the display-node trees. */
-void WorldSaveInitState(void) {
+/* A separate allocation/snapshot/report routine is corroborated by PS2
+ * WorldSaveInitState (0x0011C900) and Xbox retail 0x0008D100. Inlining this
+ * boundary reproduces the GameCube entry's native zero/index lifetimes.
+ * sSaveWorldInitState is a local descriptive name; the original GameCube
+ * helper name and linkage have not been recovered. */
+static inline void sSaveWorldInitState(void) {
     s32 i;
     s32 memBase;
+    char* base = gWorldName;
+    WorldObj** wobjsp;
+
+    memBase = mlmMemUsed;
+    lbl_80344D74 = AllocMem(*(s32*)lbl_80344DA4 * 4);
+    lbl_80344D78 = AllocMem(*(s32*)lbl_80344DA4 * 12);
+    /* Keep the field address so each store is followed by a fresh array-base
+     * read. In this inline context (2026-09-13), a WorldInfo* with &info->wobjs
+     * and/or info->nwobjs changed the native body; the combined-global base
+     * remains debt. Object fields and three-float snapshot rows are typed. */
+    wobjsp = (WorldObj**)(base + 228 + offsetof(WorldInfo, wobjs));
+    for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
+        ((s32*)lbl_80344D74)[i] =
+            (s32)(*wobjsp)[i].parent;
+        ((f32 (*)[3])lbl_80344D78)[i][0] = (*wobjsp)[i].pos[0];
+        ((f32 (*)[3])lbl_80344D78)[i][1] = (*wobjsp)[i].pos[1];
+        ((f32 (*)[3])lbl_80344D78)[i][2] = (*wobjsp)[i].pos[2];
+    }
+    bulletproof_printf(lbl_801151D8, (mlmMemUsed - memBase) >> 10);
+}
+
+/* WorldSaveInitState: init each world, snapshot every object's parent link and
+ * position for later restore, and build the display-node trees. The existing
+ * exported name is retained pending a complete caller/name audit. */
+void WorldSaveInitState(void) {
     char* base;
 
     WorldDisplay = 0;
     base = gWorldName;
     if (lbl_80344DA4 != 0) {
-        u8** wobjsp;
         world_objects = InitWorldInfo((WorldInfo*)(base + 228), lbl_80344DA4);
-        memBase = mlmMemUsed;
-        lbl_80344D74 = AllocMem(*(s32*)lbl_80344DA4 * 4);
-        lbl_80344D78 = AllocMem(*(s32*)lbl_80344DA4 * 12);
-        /* WorldObj array base (gWorldInfo.wobjs); strength-reduced i*60
-         * indexed addressing below is load-bearing for target's lwzx/lfsx
-         * shape - a materialized WorldObj* alias regressed real 64->68
-         * (verified), so the base pointer stays raw here. Per-field
-         * displacements are offsetof(WorldObj,...) on that SAME raw pointer
-         * (claim.law.offsetof-rename-preserves-protected-web: a single
-         * additive expression's constant may be renamed without re-entering
-         * the alias/web hazard laws) - WorldObj.parent @0x18, .pos @0x1C. */
-        wobjsp = (u8**)(base + 228 + offsetof(WorldInfo, wobjs));
-        for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
-            ((s32*)lbl_80344D74)[i] =
-                *(s32*)(*wobjsp + i * 60 + offsetof(WorldObj, parent));
-            lbl_80344D78[i * 3] =
-                *(f32*)(*wobjsp + i * 60 + offsetof(WorldObj, pos));
-            lbl_80344D78[i * 3 + 1] =
-                *(f32*)(*wobjsp + i * 60 + offsetof(WorldObj, pos) + 4);
-            lbl_80344D78[i * 3 + 2] =
-                *(f32*)(*wobjsp + i * 60 + offsetof(WorldObj, pos) + 8);
-        }
-        bulletproof_printf(lbl_801151D8, (mlmMemUsed - memBase) >> 10);
+        sSaveWorldInitState();
         lbl_80344D8C = world_root0;
         CreateWorldNode(world_objects, world_objects, 0);
         MBTreeSetFlags(world_root0, 0x1000, 1);
