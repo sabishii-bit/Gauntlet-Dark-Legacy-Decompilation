@@ -21,10 +21,9 @@
  * buffer allocator + bring-up hooks stay fn_<addr> because pb_global.c (already
  * Matching) and pb_window/mb_* reference them by that name.
  *
- * NonMatching: bodies are reconstructions from the disassembly; several small
- * ones are byte-exact (see the worker report). Data is declared extern (defined
- * by the DOL); a future flip must add the .sdata/.sdata2/.rodata/.data/.bss
- * claims documented in the report.
+ * NonMatching: ten of twelve bodies are native-exact. The semaphore statics
+ * and short status literals are recovered; most data and BSS remain extern.
+ * Code, remaining data ownership and the init reservation still need closure.
  */
 
 /* --- shared pb-global block (see pb_global.c) --- */
@@ -41,10 +40,25 @@ typedef struct PBObjPool {
     PBSPRBUF* freehead;    /* 0x04 : head of the 0x800-stride free list */
 } PBObjPool;
 
+/* MBOX_AllocModelMem verifies the signed count, 16-byte records and 21-slot
+ * limit; PB_MODEL's PDB agrees. The GC allocator writes before checking the
+ * limit, so this layout is not a claim that every game index is in bounds. */
+typedef struct PBModelInfo {
+    struct MBModelHeader* header;
+    u32 geo_size;
+    u32 tex_size;
+    s32 unready;
+} PBModelInfo;
+
+typedef struct PBModel {
+    s32 count;
+    PBModelInfo info[21];
+} PBModel;
+
 typedef struct PBGlobal {
     u8 _pad00[0x2c];
     PBObjPool* objPool; /* 0x2c : object push-buffer pool control */
-    void* dbg2;         /* 0x30 : secondary object block (0x10-stride array) */
+    PBModel* model;     /* 0x30 : count and model records */
 } PBGlobal;
 
 extern PBGlobal* gWinGlobals; /* 0x80344FC0 */
@@ -59,8 +73,8 @@ extern PBGlobal* gWinGlobals; /* 0x80344FC0 */
  * Draw and texture traversal verify SubObjCnt +0x0c, the four halfwords
  * +0x10..+0x16 (only LodK signed), and pointers +0x18/+0x1c/+0x2c.
  * SUBOBJECT is independently walked at eight-byte strides with lhz at
- * +0/+2/+4 and lha at +6. DataPtr remains a word pointer, byte-addressed
- * below because QWC advances the geometry stream in 16-byte quadwords. */
+ * +0/+2/+4 and lha at +6. DataPtr is a word pointer: each QWC advances the
+ * geometry stream by four words (one 16-byte quadword). */
 typedef struct PBSubObject {
     u16 QWC;
     u16 TexIdx;
@@ -91,7 +105,9 @@ extern s16 lbl_80345018;       /* per-frame object counter (reset each frame) */
 extern int lbl_80345020;       /* "objects module open" flag */
 extern int lbl_80345024;       /* ping-pong buffer toggle */
 extern int lbl_80345028;       /* alloc mode: 0 = ping-pong, else free-list */
-extern int lbl_80343F28;       /* scratch-buffer semaphore ID (init -1) */
+/* PB_MEM's private semaphore ID and parameters are witnessed by PS2/PDB
+ * local data symbols and both GC CreateSema call sites. */
+static int lbl_80343F28 = -1;
 /* Ping-pong selection is initialized to zero and toggled with XOR 1: the
  * two accessed entries are arena and arena + 0x2000. The following zero word
  * has no demonstrated array use; no storage-extent or padding claim is made. */
@@ -99,23 +115,26 @@ extern void* lbl_80343F2C[2];
 extern int lbl_80343F3C;       /* draw-hook enable flag (init 1) */
 
 extern u8 lbl_802C52C0[0x18];  /* PBObjPool storage */
-extern u8 lbl_802C52D8[0x158]; /* secondary object block storage */
+extern PBModel lbl_802C52D8; /* 0x154-byte model state; no BSS ownership claim */
 /* GC walks eight 0x800-byte nodes across the two current 0x2000 linker
  * symbols at 802913C0/802933C0. The incomplete extern describes the accessed
  * record, without claiming allocation or changing those storage boundaries. */
 extern PBSPRBUF lbl_802913C0[];
 extern u8 lbl_802913C0_hi[];   /* == lbl_802933C0, upper half of the pool */
 
-extern u8 lbl_80128178[0x18];  /* semaphore parameter block */
+typedef struct PBSemaParam {
+    int currentCount;
+    int maxCount;
+    int initCount;
+    int numWaitThreads;
+    u32 attr;
+    u32 option;
+} PBSemaParam;
+
+static PBSemaParam lbl_80128178 = {0, 8, 8, 0, 0, 0};
 extern u32 lbl_802913C0_ptr;
 
 /* --- object-debug control (0x801281AC in .data, ptr held in lbl_80343F40) --- */
-/* dbg2 is a 0x10-stride slot array; f0 of the NEXT slot is the busy word the
- * draw/texture paths test (base + idx*0x10 + 0x10). */
-typedef struct PBObjSlot {
-    int f0, f4, f8, fc;
-} PBObjSlot;
-
 typedef struct PBObjDebug {
     int state;      /* 0x00 : sstep, enables the single-stepper */
     u8 _pad04[0x30];
@@ -196,7 +215,7 @@ void fn_800C36F8(void)
 
     g = gWinGlobals;
     if (lbl_80343F28 == -1) {
-        lbl_80343F28 = CreateSema(lbl_80128178);
+        lbl_80343F28 = CreateSema(&lbl_80128178);
     }
     g->objPool->spr_buf_sema_id = lbl_80343F28;
     g->objPool->freehead = lbl_802913C0;
@@ -233,18 +252,18 @@ void fn_800C37C4(void)
 void fn_800C3880(void)
 {
     PBGlobal* g = gWinGlobals;
-    if (g->dbg2 != 0) {
+    if (g->model != 0) {
         return;
     }
-    g->dbg2 = lbl_802C52D8;
+    g->model = &lbl_802C52D8;
 }
 
 /* Secondary object block bring-up hook. */
 void fn_800C38A0(void)
 {
     PBGlobal* g = gWinGlobals;
-    g->dbg2 = lbl_802C52D8;
-    *(int*)g->dbg2 = 0;
+    g->model = &lbl_802C52D8;
+    g->model->count = 0;
 }
 
 /* Draw one object: resolve the texture-shift, then emit its primitives via the
@@ -264,7 +283,7 @@ u32* fn_800C38C0(f32* a, MBObject* obj, u32* buffer)
     u32 packed;
     PBSubObject* prim;
     int stride;
-    PBObjSlot* t;
+    PBModel* t;
     u32 flags;
     PBGlobal* g = gWinGlobals;
 
@@ -273,9 +292,9 @@ u32* fn_800C38C0(f32* a, MBObject* obj, u32* buffer)
         return 0;
     }
     hi = packed >> 16;
-    t = (PBObjSlot*)g->dbg2;
+    t = g->model;
     def = (PBRomObjectView*)obj->data.romobj;
-    if (t[(packed >> 16) + 1].f0 != 0) {
+    if (t->info[packed >> 16].unready != 0) {
         return 0;
     }
     if (def->SubObjCnt == 0) {
@@ -446,10 +465,10 @@ static int pbSendObjTexturesSub(int idx, PBRomObjectView* def)
     int tt;
     int hi;
     int count;
-    PBObjSlot* t;
+    PBModel* t;
 
-    t = (PBObjSlot*)gWinGlobals->dbg2;
-    if (t[idx + 1].f0 != 0) {
+    t = gWinGlobals->model;
+    if (t->info[idx].unready != 0) {
         return 1;
     }
     if (def->SubObjCnt == 0) {

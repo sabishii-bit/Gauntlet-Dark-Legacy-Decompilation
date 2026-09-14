@@ -558,6 +558,8 @@ game/pb/pb_objects.c:
 	extab       start:0x80007C30 end:0x80007C68
 	extabindex  start:0x8000C298 end:0x8000C2EC
 	.text       start:0x800C3674 end:0x800C3F58
+	.data       start:0x80128178 end:0x80128190
+	.sdata      start:0x80343F28 end:0x80343F2C
 	.sdata2     start:0x80348F38 end:0x80348F50
 
 game/pb/pb_objregs.c:
