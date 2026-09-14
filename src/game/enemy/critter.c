@@ -231,7 +231,8 @@ extern f32   gClockFrameStep;         /* 0x80344590 frame delta                 
 extern f32   lbl_803447D8;            /* boss/player damage scaling gate             */
 extern s32   sMusicTrackHi;
 extern void *lbl_80344EB4;
-extern f32   lbl_80343BEC;            /* 0x80343BEC tunable float (10.0)             */
+/* Original file-static rolling ID; GC stores a halfword at 0x80343BE8. */
+static u16 CritterNewID = 1;
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
 extern f32   lbl_80346480;
 extern f32   lbl_80346470;
@@ -2212,6 +2213,10 @@ void CritterResolveMultipleTargets(Critter *c)
 /* 0x80036FBC -- collect and distance-sort all eligible player targets. */
 void CritterGetTargetPlayers(Critter *c)
 {
+    /* Original CritterPlayerAnger local static.  That helper's computation
+     * is still flattened below; retain its one shared object here until
+     * the helper is recovered, not a separate cap per player or call. */
+    static f32 maxinvanger = 10.0f;
     u8 unused2[4];
     f32 targetpos[3];
     CritterTargetInfo record;
@@ -2269,12 +2274,12 @@ void CritterGetTargetPlayers(Critter *c)
             damage = c->playerDamage[i].dealt;
             base = c->playerDamage[i].received;
             if (damage < one) {
-                result = one + lbl_80343BEC;
+                result = one + maxinvanger;
             } else {
                 if ((quot = base / damage) < pt01) {
                     ratio = pt01;
-                } else if (quot > lbl_80343BEC) {
-                    ratio = lbl_80343BEC;
+                } else if (quot > maxinvanger) {
+                    ratio = maxinvanger;
                 } else {
                     ratio = quot;
                 }
@@ -6411,9 +6416,9 @@ Critter *CritterEmptyInst(void)
     memset(c, 0, sizeof(Critter));
     *(s16 *)c = (s16)i;
     scan = (u8 *)big + byte_offset;
-    *(s16 *)(scan + (offsetof(CritterBigState, pool) + offsetof(Critter, id))) = gCritterNextID;
-    if ((u16)(gCritterNextID = gCritterNextID + 1) > 4095) {
-        gCritterNextID = 1;
+    *(s16 *)(scan + (offsetof(CritterBigState, pool) + offsetof(Critter, id))) = CritterNewID;
+    if ((u16)(CritterNewID = CritterNewID + 1) > 4095) {
+        CritterNewID = 1;
     }
     return (Critter *)c;
 }

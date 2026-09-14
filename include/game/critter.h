@@ -32,7 +32,7 @@
  *                                     16 * 0xAE0 == 0xAE00
  *   gCritterHeaders[9][6] @0x8024C004 == gBig.typeTable - CritterHeader* table
  *                                     indexed [type*0x18 + subtype*4]
- *   gCritterNextID   @0x80343BE8  u16 rolling unique-id counter (== CritterNewID)
+ *   CritterNewID    @0x80343BE8  file-static u16 rolling unique-id counter
  *   gCritterCountMax @0x8034462C  s32 high-water active count
  *   (gNumCritters    @0x8034466C  s32 active count - currently lbl_8034466C)
  *   CritterInit     @0x8004229C  formerly misnamed/misowned sndSysInit;
@@ -42,7 +42,7 @@
  * tools/gdl/fnasm.py) across CritterEmptyInst, CritterInitInst, CritterNewInst,
  * CritterDelInst, ProcessCritter, CritterAnimate and CritterGetNextMove:
  *   index      0x000  sth   (pool slot index, CritterEmptyInst)
- *   id         0x002  sth   (gCritterNextID++, CritterEmptyInst)
+ *   id         0x002  sth   (CritterNewID++, CritterEmptyInst)
  *   hdr        0x004  stw   (CritterHeader*; NULL == free slot; DelInst clears)
  *   state      0x008  lwz/stw (0/1/3 lifecycle; ProcessCritter)
  *   mtx        0x00C  arg   (GetWorldMat/CopyMat4 world matrix, 3x4)
@@ -280,7 +280,7 @@ typedef struct CritterHitNode {
  * ==================================================================== */
 typedef struct Critter {
     s16 index;                /* 0x000 pool slot index                        */
-    s16 id;                   /* 0x002 unique id (gCritterNextID)             */
+    s16 id;                   /* 0x002 unique id (CritterNewID)              */
     struct CritterHeader *hdr;/* 0x004 loaded type template; NULL == free     */
     s32 state;                /* 0x008 lifecycle state (0/1/3)                */
     f32 mtx[3][4];            /* 0x00C world transform (3x4 Mtx)              */
@@ -387,7 +387,6 @@ typedef struct Critter {
 /* -- module globals (GC GUNE5D) -- */
 extern Critter gCritterPool[16];             /* 0x80241204 (== gBig.pool)      */
 extern struct CritterHeader *gCritterHeaders[9][6]; /* 0x8024C004 hdr table    */
-extern u16 gCritterNextID;                   /* 0x80343BE8 rolling unique id   */
 void CritterInit(void);
 extern s32 gCritterCountMax;                 /* 0x8034462C high-water count    */
 
