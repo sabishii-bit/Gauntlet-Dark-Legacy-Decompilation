@@ -761,8 +761,7 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr);
 Critter *CritterEmptyInst(void);
 void CritterDelInst(Critter *c);
 void CritterUpdateSkinfx(Critter *c);
-struct CritterColnode;
-void CritterRemoveColnodeSub(Critter *c, struct CritterColnode *node, s32 mode);
+void CritterRemoveColnodeSub(Critter *c, MBObject *node, s32 mode);
 void CritterInitColnodes(Critter *c);
 void CritterAddAnimInsts(Critter *c, f32 *matrix);
 s32  CritterLoadFile(const char *wad, const char *name);
@@ -3194,7 +3193,7 @@ credited_damage_done:
                                       offsetof(CritterColDescriptor, flags)) & 4) &&
                             *(void **)((u8 *)*(void **)(hitNode + offsetof(CritterHitNode, active)) + offsetof(MBObject, child)) != NULL) {
                             CritterRemoveColnodeSub(c,
-                                *(struct CritterColnode **)
+                                *(MBObject **)
                                     ((u8 *)*(void **)(hitNode + offsetof(CritterHitNode, active)) + offsetof(MBObject, child)), 2);
                         }
                     }
@@ -6768,29 +6767,32 @@ void CritterUpdateSkinfx(Critter *c)
         c->hitnode2->flags = savedFlags;
     }
 }
-typedef struct CritterColnode {
-    u8 _pad00[0x78];
-    struct CritterColnode *child;
-    struct CritterColnode *next;
-} CritterColnode;
+/* Original helper, outlined on PS2 and expanded here in the GC caller.
+ * Removing a scene node invalidates its animation node and attached moves. */
+static inline void CritterColnodeUpdateMoves(Critter *c, MBObject *node)
+{
+    s32 i;
+    s32 j;
 
-typedef struct CritterAnimNode {
-    CritterColnode *node;
-    u8 _pad04[0x1C];
-    void *attachment;
-    u8 _pad24[4];
-} CritterAnimNode;
+    for (i = 0; i < c->atree.nanodes; i++) {
+        if (c->atree.firstanode[i].obj == node) {
+            c->atree.firstanode[i].type = 0;
+            c->atree.firstanode[i].obj = NULL;
+            for (j = 0; j < c->hdr->moveCount; j++) {
+                if (c->hdr->movesPtr[j].nodeidx == i) {
+                    c->hdr->movesPtr[j].nodeidx = -1;
+                }
+            }
+        }
+    }
+}
 
 /* 0x8003EDC4 -- recursively remove a collision-node chain and clear every
  * animation/move/hit-node reference that pointed at the removed nodes. */
-void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
+void CritterRemoveColnodeSub(Critter *c, MBObject *node, s32 mode)
 {
-    CritterColnode *next;
-    s32 animOffset;
-    s32 moveOffset;
-    s32 hitOffset;
+    MBObject *next;
     s32 i;
-    s32 j;
 
     while (node != NULL) {
         if (node->child != NULL) {
@@ -6799,31 +6801,12 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
         next = node->next;
         MBRemoveNode(node, 0);
 
-        for (i = 0, animOffset = 0; i < c->atree.nanodes;
-             i++, animOffset += sizeof(CritterAnimNode)) {
-            if (*(CritterColnode **)((u8 *)c->atree.firstanode + animOffset) == node) {
-                j = 0;
-                *(void **)((u8 *)c->atree.firstanode + animOffset + 0x20) = NULL;
-                *(CritterColnode **)((u8 *)c->atree.firstanode + animOffset) = NULL;
-                moveOffset = j;
-                while (j < c->hdr->moveCount) {
-                    if (*(s16 *)((u8 *)c->hdr->movesPtr +
-                                 moveOffset + 0x0E) == i) {
-                        *(s16 *)((u8 *)c->hdr->movesPtr +
-                                 moveOffset + 0x0E) = -1;
-                    }
-                    j++;
-                    moveOffset += sizeof(CritterMove);
-                }
-            }
-        }
+        CritterColnodeUpdateMoves(c, node);
 
-        for (i = 0, hitOffset = 0;
-             i < c->hdr->colCount;
-             i++, hitOffset += 0x5C) {
-            u8 *hitRecord = (u8 *)c + hitOffset;
-            if (((CritterHitNode *)(hitRecord + offsetof(Critter, hitnodes)))->active == node) {
-                ((CritterHitNode *)(hitRecord + offsetof(Critter, hitnodes)))->active = NULL;
+        for (i = 0; i < c->hdr->colCount; i++) {
+            CritterHitNode *hit = &c->hitnodes[i];
+            if (hit->active == node) {
+                hit->active = NULL;
             }
         }
 
