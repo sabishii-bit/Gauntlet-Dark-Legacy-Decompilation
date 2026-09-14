@@ -183,8 +183,7 @@ void fn_800C1174(register s8* text)
                         if (*glyph != 0) {
                             plot = idx * 12 + col * 2 + row * 256;
                             pixels[plot] = 0x00FFFFFF;
-                            plot++;
-                            pixels[plot] = 0x00FFFFFF;
+                            pixels[++plot] = 0x00FFFFFF;
                         }
                         glyph++;
                     }
