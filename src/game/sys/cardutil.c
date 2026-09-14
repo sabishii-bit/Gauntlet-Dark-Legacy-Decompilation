@@ -7,21 +7,16 @@
  * and either return immediately or spin on VIWaitForRetrace until the worker
  * writes back a result. Address range 0x800DC180..0x800DD180.
  *
- * NOTE: NonMatching - the directory-management handlers (cardDoWrite/DoLoad/
- * DoDelete) are fully reconstructed from the target asm; they operate on the
- * shared savegame-directory table (an array of CardDirEntry) whose buffer is
- * handed in from memcard.c. Their icon/banner-offset bookkeeping keeps regalloc
- * residuals, so the TU stays NonMatching; the other handlers are byte-exact.
+ * NOTE: NonMatching - cardDoWrite/cardDoLoad retain native instruction
+ * differences. Their directory cache uses the GC-verified CardDirEntry view
+ * below; all other handlers have exact native bodies and positional bindings.
  * Function order follows the DOL (same-TU inlining depends on it).
  *
- * PARKED light-match residuals (do not re-hunt):
- *   cardStart - instruction stream now matches; fndiff only reports the
- *     private `...bss.0` alias used for gCardBuf.
- *   cardSubmitCommand - target recomputes &M.mutex at the unlock instead of
- *     caching it, so it needs one fewer saved register (CSE/regalloc).
- *   cardDoWrite/cardDoLoad - stack slots aligned; residual is icon-offset
- *     strength-reduction + regalloc; gCardBuf overlay shows as a `...bss.0`
- *     reloc in fndiff (false positive, byte-identical).
+ * Native GC/1.2.5 measurement (2026-09-13): Write 263/263 instructions,
+ * 25 differing words; Load 257/257, 10 words. Both reverse-animation loops
+ * now match. Remaining differences are in entry/forward-loop register use
+ * and Write's forward induction updates. Recheck after genuine source changes;
+ * these measurements do not establish that compiler changes are required.
  */
 #include "types.h"
 
@@ -180,6 +175,7 @@ s32 cardInit(void) {
 
 /* 0x800DC1A0 - post the quit command and wait for the worker to acknowledge */
 void cardExit(void) {
+    /* Unrecovered local storage: removal changes the native frame 24 -> 16. */
     u8 unused[8];
     cardSubmitCommand(0, CARDCMD_QUIT, 0, NULL, 0);
     do {
@@ -190,7 +186,6 @@ void cardExit(void) {
 static inline s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card) {
     CARDStat stat;
     CARDFileInfo info;
-    u8 unused[8];
     s32 res;
     u32 length;
 
@@ -210,13 +205,14 @@ static inline s32 cardDoRead(s32 chan, s32 fileNo, void* data, CardMgrBuf* card)
 }
 
 /* 0x800DC1F4 - init sync objects, spawn the worker, wait until it's idle */
-void cardStart(s32 chan, s32 fileNo, void* data) {
+void cardStart(void* stack, u32 stackSize, s32 priority) {
+    /* Unrecovered local storage: removal changes the native frame 48 -> 40. */
     u8 unused[8];
     OSInitMutex(&M.mutex);
     OSInitMutex(&M.mutex2);
     OSInitCond(&M.cond);
     OSCreateThread((OSThread*)gCardBuf, (void* (*)(void*))cardThreadMain, NULL,
-                   (void*)chan, fileNo, (s32)data, 1);
+                   stack, stackSize, priority, 1);
     OSResumeThread((OSThread*)gCardBuf);
     do {
         VIWaitForRetrace();
@@ -465,63 +461,59 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
         }
     }
 
-    memset(e + 0x5a00, 0, 0x40);
-    if (stat->commentAddr <= stat->length - 0x40) {
-        memmove(e + 0x5a00, (u8*)data + stat->commentAddr, 0x40);
-    }
-    *(u32*)(e + 0x5ab0) = 0;
-    if (stat->bannerFormat != 0 || stat->iconFormat != 0) {
-        int fmtShift;
-        int spShift;
-        s32 ciCount;
-        s32 iconCount;
-
-        memmove(e, (u8*)data + stat->iconAddr, stat->offsetData - stat->iconAddr);
-        DCFlushRange(e, stat->offsetData - stat->iconAddr);
-
-        iconCount = 0;
-        ciCount = 0;
-        spShift = 0;
-        fmtShift = 0;
-        for (i = 0; i < 8; i++) {
-            s32 sp = (stat->iconSpeed >> spShift) & 3;
-            if (sp == 0) {
-                break;
-            }
-            *(u32*)(e + 0x5ab4 + i * 4) = *(u32*)(e + 0x5ab0);
-            *(u32*)(e + 0x5aec + i * 4) = ciCount;
-            *(u32*)(e + 0x5ab0) += sp << 2;
-            if ((stat->iconFormat >> fmtShift) & 3) {
-                ciCount++;
-                fmtShift += 2;
-            }
-            iconCount++;
-            spShift += 2;
+    /* Keep the byte cursor's directory search above separate from this
+     * typed cache view. A whole-search typed cursor changes its native loop. */
+    {
+        CardDirEntry* entry = (CardDirEntry*)e;
+        memset(entry->comment, 0, 0x40);
+        if (stat->commentAddr <= stat->length - 0x40) {
+            memmove(entry->comment, (u8*)data + stat->commentAddr, 0x40);
         }
-        if ((stat->bannerFormat & 4) == 4 && iconCount > 2) {
-            int k;
-            int count = iconCount - 2;
-            int dstOff = i * 4;
-            int shift = count * 2;
-            int srcIndex = count;
+        entry->dataOffset = 0;
+        if (stat->bannerFormat != 0 || stat->iconFormat != 0) {
+            s32 ciCount;
+            s32 iconCount;
 
-            for (k = 0; k < count; k++) {
-                s32 sp = (stat->iconSpeed >> shift) & 3;
-                *(u32*)(e + 0x5ab4 + dstOff) = *(u32*)(e + 0x5ab0);
-                *(u32*)(e + 0x5aec + dstOff) =
-                    ((u32*)e)[srcIndex + (0x5aec / sizeof(u32))];
-                *(u32*)(e + 0x5ab0) += sp << 2;
-                srcIndex--;
-                shift -= 2;
-                dstOff += 4;
+            memmove(e, (u8*)data + stat->iconAddr, stat->offsetData - stat->iconAddr);
+            DCFlushRange(e, stat->offsetData - stat->iconAddr);
+
+            iconCount = 0;
+            ciCount = 0;
+            for (i = 0; i < 8; i++) {
+                s32 sp = (stat->iconSpeed >> (2 * i)) & 3;
+                if (sp == 0) {
+                    break;
+                }
+                entry->iconOffset[i] = entry->dataOffset;
+                entry->iconTlut[i] = ciCount;
+                entry->dataOffset += sp << 2;
+                if ((stat->iconFormat >> (2 * ciCount)) & 3) {
+                    ciCount++;
+                }
+                iconCount++;
+            }
+            if ((stat->bannerFormat & 4) == 4 && iconCount > 2) {
+                int k;
+                int count = iconCount - 2;
+                int dstIndex = i;
+                int srcIndex = count;
+
+                for (k = 0; k < count; k++) {
+                    s32 sp = (stat->iconSpeed >> (2 * srcIndex)) & 3;
+                    entry->iconOffset[dstIndex] = entry->dataOffset;
+                    entry->iconTlut[dstIndex] = entry->iconTlut[srcIndex];
+                    entry->dataOffset += sp << 2;
+                    srcIndex--;
+                    dstIndex++;
+                }
             }
         }
-    }
 
-    memcpy(e + 0x5a44, stat, 0x6c);
-    *(s32*)(e + 0x5a40) = newFileNo;
-    OSUnlockMutex(&M.mutex2);
-    return CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
+        memcpy(&entry->stat, stat, 0x6c);
+        entry->fileNo = newFileNo;
+        OSUnlockMutex(&M.mutex2);
+        return CARDFreeBlocks(chan, &M.freeBytes, &M.freeFiles);
+    }
 }
 
 /* 0x800DCAC0 - (re)build the in-RAM directory: scan every CARD file, keep the
@@ -654,18 +646,16 @@ static s32 cardDoLoad(s32 chan, void* dirBuf) {
             if ((e->stat.bannerFormat & 4) == 4 && iconCount > 2) {
                 int k;
                 int count = iconCount - 2;
-                int dstOff = i * 4;
-                int shift = count * 2;
+                int dstIndex = i;
                 int srcIndex = count;
 
                 for (k = 0; k < count; k++) {
-                    s32 sp = (e->stat.iconSpeed >> shift) & 3;
-                    *(u32*)((u8*)e->iconOffset + dstOff) = e->dataOffset;
-                    *(u32*)((u8*)e->iconTlut + dstOff) = e->iconTlut[srcIndex];
+                    s32 sp = (e->stat.iconSpeed >> (2 * srcIndex)) & 3;
+                    e->iconOffset[dstIndex] = e->dataOffset;
+                    e->iconTlut[dstIndex] = e->iconTlut[srcIndex];
                     e->dataOffset += sp << 2;
                     srcIndex--;
-                    shift -= 2;
-                    dstOff += 4;
+                    dstIndex++;
                 }
             }
         }
