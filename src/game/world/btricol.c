@@ -605,38 +605,62 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
 #pragma opt_propagation reset
 
 /* ------------------------------------------------------------------ */
-/* Shortest distance between two 3D line segments; closest points are  */
-/* returned in *outA / *outB.                                          */
+/* Squared point-to-segment distance, with an optional closest point. */
 /* ------------------------------------------------------------------ */
-#pragma opt_propagation off
+/* PointLineDist is named in BTRICOL.OBJ and the PS2 build (0x0011A458).
+ * Its four calls below are inlined in GC. The two differences have separate
+ * expression lifetimes; the fallback point belongs to this helper. Only XYZ
+ * are accessed by GC, unlike the four-component PS2/Xbox vector storage. */
+static inline f32 PointLineDist(Vec* pt, Vec* Lpt, Vec* Ldir, f32 Llen, Vec* col)
+{
+    Vec tvec;
+    f32 dist;
+
+    if (col == NULL) {
+        col = &tvec;
+    }
+    {
+        Vec delta;
+        delta.x = pt->x - Lpt->x;
+        delta.y = pt->y - Lpt->y;
+        delta.z = pt->z - Lpt->z;
+        dist = delta.z * Ldir->z + (delta.x * Ldir->x + delta.y * Ldir->y);
+    }
+    if (dist < 0.0f) {
+        col->x = Lpt->x;
+        col->y = Lpt->y;
+        col->z = Lpt->z;
+    } else if (dist >= Llen) {
+        col->x = Lpt->x + Ldir->x * Llen;
+        col->y = Lpt->y + Ldir->y * Llen;
+        col->z = Lpt->z + Ldir->z * Llen;
+    } else {
+        col->x = Lpt->x + Ldir->x * dist;
+        col->y = Lpt->y + Ldir->y * dist;
+        col->z = Lpt->z + Ldir->z * dist;
+    }
+    {
+        Vec delta;
+        delta.x = col->x - pt->x;
+        delta.y = col->y - pt->y;
+        delta.z = col->z - pt->z;
+        return delta.z * delta.z + (delta.x * delta.x + delta.y * delta.y);
+    }
+}
+
+/* Squared segment-to-segment distance; out is the closest point on B.
+ * dvec/v_cross and the endpoint vectors are corroborated by BTRICOL's PDB
+ * locals. The helper boundaries replace the old oversized point containers
+ * and caller reservations; remaining instruction differences are unresolved. */
 static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
                         Vec* pointA, Vec* dirA, f32 lenB, f32 lenA) {
-    u8 highPad[40];
+    Vec dvec;
+    Vec v_cross;
     Vec tmpB;
-    u8 endpointPad[4];
     Vec tmpA;
-    u8 unused[48];
-    struct {
-        Vec value;
-        u8 unused[44];
-    } cpA[1];
-    Vec dstTmp[3];
-    Vec cpP[3];
-    struct {
-        u8 unused0[28];
-        Vec value;
-        u8 unused1[24];
-    } cpB[1];
     Vec* endB;
     Vec* endA;
-    Vec* dst;
-    f32 cx;
-    f32 cy;
-    f32 cz;
     f32 denom;
-    f32 dx;
-    f32 dy;
-    f32 dz;
     f32 tB;
     f32 tA;
     f32 t;
@@ -644,25 +668,25 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
     f32 dA2;
     f32 dB2;
 
-    cy = dirB->z * dirA->x - dirB->x * dirA->z;
-    cx = dirB->y * dirA->z - dirB->z * dirA->y;
-    cz = dirB->x * dirA->y - dirB->y * dirA->x;
-    denom = cx * cx + cy * cy;
-    denom = cz * cz + denom;
-    dx = pointA->x - pointB->x;
-    dy = pointA->y - pointB->y;
-    dz = pointA->z - pointB->z;
+    v_cross.y = dirB->z * dirA->x - dirB->x * dirA->z;
+    v_cross.x = dirB->y * dirA->z - dirB->z * dirA->y;
+    v_cross.z = dirB->x * dirA->y - dirB->y * dirA->x;
+    denom = v_cross.x * v_cross.x + v_cross.y * v_cross.y;
+    denom = v_cross.z * v_cross.z + denom;
+    dvec.x = pointA->x - pointB->x;
+    dvec.y = pointA->y - pointB->y;
+    dvec.z = pointA->z - pointB->z;
     if (denom) {
         endB = NULL;
         endA = NULL;
         inv = (f32)((1.0) / denom);
         {
-            f32 a1 = cz * (dx * dirA->y);
-            f32 a2 = cx * (dy * dirA->z);
-            f32 a3 = cy * (dz * dirA->x);
-            f32 b1 = dz * (cx * dirA->y);
-            f32 b2 = dx * (cy * dirA->z);
-            f32 b3 = dy * (cz * dirA->x);
+            f32 a1 = v_cross.z * (dvec.x * dirA->y);
+            f32 a2 = v_cross.x * (dvec.y * dirA->z);
+            f32 a3 = v_cross.y * (dvec.z * dirA->x);
+            f32 b1 = dvec.z * (v_cross.x * dirA->y);
+            f32 b2 = dvec.x * (v_cross.y * dirA->z);
+            f32 b3 = dvec.y * (v_cross.z * dirA->x);
             f32 num = a1 + a2;
 
             num = a3 + num;
@@ -680,12 +704,12 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             endB = &tmpB;
         }
         {
-            f32 a1 = cz * (dx * dirB->y);
-            f32 a2 = cx * (dy * dirB->z);
-            f32 a3 = cy * (dz * dirB->x);
-            f32 b1 = dz * (cx * dirB->y);
-            f32 b2 = dx * (cy * dirB->z);
-            f32 b3 = dy * (cz * dirB->x);
+            f32 a1 = v_cross.z * (dvec.x * dirB->y);
+            f32 a2 = v_cross.x * (dvec.y * dirB->z);
+            f32 a3 = v_cross.y * (dvec.z * dirB->x);
+            f32 b1 = dvec.z * (v_cross.x * dirB->y);
+            f32 b2 = dvec.x * (v_cross.y * dirB->z);
+            f32 b3 = dvec.y * (v_cross.z * dirB->x);
             f32 num = a1 + a2;
 
             num = a3 + num;
@@ -706,56 +730,12 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
             goto interior;
         }
         if (endB != NULL) {
-            Vec* cp = &cpA[0].value;
-
-            t = (endB->z - pointA->z) * dirA->z +
-                ((endB->x - pointA->x) * dirA->x +
-                 (endB->y - pointA->y) * dirA->y);
-            if (t < 0.0f) {
-                cp->x = pointA->x;
-                cp->y = pointA->y;
-                cp->z = pointA->z;
-            } else if (t >= lenA) {
-                cp->x = pointA->x + dirA->x * lenA;
-                cp->y = pointA->y + dirA->y * lenA;
-                cp->z = pointA->z + dirA->z * lenA;
-            } else {
-                cp->x = pointA->x + dirA->x * t;
-                cp->y = pointA->y + dirA->y * t;
-                cp->z = pointA->z + dirA->z * t;
-            }
-            dy = cp->y - endB->y;
-            dx = cp->x - endB->x;
-            dz = cp->z - endB->z;
-            dB2 = dz * dz + (dx * dx + (dy * dy));
+            dB2 = PointLineDist(endB, pointA, dirA, lenA, NULL);
         } else {
             dB2 = (1.0e21f);
         }
         if (endA != NULL) {
-            dst = out;
-            if (out == NULL) {
-                dst = &dstTmp[0];
-            }
-            t = (endA->z - pointB->z) * dirB->z +
-                ((endA->x - pointB->x) * dirB->x +
-                 (endA->y - pointB->y) * dirB->y);
-            if (t < 0.0f) {
-                dst->x = pointB->x;
-                dst->y = pointB->y;
-                dst->z = pointB->z;
-            } else if (t >= lenB) {
-                dst->x = pointB->x + dirB->x * lenB;
-                dst->y = pointB->y + dirB->y * lenB;
-                dst->z = pointB->z + dirB->z * lenB;
-            } else {
-                dst->x = pointB->x + dirB->x * t;
-                dst->y = pointB->y + dirB->y * t;
-                dst->z = pointB->z + dirB->z * t;
-            }
-            dy = dst->y - endA->y;
-            dx = dst->x - endA->x;
-            dz = dst->z - endA->z;
-            dA2 = dz * dz + (dx * dx + (dy * dy));
+            dA2 = PointLineDist(endA, pointB, dirB, lenB, out);
         } else {
             dA2 = (1.0e21f);
         }
@@ -774,89 +754,41 @@ static f32 LineLineDist(Vec* pointB, Vec* dirB, Vec* out,
         tmpA.x = pointA->x + dirA->x * tA;
         tmpA.y = pointA->y + dirA->y * tA;
         tmpA.z = pointA->z + dirA->z * tA;
-        dy = tmpA.y - out->y;
-        dx = tmpA.x - out->x;
-        dz = tmpA.z - out->z;
-        dB2 = dz * dz + (dx * dx + (dy * dy));
+        dvec.y = tmpA.y - out->y;
+        dvec.x = tmpA.x - out->x;
+        dvec.z = tmpA.z - out->z;
+        dB2 = dvec.z * dvec.z + (dvec.x * dvec.x + (dvec.y * dvec.y));
         goto done;
     } else {
-        t = dy * dirB->y;
-        t = dx * dirB->x + t;
-        t = dz * dirB->z + t;
+        t = dvec.y * dirB->y;
+        t = dvec.x * dirB->x + t;
+        t = dvec.z * dirB->z + t;
         if (t < 0.0f) {
-            f32 u = (pointB->y - pointA->y) * dirA->y;
-
-            u = (pointB->x - pointA->x) * dirA->x + u;
-            u = (pointB->z - pointA->z) * dirA->z + u;
-            {
-            Vec* cp = &cpP[0];
-
-            if (u < 0.0f) {
-                cp->x = pointA->x;
-                cp->y = pointA->y;
-                cp->z = pointA->z;
-            } else if (u >= lenA) {
-                cp->x = pointA->x + dirA->x * lenA;
-                cp->y = pointA->y + dirA->y * lenA;
-                cp->z = pointA->z + dirA->z * lenA;
-            } else {
-                cp->x = pointA->x + dirA->x * u;
-                cp->y = pointA->y + dirA->y * u;
-                cp->z = pointA->z + dirA->z * u;
-            }
-            dy = cp->y - pointB->y;
-            dx = cp->x - pointB->x;
-            dz = cp->z - pointB->z;
+            dB2 = PointLineDist(pointB, pointA, dirA, lenA, NULL);
             out->x = pointB->x;
             out->y = pointB->y;
             out->z = pointB->z;
-            }
-            dB2 = dz * dz + (dx * dx + (dy * dy));
             goto done;
         } else if (t >= lenB) {
             out->x = pointB->x + dirB->x * lenB;
             out->y = pointB->y + dirB->y * lenB;
             out->z = pointB->z + dirB->z * lenB;
-            t = (out->z - pointA->z) * dirA->z +
-                ((out->x - pointA->x) * dirA->x +
-                 (out->y - pointA->y) * dirA->y);
-            {
-            Vec* cp = &cpB[0].value;
-
-            if (t < 0.0f) {
-                cp->x = pointA->x;
-                cp->y = pointA->y;
-                cp->z = pointA->z;
-            } else if (t >= lenA) {
-                cp->x = pointA->x + dirA->x * lenA;
-                cp->y = pointA->y + dirA->y * lenA;
-                cp->z = pointA->z + dirA->z * lenA;
-            } else {
-                cp->x = pointA->x + dirA->x * t;
-                cp->y = pointA->y + dirA->y * t;
-                cp->z = pointA->z + dirA->z * t;
-            }
-            dy = cp->y - out->y;
-            dx = cp->x - out->x;
-            dz = cp->z - out->z;
-            }
-            dB2 = dz * dz + (dx * dx + (dy * dy));
+            dB2 = PointLineDist(out, pointA, dirA, lenA, NULL);
             goto done;
         } else {
             out->x = pointB->x + dirB->x * t;
             out->y = pointB->y + dirB->y * t;
             out->z = pointB->z + dirB->z * t;
-            dy = out->y - pointA->y;
-            dx = out->x - pointA->x;
-            dz = out->z - pointA->z;
-            dB2 = dz * dz + (dx * dx + (dy * dy));
+            dvec.y = out->y - pointA->y;
+            dvec.x = out->x - pointA->x;
+            dvec.z = out->z - pointA->z;
+            dB2 = dvec.z * dvec.z + (dvec.x * dvec.x + (dvec.y * dvec.y));
             goto done;
         }
     }
 done:
     return dB2;
 }
-#pragma opt_propagation reset
 
 /* ------------------------------------------------------------------ */
 /* Squared XZ distance from point p0 to the segment starting at p1     */
