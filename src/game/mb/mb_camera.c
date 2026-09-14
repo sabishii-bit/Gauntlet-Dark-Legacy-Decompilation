@@ -11,8 +11,9 @@
  * (ends 0x800B53B0) and mb_font (starts 0x800B5AA8). Delimited from mb_font by
  * its referenced sdata2 run (0x80348B20..0x80348B44, before mb_font's 0x80348B48+)
  * and by callee signature (projection math, no font/message globals). The
- * recovered double half and signed-conversion bias occupy the claimed
- * 0x80348B28..0x80348B38 run; the other literals remain external. Names come
+ * recovered double half, signed-conversion bias and float half/zero/backoff
+ * occupy 0x80348B28..0x80348B44. The earlier 1.0f remains external pending
+ * recovery of its original emission context. Names come
  * from an earlier Xbox shell3D PDB (mb_camera.obj) correspondence. Some legacy
  * GC names disagree with the actual direction of projection; see below.
  *
@@ -79,10 +80,6 @@ extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src, f32* m);
 extern void CopyMat3(f32* src, f32* dst);
 
 extern const f32 lbl_80348B20;
-extern const f64 lbl_80348B30;
-extern const f32 lbl_80348B38;
-extern const f32 lbl_80348B3C;
-extern const f32 lbl_80348B40;
 
 int MBWorldSphereClip(f32* sphere, f32 radius);
 
@@ -166,9 +163,9 @@ void MBWorldToScreen(f32* dst, f32* world)
     invW = lbl_80348B20 / dst[3];
     portWidth = (f32)((PBSCREEN*)globals->screen)->w;
     portHeight = (f32)((PBSCREEN*)globals->screen)->h;
-    dst[0] = (lbl_80348B38 * portWidth + dst[0] * invW) -
+    dst[0] = (0.5f * portWidth + dst[0] * invW) -
              ((PBSCREEN*)globals->screen)->xoff;
-    dst[1] = (lbl_80348B38 * portHeight + dst[1] * invW) -
+    dst[1] = (0.5f * portHeight + dst[1] * invW) -
              ((PBSCREEN*)globals->screen)->yoff;
     dst[0] *= (f32)((PBSCREEN*)globals->screen)->wref / portWidth;
     dst[1] *= (f32)((PBSCREEN*)globals->screen)->href / portHeight;
@@ -255,7 +252,7 @@ void MBCameraUpdate(f32* position, f32* matrix)
     int col;
     f32 (*inputRows)[4];
 
-    z = lbl_80348B3C;
+    z = 0.0f;
     for (row = 0; row < 3; row++) {
         matrix[row * 4 + 3] = z;
     }
@@ -280,27 +277,27 @@ void MBCameraUpdate(f32* position, f32* matrix)
     saved[14] = matrix[14];
 
     if (lbl_80344E0C != 0) {
-        if (lbl_80348B3C == position[0] &&
-            lbl_80348B3C == position[1] &&
-            lbl_80348B3C == position[2]) {
-            position[2] = lbl_80348B40;
+        if (0.0f == position[0] &&
+            0.0f == position[1] &&
+            0.0f == position[2]) {
+            position[2] = -30.0f;
         } else {
             lbl_80344E0C = 0;
         }
     }
 
     traversal[0][0] = lbl_80348B20;
-    traversal[0][1] = lbl_80348B3C;
-    traversal[0][2] = lbl_80348B3C;
-    traversal[1][0] = lbl_80348B3C;
+    traversal[0][1] = 0.0f;
+    traversal[0][2] = 0.0f;
+    traversal[1][0] = 0.0f;
     traversal[1][1] = lbl_80348B20;
-    traversal[1][2] = lbl_80348B3C;
-    traversal[2][0] = lbl_80348B3C;
-    traversal[2][1] = lbl_80348B3C;
+    traversal[1][2] = 0.0f;
+    traversal[2][0] = 0.0f;
+    traversal[2][1] = 0.0f;
     traversal[2][2] = lbl_80348B20;
-    traversal[3][0] = lbl_80348B3C;
-    traversal[3][1] = lbl_80348B3C;
-    traversal[3][2] = lbl_80348B3C;
+    traversal[3][0] = 0.0f;
+    traversal[3][1] = 0.0f;
+    traversal[3][2] = 0.0f;
 
     CopyMat3(matrix, &copied[0][0]);
     copied[3][0] = position[0];
@@ -309,7 +306,7 @@ void MBCameraUpdate(f32* position, f32* matrix)
     copied[3][3] = lbl_80348B20;
 
     row = 0;
-    z = lbl_80348B3C;
+    z = 0.0f;
     inputRows = (f32 (*)[4])matrix;
     do {
         for (col = 0; col < 3; col++) {
