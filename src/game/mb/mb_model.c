@@ -39,7 +39,7 @@ extern void* StartFileRead(const char* dir, const char* name, int flags,
                            int size, void* destination,
                            void (*callback)(void*));
 extern int   FileSize(const char* dir, const char* name);
-extern int   MLMReadFile(const char* dir, const char* name, void* buf, int size);
+extern int   MLMReadFile(const char* dir, const char* name, int maxLen, void* dest);
 extern void* AllocMem(int size);
 extern void* GetMemBase(void);
 extern int   BytesFree(void);
@@ -96,10 +96,10 @@ extern const char lbl_80348C30[4]; /* "???" */
 /* forward declarations (GCN emit order = reverse Xbox source order) */
 static void  BGLoadTextures(void* rq);
 static void  BGLoadObjects(void* rq);
-int          MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot);
+int          MBOX_LoadModelFixed(const char* dir, int maxLen, int a, int b, int slot);
 static void  SetupModel();
 int          MBOX_AllocModelMem(int objSize, int texSize, const char* dir);
-int          MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag);
+int          MBOX_FindTexture_Sub(const char* name, void** out, int lo, int hi, int flag);
 static int   texcmp(const void* a, const void* b);
 static int   texidxcmp(const void* a, const void* b);
 int          MBOX_ReallyFindObject(const char* name, int a, int b, int create);
@@ -375,11 +375,15 @@ int MBBackgroundLoading(void) {
 
 /* ---- 0x800B7B24 : load a single model (default flags) ---- */
 int MBOX_LoadModel(const char* dir) {
-    return MBOX_LoadModelFixed(dir, NULL, 0, 0, -1);
+    return MBOX_LoadModelFixed(dir, 0, 0, 0, -1);
 }
 
-/* ---- 0x800B7B54 : load a single model file into a fixed slot ---- */
-int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
+/* ---- 0x800B7B54 : load a single model file into a fixed slot ----
+ * The second argument is the object-file read limit, not a buffer:
+ * target +0x20 saves incoming r4 and +0xBC forwards it as MLMReadFile's
+ * signed maxLen in r5. The allocated model base is its destination in r6.
+ */
+int MBOX_LoadModelFixed(const char* dir, int maxLen, int a, int b, int slot) {
     char* strs;
     s32 off;
     MboxModelLoadSlot* row;
@@ -407,7 +411,7 @@ int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     strncpy((char*)(nameBase + nameOff), dir, 32);
     nameBase[nameOff + 31] = 0;
     if (strcmp(dir, lbl_80348C28) != 0) {
-        got = MLMReadFile(dir, strs, buf, (int)base);
+        got = MLMReadFile(dir, strs, maxLen, base);
         bulletproof_printf(strs + 244, slot, dir, row->objectSize);
         if ((u32)got > (u32)row->objectSize) {
             ErrorPrintf(strs + 288, slot, dir, got);
@@ -425,8 +429,8 @@ int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     } else {
         row2 = (MboxModelLoadSlot*)(
             ((MboxWinGlobalsView*)gWinGlobals)->modelTable + off + 4);
-        got = MLMReadFile(dir, strs + 12, (void*)row2->textureSize,
-                          ((MboxModelHeaderView*)row2->model)->tex_start);
+        got = MLMReadFile(dir, strs + 12, row2->textureSize,
+                          (void*)((MboxModelHeaderView*)row2->model)->tex_start);
         if ((u32)((got + 15) & ~15) > (u32)row2->textureSize) {
             ErrorPrintf(strs + 336, dir);
         }
@@ -805,18 +809,17 @@ typedef struct MboxModelSlot {
 
 /* ---- 0x800B8B04 : find a texture def by name ---- */
 int MBOX_FindTexture(const char* name, void** out) {
-    return MBOX_FindTexture_Sub(name, (int)out, 0, lbl_80344E8C - 1, 0);
+    return MBOX_FindTexture_Sub(name, out, 0, lbl_80344E8C - 1, 0);
 }
 
 /* ---- 0x800B8B34 : find a texture def by name (error variant) ---- */
 int MBOX_FindTexture_Err(const char* name, void** out, int flag) {
-    return MBOX_FindTexture_Sub(name, (int)out, 0, lbl_80344E8C - 1, flag);
+    return MBOX_FindTexture_Sub(name, out, 0, lbl_80344E8C - 1, flag);
 }
 
 /* ---- 0x800B8B64 : binary-search the texture-def table by name ---- */
-int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
+int MBOX_FindTexture_Sub(const char* name, void** out, int lo, int hi, int flag) {
     char* destination;
-    void** out = (void**)p2;
     MboxWinGlobalsView* g;
     void* result;
     s32 model;
