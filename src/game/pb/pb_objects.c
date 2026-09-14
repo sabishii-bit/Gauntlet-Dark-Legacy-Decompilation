@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/mbobject.h"
 
 /* pb_objects.c -- Midway "pb" graphics library object layer (pb_objects.obj on
  * Xbox). .text 0x800C3674-0x800C3F58. Sits between pb_global.c (below) and
@@ -38,6 +39,43 @@ typedef struct PBGlobal {
 } PBGlobal;
 
 extern PBGlobal* gWinGlobals; /* 0x80344FC0 */
+
+/* The draw/texture entry points consume the same MBObject (Xbox mbnode) as
+ * mb_objects.c, not a PBWINDOW: lha +0x5c is texchangeidx, lwz +0x58 is
+ * texaltidx, and +0x60/+0x6c/+0x70 are flags/index/data.romobj.
+ *
+ * The resolved payload is ROMOBJECT, corroborated by mb_model.c's loader
+ * and research/xbox_symbols/misc.h. This partial view ends at ObjDef; it
+ * does not describe the unused trailing words or claim a new array stride.
+ * Draw and texture traversal verify SubObjCnt +0x0c, the four halfwords
+ * +0x10..+0x16 (only LodK signed), and pointers +0x18/+0x1c/+0x2c.
+ * SUBOBJECT is independently walked at eight-byte strides with lhz at
+ * +0/+2/+4 and lha at +6. DataPtr remains a word pointer, byte-addressed
+ * below because QWC advances the geometry stream in 16-byte quadwords. */
+typedef struct PBSubObject {
+    u16 QWC;
+    u16 TexIdx;
+    u16 LMIdx;
+    s16 LodK;
+} PBSubObject;
+
+struct OBJDEF;
+typedef struct PBRomObjectView {
+    f32 InvRad;
+    f32 BndRad;
+    u32 Flags;
+    s32 SubObjCnt;
+    u16 SubObj0_QWC;
+    u16 SubObj0_TexIdx;
+    u16 SubObj0_LMIdx;
+    s16 SubObj0_LodK;
+    PBSubObject* SubObjPtr;
+    u32* DataPtr;
+    s32 VertCount;
+    s32 TriCount;
+    s32 IDnum;
+    struct OBJDEF* ObjDef;
+} PBRomObjectView;
 
 /* --- pb_objects private data (defined in the DOL) --- */
 extern s16 lbl_80345018;       /* per-frame object counter (reset each frame) */
@@ -102,11 +140,11 @@ void fn_800C379C(void);
 void fn_800C37C4(void);
 void fn_800C3880(void);
 void fn_800C38A0(void);
-int fn_800C38C0(void* a, u8* obj);
-static u32 pbObjTexSub(void* obj, int lo, int hi, u32* flags);
-int pbSendObjTextures(u8* obj);
-static int pbSendObjTexturesSub(int idx, u8* def);
-void pbDebugObjSStep(u8* obj, int state);
+int fn_800C38C0(void* a, MBObject* obj);
+static u32 pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags);
+int pbSendObjTextures(MBObject* obj);
+static int pbSendObjTexturesSub(int idx, PBRomObjectView* def);
+void pbDebugObjSStep(MBObject* obj, int state);
 
 /* Reset the per-frame object counter. */
 void fn_800C3674(void)
@@ -209,10 +247,10 @@ void fn_800C38A0(void)
 
 /* Draw one object: resolve the texture-shift, then emit its primitives via the
  * pb_objregs geometry path. */
-int fn_800C38C0(void* a, u8* obj)
+int fn_800C38C0(void* a, MBObject* obj)
 {
     int pcount;
-    u8* def;
+    PBRomObjectView* def;
     int hi;
     u8* v1c;
     int tex;
@@ -220,63 +258,62 @@ int fn_800C38C0(void* a, u8* obj)
     int v24;
     u8 unusedA[4];
     u32 packed;
-    u8* prim;
+    PBSubObject* prim;
     int stride;
     PBObjSlot* t;
     u32 flags;
     u8 unusedB[4];
     PBGlobal* g = gWinGlobals;
 
-    packed = *(u32*)(obj + 0x6c);
+    packed = obj->index;
     if (packed == 0) {
         return 0;
     }
     hi = packed >> 16;
     t = (PBObjSlot*)g->dbg2;
-    def = *(u8**)(obj + 0x70);
+    def = (PBRomObjectView*)obj->data.romobj;
     if (t[(packed >> 16) + 1].f0 != 0) {
         return 0;
     }
-    if (*(int*)(def + 0xc) == 0) {
+    if (def->SubObjCnt == 0) {
         return 0;
     }
-    flags = *(u32*)(obj + 0x60) & 0x1090D7C0;
-    tex = pbObjTexSub(obj, *(u16*)(def + 0x12), hi, &flags);
-    v25 = *(s16*)(def + 0x16);
-    v1c = *(u8**)(def + 0x1c);
-    v24 = *(u16*)(def + 0x14);
-    if (*(u32*)(def + 8) & 0x100) {
+    flags = obj->flags & 0x1090D7C0;
+    tex = pbObjTexSub(obj, def->SubObj0_TexIdx, hi, &flags);
+    v25 = def->SubObj0_LodK;
+    v1c = (u8*)def->DataPtr;
+    v24 = def->SubObj0_LMIdx;
+    if (def->Flags & 0x100) {
         flags |= 0x20000;
     }
     if (flags & 0x8000) {
         flags |= 0x20000;
     }
     if (lbl_80343F3C != 0) {
-        pbSetupPosLights(*(f32*)(def + 4), 0, obj, a);
+        pbSetupPosLights(def->BndRad, 0, obj, a);
     }
-    pbSetDORegs(0, tex, v25, v24, flags, hi, a, v1c, obj);
-    pcount = *(int*)(def + 0xc) - 1;
+    pbSetDORegs(0, tex, v25, v24, flags, hi, a, v1c, (u8*)obj);
+    pcount = def->SubObjCnt - 1;
     if (pcount != 0) {
-        prim = *(u8**)(def + 0x18);
-        stride = *(u16*)(def + 0x10);
+        prim = def->SubObjPtr;
+        stride = def->SubObj0_QWC;
         do {
             u32 tx;
             v1c += stride << 4;
-            tx = pbObjTexSub(obj, *(u16*)(prim + 2), hi, &flags);
-            stride = *(u16*)(prim + 0);
-            pbSetDORegs(0, tx, *(s16*)(prim + 6), *(u16*)(prim + 4), flags,
+            tx = pbObjTexSub(obj, prim->TexIdx, hi, &flags);
+            stride = prim->QWC;
+            pbSetDORegs(0, tx, prim->LodK, prim->LMIdx, flags,
                         hi, 0, v1c, 0);
-            prim += 8;
+            prim++;
         } while (--pcount != 0);
     }
     return 0;
 }
 
 /* Resolve a texture-shift descriptor into a packed tex address / flag word. */
-static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
+static u32 pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags)
 {
-    u8* obj = (u8*)objv;
-    s32 t = *(s16*)(obj + 0x5c);
+    s32 t = obj->texchangeidx;
 
     *flags &= ~0x00080000;
     switch (t) {
@@ -286,7 +323,7 @@ static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
         return result;
     }
     case -2:
-        return *(u32*)(obj + 0x58);
+        return obj->texaltidx;
     case -4: {
         u32 result;
         *flags |= 0x08000000;
@@ -295,13 +332,13 @@ static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
         return result;
     }
     case -3: {
-        u32 result = *(u32*)(obj + 0x58);
+        u32 result = obj->texaltidx;
         *flags |= 0x00080000;
         return result;
     }
     default:
         if (lo == t) {
-            return *(u32*)(obj + 0x58);
+            return obj->texaltidx;
         }
         {
             u32 result = hi << 16;
@@ -313,7 +350,7 @@ static u32 pbObjTexSub(void* objv, int lo, int hi, u32* flags)
 
 /* Upload an object's textures, retrying once via a cache flush; fatal if the
  * texture set will not fit a page. */
-int pbSendObjTextures(u8* obj)
+int pbSendObjTextures(MBObject* obj)
 {
     int tex = 1;
     int shift = -1;
@@ -321,31 +358,33 @@ int pbSendObjTextures(u8* obj)
 
     lbl_80343F40->step = 2;
     lbl_80343F40->obj = obj;
-    lbl_80343F40->defName = *(char**)(*(u8**)(obj + 0x70) + 0x2c)
-                                ? *(char**)(*(u8**)(obj + 0x70) + 0x2c)
+    /* OBJDEF begins with its name array; the target prints that base address
+     * directly, with no intervening string-pointer load. */
+    lbl_80343F40->defName = ((PBRomObjectView*)obj->data.romobj)->ObjDef
+                                ? (char*)((PBRomObjectView*)obj->data.romobj)->ObjDef
                                 : lbl_801167A4;
     if (lbl_80343F40->state != 0) {
         pbDebugObjSStep(obj, 2);
     }
 
-    switch (*(s16*)(obj + 0x5c)) {
+    switch (obj->texchangeidx) {
     case -1:
         isTexShift = 1;
         break;
     case -2:
-        shift = *(int*)(obj + 0x58);
+        shift = obj->texaltidx;
         isTexShift = 0;
         break;
     case -4:
-        shift = *(int*)(obj + 0x58);
+        shift = obj->texaltidx;
         isTexShift = 1;
         break;
     case -3:
-        shift = *(int*)(obj + 0x58);
+        shift = obj->texaltidx;
         isTexShift = 0;
         break;
     default:
-        shift = *(int*)(obj + 0x58);
+        shift = obj->texaltidx;
         isTexShift = 1;
         break;
     }
@@ -359,7 +398,7 @@ int pbSendObjTextures(u8* obj)
     }
 
     if (tex != 0 && isTexShift != 0) {
-        tex = pbSendObjTexturesSub(*(u32*)(obj + 0x6c) >> 16, *(u8**)(obj + 0x70));
+        tex = pbSendObjTexturesSub(obj->index >> 16, (PBRomObjectView*)obj->data.romobj);
         if (tex == 0) {
             tex = 1;
             fn_800C1120(0);
@@ -367,7 +406,7 @@ int pbSendObjTextures(u8* obj)
                 tex = fn_800C7558(shift);
             }
             if (tex != 0) {
-                tex = pbSendObjTexturesSub(*(u32*)(obj + 0x6c) >> 16, *(u8**)(obj + 0x70));
+                tex = pbSendObjTexturesSub(obj->index >> 16, (PBRomObjectView*)obj->data.romobj);
             }
             if (tex == 0) {
                 FatalError(lbl_801167B0, 0x800000);
@@ -383,9 +422,9 @@ int pbSendObjTextures(u8* obj)
 }
 
 /* Confirm every texture referenced by an object def is resident. */
-static int pbSendObjTexturesSub(int idx, u8* def)
+static int pbSendObjTexturesSub(int idx, PBRomObjectView* def)
 {
-    u8* list;
+    PBSubObject* list;
     int tt;
     int hi;
     int count;
@@ -395,13 +434,13 @@ static int pbSendObjTexturesSub(int idx, u8* def)
     if (t[idx + 1].f0 != 0) {
         return 1;
     }
-    if (*(int*)(def + 0xc) == 0) {
+    if (def->SubObjCnt == 0) {
         return 1;
     }
-    count = *(int*)(def + 0xc);
-    tt = *(u16*)(def + 0x12);
+    count = def->SubObjCnt;
+    tt = def->SubObj0_TexIdx;
     hi = idx << 16;
-    list = *(u8**)(def + 0x18);
+    list = def->SubObjPtr;
     do {
         if (tt < 0) {
             tt = 0;
@@ -410,14 +449,14 @@ static int pbSendObjTexturesSub(int idx, u8* def)
         if (fn_800C7558(tt) == 0) {
             return 0;
         }
-        tt = *(u16*)(list + 2);
-        list += 8;
+        tt = list->TexIdx;
+        list++;
     } while (--count != 0);
     return 1;
 }
 
 /* Interactive object-draw debug single-stepper. */
-void pbDebugObjSStep(u8* obj, int state)
+void pbDebugObjSStep(MBObject* obj, int state)
 {
     char* names = lbl_801165B8;
     void** nameTab;
@@ -455,10 +494,10 @@ void pbDebugObjSStep(u8* obj, int state)
         bulletproof_printf(names + 0x24c,
                            (state <= 6) ? *(char**)nameTab : "???");
         bulletproof_printf(names + 0x25c, obj);
-        bulletproof_printf(names + 0x270, *(void**)(obj + 0x6c));
-        if (*(char**)(*(u8**)(obj + 0x70) + 0x2c) != 0) {
+        bulletproof_printf(names + 0x270, obj->index);
+        if (((PBRomObjectView*)obj->data.romobj)->ObjDef != 0) {
             bulletproof_printf(names + 0x284,
-                               *(char**)(*(u8**)(obj + 0x70) + 0x2c));
+                               (char*)((PBRomObjectView*)obj->data.romobj)->ObjDef);
         }
         bulletproof_printf(names + 0x294);
         bulletproof_printf(names + 0x2ac, (held & 0x10) ? "busy" : "idle");
