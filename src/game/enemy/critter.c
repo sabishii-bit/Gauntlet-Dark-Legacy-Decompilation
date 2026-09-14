@@ -3140,13 +3140,13 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                         }
                         activeNode = hitNode->active;
                         for (i = 0; i < c->atree.nanodes; i++) {
-                            u8 *anode;
+                            struct anode *animNode;
 
-                            anode = (u8 *)&c->atree.firstanode[i];
-                            if (*(void **)anode == activeNode) {
+                            animNode = &c->atree.firstanode[i];
+                            if (animNode->obj == activeNode) {
                                 s32 j;
 
-                                *(s32 *)(anode + 0x20) = 0;
+                                animNode->type = 0;
                                 c->atree.firstanode[i].obj = NULL;
                                 for (j = 0;
                                      j < c->hdr->moveCount;
@@ -3220,9 +3220,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         }
         if (player >= 0) {
             playerData = &gPlayers[player];
-            playerData = (Player *)((u8 *)playerData +
-                                    playerData->character * 0x1C);
-            (*(s32 *)((u8 *)playerData + 0xC10))++;
+            playerData->save.stats[playerData->character].enemies_killed++;
         }
         return 1;
     }
