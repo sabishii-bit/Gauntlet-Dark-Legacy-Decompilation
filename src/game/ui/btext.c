@@ -975,6 +975,33 @@ char* GetStringTextSub(StrList* p, s32 msg, s32 idx, u32* fontOut)
     return (char*)(p->textData + off);
 }
 
+/* SCROLLS words use the same value-parameter byte reversal as the animation
+ * and model loaders. Each inlined call owns its input/result objects; the
+ * retail stack slots are not an explicitly indexed scratch arena. */
+static inline u32 BTextSwapWord(u32 value)
+{
+    u32 result;
+    u8* source = (u8*)&value;
+    u8* destination = (u8*)&result;
+
+    destination[0] = source[3];
+    destination[1] = source[2];
+    destination[2] = source[1];
+    destination[3] = source[0];
+    return result;
+}
+
+static inline f32 BTextSwapFloat(f32 value)
+{
+    union { f32 f; u32 u; } result;
+
+    /* This retains the loader's existing MWCC float/word aliasing assumption,
+     * also present in AtreeNodeSwapF32. It is not a strict-aliasing-safe input
+     * conversion; replacing it with memcpy still changes the native calls. */
+    result.u = BTextSwapWord(*(u32*)&value);
+    return result.f;
+}
+
 /* ==== 0x8001FFF4 StringInitSub (SCROLLS loader) ==== */
 void StringInitSub(const char* mode, StrList* p)
 {
@@ -986,36 +1013,10 @@ void StringInitSub(const char* mode, StrList* p)
     s32 i;
     u32 font;
     u8 swapped;
-    u8 swapScratch[112];
-    u8 unused[112];
 
 #define BTEXT_TAG(tag)                                                        \
     (((s32)(s8)(tag)[0] << 24) | ((s32)(s8)(tag)[1] << 16) |                 \
      ((s32)(s8)(tag)[2] << 8) | (s32)(s8)(tag)[3])
-
-#define SWAP_BTEXT_WORD_AT(value, slot)                                       \
-    do {                                                                      \
-        *(u32*)(swapScratch + (slot)) = (value);                              \
-        swapScratch[(slot) + 4] = swapScratch[(slot) + 3];                    \
-        swapScratch[(slot) + 5] = swapScratch[(slot) + 2];                    \
-        swapScratch[(slot) + 6] = swapScratch[(slot) + 1];                    \
-        swapScratch[(slot) + 7] = swapScratch[(slot)];                        \
-        (value) = *(u32*)(swapScratch + (slot) + 4);                           \
-    } while (0)
-
-#define SWAP_BTEXT_FLOAT_AT(value, sourceSlot, resultSlot, swapSlot)           \
-    do {                                                                      \
-        *(f32*)(swapScratch + (sourceSlot)) = (value);                        \
-        *(u32*)(swapScratch + (swapSlot)) =                                   \
-            *(u32*)(swapScratch + (sourceSlot));                              \
-        swapScratch[(swapSlot) + 4] = swapScratch[(swapSlot) + 3];            \
-        swapScratch[(swapSlot) + 5] = swapScratch[(swapSlot) + 2];            \
-        swapScratch[(swapSlot) + 6] = swapScratch[(swapSlot) + 1];            \
-        swapScratch[(swapSlot) + 7] = swapScratch[(swapSlot)];                \
-        *(u32*)(swapScratch + (resultSlot)) =                                 \
-            *(u32*)(swapScratch + (swapSlot) + 4);                            \
-        (value) = *(f32*)(swapScratch + (resultSlot));                        \
-    } while (0)
 
     register StrList* list = p;
 #define p list
@@ -1063,32 +1064,32 @@ void StringInitSub(const char* mode, StrList* p)
         for (i = 0; i < p->nFont; i++) {
             FontDesc* desc = &p->fontDesc[i];
 
-            SWAP_BTEXT_WORD_AT(desc->color, 104);
+            desc->color = BTextSwapWord(desc->color);
         }
         for (i = 0; i < textOffsetCount; i++) {
-            SWAP_BTEXT_WORD_AT(p->textOff[i], 96);
+            p->textOff[i] = BTextSwapWord(p->textOff[i]);
         }
         for (i = 0; i < p->nMsg; i++) {
             MsgEnt* entry = &p->msgs[i];
-            SWAP_BTEXT_WORD_AT(entry->count, 88);
-            SWAP_BTEXT_WORD_AT(entry->first, 80);
-            SWAP_BTEXT_WORD_AT(entry->font, 72);
-            SWAP_BTEXT_FLOAT_AT(entry->scale, 64, 68, 8);
-            SWAP_BTEXT_FLOAT_AT(entry->shScale, 56, 60, 0);
+            entry->count = BTextSwapWord(entry->count);
+            entry->first = BTextSwapWord(entry->first);
+            entry->font = BTextSwapWord(entry->font);
+            entry->scale = BTextSwapFloat(entry->scale);
+            entry->shScale = BTextSwapFloat(entry->shScale);
         }
         for (i = 0; i < listOffsetCount; i++) {
-            SWAP_BTEXT_WORD_AT(p->listOff[i], 48);
+            p->listOff[i] = BTextSwapWord(p->listOff[i]);
         }
         for (i = 0; i < p->nList; i++) {
             ListEnt* entry = &p->lists[i];
-            SWAP_BTEXT_WORD_AT(entry->count, 40);
-            SWAP_BTEXT_WORD_AT(entry->first, 32);
+            entry->count = BTextSwapWord(entry->count);
+            entry->first = BTextSwapWord(entry->first);
         }
         for (i = 0; i < p->nName; i++) {
-            SWAP_BTEXT_WORD_AT(p->nameOff[i], 24);
+            p->nameOff[i] = BTextSwapWord(p->nameOff[i]);
         }
         for (i = 0; i < p->nLdef; i++) {
-            SWAP_BTEXT_WORD_AT(((u32*)p->ldef)[i], 16);
+            ((u32*)p->ldef)[i] = BTextSwapWord(((u32*)p->ldef)[i]);
         }
     }
 
@@ -1103,8 +1104,6 @@ void StringInitSub(const char* mode, StrList* p)
         }
     }
 
-#undef SWAP_BTEXT_FLOAT_AT
-#undef SWAP_BTEXT_WORD_AT
 #undef BTEXT_TAG
 #undef p
 }
