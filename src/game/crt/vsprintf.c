@@ -392,8 +392,9 @@ static int cvt(double value, int prec, int flags, char* sign, int ch, char* star
     return t - startp;
 }
 
-int vsprintf(char* str, const char* fmt, va_list ap)
+int vsprintf(char* str, const char* fmt0, va_list ap)
 {
+    const char* fmt = fmt0;
     char* s0 = str;
     int ch;
     int cnt;
