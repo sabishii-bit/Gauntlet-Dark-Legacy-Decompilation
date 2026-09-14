@@ -2260,9 +2260,9 @@ s32 do_players(void) {
                 }
             }
             WritePlayerInfo(-1);
-        }
-        if (lbl_8034481C == 0 && opt_restart_request == 0) {
-            loaded = 0;
+            if (lbl_8034481C == 0 && opt_restart_request == 0) {
+                loaded = 0;
+            }
         }
         if (lbl_803447B8 == 0 || lbl_8034481C != 0 || opt_restart_request != 0) {
             lbl_80344804 = 0;
@@ -2670,9 +2670,13 @@ s32 do_players(void) {
         if (PF(krec, 0xC40 + offsetof(Player, speech_req), s32*) != NULL) {
             if (speaker->state == 1 && gGameMode == MG_PLAY) {
                 fn_8005DE50(speaker, speaker->speech_req);
-                for (j = 0; j < 4; j++) {
-                    if (j != k && PT(j)->speech_req == speaker->speech_req) {
-                        PT(j)->speech_req = NULL;
+                {
+                    s32 peer;
+
+                    for (peer = 0; peer < 4; peer++) {
+                        if (peer != k && PT(peer)->speech_req == speaker->speech_req) {
+                            PT(peer)->speech_req = NULL;
+                        }
                     }
                 }
             }
