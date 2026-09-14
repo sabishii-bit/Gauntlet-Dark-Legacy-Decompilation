@@ -3,8 +3,8 @@
 #include "game/g3dpad.h"
 
 /* GameCube control-pad query layer. Function names are the real ones from
- * the Xbox build's gcontrolpads.obj (shell3D.pdb); on Xbox these are thin C
- * wrappers over gcontrolpadmanager, on GameCube they are the implementation. */
+ * the Xbox build's gcontrolpads.obj (shell3D.pdb). Xbox retains C wrappers
+ * over gcontrolpadmanager; GameCube inlines the read-state implementation. */
 
 typedef struct GPADMANAGER {
     /* 0x00 */ int count;
@@ -186,27 +186,29 @@ int G3DControlPadButtonPressed(int pad, int button)
 }
 
 /*
- * The two masks are remnants of the SDK DEMOPadRead implementation: one
- * records disconnected channels and the other every usable channel. Midway
- * removed the later PADReset/PADRecalibrate calls, leaving both masks dead.
+ * Xbox's C wrapper at 0x000ABED0 passes its manager in ECX and tail-calls
+ * ReadControlPadStates at 0x00011560. Preserve that whole-method boundary
+ * with a C inline and the GameCube manager layout. The local helper name and
+ * original GameCube linkage are not recovered.
+ *
+ * The target retains both SDK-style channel masks despite their unused final
+ * values. With this inline boundary, ordinary propagation and mask declaration
+ * initializers reproduce the native zero copies; the former propagation
+ * override and unused eight-byte local are unnecessary (2026-09-13).
  */
-#pragma opt_propagation off
-void G3DReadControlPadStates(void)
+static inline void gPadManagerReadStates(GPADMANAGER* manager)
 {
-    u32 maskB;
-    u32 maskA;
+    u32 maskA = 0;
+    u32 maskB = maskA;
     int i;
     s8 err;
     u32 bit;
-    u8 unused[8];
 
-    maskA = 0;
-    maskB = maskA;
-    gPadManager.count = maskA;
-    gPadManager.status = G3DGetPadStatusBuffer();
+    manager->count = maskA;
+    manager->status = G3DGetPadStatusBuffer();
     for (i = 0; i < 4; i++) {
         bit = PAD_CHAN0_BIT >> i;
-        err = gPadManager.status[i].err;
+        err = manager->status[i].err;
 
         switch (err) {
         case PAD_ERR_NO_CONTROLLER:
@@ -216,13 +218,17 @@ void G3DReadControlPadStates(void)
         case PAD_ERR_NOT_READY:
         case PAD_ERR_NONE:
             maskB |= bit;
-            gPadManager.map[gPadManager.count] = i;
-            gPadManager.count++;
+            manager->map[manager->count] = i;
+            manager->count++;
             break;
         }
     }
 }
-#pragma opt_propagation reset
+
+void G3DReadControlPadStates(void)
+{
+    gPadManagerReadStates(&gPadManager);
+}
 
 int G3DGetActivePadCount(void)
 {
