@@ -199,10 +199,9 @@ struct audio_data {
  * here, the owning world record declares `struct sound_data* sounds` at
  * Offset=0x2c -- i.e. the 44 in the base expression -- and this file's own
  * reconstruction had already named the two s16s `atten` and `priority`.
- * Accesses stay on the raw pointer with offsetof-spelled displacements: `e`
- * is an index-computed base touching three nearby fields, the exact shape
- * claim.law.multifield-alias-defeats-indexed-addressing warns a typed alias
- * regresses. */
+ * A pointer to the selected record preserves the indexed-base calculation;
+ * no per-field byte casts are necessary. The world-header pointer at +0x2C
+ * remains a partial reconstruction until that header has a shared type. */
 struct sound_data {
     /* 0x00 */ char desc[16];
     /* 0x10 */ s32  idx;
@@ -482,17 +481,12 @@ void AudioExplodeWall(int pos, int flag)
     if (flag > 0) {
         int idx = gCurLevel->audio->hitsnd;
         if (idx >= 0) {
-            u8* e = *(u8**)(gWorldData + 44) + idx * 24;
-            if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
-                int atten = *(s16*)(e + offsetof(struct sound_data, vol)) != 0
-                                ? *(s16*)(e + offsetof(struct sound_data, vol))
-                                : 224;
-                int priority = *(s16*)(e + offsetof(struct sound_data, pri)) != 0
-                                ? *(s16*)(e + offsetof(struct sound_data, pri))
-                                : 126;
+            struct sound_data* e = *(struct sound_data**)(gWorldData + 44) + idx;
+            if (e->idx >= 0) {
+                int atten = e->vol != 0 ? e->vol : 224;
+                int priority = e->pri != 0 ? e->pri : 126;
 
-                sndFxPlay3DAtten(*(s32*)(e + offsetof(struct sound_data, idx)),
-                                 pos, atten, priority);
+                sndFxPlay3DAtten(e->idx, pos, atten, priority);
             }
         }
     } else {
@@ -511,7 +505,6 @@ void fn_8009C98C(int pos)
 
 void fn_8009C9DC(int sel, int pos)
 {
-    s32* t = lbl_801232C8;
     int k = sMusicTrackHi - 1;
 
     switch (sel) {
@@ -519,17 +512,17 @@ void fn_8009C9DC(int sel, int pos)
         sndFxPlay3D(100, pos, 224, 10);
         break;
     case 1:
-        sndFxPlay3D(t[k + 829], pos, 224, 10);
+        sndFxPlay3D(legend_snd1[k], pos, 224, 10);
         break;
     case 2:
-        sndFxPlay3D(t[k + 840], pos, 224, 10);
+        sndFxPlay3D(legend_snd2[k], pos, 224, 10);
         break;
     case 3:
-        AudioKillBySound(t[k + 840]);
-        sndFxPlay3D(t[k + 851], pos, 224, 10);
+        AudioKillBySound(legend_snd2[k]);
+        sndFxPlay3D(legend_snd3[k], pos, 224, 10);
         break;
     case 4:
-        sndFxPlay3D(t[k + 862], pos, 224, 10);
+        sndFxPlay3D(legend_snd4[k], pos, 224, 10);
         break;
     }
 }
@@ -947,7 +940,6 @@ static inline void sndFxPlay3DAttenOrdered(int soundId, int pos, int flags,
 
 void fn_8009DB24(int sel, int arg)
 {
-    s32* t = lbl_801232C8;
     int soundId;
     int pan;
     int flags;
@@ -972,15 +964,13 @@ void fn_8009DB24(int sel, int arg)
         int idx = gCurLevel->audio->hitsnd;
 
         if (idx >= 0) {
-            u8* e = *(u8**)(gWorldData + 44) + idx * 24;
+            struct sound_data* e = *(struct sound_data**)(gWorldData + 44) + idx;
 
-            if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
+            if (e->idx >= 0) {
                 sndFxPlay3DAttenOrdered(
-                    *(s32*)(e + offsetof(struct sound_data, idx)), arg,
-                    *(s16*)(e + offsetof(struct sound_data, pri)) != 0
-                        ? *(s16*)(e + offsetof(struct sound_data, pri)) : 126,
-                    *(s16*)(e + offsetof(struct sound_data, vol)) != 0
-                        ? *(s16*)(e + offsetof(struct sound_data, vol)) : 224);
+                    e->idx, arg,
+                    e->pri != 0 ? e->pri : 126,
+                    e->vol != 0 ? e->vol : 224);
             }
         }
         break;
@@ -1000,22 +990,22 @@ void fn_8009DB24(int sel, int arg)
         flags = 50;
         break;
     case 8:
-        soundId = t[444];
+        soundId = lbl_801239B4[0][1];
         pan = 127;
         flags = 15;
         break;
     case 9:
-        soundId = t[445];
+        soundId = lbl_801239B4[0][2];
         pan = 127;
         flags = 15;
         break;
     case 10:
-        soundId = t[446];
+        soundId = lbl_801239B4[0][3];
         pan = 127;
         flags = 15;
         break;
     case 11:
-        soundId = t[447];
+        soundId = lbl_801239B4[0][4];
         pan = 127;
         flags = 15;
         break;
@@ -1549,12 +1539,12 @@ void AudioMapDot(void)
 
 /* sSoundDataEntry: the sound record for an event index, or NULL when the
  * index or the record's own sound id is unset. */
-static inline u8* sSoundDataEntry(int idx)
+static inline struct sound_data* sSoundDataEntry(int idx)
 {
     if (idx >= 0) {
-        u8* e = *(u8**)(gWorldData + 44) + idx * 24;
+        struct sound_data* e = *(struct sound_data**)(gWorldData + 44) + idx;
 
-        if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
+        if (e->idx >= 0) {
             return e;
         }
     }
@@ -1564,11 +1554,11 @@ static inline u8* sSoundDataEntry(int idx)
 void AudioEnterNextStage(void)
 {
     struct audio_data* level = gCurLevel->audio;
-    u8* entry = sSoundDataEntry(level->entersnd);
+    struct sound_data* entry = sSoundDataEntry(level->entersnd);
 
     if (entry != 0) {
         if (level->namesnd >= 0) {
-            int sound_id = *(int*)(entry + offsetof(struct sound_data, idx));
+            int sound_id = entry->idx;
 
             if (good_wiz_state <= 2) {
                 sndFxQueAddEx(1, sound_id, lbl_80348480, lbl_80348480, 224,
@@ -1654,11 +1644,12 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
     int slot;
     int flags;
 
-    /* Three nearby fields off one index-computed base: a typed
-     * `gPlayers[pidx].field` form regressed this function (real 0 -> 14,
-     * schedule-class) per claim.law.multifield-alias-defeats-indexed-
-     * addressing.  The law's verified counter-form is kept here -- the raw
-     * single additive expression with offsetof()-spelled displacements. */
+    /* Unrecovered source shape: the target shares a signed record offset
+     * across these accesses. With this TU's current flags, selected-record,
+     * indexed-field and advancing-pointer forms change 6, 10 and 11 words
+     * respectively (58 instructions in each case, 2026-09-13). Keep this
+     * limited byte view pending a natural source form; it is not evidence
+     * that typed aliases generally cannot reproduce indexed addressing. */
     flags = *(int*)((u8*)gPlayers + pidx * 13148 + offsetof(Player, flags));
     f8 = *(int*)((u8*)gPlayers + pidx * 13148 + offsetof(Player, char_type));
     slot = (int)((u8*)gPlayers + pidx * 13148 + offsetof(Player, pos));
@@ -2008,16 +1999,15 @@ void fn_8009CEE0(int pidx, int sel, int flags)
 #pragma opt_propagation off
 void fn_8009CFA8(int pidx, int sel)
 {
-    s32* t = lbl_801232C8;
-    int p1 = t[pidx];
+    int p1 = lbl_801232C8[pidx];
     int soundId = 38;
 
     if (sMusicTrackHi == 12) {
         switch (sel) {
-        case 50:  soundId = t[pidx + 673]; break;
-        case 100: soundId = t[pidx + 677]; break;
+        case 50:  soundId = bronze[pidx]; break;
+        case 100: soundId = silver[pidx]; break;
         case 500:
-        default:  soundId = t[pidx + 681]; break;
+        default:  soundId = gold[pidx]; break;
         }
     }
     sndFxPlayEx(soundId, p1, 127, 66);
