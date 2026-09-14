@@ -145,10 +145,9 @@ SndVoice sndVoice[64];
 
 static s32 sndStreamVolCur;
 static s32 sndStreamVolTarget;
-static struct {
-    u32 value;
-    u32 pad;
-} sndMixEnabled;
+/* One word at 0x803455C8. The gap before OS.c's eight-byte-aligned .sbss
+ * belongs to linker alignment, not to this flag's source type. */
+static u32 sndMixEnabled;
 
 static inline u16 sndDbToMix(s32 db)
 {
@@ -199,7 +198,7 @@ void sndVoiceInit(void)
     }
     sndStreamVolCur = 0;
     sndStreamVolTarget = 0;
-    sndMixEnabled.value = 1;
+    sndMixEnabled = 1;
 }
 
 void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
@@ -229,7 +228,7 @@ void sndVoiceSetParams(AXVPB* p, u32 flags, s32 vol, s32 auxA, s32 auxB,
         v->mix[0] = sndDbToMix(vol);
     }
 
-    if (sndMixEnabled.value == 1) {
+    if (sndMixEnabled == 1) {
         v->mix[2] = sndDbToMix(v->master + v->volL + v->panL);
         v->mix[4] = sndDbToMix(v->master + v->volR + v->panL);
         v->mix[6] = sndDbToMix(v->master + v->panR);
@@ -418,7 +417,7 @@ void sndVoiceUpdateAll(void)
                 v->flags &= ~0x80000000;
             }
             if (v->flags & 0x40000000) {
-                if (sndMixEnabled.value == 1) {
+                if (sndMixEnabled == 1) {
                     v->mix[3] = sndDbToMix(v->master + v->volL + v->panL);
                     v->mix[5] = sndDbToMix(v->master + v->volR + v->panL);
                     v->mix[7] = sndDbToMix(v->master + v->panR - 0x3C);
