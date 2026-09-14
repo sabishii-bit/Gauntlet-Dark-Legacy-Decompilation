@@ -1,4 +1,4 @@
-#include "types.h"
+#include "game/gutil.h"
 
 /* Named-value registry over the OS heap (string -> value with destructor
  * callbacks and refcounts). Names are provisional. */
@@ -7,10 +7,6 @@ typedef s32 OSHeapHandle;
 extern volatile OSHeapHandle __OSCurrHeap;
 void* OSAllocFromHeap(OSHeapHandle heap, u32 size);
 void OSFreeToHeap(OSHeapHandle heap, void* ptr);
-
-char* gstrcpy(char* dest, const char* src);
-char gstrcmp(const char* a, const char* b);
-u32 gstrlen(const char* s);
 
 typedef struct REGNODE {
     /* 0x00 */ struct REGNODE* prev;
@@ -23,11 +19,11 @@ typedef struct REGNODE {
 
 typedef struct REGLIST {
     /* 0x00 */ u32 unk00;
-    /* 0x04 */ REGNODE* tail;
-    /* 0x08 */ REGNODE* head;
+    /* 0x04 */ GLIST nodes;
 } REGLIST;
 
-void listInsert(void* list, void* after, void* node);
+/* regAdd passes root + 4 to listInsert: link offset, head and tail live at
+ * root + 4/+8/+12. The leading word's purpose is not yet known. */
 
 u32 regAllocNode(REGNODE** node, char* name);
 void regFreeNode(REGNODE** node);
@@ -44,7 +40,7 @@ REGNODE* regAdd(REGLIST* list, char* name, u32 value, void (*callback)(void*))
     node->value = value;
     node->callback = callback;
     node->refCount = 0;
-    listInsert(&list->tail, NULL, node);
+    listInsert(&list->nodes, NULL, node);
     return node;
 }
 
@@ -64,14 +60,15 @@ u32 regAllocNode(REGNODE** node, char* name)
     return 1;
 }
 
-/* The original keeps an explicit bne/b pair after gstrcmp. MWCC folds an
- * equivalent C goto into one beq, so retain the second branch explicitly. */
+/* Native reconstruction remains NonMatching: the target has bne/b after
+ * gstrcmp, while this source folds it to beq and branches after the loop.
+ * The old eight-byte reservation below also has unrecovered provenance. */
 u32 regFind(REGLIST* list, char* name)
 {
     REGNODE* node;
     u8 unused[8];
 
-    node = list->head;
+    node = list->nodes.head;
     if (name != NULL) {
         while (node != NULL) {
             if (gstrcmp(name, node->name) == 0) {

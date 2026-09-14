@@ -1,4 +1,4 @@
-#include "types.h"
+#include "game/gutil.h"
 
 /* Generic intrusive list + mini string helpers (game utility TU). Names are
  * provisional. */
@@ -7,12 +7,6 @@ typedef struct GLINK {
     /* 0x0 */ void* prev;
     /* 0x4 */ void* next;
 } GLINK;
-
-typedef struct GLIST {
-    /* 0x0 */ s32 offset;
-    /* 0x4 */ void* head;
-    /* 0x8 */ void* tail;
-} GLIST;
 
 #define NODE_LINK(node, off) ((GLINK*) ((u8*) (node) + (off)))
 
@@ -51,7 +45,7 @@ void listInsert(GLIST* list, void* before, void* node)
     }
 }
 
-void gstrcpy(char* dest, char* src)
+void gstrcpy(char* dest, const char* src)
 {
     do {
         *dest = *src;
@@ -60,7 +54,7 @@ void gstrcpy(char* dest, char* src)
     } while (*src != '\0');
 }
 
-int gstrcmp(char* a, char* b)
+char gstrcmp(const char* a, const char* b)
 {
     while (1) {
         if (*a < *b) {
@@ -77,7 +71,7 @@ int gstrcmp(char* a, char* b)
     }
 }
 
-int gstrlen(char* s)
+int gstrlen(const char* s)
 {
     int len;
 
