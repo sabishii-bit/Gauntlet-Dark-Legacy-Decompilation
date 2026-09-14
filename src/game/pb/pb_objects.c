@@ -92,10 +92,10 @@ extern int lbl_80345020;       /* "objects module open" flag */
 extern int lbl_80345024;       /* ping-pong buffer toggle */
 extern int lbl_80345028;       /* alloc mode: 0 = ping-pong, else free-list */
 extern int lbl_80343F28;       /* scratch-buffer semaphore ID (init -1) */
-/* The target holds three pointers { arena, arena + 0x2000, NULL } here.
- * This legacy scalar adapter preserves SDA addressing; declaring the actual
- * 12-byte array currently changes the native allocator. Extent remains debt. */
-extern void* lbl_80343F2C;
+/* Ping-pong selection is initialized to zero and toggled with XOR 1: the
+ * two accessed entries are arena and arena + 0x2000. The following zero word
+ * has no demonstrated array use; no storage-extent or padding claim is made. */
+extern void* lbl_80343F2C[2];
 extern int lbl_80343F3C;       /* draw-hook enable flag (init 1) */
 
 extern u8 lbl_802C52C0[0x18];  /* PBObjPool storage */
@@ -155,7 +155,7 @@ void fn_800C379C(void);
 void fn_800C37C4(void);
 void fn_800C3880(void);
 void fn_800C38A0(void);
-int fn_800C38C0(void* a, MBObject* obj);
+u32* fn_800C38C0(f32* a, MBObject* obj, u32* buffer);
 static int pbObjTexSub(MBObject* obj, int lo, int hi, u32* flags);
 int pbSendObjTextures(MBObject* obj);
 static int pbSendObjTexturesSub(int idx, PBRomObjectView* def);
@@ -172,7 +172,7 @@ void fn_800C3674(void)
 void* fn_800C3680(void)
 {
     if (lbl_80345028 == 0) {
-        void* r = (&lbl_80343F2C)[lbl_80345024];
+        void* r = lbl_80343F2C[lbl_80345024];
         lbl_80345024 = lbl_80345024 ^ 1;
         return r;
     } else {
@@ -248,23 +248,24 @@ void fn_800C38A0(void)
 }
 
 /* Draw one object: resolve the texture-shift, then emit its primitives via the
- * pb_objregs geometry path. */
-int fn_800C38C0(void* a, MBObject* obj)
+ * pb_objregs geometry path. PDB pbDrawObject's matrix/node/buffer interface
+ * agrees with both GC callers. GC ignores buffer and returns NULL; the matrix
+ * is viewed here as its sixteen scalar floats. Restoring this interface lets
+ * us remove the two padding arrays without changing the native object. */
+u32* fn_800C38C0(f32* a, MBObject* obj, u32* buffer)
 {
     int pcount;
     PBRomObjectView* def;
     int hi;
-    u8* v1c;
+    u32* v1c;
     int tex;
     int v25;
     int v24;
-    u8 unusedA[4];
     u32 packed;
     PBSubObject* prim;
     int stride;
     PBObjSlot* t;
     u32 flags;
-    u8 unusedB[4];
     PBGlobal* g = gWinGlobals;
 
     packed = obj->index;
@@ -283,7 +284,7 @@ int fn_800C38C0(void* a, MBObject* obj)
     flags = obj->flags & 0x1090D7C0;
     tex = pbObjTexSub(obj, def->SubObj0_TexIdx, hi, &flags);
     v25 = def->SubObj0_LodK;
-    v1c = (u8*)def->DataPtr;
+    v1c = def->DataPtr;
     v24 = def->SubObj0_LMIdx;
     if (def->Flags & 0x100) {
         flags |= 0x20000;
@@ -301,7 +302,7 @@ int fn_800C38C0(void* a, MBObject* obj)
         stride = def->SubObj0_QWC;
         do {
             u32 tx;
-            v1c += stride << 4;
+            v1c += stride << 2;
             tx = pbObjTexSub(obj, prim->TexIdx, hi, &flags);
             stride = prim->QWC;
             pbSetDORegs(0, tx, prim->LodK, prim->LMIdx, flags,

@@ -38,7 +38,7 @@ extern void mbBlitGetPage(void);
 extern void mbBlitSetPage(void);
 extern void pbSendObjTextures(MBObject* obj);          /* 0x800C3AFC */
 extern s32 MBDrawPsys(MBObject* obj, void* e);        /* GX special dispatch */
-extern void fn_800C38C0(MBObjEntry* e, MBObject* obj, int f); /* GX draw object */
+extern u32* fn_800C38C0(f32* matrix, MBObject* obj, u32* buffer); /* GX draw object */
 extern void fn_800C1148(int a, int b, void* c);        /* debug bbox draw */
 extern f32 NormalVector(f32* vec);
 extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src,
@@ -251,7 +251,7 @@ void MBSetupObject(MBObject* obj, MBObjEntry* entry, int allowDefer,
         AddSortObject(entry, obj, key + zadd);
     } else {
         pbSendObjTextures(obj);
-        fn_800C38C0(entry, obj, 0);
+        fn_800C38C0(entry->mtx, obj, NULL);
     }
 }
 
@@ -402,7 +402,7 @@ static void DrawSortObjectsSub(int start, MBObjEntry* base, int count) {
         } else if (t == 2) {
             pbSendObjTextures(e->obj);
             lbl_802A4B30[1] = e->page;
-            fn_800C38C0(e, e->obj, 0);
+            fn_800C38C0(e->mtx, e->obj, NULL);
             lbl_802C29F8[7]++;
         }
         if (lbl_80344E90 != 0) {
