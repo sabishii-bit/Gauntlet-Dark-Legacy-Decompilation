@@ -462,9 +462,9 @@ static inline void AnimFixPos(anode* root, animinfo* info)
     info->setpanim = 1;
 }
 
-/* Sequence texmod helper recovered from the Xbox ATREE symbol stream.
- * DoAnimateTreeFrame needs the in-place (macro) expansion, which reuses the
- * caller's own frame variable; DoAnimateTree needs the by-value inline. */
+/* Xbox/PS2 DoSeqTexMods takes (mbnode*, atreeseq*, int). The in-place
+ * expansion below remains reconstruction debt: replacing it with this real
+ * by-value helper adds an instruction to the GC fixed-frame wrapper. */
 #define DoSeqTexModsInPlace(context, frame, seq)                            \
     {                                                                       \
         s32 i;                                                              \
@@ -481,7 +481,7 @@ static inline void AnimFixPos(anode* root, animinfo* info)
         }                                                                   \
     }
 
-static inline void DoSeqTexMods(void* context, s32 frame, atreeseq* seq)
+static inline void DoSeqTexMods(MBObject* context, atreeseq* seq, s32 frame)
 {
     s32 i;
     TEXMOD* texmod;
@@ -558,7 +558,7 @@ s32 DoAnimateTree(f32 time, atree* tree, s32 sequence, s32 first, s32 last,
         } else {
             frame = (s32)(sAtreeFrameRoundBias + info->frame);
         }
-        DoSeqTexMods(root->obj, frame, seq);
+        DoSeqTexMods(root->obj, seq, frame);
         AnimateNode(root, info, recurse);
     }
     return result;
@@ -1129,6 +1129,17 @@ void fn_80011DCC(AtreeWorldPsys* psys)
     }
 }
 
+/* InitAtreeSeqs is independently present in the Xbox PDB and PS2 at
+ * 00111D90, called by SetupAtreeList. A serialized texmods field holds a
+ * TEXMOD index until this pass; it is not a byte offset or live pointer. */
+static inline void InitAtreeSeqs(atreeseq* seqs, s32 numseqs, TEXMOD* texmods)
+{
+    s32 i;
+    for (i = 0; i < numseqs; i++) {
+        seqs[i].texmods = &texmods[(s32)seqs[i].texmods];
+    }
+}
+
 /* fn_8001267C @0x8001267C -- register/fix up one atree resource header:
  * byte-swap the header, its match list, texmod table and (v8+) node-def
  * records, rebase the internal offsets to pointers, run SetupAnimHeader /
@@ -1136,98 +1147,92 @@ void fn_80011DCC(AtreeWorldPsys* psys)
 u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
 {
     u8* base = (u8*)hdr;
+    atreelist* list = (atreelist*)hdr;
     s32 i;
     s32 j;
     s32 off;
 
-    SWAP16(hdr[0]);
-    SWAP16(hdr[1]);
-    SWAP32(*(u32*)(hdr + 2));
-    SWAP32(*(u32*)(hdr + 4));
-    SWAP32(*(u32*)(hdr + 6));
-    if ((s16)hdr[1] >= 8) {
-        SWAP32(*(u32*)(hdr + 8));
-        SWAP32(*(u32*)(hdr + 10));
+    SWAP16(list->natrees);
+    SWAP16(list->version);
+    list->atreeinfo = (void*)AtreeNodeSwap32((u32)list->atreeinfo);
+    SWAP32(list->ntexmods);
+    list->texmods = (TEXMOD*)AtreeNodeSwap32((u32)list->texmods);
+    if (list->version >= 8) {
+        SWAP32(list->npsys);
+        list->psys = (void*)AtreeNodeSwap32((u32)list->psys);
     }
 
-    if (((s16)hdr[1] & 0x8000U) != 0) {
-        return (s16)hdr[1] & 0x7FFF;
+    if ((list->version & 0x8000U) != 0) {
+        return list->version & 0x7FFF;
     }
     {
         /* match list: name[0x20] + offset, stride 0x24 */
-        if (*(u32*)(hdr + 2) != 0) {
-            *(u32*)(hdr + 2) = (u32)base + *(u32*)(hdr + 2);
-            off = 0;
-            for (i = 0; i < (s16)hdr[0]; i++) {
-                atreematch* m = (atreematch*)(*(u32*)(hdr + 2) + off);
-                SWAP32(*(u32*)&m->offset);
-                off += sizeof(atreematch);
+        if (list->atreeinfo != NULL) {
+            list->atreeinfo = (void*)(base + (u32)list->atreeinfo);
+            for (i = 0; i < list->natrees; i++) {
+                atreematch* m = &((atreematch*)list->atreeinfo)[i];
+                SWAP32(m->offset);
             }
         }
         /* texmod table, stride 0x58 */
-        if (*(u32*)(hdr + 6) != 0) {
-            *(u32*)(hdr + 6) = (u32)base + *(u32*)(hdr + 6);
-            for (i = 0; i < *(s32*)(hdr + 4); i++) {
-                u16* tm = (u16*)(*(u32*)(hdr + 6) + i * sizeof(TEXMOD));
-                SWAP16(tm[0]);
-                SWAP16(tm[1]);
-                SWAP32(*(u32*)(tm + offsetof(TEXMOD, tex) / sizeof(u16)));
-                SWAP32(*(u32*)(tm + offsetof(TEXMOD, src) / sizeof(u16)));
-                SWAP16(tm[offsetof(TEXMOD, frames) / sizeof(u16)]);
-                SWAP16(tm[offsetof(TEXMOD, unk4e) / sizeof(u16)]);
-                SWAP32(*(u32*)(tm + offsetof(TEXMOD, rate) / sizeof(u16)));
-                SWAP32(*(u32*)(tm + offsetof(TEXMOD, counter) / sizeof(u16)));
+        if (list->texmods != NULL) {
+            list->texmods = (TEXMOD*)(base + (u32)list->texmods);
+            for (i = 0; i < list->ntexmods; i++) {
+                TEXMOD* tm = &list->texmods[i];
+                SWAP16(tm->flag);
+                SWAP16(tm->scrollIdx);
+                SWAP32(tm->tex);
+                SWAP32(tm->src);
+                SWAP16(tm->frames);
+                SWAP16(tm->unk4e);
+                SWAP32(tm->rate);
+                SWAP32(tm->counter);
             }
         }
-        /* node-definition records, stride 0x138 (v8+ headers only) */
-        if ((s16)hdr[1] >= 8 && *(u32*)(hdr + 10) != 0) {
-            *(u32*)(hdr + 10) = (u32)base + *(u32*)(hdr + 10);
-            for (i = 0; i < *(s32*)(hdr + 8); i++) {
-                fn_80011DCC((AtreeWorldPsys*)(*(u32*)(hdr + 10) +
+        /* Particle-system records, stride 0x138 (v8+ headers only). */
+        if (list->version >= 8 && list->psys != NULL) {
+            list->psys = (void*)(base + (u32)list->psys);
+            for (i = 0; i < list->npsys; i++) {
+                fn_80011DCC((AtreeWorldPsys*)((u32)list->psys +
                                               i * sizeof(AtreeWorldPsys)));
             }
         }
 
         /* per-match-entry tree blobs */
         off = i = 0;
-        while (i < (s16)hdr[0]) {
-            s32* blob =
-                (s32*)(base + *(s32*)(*(u32*)(hdr + 2) + off +
-                                       offsetof(atreematch, offset)));
-            AtreeDefinition* def = (AtreeDefinition*)blob;
+        while (i < list->natrees) {
+            AtreeDefinition* def = (AtreeDefinition*)(base +
+                ((atreematch*)((u8*)list->atreeinfo + off))->offset);
             s32 seqoff;
-            s32 texbase;
-            s32 nseqs;
 
-            SWAP32(blob[0]);
-            SWAP32(blob[1]);
-            SWAP32(blob[2]);
-            SWAP32(blob[3]);
-            SWAP32(blob[4]);
-            SWAP32(blob[5]);
+            def->seqheader = (atreeseq*)AtreeNodeSwap32((u32)def->seqheader);
+            def->animheader = (void*)AtreeNodeSwap32((u32)def->animheader);
+            def->oanimheader = (void*)AtreeNodeSwap32((u32)def->oanimheader);
+            def->nodes = (AtreeNodeDef*)AtreeNodeSwap32((u32)def->nodes);
+            SWAP32(def->nodeCount);
+            SWAP32(def->sequenceCount);
             SWAP16(*(u16*)&def->objectIndex);
-            blob[0] = (s32)blob + blob[0];
-            blob[3] = (s32)blob + blob[3];
+            def->seqheader = (atreeseq*)((u8*)def + (u32)def->seqheader);
+            def->nodes = (AtreeNodeDef*)((u8*)def + (u32)def->nodes);
 
-            /* sequence table, stride sizeof(atreeseq). +0x20/+0x22/+0x26
-             * are real fields absorbed into atreeseq's _pad00/_pad26 -
-             * left as bare offsets, no GC-verified name for them yet. */
+            /* The six signed halfwords and texmod index occupy +0x20..+0x2C
+             * in both the GC accesses and the PDB atreeseq record. */
             for (j = 0; j < def->sequenceCount; j++) {
-                u8* seq = (u8*)(blob[0] + j * sizeof(atreeseq));
-                SWAP16(*(u16*)(seq + 0x20));
-                SWAP16(*(u16*)(seq + 0x22));
-                SWAP16(*(u16*)(seq + offsetof(atreeseq, repeat)));
-                SWAP16(*(u16*)(seq + 0x26));
-                SWAP16(*(u16*)(seq + offsetof(atreeseq, ntexmods)));
-                SWAP16(*(u16*)(seq + offsetof(atreeseq, flags)));
-                SWAP32(*(u32*)(seq + offsetof(atreeseq, texmods)));
+                atreeseq* seq = &def->seqheader[j];
+                SWAP16(seq->numframes);
+                SWAP16(seq->framerate);
+                SWAP16(seq->repeat);
+                SWAP16(seq->fixpos);
+                SWAP16(seq->ntexmods);
+                SWAP16(seq->flags);
+                seq->texmods = (TEXMOD*)AtreeNodeSwap32((u32)seq->texmods);
             }
 
             /* node-info table, stride sizeof(AtreeNodeDef) */
             j = 0;
             seqoff = 0;
             while (j < def->nodeCount) {
-                u8* ni = (u8*)(blob[3] + seqoff);
+                u8* ni = (u8*)def->nodes + seqoff;
                 j++;
                 seqoff += sizeof(AtreeNodeDef);
                 SWAPF32(((AtreeNodeDef*)ni)->position[0]);
@@ -1241,29 +1246,17 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             }
 
             if (def->animheader != NULL) {
-                blob[1] = (s32)SetupAnimHeader(
-                    (int*)((u8*)blob + blob[1]), (int*)0);
+                def->animheader = SetupAnimHeader(
+                    (int*)((u8*)def + (u32)def->animheader), (int*)0);
             }
             if (def->oanimheader != NULL) {
-                blob[2] = (s32)blob + blob[2];
-                SWAP32(*(u32*)blob[2]);
-                SWAP32(*(u32*)(blob[2] + 4));
+                def->oanimheader = (void*)((u8*)def + (u32)def->oanimheader);
+                SWAP32(*(u32*)def->oanimheader);
+                SWAP32(*((u32*)def->oanimheader + 1));
             }
-            InitOAnimList((void*)blob[2], model);
+            InitOAnimList(def->oanimheader, model);
 
-            /* patch each sequence's texmod index into a pointer */
-            nseqs = blob[5];
-            seqoff = 0;
-            texbase = *(s32*)(hdr + 6);
-            {
-                s32 sbase = blob[0];
-                for (j = 0; j < nseqs; j++) {
-                    s32* ptexmods =
-                        (s32*)(sbase + seqoff + offsetof(atreeseq, texmods));
-                    seqoff += sizeof(atreeseq);
-                    *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
-                }
-            }
+            InitAtreeSeqs(def->seqheader, def->sequenceCount, list->texmods);
             def->objectIndex = (s16)model;
             i++;
             off += sizeof(atreematch);
@@ -1281,7 +1274,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         whichatree[slot] = hdr;
         atree_scroll[slot][0] = 0;
         atree_handles[slot] = model;
-        hdr[1] = (u16)(slot | 0x8000);
+        list->version = (u16)(slot | 0x8000);
     }
     return slot;
 }
