@@ -788,7 +788,7 @@ s32 DrawStringText(s32 x, s32 y, u32 flags, u32 color, s32 msg, s32 idx, ...)
 s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, u32 color)
 {
     u32 ret;
-    u8* e;
+    MsgEnt* e;
     f32 sx;
     f32 sh;
     f32 height;
@@ -801,9 +801,9 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     if (spacing < 0) {
         spacing = gLineSpacing;
     }
-    e = (u8*)p->msgs + msg * sizeof(MsgEnt);
-    sx = DrawStringScale * *(f32*)(e + offsetof(MsgEnt, scale));
-    sh = *(f32*)(e + offsetof(MsgEnt, shScale));
+    e = &p->msgs[msg];
+    sx = DrawStringScale * e->scale;
+    sh = e->shScale;
     height = (f32)MBFontHeight(font);
     spacing += (s32)(height * sx);
     n = FixMLineText((s32*)gTextFormatBuf, (s32*)gTextWorkBuf, (s32*)lines);
@@ -884,11 +884,13 @@ s32 FindStringMessageSub(StrList* p, const u8* name)
 /* ==== 0x8001FD64 GetScrollScale ==== */
 f32 GetScrollScale(s32 list, s32 msg)
 {
+    MsgEnt* message;
     StrList* p = &gStringMsgList;
     if (list >= 0) {
         p = &gScrollMsgList[list];
     }
-    return *(f32*)((u8*)p->msgs + msg * sizeof(MsgEnt) + offsetof(MsgEnt, scale));
+    message = &p->msgs[msg];
+    return message->scale;
 }
 
 /* ==== 0x8001FD9C GetStringListText ==== */
