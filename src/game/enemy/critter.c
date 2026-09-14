@@ -682,9 +682,9 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled);
 void CritterAwardExp(s32 who, f32 amount);
 struct CritterDamageDef;
-void CritterDamagePlayer(Player *player, Critter *c,
-                         struct CritterDamageDef *damageDef, u32 flags,
-                         f32 *direction, s32 playSfx, f32 scale);
+s32 CritterDamagePlayer(Player *player, Critter *c,
+                        CritterDamageDef *damageDef, s32 flags,
+                        f32 *direction, f32 hitTime, s32 playSfx);
 void CritterSetFxHitTime(s32 slot, s32 id, f32 amount);
 s32  CritterGetTarget(Critter *c, f32 *out);
 s32  CritterGetTargetSub(Critter *c, f32 *target, s32 mode);
@@ -1597,8 +1597,8 @@ static void CritterReleasePlayer(Critter *c, CritterDamageDef *damageDef, f32 *d
     dir[1] = dir[1] * damageDef->minSpeed;
     dir[2] = dir[2] * damageDef->minSpeed;
     CritterDamagePlayer(pp, c, damageDef,
-                        DMG_THROWN | DMG_BLOWNAWAY | DMG_KNOCKBACK, dir, 0,
-                        0.5f);
+                        DMG_THROWN | DMG_BLOWNAWAY | DMG_KNOCKBACK, dir, 0.5f,
+                        0);
     c->unk128 = -1;
 }
 
@@ -1882,12 +1882,23 @@ void CritterAwardExp(s32 who, f32 amount)
     }
 }
 
-/* 0x800367CC -- apply one critter damage event to a player and update both
- * the player's feedback timers and the critter's per-player hit counters. */
-void CritterDamagePlayer(Player *player, Critter *c,
-                         CritterDamageDef *damageDef, u32 flags,
-                         f32 *direction, s32 playSfx, f32 scale)
+/* The original CritterDamagedPlayerSub is inlined into damage bookkeeping.
+ * GC uses a 16-byte per-player record; the Xbox symbols and PS2 helper also
+ * identify the received-damage accumulator and its last-update timestamp. */
+static inline void CritterDamagedPlayerSub(s32 playerIndex, Critter *c, f32 amount)
 {
+    c->playerDamage[playerIndex].received += amount;
+    c->playerDamage[playerIndex].receivedTime = sMusicFadeBase;
+}
+
+/* 0x800367CC -- apply one critter damage event and return damage_player's
+ * result.  The original hitTime argument is unused: both GC and PS2 keep the
+ * fixed quarter-second feedback interval below.  Preserve that behavior. */
+s32 CritterDamagePlayer(Player *player, Critter *c,
+                        CritterDamageDef *damageDef, s32 flags,
+                        f32 *direction, f32 hitTime, s32 playSfx)
+{
+    s32 result;
     u32 damageFlags;
     s32 playerIndex;
     f32 damage;
@@ -1908,18 +1919,16 @@ void CritterDamagePlayer(Player *player, Critter *c,
         damage = (f32)((f64)damage * lbl_803464F8);
     }
 
-    damage_player(playerIndex, damage, 1, damageFlags, direction);
+    result = damage_player(playerIndex, damage, 1, damageFlags, direction);
 
     {
         Player *hit;
-        u8 *counter;
         hit = &gPlayers[playerIndex];
         hit->bossdamage = lbl_80346470;
-        counter = (u8 *)c + playerIndex * 0x10;
         hit->fxhittime = (f32)(lbl_80346500 + (f64)sMusicFadeBase);
-        ((Critter *)counter)->playerDamage[0].received += damage;
-        ((Critter *)counter)->playerDamage[0].receivedTime = sMusicFadeBase;
+        CritterDamagedPlayerSub(playerIndex, c, damage);
     }
+    return result;
 }
 
 /* 0x800368DC -- add `amount` to a per-limb counter of the critter whose id
