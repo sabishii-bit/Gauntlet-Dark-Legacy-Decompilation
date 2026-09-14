@@ -2124,6 +2124,26 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
 /* master driver                                                       */
 /* ------------------------------------------------------------------ */
 
+/* WriteName is also a local helper in the Xbox/PS2 builds. The GC caller
+ * places its eight-character buffer after the four-float screen vector.
+ * MBWorldToScreen writes all four components, not only displayed X/Y. */
+static inline void WriteName(Player* p) {
+    char name[8];
+    f32 screen[4];
+    s32 j;
+
+    for (j = 0; j < 8; j++) {
+        name[j] = p->save.name[j];
+        if (name[j] == '_') {
+            name[j] = ' ';
+        }
+    }
+    name[6] = 0;
+    MBWorldToScreen(screen, p->col_pos);
+    DrawTextKeepScale(0.5f, -(s32)screen[0], (s32)screen[1], 7,
+                      0xFFFFFF, name);
+}
+
 /* Is any player still walking in or ghost-walking?  Inlined into the
  * do_players exit check: the target's `li 1; b <join>` at +0x970 and the
  * trailing `li 0` at +0x980 are this function's two returns, and the walked
@@ -2455,7 +2475,7 @@ s32 do_players(void) {
                 /* fallthrough */
             case 1:
                 if (gGameMode == MG_PLAY) {
-                    f32 light_pos[3];
+                    f32 light_pos[4];
 
                     p->intower = 1;
                     p->save.stats[p->character].total_playtime +=
@@ -2488,24 +2508,13 @@ s32 do_players(void) {
                         gTriggerCameraState == 0 && gModalRenderDepth == 0 &&
                         gMessageActive == 0 && (nt = p->name_timer) > 0 &&
                         !(gGameBusy | gGameplayPauseTimer)) {
-                        char name[88];
-                        f32 spos[2];
                         s16 name_timer = nt - gFrameTicks;
 
                         p->name_timer = name_timer;
                         if (name_timer <= 0) {
                             p->name_timer = 0;
                         }
-                        for (j = 0; j < 8; j++) {
-                            name[j] = p->save.name[j];
-                            if (name[j] == '_') {
-                                name[j] = ' ';
-                            }
-                        }
-                        name[6] = 0;
-                        MBWorldToScreen(spos, p->col_pos);
-                        DrawTextKeepScale(0.5f, -(s32)spos[0], (s32)spos[1], 7,
-                                          0xFFFFFF, name);
+                        WriteName(p);
                     }
                 }
                 if (p->prev_state != 1) {
