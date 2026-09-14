@@ -10,8 +10,9 @@
  * Address range 0x800B53B4..0x800B5AA8 (6 functions), sitting between mb_blit
  * (ends 0x800B53B0) and mb_font (starts 0x800B5AA8). Delimited from mb_font by
  * its referenced sdata2 run (0x80348B20..0x80348B44, before mb_font's 0x80348B48+)
- * and by callee signature (projection math, no font/message globals). Only
- * 0x80348B30..0x80348B38 is currently claimed by this TU. Names come
+ * and by callee signature (projection math, no font/message globals). The
+ * recovered double half and signed-conversion bias occupy the claimed
+ * 0x80348B28..0x80348B38 run; the other literals remain external. Names come
  * from an earlier Xbox shell3D PDB (mb_camera.obj) correspondence. Some legacy
  * GC names disagree with the actual direction of projection; see below.
  *
@@ -78,7 +79,6 @@ extern void vec4ApplyTrans__FR4vec4R4vec4R5mat44(f32* dst, f32* src, f32* m);
 extern void CopyMat3(f32* src, f32* dst);
 
 extern const f32 lbl_80348B20;
-extern const f64 lbl_80348B28;
 extern const f64 lbl_80348B30;
 extern const f32 lbl_80348B38;
 extern const f32 lbl_80348B3C;
@@ -124,10 +124,10 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     yScale = (f32)viewport->h / (f32)viewport->href;
     centeredX =
         (f64)(world[0] * xScale) -
-        lbl_80348B28 * (f64)viewport->w;
+        0.5 * (f64)viewport->w;
     centeredY =
         (f64)(world[1] * yScale) -
-        lbl_80348B28 * (f64)viewport->h;
+        0.5 * (f64)viewport->h;
     yDenomB = camera->viewport[1][1];
     yDenomA = camera->projection[1][1];
     yDepthScale = camera->viewport[3][1];
