@@ -3361,16 +3361,64 @@ s32 ProcessCritterList(void)
     }
     return total;
 }
-#pragma dont_inline on
+/* PS2 CritterUpdateColnodes and both ProcessCritter call sites retain this
+ * shared scan. GC uses the existing 0x5C hit-node stride rather than PS2's 0x60. */
+static inline void CritterUpdateColnodes(Critter *c)
+{
+    s32 i;
+    CritterHitNode *node;
+
+    for (i = 0; i < c->hdr->colCount; i++) {
+        node = &c->hitnodes[i];
+        if (node->active != NULL) {
+            GetWorldMat(node->active, node->matrix,
+                        node->descriptor->position);
+        } else {
+            CopyMat4(&c->mtx[0][0], node->matrix);
+        }
+    }
+}
+
+/* The original CritterKill helper calls CritterAwardExp; keeping that nested
+ * boundary also preserves the GC caller's outlined experience-award call. */
+static inline void CritterKill(Critter *c)
+{
+    Critter *child;
+    f32 scale;
+    s32 type;
+
+    if (c->state == 1) {
+        return;
+    }
+    c->state = 1;
+    CritterAwardExp(
+        -1, (f32)(lbl_80346580 *
+                  (f64)c->hdr->expValue));
+    if (c->parent == NULL) {
+        child = c->next;
+        scale = lbl_803464A8;
+        while (child != NULL) {
+            child->health = scale;
+            child = child->next;
+        }
+    }
+    type = c->hdr->descriptor->type;
+    switch (type) {
+    case 4:
+        if (c->parent == NULL) {
+            BossDying();
+        }
+        break;
+    }
+}
+
 /* 0x80038DDC -- update one root critter and its child chain, including world
  * transforms, hit nodes, AI, animation, skin effects and render matrices. */
 s32 ProcessCritter(Critter *c)
 {
     s32 alive;
-    s32 i;
     Critter *skinChild;
     Critter *child;
-    CritterHitNode *node;
     CritterMove *move;
     s32 type;
     s32 allDead;
@@ -3378,7 +3426,6 @@ s32 ProcessCritter(Critter *c)
     f32 scale;
     f32 childHealth;
     f64 zero;
-    u8 unused[8];
 
     if (c->parent != NULL) {
         return 0;
@@ -3400,15 +3447,7 @@ s32 ProcessCritter(Critter *c)
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
 
-    for (i = 0; i < c->hdr->colCount; i++) {
-        node = &c->hitnodes[i];
-        if (node->active != NULL) {
-            GetWorldMat(node->active, node->matrix,
-                        node->descriptor->position);
-        } else {
-            CopyMat4(&c->mtx[0][0], node->matrix);
-        }
-    }
+    CritterUpdateColnodes(c);
     CritterDoKnockback(c);
     CritterUpdateCounters(c);
     if (c->healthmtr >= 0) {
@@ -3446,15 +3485,7 @@ s32 ProcessCritter(Critter *c)
             } else {
                 CopyMat4(&c->mtx[0][0], current->worldMoveMatrix);
             }
-            for (i = 0; i < current->hdr->colCount; i++) {
-                node = &current->hitnodes[i];
-                if (node->active != NULL) {
-                    GetWorldMat(node->active, node->matrix,
-                                node->descriptor->position);
-                } else {
-                    CopyMat4(&current->mtx[0][0], node->matrix);
-                }
-            }
+            CritterUpdateColnodes(current);
             CritterUpdateCounters(current);
             if (current->healthmtr >= 0) {
                 HealthMeterUpdate(current->health, current->healthmtr);
@@ -3488,27 +3519,8 @@ s32 ProcessCritter(Critter *c)
         if (allDead > 1) {
             c->health = lbl_80346480;
         }
-        if (c->health <= lbl_80346470 && c->state != 1) {
-            c->state = 1;
-            CritterAwardExp(
-                -1, (f32)(lbl_80346580 *
-                          (f64)c->hdr->expValue));
-            if (c->parent == NULL) {
-                child = c->next;
-                scale = lbl_803464A8;
-                while (child != NULL) {
-                    child->health = scale;
-                    child = child->next;
-                }
-            }
-            type = c->hdr->descriptor->type;
-            switch (type) {
-            case 4:
-                if (c->parent == NULL) {
-                    BossDying();
-                }
-                break;
-            }
+        if (c->health <= lbl_80346470) {
+            CritterKill(c);
         }
     }
 
@@ -3609,7 +3621,6 @@ ai_done:
     c->pos[2] = c->vel[2] + c->pos[2];
     return 1;
 }
-#pragma dont_inline off
 /* 0x8003946C -- consume a critter's pending knockback vector, applying the
  * damage-class scale and clamping the accumulated velocity. */
 void CritterDoKnockback(Critter *c)
