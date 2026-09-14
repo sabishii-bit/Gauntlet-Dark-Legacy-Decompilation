@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -89,8 +90,31 @@ class EffectiveStringAuditTests(unittest.TestCase):
 
 
 class ContextProbeTests(unittest.TestCase):
-    def test_variants_preserve_production_and_expose_diagnostic_scope(self):
-        source = (ROOT / "src/game/audio/audio.c").read_text(encoding="utf-8")
+    # Synthetic transformation fixture, not recovered game code or a compiler
+    # baseline. Historical diagnostics must not pin fake production locals.
+    source = '''#include "types.h"
+extern u8 sAudioState[];
+#pragma dont_inline on
+void prior(void) { volatile u8 unused[256]; }
+s32 AudioStreamPlay(s32 id, s32 loopMode, s32 vol)
+{
+    u8* state = sAudioState;
+    volatile u8 unused[256];
+    if (sAudioSuspend != 0) { return 0; }
+    ErrorPrintf("Audio Stream bad file: %s", (char*)(state + 1048));
+    ErrorPrintf("Audio Stream no buffer memory: %s", (char*)(state + 1048));
+    ErrorPrintf("Audio Stream Err: %s", (char*)(state + 1048));
+    *(void**)(state + 12) = 0;
+    call(vol, state);
+}
+void AudioStreamEndCbLoop(void)
+{
+}
+#pragma dont_inline off
+'''
+
+    def test_variants_preserve_input_and_expose_diagnostic_scope(self):
+        source = self.source
         variants = probe.variants(source)
         self.assertEqual(variants["scratch_mirror"], source)
         original_body = probe.stream_block(source)[2]
@@ -107,12 +131,28 @@ class ContextProbeTests(unittest.TestCase):
         self.assertIn("volatile u8 unused[256];", balanced[:a])
         self.assertEqual(balanced[b:], variants["own_rodata_prefix_control"][probe.stream_block(variants["own_rodata_prefix_control"])[1]:])
         self.assertNotEqual(variants["direct_state_uses"], source)
-        self.assertEqual((ROOT / "src/game/audio/audio.c").read_text(encoding="utf-8"), source)
+        self.assertEqual(self.source, source)
+        self.assertEqual(probe.variants(source.replace("\n", "\r\n")), variants)
 
     def test_changed_state_declaration_refuses(self):
-        source = (ROOT / "src/game/audio/audio.c").read_text(encoding="utf-8")
+        source = self.source
         with self.assertRaisesRegex(ValueError, "state declaration changed"):
             probe.variants(source.replace("extern u8 sAudioState[];", "extern u8 sAudioState[24];"))
+
+    def test_recovered_buffer_refuses_inapplicable_padding_control(self):
+        a, b, body = probe.stream_block(self.source)
+        repaired = self.source[:a] + body.replace("volatile u8 unused[256];", "char osfile[256];") + self.source[b:]
+        with self.assertRaisesRegex(ValueError, "historical stack control is inapplicable"):
+            probe.variants(repaired)
+        # Refuse before attempting a compiler baseline, not later while opening
+        # the retired production rule file or silently emitting a no-op trial.
+        with mock.patch.object(probe.cv_probe, "read_edges", return_value={probe.UNIT: {"src": "synthetic.c"}}), \
+             mock.patch.object(Path, "read_text", return_value=repaired), \
+             mock.patch.object(probe.cv_probe, "compile_with") as compile_with, \
+             self.assertRaises(SystemExit) as error:
+            probe.main([])
+        self.assertEqual(error.exception.code, 2)
+        compile_with.assert_not_called()
 
 
 if __name__ == "__main__":

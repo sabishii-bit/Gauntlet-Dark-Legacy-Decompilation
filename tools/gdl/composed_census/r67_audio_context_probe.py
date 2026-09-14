@@ -6,6 +6,9 @@ NOT recovered original structure or proposals to retain compatibility scaffolds.
 PASS means the finite experiment ran with an exact raw Ninja baseline. It is
 not whole-TU equality, source unreachability, or a claim that WebFrank is needed.
 Generated sources/objects and JSON stay under build/. Run after a fresh ninja.
+These historical controls require the old scalar/unused-array source shape.
+The recovered osfile buffer invalidates them; refusal means rederive controls,
+not that the current source must preserve the old declarations.
 """
 from __future__ import annotations
 
@@ -41,7 +44,12 @@ def stream_block(source):
 
 
 def variants(source):
+    source = source.replace("\r\n", "\n")
     start, end, block = stream_block(source)
+    if source.count("extern u8 sAudioState[];") != 1:
+        raise ValueError("state declaration changed; rederive experiment")
+    if block.count("volatile u8 unused[256];") != 1:
+        raise ValueError("historical stack control is inapplicable; rederive the experiment for the recovered buffer")
     pool = block.replace("u8* state = sAudioState;", "u8* state = sAudioState;\n    const char* messages = sAudioTimeoutMsg;")
     pool = pool.replace('"Audio Stream bad file: %s"', "messages + 220")
     pool = pool.replace('"Audio Stream no buffer memory: %s"', "messages + 248")
@@ -135,14 +143,21 @@ def main(argv=None):
     build = (ROOT / "build").resolve()
     if not out.is_relative_to(build):
         parser.error("--out must stay beneath this checkout's build/")
-    directory = out.parent / (out.stem + "_artifacts")
-    directory.mkdir(parents=True, exist_ok=True)
     edge = cv_probe.read_edges()[UNIT]
     source_path = ROOT / edge["src"]
+    original = source_path.read_text(encoding="utf-8")
+    try:
+        forms = variants(original)
+    except ValueError as exc:
+        parser.error(str(exc))
+    directory = out.parent / (out.stem + "_artifacts")
+    directory.mkdir(parents=True, exist_ok=True)
     raw = ROOT / edge["body_o"]
     target_path = ROOT / "build/GUNE5D/obj/game/audio/audio.o"
     fixed = ROOT / "build/GUNE5D/src/game/audio/audio.o"
-    protected = [source_path, raw, target_path, fixed, ROOT / "build.ninja", ROOT / "config/GUNE5D/webfrank.json"]
+    protected = [source_path, raw, target_path, fixed, ROOT / "build.ninja",
+                 ROOT / "configure.py", ROOT / "config/GUNE5D/splits.txt",
+                 ROOT / "config/GUNE5D/symbols.txt"]
     before = {str(p.relative_to(ROOT)): sha(p) for p in protected}
     baseline_path = directory / "r67_audio_baseline.o"
     baseline, error = cv_probe.compile_with(edge, edge["mw"], edge["cflags"], baseline_path, directory)
@@ -151,7 +166,6 @@ def main(argv=None):
         out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result))
         return 2
-    original = source_path.read_text(encoding="utf-8")
     target_functions = fndiff.parse(target_path)
     raw_functions = fndiff.parse(raw)
     target_loaded = load_function(str(target_path), FUNCTION)
@@ -161,10 +175,10 @@ def main(argv=None):
     baseline_bodies = {name: load_function(str(raw), name)[3] for name in raw_functions}
     baseline_sections = fndiff.object_sections(raw, readable=None)[1]
     result = {"schema_version": 1, "status": "PASS", "scope": "Fixed full-TU source; finite diagnostics, not recovered source or source-unreachability proof", "baseline_fidelity": {"raw_sha256": sha(raw), "recompiled_sha256": sha(baseline)}, "compiler": edge["mw"], "cflags": edge["cflags"], "source_pragmas": [line for line in original.splitlines() if re.match(r"\s*#\s*pragma\b", line)], "variants": [], "protected_before": before}
-    experiments = [(name, text, edge["mw"], edge["cflags"]) for name, text in variants(original).items()]
+    experiments = [(name, text, edge["mw"], edge["cflags"]) for name, text in forms.items()]
     if args.flags:
         for tag, key in (("prefix", "own_rodata_prefix_control"), ("prefix_no_prior_pragmas", "own_rodata_prefix_no_prior_pragmas_control")):
-            prefix_source = variants(original)[key]
+            prefix_source = forms[key]
             for label, compiler, cflags in cv_probe.variants(edge, "opt")[1:]:
                 experiments.append((tag + "_" + re.sub(r"\W", "_", label), prefix_source, compiler, cflags))
             experiments.append((tag + "_125n", prefix_source, "GC/1.2.5n", edge["cflags"]))
