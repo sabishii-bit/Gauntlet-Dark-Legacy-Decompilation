@@ -717,7 +717,7 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
                             f32 *forward, f32 *out, f32 *score);
 f32  CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
                            f32 dotThresh, f32 limit);
-s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
+s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source);
 s32  ProcessCritter(Critter *c);
 s32  ProcessCritterList(void);
@@ -1273,7 +1273,7 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
         break;
     }
     if (damage > lbl_80346488) {
-        CritterDamage(damage, c, -1, flags, contact, direction, 1);
+        CritterDamage(c, damage, -1, flags, contact, direction, 1);
     }
 }
 
@@ -2984,19 +2984,16 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
 }
 
 /* 0x800383A8 -- apply damage to a critter/hit node, accumulate combat
- * bookkeeping and transition a depleted critter into its death state. */
+ * bookkeeping and transition a depleted critter into its death state.
+ * The original critter-first argument order also recovers the GC parameter
+ * homes: damage at sp+12 and flags at sp+20. Flags retain the unsigned type
+ * required by this TU's existing ModifyDamage declaration. */
 #pragma dont_inline on
-s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
+s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source)
 {
-    typedef struct CritterDamageMove {
-        s32 type;
-        u8 unused04[0x54];
-        s16 sfx;
-        s16 sfxFrame;
-    } CritterDamageMove;
     u8 *hitNode;
-    CritterDamageMove *move;
+    CritterMove *move;
     Critter *child;
     Critter *parent;
     Player *playerData;
@@ -3017,8 +3014,7 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
         return -1;
     }
 
-    move = (CritterDamageMove *)&
-        (c->hdr->movesPtr)[c->curmove];
+    move = &(c->hdr->movesPtr)[c->curmove];
     if (move->type == 35) {
         damage = (f32)((f64)damage * lbl_80346500);
         flags &= ~0x130;
@@ -3030,12 +3026,7 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
         }
     }
 
-    {
-        u32 shieldFlags = c->hdr->shieldFlags;
-        f32 armor = c->hdr->armor;
-
-        ModifyDamage(&damage, &flags, shieldFlags, armor);
-    }
+    ModifyDamage(&damage, &flags, c->hdr->shieldFlags, c->hdr->armor);
     critterClass = c->hdr->descriptor->type;
 
     if (gGameOptions.no_damage == 3 && player >= 0) {
@@ -3057,17 +3048,8 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
 
         maximumHealth = c->hdr->maxHealth *
                         gCurLevel->ene_health;
-        creditedDamage = lbl_80346470;
-        if (damage < creditedDamage) {
-            goto credited_damage_done;
-        }
-        creditedDamage = c->health;
-        if (damage > creditedDamage) {
-            goto credited_damage_done;
-        }
-        creditedDamage = damage;
-
-credited_damage_done:
+        creditedDamage = damage < lbl_80346470 ? lbl_80346470 :
+                         damage > c->health ? c->health : damage;
 
         ratio = (f32)((f64)creditedDamage /
                       (lbl_80346490 + (f64)maximumHealth));
@@ -3213,9 +3195,9 @@ credited_damage_done:
 
     c->counterState |= flags;
     if (direction != NULL) {
-        c->knockbackInput[0] += direction[0];
-        c->knockbackInput[1] += direction[1];
-        c->knockbackInput[2] += direction[2];
+        c->knockbackInput[0] = direction[0] + c->knockbackInput[0];
+        c->knockbackInput[1] = direction[1] + c->knockbackInput[1];
+        c->knockbackInput[2] = direction[2] + c->knockbackInput[2];
     }
     c->counterTime = sMusicFadeBase;
     if (hitPosition == NULL) {
