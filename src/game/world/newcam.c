@@ -1372,13 +1372,9 @@ f32 GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
     if (mode == 2 && gCurLevel != 0 && ((NcLevelData*)gCurLevel)->camera != 0) {
         CameraData* camera;
         for (k = 0; k < 3; k++) {
-            f32 v;
-
             camera = ((NcLevelData*)gCurLevel)->camera;
-            v = avg[k];
-            v = (v < camera->min[k]) ? camera->min[k] :
-                ((v > camera->max[k]) ? camera->max[k] : v);
-            avg[k] = v;
+            avg[k] = (avg[k] < camera->min[k]) ? camera->min[k] :
+                ((avg[k] > camera->max[k]) ? camera->max[k] : avg[k]);
         }
     }
     return count;
