@@ -202,17 +202,32 @@ void InitTexMod(TEXMOD* tm, int texidx)
     }
 }
 
+/* PDB/PS2 identify this four-argument helper and fframe/nframes/mul locals.
+ * GC uses the signed scroll index and the shared 16-byte UV records below. */
+static inline void DoTexScroll2Sub(TEXMOD* tm, int iframe, int idx, int V)
+{
+    f32 fframe = (f32)(iframe - tm->unk4e);
+    f32 nframes = (f32)tm->frames;
+    f32 mul = 1.0f;
+    f32 scroll;
+
+    if (nframes < 0.0f) {
+        nframes = -nframes;
+        mul = -1.0f;
+    }
+    scroll = CalcTexScroll(fframe, 0.0f, nframes, iframe, (float*)0);
+    if (V) {
+        lbl_802C2E28[idx].y1 = mul * scroll;
+    } else {
+        lbl_802C2E28[idx].y0 = mul * scroll;
+    }
+}
+
 void DoTexModSub(TEXMOD* tm)
 {
-    short scr;
     int mode;
     int tex;
-    int counter;
     u32 rate;
-    float scale;
-    float t;
-    float sign;
-    float v;
 
     if (tm->tex < 0) {
         return;
@@ -232,55 +247,23 @@ void DoTexModSub(TEXMOD* tm)
     }
 
     mode = tm->src;
-    if (mode == -3) {
-        goto scroll_y1;
-    }
-    if (mode < -3) {
-        if (mode == -6) {
-            goto exit;
-        } else {
-            goto texture;
+    switch (mode) {
+    case -2:
+        DoTexScroll2Sub(tm, tm->counter, tm->scrollIdx, 0);
+        break;
+    case -3:
+        DoTexScroll2Sub(tm, tm->counter, tm->scrollIdx, 1);
+        break;
+    case -6:
+        break;
+    default:
+        tex = tm->tex;
+        if (tex >= 0) {
+            void* p = MBRomTexPtr(mode + tm->counter);
+            MBSetRomTexture(tex, p);
         }
+        break;
     }
-    if (mode >= -1) {
-        goto texture;
-    }
-
-    counter = tm->counter;
-    t = (float)(counter - tm->unk4e);
-    sign = (float)tm->frames;
-    scr = tm->scrollIdx;
-    scale = 1.0f;
-    if ((float)tm->frames < 0.0f) {
-        sign = -sign;
-        scale = -1.0f;
-    }
-    v = CalcTexScroll(t, 0.0f, sign, counter, (float*)0);
-    lbl_802C2E28[scr].y0 = scale * v;
-    return;
-
-scroll_y1:
-    counter = tm->counter;
-    t = (float)(counter - tm->unk4e);
-    sign = (float)tm->frames;
-    scr = tm->scrollIdx;
-    scale = 1.0f;
-    if ((float)tm->frames < 0.0f) {
-        sign = -sign;
-        scale = -1.0f;
-    }
-    v = CalcTexScroll(t, 0.0f, sign, counter, (float*)0);
-    lbl_802C2E28[scr].y1 = scale * v;
-    return;
-
-texture:
-    tex = tm->tex;
-    if (tex >= 0) {
-        void* p = MBRomTexPtr(mode + tm->counter);
-        MBSetRomTexture(tex, p);
-    }
-exit:
-    return;
 }
 
 
