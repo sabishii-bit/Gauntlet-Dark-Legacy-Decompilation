@@ -252,7 +252,6 @@ extern f64   lbl_803464D8;
 extern f64   lbl_803464E0;
 extern f64   lbl_80346500;
 extern f32   lbl_80346590;
-extern f32   lbl_80346594;
 extern f32   lbl_80346598;
 extern f64   lbl_803465A0;
 extern f64   lbl_803465A8;
@@ -268,7 +267,6 @@ extern f32   lbl_80346520;
 extern f32   lbl_80346524;
 extern f64   lbl_80346528;
 extern f64   lbl_80346530;
-extern f64   lbl_80346540;
 extern f32   lbl_803465F4;
 extern f32   lbl_80346548;
 extern f32   lbl_8034654C;
@@ -278,7 +276,6 @@ extern const char lbl_80346574[];
 extern f64   lbl_80346580;
 extern f64   lbl_80346600;
 extern f32   lbl_803464A8;
-extern f32   lbl_803464E8;
 extern f32   gClockTime;
 extern Effect Effects[];
 extern void  MBPsysSetEVolume(void *psys, f32 a, f32 b);
@@ -627,8 +624,6 @@ extern s32   SlideAlongWall(f32 radius, f32 *pos, f32 *vel, f32 *wallpt,
 static char *lbl_8011AEA0[3] = { "SHADOW1L1", "SHADOW2L1", "SHADOW3L1" };
 static f32 lbl_8011AEAC[5] = { 1.0f, 1.0f, 1.5f, 2.0f, 2.0f };
 static f32 lbl_8011AEC0[5] = { 1.0f, 1.0f, 0.5f, 0.3f, 0.2f };
-extern f32   lbl_80346588;
-extern f32   lbl_8034658C;
 extern f32   lbl_80346618;
 extern void  BossActivate(void *obj, s32 flag);
 extern s32   gTriggerCameraState;
@@ -642,7 +637,6 @@ extern void  ShakeCamera(s32 type, s32 count, s32 delay, f32 radius,
                          s32 priority);
 extern void  SafeRockSetup(void);
 extern s32   lbl_802897B8[];          /* 0x802897B8 skinfx palette table          */
-extern f32   lbl_80346570;
 /* Original public SBSS objects (Xbox CRITTER names below, GC widths/uses).
  * MWCC emits these tentative definitions in reverse declaration order after
  * the private scan state. The short's alignment gap is compiler-generated.
@@ -5867,7 +5861,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
                       nodeCount, skinParam, skinValue);
         } else {
             SetSkinFX((u8 *)&c->skinfx, lbl_802897B8[c->counterState & 0xF], 10,
-                      0, lbl_803464E8);
+                      0, 0.5f);
         }
     } else if ((flags & 0x200) != 0) {
         nodeCount = 0;
@@ -5943,7 +5937,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         }
     }
     if ((flags & 2) != 0) {
-        ShakeCamera(0, 0, 90, lbl_80346570, 100);
+        ShakeCamera(0, 0, 90, 0.1f, 100);
     }
     if ((flags & 0x20) != 0) {
         SafeRockSetup();
@@ -6052,7 +6046,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     flags = ((CritterSfxRecord *)s)->flags;
     tex = ((CritterSfxRecord *)s)->textureId;
     etime = ((CritterSfxRecord *)s)->life;
-    speed = (f32)(lbl_80346540 * (f64)((CritterSfxRecord *)s)->custom1);
+    speed = (f32)(0.01 * (f64)((CritterSfxRecord *)s)->custom1);
     kind = flags & 0x0F000000;
     if ((flags & 0x4000) && node >= 0) {
         parent = Effects[node].node;
@@ -6074,7 +6068,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     case 0x01000000:
     default:
         psys = MBNewPsysDefault(gIdentityMatrix, parent, 0, 1);
-        MBPsysSetEVolume(psys, lbl_803464E8, lbl_803464E8);
+        MBPsysSetEVolume(psys, 0.5f, 0.5f);
         break;
     }
     if (psys == NULL) {
@@ -6190,7 +6184,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     }
     switch (root->hdr->descriptor->type) {
     case 8:
-        root->particle = FindClosestWaypoint(lbl_80346594,
+        root->particle = FindClosestWaypoint(10.0f,
                                              root->vel, 0);
         break;
     default:
@@ -6330,7 +6324,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->hitnode2 = node;
 
     floorHit = FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
-                            lbl_80346588, lbl_8034658C) != NULL
+                            4.0f, -1000.0f) != NULL
                    ? 1
                    : 0;
     if (floorHit != 0) {
