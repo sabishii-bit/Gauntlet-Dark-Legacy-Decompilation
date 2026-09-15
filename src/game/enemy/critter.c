@@ -1023,11 +1023,8 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
             count++;
             length = NormalVector(sep);
             penetration = combined - length;
-            if (penetration < 1.0) {
-                penetration = 1.0;
-            } else if (penetration > 3.0) {
-                penetration = 3.0;
-            }
+            penetration = penetration < 1.0 ? 1.0 :
+                          penetration > 3.0 ? 3.0 : penetration;
             scale = (f32)penetration;
             sep[0] = sep[0] * scale;
             sep[1] = sep[1] * scale;

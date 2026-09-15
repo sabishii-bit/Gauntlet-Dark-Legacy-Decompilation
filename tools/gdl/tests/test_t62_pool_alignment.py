@@ -23,9 +23,11 @@ symmetric rows are at an edge (still a guess), so neither half of that
 split follows from the other.
 
 The demoted rows are still printed in full, under a CANDIDATE banner.
-R69 closed CritterCollidePlayers' count asymmetry. Its exchanged constant
-loads still produce an unreliable pairing, so the live check uses current
-counts; fixed fixtures below retain both symmetric and asymmetric coverage.
+R69 closed CritterCollidePlayers' count asymmetry; R71's native conditional
+clamp closed its exchanged constant loads too. CritterBossAI now supplies the
+live candidate-only witness, using current counts. The closed player-collision
+case is also checked, while fixed fixtures retain the historical bad pairing
+and both symmetric and asymmetric coverage.
 
 RUN-63 ITEM 4 folds lane P7's `build/p7_lane/p7_pooldefect.py` in as
 `LiveCritter.carriers`: the scan that finds which functions still print BOTH
@@ -221,12 +223,13 @@ class LiveCritter(unittest.TestCase):
         return buffer.getvalue()
 
     def test_the_reported_row_is_a_candidate_with_current_count_context(self):
-        text = self.clean("game/enemy/critter", "CritterCollidePlayers")
-        self.assertIn("POOL-DEFECT CANDIDATE CritterCollidePlayers", text)
-        self.assertNotIn("POOL-DEFECT CritterCollidePlayers", text)
+        function = "CritterBossAI"
+        text = self.clean("game/enemy/critter", function)
+        self.assertIn("POOL-DEFECT CANDIDATE " + function, text)
+        self.assertNotIn("POOL-DEFECT " + function, text)
         target = fndiff.parse(ROOT / "build/GUNE5D/obj/game/enemy/critter.o")
         ours, _raw = fndiff.ours_object_path("game/enemy/critter")
-        counts = tuple(len(fndiff.instruction_lines(stream["CritterCollidePlayers"]))
+        counts = tuple(len(fndiff.instruction_lines(stream[function]))
                        for stream in (target, fndiff.parse(ours)))
         self.assertTrue(all(counts), "missing live instruction streams")
         if counts[0] != counts[1]:
@@ -234,6 +237,14 @@ class LiveCritter(unittest.TestCase):
         else:
             self.assertNotIn("COUNT-ASYMMETRIC", text)
         self.assertIn("CANDIDATES only", text)
+
+    def test_closed_player_collision_carrier_has_no_pool_defect(self):
+        # R71 preserves the literal pool and corrects only the two load sites;
+        # six remaining GPR words must not resurrect a wrong-constant warning.
+        text = self.clean("game/enemy/critter", "CritterCollidePlayers")
+        self.assertIn("CritterCollidePlayers", text)
+        self.assertIn("POOL-KIND-EQUAL", text)
+        self.assertNotIn("POOL-DEFECT", text)
 
     def test_an_interior_row_elsewhere_is_still_reported_as_a_defect(self):
         # The carrier was game/game/player::set_hidden_player (three
@@ -307,7 +318,9 @@ class LiveCritter(unittest.TestCase):
                       "the carrier this file's live test uses has been"
                       " closed; the current census is loud=%s demoted=%s"
                       % (loud, demoted))
-        self.assertIn("game/enemy/critter::CritterCollidePlayers", demoted)
+        self.assertIn("game/enemy/critter::CritterBossAI", demoted,
+                      "candidate-only carrier closed; current census: %s" % census)
+        self.assertNotIn("game/enemy/critter::CritterCollidePlayers", census)
 
 
 if __name__ == "__main__":
