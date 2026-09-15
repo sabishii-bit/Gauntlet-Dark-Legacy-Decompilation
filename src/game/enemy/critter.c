@@ -3782,7 +3782,7 @@ s32 CritterBossAI(Critter *c)
                     best = candidate;
                 }
             }
-            if ((f64)best <= 0.0) {
+            if (best <= 0.0f) {
                 best = 1e21f;
             }
             if ((f64)distance <= 0.0 || best < distance) {
