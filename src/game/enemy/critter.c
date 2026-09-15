@@ -1986,7 +1986,6 @@ waypoint_test:
 done:
     return result;
 }
-#pragma opt_propagation off
 /* 0x80036A58 */ s32 CritterGetTargetSub(Critter *c, f32 *target, s32 mode)
 {
     s32 i;
@@ -2011,14 +2010,12 @@ done:
         best = -1;
     }
     if (best >= 0) {
-        u32 address = (u32)c + best * 0x24;
-        best = ((Critter *)address)->targets[0].pidx;
+        best = c->targets[best].pidx;
     } else if (mode != 0 && c->parent != NULL) {
         best = CritterGetTargetSub(c->parent, target, mode);
     }
     return best;
 }
-#pragma opt_propagation reset
 /* 0x80036B5C -- score one entry in the critter's target list against the
  * optional move targeting constraints. */
 f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
