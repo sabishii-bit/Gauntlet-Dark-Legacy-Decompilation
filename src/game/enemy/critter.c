@@ -633,7 +633,7 @@ s32  CritterFindMoveType(Critter *c, s32 type, s32 mode);
 void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active);
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local,
                          f32 *position);
-s32  CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4);
+s32  CritterDoSfx(Critter *c, s32 sfx, f32 *position, s32 parented, s32 parentSfxIndex);
 s32  CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
                      s32 parented, u32 flags);
 void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node);
@@ -5665,7 +5665,7 @@ done:
     return result;
 }
 /* 0x8003D7E0 */
-s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
+s32 CritterDoSfx(Critter *c, s32 sfx, f32 *position, s32 parented, s32 parentSfxIndex)
 {
     CritterSfxRecord *entry;
     s32 result;
@@ -5707,7 +5707,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     color[2] = entry->color[2] * scale;
 
     if ((flags & 0x0F000000) != 0) {
-        CritterDoParticle(c, entry, arg4);
+        CritterDoParticle(c, entry, parentSfxIndex);
     } else if ((flags & 0x100) != 0) {
         skinValue = entry->rate;
         nodeCount = (s32)(30.0 * entry->life);
@@ -5721,19 +5721,19 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         }
     } else if ((flags & 0x200) != 0) {
         nodeCount = 0;
-        arg4 = 0;
-        /* Measured against the banked object: the already-consumed `arg4`
+        parentSfxIndex = 0;
+        /* Measured against the banked object: the already-consumed `parentSfxIndex`
          * parameter and the raw member spellings are BOTH load-bearing here.
          * `&c->hitnodes[nodeCount]` with typed members holds the size at 1156
          * bytes but replaces the target's `li` at +0x190 with `addi`
          * (1 differing word, `fndiff ... CritterDoSfx --ops` reports
-         * `target-only: +1 li`); keeping `arg4` and typing only the members
+         * `target-only: +1 li`); keeping `parentSfxIndex` and typing only the members
          * gives 1156 -> 1152 bytes and 193 differing words.  The element type
          * is recovered (CritterHitNode in game/critter.h); the spelling is a
          * separate matching obligation. */
         for (; nodeCount < c->hdr->colCount;
-             nodeCount++, arg4 += sizeof(CritterHitNode)) {
-            u8 *node = (u8 *)c + offsetof(Critter, hitnodes) + arg4;
+             nodeCount++, parentSfxIndex += sizeof(CritterHitNode)) {
+            u8 *node = (u8 *)c + offsetof(Critter, hitnodes) + parentSfxIndex;
             if ((*(s16 *)(*(u8 **)(node + offsetof(CritterHitNode, descriptor)) + offsetof(CritterColDescriptor, flags)) & 1) == 0) {
                 world[0] = ((CritterHitNode *)node)->position[0] + color[0];
                 world[1] = *(f32 *)(node + (offsetof(CritterHitNode, position) + 4)) + color[1];
@@ -5743,12 +5743,12 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         }
     } else if (entry->textureId >= 0) {
         if ((flags & 0x801) != 0) {
-            arg3 = 1;
+            parented = 1;
             world[0] = color[0];
             world[1] = color[1];
             world[2] = color[2];
         } else if ((flags & 0x80) != 0) {
-            arg3 = 0;
+            parented = 0;
             world[0] = c->prevMovePathPos[0] + color[0];
             world[1] = c->prevMovePathPos[1] + color[1];
             world[2] = c->prevMovePathPos[2] + color[2];
@@ -5763,22 +5763,22 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
                 world[1] = c->vel[1];
                 world[2] = c->vel[2];
             }
-            if (parent != NULL) {
-                world[0] = ((f32 *)parent)[0] + world[0];
-                world[1] = ((f32 *)parent)[1] + world[1];
-                world[2] = ((f32 *)parent)[2] + world[2];
+            if (position != NULL) {
+                world[0] = position[0] + world[0];
+                world[1] = position[1] + world[1];
+                world[2] = position[2] + world[2];
             }
-            arg3 = 0;
-        } else if (parent != NULL) {
-            world[0] = ((f32 *)parent)[0] + color[0];
-            world[1] = ((f32 *)parent)[1] + color[1];
-            world[2] = ((f32 *)parent)[2] + color[2];
+            parented = 0;
+        } else if (position != NULL) {
+            world[0] = position[0] + color[0];
+            world[1] = position[1] + color[1];
+            world[2] = position[2] + color[2];
         } else {
             world[0] = color[0];
             world[1] = color[1];
             world[2] = color[2];
         }
-        result = CritterDoSfxSub(c, entry, world, arg3, flags);
+        result = CritterDoSfxSub(c, entry, world, parented, flags);
     } else {
         result = -1;
     }
@@ -5806,7 +5806,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         }
     }
     if (entry->linkIndex >= 0) {
-        CritterDoSfx(c, entry->linkIndex, parent, arg3, result);
+        CritterDoSfx(c, entry->linkIndex, position, parented, result);
     }
     return result;
 }
