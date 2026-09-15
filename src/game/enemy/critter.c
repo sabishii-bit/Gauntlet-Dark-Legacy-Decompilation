@@ -872,7 +872,6 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     f32 center[3];
     f32 out[3];
     u8 unusedLow[4];
-    s32 hit;
     s32 j;
     CritterHitNode *node;
     CritterColDescriptor *desc;
@@ -931,21 +930,21 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
             center[2] = cpos[2] + delta[2];
             result = fn_8005F0F4(item, cpos, center, out, radius, height);
         }
-        hit = 0;
+        hits = 0;
         if (result >= 0.0) {
             if (type != 2) {
                 if (type == 3) {
                     damage = c->hdr->damageScale *
                              gCurLevel->ene_damage;
                     if (fn_8005C1DC((struct Item *)item, damage, 0, -1) != 0.0f) {
-                        hit = 1;
+                        hits = 1;
                     }
                 } else {
-                    hit = 1;
+                    hits = 1;
                 }
             }
         }
-        if (hit) {
+        if (hits) {
             delta[2] = 0.0f;
             delta[0] = 0.0f;
         }
@@ -2773,7 +2772,7 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
     f32 d;
     u8 pad24[20];
 
-    best = lbl_80346508;
+    best = 2.0e21f;
     pool = gCritterPool;
     cur = NULL;
     bestC = NULL;
