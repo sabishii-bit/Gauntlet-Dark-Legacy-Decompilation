@@ -30,11 +30,16 @@ against splits.txt's 257 units:
       `game/enemy/critter.c.c`, `game/enemy/Critter` -- and
       `src/game/enemy/critter`, which is a REAL unit.
 """
+import contextlib
+import io
+import json
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 TOOLS = Path(__file__).resolve().parent.parent
 REPO = TOOLS.parent.parent
@@ -59,7 +64,7 @@ class UnresolvedUnitIsARefusal(unittest.TestCase):
         self.assertIn("NO comparison was made", out)
 
     def test_the_refusal_code_is_distinct_from_the_blocker_code(self):
-        """2 = I could not measure; 1 = I measured and found blockers.
+        """2 = unresolved input or review; 1 = a measured failure.
 
         Collapsing them would trade one unreadable verdict for another.
         """
@@ -86,10 +91,47 @@ class DocumentedSpellingsResolve(unittest.TestCase):
                              fndiff.unit_key(spelling), spelling)
 
     def test_the_src_spelling_resolves_instead_of_reading_as_absent(self):
-        code, out = run_datadiff("--sections", "src/game/enemy/critter")
-        self.assertNotEqual(code, 2, out)
+        # A resolved TU can still return 2 for extra EH records needing link
+        # review. Assert the actual measurement, not its current match status.
+        with tempfile.TemporaryDirectory(prefix="datadiff-spelling-") as tmp:
+            report_path = Path(tmp) / "sections.json"
+            code, out = run_datadiff("--sections", "src/game/enemy/critter",
+                                    "--out", str(report_path))
+            self.assertTrue(report_path.is_file(), out)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        self.assertEqual(report["schema_version"], 1)
+        self.assertEqual(report["units_selected"], 1)
+        self.assertEqual(len(report["rows"]), 1)
+        row = report["rows"][0]
+        self.assertEqual(row["unit"], "game/enemy/critter.c")
+        self.assertNotIn("error", row, out)
+        self.assertGreater(len(row["sections"]), 0, out)
+        self.assertEqual(Path(row["target_object"]),
+                         Path("build/GUNE5D/obj/game/enemy/critter.o"))
+        self.assertEqual(code, {"PASS": 0, "FAIL": 1, "UNRESOLVED": 2}
+                         [report["status"]], out)
         self.assertNotIn("UNRESOLVED UNIT", out)
-        self.assertIn("game/enemy/critter.c", out)
+        self.assertIn("resolved to splits unit game/enemy/critter.c", out)
+
+    def test_resolved_spelling_preserves_each_section_verdict(self):
+        for status, expected_code in (("PASS", 0), ("FAIL", 1),
+                                      ("UNRESOLVED", 2)):
+            with self.subTest(status=status):
+                measured = []
+
+                def section_table(unit, *, strict_slack, debt, report):
+                    measured.append(unit)
+                    report.append({"unit": unit, "status": status})
+                    return int(status != "PASS")
+
+                with patch.object(datadiff, "parse_splits", return_value={
+                        "game/enemy/critter.c": {}}), \
+                        patch.object(datadiff, "section_table", section_table), \
+                        contextlib.redirect_stdout(io.StringIO()) as out:
+                    code = datadiff.main(["--sections", "src/game/enemy/critter"])
+                self.assertEqual(measured, ["game/enemy/critter.c"])
+                self.assertEqual(code, expected_code, out.getvalue())
+                self.assertNotIn("UNRESOLVED UNIT", out.getvalue())
 
 
 class NegativeSideStaysQuiet(unittest.TestCase):
