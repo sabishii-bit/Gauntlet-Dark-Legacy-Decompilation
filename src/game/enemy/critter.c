@@ -3440,7 +3440,7 @@ boss_ai:
 animate_ai:
     CritterAnimate(c);
     if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
-                     lbl_80346588, lbl_8034658C) != NULL) {
+                     4.0f, -1000.0f) != NULL) {
         collided = 1;
     } else {
         collided = 0;
@@ -3505,7 +3505,6 @@ void CritterDoKnockback(Critter *c)
     s16 type;
     f32 scale;
     f32 lengthSquared;
-    f64 clampScale;
 
     scale = 0.0f;
     type = c->hdr->descriptor->type;
@@ -3514,17 +3513,17 @@ void CritterDoKnockback(Critter *c)
     }
 
     if ((f64)c->health <= 0.0) {
-        scale = lbl_80346590;
+        scale = 20.0f;
     } else if ((c->counterState & 0x10140) != 0) {
-        scale = lbl_80346594;
+        scale = 10.0f;
     } else if ((c->counterState & 0x20) != 0) {
-        scale = lbl_80346598;
+        scale = 7.5f;
     } else if ((c->counterState & 0x10) != 0) {
         scale = lbl_803464B8;
     }
 
     if (type == 3) {
-        scale = (f32)((f64)scale - lbl_803465A0);
+        scale = (f32)((f64)scale - 5.0);
     }
     if ((f64)scale > 0.0) {
         c->knockbackVelocity[0] += c->knockbackInput[0] * scale;
@@ -3535,15 +3534,14 @@ void CritterDoKnockback(Critter *c)
             c->knockbackVelocity[0] * c->knockbackVelocity[0] +
             c->knockbackVelocity[1] * c->knockbackVelocity[1] +
             c->knockbackVelocity[2] * c->knockbackVelocity[2];
-        if ((f64)lengthSquared > lbl_803465A8) {
+        if ((f64)lengthSquared > 1600.0) {
             NormalVector(c->knockbackVelocity);
-            clampScale = lbl_803465B0;
             c->knockbackVelocity[0] =
-                (f32)(clampScale * (f64)c->knockbackVelocity[0]);
+                (f32)(40.0 * (f64)c->knockbackVelocity[0]);
             c->knockbackVelocity[1] =
-                (f32)(clampScale * (f64)c->knockbackVelocity[1]);
+                (f32)(40.0 * (f64)c->knockbackVelocity[1]);
             c->knockbackVelocity[2] =
-                (f32)(clampScale * (f64)c->knockbackVelocity[2]);
+                (f32)(40.0 * (f64)c->knockbackVelocity[2]);
         }
 
         c->knockbackInput[0] = 0.0f;
@@ -4045,9 +4043,9 @@ s32 CritterBossAI(Critter *c)
                                              : (f64)dot)))));
         }
         if (c->unk11C >= 0) {
-            sprintf(moveName, lbl_803465E0, c->unk11C);
+            sprintf(moveName, "P%d", c->unk11C);
         } else {
-            strcpy(moveName, lbl_803465E4);
+            strcpy(moveName, "MV");
         }
         /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
         DrawText(8, 214, 0, 0xFFFFFF, "CRIT %s:%s HT:%d D:%d FR:%d TGT:%d DST:%d ANG:%d    ", moveName,
@@ -4086,9 +4084,9 @@ s32 CritterBossAI(Critter *c)
                                                  : (f64)dot)))));
             }
             if (c->unk11C >= 0) {
-                sprintf(moveName, lbl_803465E0, c->unk11C);
+                sprintf(moveName, "P%d", c->unk11C);
             } else {
-                strcpy(moveName, lbl_803465E4);
+                strcpy(moveName, "MV");
             }
             childFrame = -1;
             if (c->curmove >= 0) {
@@ -4099,7 +4097,7 @@ s32 CritterBossAI(Critter *c)
                      moveName,
                      c->curmove >= 0
                          ? (char *)((u8 *)&c->hdr->movesPtr[c->curmove] + 0x10)
-                         : (char *)lbl_803465E8,
+                         : "-1",
                      (s32)c->health,
                      (s32)(displayScale * c->rateScale), childFrame,
                      c->unk124, (s32)(half + angle),
@@ -4160,7 +4158,7 @@ void CritterDropItem(Critter *c)
         case 7: {
             char *p;
 
-            sprintf(name, &lbl_803465EC, fn_80057ACC(0x20));
+            sprintf(name, "GARG%s", fn_80057ACC(0x20));
             p = name;
             while (*p != '\0') {
                 *p = (char)toupper(*p);
