@@ -3021,7 +3021,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     }
     if (critterClass != 4 &&
         (f64)lbl_803447D8 < lbl_80346490) {
-        damage = (f32)((f64)damage * lbl_80346478);
+        damage *= 2.0;
     }
 
     c->counterValue += damage;
