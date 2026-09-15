@@ -218,6 +218,16 @@ extern u8    lbl_80241070[4][0x50];   /* 0x80241070 per-type header buffers     
 extern Player gPlayers[4];        /* 0x80275AE0 player records (gPlayerRecords) */
 
 /* -- module-local sbss variables -- */
+/* Five independent counters at 0x80344628..0x8034463C. GC word accesses
+ * and the Xbox CRITTER records agree on int widths: private crit_debug,
+ * then public MaxCritInsts/MaxCritMoves/MaxCritPatterns/MaxCritColnodes.
+ * MWCC emits these public tentative definitions in reverse source order. */
+static s32 lbl_80344628;
+s32 lbl_80344638;
+s32 lbl_80344634;
+s32 lbl_80344630;
+s32 gCritterCountMax;
+
 extern void *lbl_80344648;            /* 0x80344648 pending callback context     */
 extern s32   lbl_80344644;            /* 0x80344644 pending callback flag        */
 extern s32   lbl_8034465C;            /* 0x8034465C active-player count           */
@@ -368,9 +378,6 @@ extern CritterSubnode lbl_802411B0[16];
 extern s32   lbl_80344668;
 extern void *crit_load_desc;
 extern s32  *lbl_80344640;
-extern s32   lbl_80344630;
-extern s32   lbl_80344634;
-extern s32   lbl_80344638;
 extern s32  *lbl_8025776C[8];         /* 0x8025776C item/def pointer table          */
 extern void *gWorldData;              /* 0x80344838 world data record                */
 extern s32   FileSize(char *name, const char *wad);
@@ -733,7 +740,6 @@ u32  CritterCopyAnim(Critter *c, CritterMove *move, s32 frame);
 void CritterAnimate(Critter *c);
 void CritterMoveDone(Critter *c, s32 moveIndex);
 extern s32 lbl_8034489C;
-extern s32 lbl_80344628;
 extern f64 lbl_80346608;
 extern f32 lbl_80346470;
 s32  CritterGetDmove(CritterMove *a, CritterMove *b);
