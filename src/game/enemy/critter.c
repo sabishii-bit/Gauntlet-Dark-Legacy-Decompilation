@@ -3752,6 +3752,18 @@ static inline void CritGetTgtPrintInfo(Critter *c, f32 *angptr, f32 *distptr,
     *distptr = dist;
 }
 
+/* Original CritterCopyAnim, distinguished from the provisionally named
+ * frame-event classifier below. GC inlines this parent-to-child state copy. */
+static inline void CritterCopyParentAnimation(Critter *parent, Critter *child)
+{
+    DoAnimateTreeFrame(&child->atree, parent->atree.animinfo.animseq,
+                       (s32)(0.5 + (f64)parent->atree.animinfo.frame), 1);
+    child->movedone = parent->movedone;
+    child->curmove = -1;
+    child->unk11C = -1;
+    child->unk120 = -1;
+}
+
 /* 0x80039AD8 -- run boss target distribution, pattern selection and the
  * coordinated root/child animation pass. */
 s32 CritterBossAI(Critter *c)
@@ -3762,7 +3774,6 @@ s32 CritterBossAI(Critter *c)
     char moveName[12];
     Critter *child;
     CritterMove *move;
-    CritterMove *childMove;
     CritterPackedType *header;
     WorldObj *surface;
     f32 best;
@@ -3772,9 +3783,7 @@ s32 CritterBossAI(Critter *c)
     f32 targetAngle;
     f64 rateThreshold;
     s32 frame;
-    s32 childFrame;
     s32 moveIndex;
-    s32 moveType;
     s32 selected;
     s32 linkedChildren;
     s32 done;
@@ -3907,14 +3916,7 @@ s32 CritterBossAI(Critter *c)
                    (child->curmove >= 0 || child->nextmove >= 0)) {
             CritterAnimate(child);
         } else {
-            DoAnimateTreeFrame(
-                &child->atree, c->atree.animinfo.animseq,
-                (s32)(0.5 + (f64)c->atree.animinfo.frame),
-                1);
-            child->movedone = c->movedone;
-            child->curmove = -1;
-            child->unk11C = -1;
-            child->unk120 = -1;
+            CritterCopyParentAnimation(c, child);
             if (move->type == 1) {
                 child->nextmove = 0;
             }
@@ -3954,8 +3956,7 @@ s32 CritterBossAI(Critter *c)
         c->rate = 0.0f;
     }
 
-    moveType = move->type;
-    switch (moveType) {
+    switch (move->type) {
     case MOVE_START:
         if (move->link < 0 && done != 0 && lbl_8034489C == 1) {
             lbl_8034489C = 2;
@@ -3981,16 +3982,16 @@ s32 CritterBossAI(Critter *c)
     CritterLookAtPlayer(c, move);
 
     for (child = c->next; child != NULL; child = child->next) {
-        childMove = NULL;
+        move = NULL;
         if (child->curmove >= 0) {
-            childFrame = (s32)child->atree.animinfo.frame;
-            childMove = &child->hdr->movesPtr[child->curmove];
-            CritterMoveSetup(child, childMove);
-            CritterActivate(child, childMove, childFrame);
-            CritterTranslate(child, childMove);
-            CritterRotate(child, childMove);
+            frame = (s32)child->atree.animinfo.frame;
+            move = &child->hdr->movesPtr[child->curmove];
+            CritterMoveSetup(child, move);
+            CritterActivate(child, move, frame);
+            CritterTranslate(child, move);
+            CritterRotate(child, move);
         }
-        CritterLookAtPlayer(child, childMove);
+        CritterLookAtPlayer(child, move);
     }
 
     floorHit = FloorCollide(c->vel, 0, 0, 2, 5.0f,
@@ -4036,23 +4037,23 @@ s32 CritterBossAI(Critter *c)
                  c->unk124, (s32)(0.5 + targetDistance),
                  (s32)(0.5 + targetAngle));
 
-        c = c->next;
-        for (y = 224, i = 0; c != NULL; c = c->next, y += 10, i++) {
-            CritGetTgtPrintInfo(c, &targetAngle, &targetDistance, moveName);
-            if (c->curmove >= 0) {
-                childFrame = (s32)c->atree.animinfo.frame;
+        child = c->next;
+        for (y = 224, i = 0; child != NULL; child = child->next, y += 10, i++) {
+            CritGetTgtPrintInfo(child, &targetAngle, &targetDistance, moveName);
+            if (child->curmove >= 0) {
+                frame = (s32)child->atree.animinfo.frame;
             } else {
-                childFrame = -1;
+                frame = -1;
             }
             /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
             DrawText(8, y, 0, 0xFFFFFF, "CHLD %d %s:%s HT:%d D:d FR:%d TGT:%d DST:%d ANG:%d    ", i,
                      moveName,
-                     c->curmove >= 0
-                         ? c->hdr->movesPtr[c->curmove].name
+                     child->curmove >= 0
+                         ? child->hdr->movesPtr[child->curmove].name
                          : "-1",
-                     (s32)c->health,
-                     (s32)(10.0f * c->rateScale), childFrame,
-                     c->unk124, (s32)(0.5 + targetDistance),
+                     (s32)child->health,
+                     (s32)(10.0f * child->rateScale), frame,
+                     child->unk124, (s32)(0.5 + targetDistance),
                      (s32)(0.5 + targetAngle));
         }
     }
