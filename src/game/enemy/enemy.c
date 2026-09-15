@@ -724,7 +724,7 @@ extern s32 lbl_80344734;      /* node-delete reentry guard */
 extern s32 ErrorPrintf(const char* fmt, ...);
 
 extern s32 heal_player(Player* player, f32 amount);
-extern void do_heal_players(void* player, f32* matrix, f32 amount);
+extern void do_heal_players(f32 amount, Player* player, f32 (*matrix)[4]);
 extern void ModifyDamage(f32 armor, f32* damage, u32* damage_type, u32 shield);
 extern void CopyMat4(f32* source, f32* destination);
 extern void UpdateObjWorldMat(f32* matrix);
@@ -6042,7 +6042,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         if (healed > e->health) {
             healed = e->health;
         }
-        do_heal_players(player, &e->objgrp.worldmat[0][0], healed);
+        do_heal_players(healed, player, e->objgrp.worldmat);
     }
 
     if (player_index >= 0 && gCurLevel->plevel > 0.0f) {

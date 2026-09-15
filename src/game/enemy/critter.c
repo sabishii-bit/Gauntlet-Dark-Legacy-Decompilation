@@ -655,7 +655,7 @@ extern void  DrawText(s32 x, s32 y, s32 font, u32 color,
                       const char *format, ...);
 extern void  ModifyDamage(f32 *damage, u32 *damageType, u32 shield,
                           f32 armor);
-extern void  do_heal_players(void *player, f32 *matrix, f32 amount);
+extern void  do_heal_players(f32 amount, Player *player, f32 (*matrix)[4]);
 extern s32   fn_800945D0(f32 *position, f32 *matrix, s32 damageType,
                          s32 alternate, s32 kind, f32 scale);
 extern void  BossDying(void);
@@ -3051,8 +3051,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         c->playerDamage[player].dealt += creditedDamage;
         c->playerDamage[player].dealtTime = sMusicFadeBase;
         if (flags & 0x00800000) {
-            do_heal_players(&gPlayers[player], &c->mtx[0][0],
-                            creditedDamage);
+            do_heal_players(creditedDamage, &gPlayers[player], c->mtx);
         }
 
         if (critterClass != 4 &&

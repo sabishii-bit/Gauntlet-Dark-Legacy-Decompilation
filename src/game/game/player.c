@@ -1041,7 +1041,7 @@ void PlayersRestoreHealth(void);
 void change_player(s32 i, s32 type);
 void new_player(s32 i);
 s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
-void do_heal_players(void* p, f32* mat, f32 amount);
+void do_heal_players(f32 amount, Player* p, f32 (*mat)[4]);
 s32 PlayerOnMovingObject(void);
 s32 OtherPlayerOnOtherMovingObject(s32 i, WorldObj* obj);
 void GetPlayerPos(s32 i, f32* out);
@@ -3173,8 +3173,7 @@ s32 OtherPlayerOnOtherMovingObject(s32 i, WorldObj* obj) {
 }
 
 /* Heal-others potion: heal every other player in range of p.          */
-void do_heal_players(void* vp, f32* mat, f32 amount) {
-    Player* p = vp;
+void do_heal_players(f32 amount, Player* p, f32 (*mat)[4]) {
     Player* q;
     f32 give;
     f32 cap;
@@ -3227,7 +3226,7 @@ void do_heal_players(void* vp, f32* mat, f32 amount) {
         msgPost(0x93, p->index, (u32)p->pos);
     }
     if (typ >= 0) {
-        fn_8009190C(mat, typ);
+        fn_8009190C(&mat[0][0], typ);
     }
 }
 
