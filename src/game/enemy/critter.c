@@ -963,9 +963,10 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
 s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
 {
     Player *player;
+    f32 *cpos;
+    f32 sep[3];
     f32 dest[3];
     f32 contact[3];
-    f32 sep[3];
     f32 radiusX;
     f32 radiusZ;
     f32 combined;
@@ -973,75 +974,70 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
     f32 length;
     f64 penetration;
     f32 scale;
-    f64 maxPen;
-    f64 minPen;
-    f64 pushScale;
     s32 result;
     s32 count;
     s32 i;
 
+    cpos = c->pos;
     radiusX = c->hdr->wallRadius;
     radiusZ = c->hdr->radius;
-    dest[0] = c->pos[0] + delta[0];
-    dest[1] = c->pos[1] + delta[1];
-    dest[2] = c->pos[2] + delta[2];
+    dest[0] = cpos[0] + delta[0];
+    dest[1] = cpos[1] + delta[1];
+    dest[2] = cpos[2] + delta[2];
     result = 0;
     count = 0;
-    maxPen = 3.0;
-    minPen = 1.0;
-    pushScale = 2.0;
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
         if (player->state != 1 && player->state != 4) {
             continue;
         }
-        if ((*(s16 *)((u8 *)player + offsetof(Player, hud_flags)) & 0x20) != 0) {
+        if ((player->hud_flags & 0x20) != 0) {
             continue;
         }
-        combined = radiusX + *(f32 *)((u8 *)player + offsetof(Player, col_radius));
-        combinedZ = radiusZ + *(f32 *)((u8 *)player + offsetof(Player, col_height));
+        combined = radiusX + player->col_radius;
+        combinedZ = radiusZ + player->col_height;
         if ((c->hdr->typeFlags & 0x100) != 0) {
             result = CritterMoveNodeColSub(
-                c, *(f32 *)((u8 *)player + offsetof(Player, col_radius)),
-                *(f32 *)((u8 *)player + offsetof(Player, col_height)), delta,
-                (f32 *)((u8 *)player + offsetof(Player, effectpos)), contact, 0);
+                c, player->col_radius,
+                player->col_height, delta,
+                player->effectpos, contact, 0);
             if (result != 0) {
-                sep[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos)) -
+                sep[0] = player->effectpos[0] -
                          c->hitnodes[result - 1].position[0];
-                sep[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4) -
+                sep[1] = player->effectpos[1] -
                          c->hitnodes[result - 1].position[1];
-                sep[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8) -
+                sep[2] = player->effectpos[2] -
                          c->hitnodes[result - 1].position[2];
             }
         } else {
             result = LineCylinderCollide(
-                (f32 *)((u8 *)player + offsetof(Player, effectpos)), combined,
-                combinedZ, &c->pos[0], dest, contact, 1);
+                player->effectpos, combined,
+                combinedZ, cpos, dest, contact, 1);
             if (result != 0) {
-                sep[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos)) - dest[0];
-                sep[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 4) - dest[1];
-                sep[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos) + 8) - dest[2];
+                sep[0] = player->effectpos[0] - dest[0];
+                sep[1] = player->effectpos[1] - dest[1];
+                sep[2] = player->effectpos[2] - dest[2];
             }
         }
         if (result != 0) {
             count++;
             length = NormalVector(sep);
             penetration = combined - length;
-            if (penetration < minPen) {
-                penetration = minPen;
-            } else if (penetration > maxPen) {
-                penetration = maxPen;
+            if (penetration < 1.0) {
+                penetration = 1.0;
+            } else if (penetration > 3.0) {
+                penetration = 3.0;
             }
             scale = (f32)penetration;
             sep[0] = sep[0] * scale;
             sep[1] = sep[1] * scale;
             sep[2] = sep[2] * scale;
-            *(f32 *)((u8 *)player + offsetof(Player, vel[0])) =
-                (f32)(pushScale * sep[0] + *(f32 *)((u8 *)player + offsetof(Player, vel[0])));
-            *(f32 *)((u8 *)player + offsetof(Player, vel[1])) =
-                (f32)(pushScale * sep[1] + *(f32 *)((u8 *)player + offsetof(Player, vel[1])));
-            *(f32 *)((u8 *)player + offsetof(Player, vel[2])) =
-                (f32)(pushScale * sep[2] + *(f32 *)((u8 *)player + offsetof(Player, vel[2])));
+            player->vel[0] =
+                (f32)(2.0 * sep[0] + player->vel[0]);
+            player->vel[1] =
+                (f32)(2.0 * sep[1] + player->vel[1]);
+            player->vel[2] =
+                (f32)(2.0 * sep[2] + player->vel[2]);
         }
     }
     if (result != 0) {

@@ -9,7 +9,7 @@ a pairing the sequence matcher had merely CHOSEN:
                    ours @131 = 0x4008000000000000 (f64 3.0)
                    VALUES DIFFER (first at +0x0)
 
-That function is count-asymmetric (target 150, ours 151), every `--ops` row
+At that observation the function was count-asymmetric (target 150, ours 151), every `--ops` row
 pairs T[n] with O[n+1], and the pool row is the FIRST line of a six-line
 equal run that abuts an unpaired block: 1.0 and 3.0 are two different
 instructions' constants, not one instruction's wrong constant.
@@ -23,6 +23,9 @@ symmetric rows are at an edge (still a guess), so neither half of that
 split follows from the other.
 
 The demoted rows are still printed in full, under a CANDIDATE banner.
+R69 closed CritterCollidePlayers' count asymmetry. Its exchanged constant
+loads still produce an unreliable pairing, so the live check uses current
+counts; fixed fixtures below retain both symmetric and asymmetric coverage.
 
 RUN-63 ITEM 4 folds lane P7's `build/p7_lane/p7_pooldefect.py` in as
 `LiveCritter.carriers`: the scan that finds which functions still print BOTH
@@ -150,6 +153,23 @@ class Banner(unittest.TestCase):
                                                      counts=(151, 151))
         self.assertNotIn("COUNT-ASYMMETRIC", equal_text)
 
+    def test_clean_printer_derives_count_context_from_actual_streams(self):
+        equal_ours = ASYM_OURS.copy()
+        equal_ours.remove("fadds   f0,f1,f0")
+        for ours, expected in ((ASYM_OURS, (4, 5)), (equal_ours, (4, 4))):
+            with self.subTest(counts=expected):
+                self.assertEqual(len(fndiff.instruction_lines(ASYM_TARGET)), expected[0])
+                self.assertEqual(len(fndiff.instruction_lines(ours)), expected[1])
+                buffer = io.StringIO()
+                with redirect_stdout(buffer):
+                    fndiff.clean_diff("fixture", ASYM_TARGET, ours)
+                text = buffer.getvalue()
+                self.assertIn("POOL-DEFECT CANDIDATE fixture", text)
+                if expected[0] != expected[1]:
+                    self.assertIn("COUNT-ASYMMETRIC (target 4, ours 5", text)
+                else:
+                    self.assertNotIn("COUNT-ASYMMETRIC", text)
+
     def test_an_anchored_defect_still_prints_the_original_verdict(self):
         # The negative side: the recorded true positive must not be demoted.
         confirmed, text, findings, reasons = self.render(
@@ -200,11 +220,19 @@ class LiveCritter(unittest.TestCase):
                               fndiff.parse(ours)[function], ours_object=ours)
         return buffer.getvalue()
 
-    def test_the_reported_row_is_now_a_candidate_naming_its_asymmetry(self):
+    def test_the_reported_row_is_a_candidate_with_current_count_context(self):
         text = self.clean("game/enemy/critter", "CritterCollidePlayers")
         self.assertIn("POOL-DEFECT CANDIDATE CritterCollidePlayers", text)
         self.assertNotIn("POOL-DEFECT CritterCollidePlayers", text)
-        self.assertIn("COUNT-ASYMMETRIC (target 150, ours 151", text)
+        target = fndiff.parse(ROOT / "build/GUNE5D/obj/game/enemy/critter.o")
+        ours, _raw = fndiff.ours_object_path("game/enemy/critter")
+        counts = tuple(len(fndiff.instruction_lines(stream["CritterCollidePlayers"]))
+                       for stream in (target, fndiff.parse(ours)))
+        self.assertTrue(all(counts), "missing live instruction streams")
+        if counts[0] != counts[1]:
+            self.assertIn("COUNT-ASYMMETRIC (target %d, ours %d" % counts, text)
+        else:
+            self.assertNotIn("COUNT-ASYMMETRIC", text)
         self.assertIn("CANDIDATES only", text)
 
     def test_an_interior_row_elsewhere_is_still_reported_as_a_defect(self):
