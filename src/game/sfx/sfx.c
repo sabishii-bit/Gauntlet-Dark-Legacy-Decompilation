@@ -234,7 +234,7 @@ extern void AtreeDelete(void* atree);                                  /* atree 
 extern struct anode* AtreeInit(struct atreeheader* hdr, void* atree, s32 a, s32 b); /* atree build */
 extern struct anode* AtreeInitSub(struct atreeheader* hdr, void* atree, s32 a, u32 flb, s32 b); /* atree build (flags) */
 extern struct mbnode* MBNewNode(struct mbnode* parent, f32* mat, s32 flag); /* new node under parent */
-extern struct mbnode* MBOX_NewObject(const char* name, s32 p2, s32 p3, u32 p4); /* create MB object */
+extern void* MBOX_NewObject(const char* name, void* matrix, void* parent, u32 flags); /* create MB object */
 extern struct mbnode* lbl_80344EBC; /* fx scene root (flag 0x2000)     */
 extern struct mbnode* lbl_80344BD4; /* fx scene root (flag 0x800)      */
 extern struct mbnode* gSceneRoot; /* default fx scene root           */
@@ -346,7 +346,7 @@ void DoProcessSkinFX(SkinFx* fx, struct mbnode* node, struct mbnode* geo)
  * ==================================================================== */
 
 /* new "COLCYL" debug cylinder node at pos, scaled/oriented by NodeUpdate */
-struct mbnode* DmgFxConeAdd(s32 objid, f32* pos, s32 alpha, f32 rx, f32 rz, f32 rotp, f32 roty)
+void* DmgFxConeAdd(f32 rx, f32 rz, f32 rotp, f32 roty, void* parent, f32* pos, s32 alpha)
 {
     struct mbnode* node;
     u32 flags = 0x401808;
@@ -360,7 +360,7 @@ struct mbnode* DmgFxConeAdd(s32 objid, f32* pos, s32 alpha, f32 rx, f32 rz, f32 
         flags |= 1;
         sz = sx;
     }
-    node = MBOX_NewObject("COLCYL", 0, objid, flags);
+    node = MBOX_NewObject("COLCYL", 0, parent, flags);
     node->mat[3][0] = pos[0];
     node->mat[3][1] = pos[1];
     node->mat[3][2] = pos[2];
@@ -375,7 +375,7 @@ struct mbnode* DmgFxConeAdd(s32 objid, f32* pos, s32 alpha, f32 rx, f32 rz, f32 
 }
 
 /* new "COLCIR" debug circle node (uniform x/z radius) at pos */
-struct mbnode* DmgFxCircleAdd(s32 objid, f32* pos, s32 alpha, f32 r, f32 rotp, f32 roty)
+void* DmgFxCircleAdd(f32 r, f32 rotp, f32 roty, void* parent, f32* pos, s32 alpha)
 {
     struct mbnode* node;
     u32 flags = 0x401808;
@@ -389,7 +389,7 @@ struct mbnode* DmgFxCircleAdd(s32 objid, f32* pos, s32 alpha, f32 r, f32 rotp, f
         flags |= 1;
         sz = sx;
     }
-    node = MBOX_NewObject("COLCIR", 0, objid, flags);
+    node = MBOX_NewObject("COLCIR", 0, parent, flags);
     node->mat[3][0] = pos[0];
     node->mat[3][1] = pos[1];
     node->mat[3][2] = pos[2];
@@ -497,11 +497,11 @@ void DmgFxAdd(s32 idx)
         s = (f32)(lbl_80348098 * e->colrad);
         if (cnt & 1) {
             yaw = lbl_803480D0;
-            e->dmgdebug = MBOX_NewObject(lbl_803480D4, 0, (s32)e->node, flags);
+            e->dmgdebug = MBOX_NewObject(lbl_803480D4, 0, e->node, flags);
             cnt = cnt - 1;
         } else {
             yaw = lbl_803480DC;
-            e->dmgdebug = MBOX_NewObject(0, 0, (s32)e->node, flags);
+            e->dmgdebug = MBOX_NewObject(0, 0, e->node, flags);
         }
         e->dmgdebug->scale[0] = s;
         e->dmgdebug->scale[1] = (f32)(lbl_803480B0 * s);
@@ -509,10 +509,10 @@ void DmgFxAdd(s32 idx)
         step = lbl_803480E0;
         while (cnt != 0) {
             YawMat3(MBOX_NewObject(lbl_803480D4, 0,
-                                                   (s32)e->dmgdebug, flags),
+                                                   e->dmgdebug, flags),
                     yaw);
             YawMat3(MBOX_NewObject(lbl_803480D4, 0,
-                                                   (s32)e->dmgdebug, flags),
+                                                   e->dmgdebug, flags),
                     -yaw);
             yaw = (f32)(yaw + step);
             cnt = cnt - 2;
@@ -524,7 +524,7 @@ void DmgFxAdd(s32 idx)
         } else {
             s = (f32)(lbl_80348098 * e->colrad);
         }
-        node = MBOX_NewObject(lbl_8034808C, 0, (s32)e->node, flags);
+        node = MBOX_NewObject(lbl_8034808C, 0, e->node, flags);
         node->scale[0] = s;
         node->scale[1] = s;
         node->scale[2] = s;

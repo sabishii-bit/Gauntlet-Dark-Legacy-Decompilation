@@ -5386,21 +5386,44 @@ extern void *SfxGetNode(s32 node);
 extern void  PlayerSetParent(Player *p, void *node, f32 *offset);
 extern void  PlayerUnsetParent(Player *p);
 extern void  DmgFxCircleUpdate(void *fx, f32 radius, s32 flag);
-extern void *DmgFxCircleAdd(void *emitter, f32 a, f32 b, f32 c, f32 *v, s32 z);
+extern void *DmgFxCircleAdd(f32 a, f32 b, f32 c, void *parent, f32 *v, s32 z);
 extern void  DmgFxConeUpdate(void *fx, f32 a, f32 b, f32 c, f32 d, s32 flag);
-extern void *DmgFxConeAdd(void *emitter, f32 a, f32 b, f32 c, f32 d, f32 *v,
+extern void *DmgFxConeAdd(f32 a, f32 b, f32 c, f32 d, void *parent, f32 *v,
                           s32 z);
 extern void  BossSpewCoins(f32 *origin, f32 *dir, f32 angle);
 extern f32   acosf(f32 x);
 extern f32   lbl_80127D00[];
 extern f64   lbl_80346610;
 extern f32   lbl_803464F0;
+/* The short held-field return and signed collision result are separate paths.
+ * Xbox/PS2 retain this int-returning helper; only the stored index is narrowed. */
+static inline s32 CritterGrabPlayer(Critter *c, CritterDamageDef *desc)
+{
+    s32 node;
+    Player *pp;
+
+    if (c->unk128 >= 0) {
+        return c->unk128;
+    }
+    node = CritterNodePlayerCollide(c, desc, 0);
+    if (node < 0) {
+        return node;
+    }
+    pp = &gPlayers[node];
+    PlayerSetParent(pp, c->obj_d0, desc->offset);
+    c->unk128 = (s16)node;
+    if (desc->sfx >= 0) {
+        SfxSetParent(CritterDoSfx(c, desc->sfx, NULL, 0, -1),
+                     *(void **)((u8 *)pp + 0x74));
+    }
+    return node;
+}
+
 /* 0x8003CA98 -- dispatch one move action descriptor on activation or release. */
 void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
 {
     CritterBigState *big = &gBig;
     CritterDamageDef *desc;
-    Player *pp;
     s16 type;
     s32 i;
     s32 node;
@@ -5464,9 +5487,9 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
         if (c->emitter != NULL) {
             DmgFxCircleUpdate(c->emitter, desc->maxDistance, 1);
         } else if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
-            c->emitter = DmgFxCircleAdd(c->obj_d0, desc->maxDistance,
+            c->emitter = DmgFxCircleAdd(desc->maxDistance,
                                         desc->pitch,
-                                        desc->yaw,
+                                        desc->yaw, c->obj_d0,
                                         desc->offset, 0);
         }
         break;
@@ -5480,10 +5503,10 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
                             desc->maxDistance, desc->pitch,
                             desc->yaw, 1);
         } else if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
-            c->emitter = DmgFxConeAdd(c->obj_d0, desc->radius,
+            c->emitter = DmgFxConeAdd(desc->radius,
                                       desc->maxDistance,
                                       desc->pitch,
-                                      desc->yaw,
+                                      desc->yaw, c->obj_d0,
                                       desc->offset, 0);
         }
         break;
@@ -5494,28 +5517,16 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
         break;
     case 7:
         if (phase == 1) {
-            if (c->unk128 < 0) {
-                node = CritterNodePlayerCollide(c, (CritterDamageDef *)desc, 0);
-                if (node >= 0) {
-                    pp = &gPlayers[node];
-                    PlayerSetParent(pp, c->obj_d0, desc->offset);
-                    c->unk128 = (s16)node;
-                    if (desc->sfx >= 0) {
-                        SfxSetParent(
-                            CritterDoSfx(c, desc->sfx, NULL, 0, -1),
-                            *(void **)((u8 *)pp + 0x74));
-                    }
-                }
-            }
+            CritterGrabPlayer(c, desc);
             if (active) {
                 CritterDoTexmodNode(c, action, 0, c->moveOrigin);
             }
             if (c->emitter != NULL) {
                 DmgFxCircleUpdate(c->emitter, desc->maxDistance, 1);
             } else if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
-                c->emitter = DmgFxCircleAdd(c->obj_d0, desc->maxDistance,
+                c->emitter = DmgFxCircleAdd(desc->maxDistance,
                                             desc->pitch,
-                                            desc->yaw,
+                                            desc->yaw, c->obj_d0,
                                             desc->offset, 0);
             }
         } else if (phase == 2) {
@@ -6695,8 +6706,7 @@ void CritterInitColnodes(Critter *c)
         }
         if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
             record->dmgfx = DmgFxCircleAdd(
-                record->active, record->descriptor->radius,
-                0.0f, 0.0f,
+                record->descriptor->radius, 0.0f, 0.0f, record->active,
                 record->descriptor->position, 127);
         }
     }

@@ -48,7 +48,8 @@ extern void  FreeUnlockedMem(int slot);
 extern void  FatalError(const char* fmt, int code);
 extern void  ErrorPrintf(const char* fmt, ...);
 extern void  bulletproof_printf(const char* fmt, ...);
-extern int   MBNewObject(int idx, int a, int b, int c);
+struct MBObject;
+extern struct MBObject* MBNewObject(s32 idx, void* matrix, void* parent, u32 flags);
 extern int   MBSetObject(void* def, int idx);
 extern void  MBInitPsys(void);
 extern u32   pbGetCPUTime(void);
@@ -935,9 +936,9 @@ static int texidxcmp(const void* a, const void* b) {
 }
 
 /* ---- 0x800B8DD0 : register a new object def + create an MB object ---- */
-int MBOX_NewObject(const char* name, int p2, int p3, int p4) {
+void* MBOX_NewObject(const char* name, void* matrix, void* parent, u32 flags) {
     int idx = MBOX_ReallyFindObject(name, -1, -1, 1);
-    return MBNewObject(idx, p2, p3, p4);
+    return MBNewObject(idx, matrix, parent, flags);
 }
 
 /* ---- 0x800B8E20 : register/replace an object def + set an MB object ---- */
