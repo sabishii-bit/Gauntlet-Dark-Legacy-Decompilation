@@ -5836,7 +5836,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         (((MBObject *)c->mbnode)->flags & 8) != 0) {
         scale = ((MBObject *)c->mbnode)->scale[1];
     } else {
-        scale = lbl_803464A8;
+        scale = 1.0f;
     }
     color[0] = entry->color[0] * scale;
     color[1] = entry->color[1] * scale;
@@ -6053,8 +6053,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
         if (psys != NULL) {
             MBPsysSetEVolume(psys, 0.2f, 0.2f);
             MBTreeSetFlags(psys, 0x880, 1);
-            MBPsysSetPParm(psys, 3, lbl_803464A8, lbl_803464A8, lbl_803464A8,
-                           lbl_80346470);
+            MBPsysSetPParm(psys, 3, 1.0f, 1.0f, 1.0f, 0.0f);
         }
         break;
     case 0x01000000:
@@ -6631,7 +6630,6 @@ void CritterInitColnodes(Critter *c)
     char *name;
     s8 ch;
     s32 nodeIndex;
-    f32 zerof;
     u8 unused[8];
 
     header = c->hdr;
@@ -6640,7 +6638,6 @@ void CritterInitColnodes(Critter *c)
     }
     descriptorBase = &header->file->nodes[header->colBase];
     c->unkAB8 = -1;
-    zerof = lbl_80346470;
     for (i = 0; i < c->hdr->colCount;
          i++) {
         record = &c->hitnodes[i];
@@ -6687,7 +6684,7 @@ void CritterInitColnodes(Critter *c)
         }
         MBTreeSetZsortAdd(record->active, record->descriptor->zsortParam, 1);
         record->state = -1;
-        record->activeFrom = zerof;
+        record->activeFrom = 0.0f;
         record->activeUntil = record->descriptor->healthScale * c->health;
         {
             CritterDamageDef *psys;
@@ -6709,7 +6706,7 @@ void CritterInitColnodes(Critter *c)
         if ((gControllerButtons & 0x10) && gGameOptions.showpos) {
             record->dmgfx = DmgFxCircleAdd(
                 record->active, record->descriptor->radius,
-                lbl_80346470, lbl_80346470,
+                0.0f, 0.0f,
                 record->descriptor->position, 127);
         }
     }
@@ -7611,7 +7608,7 @@ void CritterInit(void)
     lbl_80344658 = 0;
     lbl_80344654 = -1;
     lbl_80344650 = 0;
-    lbl_8034464C = lbl_80346470;
+    lbl_8034464C = 0.0f;
     gBossDead = 0;
     HealthMeterInit();
 }
