@@ -260,10 +260,6 @@ extern f32   lbl_803465F8;
 extern f32   lbl_80346508;
 extern f64   lbl_80346558;
 extern f64   lbl_80346510;
-extern f32   lbl_80346518;
-extern f32   lbl_8034651C;
-extern f32   lbl_80346520;
-extern f32   lbl_80346524;
 extern f64   lbl_80346528;
 extern f64   lbl_80346530;
 extern f32   lbl_803465F4;
@@ -2294,11 +2290,11 @@ f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target
 
     if (moveTarget != NULL) {
         if (c->rateScale < moveTarget->minRateScale) {
-            return lbl_80346518;
+            return 1.2e21f;
         }
         if (moveTarget->maxRateScale > lbl_80346488 &&
             c->rateScale >= moveTarget->maxRateScale) {
-            return lbl_80346518;
+            return 1.2e21f;
         }
     }
 
@@ -2311,10 +2307,10 @@ f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target
 
     if (moveTarget != NULL) {
         if (distance < moveTarget->minDistance) {
-            return lbl_8034651C;
+            return 1.01e21f;
         }
         if (moveTarget->maxDistance > lbl_80346488 && distance > moveTarget->maxDistance) {
-            return lbl_80346520;
+            return 1.02e21f;
         }
         if (vertical < lbl_80346470) {
             vertical = -vertical;
@@ -2328,7 +2324,7 @@ f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target
         SlowNormalVector(forward);
         dot = delta[0] * forward[0] + delta[2] * forward[2];
         if (dot < moveTarget->minDot) {
-            return lbl_80346524;
+            return 1.1e21f;
         }
         score = CritterCalcTargetScore(distance, dot, &absdot);
     } else {
