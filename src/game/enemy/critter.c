@@ -230,8 +230,6 @@ s32 lbl_80344630 = 0;
 s32 lbl_80344634 = 0;
 s32 lbl_80344638 = 0;
 
-extern void *lbl_80344648;            /* 0x80344648 pending callback context     */
-extern s32   lbl_80344644;            /* 0x80344644 pending callback flag        */
 extern s32   lbl_8034465C;            /* 0x8034465C active-player count           */
 extern s16   lbl_80344664;            /* 0x80344664 rolling tick counter          */
 extern s32   lbl_80344660;            /* 0x80344660 loaded-type count             */
@@ -382,6 +380,9 @@ extern s32   lbl_80344668;
 static struct CritterDescriptor *crit_load_desc;
 /* File-private asynchronous animation request (Xbox CRITTER.OBJ atree_finfo). */
 static MLFILE *lbl_80344640;
+/* Resumable collision scan: original private crit_colidx / crit_skipcol. */
+static int lbl_80344644;
+static Critter *lbl_80344648;
 extern s32  *lbl_8025776C[8];         /* 0x8025776C item/def pointer table          */
 extern void *gWorldData;              /* 0x80344838 world data record                */
 extern s32   FileSize(char *name, const char *wad);
@@ -5583,7 +5584,6 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
  * physical hit radius are distinct locals, not successive uses of one
  * radius. The PDB also records speed before scale; that order agrees with
  * the GC saved-FPR lifetimes. Remaining local/frame provenance is partial. */
-#pragma opt_lifetimes off
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
     /* PDB pos/vel/offset are float[4]; GC uses xyz only. This joint layout
@@ -5824,7 +5824,6 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 done:
     return result;
 }
-#pragma opt_lifetimes reset
 /* 0x8003D7E0 */
 s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
 {
