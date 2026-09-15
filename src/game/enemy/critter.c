@@ -6522,9 +6522,9 @@ void CritterUpdateSkinfx(Critter *c)
     ProcessSkinFX((f32 *)&c->skinfx, c->anim,
                   c->hitnode2);
     if (c->hitnode2 != NULL) {
-        u32 *flags = (u32 *)c->hitnode2;
-        savedFlags = *(flags += 0x18);
-        *flags = savedFlags | 0x10;
+        u32 *flags = &c->hitnode2->flags;
+        /* Save the original flags while enabling the temporary skin effect. */
+        *flags = (savedFlags = *flags) | 0x10;
     }
 
     for (i = 0; i < c->hdr->colCount; i++) {
