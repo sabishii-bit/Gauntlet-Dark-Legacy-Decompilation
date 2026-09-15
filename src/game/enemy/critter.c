@@ -3584,18 +3584,29 @@ static f32 MaxPlayerDist(Critter *c)
     return best;
 }
 
+/* Original private CritterLookForReady (Xbox/PS2), distinguished from
+ * the provisionally named attack-search function elsewhere in this file. */
+static inline void CritterSelectReadyMove(Critter *c)
+{
+    s32 mt;
+
+    mt = -1;
+    if (c->rateScale < 0.8) {
+        mt = CritterFindMoveType(c, MOVE_TAUNT, 0);
+    }
+    if (mt < 0) {
+        mt = CritterFindMoveType(c, MOVE_READY, 1);
+    }
+    c->nextmove = (s16)mt;
+}
+
 /* 0x800396A4 -- run the compact golem/general AI path. */
 s32 CritterGolemAI(Critter *c)
 {
     s32 mt;
-    CritterMove *move0;
     CritterMove *move;
     CritterMove *nm;
     Critter *child;
-    /* Frame-reconstruction debt: these became unused when SetDifficulty was
-     * recovered; removing both shrinks the native frame from 0x40 to 0x38. */
-    f32 speed;
-    f32 ratio;
     s32 anim32;
     u8 unused[8];
 
@@ -3615,7 +3626,7 @@ s32 CritterGolemAI(Critter *c)
         }
     }
 
-    move0 = &(c->hdr->movesPtr)[
+    move = &(c->hdr->movesPtr)[
                 c->curmove >= 0 ? c->curmove : 0];
     mt = -1;
     c->nextmove = mt;
@@ -3625,13 +3636,7 @@ s32 CritterGolemAI(Critter *c)
 
     if (gTriggerCameraState != 0) {
         if (c->nextmove < 0) {
-            if (c->rateScale < 0.8) {
-                mt = CritterFindMoveType(c, MOVE_TAUNT, 0);
-            }
-            if (mt < 0) {
-                mt = CritterFindMoveType(c, MOVE_READY, 1);
-            }
-            c->nextmove = (s16)mt;
+            CritterSelectReadyMove(c);
         }
     } else if (lbl_803447DC == 0) {
         if (c->nextmove < 0) {
@@ -3644,14 +3649,7 @@ s32 CritterGolemAI(Critter *c)
             CritterLookForReady(c);
         }
         if (c->nextmove < 0) {
-            mt = -1;
-            if (c->rateScale < 0.8) {
-                mt = CritterFindMoveType(c, MOVE_TAUNT, 0);
-            }
-            if (mt < 0) {
-                mt = CritterFindMoveType(c, MOVE_READY, 1);
-            }
-            c->nextmove = (s16)mt;
+            CritterSelectReadyMove(c);
         }
     }
 
@@ -3661,8 +3659,8 @@ s32 CritterGolemAI(Critter *c)
 
     nm = &(c->hdr->movesPtr)[c->nextmove];
     if (lbl_803447DC == 0 || c->curmove < 0 ||
-        move0->type == MOVE_DEATH || nm->type == MOVE_DEATH ||
-        move0->type == MOVE_START || nm->type == MOVE_START) {
+        move->type == MOVE_DEATH || nm->type == MOVE_DEATH ||
+        move->type == MOVE_START || nm->type == MOVE_START) {
         CritterAnimate(c);
     }
 
@@ -3670,8 +3668,7 @@ s32 CritterGolemAI(Critter *c)
         c->curmove = 0;
     }
     anim32 = (s32)c->atree.animinfo.frame;
-    move = c->hdr->movesPtr;
-    move += c->curmove;
+    move = &c->hdr->movesPtr[c->curmove];
     switch (move->type) {
     case MOVE_DEATH:
         if (AnimDone(&c->atree.animinfo)) {
