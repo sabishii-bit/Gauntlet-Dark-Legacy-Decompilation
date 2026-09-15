@@ -85,7 +85,8 @@ extern int sMusicSubState;                /* 0x803448E8 */
 
 extern void add_target(int obj);
 extern void* CritterTypeLoaded(int a, int b);
-extern void* CritterNewInst(int a, int b, void* obj);
+struct Critter;
+extern struct Critter* CritterNewInst(s32 type, s32 subtype, f32 initmat[4][4]);
 extern void* CopyMat4(void* a, void* b);
 extern void* PlaceItem(s32 a, s32 b, char* name, void* mat);
 extern void YawVec3(void* axis, f32* out, f32 angle);
@@ -223,7 +224,7 @@ typedef struct BossCritterView {
 } BossCritterView;
 
 void BossGenerateEnemy(struct BossObjView* o);
-void AddBoss(void* obj);
+void AddBoss(f32 mat[4][4]);
 void BossInit(void);
 
 /* boss.c-owned .rodata string pool (0x60 bytes; dtk auto-split as
@@ -665,13 +666,13 @@ void BossGenerateEnemy(struct BossObjView* o) {
     }
 }
 
-void AddBoss(void* obj) {
+void AddBoss(f32 mat[4][4]) {
     gBossObj = 0;
-    gBossPos[0] = *(f32*)((int)obj + offsetof(struct BossObjView, pos[0]));
-    gBossPos[1] = *(f32*)((int)obj + offsetof(struct BossObjView, pos[1]));
-    gBossPos[2] = *(f32*)((int)obj + offsetof(struct BossObjView, pos[2]));
+    gBossPos[0] = mat[3][0];
+    gBossPos[1] = mat[3][1];
+    gBossPos[2] = mat[3][2];
     if (CritterTypeLoaded(4, 0)) {
-        gBossObj = CritterNewInst(4, 0, obj);
+        gBossObj = CritterNewInst(4, 0, mat);
     }
 }
 

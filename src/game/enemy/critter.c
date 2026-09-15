@@ -638,8 +638,8 @@ s32  CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
                      s32 parented, u32 flags);
 void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node);
 void DmgFxNodeUpdate(void *node, s32 absolute, f32 rx, f32 rz, f32 rotp, f32 roty);
-Critter *CritterNewInst(s32 type, s32 subtype, void *object);
-void CritterInitGeo(Critter *c, void *object, s32 subtype);
+Critter *CritterNewInst(s32 type, s32 subtype, f32 initmat[4][4]);
+void CritterInitGeo(Critter *c, f32 initmat[4][4], s32 subtype);
 void CritterAddHealthMeter(Critter *c);
 void CritterInitInst(Critter *c, struct CritterHeader *hdr);
 Critter *CritterEmptyInst(void);
@@ -5933,9 +5933,24 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
         MBPsysSetPSpeed(psys, speed);
     }
 }
+/* Original local lookup: negative or missing nodes use the caller's default. */
+static inline MBObject *CritterGetNode(Critter *c, s32 idx, MBObject *defnode)
+{
+    MBObject *node;
+
+    if (idx < 0) {
+        return defnode;
+    }
+    node = c->atree.firstanode[idx].obj;
+    if (node == NULL) {
+        node = defnode;
+    }
+    return node;
+}
+
 /* 0x8003E048 -- allocate and initialize a root critter and the child chain
  * described by its loaded type header. */
-Critter *CritterNewInst(s32 type, s32 subtype, void *object)
+Critter *CritterNewInst(s32 type, s32 subtype, f32 initmat[4][4])
 {
     CritterPackedType *childDef;
     CritterPackedType *header;
@@ -5943,7 +5958,6 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     Critter *tail;
     CritterPackedType *childHeader;
     Critter *child;
-    void *node;
     struct atreeheader *geo;
     s32 nodeIndex;
     s32 childIndex;
@@ -5962,7 +5976,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         return NULL;
     }
     CritterInitInst(root, header);
-    CritterInitGeo(root, object, subtype);
+    CritterInitGeo(root, initmat, subtype);
     CritterAddAnimInsts(root, &root->mtx[0][0]);
     CritterInitColnodes(root);
     CritterAddHealthMeter(root);
@@ -5985,43 +5999,16 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         AtreeNodeSetParent(child->atree.root, NULL, NULL, 0);
         child->anim = child->atree.root->obj;
 
-        nodeIndex = childDef->node0Index;
-        if (nodeIndex < 0) {
-            node = NULL;
-        } else {
-            node = child->atree.firstanode[nodeIndex].obj;
-            if (node == NULL) {
-                node = NULL;
-            }
-        }
-        child->hitnode0 = node;
+        child->hitnode0 = CritterGetNode(child, childDef->node0Index, NULL);
         if ((childDef->typeFlags & 0x10) != 0 &&
             child->hitnode0 != NULL &&
             child->hitnode0->parent != NULL) {
             child->hitnode0 = child->hitnode0->parent;
         }
 
-        nodeIndex = childDef->node1Index;
-        if (nodeIndex < 0) {
-            node = NULL;
-        } else {
-            node = child->atree.firstanode[nodeIndex].obj;
-            if (node == NULL) {
-                node = NULL;
-            }
-        }
-        child->hitnode1 = node;
+        child->hitnode1 = CritterGetNode(child, childDef->node1Index, NULL);
 
-        nodeIndex = childDef->node2Index;
-        if (nodeIndex < 0) {
-            node = NULL;
-        } else {
-            node = child->atree.firstanode[nodeIndex].obj;
-            if (node == NULL) {
-                node = NULL;
-            }
-        }
-        child->hitnode2 = node;
+        child->hitnode2 = CritterGetNode(child, childDef->node2Index, NULL);
 
         CritterInitColnodes(child);
         CritterAddHealthMeter(child);
@@ -6091,38 +6078,35 @@ Critter *CritterEmptyInst(void)
 #pragma opt_propagation reset
 /* 0x8003E3E8 -- instantiate the model/animation tree and cache the principal
  * scene nodes and world-space transforms used by movement and collision. */
-void CritterInitGeo(Critter *c, void *object, s32 subtype)
+void CritterInitGeo(Critter *c, f32 initmat[4][4], s32 subtype)
 {
-    u8 *header;
+    CritterPackedType *header;
     s32 atreeFlags;
-    void *node;
-    void *n;
-    s32 idx;
     s32 floorHit;
     f32 atanX;
     u8 unused[8];
 
     atreeFlags = 0;
-    header = (u8 *)c->hdr;
+    header = c->hdr;
     c->mbnode = MBNewNode(lbl_8034473C, gIdentityMatrix, 1);
-    atanX = *(f32 *)((u8 *)object + 0x28);
-    c->inityaw = atan2(*(f32 *)((u8 *)object + 0x20), atanX);
+    atanX = initmat[2][2];
+    c->inityaw = atan2(initmat[2][0], atanX);
     c->curyaw = c->inityaw;
     CopyMat3(gIdentityMatrix, &c->mtx[0][0]);
-    c->vel[0] = *(f32 *)((u8 *)object + 0x30);
-    c->vel[1] = *(f32 *)((u8 *)object + 0x34);
-    c->vel[2] = *(f32 *)((u8 *)object + 0x38);
+    c->vel[0] = initmat[3][0];
+    c->vel[1] = initmat[3][1];
+    c->vel[2] = initmat[3][2];
     YawMat3(c->curyaw, &c->mtx[0][0]);
 
-    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x1000) == 0) {
+    if ((header->typeFlags & 0x1000) == 0) {
         atreeFlags |= 0x800;
     }
-    c->atree.root = AtreeInit(((CritterPackedType *)header)->atree, &c->atree, 0,
+    c->atree.root = AtreeInit(header->atree, &c->atree, 0,
                              atreeFlags);
-    c->anim = *(void **)c->atree.root;
-    MBNodeSetParent(*(void **)c->atree.root, c->mbnode);
+    c->anim = c->atree.root->obj;
+    MBNodeSetParent(c->atree.root->obj, c->mbnode);
 
-    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 1) != 0) {
+    if ((header->typeFlags & 1) != 0) {
         s16 shadowType = c->hdr->descriptor->modelIndex;
         s32 shadowIdx = subtype > 2 ? 1 : subtype;
         s32 shadowObject = MBOX_ReallyFindObject(
@@ -6135,43 +6119,13 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         c->shadow->zmod = -32;
     }
 
-    idx = *(s16 *)(header + offsetof(CritterPackedType, node0Index));
-    if (idx < 0) {
-        node = NULL;
-    } else {
-        n = c->atree.firstanode[idx].obj;
-        node = n;
-        if (node == NULL) {
-            node = NULL;
-        }
-    }
-    c->hitnode0 = node;
-    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x10) != 0 && c->hitnode0 != NULL &&
+    c->hitnode0 = CritterGetNode(c, header->node0Index, NULL);
+    if ((header->typeFlags & 0x10) != 0 && c->hitnode0 != NULL &&
         c->hitnode0->parent != NULL) {
         c->hitnode0 = c->hitnode0->parent;
     }
-    idx = *(s16 *)(header + offsetof(CritterPackedType, node1Index));
-    if (idx < 0) {
-        node = NULL;
-    } else {
-        n = c->atree.firstanode[idx].obj;
-        node = n;
-        if (node == NULL) {
-            node = NULL;
-        }
-    }
-    c->hitnode1 = node;
-    idx = *(s16 *)(header + offsetof(CritterPackedType, node2Index));
-    if (idx < 0) {
-        node = NULL;
-    } else {
-        n = c->atree.firstanode[idx].obj;
-        node = n;
-        if (node == NULL) {
-            node = NULL;
-        }
-    }
-    c->hitnode2 = node;
+    c->hitnode1 = CritterGetNode(c, header->node1Index, NULL);
+    c->hitnode2 = CritterGetNode(c, header->node2Index, NULL);
 
     floorHit = FloorCollide(c->vel, 0, 0, 2, 5.0f,
                             4.0f, -1000.0f) != NULL
@@ -6179,7 +6133,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                    : 0;
     if (floorHit != 0) {
         c->vel[1] = gFloorCollisionResult.mtx[3][1] +
-                    *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
+                    header->floorOffset;
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult.mtx, (f32 *)c->shadow);
             c->shadow->mat[3][0] = c->vel[0];
@@ -6189,7 +6143,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                 gFloorCollisionResult.mtx[3][1];
         }
     } else {
-        c->vel[1] = c->vel[1] + *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
+        c->vel[1] = c->vel[1] + header->floorOffset;
     }
 
     CopyMat4(&c->mtx[0][0], (f32 *)c->mbnode);
@@ -6198,12 +6152,12 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->prevMovePathPos[0] = c->vel[0];
     c->prevMovePathPos[1] = c->vel[1];
     c->prevMovePathPos[2] = c->vel[2];
-    MulVec4Mat3((f32 *)(header + offsetof(CritterPackedType, originOffset)), c->pos, &c->mtx[0][0]);
+    MulVec4Mat3(header->originOffset, c->pos, &c->mtx[0][0]);
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
     c->movevec[0] = c->vel[0];
-    c->movevec[1] = c->vel[1] + *(f32 *)(header + offsetof(CritterPackedType, vertDrift));
+    c->movevec[1] = c->vel[1] + header->vertDrift;
     c->movevec[2] = c->vel[2];
     c->obj_d0 = c->anim;
     GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);

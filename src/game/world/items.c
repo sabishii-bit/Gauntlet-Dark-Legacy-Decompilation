@@ -189,7 +189,7 @@ extern s32   generate_enemy(f32* pos, s32 type, s32 level, f32* dir,
                             f32 angle);
 extern s32   check_vacancy(s32 enemy_index, f32* position);
 extern void  WorldVector(const f32* vector, f32* out, const f32* matrix);
-extern void  AddBoss(f32* matrix);
+extern void  AddBoss(f32 matrix[4][4]);
 extern s32   EnemyDescType(char* desc);
 extern s32   GetEnemyType(s32 type, s32 level);
 extern char* EnemyTypePrefix(s32 type);
@@ -364,7 +364,7 @@ extern void  add_got_it(s32 player, s32 subtype, s32 count);
 extern s32   damage_player(s32 i, f32 dmg, s32 mode, u32 flags,
                            f32* direction);
 extern void  TowerNeedGargItemsMsg(s32 who, s32 slot);
-extern u8*   CritterNewInst(s32 type, s32 sub, void* mat);
+extern Critter* CritterNewInst(s32 type, s32 sub, f32 initmat[4][4]);
 extern s32   did_generate(void* w, s32 a);
 
 u32   FindWave(const s8* s);
@@ -5149,7 +5149,7 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
 extern f32 lbl_80347014;
 extern f32 lbl_803447D8;
 extern void MBTreeSetScale(void* node, f32 x, f32 y, f32 z);
-extern u8* CritterNewInst(s32 type, s32 sub, void* mat);
+extern Critter* CritterNewInst(s32 type, s32 sub, f32 initmat[4][4]);
 extern f32 atan2(f32 y, f32 x);
 extern void CreateYPRMatrix(f32* mtx, f32* pyr);
 extern char lbl_80112CA4[];
@@ -5501,13 +5501,13 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     dir[2] = it->objgrp.worldmat[2][2];
     switch (kind) {
     case 29:
-        crit = (Critter*)CritterNewInst(3, 0, &it->objgrp);
+        crit = CritterNewInst(3, 0, it->objgrp.worldmat);
         break;
     case 33:
-        crit = (Critter*)CritterNewInst(8, 0, &it->objgrp);
+        crit = CritterNewInst(8, 0, it->objgrp.worldmat);
         break;
     case 32:
-        crit = (Critter*)CritterNewInst(7, 0, &it->objgrp);
+        crit = CritterNewInst(7, 0, it->objgrp.worldmat);
         break;
     }
     if (crit != NULL) {
@@ -7756,7 +7756,7 @@ void AddLocatorInstList(void)
     locator* locators = gWorldInfo.locators;
     s32 locator_count = gWorldInfo.nlocators;
     ItemRuntime* runtime = &sItemRuntime;
-    f32 boss_matrix[16];
+    f32 boss_matrix[4][4];
     u8 unused[12];
     f64 pi;
     f32 invalid_start;
@@ -7868,10 +7868,10 @@ void AddLocatorInstList(void)
             break;
         case 6:
             if (gGameMode != MG_PLAYER_SELECT) {
-                CreateYPRMatrix(boss_matrix, loc->pyr);
-                boss_matrix[12] = loc->pos[0];
-                boss_matrix[13] = loc->pos[1];
-                boss_matrix[14] = loc->pos[2];
+                CreateYPRMatrix(&boss_matrix[0][0], loc->pyr);
+                boss_matrix[3][0] = loc->pos[0];
+                boss_matrix[3][1] = loc->pos[1];
+                boss_matrix[3][2] = loc->pos[2];
                 AddBoss(boss_matrix);
             }
             break;
