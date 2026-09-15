@@ -2036,7 +2036,7 @@ f32 CritterReCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, s32 targe
         if (moveTarget->maxDistance > lbl_80346488 && range > moveTarget->maxDistance) {
             return 1.02e21f;
         }
-        YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget->yaw);
+        YawVec3(c->mtx[2], forward, -moveTarget->yaw);
         forward[1] = lbl_80346470;
         SlowNormalVector(forward);
         dot = entry->dpos[0] * forward[0] + entry->dpos[2] * forward[2];
@@ -2323,7 +2323,7 @@ f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target
             vertical > moveTarget->maxVertical) {
             return 1.03e21f;
         }
-        YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget->yaw);
+        YawVec3(c->mtx[2], forward, -moveTarget->yaw);
         forward[1] = lbl_80346470;
         SlowNormalVector(forward);
         dot = delta[0] * forward[0] + delta[2] * forward[2];
@@ -6024,7 +6024,6 @@ done:
 /* 0x8003DE70 -- create and configure a particle system from one descriptor. */
 void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
 {
-    u8 *s = (u8 *)sfx;
     f32 rate;
     f32 speed;
     f32 etime;
@@ -6034,11 +6033,11 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     void *parent;
     void *psys;
 
-    rate = (f32)(30.0 * ((CritterSfxRecord *)s)->rate);
-    flags = ((CritterSfxRecord *)s)->flags;
-    tex = ((CritterSfxRecord *)s)->textureId;
-    etime = ((CritterSfxRecord *)s)->life;
-    speed = (f32)(0.01 * (f64)((CritterSfxRecord *)s)->custom1);
+    rate = (f32)(30.0 * sfx->rate);
+    flags = sfx->flags;
+    tex = sfx->textureId;
+    etime = sfx->life;
+    speed = (f32)(0.01 * (f64)sfx->custom1);
     kind = flags & 0x0F000000;
     if ((flags & 0x4000) && node >= 0) {
         parent = Effects[node].node;
@@ -6065,9 +6064,9 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     if (psys == NULL) {
         ErrorPrintf("Critter unable to generate psys");
     } else {
-        ((MBObject *)psys)->mat[3][0] = ((CritterSfxRecord *)s)->color[0];
-        ((MBObject *)psys)->mat[3][1] = ((CritterSfxRecord *)s)->color[1];
-        ((MBObject *)psys)->mat[3][2] = ((CritterSfxRecord *)s)->color[2];
+        ((MBObject *)psys)->mat[3][0] = sfx->color[0];
+        ((MBObject *)psys)->mat[3][1] = sfx->color[1];
+        ((MBObject *)psys)->mat[3][2] = sfx->color[2];
         MBPsysSetPTex(psys, tex);
         MBPsysSetERate4(rate, rate, rate, rate, psys);
         MBPsysSetETime(etime, 0.034f, psys);
