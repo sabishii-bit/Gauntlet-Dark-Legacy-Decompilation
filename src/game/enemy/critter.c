@@ -4203,43 +4203,48 @@ void CritterDropItem(Critter *c)
     AddItemSub(item);
 }
 
+/* Original private normalizer (Xbox/PS2); GC inlines all three calls.
+ * Output scalars hold only the normalized X/Z components. */
+static inline void GetVectorNormalXZ(f32 *v, f32 *x, f32 *z)
+{
+    f32 xx = v[0];
+    f32 zz = v[2];
+    f32 dist = fqdist(xx, zz);
+    if (dist > 0.0) {
+        f32 scale = 1.0 / dist;
+        xx *= scale;
+        zz *= scale;
+    }
+    *x = xx;
+    *z = zz;
+}
+
 /* 0x8003A9C4 -- integrate scripted translation and knockback, then clamp the
  * result through world and critter collision. */
 s32 CritterTranslate(Critter *c, CritterMove *move)
 {
-    u8 pad16[16];
-    f32 delta[3];
+    /* Original newpos/dpos are four-float vectors; GC uses their xyz. */
+    f32 newpos[4];
+    f32 delta[4];
     f32 t0;
     f32 t1;
     f32 t2;
     u8 pad4[4];
     f32 contact[3];
     f32 dest[3];
-    register f32 zero;
     f32 speed;
     f32 spd;
     f32 dx;
     f32 dz;
     f32 fx;
     f32 fz;
-    f32 ax;
-    f32 az;
-    f32 bz;
-    f32 bx;
-    f32 tx;
-    f32 tz;
-    f32 gz;
-    f64 kdamp;
-    f32 nx;
-    f32 ny;
-    f32 nz;
     f32 dist;
     f32 scale;
     s32 result = 0;
     s32 hits;
     s32 pr;
-    s32 tmpr;
     f32 rad;
+    f32 *cpos;
     u8 pad24[24];
 
     speed = c->hdr->speed;
@@ -4252,39 +4257,14 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         delta[0] = c->targetPos[0] - c->vel[0];
         delta[1] = c->targetPos[1] - c->vel[1];
         delta[2] = c->targetPos[2] - c->vel[2];
-        tx = delta[0];
-        tz = delta[2];
-        dist = fqdist(tx, tz);
-        if (dist > lbl_80346488) {
-            scale = lbl_80346490 / dist;
-            tx *= scale;
-            tz *= scale;
-        }
-        dx = tx * spd;
-        dz = tz * spd;
+        GetVectorNormalXZ(delta, &dx, &dz);
+        dx *= spd;
+        dz *= spd;
     } else {
         if ((c->hdr->typeFlags & 0x40) != 0) {
-            ax = c->initmat[2][0];
-            az = c->initmat[2][2];
-            dist = fqdist(ax, az);
-            if (dist > lbl_80346488) {
-                scale = lbl_80346490 / dist;
-                ax *= scale;
-                az *= scale;
-            }
-            fx = ax;
-            fz = az;
+            GetVectorNormalXZ(c->initmat[2], &fx, &fz);
         } else {
-            bx = c->mtx[2][0];
-            bz = c->mtx[2][2];
-            dist = fqdist(bx, bz);
-            if (dist > lbl_80346488) {
-                scale = lbl_80346490 / dist;
-                bx *= scale;
-                bz *= scale;
-            }
-            fx = bx;
-            fz = bz;
+            GetVectorNormalXZ(c->mtx[2], &fx, &fz);
         }
         switch (move->type) {
         default:
@@ -4316,46 +4296,43 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         }
     }
     delta[0] = dx;
-    zero = lbl_80346470;
-    delta[1] = zero;
+    delta[1] = 0.0f;
     delta[2] = dz;
     delta[0] += c->knockbackVelocity[0] * gClockFrameStep;
     delta[1] += c->knockbackVelocity[1] * gClockFrameStep;
     delta[2] += c->knockbackVelocity[2] * gClockFrameStep;
-    kdamp = lbl_803465C0;
-    nx = c->vel[0] + delta[0];
-    ny = c->vel[1] + delta[1];
-    nz = c->vel[2] + delta[2];
-    c->knockbackVelocity[0] = (f32)(kdamp * c->knockbackVelocity[0]);
-    c->knockbackVelocity[1] = (f32)(kdamp * c->knockbackVelocity[1]);
-    c->knockbackVelocity[2] = (f32)(kdamp * c->knockbackVelocity[2]);
+    newpos[0] = c->vel[0] + delta[0];
+    newpos[1] = c->vel[1] + delta[1];
+    newpos[2] = c->vel[2] + delta[2];
+    c->knockbackVelocity[0] = (f32)(0.8 * c->knockbackVelocity[0]);
+    c->knockbackVelocity[1] = (f32)(0.8 * c->knockbackVelocity[1]);
+    c->knockbackVelocity[2] = (f32)(0.8 * c->knockbackVelocity[2]);
     t0 = c->knockbackVelocity[0];
     *(u32 *)&t0 &= 0x7FFFFFFF;
-    if (t0 < lbl_80346540) {
-        c->knockbackVelocity[0] = zero;
+    if (t0 < 0.01) {
+        c->knockbackVelocity[0] = 0.0f;
     }
     t1 = c->knockbackVelocity[1];
     *(u32 *)&t1 &= 0x7FFFFFFF;
-    if (t1 < lbl_80346540) {
-        c->knockbackVelocity[1] = lbl_80346470;
+    if (t1 < 0.01) {
+        c->knockbackVelocity[1] = 0.0f;
     }
     t2 = c->knockbackVelocity[2];
     *(u32 *)&t2 &= 0x7FFFFFFF;
-    if (t2 < lbl_80346540) {
-        c->knockbackVelocity[2] = lbl_80346470;
+    if (t2 < 0.01) {
+        c->knockbackVelocity[2] = 0.0f;
     }
-    gz = lbl_80346470;
-    if (c->knockbackVelocity[1] > gz) {
+    if (c->knockbackVelocity[1] > 0.0f) {
         c->knockbackVelocity[1] =
             c->knockbackVelocity[1] - 100.0f * gClockFrameStep;
-        if (c->knockbackVelocity[1] < gz) {
-            c->knockbackVelocity[1] = gz;
+        if (c->knockbackVelocity[1] < 0.0f) {
+            c->knockbackVelocity[1] = 0.0f;
         }
     }
     if (c->hdr->descriptor->type == 4) {
-        delta[0] = nx - c->movePathPos[0];
-        delta[1] = ny - c->movePathPos[1];
-        delta[2] = nz - c->movePathPos[2];
+        delta[0] = newpos[0] - c->movePathPos[0];
+        delta[1] = newpos[1] - c->movePathPos[1];
+        delta[2] = newpos[2] - c->movePathPos[2];
         if (c->state != 1) {
             dist = fqdist(delta[0], delta[2]);
             c->unk4AC = dist;
@@ -4382,25 +4359,25 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         c->vel[1] = c->movePathPos[1] + delta[1];
         c->vel[2] = c->movePathPos[2] + delta[2];
     } else {
-        delta[0] = nx - c->vel[0];
-        delta[1] = ny - c->vel[1];
-        delta[2] = nz - c->vel[2];
+        delta[0] = newpos[0] - c->vel[0];
+        delta[1] = newpos[1] - c->vel[1];
+        delta[2] = newpos[2] - c->vel[2];
         hits = CritterCollideWorld(c, delta, 0);
         hits += CritterCollideItems(c, delta, hits);
-        tmpr = CritterCollidePlayers(c, delta, hits);
-        hits = hits + tmpr;
-        pr = tmpr;
+        pr = CritterCollidePlayers(c, delta, hits);
+        hits += pr;
         CritterCollideEnemies(c, delta, hits);
+        cpos = c->pos;
         rad = c->hdr->wallRadius;
-        dest[0] = c->pos[0] + delta[0];
-        dest[1] = c->pos[1] + delta[1];
-        dest[2] = c->pos[2] + delta[2];
+        dest[0] = cpos[0] + delta[0];
+        dest[1] = cpos[1] + delta[1];
+        dest[2] = cpos[2] + delta[2];
         lbl_80344644 = 0;
         lbl_80344648 = c;
-        if (CritterMoveNodeCol(rad, lbl_80346470,
-                               &c->pos[0], dest, contact, -1, 1) != NULL) {
-            delta[2] = lbl_80346470;
-            delta[0] = lbl_80346470;
+        if (CritterMoveNodeCol(rad, 0.0f,
+                               cpos, dest, contact, -1, 1) != NULL) {
+            delta[2] = 0.0f;
+            delta[0] = 0.0f;
         }
         c->vel[0] = c->vel[0] + delta[0];
         c->vel[1] = c->vel[1] + delta[1];
@@ -4770,7 +4747,6 @@ void CritterChildCriticalMove(Critter *c)
     s32 player;
     s32 type;
     u32 flags;
-    f64 zero;
     f32 best;
 
     patternChoice = -1;
@@ -4805,7 +4781,7 @@ void CritterChildCriticalMove(Critter *c)
         if (sMusicFadeBase < *time + pattern->cooldown) {
             goto next_pattern;
         }
-        player = CritterGetTargetSub(c, (f32 *)((u8 *)pattern + 0x30), 0);
+        player = CritterGetTargetSub(c, (f32 *)&pattern->target, 0);
         if (player >= 0 && *time < best) {
             patternChoice = i;
             playerChoice = player;
@@ -4818,7 +4794,6 @@ void CritterChildCriticalMove(Critter *c)
 
     moves = c->hdr->movesPtr;
     i = 0;
-    zero = lbl_80346488;
     while (i < c->hdr->moveCount) {
         if (i == c->curmove) {
             goto next_move;
@@ -4852,7 +4827,7 @@ void CritterChildCriticalMove(Critter *c)
             break;
         }
 
-        if ((f64)move->cooldown > zero &&
+        if (move->cooldown > 0.0 &&
             sMusicFadeBase < c->moveTimes[i] + move->cooldown) {
             goto next_move;
         }
@@ -5451,7 +5426,8 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
     s32 i;
     s32 node;
     u8 unused0[4];
-    f32 v[3];
+    /* Original coin-velocity local is float[4]; only xyz is consumed. */
+    f32 vel[4];
     u8 unused1[8];
     f32 dir[3];
     u8 unused2[4];
@@ -5579,15 +5555,15 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
     case 9:
         if (active) {
             f32 angle = acosf(desc->mindp);
-            v[0] = c->initmat[2][0];
-            v[1] = c->initmat[2][1];
-            v[2] = c->initmat[2][2];
-            YawVec3(v, v, desc->yaw);
-            PitchVec3(v, v, desc->pitch);
-            v[0] = v[0] * desc->minSpeed;
-            v[1] = v[1] * desc->minSpeed;
-            v[2] = v[2] * desc->minSpeed;
-            BossSpewCoins(c->moveOrigin, v, angle);
+            vel[0] = c->initmat[2][0];
+            vel[1] = c->initmat[2][1];
+            vel[2] = c->initmat[2][2];
+            YawVec3(vel, vel, desc->yaw);
+            PitchVec3(vel, vel, desc->pitch);
+            vel[0] = vel[0] * desc->minSpeed;
+            vel[1] = vel[1] * desc->minSpeed;
+            vel[2] = vel[2] * desc->minSpeed;
+            BossSpewCoins(c->moveOrigin, vel, angle);
         }
         break;
     default:
