@@ -2941,12 +2941,62 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
     return dr;
 }
 
+/* Original helper, outlined on PS2 and expanded here in the GC caller.
+ * Removing a scene node invalidates its animation node and attached moves. */
+static inline void CritterColnodeUpdateMoves(Critter *c, MBObject *node)
+{
+    s32 i;
+    s32 j;
+
+    for (i = 0; i < c->atree.nanodes; i++) {
+        if (c->atree.firstanode[i].obj == node) {
+            c->atree.firstanode[i].type = 0;
+            c->atree.firstanode[i].obj = NULL;
+            for (j = 0; j < c->hdr->moveCount; j++) {
+                if (c->hdr->movesPtr[j].nodeidx == i) {
+                    c->hdr->movesPtr[j].nodeidx = -1;
+                }
+            }
+        }
+    }
+}
+
+/* The original CritterKill helper calls CritterAwardExp; keeping that nested
+ * boundary also preserves the GC caller's outlined experience-award call. */
+static inline void CritterKill(Critter *c)
+{
+    Critter *child;
+    s32 type;
+
+    if (c->state == 1) {
+        return;
+    }
+    c->state = 1;
+    CritterAwardExp(
+        -1, (f32)(0.2 *
+                  (f64)c->hdr->expValue));
+    if (c->parent == NULL) {
+        child = c->next;
+        while (child != NULL) {
+            child->health = 1.0f;
+            child = child->next;
+        }
+    }
+    type = c->hdr->descriptor->type;
+    switch (type) {
+    case 4:
+        if (c->parent == NULL) {
+            BossDying();
+        }
+        break;
+    }
+}
+
 /* 0x800383A8 -- apply damage to a critter/hit node, accumulate combat
  * bookkeeping and transition a depleted critter into its death state.
  * The original critter-first argument order also recovers the GC parameter
  * homes: damage at sp+12 and flags at sp+20. Flags retain the unsigned type
  * required by this TU's existing ModifyDamage declaration. */
-#pragma dont_inline on
 s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source)
 {
@@ -2962,8 +3012,6 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     f32 damageScale;
     s32 critterClass;
     s32 experience;
-    s32 lastPlayer;
-    s32 i;
 
     if (c->hdr == NULL) {
         return -1;
@@ -3019,19 +3067,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
             experience *= lbl_8034465C;
         }
 
-        i = player;
-        if (player >= 0) {
-            lastPlayer = player + 1;
-        } else {
-            i = 0;
-            lastPlayer = 4;
-        }
-        playerData = &gPlayers[i];
-        for (; i < lastPlayer; i++, playerData++) {
-            if (playerData->state == 1) {
-                AddExp(i, (s32)(f32)experience, 0);
-            }
-        }
+        CritterAwardExp(player, (f32)experience);
 
         c->playerDamage[player].dealt += creditedDamage;
         c->playerDamage[player].dealtTime = sMusicFadeBase;
@@ -3072,7 +3108,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                 damage = hitNode->activeUntil -
                          hitNode->activeFrom;
                 if (hitNode->descriptor->flags & 2) {
-                    char objectName[40];
+                    char objectName[32];
                     s32 object;
                     CritterDescriptor *hitCritterDesc;
                     s32 modelIndex;
@@ -3090,32 +3126,10 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                     object = (s32)MBOX_ReallyFindObject(objectName, modelIndex,
                                                         modelIndex, 1);
                     if (hitNode->active != NULL) {
-                        void *activeNode;
-
                         if (object >= 0) {
                             MBSetObject(hitNode->active, object);
                         }
-                        activeNode = hitNode->active;
-                        for (i = 0; i < c->atree.nanodes; i++) {
-                            struct anode *animNode;
-
-                            animNode = &c->atree.firstanode[i];
-                            if (animNode->obj == activeNode) {
-                                s32 j;
-
-                                animNode->type = 0;
-                                c->atree.firstanode[i].obj = NULL;
-                                for (j = 0;
-                                     j < c->hdr->moveCount;
-                                     j++) {
-                                    if ((c->hdr->movesPtr)[j].nodeidx ==
-                                        i) {
-                                        (c->hdr->movesPtr)[j].nodeidx =
-                                            -1;
-                                    }
-                                }
-                            }
-                        }
+                        CritterColnodeUpdateMoves(c, (MBObject *)hitNode->active);
                         if ((hitNode->descriptor->flags & 4) &&
                             ((MBObject *)hitNode->active)->child != NULL) {
                             CritterRemoveColnodeSub(c,
@@ -3148,33 +3162,8 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     }
     c->health -= damage;
 
-#define CRITTER_DIE(victim)                                                   \
-    do {                                                                       \
-        Critter *deathChild;                                                   \
-        (victim)->state = 1;                                                   \
-        CritterAwardExp(-1, (f32)(0.2 *                                         \
-                                  (f64)(victim)->hdr->expValue));            \
-        if ((victim)->parent == NULL) {                                        \
-            f32 deadHealth;                                                    \
-            deathChild = (victim)->next;                                       \
-            deadHealth = lbl_803464A8;                                         \
-            for (; deathChild != NULL; deathChild = deathChild->next) {        \
-                deathChild->health = deadHealth;                               \
-            }                                                                  \
-        }                                                                      \
-        switch ((victim)->hdr->descriptor->type) {                            \
-        case 4:                                                                \
-            if ((victim)->parent == NULL) {                                    \
-                BossDying();                                                   \
-            }                                                                  \
-            break;                                                             \
-        }                                                                      \
-    } while (0)
-
     if ((f64)c->health <= 0.0) {
-        if (c->state != 1) {
-            CRITTER_DIE(c);
-        }
+        CritterKill(c);
         if (player >= 0) {
             playerData = &gPlayers[player];
             playerData->save.stats[playerData->character].enemies_killed++;
@@ -3186,17 +3175,13 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         c->parent->health -= damage;
         parent = c->parent;
         if ((f64)parent->health <= 0.0) {
-            if (parent->state != 1) {
-                CRITTER_DIE(parent);
-            }
+            CritterKill(parent);
             return 1;
         }
     }
     /* The GC parent-survived branch also reaches this child-count test. */
     if (c->childcnt > 0) {
         f64 childZero;
-        f32 childOne;
-        f64 childAwardScale;
 
         livingChildren = lbl_80346470;
         for (child = c->next; child != NULL; child = child->next) {
@@ -3207,42 +3192,18 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         }
         childZero = lbl_80346488;
         if ((f64)livingChildren > childZero) {
-            childOne = lbl_803464A8;
-            childAwardScale = 0.2;
             childDamage = (f32)(lbl_803464F8 *
                                 (f64)(damage / livingChildren));
             for (child = c->next; child != NULL; child = child->next) {
                 if (child->state >= 2) {
                     child->health -= childDamage;
-                    if ((f64)child->health <= childZero &&
-                        child->state != 1) {
-                        Critter *deathChild;
-
-                        child->state = 1;
-                        CritterAwardExp(-1,
-                            (f32)(childAwardScale *
-                                  (f64)child->hdr->expValue));
-                        if (child->parent == NULL) {
-                            for (deathChild = child->next;
-                                 deathChild != NULL;
-                                 deathChild = deathChild->next) {
-                                deathChild->health = childOne;
-                            }
-                        }
-                        switch (child->hdr->descriptor->type) {
-                        case 4:
-                            if (child->parent == NULL) {
-                                BossDying();
-                            }
-                            break;
-                        }
+                    if ((f64)child->health <= childZero) {
+                        CritterKill(child);
                     }
                 }
             }
         }
     }
-
-#undef CRITTER_DIE
 
     if ((flags & DMG_NOHITFX) == 0) {
         CritterPackedType *damageHeader;
@@ -3272,7 +3233,6 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     }
     return 0;
 }
-#pragma dont_inline off
 /* Original local helper, also called by PS2 ProcessCritterList. The PS2
  * instructions retain the count locally and publish it only after the scan;
  * the decompiler's apparent per-iteration global writes are misleading. */
@@ -3326,39 +3286,6 @@ static inline void CritterUpdateColnodes(Critter *c)
         } else {
             CopyMat4(&c->mtx[0][0], node->matrix);
         }
-    }
-}
-
-/* The original CritterKill helper calls CritterAwardExp; keeping that nested
- * boundary also preserves the GC caller's outlined experience-award call. */
-static inline void CritterKill(Critter *c)
-{
-    Critter *child;
-    f32 scale;
-    s32 type;
-
-    if (c->state == 1) {
-        return;
-    }
-    c->state = 1;
-    CritterAwardExp(
-        -1, (f32)(lbl_80346580 *
-                  (f64)c->hdr->expValue));
-    if (c->parent == NULL) {
-        child = c->next;
-        scale = lbl_803464A8;
-        while (child != NULL) {
-            child->health = scale;
-            child = child->next;
-        }
-    }
-    type = c->hdr->descriptor->type;
-    switch (type) {
-    case 4:
-        if (c->parent == NULL) {
-            BossDying();
-        }
-        break;
     }
 }
 
@@ -6690,25 +6617,6 @@ void CritterUpdateSkinfx(Critter *c)
     }
     if (c->hitnode2 != NULL) {
         c->hitnode2->flags = savedFlags;
-    }
-}
-/* Original helper, outlined on PS2 and expanded here in the GC caller.
- * Removing a scene node invalidates its animation node and attached moves. */
-static inline void CritterColnodeUpdateMoves(Critter *c, MBObject *node)
-{
-    s32 i;
-    s32 j;
-
-    for (i = 0; i < c->atree.nanodes; i++) {
-        if (c->atree.firstanode[i].obj == node) {
-            c->atree.firstanode[i].type = 0;
-            c->atree.firstanode[i].obj = NULL;
-            for (j = 0; j < c->hdr->moveCount; j++) {
-                if (c->hdr->movesPtr[j].nodeidx == i) {
-                    c->hdr->movesPtr[j].nodeidx = -1;
-                }
-            }
-        }
     }
 }
 
