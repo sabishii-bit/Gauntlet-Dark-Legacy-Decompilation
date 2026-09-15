@@ -230,13 +230,6 @@ s32 lbl_80344630 = 0;
 s32 lbl_80344634 = 0;
 s32 lbl_80344638 = 0;
 
-extern s32   lbl_8034465C;            /* 0x8034465C active-player count           */
-extern s16   lbl_80344664;            /* 0x80344664 rolling tick counter          */
-extern s32   lbl_80344660;            /* 0x80344660 loaded-type count             */
-extern s32   lbl_8034466C;            /* 0x8034466C active critter count (gNumCritters) */
-extern s32   lbl_80344650;            /* 0x80344650 safe-rock collection flags    */
-extern s32   lbl_80344654;            /* 0x80344654 selected safe-rock slot        */
-extern s32   lbl_80344658;            /* 0x80344658 collected safe-rock count      */
 extern f32   gClockFrameStep;         /* 0x80344590 frame delta                     */
 extern f32   lbl_803447D8;            /* boss/player damage scaling gate             */
 extern s32   sMusicTrackHi;
@@ -374,8 +367,8 @@ typedef struct CritterSubnode {
     /* 0x50 */ struct CritterSubnode *next;
 } CritterSubnode;              /* size 0x54 */
 
-extern CritterSubnode lbl_802411B0[16];
-extern s32   lbl_80344668;
+/* CritterInit clears one 84-byte record; CritterAddAnimInsts rejects index 1. */
+extern CritterSubnode lbl_802411B0[1];
 /* Original file-private descriptor for the in-flight model load. */
 static struct CritterDescriptor *crit_load_desc;
 /* File-private asynchronous animation request (Xbox CRITTER.OBJ atree_finfo). */
@@ -649,7 +642,19 @@ extern void  ShakeCamera(s32 type, s32 count, s32 delay, f32 radius,
 extern void  SafeRockSetup(void);
 extern s32   lbl_802897B8[];          /* 0x802897B8 skinfx palette table          */
 extern f32   lbl_80346570;
-extern f32   lbl_8034464C;
+/* Original public SBSS objects (Xbox CRITTER names below, GC widths/uses).
+ * MWCC emits these tentative definitions in reverse declaration order after
+ * the private scan state. The short's alignment gap is compiler-generated.
+ * SafeRockIdx starts at zero in SBSS; CritterInit sets -1 at runtime. */
+s32 lbl_8034466C; /* NumCritterInsts: occupied pool extent, not live count */
+s32 lbl_80344668; /* NumCritterAnimInsts: occupied auxiliary-animation extent */
+s16 lbl_80344664; /* CritterCounter: signed rolling frame stamp */
+s32 lbl_80344660; /* CritterFileNum: loaded file/header count */
+s32 lbl_8034465C; /* CritterNActivePlayers */
+s32 lbl_80344658; /* SafeRockNum: collected count, -1 when none */
+s32 lbl_80344654; /* SafeRockIdx: selected entry in the collected list */
+s32 lbl_80344650; /* SafeRockHide: hide/collect mode */
+f32 lbl_8034464C; /* BossActivateTime: absolute activation deadline */
 extern u32   sFlags;
 extern s32   gBossDead;
 DECL_SECT(".sdata2") extern const char lbl_803465E0[];
