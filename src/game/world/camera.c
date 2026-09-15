@@ -3058,7 +3058,6 @@ void camera_mode_orbit(s32 camIdx)
  * step (scaled by the frame delta).  Returns the new yaw; the caller stores
  * it back.  Snaps to the target once within one step.
  */
-#pragma opt_lifetimes off
 #pragma opt_propagation off
 f32 camera_approach_yaw(void* cam, f32 target) {
     s32 snap;
@@ -3110,7 +3109,6 @@ f32 camera_approach_yaw(void* cam, f32 target) {
     }
     return (f32)result;
 }
-#pragma opt_lifetimes reset
 #pragma opt_propagation reset
 
 /*

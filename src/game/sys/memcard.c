@@ -379,7 +379,6 @@ int saveExists(void)
  * then normalize the 8 directory entry names.
  * PARKED 116/116 (opcodes match): DST address-expr scheduling differs.
  */
-#pragma opt_common_subs off
 int get_vmu_directory(int a, int b)
 {
     u8* base = lbl_8025EE80;
@@ -448,7 +447,6 @@ int get_vmu_directory(int a, int b)
         return i;
     }
 }
-#pragma opt_common_subs reset
 
 /*
  * vmu_directory_exists - map the cached card state to a save result code
@@ -756,7 +754,6 @@ int MemCardCreateGaunt(int port, int slot)
  * probe/mount/check status codes into the cached (state, present) pair and
  * returns 1 only when the card is fully ready (state 3, present 1).
  */
-#pragma opt_common_subs off
 s32 saveMount(s32 port, s32 slot, s32 doFormat)
 {
     s32 memSize;
@@ -924,7 +921,6 @@ s32 saveMount(s32 port, s32 slot, s32 doFormat)
     serial[0] = serial[1] = 0;
     return -1;
 }
-#pragma opt_common_subs reset
 
 /*
  * InitPreferences - one-time preferences load with a full save-cache

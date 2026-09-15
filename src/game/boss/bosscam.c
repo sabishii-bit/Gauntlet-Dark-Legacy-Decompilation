@@ -261,7 +261,6 @@ extern f32 cos(f32);
 void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg);
 f32 PointViewDist(f32* point, f32 dist);
 
-#pragma opt_propagation off
 s32 TriggerCamUpdate(void)
 {
     void* blit;
@@ -338,7 +337,6 @@ s32 TriggerCamUpdate(void)
     }
     return gTriggerCameraState;
 }
-#pragma opt_propagation reset
 
 void TriggerCameraEnd(void) {
     lbl_803443B8 = 0;

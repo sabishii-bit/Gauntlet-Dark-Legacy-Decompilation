@@ -1996,7 +1996,6 @@ void fn_8009CEE0(int pidx, int sel, int flags)
     sndFxPlayEx(soundId, p1, pan, 66);
 }
 
-#pragma opt_propagation off
 void fn_8009CFA8(int pidx, int sel)
 {
     int p1 = lbl_801232C8[pidx];
@@ -2012,7 +2011,6 @@ void fn_8009CFA8(int pidx, int sel)
     }
     sndFxPlayEx(soundId, p1, 127, 66);
 }
-#pragma opt_propagation reset
 
 void AudioBridgeOpen(int pos)
 {

@@ -1490,7 +1490,6 @@ s32 BankReadHeader(void* file, u32* header) {
 }
 
 /* 0x800D4048  parse in-memory BANK header */
-#pragma opt_lifetimes off
 s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version) {
     char signature[4];
     s32 result;
@@ -1525,10 +1524,8 @@ s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version) {
     }
     return result;
 }
-#pragma opt_lifetimes reset
 
 /* 0x800D415C  parse a VAG sample header */
-#pragma opt_lifetimes off
 s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
     s32 result;
     u32 word;
@@ -1573,7 +1570,6 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
     }
     return result;
 }
-#pragma opt_lifetimes reset
 
 /* 0x800D42E4  set stream loop/one-shot flag */
 void dcsSetStreamFlag(DcsStream* stream, s32 looping) {
