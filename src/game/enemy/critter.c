@@ -3583,6 +3583,30 @@ static f32 MaxPlayerDist(Critter *c)
     return best;
 }
 
+/* Original private CritterActivate (Xbox/PS2), distinguished from the
+ * provisionally named three-argument move-action routine below. */
+static inline void CritterActivateChain(Critter *c)
+{
+    Critter *child;
+
+    c->state = 3;
+    for (child = c->next; child != NULL; child = child->next) {
+        child->state = 3;
+    }
+    if (c->hdr->descriptor->type == 4) {
+        BossActivate(c, 1);
+    }
+}
+
+/* Original private CritterMoveSetup (Xbox/PS2), distinct from the
+ * provisionally named two-argument move routine below. */
+static inline void CritterResetMoveSelection(Critter *c)
+{
+    c->nextmove = -1;
+    c->unk11E = -1;
+    c->unk126 = -1;
+}
+
 /* Original private CritterLookForReady (Xbox/PS2), distinguished from
  * the provisionally named attack-search function elsewhere in this file. */
 static inline void CritterSelectReadyMove(Critter *c)
@@ -3605,7 +3629,6 @@ s32 CritterGolemAI(Critter *c)
     s32 mt;
     CritterMove *move;
     CritterMove *nm;
-    Critter *child;
     s32 anim32;
     u8 unused[8];
 
@@ -3616,13 +3639,7 @@ s32 CritterGolemAI(Critter *c)
         if (c->particle == NULL) {
             MaxPlayerDist(c);
         }
-        c->state = 3;
-        for (child = c->next; child != NULL; child = child->next) {
-            child->state = 3;
-        }
-        if (c->hdr->descriptor->type == 4) {
-            BossActivate(c, 1);
-        }
+        CritterActivateChain(c);
     }
 
     move = &(c->hdr->movesPtr)[
@@ -3807,13 +3824,7 @@ s32 CritterBossAI(Critter *c)
             wakeDistance = c->hdr->wakeThreshold;
             best = MaxPlayerDist(c);
             if ((f64)wakeDistance <= 0.0 || best < wakeDistance) {
-                c->state = 3;
-                for (child = c->next; child != NULL; child = child->next) {
-                    child->state = 3;
-                }
-                if (c->hdr->descriptor->type == 4) {
-                    BossActivate(c, 1);
-                }
+                CritterActivateChain(c);
             }
         }
     }
@@ -3829,9 +3840,7 @@ s32 CritterBossAI(Critter *c)
     if ((gControllerButtons & 0x80) != 0) {
         CritterGetNextMove(c);
     } else {
-        c->nextmove = -1;
-        c->unk11E = -1;
-        c->unk126 = -1;
+        CritterResetMoveSelection(c);
         CritterGetDoAction(c);
         if (c->nextmove < 0) {
             CritterLookForCriticalMove(c);
@@ -3843,9 +3852,7 @@ s32 CritterBossAI(Critter *c)
                 rateThreshold = 0.8;
                 linkedChildren = 0;
                 for (; child != NULL; child = child->next) {
-                    child->nextmove = -1;
-                    child->unk11E = -1;
-                    child->unk126 = -1;
+                    CritterResetMoveSelection(child);
                     if (c->unk11C >= 0) {
                         if (c->unk11C < child->hdr->auxMoveCount) {
                             child->unk11C = c->unk11C;
