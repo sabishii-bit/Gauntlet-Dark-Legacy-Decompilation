@@ -3174,7 +3174,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         }
         childZero = lbl_80346488;
         if ((f64)livingChildren > childZero) {
-            childDamage = (f32)(lbl_803464F8 *
+            childDamage = (f32)(0.5 *
                                 (f64)(damage / livingChildren));
             for (child = c->next; child != NULL; child = child->next) {
                 if (child->state >= 2) {
