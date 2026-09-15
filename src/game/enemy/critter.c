@@ -3580,6 +3580,25 @@ void CritterUpdateCounters(Critter *c)
         }
     }
 }
+/* Original private helper witnessed by Xbox and both PS2 AI callers. */
+static f32 MaxPlayerDist(Critter *c)
+{
+    f32 best;
+    s32 i;
+
+    best = 0.0f;
+    for (i = 0; i < c->targetCount; i++) {
+        f32 candidate = c->targets[i].dist;
+        if (candidate > best) {
+            best = candidate;
+        }
+    }
+    if (best <= 0.0f) {
+        best = 1e21f;
+    }
+    return best;
+}
+
 /* 0x800396A4 -- run the compact golem/general AI path. */
 s32 CritterGolemAI(Critter *c)
 {
@@ -3588,10 +3607,8 @@ s32 CritterGolemAI(Critter *c)
     CritterMove *move;
     CritterMove *nm;
     Critter *child;
-    s32 i;
     f32 speed;
     f32 ratio;
-    f32 best;
     s32 anim32;
     u8 unused[8];
 
@@ -3600,13 +3617,7 @@ s32 CritterGolemAI(Critter *c)
 
     if (c->state == 0) {
         if (c->particle == NULL) {
-            best = lbl_80346470;
-            for (i = 0; i < c->targetCount; i++) {
-                f32 v = c->targets[i].dist;
-                if (v > best) {
-                    best = v;
-                }
-            }
+            MaxPlayerDist(c);
         }
         c->state = 3;
         for (child = c->next; child != NULL; child = child->next) {
