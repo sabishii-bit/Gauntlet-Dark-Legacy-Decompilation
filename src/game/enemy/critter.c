@@ -3202,7 +3202,7 @@ s32 ProcessCritter(Critter *c)
                 (c->hdr->maxHealth *
                  gCurLevel->ene_health);
         if ((f64)c->health <= lbl_80346488) {
-            AtreeDelete(&c->healthbar[0]);
+            AtreeDelete(&c->geometer);
             c->damageflash = NULL;
         } else {
             MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
@@ -3239,7 +3239,7 @@ s32 ProcessCritter(Critter *c)
                         (current->hdr->maxHealth *
                          gCurLevel->ene_health);
                 if ((f64)current->health <= zero) {
-                    AtreeDelete(&current->healthbar[0]);
+                    AtreeDelete(&current->geometer);
                     current->damageflash = NULL;
                 } else {
                     MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
@@ -6248,24 +6248,22 @@ void CritterAddHealthMeter(Critter *c)
             c->hdr->descriptor->model,
             "GMETER", 1);
         if (match != NULL) {
-            *(void **)&c->healthbar[0] =
-                AtreeInit(match, &c->healthbar[0], 0, 0x800);
-            MBNodeSetParent(**(void ***)&c->healthbar[0], c->mbnode);
-            MBTreeSetFlags(**(void ***)&c->healthbar[0], 0x02000000, 0);
+            c->geometer.root =
+                AtreeInit(match, &c->geometer, 0, 0x800);
+            MBNodeSetParent(c->geometer.root->obj, c->mbnode);
+            MBTreeSetFlags(c->geometer.root->obj, 0x02000000, 0);
 
-            root = **(void ***)&c->healthbar[0];
+            root = c->geometer.root->obj;
             ((MBObject *)root)->mat[3][0] =
                 ((MBObject *)root)->mat[3][0] +
                 c->hdr->healthbarOffset[0];
-            *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
-                     offsetof(MBObject, mat[3][1])) +=
+            ((MBObject *)c->geometer.root->obj)->mat[3][1] +=
                 c->hdr->healthbarOffset[1];
-            *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
-                     offsetof(MBObject, mat[3][2])) +=
+            ((MBObject *)c->geometer.root->obj)->mat[3][2] +=
                 c->hdr->healthbarOffset[2];
 
             c->damageflash =
-                AtreeFindNode(&c->healthbar[0], "RED_FILLE", 9);
+                AtreeFindNode(&c->geometer, "RED_FILLE", 9);
         }
     }
 }

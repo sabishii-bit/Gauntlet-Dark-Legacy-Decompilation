@@ -422,7 +422,7 @@ typedef struct Critter {
     s16 healthmtr;            /* 0x44C health-meter handle (>=0 == present)     */
     s8  childcnt;             /* 0x44E spawned child count                    */
     s8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */
-    u8  healthbar[0x48];      /* 0x450 health-bar object (AtreeDelete)         */
+    atree geometer;          /* 0x450 in-world health-fill animation tree   */
     struct MBObject *damageflash; /* 0x498 crit_inst.geometer_bar              */
     f32 movePathPos[3];       /* 0x49C waypoint-move anchor position          */
     u8  _res4A8[4];           /* 0x4A8                                        */
