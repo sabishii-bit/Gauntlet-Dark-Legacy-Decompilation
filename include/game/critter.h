@@ -28,9 +28,9 @@
  *
  * GameCube (GUNE5D) anchors (config/GUNE5D/symbols.txt):
  *   Critter instance size  0xAE0  (2784 bytes)
- *   gCritterPool[16]  @0x80241204  == CritterBigState gBig.pool (critter.c),
+ *   gCritterPool[16]  @0x80241204  independent instance array (critter.c),
  *                                     16 * 0xAE0 == 0xAE00
- *   gCritterHeaders[9][6] @0x8024C004 == gBig.typeTable - CritterHeader* table
+ *   gCritterHeaders[9][6] @0x8024C004 independent CritterHeader* table
  *                                     indexed [type*0x18 + subtype*4]
  *   CritterNewID    @0x80343BE8  file-static u16 rolling unique-id counter
  *   gCritterCountMax @0x8034462C  s32 high-water active count
@@ -459,7 +459,7 @@ typedef struct Critter {
 } Critter;                    /* size 0xAE0 (2784) */
 
 /* -- module globals (GC GUNE5D) -- */
-extern Critter gCritterPool[16];             /* 0x80241204 (== gBig.pool)      */
+extern Critter gCritterPool[16];             /* 0x80241204 instance pool      */
 extern struct CritterHeader *gCritterHeaders[9][6]; /* 0x8024C004 hdr table    */
 void CritterInit(void);
 extern s32 gCritterCountMax;                 /* 0x8034462C high-water count    */

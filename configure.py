@@ -556,7 +556,10 @@ config.libs = [
                 mw_version=gamemain_compiler_version,
             ),
             Object(NonMatching, "game/game/controls.c", cflags=cflags_demo),
-            Object(NonMatching, "game/enemy/critter.c", cflags=cflags_demo),
+            # Deferred compilation preserves the target's independent BSS-array
+            # layout and shared base, with the reconstructed definition order.
+            Object(NonMatching, "game/enemy/critter.c",
+                   cflags=cflags_demo + ["-inline auto,deferred"]),
             Object(NonMatching, "game/game/player.c", cflags=cflags_demo),
             Object(NonMatching, "game/game/pmotion.c", cflags=cflags_demo),
             Object(NonMatching, "game/sfx/psfx.c", cflags=cflags_demo),
