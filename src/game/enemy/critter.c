@@ -24,6 +24,7 @@
 #include "game/enemy.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
+#include "game/ml_mem.h"
 #include "game/player.h"
 #include "game/worldobj.h"
 #include "game/worldcol.h"
@@ -379,12 +380,13 @@ extern CritterSubnode lbl_802411B0[16];
 extern s32   lbl_80344668;
 /* Original file-private descriptor for the in-flight model load. */
 static struct CritterDescriptor *crit_load_desc;
-extern s32  *lbl_80344640;
+/* File-private asynchronous animation request (Xbox CRITTER.OBJ atree_finfo). */
+static MLFILE *lbl_80344640;
 extern s32  *lbl_8025776C[8];         /* 0x8025776C item/def pointer table          */
 extern void *gWorldData;              /* 0x80344838 world data record                */
 extern s32   FileSize(char *name, const char *wad);
-extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
-                           s32 arg, void *callback);
+extern MLFILE *StartFileRead(char *name, char *wad, int mode, int size,
+                             char *dest, void *callback);
 
 /* 0x30 == Xbox PDB crit_desc (name/prefix/etype/model/loaded/didcount/
  * atreelist/dummy1); GC behavioral names kept for the already-adopted tail. */
@@ -767,7 +769,7 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix);
 s32  CritterLoadFile(const char *wad, const char *name);
 /* Background type-file loader callbacks. */
 s32 CritterLoadDone(s32 maxBytes);
-void CritterBGLoadFile(s32 *loader);
+void CritterBGLoadFile(MLFILE *loader);
 s32 CritterLoadStartNext(void);
 void CritterLoadAllTypes(s32 arg);
 struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype);
@@ -2118,7 +2120,7 @@ void CritterResolveMultipleTargets(Critter *c)
         CritterTargetInfo *record = (CritterTargetInfo *)
             ((u8 *)c + offsetof(Critter, targets[0].pidx) + outerOffset);
         player = (s32)record->pidx;
-        if (record->invanger > lbl_80346490) {
+        if (record->invanger > 1.0) {
             threshold = 2;
         } else if (record->invanger > 0.75) {
             threshold = 3;
@@ -5584,12 +5586,11 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 #pragma opt_lifetimes off
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
-    u8 unused[8];
-    f32 world[3];
-    u8 worldPad[4];
-    f32 velocity[3];
-    u8 velocityPad[4];
-    f32 offset[3];
+    /* PDB pos/vel/offset are float[4]; GC uses xyz only. This joint layout
+     * reproduces the live GC stack slots without byte pads or a reserve. */
+    f32 world[4];
+    f32 velocity[4];
+    f32 offset[4];
     f32 angularVelocity[3];
     CritterFileHeader *container;
     CritterDamageDef *desc;
@@ -6854,7 +6855,7 @@ s32 CritterLoadDone(s32 maxBytes)
     char buf[32];
     CritterDescriptor *desc;
     s32 result;
-    s32 *handle;
+    MLFILE *handle;
     s32 size;
 
     result = 0;
@@ -6868,14 +6869,15 @@ s32 CritterLoadDone(s32 maxBytes)
                 size = maxBytes;
             }
             lbl_80344640 = StartFileRead(buf, "anim", 0, size,
-                                         (s32)desc->model,
+                                         (char *)desc->model,
                                          (void *)CritterBGLoadFile);
         }
     } else {
         handle = lbl_80344640;
         if (handle != NULL) {
-            if (*(handle += 4) != 0) {
-                *handle = -1;
+            enum FinfoState *done = &handle->done;
+            if (*done != FINFO_IN_USE) {
+                *done = FINFO_FREE;
                 desc->loadState = 3;
                 fn_8001267C((s32)desc->model, desc->modelIndex, -1);
                 InitTexMods((s32)desc->model, desc->modelIndex);
@@ -6888,13 +6890,13 @@ s32 CritterLoadDone(s32 maxBytes)
     return result;
 }
 
-/* 0x8003F5B4 -- advance a background loader unless it has finished (state 2). */
-void CritterBGLoadFile(s32 *loader)
+/* 0x8003F5B4 -- advance the byte destination unless the loader is user-owned. */
+void CritterBGLoadFile(MLFILE *loader)
 {
-    if (loader[4] == 2) {
+    if (loader->done == FINFO_USER) {
         return;
     }
-    loader[1] += loader[2];
+    loader->destbuf += loader->destbufsize;
 }
 
 /* 0x8003F5D4 -- find the next unloaded critter resource and start its model
