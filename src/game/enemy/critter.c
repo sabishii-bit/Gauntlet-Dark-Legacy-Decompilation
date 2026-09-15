@@ -5363,7 +5363,6 @@ s32 CritterAnimInterrupt(CritterMove *a, CritterMove *b)
 #pragma opt_propagation off
 s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
 {
-    s32 timeOffset;
     s32 moveOffset;
     CritterMove *move;
     u8 *hdr;
@@ -5374,13 +5373,12 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
 
     hdr = (u8 *)c->hdr;
     i = 0;
-    timeOffset = 0;
     moveOffset = 0;
     result = -1;
     best = 0.0f;
 
     for (; i < ((CritterPackedType *)hdr)->moveCount;
-         i++, timeOffset += 4, moveOffset += sizeof(CritterMove)) {
+         i++, moveOffset += sizeof(CritterMove)) {
         move = (CritterMove *)(*(u8 **)(hdr + offsetof(CritterPackedType,
                                 movesPtr)) + moveOffset);
         if ((move->flags & 4) == 0 && move->type == type) {
