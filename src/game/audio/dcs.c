@@ -1098,9 +1098,9 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
         u16 call = d->callInstr[sample];
         DcsSampleData* data = &d->samples[call & 0xFFF];
         AXPBADDR addr;
-        volatile u8 middlePad[12];
+        u8 middlePad[12];
         AXPBADPCM adpcm;
-        volatile u8 lowPad[4];
+        u8 lowPad[4];
         u32 start;
         u32 end;
 
@@ -1382,7 +1382,7 @@ void dcsVoiceUpdate(s32 channel) {
     s32 excess;
     s32 scaled;
     AXVPB **voiceSlot;
-    volatile u8 unused[8];
+    u8 unused[8];
 
     if (volume < 0) {
         volume = 0;

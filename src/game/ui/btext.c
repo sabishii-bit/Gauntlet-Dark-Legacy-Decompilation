@@ -288,7 +288,7 @@ void DrawGlowTextMLines(f32 scale, s32 x, s32 y, s32* str)
     s32 n;
     s32 i;
     void* lines[16];
-    volatile u8 unused[4];
+    u8 unused[4];
 
     font = glow_font;
     fh = (f32)MBFontHeight(font);
@@ -540,7 +540,7 @@ s32 DrawStringTextMLines(s32 x, s32 y, s32 spacing, s32 font, u32 color, s32 msg
     u32 rv;
     va_list ap;
     s32 lines[16];
-    volatile u8 unused[20];
+    u8 unused[20];
 
     info = (BTextPoolView*)font_info;
     entry = &info->stringList.msgs[msg];
@@ -768,7 +768,7 @@ s32 DrawStringText(s32 x, s32 y, u32 flags, u32 color, s32 msg, s32 idx, ...)
     char* text;
     volatile u32 font;
     va_list ap;
-    volatile u32 unused;
+    u32 unused;
 
     list = &((BTextPoolView*)font_info)->stringList;
     text = GetStringTextInline((BTextPoolView*)font_info, msg, idx, &font);
@@ -795,7 +795,7 @@ s32 DrawStringTextSub(StrList* p, s32 msg, s32 x, s32 y, s32 spacing, u32 font, 
     s32 n;
     s32 i;
     s32 lines[16];
-    volatile u8 unused[12];
+    u8 unused[12];
 
     ret = 0;
     if (spacing < 0) {
@@ -1153,7 +1153,7 @@ s32 DrawTextMLines(f32 scale, s32 x, s32 y, u32 font, u32 color, s32* str)
     s32 n;
     s32 i;
     void* lines[17];
-    volatile u8 unused[4];
+    u8 unused[4];
 
     n = FixMLineText(str, (s32*)gTextFormatBuf, (s32*)lines);
     for (i = 0; i < n; i++) {

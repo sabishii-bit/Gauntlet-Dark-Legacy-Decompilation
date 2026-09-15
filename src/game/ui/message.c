@@ -701,7 +701,7 @@ void msgDraw(void)
     int textIndex;
     int scratch[6];
     u32 color;
-    volatile u32 stackPad;
+    u32 stackPad;
 
     desc = &gMsgDescTable[gCurrentMessage];
     centerY = gMessageCenterY | 0x1000;

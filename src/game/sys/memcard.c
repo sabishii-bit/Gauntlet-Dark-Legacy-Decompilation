@@ -1629,9 +1629,9 @@ loopBody:
         {
             s32 fileNo = *(s32*) (buf + off -
                                   (sizeof(CardDirEntry) - offsetof(CardDirEntry, fileNo)));
-            volatile u8 _pad0[12];
+            u8 _pad0[12];
             char stat[108];
-            volatile u8 _pad1[12];
+            u8 _pad1[12];
 
             off -= 23360;
             count--;

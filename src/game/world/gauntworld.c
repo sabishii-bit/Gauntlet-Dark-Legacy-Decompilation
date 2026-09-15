@@ -698,7 +698,7 @@ s32 fn_80055F68(s32 arg0, s32 arg1)
 {
     register u8* table = (u8*)lbl_80257680;
     char name[264];
-    volatile u8 unused[4];
+    u8 unused[4];
     s32 type;
     s32 qty;
     s32 size;

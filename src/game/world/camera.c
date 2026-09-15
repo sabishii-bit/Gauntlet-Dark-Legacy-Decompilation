@@ -4425,10 +4425,10 @@ typedef struct CombatCameraSupervisorScratch {
     f32 pitchRate;
     f32 yawRateDelta;
     f32 yawRate;
-    volatile f32 selectedRoot;
-    volatile f32 projectedRoot;
-    volatile f32 segmentRoot;
-    volatile f32 candidateRoot;
+    f32 selectedRoot;
+    f32 projectedRoot;
+    f32 segmentRoot;
+    f32 candidateRoot;
     u8 _pad40[4];
     f32 closest[3];
     u8 _pad50[8];
