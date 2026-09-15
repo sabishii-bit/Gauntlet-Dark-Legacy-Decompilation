@@ -3596,6 +3596,8 @@ s32 CritterGolemAI(Critter *c)
     CritterMove *move;
     CritterMove *nm;
     Critter *child;
+    /* Frame-reconstruction debt: these became unused when SetDifficulty was
+     * recovered; removing both shrinks the native frame from 0x40 to 0x38. */
     f32 speed;
     f32 ratio;
     s32 anim32;
@@ -3671,7 +3673,7 @@ s32 CritterGolemAI(Critter *c)
     if (c->curmove < 0) {
         c->curmove = 0;
     }
-    anim32 = (s32)*(f32 *)((u8 *)c + 0x90);
+    anim32 = (s32)c->atree.animinfo.frame;
     move = c->hdr->movesPtr;
     move += c->curmove;
     switch (move->type) {
@@ -3685,7 +3687,7 @@ s32 CritterGolemAI(Critter *c)
             s32 dur = move->frameStart;
             if (dur > 0) {
                 s32 elapsed = anim32 - dur;
-                s32 total = *(s16 *)((u8 *)c + 0x88) - dur;
+                s32 total = c->atree.animinfo.numframes - dur;
                 if (elapsed > 0 && total > 0) {
                     MBTreeSetAlpha(c->anim, 255 - elapsed * 255 / total, 1);
                 }
