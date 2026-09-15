@@ -753,9 +753,9 @@ void CritterMoveDone(Critter *c, s32 moveIndex);
 extern s32 lbl_8034489C;
 extern f64 lbl_80346608;
 extern f32 lbl_80346470;
-s32  CritterGetDmove(CritterMove *a, CritterMove *b);
+s32  CritterAnimInterrupt(CritterMove *a, CritterMove *b);
 s32  CritterFindMoveType(Critter *c, s32 type, s32 mode);
-void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active);
+void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active);
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local,
                          f32 *position);
 s32  CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4);
@@ -1573,7 +1573,7 @@ extern void  PlayerSetParent(Player *p, void *node, f32 *offset);
 extern void  PlayerUnsetParent(Player *p);
 
 /* Detach the grabbed player and throw it along the critter's forward axis.
-   Inlined into CritterAnimInterrupt's phase-2 grab release. */
+   Inlined into CritterDoDamage's phase-2 grab release. */
 static void CritterReleasePlayer(Critter *c, CritterDamageDef *damageDef, f32 *dir, s32 held)
 {
     Player *pp;
@@ -4575,7 +4575,7 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
                 c->moveFlags = oldFlags | 1;
             }
             if (move->interruptAnim0 >= 0) {
-                CritterAnimInterrupt(c, move->interruptAnim0, 1,
+                CritterDoDamage(c, move->interruptAnim0, 1,
                                      !(oldFlags & 1));
             }
         }
@@ -4584,7 +4584,7 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
                 c->moveFlags |= 2;
             }
             if (move->interruptAnim1 >= 0) {
-                CritterAnimInterrupt(c, move->interruptAnim1, 2,
+                CritterDoDamage(c, move->interruptAnim1, 2,
                                      !(oldFlags & 2));
             }
         }
@@ -4867,7 +4867,7 @@ void CritterChildCriticalMove(Critter *c)
             } else {
                 if (patternChoice < 0 &&
                     (moveChoice < 0 ||
-                     CritterGetDmove(&moves[moveChoice], move) > 1)) {
+                     CritterAnimInterrupt(&moves[moveChoice], move) > 1)) {
                     best = *time;
                     patternChoice = -1;
                     moveChoice = i;
@@ -5145,15 +5145,28 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
     return result;
 }
 
-/* 0x8003C40C -- select/blend the active sequence, animate auxiliary trees,
- * and hand completed moves to CritterMoveDone.
+/* Original private desired-move lookup, corroborated by Xbox and PS2.
+ * GC inlines its pattern lookup and fallback into CritterAnimate.
  * (A second pattern-row reconstruction that lived here -- CritterAnimPatternRow,
  *  s16 sequence[8] @0x22 -- and a later move@0x20 + sequence[7]@0x22 split are
  *  both superseded: CritterPattern now carries the Xbox PDB crit_pattern's
  *  s16 moveidx[8] at 0x20, which the shipped PTRN records and
  *  CritterInitHeader's 8-entry swap loop both confirm, and the readers here
  *  index it as moveidx[c->unk120 + 1] -- the same addresses as before.) */
-#pragma opt_propagation off
+static inline s32 CritterGetDmove(Critter *c)
+{
+    s32 move;
+    if (c->unk11E >= 0 && c->unk120 >= 0 && c->unk120 < 8) {
+        move = c->hdr->patternsPtr[c->unk11E].moveidx[c->unk120 + 1];
+        if (move >= 0) {
+            return move;
+        }
+    }
+    return c->nextmove;
+}
+
+/* 0x8003C40C -- select/blend the active sequence, animate auxiliary trees,
+ * and hand completed moves to CritterMoveDone. */
 void CritterAnimate(Critter *c)
 {
     CritterMove *current;
@@ -5161,7 +5174,6 @@ void CritterAnimate(Critter *c)
     CritterSubnode *subnode;
     s32 currentIndex;
     s32 nextIndex;
-    s32 selectedSequence;
     s32 sequence;
     s32 transition;
     register s32 doneResult;
@@ -5172,12 +5184,9 @@ void CritterAnimate(Critter *c)
     current = NULL;
     next = NULL;
     currentIndex = c->curmove;
-    if (c->unk11E < 0 || c->unk120 < 0 || c->unk120 >= 8 ||
-        (candidate = ((CritterPackedType *)c->hdr)
-                         ->patternsPtr[c->unk11E]
-                         .moveidx[c->unk120 + 1]) < 0) {
-        candidate = c->nextmove;
-    }
+    candidate = CritterGetDmove(c);
+    /* The requested move and completion index differ when rate holds the
+     * current move; nextIndex is updated in that branch below. */
     nextIndex = candidate;
     if (currentIndex >= 0) {
         current = &c->hdr->movesPtr[currentIndex];
@@ -5200,12 +5209,8 @@ void CritterAnimate(Critter *c)
             nextIndex = currentIndex;
             transition = 0;
         } else {
-            selectedSequence = 0;
-            if (controllerFlag != (u64)(u32)selectedSequence) {
-                if (next != NULL) {
-                    selectedSequence = next->seqidx;
-                }
-                sequence = selectedSequence;
+            if (controllerFlag != 0) {
+                sequence = next != NULL ? next->seqidx : 0;
                 if (current == NULL) {
                     transition = 3;
                 } else if (current != next && current->type == 1) {
@@ -5216,7 +5221,7 @@ void CritterAnimate(Critter *c)
             } else {
                 sequence = next->seqidx;
                 if (current != NULL) {
-                    transition = CritterGetDmove(current, next);
+                    transition = CritterAnimInterrupt(current, next);
                 } else {
                     transition = 3;
                 }
@@ -5259,7 +5264,6 @@ void CritterAnimate(Critter *c)
         c->curmove = -1;
     }
 }
-#pragma opt_propagation reset
 
 /* 0x8003C6FC -- record cooldown/pattern progress and install the move that
  * just completed its blend. */
@@ -5330,9 +5334,9 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
     c->rate = lbl_80346470;
 }
 
-/* 0x8003C8D4 -- classify two critters' facing/positions into a 0/1/2 code by
- * the relation encoded in a->curmove (0x56). */
-s32 CritterGetDmove(CritterMove *a, CritterMove *b)
+/* 0x8003C8D4 -- classify the desired move against the current move's
+ * interrupt policy and their priorities. */
+s32 CritterAnimInterrupt(CritterMove *a, CritterMove *b)
 {
     s32 av;
     s32 bv;
@@ -5423,7 +5427,7 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     return result;
 }
 #pragma opt_propagation on
-/* -- externs used by CritterAnimInterrupt -- */
+/* -- externs used by CritterDoDamage -- */
 extern void *SfxGetNode(s32 node);
 extern void  PlayerSetParent(Player *p, void *node, f32 *offset);
 extern void  PlayerUnsetParent(Player *p);
@@ -5438,7 +5442,7 @@ extern f32   lbl_80127D00[];
 extern f64   lbl_80346610;
 extern f32   lbl_803464F0;
 /* 0x8003CA98 -- dispatch one move action descriptor on activation or release. */
-void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
+void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
 {
     CritterBigState *big = &gBig;
     CritterDamageDef *desc;
