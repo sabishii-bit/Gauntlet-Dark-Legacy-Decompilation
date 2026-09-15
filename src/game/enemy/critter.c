@@ -2151,7 +2151,6 @@ void CritterResolveMultipleTargets(Critter *c)
             owner->targetCount--;
             gBig.scratch[player] -= decrement;
         }
-        record++;
     }
 }
 
@@ -5414,7 +5413,7 @@ static inline s32 CritterGrabPlayer(Critter *c, CritterDamageDef *desc)
     c->unk128 = (s16)node;
     if (desc->sfx >= 0) {
         SfxSetParent(CritterDoSfx(c, desc->sfx, NULL, 0, -1),
-                     *(void **)((u8 *)pp + 0x74));
+                     pp->node);
     }
     return node;
 }
