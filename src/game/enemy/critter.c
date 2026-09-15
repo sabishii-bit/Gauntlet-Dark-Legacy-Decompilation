@@ -602,9 +602,10 @@ extern void  DoTexMods(void *atree);
 extern s32   MBSetupWad(s32 *wad, s32 base);
 extern s32   MBGetFromWad(s32 *wad, s32 key, s32 *sizeOut);
 extern u8   *sItems;
-extern void *lbl_80241020[16];
-extern s32   SafeRockActive(void *rock);
-extern void *ItemGetNode(void *rock);
+extern s32   lbl_80241020[16];
+extern s32   SafeRockActive(s32 idx);
+struct mbnode;
+extern struct mbnode *ItemGetNode(s32 idx);
 extern s32   PlayerAttacking(s32 player, s32 mode);
 extern s32   player_can_be_damaged(void *player);
 extern void  GetPlayerColPos(s32 i, f32 *out);
@@ -1351,11 +1352,10 @@ s32 SafeRockNearestTarget(s32 player)
     if (player < 0) {
         s32 sum;
         for (i = 0; i < lbl_80344658; i++) {
-            node = lbl_80241020[i];
             sum = *(volatile s32 *)&lbl_80344654 + i;
             sum++;
             bestIndex = sum % lbl_80344658;
-            if (SafeRockActive(node) == 0) {
+            if (SafeRockActive(lbl_80241020[i]) == 0) {
                 return bestIndex;
             }
         }
@@ -5451,7 +5451,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                 if (node >= 0) {
                     u8 *row = (u8 *)big + i * 4;
                     MBNodeSetParent(SfxGetNode(node),
-                                    ItemGetNode((void *)*(u32 *)(row + 0x50)));
+                                    ItemGetNode(*(s32 *)(row + 0x50)));
                 }
             }
         }
@@ -5467,7 +5467,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                         MBNodeSetParent(
                             SfxGetNode(node),
                             ItemGetNode(
-                                (void *)big->safeRockIndices[lbl_80344654]));
+                                big->safeRockIndices[lbl_80344654]));
                         frames = -1;
                         if (node >= 0) {
                             frames = *(s16 *)&Effects[node].atree[0x14];
