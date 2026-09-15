@@ -253,7 +253,6 @@ extern f32   lbl_80346598;
 extern f64   lbl_803465A0;
 extern f64   lbl_803465A8;
 extern f64   lbl_803465B0;
-extern f32   lbl_803464C0;
 extern f32   lbl_803465F8;
 extern f32   lbl_80346508;
 extern f64   lbl_80346558;
@@ -4660,7 +4659,7 @@ void CritterLookForReady(Critter *c)
     moveCount = c->hdr->moveCount;
     moves = c->hdr->movesPtr;
     result = -1;
-    best = lbl_803464C0;
+    best = 1e21f;
 
     if ((c->hdr->typeFlags & 0x10000) == 0) {
         return;
