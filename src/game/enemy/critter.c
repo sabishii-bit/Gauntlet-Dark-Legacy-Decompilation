@@ -5829,8 +5829,8 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     }
 
     if (c->mbnode != NULL &&
-        (((MBObject *)c->mbnode)->flags & 8) != 0) {
-        scale = ((MBObject *)c->mbnode)->scale[1];
+        (c->mbnode->flags & 8) != 0) {
+        scale = c->mbnode->scale[1];
     } else {
         scale = 1.0f;
     }
@@ -5958,7 +5958,7 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
     u8 *effectData;
     f32 scale;
 
-    effect = ((CritterSfxRecord *)sfx)->textureId;
+    effect = sfx->textureId;
     if (effect < 0) goto fail;
     treeFlags = 0x800;
     effectFlags = 0;
@@ -5978,7 +5978,7 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
     if ((flags & 0x800000) != 0) effectFlags |= 0x20000000;
 
     result = StartFXSub(effect, position, effectFlags, treeFlags,
-                        ((CritterSfxRecord *)sfx)->life);
+                        sfx->life);
     SfxSetOwner(result, c->id | 0x1000);
     if (useSceneRoot != 0) {
         SfxSetParent(result, lbl_80344EB4);
@@ -5994,17 +5994,17 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
         }
         SfxSetParent(result, parent);
     }
-    color = ((CritterSfxRecord *)sfx)->tintColor;
+    color = sfx->tintColor;
     if (color != 0xFFFFFFFF) {
         effectData = (u8 *)Effects;
         effectData += result * sizeof(Effect);
         MBTreeSetColor(**(void ***)(effectData += offsetof(Effect, atree)),
                        color, 1);
     }
-    scale = ((CritterSfxRecord *)sfx)->scale;
+    scale = sfx->scale;
     if (c->mbnode != NULL &&
-        (((MBObject *)c->mbnode)->flags & 8) != 0) {
-        scale *= ((MBObject *)c->mbnode)->scale[1];
+        (c->mbnode->flags & 8) != 0) {
+        scale *= c->mbnode->scale[1];
     }
     if (scale != 1.0) {
         MBTreeSetScale(scale, scale, scale, Effects[result].node);
