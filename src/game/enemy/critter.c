@@ -249,7 +249,6 @@ extern f64   lbl_803464C8;
 extern f64   lbl_803464D0;
 extern f64   lbl_803464D8;
 extern f64   lbl_803464E0;
-extern f64   lbl_80346500;
 extern f32   lbl_80346590;
 extern f32   lbl_80346598;
 extern f64   lbl_803465A0;
@@ -3005,7 +3004,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
 
     move = &(c->hdr->movesPtr)[c->curmove];
     if (move->type == 35) {
-        damage = (f32)((f64)damage * lbl_80346500);
+        damage *= 0.25;
         flags &= ~0x130;
         if (move->sfxFrame >= 1000 &&
             (c->moveSfxFlags & 1) == 0 &&
