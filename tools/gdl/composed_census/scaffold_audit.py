@@ -382,6 +382,27 @@ def strip_volatile_lines(tu, line_nos):
     return original, done
 
 
+def delete_lines(tu, line_nos):
+    """Delete whole lines from one TU, HIGHEST FIRST.
+
+    A pragma region is a PAIR of lines, and a TU can hold several regions --
+    mb_particle has eight, so sixteen lines. Deleting in ascending order
+    invalidates every later line number the audit recorded; descending order
+    keeps them all valid without re-deriving anything. Returns
+    (original_text, sorted lines actually removed).
+    """
+    path = source_of(tu)
+    original = path.read_text(errors="replace")
+    lines = original.split("\n")
+    done = []
+    for n in sorted(set(line_nos), reverse=True):
+        if 1 <= n <= len(lines) and lines[n - 1].strip().startswith("#pragma"):
+            del lines[n - 1]
+            done.append(n)
+    path.write_text("\n".join(lines))
+    return original, sorted(done)
+
+
 def apply_dead(results):
     """Apply every DEAD site, one TU at a time, gated on the object digest.
 
@@ -395,25 +416,33 @@ def apply_dead(results):
     """
     by_tu = {}
     for r in results:
-        if r.get("verdict") == "DEAD":
-            by_tu.setdefault(r["tu"], []).append(r["line"])
+        if r.get("verdict") != "DEAD":
+            continue
+        # A volatile record carries one `line`; a pragma record carries the
+        # region's `lines` PAIR. Dispatching on shape lets one gate serve both
+        # halves of the campaign instead of the pragma half being done by hand.
+        if "line" in r:
+            by_tu.setdefault((r["tu"], "volatile"), []).append(r["line"])
+        else:
+            by_tu.setdefault((r["tu"], "pragma"), []).extend(r["lines"])
     out = []
-    for tu in sorted(by_tu):
-        lines = sorted(by_tu[tu])
+    for tu, kind in sorted(by_tu):
+        lines = sorted(by_tu[(tu, kind)])
         before = obj_sha1(tu)
-        original, done = strip_volatile_lines(tu, lines)
+        original, done = (strip_volatile_lines(tu, lines) if kind == "volatile"
+                          else delete_lines(tu, lines))
         ok = build_tu(tu)
         after = obj_sha1(tu) if ok else None
         kept = ok and after == before
         if not kept:
             source_of(tu).write_text(original)
             build_tu(tu)
-        out.append({"tu": tu, "lines": done, "kept": kept,
+        out.append({"tu": tu, "kind": kind, "lines": done, "kept": kept,
                     "sha1": before, "sha1_after": after,
                     "why": None if kept else
                     ("build failed" if not ok else "object digest moved")})
-        print(f"{'KEPT  ' if kept else 'REVERT'} {tu:26} "
-              f"{len(done)} site(s) {done}"
+        print(f"{'KEPT  ' if kept else 'REVERT'} {tu:26} {kind:8} "
+              f"{len(done)} line(s) {done}"
               + ("" if kept else f"  -- {out[-1]['why']}"), flush=True)
     return out
 
@@ -452,7 +481,7 @@ def main():
                     help="enumerate regions without building anything")
     ap.add_argument("--out", help="write results as JSON here")
     ap.add_argument("--apply-dead", metavar="JSON",
-                    help="apply every DEAD volatile site from a --volatiles "
+                    help="apply every DEAD site from a --volatiles or pragma "
                          "run, one TU at a time, gated per TU on the object "
                          "digest -- individual proofs are not a batch proof")
     ap.add_argument("--volatiles", action="store_true",

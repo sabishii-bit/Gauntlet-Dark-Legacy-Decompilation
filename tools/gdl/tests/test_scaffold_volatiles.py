@@ -368,5 +368,73 @@ class ConfirmVolatileTest(unittest.TestCase):
         self.assertEqual(self.src.read_text(), self.text)
 
 
+class ApplyDeadPragmaTest(unittest.TestCase):
+    """The pragma half of the batch gate, and the ordering trap it closes."""
+
+    def setUp(self):
+        self.mod = load_module()
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.src = Path(self.dir.name) / "x.c"
+        self.text = ("#pragma opt_lifetimes off\n"
+                     "void a(void) { }\n"
+                     "#pragma opt_lifetimes reset\n"
+                     "#pragma opt_common_subs off\n"
+                     "void b(void) { }\n"
+                     "#pragma opt_common_subs reset\n")
+        self.src.write_text(self.text)
+        self.mod.source_of = lambda tu: self.src
+        self.mod.build_tu = lambda tu: True
+
+    # ---------- positive ----------
+
+    def test_two_regions_in_one_tu_both_disappear(self):
+        """THE ORDERING TRAP. Deleting ascending shifts every later line, so
+        region two would take the wrong lines. mb_particle has EIGHT regions
+        (sixteen lines) in one file, which is where this bites."""
+        self.mod.obj_sha1 = lambda tu: "aaa"
+        out = self.mod.apply_dead([
+            {"tu": "tu", "verdict": "DEAD", "lines": [1, 3]},
+            {"tu": "tu", "verdict": "DEAD", "lines": [4, 6]},
+        ])
+        self.assertTrue(out[0]["kept"])
+        self.assertEqual(out[0]["kind"], "pragma")
+        self.assertEqual(out[0]["lines"], [1, 3, 4, 6])
+        self.assertEqual(self.src.read_text(),
+                         "void a(void) { }\nvoid b(void) { }\n")
+
+    def test_delete_lines_works_highest_first(self):
+        _orig, done = self.mod.delete_lines("tu", [1, 3])
+        self.assertEqual(done, [1, 3])
+        self.assertEqual(self.src.read_text().split("\n")[0],
+                         "void a(void) { }")
+
+    # ---------- negative ----------
+
+    def test_a_non_pragma_line_is_never_deleted(self):
+        """A stale line number must not remove a line of real code."""
+        _orig, done = self.mod.delete_lines("tu", [2, 5, 999])
+        self.assertEqual(done, [])
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_a_moved_digest_reverts_the_pragma_batch_whole(self):
+        digests = iter(["aaa", "bbb", "aaa"])
+        self.mod.obj_sha1 = lambda tu: next(digests)
+        out = self.mod.apply_dead([{"tu": "tu", "verdict": "DEAD",
+                                    "lines": [1, 3]}])
+        self.assertFalse(out[0]["kept"])
+        self.assertEqual(self.src.read_text(), self.text)
+
+    def test_volatile_and_pragma_records_do_not_mix(self):
+        """One TU can appear in both halves; each gets its own gated batch."""
+        self.mod.obj_sha1 = lambda tu: "aaa"
+        out = self.mod.apply_dead([
+            {"tu": "tu", "verdict": "DEAD", "lines": [1, 3]},
+            {"tu": "tu", "verdict": "DEAD", "line": 2},
+        ])
+        self.assertEqual(sorted(o["kind"] for o in out),
+                         ["pragma", "volatile"])
+
+
 if __name__ == "__main__":
     unittest.main()
