@@ -3541,8 +3541,6 @@ void CritterUpdateCounters(Critter *c)
 {
     s32 i;
     s32 moveType;
-    f32 *counterTime;
-    u8 *base;
     f64 zero;
     f64 timeout;
     f32 clear;
@@ -3561,19 +3559,17 @@ void CritterUpdateCounters(Critter *c)
     timeout = 15.0;
     clear = 0.0f;
     for (i = 0; i < 4; i++) {
-        base = (u8 *)c + i * 0x10;
-        counterTime = (f32 *)(base + (offsetof(Critter, playerDamage[0].receivedTime)));
-        current = *counterTime;
+        current = c->playerDamage[i].receivedTime;
         if ((f64)current > zero &&
             (f64)(sMusicFadeBase - current) > timeout) {
-            ((Critter *)base)->playerDamage[0].received = clear;
-            *counterTime = clear;
+            c->playerDamage[i].received = clear;
+            c->playerDamage[i].receivedTime = clear;
         }
-        current = *(counterTime = (f32 *)(base + (offsetof(Critter, playerDamage[0].dealtTime))));
+        current = c->playerDamage[i].dealtTime;
         if ((f64)current > zero &&
             (f64)(sMusicFadeBase - current) > timeout) {
-            *(f32 *)(base + (offsetof(Critter, playerDamage[0].dealt))) = clear;
-            *counterTime = clear;
+            c->playerDamage[i].dealt = clear;
+            c->playerDamage[i].dealtTime = clear;
         }
     }
 }
