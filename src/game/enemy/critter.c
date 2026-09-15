@@ -2293,7 +2293,7 @@ static inline f32 CritterCalcTargetScore(f32 distance, f32 dot, f32 *absolute)
         *(u32 *)absolute &= 0x7FFFFFFF;
         return distance / *absolute;
     }
-    return lbl_8034654C * distance;
+    return 2.0f * distance;
 }
 
 /* 0x800372A0 -- calculate range, facing and score for a world-space target. */
@@ -2340,7 +2340,7 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
         }
         if (moveTarget[7] > *(volatile f64 *)&lbl_80346488 &&
             vertical > moveTarget[7]) {
-            return lbl_80346548;
+            return 1.03e21f;
         }
         YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget[2]);
         forward[1] = lbl_80346470;
@@ -2820,7 +2820,7 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
         }
     }
     if (out != NULL) {
-        if (best >= lbl_80346558) {
+        if (best >= 2.0e21) {
             if (out != NULL) {
                 out[0] = forward[0];
                 out[1] = forward[1];
@@ -2917,7 +2917,7 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
                 out[2] = delta[2];
             }
         }
-        if (best < lbl_80346558) {
+        if (best < 2.0e21) {
             return best;
         }
     }
@@ -2988,7 +2988,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     critterClass = c->hdr->descriptor->type;
 
     if (gGameOptions.no_damage == 3 && player >= 0) {
-        damage = lbl_80346560;
+        damage = 10000.0f;
     }
     if (critterClass != 4 &&
         (f64)lbl_803447D8 < lbl_80346490) {
@@ -3049,12 +3049,12 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
             damageScale = lbl_803464A8;
             if (level < gCurLevel->plevel) {
                 damageScale = (f32)(lbl_80346490 -
-                    lbl_80346568 *
+                    0.02 *
                     (f64)(gCurLevel->plevel -
                           level));
             }
             if ((f64)damageScale < lbl_803464B0) {
-                damageScale = lbl_80346570;
+                damageScale = 0.1f;
             }
             damage *= damageScale;
         }
@@ -3152,7 +3152,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     do {                                                                       \
         Critter *deathChild;                                                   \
         (victim)->state = 1;                                                   \
-        CritterAwardExp(-1, (f32)(lbl_80346580 *                             \
+        CritterAwardExp(-1, (f32)(0.2 *                                         \
                                   (f64)(victim)->hdr->expValue));            \
         if ((victim)->parent == NULL) {                                        \
             f32 deadHealth;                                                    \
@@ -3208,7 +3208,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         childZero = lbl_80346488;
         if ((f64)livingChildren > childZero) {
             childOne = lbl_803464A8;
-            childAwardScale = lbl_80346580;
+            childAwardScale = 0.2;
             childDamage = (f32)(lbl_803464F8 *
                                 (f64)(damage / livingChildren));
             for (child = c->next; child != NULL; child = child->next) {
