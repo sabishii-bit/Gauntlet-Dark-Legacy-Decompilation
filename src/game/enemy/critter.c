@@ -2832,7 +2832,8 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
 f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
                           f32 dotThresh, f32 limit)
 {
-    f32 delta[3];
+    /* Xbox GetTargetSub records a four-float direction; GC uses xyz. */
+    f32 delta[4];
     CritterPackedType *hdr;
     s32 i;
     CritterHitNode *node;
@@ -2840,32 +2841,28 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
     f32 best;
     f32 bestScore;
     f32 slope;
-    f32 nd;
-    f32 dr;
     f32 dist;
     f32 q;
     f32 dot;
     f32 thresh;
     f32 score;
     f32 nodeMax;
-    f64 eps2;
 
-    best = *(volatile f32 *)&lbl_80346508;
+    best = 2.0e21f;
     hdr = c->hdr;
     bestScore = best;
-    if (limit > *(volatile f64 *)&lbl_80346488) {
-        slope = (lbl_80346490 - dotThresh) / limit;
+    if (limit > 0.0) {
+        slope = (1.0 - dotThresh) / limit;
     } else {
-        slope = lbl_80346470;
+        slope = 0.0f;
     }
-    if (c->health <= lbl_80346470) {
-        return lbl_80346508;
+    if (c->health <= 0.0f) {
+        return 2.0e21f;
     }
     if (c->state < 2) {
-        return lbl_80346508;
+        return 2.0e21f;
     }
     if ((hdr->typeFlags & 2) != 0) {
-        eps2 = lbl_80346488;
         for (i = 0; i < hdr->colCount; i++) {
             node = &c->hitnodes[i];
             if (node->active == NULL) {
@@ -2878,30 +2875,30 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
             delta[1] = node->position[1] - origin[1];
             delta[2] = node->position[2] - origin[2];
             dist = NormalVector(delta);
-            if (limit > eps2 && dist > limit) {
+            if (limit > 0.0 && dist > limit) {
                 continue;
             }
             nodeDef = node->descriptor;
             nodeMax = nodeDef->maxTargetDistance;
-            if (nodeMax > eps2 && dist > nodeMax) {
+            if (nodeMax > 0.0 && dist > nodeMax) {
                 continue;
             }
-            nd = dist - nodeDef->radius;
+            dist = dist - nodeDef->radius;
             q = fqdist(delta[0], delta[2]);
             dot = delta[0] * forward[0] + delta[2] * forward[2];
-            if (slope > eps2) {
-                thresh = q * (nd * slope + dotThresh);
+            if (slope > 0.0) {
+                thresh = q * (dist * slope + dotThresh);
             } else {
                 thresh = dotThresh;
             }
             if (dot <= thresh) {
                 continue;
             }
-            score = nd / (node->descriptor->targetScoreScale * (dot - thresh));
+            score = dist / (node->descriptor->targetScoreScale * (dot - thresh));
             if (score < bestScore) {
                 out[0] = delta[0];
                 bestScore = score;
-                best = nd;
+                best = dist;
                 out[1] = delta[1];
                 out[2] = delta[2];
             }
@@ -2914,20 +2911,20 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
     delta[1] = c->pos[1] - origin[1];
     delta[2] = c->pos[2] - origin[2];
     dist = NormalVector(delta);
-    if (limit > *(volatile f64 *)&lbl_80346488 && dist > limit) {
-        return lbl_80346508;
+    if (limit > 0.0 && dist > limit) {
+        return 2.0e21f;
     }
-    dr = dist - c->hdr->wallRadius;
+    dist = dist - c->hdr->wallRadius;
     q = fqdist(delta[0], delta[2]);
     dot = delta[0] * forward[0] + delta[2] * forward[2];
-    thresh = q * (dr * slope + dotThresh);
+    thresh = q * (dist * slope + dotThresh);
     if (dot <= thresh) {
-        return lbl_80346508;
+        return 2.0e21f;
     }
     out[0] = delta[0];
     out[1] = delta[1];
     out[2] = delta[2];
-    return dr;
+    return dist;
 }
 
 /* Original helper, outlined on PS2 and expanded here in the GC caller.
