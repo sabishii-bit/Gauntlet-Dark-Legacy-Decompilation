@@ -2,6 +2,7 @@
 #define GAME_EFFECT_H
 
 #include "types.h"
+#include "game/atree.h"
 
 /*
  * SFX live-effect record and effect-definition tables for Gauntlet Dark Legacy.
@@ -205,10 +206,7 @@ typedef struct Effect {
     f32 lightcolor[4];         /* 0x00 dynamic light RGBA emitted by fx   */
     f32 lightrad;              /* 0x10 dynamic light radius               */
     struct mbnode* node;       /* 0x14 owning scene node                  */
-    u8 atree[0x48];            /* 0x18 struct atree (0x48): anode* root@+0,
-                                *      animinfo@+0x04 (0x38), int nanodes@+0x3c,
-                                *      anode* firstanode@+0x40,
-                                *      anodeinfo* anodeinfo@+0x44             */
+    atree atree;              /* 0x18 runtime animation tree (0x48)       */
     fx_type type;              /* 0x60 which effect kind (enum fx_type)   */
     s32 flags;                 /* 0x64 runtime state bits                 */
     f32 endtime;               /* 0x68 life timer / death time            */

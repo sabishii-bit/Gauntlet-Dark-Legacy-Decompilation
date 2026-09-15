@@ -5440,7 +5440,7 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
                                 big->safeRockIndices[lbl_80344654]));
                         frames = -1;
                         if (node >= 0) {
-                            frames = *(s16 *)&Effects[node].atree[0x14];
+                            frames = Effects[node].atree.animinfo.numframes;
                         }
                         frames = frames - 1;
                         big->safeRockTimers[lbl_80344654] =
@@ -5954,7 +5954,6 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
     s32 result;
     s32 effect;
     void *parent;
-    u8 *effectData;
     f32 scale;
 
     effect = sfx->textureId;
@@ -5995,10 +5994,7 @@ s32 CritterDoSfxSub(Critter *c, CritterSfxRecord *sfx, f32 *position,
     }
     color = sfx->tintColor;
     if (color != 0xFFFFFFFF) {
-        effectData = (u8 *)Effects;
-        effectData += result * sizeof(Effect);
-        MBTreeSetColor(**(void ***)(effectData += offsetof(Effect, atree)),
-                       color, 1);
+        MBTreeSetColor(Effects[result].atree.root->obj, color, 1);
     }
     scale = sfx->scale;
     if (c->mbnode != NULL &&

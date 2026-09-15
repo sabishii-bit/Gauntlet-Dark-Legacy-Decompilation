@@ -193,7 +193,7 @@ typedef struct EnemyFxPage {
 #define FX_POOL_F32(i, off) (*(f32*)((u8*)EffectInfo + (i) * 240 + (off)))
 
 /* Effect.atree is stored inline (0x48 bytes); root anode* is its first word */
-#define ATREE_ROOT(e) (*(struct anode**)&(e)->atree[0])
+#define ATREE_ROOT(e) ((e)->atree.root)
 
 /* --- TU data --- */
 extern Effect Effects[64];                     /* 0x80285BB8 */
@@ -2320,7 +2320,7 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
     }
     idx = FindEffectIdx();
     e = &Effects[idx];
-    ATREE_ROOT(e) = AtreeInitSub(hdr, &e->atree[0], 0, flb, 0);
+    ATREE_ROOT(e) = AtreeInitSub(hdr, &e->atree, 0, flb, 0);
     if (ATREE_ROOT(e) == NULL) {
         return -1;
     }
@@ -2334,12 +2334,12 @@ s32 StartFXTree(struct atreeheader* hdr, f32* pos, u32 fla, u32 flb, f32 time)
     }
     e->node = MBNewNode(parent, gIdentityMatrix, 1);
     if (e->node == NULL) {
-        AtreeDelete(&e->atree[0]);
+        AtreeDelete(&e->atree);
         return -1;
     }
     MBNodeSetParent(ATREE_ROOT(e)->obj, e->node);
 
-    ai = (struct fxanim*)&e->atree[4];
+    ai = (struct fxanim*)&e->atree.animinfo;
     if (time > 0.0) {
         e->endtime = gClockTime + time;
         ai->oneshot = 1;
@@ -3540,7 +3540,7 @@ void ProcessEffects(void)
 
         if (hit < 0) {
             e->endtime = gClockTime;
-            ((struct fxanim*)&e->atree[4])->oneshot = 0;
+            ((struct fxanim*)&e->atree.animinfo)->oneshot = 0;
         } else if (hit != 0) {
             MagicView* magic = (MagicView*)lbl_80122088;
             s32 morph;
@@ -3578,11 +3578,11 @@ void ProcessEffects(void)
                 if (e->webtime > 0.0) {
                     e->endtime = gClockTime + e->webtime;
                     e->maxtime = e->endtime - gClockTime;
-                    ((struct fxanim*)&e->atree[4])->oneshot = 0;
+                    ((struct fxanim*)&e->atree.animinfo)->oneshot = 0;
                     e->flags &= 0xfe7dfbf9;
                     e->flags |= 0x00100000;
                 } else {
-                    struct fxanim* ai = (struct fxanim*)&e->atree[4];
+                    struct fxanim* ai = (struct fxanim*)&e->atree.animinfo;
 
                     e->endtime =
                         0.00111111 *
@@ -3632,7 +3632,7 @@ void ProcessEffects(void)
                 }
             } else {
                 e->endtime = gClockTime;
-                ((struct fxanim*)&e->atree[4])->oneshot = 0;
+                ((struct fxanim*)&e->atree.animinfo)->oneshot = 0;
             }
         }
 
@@ -3645,7 +3645,7 @@ void ProcessEffects(void)
                 if (e->morphtime > 0.0) {
                     e->endtime = gClockTime + e->morphtime;
                 } else {
-                    struct fxanim* ai = (struct fxanim*)&e->atree[4];
+                    struct fxanim* ai = (struct fxanim*)&e->atree.animinfo;
                     e->endtime =
                         0.00111111 *
                             ((f32)ai->def->nframes * (f32)ai->def->rate) +
@@ -3660,7 +3660,7 @@ void ProcessEffects(void)
                     e->flags &= ~0x4000;
                     e->damageradius = 0.0f;
                 }
-                ((struct fxanim*)&e->atree[4])->oneshot = 1;
+                ((struct fxanim*)&e->atree.animinfo)->oneshot = 1;
             } else {
                 if (e->flags & 0x02000000) {
                     PlaceItem(3, 0, "BOSSGEN", mat);
@@ -3688,7 +3688,7 @@ void ProcessEffects(void)
         }
 
         if (ATREE_ROOT(e) != NULL) {
-            AnimateATree(&e->atree[0], 0, 0);
+            AnimateATree(&e->atree, 0, 0);
         }
         if (moved) {
             mat[12] = pos[0];
@@ -3915,8 +3915,8 @@ void ChangeEffect(s32 idx, s32 type, u32 newflags)
             n = root->obj;
             newflags |= n->flags & 0x890;
             oldframe = n->ambient_add;
-            AtreeDelete(&e->atree[0]);
-            ATREE_ROOT(e) = AtreeInit(h->atree, &e->atree[0], 0, 0);
+            AtreeDelete(&e->atree);
+            ATREE_ROOT(e) = AtreeInit(h->atree, &e->atree, 0, 0);
             MBNodeSetParent(ATREE_ROOT(e)->obj, e->node);
             MBTreeSetZsortAdd(e->node, h->zmod, 1);
             MBTreeSetAlpha(e->node, h->alpha, 1);
@@ -4007,7 +4007,7 @@ s32 DeleteEffect(s32 idx, s32 mode)
     }
 
     if (ATREE_ROOT(e) != NULL) {
-        AtreeDelete(&e->atree[0]);
+        AtreeDelete(&e->atree);
     }
 
     if ((n = e->node) != NULL) {
