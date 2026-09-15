@@ -1080,7 +1080,6 @@ f32 *delta;
     f32 reach;
     f32 length;
     f32 difference;
-    s32 offset;
     s32 i;
     u32 result;
     s32 grounded;
@@ -1094,14 +1093,8 @@ f32 *delta;
     radius = c->hdr->radius;
     wallSurface = NULL;
     if ((c->hdr->typeFlags & 0x100) != 0) {
-        /* The byte-offset induction is load-bearing here: `&c->hitnodes[i]`
-         * with the `offset` accumulator removed rebuilds this function at the
-         * same 1192 bytes with 55 differing words against the banked object,
-         * so the cursor form below is retained and the cast is scoped. */
-        for (i = 0, offset = 0; i < c->hdr->colCount;
-             i++, offset += sizeof(CritterHitNode)) {
-            CritterHitNode *hitNode =
-                (CritterHitNode *)((u8 *)c->hitnodes + offset);
+        for (i = 0; i < c->hdr->colCount; i++) {
+            CritterHitNode *hitNode = &c->hitnodes[i];
             if (hitNode->active == NULL) {
                 continue;
             }
