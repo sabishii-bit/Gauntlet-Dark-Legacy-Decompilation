@@ -1123,7 +1123,6 @@ static inline void modify_boss_ene(char* buffer)
     }
 }
 
-#pragma opt_propagation off
 /* One .bss object, split into two symbols by the extractor: its head is
  * named sSpeechNameBuf (.bss 0x8028B5D0, size 0x40 -- the sprintf scratch
  * buffer) and the id table 0x4B0 bytes later is named sActiveTrackId (.bss
@@ -1330,7 +1329,6 @@ void AudioSetupBossStreams(register int idx, register char* name)
         speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     }
 }
-#pragma opt_propagation reset
 
 void fn_8009FCA8(int flag)
 {
