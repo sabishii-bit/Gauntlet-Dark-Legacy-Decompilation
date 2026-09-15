@@ -5937,14 +5937,14 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
  * described by its loaded type header. */
 Critter *CritterNewInst(s32 type, s32 subtype, void *object)
 {
-    u8 *childDef;
+    CritterPackedType *childDef;
     CritterPackedType *header;
     Critter *root;
     Critter *tail;
     CritterPackedType *childHeader;
     Critter *child;
     void *node;
-    u8 *geo;
+    struct atreeheader *geo;
     s32 nodeIndex;
     s32 childIndex;
 
@@ -5974,18 +5974,18 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         childHeader = &header->file->types[childIndex];
         child = CritterEmptyInst();
         CritterInitInst(child, childHeader);
-        childDef = (u8 *)child->hdr;
+        childDef = child->hdr;
         geo = root->hdr->atree;
         child->atree = root->atree;
 
-        nodeIndex = AtreeFindNodeIdx(((struct atreeheader *)geo)->nodeinfo,
-                                     ((struct atreeheader *)geo)->numnodes,
-                                     (char *)child->hdr + 0x10, 0x10);
+        nodeIndex = AtreeFindNodeIdx(geo->nodeinfo,
+                                     geo->numnodes,
+                                     child->hdr->rootnode, 0x10);
         child->atree.root = &root->atree.firstanode[nodeIndex];
         AtreeNodeSetParent(child->atree.root, NULL, NULL, 0);
-        child->anim = *(void **)child->atree.root;
+        child->anim = child->atree.root->obj;
 
-        nodeIndex = ((CritterPackedType *)childDef)->node0Index;
+        nodeIndex = childDef->node0Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
@@ -5995,13 +5995,13 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
             }
         }
         child->hitnode0 = node;
-        if ((((CritterPackedType *)childDef)->typeFlags & 0x10) != 0 &&
+        if ((childDef->typeFlags & 0x10) != 0 &&
             child->hitnode0 != NULL &&
-            *(void **)((u8 *)child->hitnode0 + 0x74) != NULL) {
-            child->hitnode0 = *(void **)((u8 *)child->hitnode0 + 0x74);
+            child->hitnode0->parent != NULL) {
+            child->hitnode0 = child->hitnode0->parent;
         }
 
-        nodeIndex = ((CritterPackedType *)childDef)->node1Index;
+        nodeIndex = childDef->node1Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
@@ -6012,7 +6012,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
         }
         child->hitnode1 = node;
 
-        nodeIndex = ((CritterPackedType *)childDef)->node2Index;
+        nodeIndex = childDef->node2Index;
         if (nodeIndex < 0) {
             node = NULL;
         } else {
@@ -6594,12 +6594,12 @@ static CritterSubnode *CritterNewAnimInst(void)
 
 void CritterAddAnimInsts(Critter *c, f32 *matrix)
 {
-    u8 *node;
+    CritterAddAnim *node;
     CritterSubnode *record;
     CritterSubnode *tail;
     void *parent;
 
-    node = (u8 *)c->hdr->attachments;
+    node = c->hdr->attachments;
     while (node != NULL) {
         record = CritterNewAnimInst();
         if (record != NULL) {
@@ -6612,12 +6612,12 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix)
             } else {
                 c->subnodes = record;
             }
-            if (*(void **)(node + offsetof(CritterAddAnim, atree)) != NULL) {
+            if (node->atree != NULL) {
                 parent = lbl_8034473C;
-                if ((*(s16 *)(node + offsetof(CritterAddAnim, flags)) & 1) != 0) {
-                    if (*(s8 *)(node + offsetof(CritterAddAnim, attachNodeName)) != 0) {
+                if ((node->flags & 1) != 0) {
+                    if ((s8)node->attachNodeName[0] != 0) {
                         parent = AtreeFindNode(&c->atree,
-                                               (char *)(node + offsetof(CritterAddAnim, attachNodeName)), 8);
+                                               node->attachNodeName, 8);
                         if (parent == NULL) {
                             parent = c->anim;
                         }
@@ -6626,17 +6626,17 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix)
                     }
                 }
                 record->mbnode = MBNewNode(parent, matrix, 1);
-                *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][0])) = *(f32 *)(node + offsetof(CritterAddAnim, offset));
-                *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][1])) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 4));
-                *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][2])) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 8));
+                record->mbnode->mat[3][0] = node->offset[0];
+                record->mbnode->mat[3][1] = node->offset[1];
+                record->mbnode->mat[3][2] = node->offset[2];
                 record->atree.root =
-                    AtreeInit(*(void **)(node + offsetof(CritterAddAnim, atree)), &record->atree, 0, 0x800);
+                    AtreeInit(node->atree, &record->atree, 0, 0x800);
                 MBNodeSetParent(record->atree.root->obj, record->mbnode);
             } else {
-                ErrorPrintf("Bad critter anim inst: %s", (char *)(node + offsetof(CritterAddAnim, name)));
+                ErrorPrintf("Bad critter anim inst: %s", node->name);
             }
         }
-        node = *(u8 **)(node + offsetof(CritterAddAnim, next));
+        node = node->next;
     }
 }
 
