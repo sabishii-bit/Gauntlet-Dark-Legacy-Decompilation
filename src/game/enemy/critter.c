@@ -6260,7 +6260,6 @@ Critter *CritterEmptyInst(void)
 void CritterInitGeo(Critter *c, void *object, s32 subtype)
 {
     u8 *header;
-    f32 *gid = gIdentityMatrix;
     s32 atreeFlags;
     void *node;
     void *n;
@@ -6271,11 +6270,11 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
 
     atreeFlags = 0;
     header = (u8 *)c->hdr;
-    c->mbnode = MBNewNode(lbl_8034473C, gid, 1);
+    c->mbnode = MBNewNode(lbl_8034473C, gIdentityMatrix, 1);
     atanX = *(f32 *)((u8 *)object + 0x28);
     c->inityaw = atan2(*(f32 *)((u8 *)object + 0x20), atanX);
     c->curyaw = c->inityaw;
-    CopyMat3(gid, &c->mtx[0][0]);
+    CopyMat3(gIdentityMatrix, &c->mtx[0][0]);
     c->vel[0] = *(f32 *)((u8 *)object + 0x30);
     c->vel[1] = *(f32 *)((u8 *)object + 0x34);
     c->vel[2] = *(f32 *)((u8 *)object + 0x38);
