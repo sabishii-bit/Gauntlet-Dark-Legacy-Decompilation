@@ -274,12 +274,6 @@ extern f64   lbl_80346568;
 extern const char lbl_80346574[];
 extern f64   lbl_80346580;
 extern f64   lbl_80346600;
-extern f64   lbl_80346630;
-extern f32   lbl_8034663C;
-extern f32   lbl_80346638;
-extern f64   lbl_80346620;
-extern f32   lbl_80346628;
-extern f32   lbl_8034662C;
 extern f32   lbl_803464A8;
 extern f32   lbl_803464E8;
 extern f32   gClockTime;
@@ -378,7 +372,6 @@ extern s32   lbl_80344630;
 extern s32   lbl_80344634;
 extern s32   lbl_80344638;
 extern s32  *lbl_8025776C[8];         /* 0x8025776C item/def pointer table          */
-DECL_SECT(".sdata2") extern const char lbl_8034664C[]; /* 0x8034664C wad name       */
 extern void *gWorldData;              /* 0x80344838 world data record                */
 extern s32   FileSize(char *name, const char *wad);
 extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
@@ -612,7 +605,6 @@ extern s32   player_can_be_damaged(void *player);
 extern void  GetPlayerColPos(s32 i, f32 *out);
 extern f64   __fabs(f64 x);
 extern f32   gIdentityMatrix[12];
-DECL_SECT(".sdata2") extern const char lbl_80346644[];
 extern level_data *gCurLevel;         /* current level record (game/leveldata.h)  */
 extern void *MBOX_ReallyFindObject(const char *name, s32 type1, s32 type2,
                                     s32 exact);
@@ -632,7 +624,6 @@ static f32 lbl_8011AEC0[5] = { 1.0f, 1.0f, 0.5f, 0.3f, 0.2f };
 extern f32   lbl_80346588;
 extern f32   lbl_8034658C;
 extern f32   lbl_80346618;
-extern f32   lbl_80346640;
 extern void  BossActivate(void *obj, s32 flag);
 extern s32   gTriggerCameraState;
 extern void  MBTreeSetAlpha(void *node, s32 alpha, s32 propagate);
@@ -5757,8 +5748,8 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         if (desc->minSpeed > lbl_80346470) {
             speed = (f32)(((f64)(damage = c->rateScale) < lbl_803464F8)
                               ? lbl_803464F8
-                              : ((f64)damage > lbl_80346620)
-                                    ? lbl_80346620
+                              : ((f64)damage > 1.5)
+                                    ? 1.5
                                     : (f64)damage);
             speed = (f32)(lbl_80346530 *
                           ((f64)speed -
@@ -5779,7 +5770,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                 velocity[0] = c->mtx[2][0];
                 velocity[1] = c->mtx[2][1];
                 velocity[2] = c->mtx[2][2];
-                velocity[1] = lbl_80346628;
+                velocity[1] = -0.5f;
             }
 
             if ((desc->behaviorFlags & 8) == 0) {
@@ -5813,9 +5804,9 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
             velocity[2] *= speed;
 
             if ((*(u32 *)sfxDesc & 8) != 0) {
-                angularVelocity[0] = Random(lbl_8034662C);
+                angularVelocity[0] = Random(1.570796327f);
                 angularVelocity[1] = lbl_80346470;
-                angularVelocity[2] = Random(lbl_8034662C);
+                angularVelocity[2] = Random(1.570796327f);
                 SfxSetPhysics(result, velocity, angularVelocity,
                             desc->gravity, radius);
             } else {
@@ -5880,7 +5871,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         CritterDoParticle(c, entry, arg4);
     } else if ((flags & 0x100) != 0) {
         skinValue = entry->rate;
-        nodeCount = (s32)(lbl_80346630 * entry->life);
+        nodeCount = (s32)(30.0 * entry->life);
         skinParam = entry->custom0;
         if (entry->textureId >= 0) {
             SetSkinFX((u8 *)&c->skinfx, entry->textureId,
@@ -6068,7 +6059,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     void *parent;
     void *psys;
 
-    rate = (f32)(lbl_80346630 * ((CritterSfxRecord *)s)->rate);
+    rate = (f32)(30.0 * ((CritterSfxRecord *)s)->rate);
     flags = ((CritterSfxRecord *)s)->flags;
     tex = ((CritterSfxRecord *)s)->textureId;
     etime = ((CritterSfxRecord *)s)->life;
@@ -6085,7 +6076,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
     case 0x02000000:
         psys = MBNewPsysDefault(gIdentityMatrix, parent, 0, 1);
         if (psys != NULL) {
-            MBPsysSetEVolume(psys, lbl_80346638, lbl_80346638);
+            MBPsysSetEVolume(psys, 0.2f, 0.2f);
             MBTreeSetFlags(psys, 0x880, 1);
             MBPsysSetPParm(psys, 3, lbl_803464A8, lbl_803464A8, lbl_803464A8,
                            lbl_80346470);
@@ -6105,7 +6096,7 @@ void CritterDoParticle(Critter *c, CritterSfxRecord *sfx, s32 node)
         ((MBObject *)psys)->mat[3][2] = ((CritterSfxRecord *)s)->color[2];
         MBPsysSetPTex(psys, tex);
         MBPsysSetERate4(rate, rate, rate, rate, psys);
-        MBPsysSetETime(etime, lbl_8034663C, psys);
+        MBPsysSetETime(etime, 0.034f, psys);
         MBPsysSetPSpeed(psys, speed);
     }
 }
@@ -6308,7 +6299,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         c->shadow->mat[3][0] = c->vel[0];
         c->shadow->mat[3][1] = c->vel[1];
         c->shadow->mat[3][2] = c->vel[2];
-        c->shadow->zsort_add = lbl_80346640;
+        c->shadow->zsort_add = 3.0f;
         c->shadow->zmod = -32;
     }
 
@@ -6423,7 +6414,7 @@ void CritterAddHealthMeter(Critter *c)
         != 0) {
         match = AtreeMatch(
             c->hdr->descriptor->model,
-            lbl_80346644, 1);
+            "GMETER", 1);
         if (match != NULL) {
             *(void **)&c->healthbar[0] =
                 AtreeInit(match, &c->healthbar[0], 0, 0x800);
@@ -6874,11 +6865,11 @@ s32 CritterLoadDone(s32 maxBytes)
         if (MBOX_BGLoadModelDone() != 0) {
             desc->loadState = 2;
             GetCritterDesc(buf, desc);
-            size = FileSize(buf, lbl_8034664C);
+            size = FileSize(buf, "anim");
             if (maxBytes != 0 && size > maxBytes) {
                 size = maxBytes;
             }
-            lbl_80344640 = StartFileRead(buf, lbl_8034664C, 0, size,
+            lbl_80344640 = StartFileRead(buf, "anim", 0, size,
                                          (s32)desc->model,
                                          (void *)CritterBGLoadFile);
         }
@@ -7289,14 +7280,6 @@ void CritterInitSfx(void *file, s32 index, void *atreeHeader)
     CritterInitSfx(file, entry->linkIndex,
                    atreeHeader);
 }
-extern char lbl_8034665C[8]; /* "SFXX" */
-extern char lbl_80346664[8]; /* "DAMG" */
-extern char lbl_8034666C[8]; /* "MOVE" */
-extern char lbl_80346674[8]; /* "PTRN" */
-extern char lbl_8034667C[8]; /* "NODE" */
-extern char lbl_80346684[8]; /* "DESC" */
-extern char lbl_8034668C[8]; /* "TYPE" */
-extern char lbl_80346694[8]; /* "ADDA" */
 static inline s32 CritterWadTag(char *s)
 {
     return (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3];
@@ -7350,28 +7333,28 @@ void CritterInitHeader(void *hdr, void *file)
         wad = header->wad;
         swapped = MBSetupWad(wad, (s32)file);
         header->sfx = (CritterSfxRecord *)MBGetFromWad(wad,
-                                         CRITTER_SFX_TAG(lbl_8034665C),
+                                         CRITTER_SFX_TAG("SFXX"),
                                          &header->sfxCount);
         header->damage = (CritterDamageDef *)MBGetFromWad(wad,
-                                            CritterWadTag(lbl_80346664),
+                                            CritterWadTag("DAMG"),
                                             &header->damageCount);
         header->moves = (CritterMove *)MBGetFromWad(wad,
-                                           CritterWadTag(lbl_8034666C),
+                                           CritterWadTag("MOVE"),
                                            &header->moveCount);
         header->patterns = (CritterPattern *)MBGetFromWad(wad,
-                                              CritterWadTag(lbl_80346674),
+                                              CritterWadTag("PTRN"),
                                               &header->patternCount);
         header->nodes = (CritterColDescriptor *)MBGetFromWad(wad,
-                                           CritterWadTag(lbl_8034667C),
+                                           CritterWadTag("NODE"),
                                            &header->nodeCount);
         header->descriptors = (CritterDescriptor *)MBGetFromWad(wad,
-                                                 CritterWadTag(lbl_80346684),
+                                                 CritterWadTag("DESC"),
                                                  &header->descriptorCount);
         header->types = (CritterPackedType *)MBGetFromWad(wad,
-                                           CritterWadTag(lbl_8034668C),
+                                           CritterWadTag("TYPE"),
                                            &header->typeCount);
         header->addAnims = (struct CritterAddAnim *)MBGetFromWad(wad,
-                                              CritterWadTag(lbl_80346694),
+                                              CritterWadTag("ADDA"),
                                               &header->addAnimCount);
         if (header->types == NULL) {
             /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
