@@ -69,24 +69,12 @@
 struct Critter;
 struct MBObject;   /* include/game/mbobject.h; every handle
                     * below is Xbox crit_inst's `struct mbnode *` */
+struct LookoutParam; /* game/item.h: original LOOKOUT waypoint */
 struct Item;       /* include/game/item.h: the shipped tag is `Item` */
 struct CritterColDescriptor;  /* one stride-0x50 NODE record of a loaded
                                * CRITTER wad; completed in critter.c, the only
                                * TU that dereferences it */
-struct CritterHeader;   /* loaded type template (CRITTER.OBJ CritterInitHeader);
-                         * full layout not reconstructed - known offsets:
-                         *   0x0E4 f32  base health scale
-                         *   0x0E8 f32  (turn/anim rate)
-                         *   0x0B4 f32  facing-yaw render offset
-                         *   0x110 s16  move count
-                         *   0x114 s16  (secondary per-move count)
-                         *   0x118 s16  (child/hit-node count)
-                         *   0x11C s16  first child def index
-                         *   0x120 ptr  descriptor (->0x20 s16 ai/class type)
-                         *   0x124 ptr  CritterMove moves[] (stride 0x90)
-                         *   0x128 ptr  per-move sub-table (stride 0x50)
-                         *   0x130 ptr  child def table (->0x14 base, stride 0x140)
-                         *   0x138 ptr  geometry/type data (non-null == loaded) */
+struct CritterHeader;   /* loaded type template; defined below */
 
 /* -- CRITTER enumerations, verbatim from the Xbox debug PDB
  *    (research/xbox_symbols/misc.h: enum CRIT_STATE, MOVETYPE, COLNODE_FLAG,
@@ -210,6 +198,92 @@ typedef struct CritterMove {
     f32 turnRate;         /* 0x88 CritterRotate max turn rate (rad/tick, x frameStep) */
     f32 holdDuration;     /* 0x8C CritterAnimate move-hold/fade duration        */
 } CritterMove;            /* size 0x90 */
+
+/* 0x30 == Xbox PDB crit_desc (name/prefix/etype/model/loaded/didcount/
+ * atreelist/dummy1); GC behavioral names kept for the already-adopted tail. */
+typedef struct CritterDescriptor {
+    char name[0x10];    /* 0x00 crit_desc.name                                */
+    char prefix[0x10];  /* 0x10 crit_desc.prefix -- ErrorPrintf id string     */
+    s16 type;
+    s16 modelIndex;
+    s16 loadState;
+    s16 loadTick;
+    void *model;
+    u8 _pad2C[4];
+} CritterDescriptor;
+
+/* crit_type (Xbox PDB misc.h, Size=0x140): the GC-verified loaded
+ * type template shared by Critter and its item-collision classifier. */
+typedef struct CritterHeader {
+    char suffix[0x10];      /* 0x00 crit_type.suffix -- appended to the descriptor
+                             * prefix to build the atree name (CritterLoadFinish
+                             * passes this address straight to sprintf "%s%s")  */
+    char rootnode[0x10];    /* 0x10 crit_type.rootnode                          */
+    char nodeName0[0x10];   /* 0x20 attach-node name (CritterLoadFinish -> 0x56 idx) */
+    char nodeName1[0x10];   /* 0x30 attach-node name (CritterLoadFinish -> 0x58 idx) */
+    char nodeName2[0x10];   /* 0x40 attach-node name (CritterLoadFinish -> 0x5A idx) */
+    s16 descriptorIndex;
+    s16 subtype;
+    s8 level;               /* 0x54 crit_type.level                             */
+    s8 ai;                  /* 0x55 crit_type.ai                                */
+    s16 node0Index;         /* 0x56 resolved nodeName0 atree index                  */
+    s16 node1Index;         /* 0x58 resolved nodeName1 atree index                  */
+    s16 node2Index;         /* 0x5A resolved nodeName2(0x40) atree index             */
+    u32 typeFlags;         /* 0x5C runtime flag bits (bit 0x10000 = expanded moves) */
+    f32 lookYawRate0;       /* 0x60 CritterLookAtPlayer hitnode0 max yaw turn/tick  */
+    f32 lookYawRate1;        /* 0x64 hitnode1 max yaw turn/tick                     */
+    f32 lookPitchRate0;       /* 0x68 hitnode0 max pitch turn/tick                   */
+    f32 lookPitchRate1;        /* 0x6C hitnode1 max pitch turn/tick                  */
+    f32 lookPitchBias0;         /* 0x70 hitnode0 static pitch offset                 */
+    f32 lookPitchBias1;          /* 0x74 hitnode1 static pitch offset                */
+    f32 radius;                    /* 0x78 world/player collide radius (collide family) */
+    f32 wallRadius;                  /* 0x7C wall collide radius (collide family) */
+    CritterTargetCriteria target;      /* 0x80 CritterLookForReady/CritterGetSingleTargetPlayer's
+                                         * default CritterCalcTarget(c, hdr+0x80, ...) constraints */
+    f32 defaultPos[3];        /* 0xA0 default movePathPos seed (CritterInitInst) */
+    f32 speed;               /* 0xAC CritterTranslate move speed                    */
+    f32 floorOffset;          /* 0xB0 floor-contact Y offset (CritterCollideWorld)     */
+    f32 vertDrift;             /* 0xB4 constant Y addend folded into c->movevec before
+                                 * MulVec4Mat3(hdr+0xC0, c->pos, ...) (ProcessCritter-family) */
+    f32 damageScale;             /* 0xB8 per-type damage multiplier (x gCurLevel dmg scale) */
+    f32 armor;                     /* 0xBC flat damage-reduction constant                 */
+    f32 originOffset[3];             /* 0xC0 MulVec4Mat3 local-space body offset input     */
+    f32 turnLimit;                     /* 0xCC CritterRotate max facing-correction angle    */
+    f32 unkD0[3];                        /* 0xD0 swapped f32 vec3, no consumer found in TU  */
+    f32 unkDC;                             /* 0xDC swapped f32, no consumer found in TU     */
+    u32 shieldFlags;                         /* 0xE0 tested by ModifyDamage-adjacent code   */
+    f32 maxHealth;                             /* 0xE4 x gCurLevel->0xAC == starting/max hp */
+    f32 expValue;                                /* 0xE8 base experience award, x hit ratio */
+    f32 wakeThreshold;                             /* 0xEC min best-target score to stay active */
+    f32 unkF0;                                       /* 0xF0 swapped f32, no consumer found in TU */
+    s16 sfxIndex0;          /* 0xF4 type-level sfx descriptor index (idle/ambient)  */
+    s16 sfxIndex1;          /* 0xF6 type-level sfx descriptor index (idle/ambient)  */
+    s16 meterX;              /* 0xF8 health-meter HealthMeterStart x                */
+    s16 meterY;              /* 0xFA health-meter HealthMeterStart y                */
+    s16 meterW;              /* 0xFC health-meter HealthMeterStart width            */
+    s16 meterH;              /* 0xFE health-meter HealthMeterStart height           */
+    f32 healthbarOffset[3];  /* 0x100 healthbar root-node position offset           */
+    u8 _pad10C[4];
+    s16 moveCount;          /* 0x110 move table entry count (CritterInitMoves)      */
+    s16 moveIndex;          /* 0x112 base index into container->moves[]             */
+    s16 auxMoveCount;       /* 0x114 secondary move count (high-water tracked)      */
+    s16 patternIndex;       /* 0x116 base index into container->patterns[]          */
+    s16 colCount;           /* 0x118 collision/hit-node entry count                 */
+    s16 colBase;            /* 0x11A base index into container->nodes[]             */
+    s16 childIndex;         /* 0x11C first child type index (container->types[]);
+                              * < 0 == no child (CritterInitInst's child-spawn walk) */
+    s16 parentIndex;        /* 0x11E parent type index (container->types[]); < 0 == none */
+    CritterDescriptor *descriptor;
+    CritterMove *movesPtr;      /* 0x124 resolved move table base (stride 0x90)     */
+    struct CritterPattern *patternsPtr; /* 0x128 resolved pattern table base (stride 0x50) */
+    struct CritterColDescriptor *colnodesPtr; /* 0x12C resolved NODE table base           */
+    struct CritterFileHeader *file;
+    struct CritterAddAnim *attachments; /* 0x134 head of this type's ADDA list,
+                              * threaded by CritterInitHeader through
+                              * CritterAddAnim.next                          */
+    void *atree;
+    u8 _pad13C[4];
+} CritterPackedType;
 
 /* -- CritterSkinFx (0x18): the per-critter skin-effect state block at
  *    Critter+0x0E0.  Xbox crit_inst carries `struct skinfx skinfx` here and
@@ -379,7 +453,7 @@ typedef struct Critter {
     f32 visrad;               /* 0xAD0 crit_inst.visrad -- spawn writes
                                * `enemy.rad * gCurLevel->ene_visrad`; read as
                                * the target-score gate in CritterGetTarget    */
-    void *particle;           /* 0xAD4 particle handle (FindClosestWaypoint)           */
+    struct LookoutParam *waypoint; /* 0xAD4 original crit_inst.waypoint */
     struct Critter *next;     /* 0xAD8 sibling in active critter list          */
     struct Critter *parent;   /* 0xADC parent critter (NULL if root)           */
 } Critter;                    /* size 0xAE0 (2784) */

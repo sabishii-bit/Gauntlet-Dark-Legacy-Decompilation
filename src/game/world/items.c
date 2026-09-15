@@ -4860,21 +4860,21 @@ nodmg:
     return ret;
 }
 
-/* 0x8005D5C8 - classify a world object for a player (jumptable pair) */
-s32 fn_8005D5C8(u8* pl, u8* wobj)
+/* 0x8005D5C8 - classify an item for critter collision (CritterColItem) */
+s32 fn_8005D5C8(Critter* c, Item* item)
 {
-    u8* hdr = *(u8**)wobj;
+    iteminfo* hdr = item->info;
     s32 ret = 1;
-    u8* sub = hdr + 4;
-    s32 cls = *(s16*)(*(u8**)(*(u8**)(pl + 4) + 288) + 32);
+    iteminfodata* sub = &hdr->item;
+    s32 cls = c->hdr->descriptor->type;
     s32 t;
 
-    switch (*(u32*)hdr) {
+    switch (hdr->type) {
     case 1:
         ret = 0;
         break;
     case 10:
-        switch (*(s32*)sub) {
+        switch (sub->subtype) {
         case 40:
         case 49:
         case 51:
@@ -4883,7 +4883,7 @@ s32 fn_8005D5C8(u8* pl, u8* wobj)
             ret = 0;
             break;
         case 41:
-            if (*(s16*)(wobj + 222) > 0) {
+            if (item->data.obsticle.strength > 0) {
                 ret = 1;
             }
             break;
@@ -4903,7 +4903,7 @@ s32 fn_8005D5C8(u8* pl, u8* wobj)
         break;
     case 2:
         ret = 1;
-        if (*(s32*)sub == 43) {
+        if (sub->subtype == 43) {
             if (cls == 3 || cls == 7) {
                 ret = 3;
             }
@@ -4914,13 +4914,13 @@ s32 fn_8005D5C8(u8* pl, u8* wobj)
         }
         break;
     case 3:
-        if (*(s8*)(wobj + 226) != 0) {
+        if (item->data.gen.strength != 0) {
             t = 0;
         } else {
             t = 1;
         }
         ret = (t != 0) ? 0 : 1;
-        if (*(f32*)(hdr + 16) <= sNewtonThree) {
+        if (hdr->item.height <= sNewtonThree) {
             if (cls == 3 || cls == 7) {
                 ret = 3;
             } else {

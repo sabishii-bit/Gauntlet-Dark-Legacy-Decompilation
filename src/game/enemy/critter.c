@@ -22,6 +22,7 @@
 #include "game/critter.h"
 #include "game/effect.h"
 #include "game/enemy.h"
+#include "game/item.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/ml_mem.h"
@@ -33,25 +34,6 @@
 
 /* -- module-local BigState siblings (bss, pooled off gBig) -- */
 typedef struct CritterBigState CritterBigState;
-
-/* -- CritterItemView (0xF0): a file-local partial view of game/item.h's
- *    verified GC-exact Item record, covering only the fields
- *    CritterDropItem touches.  item.h itself is not #included here to avoid
- *    an extern-signature conflict with this TU's own PlaceItem/AddItemSub
- *    prototypes (a cross-TU extern-conflict fix is a separate claimed pass);
- *    offsets are GC-verified against include/game/item.h's Item/OBJGRP
- *    layout (info@0x00, objgrp.worldmat[3]@0x34, objgrp.node@0x64,
- *    minoff@0xCD). -- */
-typedef struct CritterItemView {
-    void *info;          /* 0x00 iteminfo* */
-    u8 _pad04[0x30];
-    f32 pos[3];           /* 0x34 objgrp.worldmat[3][0..2] (translation row) */
-    u8 _pad40[0x24];
-    void *node;            /* 0x64 objgrp.node */
-    u8 _pad68[0x65];
-    s8 minoff;               /* 0xCD */
-    u8 _padCE[0x22];
-} CritterItemView;             /* size 0xF0 */
 
 /* -- atreeheader (misc.h, 0x38): the per-model animation-tree header that
  *    CritterPackedType.atree points at.  game/effect.h already forward-
@@ -275,7 +257,6 @@ extern void  MBPsysSetPParm(void *psys, s32 n, f32 a, f32 b, f32 c, f32 d);
 
 /* -- external helpers -- */
 extern void *AllocFile(const char *wad, const char *name);
-extern void *NextWaypoint(void *player);
 extern void  AddExp(s32 player, s32 amount, s32 kind);
 extern void  HealthMeterUpdate(f32 value, s32 meter);
 extern void *memset(void *dst, int c, u32 n);
@@ -311,9 +292,8 @@ extern void  SafeRockActivate(s32 index);
 extern u32   RandInt(u32 limit);
 extern s32   NextGridEnemy(void);
 extern void  StartEnemyGrid(f32 *position, f32 radius);
-extern s32   fn_8005D5C8(Critter *c, u8 *item);
-extern void *FindClosestWaypoint(f32 maxDist, f32 *pos, s32 all);
-extern f32   fn_8005F0F4(void *item, f32 *nodepos, f32 *center, f32 *out,
+extern s32   fn_8005D5C8(Critter *c, Item *item);
+extern f32   fn_8005F0F4(Item *item, f32 *nodepos, f32 *center, f32 *out,
                          f32 radius, f32 height);
 struct Item;
 extern f32   fn_8005C1DC(struct Item *item, f32 damage, s32 flags, s32 owner);
@@ -370,93 +350,6 @@ extern void *gWorldData;              /* 0x80344838 world data record           
 extern s32   FileSize(char *name, const char *wad);
 extern MLFILE *StartFileRead(char *name, char *wad, int mode, int size,
                              char *dest, void *callback);
-
-/* 0x30 == Xbox PDB crit_desc (name/prefix/etype/model/loaded/didcount/
- * atreelist/dummy1); GC behavioral names kept for the already-adopted tail. */
-typedef struct CritterDescriptor {
-    char name[0x10];    /* 0x00 crit_desc.name                                */
-    char prefix[0x10];  /* 0x10 crit_desc.prefix -- ErrorPrintf id string     */
-    s16 type;
-    s16 modelIndex;
-    s16 loadState;
-    s16 loadTick;
-    void *model;
-    u8 _pad2C[4];
-} CritterDescriptor;
-
-/* crit_type (Xbox PDB misc.h, Size=0x140) is the loaded type template that
- * Critter.hdr points at, so this completes the header's `struct
- * CritterHeader` tag rather than declaring a separate type. */
-typedef struct CritterHeader {
-    char suffix[0x10];      /* 0x00 crit_type.suffix -- appended to the descriptor
-                             * prefix to build the atree name (CritterLoadFinish
-                             * passes this address straight to sprintf "%s%s")  */
-    char rootnode[0x10];    /* 0x10 crit_type.rootnode                          */
-    char nodeName0[0x10];   /* 0x20 attach-node name (CritterLoadFinish -> 0x56 idx) */
-    char nodeName1[0x10];   /* 0x30 attach-node name (CritterLoadFinish -> 0x58 idx) */
-    char nodeName2[0x10];   /* 0x40 attach-node name (CritterLoadFinish -> 0x5A idx) */
-    s16 descriptorIndex;
-    s16 subtype;
-    s8 level;               /* 0x54 crit_type.level                             */
-    s8 ai;                  /* 0x55 crit_type.ai                                */
-    s16 node0Index;         /* 0x56 resolved nodeName0 atree index                  */
-    s16 node1Index;         /* 0x58 resolved nodeName1 atree index                  */
-    s16 node2Index;         /* 0x5A resolved nodeName2(0x40) atree index             */
-    u32 typeFlags;         /* 0x5C runtime flag bits (bit 0x10000 = expanded moves) */
-    f32 lookYawRate0;       /* 0x60 CritterLookAtPlayer hitnode0 max yaw turn/tick  */
-    f32 lookYawRate1;        /* 0x64 hitnode1 max yaw turn/tick                     */
-    f32 lookPitchRate0;       /* 0x68 hitnode0 max pitch turn/tick                   */
-    f32 lookPitchRate1;        /* 0x6C hitnode1 max pitch turn/tick                  */
-    f32 lookPitchBias0;         /* 0x70 hitnode0 static pitch offset                 */
-    f32 lookPitchBias1;          /* 0x74 hitnode1 static pitch offset                */
-    f32 radius;                    /* 0x78 world/player collide radius (collide family) */
-    f32 wallRadius;                  /* 0x7C wall collide radius (collide family) */
-    CritterTargetCriteria target;      /* 0x80 CritterLookForReady/CritterGetSingleTargetPlayer's
-                                         * default CritterCalcTarget(c, hdr+0x80, ...) constraints */
-    f32 defaultPos[3];        /* 0xA0 default movePathPos seed (CritterInitInst) */
-    f32 speed;               /* 0xAC CritterTranslate move speed                    */
-    f32 floorOffset;          /* 0xB0 floor-contact Y offset (CritterCollideWorld)     */
-    f32 vertDrift;             /* 0xB4 constant Y addend folded into c->movevec before
-                                 * MulVec4Mat3(hdr+0xC0, c->pos, ...) (ProcessCritter-family) */
-    f32 damageScale;             /* 0xB8 per-type damage multiplier (x gCurLevel dmg scale) */
-    f32 armor;                     /* 0xBC flat damage-reduction constant                 */
-    f32 originOffset[3];             /* 0xC0 MulVec4Mat3 local-space body offset input     */
-    f32 turnLimit;                     /* 0xCC CritterRotate max facing-correction angle    */
-    f32 unkD0[3];                        /* 0xD0 swapped f32 vec3, no consumer found in TU  */
-    f32 unkDC;                             /* 0xDC swapped f32, no consumer found in TU     */
-    u32 shieldFlags;                         /* 0xE0 tested by ModifyDamage-adjacent code   */
-    f32 maxHealth;                             /* 0xE4 x gCurLevel->0xAC == starting/max hp */
-    f32 expValue;                                /* 0xE8 base experience award, x hit ratio */
-    f32 wakeThreshold;                             /* 0xEC min best-target score to stay active */
-    f32 unkF0;                                       /* 0xF0 swapped f32, no consumer found in TU */
-    s16 sfxIndex0;          /* 0xF4 type-level sfx descriptor index (idle/ambient)  */
-    s16 sfxIndex1;          /* 0xF6 type-level sfx descriptor index (idle/ambient)  */
-    s16 meterX;              /* 0xF8 health-meter HealthMeterStart x                */
-    s16 meterY;              /* 0xFA health-meter HealthMeterStart y                */
-    s16 meterW;              /* 0xFC health-meter HealthMeterStart width            */
-    s16 meterH;              /* 0xFE health-meter HealthMeterStart height           */
-    f32 healthbarOffset[3];  /* 0x100 healthbar root-node position offset           */
-    u8 _pad10C[4];
-    s16 moveCount;          /* 0x110 move table entry count (CritterInitMoves)      */
-    s16 moveIndex;          /* 0x112 base index into container->moves[]             */
-    s16 auxMoveCount;       /* 0x114 secondary move count (high-water tracked)      */
-    s16 patternIndex;       /* 0x116 base index into container->patterns[]          */
-    s16 colCount;           /* 0x118 collision/hit-node entry count                 */
-    s16 colBase;            /* 0x11A base index into container->nodes[]             */
-    s16 childIndex;         /* 0x11C first child type index (container->types[]);
-                              * < 0 == no child (CritterInitInst's child-spawn walk) */
-    s16 parentIndex;        /* 0x11E parent type index (container->types[]); < 0 == none */
-    CritterDescriptor *descriptor;
-    CritterMove *movesPtr;      /* 0x124 resolved move table base (stride 0x90)     */
-    struct CritterPattern *patternsPtr; /* 0x128 resolved pattern table base (stride 0x50) */
-    CritterColDescriptor *colnodesPtr; /* 0x12C resolved NODE table base           */
-    struct CritterFileHeader *file;
-    struct CritterAddAnim *attachments; /* 0x134 head of this type's ADDA list,
-                              * threaded by CritterInitHeader through
-                              * CritterAddAnim.next                          */
-    void *atree;
-    u8 _pad13C[4];
-} CritterPackedType;
 
 /* -- CritterFileHeader: the runtime record for one loaded CRITTER wad.  The
  *    eight (count, pointer) pairs are the wad's eight sections, filled by
@@ -580,8 +473,7 @@ extern void  MBPsysSetPTex(void *psys, s32 texture);
 extern void  MBPsysSetERate4(f32 a, f32 b, f32 c, f32 d, void *psys);
 extern void  MBPsysSetETime(f32 life, f32 variance, void *psys);
 extern void  MBPsysSetPSpeed(void *psys, f32 speed);
-extern void *PlaceItem(s32 type, s32 subtype, const char *name, f32 *position);
-extern void  AddItemSub(void *item);
+extern void  AddItemSub(Item *item);
 extern void  StartBagFX(f32 *position, void *item, f32 scale);
 extern char  lbl_803465EC;
 extern void  msgPost(s32 message, s32 target, s32 value);
@@ -590,11 +482,9 @@ extern s32   toupper(s32 c);
 extern void  DoTexMods(void *atree);
 extern s32   MBSetupWad(s32 *wad, s32 base);
 extern s32   MBGetFromWad(s32 *wad, s32 key, s32 *sizeOut);
-extern u8   *sItems;
 extern s32   lbl_80241020[16];
 extern s32   SafeRockActive(s32 idx);
 struct mbnode;
-extern struct mbnode *ItemGetNode(s32 idx);
 extern s32   PlayerAttacking(s32 player, s32 mode);
 extern s32   player_can_be_damaged(void *player);
 extern void  GetPlayerColPos(s32 i, f32 *out);
@@ -882,7 +772,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     f32 height;
     f32 damage;
     s32 index;
-    u8 *item;
+    Item *item;
     s32 type;
     f32 *cpos;
 
@@ -895,7 +785,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     center[2] = cpos[2] + delta[2];
     StartEnemyGrid(center, radius);
     while ((index = NextGridEnemy()) >= 0) {
-        item = sItems + index * 0xF0;
+        item = &sItems[index];
         type = fn_8005D5C8(c, item);
         if (type == 0) {
             continue;
@@ -938,7 +828,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
                 if (type == 3) {
                     damage = c->hdr->damageScale *
                              gCurLevel->ene_damage;
-                    if (fn_8005C1DC((struct Item *)item, damage, 0, -1) != 0.0f) {
+                    if (fn_8005C1DC(item, damage, 0, -1) != 0.0f) {
                         hits = 1;
                     }
                 } else {
@@ -1911,7 +1801,7 @@ void CritterSetFxHitTime(s32 slot, s32 id, f32 amount)
 s32 CritterGetTarget(Critter *c, f32 *out)
 {
     u8 unused[16];
-    void *waypoint;
+    LookoutParam *waypoint;
     f64 minimum_distance;
     s32 result;
 
@@ -1919,11 +1809,11 @@ s32 CritterGetTarget(Critter *c, f32 *out)
         goto init_waypoint_search;
     } else {
         s32 player = c->targets[0].pidx;
-        u8 *record = (u8 *)&gPlayers[player];
+        Player *record = &gPlayers[player];
 
-        out[0] = ((Player *)record)->effectpos[0];
-        out[1] = ((Player *)record)->effectpos[1];
-        out[2] = ((Player *)record)->effectpos[2];
+        out[0] = record->effectpos[0];
+        out[1] = record->effectpos[1];
+        out[2] = record->effectpos[2];
         result = 1;
         goto done;
     }
@@ -1936,21 +1826,21 @@ waypoint_body:
         f32 dz;
         f32 distance;
 
-        dy = ((OBJGRP *)waypoint)->worldmat[3][1] -
+        dy = waypoint->worldmat[3][1] -
              c->vel[1];
-        dx = (x = ((OBJGRP *)waypoint)->worldmat[3][0]) - c->vel[0];
-        dz = ((OBJGRP *)waypoint)->worldmat[3][2] -
+        dx = (x = waypoint->worldmat[3][0]) - c->vel[0];
+        dz = waypoint->worldmat[3][2] -
              c->vel[2];
         distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
 
         if ((f64)distance < minimum_distance) {
-            c->particle = NextWaypoint(waypoint);
+            c->waypoint = NextWaypoint(waypoint);
             goto waypoint_test;
         } else {
             out[0] = x;
-            out[1] = ((OBJGRP *)c->particle)->worldmat[3][1];
-            out[2] = ((OBJGRP *)c->particle)->worldmat[3][2];
+            out[1] = c->waypoint->worldmat[3][1];
+            out[2] = c->waypoint->worldmat[3][2];
             result = 1;
             goto done;
         }
@@ -1959,7 +1849,7 @@ waypoint_body:
 init_waypoint_search:
     minimum_distance = lbl_80346490;
 waypoint_test:
-    waypoint = c->particle;
+    waypoint = c->waypoint;
     if (waypoint != NULL) {
         goto waypoint_body;
     }
@@ -2065,7 +1955,7 @@ void CritterGetSingleTargetPlayer(Critter *c)
         score = CritterCalcTarget(c, &c->hdr->target,
                                   targetpos,
                                   &candidate);
-        if (c->particle != NULL && c->visrad > 0.0 && score > c->visrad) {
+        if (c->waypoint != NULL && c->visrad > 0.0 && score > c->visrad) {
             continue;
         }
         if (sMusicFadeBase < player->fxhittime) {
@@ -2081,7 +1971,7 @@ void CritterGetSingleTargetPlayer(Critter *c)
         }
     }
     if (c->targetCount != 0) {
-        c->particle = NULL;
+        c->waypoint = NULL;
         gBig.scratch[c->targets[0].pidx] += lbl_803464A8;
     }
 }
@@ -2203,7 +2093,7 @@ void CritterGetTargetPlayers(Critter *c)
         targetpos[2] = player->effectpos[2];
         score = CritterCalcTarget(c, &c->hdr->target, targetpos,
                                   &record);
-        if (c->particle != NULL) {
+        if (c->waypoint != NULL) {
             thr = c->visrad;
             if (thr > 0.0 && score > thr) {
                 continue;
@@ -3205,8 +3095,8 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
             c->hitnodes[c->unkAB8].state = 2;
         }
     }
-    if (c->particle != NULL) {
-        c->particle = NULL;
+    if (c->waypoint != NULL) {
+        c->waypoint = NULL;
     }
     return 0;
 }
@@ -3636,7 +3526,7 @@ s32 CritterGolemAI(Critter *c)
     CritterSetDifficulty(c);
 
     if (c->state == 0) {
-        if (c->particle == NULL) {
+        if (c->waypoint == NULL) {
             MaxPlayerDist(c);
         }
         CritterActivateChain(c);
@@ -4099,7 +3989,7 @@ void CritterProcessSafeRocks(void)
  * at the cached floor contact point. */
 void CritterDropItem(Critter *c)
 {
-    void *item;
+    Item *item;
     char name[32];
     s32 type;
 
@@ -4138,23 +4028,23 @@ void CritterDropItem(Critter *c)
         break;
     }
     if (type != 0) {
-        ((CritterItemView *)item)->minoff = 10;
+        item->minoff = 10;
         StartBagFX(c->floorContact, item,
                     lbl_80346470);
         return;
     }
 
-    ((CritterItemView *)item)->minoff = 0;
-    MBTreeClearFlags(*(void **)((u8 *)item + offsetof(CritterItemView, node)),
+    item->minoff = 0;
+    MBTreeClearFlags(item->objgrp.node,
                       2, 0);
-    if (**(s32 **)((u8 *)item + offsetof(CritterItemView, info)) == 1) {
-        *(s16 *)((u8 *)item + 0xEC) = 60;
+    if (item->info->type == 1) {
+        item->data.powerup.nograb = 60;
     }
-    ((CritterItemView *)item)->pos[0] =
+    item->objgrp.worldmat[3][0] =
         c->floorContact[0];
-    ((CritterItemView *)item)->pos[1] =
+    item->objgrp.worldmat[3][1] =
         c->floorContact[1];
-    ((CritterItemView *)item)->pos[2] =
+    item->objgrp.worldmat[3][2] =
         c->floorContact[2];
     AddItemSub(item);
 }
@@ -4388,10 +4278,10 @@ void CritterRotate(Critter *c, CritterMove *move)
                 delta = (c->inityaw + clamped) -
                         c->curyaw;
             }
-        } else if (c->particle != NULL && c->targetCount == 0) {
-            target[0] = ((OBJGRP *)c->particle)->worldmat[3][0] - c->vel[0];
-            target[1] = ((OBJGRP *)c->particle)->worldmat[3][1] - c->vel[1];
-            target[2] = ((OBJGRP *)c->particle)->worldmat[3][2] - c->vel[2];
+        } else if (c->waypoint != NULL && c->targetCount == 0) {
+            target[0] = c->waypoint->worldmat[3][0] - c->vel[0];
+            target[1] = c->waypoint->worldmat[3][1] - c->vel[1];
+            target[2] = c->waypoint->worldmat[3][2] - c->vel[2];
             {
                 register f32 z = target[2];
                 delta = atan2(target[0], z) - c->curyaw;
@@ -4426,7 +4316,7 @@ void CritterRotate(Critter *c, CritterMove *move)
         c->curyaw =
             c->curyaw + delta;
         CopyMat3((f32 *)gIdentityMatrix, &c->mtx[0][0]);
-        YawMat3(*(f32 *)((u32)c + 0xFC), &c->mtx[0][0]);
+        YawMat3(c->curyaw, &c->mtx[0][0]);
     }
 }
 /* 0x8003B1CC -- select the critter's current target/node and refresh the
@@ -4654,7 +4544,7 @@ void CritterLookForReady(Critter *c)
             goto next;
         }
 
-        if (c->targetCount == 0 && c->particle != NULL) {
+        if (c->targetCount == 0 && c->waypoint != NULL) {
             if (c->targetCount == 0 &&
                 move->readyDistance > zeroFloat) {
                 result = i;
@@ -6144,7 +6034,7 @@ Critter *CritterNewInst(s32 type, s32 subtype, void *object)
     }
     switch (root->hdr->descriptor->type) {
     case 8:
-        root->particle = FindClosestWaypoint(10.0f,
+        root->waypoint = FindClosestWaypoint(10.0f,
                                              root->vel, 0);
         break;
     default:
