@@ -5576,7 +5576,11 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
 }
 
 /* 0x8003D0A4 -- execute the visual/sound payload attached to an action
- * descriptor at either a supplied world position or the critter node. */
+ * descriptor at either a supplied world position or the critter node.
+ * Xbox/PS2 call this larger routine CritterDoDamageFX: attack amount and
+ * physical hit radius are distinct locals, not successive uses of one
+ * radius. The PDB also records speed before scale; that order agrees with
+ * the GC saved-FPR lifetimes. Remaining local/frame provenance is partial. */
 #pragma opt_lifetimes off
 s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 {
@@ -5596,24 +5600,25 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     u8 *morphDesc;
     s32 morph;
     s32 morphTarget;
+    f32 speed;
     f32 scale;
-    f32 radius;
+    f32 amount;
+    f32 hitrad;
     f32 damage;
     f32 damageRadius;
-    f32 speed;
     f32 yaw;
 
     container = c->hdr->file;
     desc = &container->damage[action];
     if ((desc->behaviorFlags & 0x4000) != 0 &&
-        (f64)c->unkAC8 > lbl_80346488 && desc->type != 1) {
+        (f64)c->unkAC8 > 0.0 && desc->type != 1) {
         return -1;
     }
     if (c->mbnode != NULL &&
         (c->mbnode->flags & 8) != 0) {
         scale = c->mbnode->scale[1];
     } else {
-        scale = lbl_803464A8;
+        scale = 1.0f;
     }
     offset[0] = desc->offset[0] * scale;
     offset[1] = desc->offset[1] * scale;
@@ -5644,7 +5649,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 
     flags = 0x801;
     sfxDesc = &container->sfx[desc->sfxIndex];
-    radius = desc->damage;
+    amount = desc->damage;
     if (c->hdr->descriptor->type != 4) {
         flags |= 8;
         fn_80037ED0(999.0f, c, Effects[result].id);
@@ -5654,7 +5659,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     case 1:
         flags |= 6;
         if ((desc->behaviorFlags & 0x4000) != 0 &&
-            (f64)c->unkAC8 > lbl_80346488) {
+            (f64)c->unkAC8 > 0.0) {
             Effects[result].endtime = gClockTime + c->unkAC8;
         }
         break;
@@ -5670,7 +5675,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         flags |= 0x20;
         break;
     case 4:
-        radius = lbl_80346480;
+        amount = -1.0f;
         flags = 0;
         break;
     }
@@ -5693,18 +5698,18 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         PlaceEffectOnFloor(result, (f32 *)Effects[result].node);
     }
     if (desc->type != 1) {
-        if (lbl_80346470 != desc->yaw) {
+        if (0.0f != desc->yaw) {
             YawMat3(desc->yaw, (f32 *)Effects[result].node);
         }
-        if (lbl_80346470 != desc->pitch) {
+        if (0.0f != desc->pitch) {
             WPitchMat3((f32 *)Effects[result].node, desc->pitch);
         }
     }
 
-    if (radius >= lbl_80346470) {
+    if (amount >= 0.0f) {
         damageRadius = desc->maxDistance * scale;
-        damage = radius * gCurLevel->ene_damage;
-        radius = desc->radius * scale;
+        damage = amount * gCurLevel->ene_damage;
+        hitrad = desc->radius * scale;
         Effects[result].damage = damage;
         Effects[result].mindp = desc->mindp;
         Effects[result].damageradius = damageRadius;
@@ -5729,8 +5734,8 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                                   desc->morphIndex * 0x50);
             }
             speed = desc->morphSpeed;
-            if ((f64)speed <= lbl_80346488) {
-                speed = lbl_803464BC;
+            if ((f64)speed <= 0.0) {
+                speed = 15.0f;
             }
             SfxSetMorph(speed, result, morphTarget, morph);
             if ((desc->behaviorFlags & 0x800) != 0) {
@@ -5742,15 +5747,13 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
             }
         }
 
-        if (desc->minSpeed > lbl_80346470) {
-            speed = (f32)(((f64)(damage = c->rateScale) < lbl_803464F8)
-                              ? lbl_803464F8
+        if (desc->minSpeed > 0.0f) {
+            speed = (f32)(((f64)(damage = c->rateScale) < 0.5)
+                              ? 0.5
                               : ((f64)damage > 1.5)
                                     ? 1.5
                                     : (f64)damage);
-            speed = (f32)(lbl_80346530 *
-                          ((f64)speed -
-                           *(volatile f64 *)&lbl_803464F8)) *
+            speed = (f32)(0.75 * ((f64)speed - 0.5)) *
                         (desc->maxSpeed - desc->minSpeed) +
                     desc->minSpeed;
 
@@ -5772,27 +5775,26 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 
             if ((desc->behaviorFlags & 8) == 0) {
                 CalcTargetDir(velocity, speed,
-                              (f32)(lbl_80346490 / (f64)speed),
+                              (f32)(1.0 / (f64)speed),
                               desc->gravity,
-                              lbl_80346470);
+                              0.0f);
             } else {
                 NormalVector(velocity);
             }
 
             if (desc->type == 1) {
-                if (lbl_80346470 != desc->yaw ||
-                    lbl_80346470 != desc->yawSpread) {
+                if (0.0f != desc->yaw ||
+                    0.0f != desc->yawSpread) {
                     yaw = desc->yaw;
-                    if (desc->yawSpread >
-                        *(volatile f32 *)&lbl_80346470) {
-                        yaw += lbl_803464F8 *
+                    if (desc->yawSpread > 0.0f) {
+                        yaw += 0.5 *
                                    -(f64)desc->yawSpread +
                                (f64)Random(desc->yawSpread);
                     }
                     YawVec3(velocity, velocity, yaw);
                 }
                 if ((desc->behaviorFlags & 8) != 0 &&
-                    lbl_80346470 != desc->pitch) {
+                    0.0f != desc->pitch) {
                     PitchVec3(velocity, velocity, desc->pitch);
                 }
             }
@@ -5802,16 +5804,16 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
 
             if ((*(u32 *)sfxDesc & 8) != 0) {
                 angularVelocity[0] = Random(1.570796327f);
-                angularVelocity[1] = lbl_80346470;
+                angularVelocity[1] = 0.0f;
                 angularVelocity[2] = Random(1.570796327f);
                 SfxSetPhysics(result, velocity, angularVelocity,
-                            desc->gravity, radius);
+                            desc->gravity, hitrad);
             } else {
                 SfxSetPhysics(result, velocity, NULL, desc->gravity,
-                            radius);
+                            hitrad);
             }
         } else {
-            SfxSetPhysics(result, NULL, NULL, desc->gravity, radius);
+            SfxSetPhysics(result, NULL, NULL, desc->gravity, hitrad);
         }
 
         if ((gControllerButtons & 0x10) != 0 && gGameOptions.showpos != 0) {
