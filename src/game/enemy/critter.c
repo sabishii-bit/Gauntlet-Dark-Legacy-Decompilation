@@ -4347,7 +4347,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
     gz = lbl_80346470;
     if (c->knockbackVelocity[1] > gz) {
         c->knockbackVelocity[1] =
-            c->knockbackVelocity[1] - lbl_803465F4 * gClockFrameStep;
+            c->knockbackVelocity[1] - 100.0f * gClockFrameStep;
         if (c->knockbackVelocity[1] < gz) {
             c->knockbackVelocity[1] = gz;
         }
@@ -4776,7 +4776,7 @@ void CritterChildCriticalMove(Critter *c)
     patternChoice = -1;
     moveChoice = -1;
     playerChoice = -1;
-    best = lbl_803465F8;
+    best = 999999.0f;
 
     if (c->unk11C >= 0 && c->unk120 + 1 < 8) {
         patterns = c->hdr->patternsPtr;
@@ -4961,7 +4961,7 @@ void CritterChildGetPattern(Critter *c)
     }
     if (c->nextmove < 0 &&
         c->counterValue >=
-            (f32)(s32)(lbl_80346600 * lbl_8011AEAC[lbl_8034465C])) {
+            (f32)(s32)(50.0 * lbl_8011AEAC[lbl_8034465C])) {
         c->nextmove = (s16)CritterFindMoveType(c, MOVE_ROAR, 0);
     }
     if (c->nextmove < 0 && (c->counterState & 0x10) != 0) {
@@ -5012,7 +5012,7 @@ void CritterGetDoAction(Critter *c)
     }
     if (c->nextmove < 0 &&
         c->counterValue >=
-            (f32)(s32)(lbl_80346600 * lbl_8011AEAC[lbl_8034465C])) {
+            (f32)(s32)(50.0 * lbl_8011AEAC[lbl_8034465C])) {
         c->nextmove = (s16)CritterFindMoveType(c, MOVE_ROAR, 0);
     }
     if (c->nextmove < 0 && (c->counterState & 0x10) != 0) {
@@ -5318,7 +5318,7 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
             c->unk120 = 0;
         } else {
             c->moveTimes[moveIndex] =
-                (f32)(lbl_80346608 * (f32)(*(s16 *)((u8 *)c + 0x88) - 2) +
+                (f32)(0.0333333333 * (f32)(*(s16 *)((u8 *)c + 0x88) - 2) +
                       sMusicFadeBase);
         }
     }
@@ -5485,7 +5485,7 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                         }
                         frames = frames - 1;
                         big->safeRockTimers[lbl_80344654] =
-                            (f32)(lbl_80346610 * (f64)frames);
+                            (f32)(0.0333333 * (f64)frames);
                     }
                 }
             }
@@ -5666,7 +5666,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     radius = desc->damage;
     if (c->hdr->descriptor->type != 4) {
         flags |= 8;
-        fn_80037ED0(lbl_80346618, c, Effects[result].id);
+        fn_80037ED0(999.0f, c, Effects[result].id);
     }
 
     switch (desc->type) {
@@ -6392,7 +6392,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->obj_d0 = c->anim;
     GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);
 
-    if (c->hdr->defaultPos[1] < lbl_80346618) {
+    if (c->hdr->defaultPos[1] < 999.0f) {
         c->movePathPos[0] = c->hdr->defaultPos[0];
         c->movePathPos[1] = c->hdr->defaultPos[1];
         c->movePathPos[2] = c->hdr->defaultPos[2];
