@@ -243,7 +243,6 @@ extern f64   lbl_80346478;
 extern f64   lbl_80346488;
 extern f64   lbl_80346490;
 extern f64   lbl_803464B0;
-extern f32   lbl_803464B8;
 extern f32   lbl_803464BC;
 extern f64   lbl_803464F8;
 extern f64   lbl_803464C8;
@@ -629,7 +628,6 @@ extern void  BossActivate(void *obj, s32 flag);
 extern s32   gTriggerCameraState;
 extern void  MBTreeSetAlpha(void *node, s32 alpha, s32 propagate);
 extern f32   lbl_803464EC;
-extern f64   lbl_803465C0;
 extern u64   gControllerButtons;      /* 0x803445C8 (low word aliases sFlags)     */
 extern void  SetSkinFX(void *fx, s32 base, s32 frames, s32 loops, f32 rate);
 extern void  AudioPlay3DSel(s32 sound, s32 volume, f32 *position, s32 selector);
@@ -3427,7 +3425,7 @@ boss_ai:
 
 animate_ai:
     CritterAnimate(c);
-    if (FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
+    if (FloorCollide(c->vel, 0, 0, 2, 5.0f,
                      4.0f, -1000.0f) != NULL) {
         collided = 1;
     } else {
@@ -3507,7 +3505,7 @@ void CritterDoKnockback(Critter *c)
     } else if ((c->counterState & 0x20) != 0) {
         scale = 7.5f;
     } else if ((c->counterState & 0x10) != 0) {
-        scale = lbl_803464B8;
+        scale = 5.0f;
     }
 
     if (type == 3) {
@@ -3637,7 +3635,7 @@ s32 CritterGolemAI(Critter *c)
 
     if (gTriggerCameraState != 0) {
         if (c->nextmove < 0) {
-            if (c->rateScale < lbl_803465C0) {
+            if (c->rateScale < 0.8) {
                 mt = CritterFindMoveType(c, MOVE_TAUNT, 0);
             }
             if (mt < 0) {
@@ -3657,7 +3655,7 @@ s32 CritterGolemAI(Critter *c)
         }
         if (c->nextmove < 0) {
             mt = -1;
-            if (c->rateScale < lbl_803465C0) {
+            if (c->rateScale < 0.8) {
                 mt = CritterFindMoveType(c, MOVE_TAUNT, 0);
             }
             if (mt < 0) {
@@ -6321,7 +6319,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     }
     c->hitnode2 = node;
 
-    floorHit = FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
+    floorHit = FloorCollide(c->vel, 0, 0, 2, 5.0f,
                             4.0f, -1000.0f) != NULL
                    ? 1
                    : 0;
