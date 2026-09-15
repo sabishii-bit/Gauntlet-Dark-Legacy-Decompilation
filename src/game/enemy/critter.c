@@ -5598,7 +5598,6 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     u32 flags;
     CritterSfxRecord *sfxDesc;
     CritterSfxRecord *hitDesc;
-    u8 *morphDesc;
     s32 morph;
     s32 morphTarget;
     f32 speed;
@@ -5726,13 +5725,10 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         }
 
         if (desc->morphTargetIndex >= 0) {
-            morphDesc = (u8 *)container->sfx + 8;
-            morphTarget = *(s32 *)(morphDesc +
-                                    desc->morphTargetIndex * 0x50);
+            morphTarget = container->sfx[desc->morphTargetIndex].textureId;
             morph = 0;
             if (desc->morphIndex >= 0) {
-                morph = *(s32 *)(morphDesc +
-                                  desc->morphIndex * 0x50);
+                morph = container->sfx[desc->morphIndex].textureId;
             }
             speed = desc->morphSpeed;
             if ((f64)speed <= 0.0) {
