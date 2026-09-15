@@ -837,7 +837,8 @@ extern s32 LineCylinderCollide(f32* center, f32 radius, f32 halfHeight,
  * returning the id of the closest blocking enemy (or a node hit tagged with
  * 0x10000), skipping self, dead/idle occupants, already-linked pack members,
  * and short obstacles when charging.  -1 = clear. */
-extern void CritterCollideStart(f32 rad, f32* pos, s32 a);
+struct Critter;
+extern void CritterCollideStart(f32 *pt, f32 rad, struct Critter *skip);
 extern void* CritterMoveNodeCol(f32 rad, f32 zero, f32* from, f32* to,
                                 void* hit, s32 a, s32 b);
 extern s32 NextGridItem(void);
@@ -1918,7 +1919,7 @@ int fn_8004646C(int index, f32* oldc, f32* newc, f32* newc2, f32 rad, f32 hht,
     if (hitWorld == NULL && startNode < 0x10000) {
         hint = startNode;
     }
-    CritterCollideStart(rad, newc, 0);
+    CritterCollideStart(newc, rad, 0);
     nodeCol = CritterMoveNodeCol(rad, 0.0f, oldc, newc, scratch, -1, 2);
     if (nodeCol != NULL) {
         return *(s16*)nodeCol | 0x10000;

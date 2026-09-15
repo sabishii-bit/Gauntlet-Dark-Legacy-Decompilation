@@ -719,7 +719,7 @@ Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
                            f32 dot, f32 *contact, s32 timedId);
 s32  CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
                            f32 *delta, f32 radius, f32 dotThreshold);
-void CritterCollideStart(s32 unused, void *ctx);
+void CritterCollideStart(f32 *pt, f32 rad, Critter *skip);
 s32  CritterNoHit(Critter *c, s32 id);
 s32  CritterNoHitSub(Critter *c, s32 id);
 void fn_80037ED0(f32 add, Critter *c, s32 id);
@@ -2670,10 +2670,12 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
     c->unkAB8 = -1;
     return 0;
 }
-/* 0x80037D34 */
-void CritterCollideStart(s32 unused, void *ctx)
+/* 0x80037D34 -- begin a collision scan, excluding skip.
+ * The original interface accepts position/radius even though GC does not
+ * consume them; callers still pass them in r3/f1, with skip in r4. */
+void CritterCollideStart(f32 *pt, f32 rad, Critter *skip)
 {
-    lbl_80344648 = ctx;
+    lbl_80344648 = skip;
     lbl_80344644 = 0;
 }
 
@@ -2981,6 +2983,14 @@ static inline void CritterKill(Critter *c)
     }
 }
 
+/* Original private child-removal helper; GC inlines its Damage call. */
+static inline void CritterRemoveColnodeChildren(Critter *c, MBObject *node)
+{
+    if (node->child != NULL) {
+        CritterRemoveColnodeSub(c, node->child, 2);
+    }
+}
+
 /* 0x800383A8 -- apply damage to a critter/hit node, accumulate combat
  * bookkeeping and transition a depleted critter into its death state.
  * The original critter-first argument order also recovers the GC parameter
@@ -3119,10 +3129,9 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                             MBSetObject(hitNode->active, object);
                         }
                         CritterColnodeUpdateMoves(c, (MBObject *)hitNode->active);
-                        if ((hitNode->descriptor->flags & 4) &&
-                            ((MBObject *)hitNode->active)->child != NULL) {
-                            CritterRemoveColnodeSub(c,
-                                ((MBObject *)hitNode->active)->child, 2);
+                        if (hitNode->descriptor->flags & 4) {
+                            CritterRemoveColnodeChildren(c,
+                                (MBObject *)hitNode->active);
                         }
                     }
                     if (hitNode->dmgfx != NULL) {

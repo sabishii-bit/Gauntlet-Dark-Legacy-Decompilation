@@ -2391,7 +2391,8 @@ extern void StartEnemyGrid(f32* pos, f32 radius);
 extern s32 NextGridEnemy(void);
 extern void StartItemGrid(f32* pos, f32 radius);
 extern s32 NextGridItem(void);
-extern void CritterCollideStart(f32 radius, f32* pos, s32 unused);
+struct Critter;
+extern void CritterCollideStart(f32 *pt, f32 rad, struct Critter *skip);
 extern void* CritterExpCollide();
 extern void* CritterMoveNodeCol();
 extern void* MissileCollidePlayer(f32 radius, f32* oldpos, f32* newpos,
@@ -3160,7 +3161,7 @@ void ProcessEffects(void)
             struct fxcritter* critter;
             if (mode != 0) {
                 if (radius > 0.0 && !(e->flags & 0x400)) {
-                CritterCollideStart(radius, pos, 0);
+                CritterCollideStart(pos, radius, 0);
                 for (;;) {
                     s32 damage;
 
@@ -3186,7 +3187,7 @@ void ProcessEffects(void)
                 }
                 }
             } else {
-                CritterCollideStart(radius, pos, 0);
+                CritterCollideStart(pos, radius, 0);
                 critter = CritterMoveNodeCol(radius, fade, oldpos, pos,
                                              hitpos, e->id, 0);
                 if (critter != NULL) {

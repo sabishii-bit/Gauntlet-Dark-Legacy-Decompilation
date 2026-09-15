@@ -219,7 +219,7 @@ extern s32 NextGridEnemy(void);
 extern void StartItemGrid(f32* position, f32 radius);
 extern s32 NextGridItem(void);
 extern s32 FastWallCollide(f32* from, f32* to, f32* normal, s32 mode);
-extern void CritterCollideStart(f32 radius, f32* position, s32 unused);
+extern void CritterCollideStart(f32 *pt, f32 rad, Critter *skip);
 extern void* CritterMoveNodeCol(f32 radius, f32 zero, f32* from, f32* to,
                                 f32* hit, s32 ignore, s32 mode);
 extern s32 lbl_803447DC;
@@ -4171,7 +4171,7 @@ item_test:
         }
     }
 
-    CritterCollideStart(range, to, 0);
+    CritterCollideStart(to, range, 0);
     {
         object = CritterMoveNodeCol(range, lbl_80347B30, from, to,
                                     localHit, -1, 2);
