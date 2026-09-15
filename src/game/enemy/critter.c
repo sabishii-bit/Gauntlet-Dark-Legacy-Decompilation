@@ -283,7 +283,7 @@ extern void *memcpy(void *dst, const void *src, u32 n);
 extern void  ErrorPrintf(const char *fmt, ...);
 extern void  FatalError(const char *msg, int code);
 extern void  MBRemoveNode(void *node, s32 kind);
-extern void  MBSetObject(void *node, s32 object);
+extern void  MBSetObject(MBObject *node, s32 object);
 extern s32   GetWorldMat(void *node, f32 *matrix, f32 *offset);
 extern void  GetYawPitch(const f32 *vector, f32 *yaw, f32 *pitch);
 extern void  ExtractPYR(void *matrix, f32 *angles);
@@ -601,9 +601,9 @@ extern void  GetPlayerColPos(s32 i, f32 *out);
 extern f64   __fabs(f64 x);
 extern f32   gIdentityMatrix[12];
 extern level_data *gCurLevel;         /* current level record (game/leveldata.h)  */
-extern void *MBOX_ReallyFindObject(const char *name, s32 type1, s32 type2,
-                                    s32 exact);
-extern void *MBNewObject(void *object, f32 *matrix, void *parent, u32 flags);
+extern s32   MBOX_ReallyFindObject(const char *name, s32 type1, s32 type2,
+                                  s32 exact);
+extern MBObject *MBNewObject(s32 object, void *matrix, void *parent, u32 flags);
 extern void *FloorCollide(f32 *pos, s32 a, s32 b, s32 mode, f32 x, f32 y,
                           f32 z);
 extern FloorCollisionResult gFloorCollisionResult; /* 0x8023CAE0 */
@@ -3102,8 +3102,8 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                     modelIndex = hitCritterDesc->modelIndex;
                     sprintf(objectName, "%sD%s", hitCritterDesc->prefix,
                             hitNode->descriptor->nodeName);
-                    object = (s32)MBOX_ReallyFindObject(objectName, modelIndex,
-                                                        modelIndex, 1);
+                    object = MBOX_ReallyFindObject(objectName, modelIndex,
+                                                  modelIndex, 1);
                     if (hitNode->active != NULL) {
                         if (object >= 0) {
                             MBSetObject(hitNode->active, object);
@@ -3719,29 +3719,57 @@ s32 CritterGolemAI(Critter *c)
     return 1;
 }
 
+/* Both BossAI display sites inline this helper in GC. Its name, four
+ * arguments and float outputs are corroborated by the Xbox PDB and the PS2
+ * implementation; retain GC's double-precision angle conversion. */
+static inline void CritGetTgtPrintInfo(Critter *c, f32 *angptr, f32 *distptr,
+                                      char *mvstr)
+{
+    f32 dist;
+    f32 ang;
+
+    ang = -1.0f;
+    dist = ang;
+    if (c->targetCount > 0) {
+        dist = c->targets[0].dist;
+        if ((f64)dist >= 1e21) {
+            dist = ang;
+        }
+        ang = (f32)(0.31830988614222805 *
+                    (180.0 * (f64)acosf((f32)(
+                        (f64)c->targets[0].dp < -1.0
+                            ? -1.0
+                            : ((f64)c->targets[0].dp > 1.0
+                                   ? 1.0
+                                   : (f64)c->targets[0].dp)))));
+    }
+    if (c->unk11C >= 0) {
+        sprintf(mvstr, "P%d", c->unk11C);
+    } else {
+        strcpy(mvstr, "MV");
+    }
+    *angptr = ang;
+    *distptr = dist;
+}
+
 /* 0x80039AD8 -- run boss target distribution, pattern selection and the
  * coordinated root/child animation pass. */
 s32 CritterBossAI(Critter *c)
 {
+    /* GC extent still provisional: the target uses sp+92 before spills at
+     * sp+104; Xbox has char[4]. Retain the existing 12-byte reconstruction
+     * pending original GC local-layout evidence, not a new padding object. */
     char moveName[12];
-    u8 unused[40];
     Critter *child;
     CritterMove *move;
     CritterMove *childMove;
     CritterPackedType *header;
     WorldObj *surface;
     f32 best;
+    f32 wakeDistance;
     f32 duration;
-    f32 angle;
-    f32 distance;
-    f32 dot;
-    f32 displayScale;
-    f64 angleLimit;
-    f64 dotMinimum;
-    f64 angleScale;
-    f64 radianScale;
-    f64 half;
-    f64 frameHalf;
+    f32 targetDistance;
+    f32 targetAngle;
     f64 rateThreshold;
     s32 frame;
     s32 childFrame;
@@ -3753,7 +3781,6 @@ s32 CritterBossAI(Critter *c)
     s32 floorHit;
     s32 i;
     s32 y;
-    f64 one;
 
     CritterGetTargetPlayers(c);
     CritterSetDifficulty(c);
@@ -3772,18 +3799,9 @@ s32 CritterBossAI(Critter *c)
                 lbl_8034464C = (f32)(2.0 + (f64)sMusicFadeBase);
             }
         } else if ((f64)sMusicFadeBase >= (f64)lbl_8034464C) {
-            distance = c->hdr->wakeThreshold;
-            best = 0.0f;
-            for (i = 0; i < c->targetCount; i++) {
-                f32 candidate = c->targets[i].dist;
-                if (candidate > best) {
-                    best = candidate;
-                }
-            }
-            if (best <= 0.0f) {
-                best = 1e21f;
-            }
-            if ((f64)distance <= 0.0 || best < distance) {
+            wakeDistance = c->hdr->wakeThreshold;
+            best = MaxPlayerDist(c);
+            if ((f64)wakeDistance <= 0.0 || best < wakeDistance) {
                 c->state = 3;
                 for (child = c->next; child != NULL; child = child->next) {
                     child->state = 3;
@@ -3849,9 +3867,7 @@ s32 CritterBossAI(Critter *c)
                         } else if (child->unk11C >= 0) {
                             linkedChildren++;
                         } else {
-                            childMove = (CritterMove *)(
-                                (u8 *)&child->hdr->movesPtr[selected]);
-                            if (childMove->type >= MOVE_ATTACKS) {
+                            if (child->hdr->movesPtr[selected].type >= MOVE_ATTACKS) {
                                 linkedChildren++;
                             }
                         }
@@ -3882,7 +3898,6 @@ s32 CritterBossAI(Critter *c)
         c->curmove = 0;
     }
     move = &c->hdr->movesPtr[c->curmove];
-    frameHalf = 0.5;
     for (child = c->next; child != NULL; child = child->next) {
         if (child->state == 1) {
             child->nextmove = (s16)CritterFindMoveType(child, MOVE_DEATH, 1);
@@ -3894,8 +3909,7 @@ s32 CritterBossAI(Critter *c)
         } else {
             DoAnimateTreeFrame(
                 &child->atree, c->atree.animinfo.animseq,
-                (s32)(frameHalf +
-                      (f64)c->atree.animinfo.frame),
+                (s32)(0.5 + (f64)c->atree.animinfo.frame),
                 1);
             child->movedone = c->movedone;
             child->curmove = -1;
@@ -3915,10 +3929,11 @@ s32 CritterBossAI(Critter *c)
         case MOVE_DEATH:
             if (done == 0) {
                 c->rate = sMusicFadeBase + duration;
-            } else if ((f64)sMusicFadeBase >= (f64)c->rate &&
-                       (gControllerButtons & 0x80) == 0) {
-                CritterDelInst(c);
-                return 0;
+            } else if ((f64)sMusicFadeBase >= (f64)c->rate) {
+                if ((gControllerButtons & 0x80) == 0) {
+                    CritterDelInst(c);
+                    return 0;
+                }
             } else if ((gControllerButtons & 0x80) == 0) {
                 f32 remaining = c->rate - sMusicFadeBase;
                 gBossDead = 1;
@@ -3952,10 +3967,11 @@ s32 CritterBossAI(Critter *c)
         }
         break;
     }
-    if (lbl_8034489C < 4) {
-        if (lbl_8034489C >= 2) {
-            c->unkABE = 0xFF;
-        }
+    switch (lbl_8034489C) {
+    case 2:
+    case 3:
+        c->unkABE = 0xFF;
+        break;
     }
 
     CritterMoveSetup(c, move);
@@ -3967,9 +3983,8 @@ s32 CritterBossAI(Critter *c)
     for (child = c->next; child != NULL; child = child->next) {
         childMove = NULL;
         if (child->curmove >= 0) {
-            childFrame = (s32)*(f32 *)((u8 *)child + 0x90);
-            childMove = (CritterMove *)(
-                (u8 *)&child->hdr->movesPtr[child->curmove]);
+            childFrame = (s32)child->atree.animinfo.frame;
+            childMove = &child->hdr->movesPtr[child->curmove];
             CritterMoveSetup(child, childMove);
             CritterActivate(child, childMove, childFrame);
             CritterTranslate(child, childMove);
@@ -3990,7 +4005,7 @@ s32 CritterBossAI(Critter *c)
             s32 surfaceFlags = 0;
             surface = gFloorCollisionResult.obj;
             if (surface != NULL) {
-                surfaceFlags = surface->triggerstate;
+                surfaceFlags |= surface->triggerstate;
                 if (surface->parent != NULL) {
                     surfaceFlags |= surface->parent->triggerstate;
                 }
@@ -4012,83 +4027,33 @@ s32 CritterBossAI(Critter *c)
     }
 
     if ((gControllerButtons & 0x10) != 0 && gGameOptions.showpos != 0) {
-        distance = -1.0f;
-        angle = distance;
-        if (c->targetCount > 0) {
-            angle = c->targets[0].dist;
-            if ((f64)angle >= 1e21) {
-                angle = distance;
-            }
-            dot = c->targets[0].dp;
-            distance = (f32)(0.31830988614222805 *
-                             (180.0 *
-                              (f64)acosf((f32)(
-                                  (f64)dot < -1.0
-                                      ? -1.0
-                                      : ((f64)dot > 1.0
-                                             ? 1.0
-                                             : (f64)dot)))));
-        }
-        if (c->unk11C >= 0) {
-            sprintf(moveName, "P%d", c->unk11C);
-        } else {
-            strcpy(moveName, "MV");
-        }
+        CritGetTgtPrintInfo(c, &targetAngle, &targetDistance, moveName);
         /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
         DrawText(8, 214, 0, 0xFFFFFF, "CRIT %s:%s HT:%d D:%d FR:%d TGT:%d DST:%d ANG:%d    ", moveName,
-                 (u8 *)move + 0x10, (s32)c->health,
+                 c->hdr->movesPtr[c->curmove].name, (s32)c->health,
                  (s32)(10.0f * c->rateScale),
                  (s32)(0.5 + c->atree.animinfo.frame),
-                 c->unk124, (s32)(0.5 + angle),
-                 (s32)(0.5 + distance));
+                 c->unk124, (s32)(0.5 + targetDistance),
+                 (s32)(0.5 + targetAngle));
 
         c = c->next;
-        one = 1.0;
-        angleLimit = 1e21;
-        dotMinimum = -1.0;
-        angleScale = 0.31830988614222805;
-        radianScale = 180.0;
-        displayScale = 10.0f;
-        half = 0.5;
-        i = 0;
-        y = 224;
-        for (; c != NULL; c = c->next, y += 10, i++) {
-            distance = -1.0f;
-            angle = distance;
-            if (c->targetCount > 0) {
-                angle = c->targets[0].dist;
-                if ((f64)angle >= angleLimit) {
-                    angle = distance;
-                }
-                dot = c->targets[0].dp;
-                distance = (f32)(angleScale *
-                                 (radianScale *
-                                  (f64)acosf((f32)(
-                                      (f64)dot < dotMinimum
-                                          ? dotMinimum
-                                          : ((f64)dot > one
-                                                 ? one
-                                                 : (f64)dot)))));
-            }
-            if (c->unk11C >= 0) {
-                sprintf(moveName, "P%d", c->unk11C);
-            } else {
-                strcpy(moveName, "MV");
-            }
-            childFrame = -1;
+        for (y = 224, i = 0; c != NULL; c = c->next, y += 10, i++) {
+            CritGetTgtPrintInfo(c, &targetAngle, &targetDistance, moveName);
             if (c->curmove >= 0) {
                 childFrame = (s32)c->atree.animinfo.frame;
+            } else {
+                childFrame = -1;
             }
             /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
             DrawText(8, y, 0, 0xFFFFFF, "CHLD %d %s:%s HT:%d D:d FR:%d TGT:%d DST:%d ANG:%d    ", i,
                      moveName,
                      c->curmove >= 0
-                         ? (char *)((u8 *)&c->hdr->movesPtr[c->curmove] + 0x10)
+                         ? c->hdr->movesPtr[c->curmove].name
                          : "-1",
                      (s32)c->health,
-                     (s32)(displayScale * c->rateScale), childFrame,
-                     c->unk124, (s32)(half + angle),
-                     (s32)(half + distance));
+                     (s32)(10.0f * c->rateScale), childFrame,
+                     c->unk124, (s32)(0.5 + targetDistance),
+                     (s32)(0.5 + targetAngle));
         }
     }
     return 1;
@@ -6266,9 +6231,9 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 1) != 0) {
         s16 shadowType = c->hdr->descriptor->modelIndex;
         s32 shadowIdx = subtype > 2 ? 1 : subtype;
-        node = MBOX_ReallyFindObject(lbl_8011AEA0[shadowIdx], shadowType,
-                                     shadowType, 1);
-        c->shadow = MBNewObject(node, gIdentityMatrix, NULL, 0x880);
+        s32 shadowObject = MBOX_ReallyFindObject(
+            lbl_8011AEA0[shadowIdx], shadowType, shadowType, 1);
+        c->shadow = MBNewObject(shadowObject, gIdentityMatrix, NULL, 0x880);
         c->shadow->mat[3][0] = c->vel[0];
         c->shadow->mat[3][1] = c->vel[1];
         c->shadow->mat[3][2] = c->vel[2];

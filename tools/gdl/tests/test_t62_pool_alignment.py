@@ -24,10 +24,12 @@ split follows from the other.
 
 The demoted rows are still printed in full, under a CANDIDATE banner.
 R69 closed CritterCollidePlayers' count asymmetry; R71's native conditional
-clamp closed its exchanged constant loads too. CritterBossAI now supplies the
-live candidate-only witness, using current counts. The closed player-collision
-case is also checked, while fixed fixtures retain the historical bad pairing
-and both symmetric and asymmetric coverage.
+clamp closed its exchanged constant loads too. R91's authentic debug-helper
+recovery closes CritterBossAI's count gap: it now supplies a mixed witness,
+with two anchored factor-binding differences and one uncertain edge pairing.
+The closed player-collision case is also checked, while fixed fixtures retain
+candidate-only, mixed, symmetric and asymmetric coverage independently of
+which reconstruction currently supplies a live example.
 
 RUN-63 ITEM 4 folds lane P7's `build/p7_lane/p7_pooldefect.py` in as
 `LiveCritter.carriers`: the scan that finds which functions still print BOTH
@@ -181,6 +183,23 @@ class Banner(unittest.TestCase):
         self.assertIn("POOL-DEFECT adsInitFromHeader", text)
         self.assertNotIn("CANDIDATE", text)
 
+    def test_mixed_rows_keep_both_verdicts_in_the_same_function(self):
+        # Classification belongs to each row, not to the whole function.
+        # Preserve this case even after the live BossAI carrier closes.
+        findings = (fndiff.pool_row_findings(TARGET, OURS) +
+                    fndiff.pool_row_findings(ASYM_TARGET, ASYM_OURS))
+        reasons = (fndiff.pool_row_reliability(TARGET, OURS) +
+                   fndiff.pool_row_reliability(ASYM_TARGET, ASYM_OURS))
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            confirmed = fndiff.print_pool_findings("mixed", findings, reasons)
+        self.assertEqual(confirmed, 2)
+        self.assertEqual(fndiff.pool_candidate_count(findings, reasons), 1)
+        text = buffer.getvalue()
+        self.assertIn("POOL-DEFECT mixed  (2 relocation row(s)", text)
+        self.assertIn("POOL-DEFECT CANDIDATE mixed  (1 suppressed row(s)", text)
+        self.assertIn("PAIRING UNRELIABLE", text)
+
     def test_without_a_reliability_list_nothing_changes(self):
         findings = fndiff.pool_row_findings(TARGET, OURS, ours_object=None)
         buffer = io.StringIO()
@@ -222,11 +241,17 @@ class LiveCritter(unittest.TestCase):
                               fndiff.parse(ours)[function], ours_object=ours)
         return buffer.getvalue()
 
-    def test_the_reported_row_is_a_candidate_with_current_count_context(self):
+    def test_reported_mixed_rows_have_current_count_context(self):
         function = "CritterBossAI"
         text = self.clean("game/enemy/critter", function)
         self.assertIn("POOL-DEFECT CANDIDATE " + function, text)
-        self.assertNotIn("POOL-DEFECT " + function, text)
+        self.assertIn("POOL-DEFECT " + function, text)
+        # The factor loads have changed register homes, while the single
+        # root-display edge pairing still requires alignment review. Neither
+        # must hide the other, even though instruction counts now agree.
+        self.assertIn("pool@0xac4", text)
+        self.assertIn("pool@0xacc", text)
+        self.assertIn("pool@0x9b0", text)
         target = fndiff.parse(ROOT / "build/GUNE5D/obj/game/enemy/critter.o")
         ours, _raw = fndiff.ours_object_path("game/enemy/critter")
         counts = tuple(len(fndiff.instruction_lines(stream[function]))
@@ -236,7 +261,7 @@ class LiveCritter(unittest.TestCase):
             self.assertIn("COUNT-ASYMMETRIC (target %d, ours %d" % counts, text)
         else:
             self.assertNotIn("COUNT-ASYMMETRIC", text)
-        self.assertIn("CANDIDATES only", text)
+        self.assertIn("PAIRING UNRELIABLE", text)
 
     def test_closed_player_collision_carrier_has_no_pool_defect(self):
         # R71 preserves the literal pool and corrects only the two load sites;
@@ -307,8 +332,10 @@ class LiveCritter(unittest.TestCase):
         census = self.carriers()
         loud = sorted(name for name, (is_loud, _cand) in census.items()
                       if is_loud)
-        demoted = sorted(name for name, (is_loud, cand) in census.items()
-                         if cand and not is_loud)
+        # A function with both banners still exercises candidate demotion;
+        # requiring a candidate-only function incorrectly rejects that case.
+        demoted = sorted(name for name, (_is_loud, cand) in census.items()
+                         if cand)
         self.assertTrue(loud, "no both-banner carrier survives in %s; the"
                               " interior-row rule has no live witness"
                               % (CARRIER_UNITS,))
@@ -319,7 +346,7 @@ class LiveCritter(unittest.TestCase):
                       " closed; the current census is loud=%s demoted=%s"
                       % (loud, demoted))
         self.assertIn("game/enemy/critter::CritterBossAI", demoted,
-                      "candidate-only carrier closed; current census: %s" % census)
+                      "candidate carrier closed; current census: %s" % census)
         self.assertNotIn("game/enemy/critter::CritterCollidePlayers", census)
 
 
