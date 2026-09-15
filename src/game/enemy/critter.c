@@ -5360,27 +5360,22 @@ s32 CritterAnimInterrupt(CritterMove *a, CritterMove *b)
 
 /* 0x8003C988 -- select an available move of the requested type, preferring
  * the candidate whose cooldown expires first. */
-#pragma opt_propagation off
 s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
 {
-    s32 moveOffset;
     CritterMove *move;
-    u8 *hdr;
+    CritterPackedType *hdr;
     s32 i;
     s32 result;
     f32 best;
     f32 remaining;
 
-    hdr = (u8 *)c->hdr;
+    hdr = c->hdr;
     i = 0;
-    moveOffset = 0;
     result = -1;
     best = 0.0f;
 
-    for (; i < ((CritterPackedType *)hdr)->moveCount;
-         i++, moveOffset += sizeof(CritterMove)) {
-        move = (CritterMove *)(*(u8 **)(hdr + offsetof(CritterPackedType,
-                                movesPtr)) + moveOffset);
+    for (; i < hdr->moveCount; i++) {
+        move = &hdr->movesPtr[i];
         if ((move->flags & 4) == 0 && move->type == type) {
             if ((f64)move->cooldown > lbl_80346488) {
                 remaining = c->moveTimes[i] + move->cooldown - sMusicFadeBase;
@@ -5405,7 +5400,6 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     }
     return result;
 }
-#pragma opt_propagation on
 /* -- externs used by CritterDoDamage -- */
 extern void *SfxGetNode(s32 node);
 extern void  PlayerSetParent(Player *p, void *node, f32 *offset);
