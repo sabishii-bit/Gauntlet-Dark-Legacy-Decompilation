@@ -692,13 +692,13 @@ s32 CritterDamagePlayer(Player *player, Critter *c,
                         f32 *direction, f32 hitTime, s32 playSfx);
 void CritterSetFxHitTime(s32 slot, s32 id, f32 amount);
 s32  CritterGetTarget(Critter *c, f32 *out);
-s32  CritterGetTargetSub(Critter *c, f32 *target, s32 mode);
-f32  CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target);
+s32  CritterGetTargetSub(Critter *c, CritterTargetCriteria *target, s32 mode);
+f32  CritterReCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, s32 target);
 void CritterGetSingleTargetPlayer(Critter *c);
 void CritterResolveMultipleTargets(Critter *c);
 void CritterGetTargetPlayers(Critter *c);
 void CritterInsertTarget(Critter *c, CritterTargetInfo *target);
-f32  CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
+f32  CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target,
                        CritterTargetInfo *record);
 void *CritterMoveNodeCol(f32 radius, f32 height, f32 *origin,
                          f32 *destination, f32 *contact, s32 ignore,
@@ -1980,7 +1980,7 @@ waypoint_test:
 done:
     return result;
 }
-/* 0x80036A58 */ s32 CritterGetTargetSub(Critter *c, f32 *target, s32 mode)
+/* 0x80036A58 */ s32 CritterGetTargetSub(Critter *c, CritterTargetCriteria *target, s32 mode)
 {
     s32 i;
     s32 best;
@@ -1988,8 +1988,8 @@ done:
 
     best = -1;
     bestScore = 2.0e21f;
-    if (target != NULL && (f64)target[6] > lbl_80346488 &&
-        c->unk4AC > target[6]) {
+    if (target != NULL && (f64)target->idleGate > lbl_80346488 &&
+        c->unk4AC > target->idleGate) {
         return -1;
     }
 
@@ -2012,41 +2012,41 @@ done:
 }
 /* 0x80036B5C -- score one entry in the critter's target list against the
  * optional move targeting constraints. */
-f32 CritterReCalcTarget(Critter *c, f32 *moveTarget, s32 target)
+f32 CritterReCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, s32 target)
 {
-    f32 *entry;
+    CritterTargetInfo *entry;
     f32 forward[3];
     f32 dot;
     f32 range;
 
-    entry = (f32 *)&c->targets[target];
+    entry = &c->targets[target];
     if (moveTarget != NULL) {
-        if (c->rateScale < moveTarget[4]) {
+        if (c->rateScale < moveTarget->minRateScale) {
             return 1.2e21f;
         }
-        if (moveTarget[5] > moveTarget[4] &&
-            c->rateScale >= moveTarget[5]) {
+        if (moveTarget->maxRateScale > moveTarget->minRateScale &&
+            c->rateScale >= moveTarget->maxRateScale) {
             return 1.2e21f;
         }
     }
 
-    range = entry[2];
+    range = entry->dist;
     if (moveTarget != NULL) {
-        if (range < moveTarget[0]) {
+        if (range < moveTarget->minDistance) {
             return 1.01e21f;
         }
-        if (moveTarget[1] > lbl_80346488 && range > moveTarget[1]) {
+        if (moveTarget->maxDistance > lbl_80346488 && range > moveTarget->maxDistance) {
             return 1.02e21f;
         }
-        YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget[2]);
+        YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget->yaw);
         forward[1] = lbl_80346470;
         SlowNormalVector(forward);
-        dot = entry[5] * forward[0] + entry[7] * forward[2];
-        if (dot < moveTarget[3]) {
+        dot = entry->dpos[0] * forward[0] + entry->dpos[2] * forward[2];
+        if (dot < moveTarget->minDot) {
             return 1.1e21f;
         }
     }
-    range = range * entry[4];
+    range = range * entry->invanger;
     return range;
 }
 
@@ -2071,7 +2071,7 @@ void CritterGetSingleTargetPlayer(Critter *c)
         targetpos[0] = player->effectpos[0];
         targetpos[1] = player->effectpos[1];
         targetpos[2] = player->effectpos[2];
-        score = CritterCalcTarget(c, (f32 *)&c->hdr->target,
+        score = CritterCalcTarget(c, &c->hdr->target,
                                   targetpos,
                                   &candidate);
         if (c->particle != NULL && c->visrad > 0.0 && score > c->visrad) {
@@ -2211,7 +2211,7 @@ void CritterGetTargetPlayers(Critter *c)
         targetpos[0] = player->effectpos[0];
         targetpos[1] = player->effectpos[1];
         targetpos[2] = player->effectpos[2];
-        score = CritterCalcTarget(c, (f32 *)&c->hdr->target, targetpos,
+        score = CritterCalcTarget(c, &c->hdr->target, targetpos,
                                   &record);
         if (c->particle != NULL) {
             thr = c->visrad;
@@ -2280,7 +2280,7 @@ static inline f32 CritterCalcTargetScore(f32 distance, f32 dot, f32 *absolute)
 }
 
 /* 0x800372A0 -- calculate range, facing and score for a world-space target. */
-f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
+f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target,
                       CritterTargetInfo *record)
 {
     f32 forward[3];
@@ -2295,11 +2295,11 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
     u8 unused[16];
 
     if (moveTarget != NULL) {
-        if (c->rateScale < moveTarget[4]) {
+        if (c->rateScale < moveTarget->minRateScale) {
             return lbl_80346518;
         }
-        if (moveTarget[5] > lbl_80346488 &&
-            c->rateScale >= moveTarget[5]) {
+        if (moveTarget->maxRateScale > lbl_80346488 &&
+            c->rateScale >= moveTarget->maxRateScale) {
             return lbl_80346518;
         }
     }
@@ -2312,24 +2312,24 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
     distance = SlowNormalVector(delta);
 
     if (moveTarget != NULL) {
-        if (distance < moveTarget[0]) {
+        if (distance < moveTarget->minDistance) {
             return lbl_8034651C;
         }
-        if (moveTarget[1] > lbl_80346488 && distance > moveTarget[1]) {
+        if (moveTarget->maxDistance > lbl_80346488 && distance > moveTarget->maxDistance) {
             return lbl_80346520;
         }
         if (vertical < lbl_80346470) {
             vertical = -vertical;
         }
-        if (moveTarget[7] > *(volatile f64 *)&lbl_80346488 &&
-            vertical > moveTarget[7]) {
+        if (moveTarget->maxVertical > *(volatile f64 *)&lbl_80346488 &&
+            vertical > moveTarget->maxVertical) {
             return 1.03e21f;
         }
-        YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget[2]);
+        YawVec3((f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20), forward, -moveTarget->yaw);
         forward[1] = lbl_80346470;
         SlowNormalVector(forward);
         dot = delta[0] * forward[0] + delta[2] * forward[2];
-        if (dot < moveTarget[3]) {
+        if (dot < moveTarget->minDot) {
             return lbl_80346524;
         }
         score = CritterCalcTargetScore(distance, dot, &absdot);
@@ -2342,13 +2342,12 @@ f32 CritterCalcTarget(Critter *c, f32 *moveTarget, f32 *target,
         score = CritterCalcTargetScore(distance, dot, &absdot2);
     }
     if (record != NULL) {
-        f32 *out = (f32 *)record;
-        out[1] = dot;
-        out[2] = distance;
-        out[3] = score;
-        out[5] = delta[0];
-        out[6] = delta[1];
-        out[7] = delta[2];
+        record->dp = dot;
+        record->dist = distance;
+        record->testdist = score;
+        record->dpos[0] = delta[0];
+        record->dpos[1] = delta[1];
+        record->dpos[2] = delta[2];
     }
     return score;
 }
@@ -4497,15 +4496,14 @@ static inline void *sCritterMoveNode(Critter *c, s32 nodeIndex)
 
 s32 CritterMoveSetup(Critter *c, CritterMove *move)
 {
-    f32 *target;
+    CritterTargetCriteria *target;
     s16 currentMove;
     s16 queuedTarget;
 
     target = NULL;
     currentMove = c->curmove;
     if (currentMove >= 0) {
-        target = (f32 *)((u8 *)c->hdr->movesPtr +
-                         currentMove * sizeof(CritterMove) + 0x60);
+        target = &c->hdr->movesPtr[currentMove].target;
     }
 
     if (c->unk124 < 0 || c->movedone != 0) {
@@ -4714,7 +4712,7 @@ void CritterLookForReady(Critter *c)
             goto next;
         }
 
-        distance = CritterCalcTarget(c, (f32 *)&move->target,
+        distance = CritterCalcTarget(c, &move->target,
                                      c->targetPos, 0);
         if (distance < best) {
             result = i;
@@ -4781,7 +4779,7 @@ void CritterChildCriticalMove(Critter *c)
         if (sMusicFadeBase < *time + pattern->cooldown) {
             goto next_pattern;
         }
-        player = CritterGetTargetSub(c, (f32 *)&pattern->target, 0);
+        player = CritterGetTargetSub(c, &pattern->target, 0);
         if (player >= 0 && *time < best) {
             patternChoice = i;
             playerChoice = player;
@@ -4831,7 +4829,7 @@ void CritterChildCriticalMove(Critter *c)
             sMusicFadeBase < c->moveTimes[i] + move->cooldown) {
             goto next_move;
         }
-        player = CritterGetTargetSub(c, (f32 *)&move->target, 0);
+        player = CritterGetTargetSub(c, &move->target, 0);
         if (player >= 0) {
             time = &c->moveTimes[i];
             if (*time < best) {
@@ -4902,7 +4900,7 @@ void CritterLookForCriticalMove(Critter *c)
             sMusicFadeBase < c->moveTimes[i] + move->cooldown) {
             goto next;
         }
-        player = CritterGetTargetSub(c, (f32 *)&move->target, 0);
+        player = CritterGetTargetSub(c, &move->target, 0);
         if (player < 0 || PlayerAttacking(player, 1) == 0) {
             goto next;
         }
