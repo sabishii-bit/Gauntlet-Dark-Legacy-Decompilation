@@ -221,12 +221,13 @@ extern Player gPlayers[4];        /* 0x80275AE0 player records (gPlayerRecords) 
 /* Five independent counters at 0x80344628..0x8034463C. GC word accesses
  * and the Xbox CRITTER records agree on int widths: private crit_debug,
  * then public MaxCritInsts/MaxCritMoves/MaxCritPatterns/MaxCritColnodes.
- * MWCC emits these public tentative definitions in reverse source order. */
+ * Explicit zero definitions retain this order before the private loader
+ * pointer; tentative definitions are deferred behind private storage. */
 static s32 lbl_80344628;
-s32 lbl_80344638;
-s32 lbl_80344634;
-s32 lbl_80344630;
-s32 gCritterCountMax;
+s32 gCritterCountMax = 0;
+s32 lbl_80344630 = 0;
+s32 lbl_80344634 = 0;
+s32 lbl_80344638 = 0;
 
 extern void *lbl_80344648;            /* 0x80344648 pending callback context     */
 extern s32   lbl_80344644;            /* 0x80344644 pending callback flag        */
@@ -376,7 +377,8 @@ typedef struct CritterSubnode {
 
 extern CritterSubnode lbl_802411B0[16];
 extern s32   lbl_80344668;
-extern void *crit_load_desc;
+/* Original file-private descriptor for the in-flight model load. */
+static struct CritterDescriptor *crit_load_desc;
 extern s32  *lbl_80344640;
 extern s32  *lbl_8025776C[8];         /* 0x8025776C item/def pointer table          */
 extern void *gWorldData;              /* 0x80344838 world data record                */
@@ -6854,7 +6856,7 @@ s32 CritterLoadDone(s32 maxBytes)
     s32 size;
 
     result = 0;
-    desc = (CritterDescriptor *)crit_load_desc;
+    desc = crit_load_desc;
     if (desc->loadState == 1) {
         if (MBOX_BGLoadModelDone() != 0) {
             desc->loadState = 2;
