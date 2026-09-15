@@ -244,7 +244,6 @@ extern f64   lbl_80346488;
 extern f64   lbl_80346490;
 extern f64   lbl_803464B0;
 extern f32   lbl_803464BC;
-extern f64   lbl_803464F8;
 extern f64   lbl_803464C8;
 extern f64   lbl_803464D0;
 extern f64   lbl_803464D8;
@@ -2264,7 +2263,7 @@ void CritterInsertTarget(Critter *c, CritterTargetInfo *target)
 
 static inline f32 CritterCalcTargetScore(f32 distance, f32 dot, f32 *absolute)
 {
-    if (dot > lbl_803464F8) {
+    if (dot > 0.5) {
         *absolute = dot;
         *(u32 *)absolute &= 0x7FFFFFFF;
         return distance / *absolute;
