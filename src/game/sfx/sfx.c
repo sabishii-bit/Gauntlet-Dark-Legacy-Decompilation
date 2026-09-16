@@ -2428,7 +2428,7 @@ extern void* MBOX_FindObject(char* name);
 extern void MBSetObject(struct mbnode* node, void* object);
 extern void fn_8009C9DC(s32 mode, f32* position);
 extern u8 gEnemies[];
-extern s32 lbl_8034466C;
+extern int lbl_8034466C;
 extern f32 sMusicFadeBase;
 extern f32 lbl_80343DF4;
 extern f32 lbl_80343DF8;

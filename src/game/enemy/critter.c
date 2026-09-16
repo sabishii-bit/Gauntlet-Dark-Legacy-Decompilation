@@ -505,7 +505,7 @@ extern s32   lbl_802897B8[];          /* 0x802897B8 skinfx palette table        
  * MWCC emits these tentative definitions in reverse declaration order after
  * the private scan state. The short's alignment gap is compiler-generated.
  * SafeRockIdx starts at zero in SBSS; CritterInit sets -1 at runtime. */
-s32 lbl_8034466C; /* NumCritterInsts: occupied pool extent, not live count */
+int lbl_8034466C; /* NumCritterInsts: occupied pool extent, not live count */
 s32 lbl_80344668; /* NumCritterAnimInsts: occupied auxiliary-animation extent */
 s16 lbl_80344664; /* CritterCounter: signed rolling frame stamp */
 s32 lbl_80344660; /* CritterFileNum: loaded file/header count */
@@ -3471,7 +3471,7 @@ void CritterChildCriticalMove(Critter *c)
             goto next_move;
         }
         move = &moves[i];
-        if (move->type < 0x7F || move->type >= 0xF0) {
+        if (move->type < MOVE_ATTACKS || move->type >= MOVE_FINISH) {
             goto next_move;
         }
         flags = move->flags;
@@ -3565,10 +3565,10 @@ void CritterLookForReady(Critter *c)
     while (i < moveCount) {
         move = &moves[i];
         type = move->type;
-        if (type < 0x30 || type > 0x39) {
+        if (type < MOVE_STEPFIRST || type > MOVE_STEPLAST) {
             goto next;
         }
-        if (type == 0x38 && c->unk124 < 0) {
+        if (type == MOVE_STEPTOWARD && c->unk124 < 0) {
             goto next;
         }
         if ((move->flags & 4) != 0) {
@@ -4661,7 +4661,8 @@ void CritterUpdateCounters(Critter *c)
     moveType = c->hdr->movesPtr[c->curmove].type;
     if ((((f64)c->counterTime > 0.0) &&
          ((f64)(sMusicFadeBase - c->counterTime) > 3.0)) ||
-        moveType == 0x22 || (moveType >= 0x40 && moveType < 0x7F)) {
+        moveType == MOVE_ROAR ||
+        (moveType >= MOVE_HITREACT && moveType < MOVE_ATTACKS)) {
         c->counterValue = 0.0f;
         c->counterState = 0;
         c->counterTime = 0.0f;
@@ -6083,7 +6084,7 @@ void CritterResolveMultipleTargets(Critter *c)
         return;
     }
     outerOffset = 0;
-    for (i = 0; i < c->targetCount; i++, outerOffset += 0x24) {
+    for (i = 0; i < c->targetCount; i++, outerOffset += sizeof(CritterTargetInfo)) {
         CritterTargetInfo *record = (CritterTargetInfo *)
             ((u8 *)c + offsetof(Critter, targets[0].pidx) + outerOffset);
         player = (int)record->pidx;
@@ -6985,13 +6986,13 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
         break;
     case 0x20000:
         damage = 5.0f;
-        flags = 0x10;
+        flags = DMG_KNOCKBACK;
         break;
     case 0x30000:
     case 0x40000:
     case 0x50000:
         damage = 15.0f;
-        flags = 0x20;
+        flags = DMG_KNOCKDOWN;
         break;
     case 0x60000:
         break;

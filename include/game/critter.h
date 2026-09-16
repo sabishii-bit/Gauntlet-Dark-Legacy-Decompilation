@@ -34,7 +34,7 @@
  *                                     indexed [type*0x18 + subtype*4]
  *   CritterNewID    @0x80343BE8  file-static u16 rolling unique-id counter
  *   gCritterCountMax @0x8034462C  s32 high-water active count
- *   (gNumCritters    @0x8034466C  s32 active count - currently lbl_8034466C)
+ *   NumCritterInsts @0x8034466C int occupied pool extent (lbl_8034466C)
  *   CritterInit     @0x8004229C  formerly misnamed/misowned sndSysInit;
  *    its complete PS2 counterpart initializes these same CRITTER objects.
  *
