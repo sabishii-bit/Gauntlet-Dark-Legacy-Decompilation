@@ -5040,7 +5040,7 @@ static inline void CritterInitPlayerData(void)
 s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source)
 {
-    CritterHitNode *hitNode;
+    s32 critterClass;
     CritterMove *move;
     Critter *child;
     Critter *parent;
@@ -5050,7 +5050,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     f32 livingChildren;
     f32 childDamage;
     f32 damageScale;
-    s32 critterClass;
+    CritterHitNode *hitNode;
     s32 experience;
 
     if (c->hdr == NULL) {
