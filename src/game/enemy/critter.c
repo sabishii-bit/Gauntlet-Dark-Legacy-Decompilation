@@ -2375,20 +2375,17 @@ s32 CritterDoSfx(Critter *c, s32 sfx, f32 *position, s32 parented, s32 parentSfx
     } else if ((flags & 0x200) != 0) {
         nodeCount = 0;
         parentSfxIndex = 0;
-        /* The already-consumed `parentSfxIndex` parameter and descriptor access
-         * still have unresolved source spellings here.
-         * `&c->hitnodes[nodeCount]` with typed members holds the size at 1156
-         * bytes but replaces the target's `li` at +0x190 with `addi`
-         * (1 differing word, `fndiff ... CritterDoSfx --ops` reports
-         * `target-only: +1 li`); keeping `parentSfxIndex` and typing only the members
-         * gives 1156 -> 1152 bytes and 193 differing words.  The element type
-         * is recovered (CritterHitNode in game/critter.h); the spelling is a
-         * separate matching obligation.  The three position members can use
-         * that type without changing the complete native object (R109). */
+        /* The members are recovered, but reusing the consumed parentSfxIndex
+         * as a byte-offset induction variable remains source-shape debt.
+         * With the current deferred-inline edge, &c->hitnodes[nodeCount]
+         * preserves 289 instructions but changes +0x190 from li to addi.
+         * The narrower named descriptor/flags access is whole-object neutral;
+         * the earlier blanket claim that typing it loses an instruction no
+         * longer applies in this source context (R115). */
         for (; nodeCount < c->hdr->colCount;
              nodeCount++, parentSfxIndex += sizeof(CritterHitNode)) {
             u8 *node = (u8 *)c + offsetof(Critter, hitnodes) + parentSfxIndex;
-            if ((*(s16 *)(*(u8 **)(node + offsetof(CritterHitNode, descriptor)) + offsetof(CritterColDescriptor, flags)) & 1) == 0) {
+            if ((((CritterHitNode *)node)->descriptor->flags & 1) == 0) {
                 world[0] = ((CritterHitNode *)node)->position[0] + color[0];
                 world[1] = ((CritterHitNode *)node)->position[1] + color[1];
                 world[2] = ((CritterHitNode *)node)->position[2] + color[2];
