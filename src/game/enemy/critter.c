@@ -253,7 +253,7 @@ extern void  MBPsysSetPParm(void *psys, s32 n, f32 a, f32 b, f32 c, f32 d);
 
 /* -- external helpers -- */
 extern void *AllocFile(const char *wad, const char *name);
-extern void  AddExp(s32 player, s32 amount, s32 kind);
+extern s32   AddExp(s32 player, s32 amount, s32 kind);
 extern void  HealthMeterUpdate(f32 value, s32 meter);
 extern void *memset(void *dst, int c, u32 n);
 extern void *memcpy(void *dst, const void *src, u32 n);
@@ -4443,11 +4443,6 @@ s32 CritterBossAI(Critter *c)
         child = c->next;
         for (y = 224, i = 0; child != NULL; child = child->next, y += 10, i++) {
             CritGetTgtPrintInfo(child, &targetAngle, &targetDistance, moveName);
-            if (child->curmove >= 0) {
-                frame = (s32)child->atree.animinfo.frame;
-            } else {
-                frame = -1;
-            }
             /* lint-allow-next-line FM007: DrawText RGB colour word (white) */
             DrawText(8, y, 0, 0xFFFFFF, "CHLD %d %s:%s HT:%d D:d FR:%d TGT:%d DST:%d ANG:%d    ", i,
                      moveName,
@@ -4455,7 +4450,9 @@ s32 CritterBossAI(Critter *c)
                          ? child->hdr->movesPtr[child->curmove].name
                          : "-1",
                      (s32)child->health,
-                     (s32)(10.0f * child->rateScale), frame,
+                     (s32)(10.0f * child->rateScale),
+                     child->curmove >= 0
+                         ? (s32)child->atree.animinfo.frame : -1,
                      child->unk124, (s32)(0.5 + targetDistance),
                      (s32)(0.5 + targetAngle));
         }
@@ -5116,11 +5113,11 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         }
 
         if (critterClass != 4 &&
-            gCurLevel->plevel > lbl_80346470) {
+            gCurLevel->plevel > 0.0f) {
             f32 level;
 
             level = gPlayers[player].level;
-            damageScale = lbl_803464A8;
+            damageScale = 1.0f;
             if (level < gCurLevel->plevel) {
                 damageScale = (f32)(lbl_80346490 -
                     0.02 *
@@ -5138,7 +5135,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         c->unkAB8 >= 0) {
         hitNode = &c->hitnodes[c->unkAB8];
         if (hitNode->activeFrom >= hitNode->activeUntil) {
-            damage = lbl_80346470;
+            damage = 0.0f;
         } else {
             damage *= hitNode->descriptor->damageScale;
             if (hitNode->activeFrom + damage >
@@ -5220,7 +5217,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     if (c->childcnt > 0) {
         f64 childZero;
 
-        livingChildren = lbl_80346470;
+        livingChildren = 0.0f;
         for (child = c->next; child != NULL; child = child->next) {
             if (child->state >= 2) {
                 livingChildren = (f32)((f64)livingChildren +
