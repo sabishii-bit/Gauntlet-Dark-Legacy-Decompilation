@@ -1062,7 +1062,6 @@ u32 fn_800D91B4(MovieDecodeState* state, int unused1, char* unused2,
 }
 
 /* VQ frame parser: dispatches the fn_800D87FC/8BCC/8F28/91B4 decoders */
-#pragma opt_propagation off
 u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param_5, u8* param_6) {
     int iVar4;
     int iVar1;
@@ -1114,7 +1113,6 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
     }
     return 0xffffffff;
 }
-#pragma opt_propagation reset
 
 void fn_800D9614(u32* param_1, MovieDecodeCall* param_2) {
     u32 arg1 = param_2->context;
@@ -1282,7 +1280,6 @@ s32 MovieValidateFrameFormat(u32 param_1, int param_2, s32 unused) {
     return 0;
 }
 
-#pragma opt_propagation off
 u32 fn_800D99AC(u32 a, int* src, u8* dst) {
     u32 r;
 
@@ -1304,7 +1301,6 @@ u32 fn_800D99AC(u32 a, int* src, u8* dst) {
     }
     return r;
 }
-#pragma opt_propagation reset
 
 u32 fn_800D9A14(MovieRingBuffer* param_1, u8* param_2, int param_3, u8 param_4) {
     u32 writeOffset;

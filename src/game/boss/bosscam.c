@@ -261,7 +261,6 @@ extern f32 cos(f32);
 void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg);
 f32 PointViewDist(f32* point, f32 dist);
 
-#pragma opt_propagation off
 s32 TriggerCamUpdate(void)
 {
     void* blit;
@@ -338,7 +337,6 @@ s32 TriggerCamUpdate(void)
     }
     return gTriggerCameraState;
 }
-#pragma opt_propagation reset
 
 void TriggerCameraEnd(void) {
     lbl_803443B8 = 0;
@@ -1207,7 +1205,6 @@ extern f32 lbl_80343B94;
 extern f32 lbl_80345C2C;
 extern char lbl_80111838[];
 
-#pragma opt_propagation off
 static void BossCamPlayerCalc(void)
 {
     f32 avg[3];
@@ -1381,7 +1378,6 @@ static void BossCamPlayerCalc(void)
         }
     }
 }
-#pragma opt_propagation reset
 
 /* Clamp the camera attention/look target + distance via LimitCamVal2 (0x3C4).
  * target points at the desired attention (look-at) position.  If the desired

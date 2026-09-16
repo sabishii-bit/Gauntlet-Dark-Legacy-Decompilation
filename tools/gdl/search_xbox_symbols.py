@@ -70,12 +70,37 @@ def parse_type_definition(lines: List[str], start_idx: int) -> Tuple[Dict, int]:
     }, end_idx
 
 
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+IN_REPO_SYMBOLS = REPO_ROOT / "research" / "xbox_symbols"
+SPLIT_SYMBOLS = REPO_ROOT / "include" / "xbox_symbols"
+
+
+def default_symbols_dir() -> Path:
+    """Where the dumped Xbox headers actually are.
+
+    The old default was `include/xbox_symbols`, which `split_pdb_header.py`
+    produces from the PRIVATE `misc/Xbox/shell3D.h`. That header is not in the
+    repository, so in a clean checkout the default directory never exists and
+    every invocation failed with advice to run a script whose input nobody has.
+    The dumped headers that ARE committed live in `research/xbox_symbols/`
+    (misc.h, game.h, audio.h, ... plus xbox_structs.tsv), so prefer those and
+    fall back to the split output when someone has produced it.
+    """
+    if IN_REPO_SYMBOLS.exists():
+        return IN_REPO_SYMBOLS
+    return SPLIT_SYMBOLS
+
+
 def search_symbols(symbols_dir: Path, size_filter: int = None, name_filter: str = None, category_filter: str = None):
     """Search through Xbox symbols with various filters."""
 
     if not symbols_dir.exists():
         print(f"Error: {symbols_dir} does not exist")
-        print("Have you run: python tools/split_pdb_header.py misc/Xbox/shell3D.h ?")
+        if symbols_dir != IN_REPO_SYMBOLS and IN_REPO_SYMBOLS.exists():
+            print(f"The in-repo dumped headers are at {IN_REPO_SYMBOLS} — "
+                  f"pass --symbols-dir {IN_REPO_SYMBOLS.relative_to(REPO_ROOT)}")
+        else:
+            print("Have you run: python tools/split_pdb_header.py misc/Xbox/shell3D.h ?")
         return
 
     results = []
@@ -230,7 +255,7 @@ Examples:
     parser.add_argument('--category', type=str, help='Filter by category (e.g., math, graphics)')
     parser.add_argument('--verbose', '-v', action='store_true', help='Show full type definitions')
     parser.add_argument('--summary', action='store_true', help='Show size distribution summary')
-    parser.add_argument('--symbols-dir', type=Path, default=Path('include/xbox_symbols'),
+    parser.add_argument('--symbols-dir', type=Path, default=default_symbols_dir(),
                         help='Path to xbox symbols directory')
 
     args = parser.parse_args()

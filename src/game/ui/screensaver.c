@@ -554,7 +554,7 @@ void ScreenSaverUpdateWeap(s32 idx)
     ScreenSaverWeapon* weapons = (ScreenSaverWeapon*)lbl_80274600;
     u8* initialTable = lbl_8011D568;
     f32 matrix[12];
-    volatile f32 unused[5];
+    f32 unused[5];
     f32 screenPosition[3];
     f32 frameStep;
     f32 movementStep;
