@@ -5751,10 +5751,10 @@ s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
         node = base + offsetof(Critter, hitnodes);
         if (*(void **)(base + (offsetof(Critter, hitnodes) + offsetof(CritterHitNode, active))) == NULL ||
             ((CritterHitNode *)node)->activeFrom >= ((CritterHitNode *)node)->activeUntil ||
-            (((CritterColDescriptor *)*(u8 **)node)->flags & 8) == 0) {
+            (((CritterHitNode *)node)->descriptor->flags & 8) == 0) {
             goto next;
         }
-        nodeDef = *(CritterColDescriptor **)node;
+        nodeDef = ((CritterHitNode *)node)->descriptor;
         nodeRadius = nodeDef->radius;
         nodePosition[0] = *(f32 *)(node += offsetof(CritterHitNode, position)) + offsetVec[0];
         nodePosition[1] = *(f32 *)(node + 4) + offsetVec[1];
@@ -5780,7 +5780,7 @@ s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
         }
 next:
         i++;
-        byteOffset += 0x5C;
+        byteOffset += sizeof(CritterHitNode);
     }
     if (resultIndex >= 0) {
         return resultIndex + 1;
