@@ -532,10 +532,10 @@ extern void  BossDying(void);
 
 /* -- CRITTER.OBJ internal roster (forward declarations) -- */
 struct CritterDamageDef;
-s32  CritterCollideEnemies();
-s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits);
-s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits);
-u32 CritterCollideWorld();
+int  CritterCollideEnemies();
+int CritterCollideItems(Critter *c, f32 *delta, int hits);
+int CritterCollidePlayers(Critter *c, f32 *delta, int hits);
+int CritterCollideWorld(Critter *c, f32 *delta, int hits);
 void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
                         f32 *contact);
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef);
@@ -683,7 +683,7 @@ f32 SafeRockActiveCounter[16];
 f32 CritterPlayerNTargets[4];
 
 /* Local helper and function declarations for deferred compilation. */
-s32 CritterCollideEnemies();
+int CritterCollideEnemies();
 s32 SafeRockNearestTarget(s32 player);
 static void CritterSetDifficulty(Critter *c);
 static void CritterReleasePlayer(Critter *c, CritterDamageDef *damageDef, f32 *dir, s32 held);
@@ -3876,9 +3876,10 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
     /* Original newpos/dpos are four-float vectors; GC uses their xyz. */
     f32 newpos[4];
     f32 delta[4];
-    f32 t0;
-    f32 t1;
-    f32 t2;
+    /* GC clears the IEEE sign bit through three separate scratch words. */
+    union { f32 value; u32 bits; } t0;
+    union { f32 value; u32 bits; } t1;
+    union { f32 value; u32 bits; } t2;
     u8 pad4[4];
     f32 contact[3];
     f32 dest[3];
@@ -3957,19 +3958,19 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
     c->knockbackVelocity[0] = (f32)(0.8 * c->knockbackVelocity[0]);
     c->knockbackVelocity[1] = (f32)(0.8 * c->knockbackVelocity[1]);
     c->knockbackVelocity[2] = (f32)(0.8 * c->knockbackVelocity[2]);
-    t0 = c->knockbackVelocity[0];
-    *(u32 *)&t0 &= 0x7FFFFFFF;
-    if (t0 < 0.01) {
+    t0.value = c->knockbackVelocity[0];
+    t0.bits &= 0x7FFFFFFF;
+    if (t0.value < 0.01) {
         c->knockbackVelocity[0] = 0.0f;
     }
-    t1 = c->knockbackVelocity[1];
-    *(u32 *)&t1 &= 0x7FFFFFFF;
-    if (t1 < 0.01) {
+    t1.value = c->knockbackVelocity[1];
+    t1.bits &= 0x7FFFFFFF;
+    if (t1.value < 0.01) {
         c->knockbackVelocity[1] = 0.0f;
     }
-    t2 = c->knockbackVelocity[2];
-    *(u32 *)&t2 &= 0x7FFFFFFF;
-    if (t2 < 0.01) {
+    t2.value = c->knockbackVelocity[2];
+    t2.bits &= 0x7FFFFFFF;
+    if (t2.value < 0.01) {
         c->knockbackVelocity[2] = 0.0f;
     }
     if (c->knockbackVelocity[1] > 0.0f) {
@@ -6087,7 +6088,7 @@ void CritterResolveMultipleTargets(Critter *c)
     for (i = 0; i < c->targetCount; i++, outerOffset += sizeof(CritterTargetInfo)) {
         CritterTargetInfo *record = (CritterTargetInfo *)
             ((u8 *)c + offsetof(Critter, targets[0].pidx) + outerOffset);
-        player = (int)record->pidx;
+        player = record->pidx;
         if (record->invanger > 1.0) {
             threshold = 2;
         } else if (record->invanger > 0.75) {
@@ -6112,7 +6113,7 @@ void CritterResolveMultipleTargets(Critter *c)
                 for (j = 0; j < child->targetCount; j++) {
                     CritterTargetInfo *entry;
                     entry = &child->targets[j];
-                    if ((int)entry->pidx == player &&
+                    if (entry->pidx == player &&
                         (owner == NULL || entry->testdist > best)) {
                         owner = child;
                         best = entry->testdist;
@@ -7003,10 +7004,9 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
 }
 
 /* 0x80035408 -- integrate the world-contact portion of a movement delta and
- * cache a floor point/status for item drops and shadows. */
-u32 CritterCollideWorld(c, delta)
-Critter *c;
-f32 *delta;
+ * cache a floor point/status for item drops and shadows. The original hit
+ * argument is ignored here: world contact computes its own result. */
+int CritterCollideWorld(Critter *c, f32 *delta, int hits)
 {
     f32 probe[3];
     f32 direction[3];
@@ -7014,7 +7014,6 @@ f32 *delta;
      * the matrix. The GC stack extent and original worldcol local agree. */
     FloorCollisionResult floorResult;
     f32 contact[3];
-    u8 unusedLow[4];
     f32 *cpos;
     f32 *from;
     f32 wallRadius;
@@ -7173,7 +7172,7 @@ f32 *delta;
 
 /* 0x800351B0 -- separate active players from a translating critter and feed
  * the displacement into their push vectors. */
-s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
+int CritterCollidePlayers(Critter *c, f32 *delta, int hits)
 {
     Player *player;
     f32 *cpos;
@@ -7258,7 +7257,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
 
 /* 0x80034F60 -- stop translation against collidable item records returned by
  * the item grid. */
-s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
+int CritterCollideItems(Critter *c, f32 *delta, int hits)
 {
     u8 unusedHigh[12];
     f32 center[3];
@@ -7348,7 +7347,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
 
 /* 0x80034CFC -- stop or deflect this frame's translation when it overlaps
  * a live swarm enemy. */
-s32 CritterCollideEnemies(c, delta)
+int CritterCollideEnemies(c, delta)
 Critter *c;
 f32 *delta;
 {

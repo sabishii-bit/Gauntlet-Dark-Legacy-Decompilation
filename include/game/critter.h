@@ -301,7 +301,7 @@ typedef struct CritterSkinFx {
  *    +0x12C.  Xbox crit_target.  Every consumer in critter.c walks this array
  *    with an explicit 0x24 stride from `pidx` or `dist`. -- */
 typedef struct CritterTargetInfo {
-    s32 pidx;                 /* 0x00 player index                            */
+    int pidx;                 /* 0x00 player index (original crit_target int) */
     f32 dp;                   /* 0x04 facing dot product                      */
     f32 dist;                 /* 0x08 distance (the old `targetAngle`)        */
     f32 testdist;             /* 0x0C                                         */
