@@ -523,9 +523,6 @@ s32 lbl_80344650; /* SafeRockHide: hide/collect mode */
 f32 lbl_8034464C; /* BossActivateTime: absolute activation deadline */
 extern u32   sFlags;
 extern s32   gBossDead;
-DECL_SECT(".sdata2") extern const char lbl_803465E0[];
-DECL_SECT(".sdata2") extern const char lbl_803465E4[];
-DECL_SECT(".sdata2") extern const char lbl_803465E8[];
 extern char *strcpy(char *dst, const char *src);
 extern f32   acosf(f32 value);
 extern void  camera_request_change(s32 value, s32 mode);
@@ -3045,7 +3042,7 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
         c->unkABA = DeleteEffect(c->unkABA, 1);
     }
     c->curmove = (s16)moveIndex;
-    c->rate = lbl_80346470;
+    c->rate = 0.0f;
 }
 
 /* 0x8003C40C -- select/blend the active sequence, animate auxiliary trees,
@@ -3830,7 +3827,7 @@ void CritterRotate(Critter *c, CritterMove *move)
     if ((move->flags & 0x20) != 0) {
         delta = c->inityaw - c->curyaw;
     } else if (c->unk128 >= 0) {
-        delta = lbl_80346470;
+        delta = 0.0f;
     } else {
         if (c->unk124 >= 0 && (f64)turn > 0.0) {
             GetPlayerColPos(c->unk124, target);
@@ -3867,7 +3864,7 @@ void CritterRotate(Critter *c, CritterMove *move)
                 delta = atan2(target[0], z) - c->curyaw;
             }
         } else {
-            delta = lbl_80346470;
+            delta = 0.0f;
         }
     }
 
@@ -4131,7 +4128,7 @@ void CritterDropItem(Critter *c)
     if (type != 0) {
         item->minoff = 10;
         StartBagFX(c->floorContact, item,
-                    lbl_80346470);
+                    0.0f);
         return;
     }
 
@@ -6082,7 +6079,7 @@ void CritterGetTargetPlayers(Critter *c)
     for (i = 0; i < c->targetCount; i++) {
         s32 index = c->targets[i].pidx;
         if (index >= 0) {
-            CritterPlayerNTargets[index] += lbl_803464A8;
+            CritterPlayerNTargets[index] += 1.0f;
         }
     }
 }
@@ -6755,8 +6752,8 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
         yawv = yawv + b;
         pitchv = pitchv + d;
     } else {
-        yawv = lbl_80346470;
-        pitchv = lbl_80346470;
+        yawv = 0.0f;
+        pitchv = 0.0f;
     }
 
     {
@@ -6880,14 +6877,14 @@ void CritterLookAtPlayer(Critter *c, CritterMove *move)
     }
     if (c->hitnode0 != NULL) {
         NodeLookAtPos(c->hitnode0, targetPtr,
-                      ((CritterPackedType *)hdr)->lookYawRate0, lbl_80346470,
+                      ((CritterPackedType *)hdr)->lookYawRate0, 0.0f,
                       &c->headyaw,
                       ((CritterPackedType *)hdr)->lookPitchRate0, ((CritterPackedType *)hdr)->lookPitchBias0,
                       &c->headpitch);
     }
     if (c->hitnode1 != NULL) {
         NodeLookAtPos(c->hitnode1, targetPtr,
-                      ((CritterPackedType *)hdr)->lookYawRate1, lbl_80346470,
+                      ((CritterPackedType *)hdr)->lookYawRate1, 0.0f,
                       &c->eyeyaw,
                       ((CritterPackedType *)hdr)->lookPitchRate1, ((CritterPackedType *)hdr)->lookPitchBias1,
                       &c->eyepitch);
@@ -7016,7 +7013,7 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
     f32 damage;
 
     flags = 0;
-    damage = lbl_80346470;
+    damage = 0.0f;
     if (((allFlags = WorldObjGetAllFlags(surface)) & 0xF0000) == 0) {
         return;
     }
@@ -7025,7 +7022,7 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
         return;
     }
     direction[0] = origin[0] - contact[0];
-    direction[1] = lbl_80346470;
+    direction[1] = 0.0f;
     direction[2] = origin[2] - contact[2];
     NormalVector2D(direction);
     material = allFlags & 0xF0000;
