@@ -4186,6 +4186,7 @@ s32 CritterBossAI(Critter *c)
      * pending original GC local-layout evidence, not a new padding object. */
     char moveName[12];
     Critter *child;
+    s32 linkedChildren;
     CritterMove *move;
     CritterPackedType *header;
     WorldObj *surface;
@@ -4198,7 +4199,6 @@ s32 CritterBossAI(Critter *c)
     s32 frame;
     s32 moveIndex;
     s32 selected;
-    s32 linkedChildren;
     s32 done;
     s32 floorHit;
     s32 i;
