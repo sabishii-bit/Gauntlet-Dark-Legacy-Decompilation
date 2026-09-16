@@ -5017,8 +5017,8 @@ s32 ProcessCritterList(void)
  * the decompiler's apparent per-iteration global writes are misleading. */
 static inline void CritterInitPlayerData(void)
 {
-    Player *player;
     s32 activePlayers;
+    Player *player;
     s32 i;
 
     activePlayers = 0;
