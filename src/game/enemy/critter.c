@@ -1376,8 +1376,7 @@ void CritterAllocType(void *hdr, void *move, s32 arg)
 #define M ((CritterPackedType *)move)
 
     M->file = (CritterFileHeader *)hdr;
-    desc = &((CritterDescriptor *)((CritterFileHeader *)hdr)->descriptors)
-        [M->descriptorIndex];
+    desc = &((CritterFileHeader *)hdr)->descriptors[M->descriptorIndex];
     M->descriptor = desc;
     if (desc->modelIndex < 0) {
         GetCritterDesc(buf, desc);
@@ -1425,7 +1424,7 @@ void CritterLoadAllTypes(s32 arg)
         if (hdr->state != 0) {
             for (sub = 0; sub < hdr->typeCount; sub++) {
                 CritterAllocType(hdr,
-                                 &((CritterPackedType *)hdr->types)[sub],
+                                 &hdr->types[sub],
                                  arg);
             }
         }
