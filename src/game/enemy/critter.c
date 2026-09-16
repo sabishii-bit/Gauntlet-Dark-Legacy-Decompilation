@@ -541,8 +541,8 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
 s32 CritterNodeEnemyCollide(Critter *c, void *damageDef);
 s32  SafeRockNearestTarget(s32 player);
 void CritterLookAtPlayer(Critter *c, CritterMove *move);
-void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
-                   f32 d, f32 *pitch);
+void NodeLookAtPos(void *node, f32 *target, f32 *yaw, f32 maxYaw, f32 initialYaw,
+                   f32 *pitch, f32 maxPitch, f32 initialPitch);
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage);
 s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled);
@@ -6683,11 +6683,13 @@ static void CritterSetDifficulty(Critter *c)
 }
 
 /* 0x80035E48 -- smoothly yaw and pitch a scene node toward a world point. */
-void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
-                   f32 d, f32 *pitch)
+void NodeLookAtPos(void *node, f32 *target, f32 *yaw, f32 maxYaw, f32 initialYaw,
+                   f32 *pitch, f32 maxPitch, f32 initialPitch)
 {
-    union { f64 _align; f32 v[3]; } pyrU;
-    f32 delta[3];
+    /* Original pyr[3]/dpos[4] declarations agree with GC's separate vector
+     * bases at SP+136 and SP+120. Only the displacement's XYZ are consumed. */
+    f32 pyr[3];
+    f32 delta[4];
     f32 nodeYaw;
     f32 nodePitch;
     f32 yawv;
@@ -6697,7 +6699,6 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
     f64 nd;
     f32 r;
     f32 step;
-#define pyr (pyrU.v)
 
     if (target != NULL) {
         GetWorldMat(node, matrix, NULL);
@@ -6708,8 +6709,8 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
         GetYawPitch(delta, &yawv, &pitchv);
         yawv = yawv - nodeYaw;
         pitchv = pitchv - nodePitch;
-        yawv = yawv + b;
-        pitchv = pitchv + d;
+        yawv = yawv + initialYaw;
+        pitchv = pitchv + initialPitch;
     } else {
         yawv = 0.0f;
         pitchv = 0.0f;
@@ -6770,11 +6771,11 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
             nd = 6.283185308 + nd;
         }
         r = (f32)nd;
-        if (r > a) {
-            r = a;
+        if (r > maxYaw) {
+            r = maxYaw;
         }
-        if (r < -a) {
-            r = -a;
+        if (r < -maxYaw) {
+            r = -maxYaw;
         }
         *pyrYaw += r;
     }
@@ -6788,16 +6789,15 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
             nd = 6.283185308 + nd;
         }
         r = (f32)nd;
-        if (r > c) {
-            r = c;
+        if (r > maxPitch) {
+            r = maxPitch;
         }
-        if (r < -c) {
-            r = -c;
+        if (r < -maxPitch) {
+            r = -maxPitch;
         }
         *pyrPitch += r;
     }
     CreatePYRMatrix(node, pyr);
-#undef pyr
 }
 
 /* 0x80035D08 -- aim the two optional look-at nodes at the selected player. */
@@ -6835,18 +6835,16 @@ void CritterLookAtPlayer(Critter *c, CritterMove *move)
         targetPtr = NULL;
     }
     if (c->hitnode0 != NULL) {
-        NodeLookAtPos(c->hitnode0, targetPtr,
+        NodeLookAtPos(c->hitnode0, targetPtr, &c->headyaw,
                       ((CritterPackedType *)hdr)->lookYawRate0, 0.0f,
-                      &c->headyaw,
-                      ((CritterPackedType *)hdr)->lookPitchRate0, ((CritterPackedType *)hdr)->lookPitchBias0,
-                      &c->headpitch);
+                      &c->headpitch, ((CritterPackedType *)hdr)->lookPitchRate0,
+                      ((CritterPackedType *)hdr)->lookPitchBias0);
     }
     if (c->hitnode1 != NULL) {
-        NodeLookAtPos(c->hitnode1, targetPtr,
+        NodeLookAtPos(c->hitnode1, targetPtr, &c->eyeyaw,
                       ((CritterPackedType *)hdr)->lookYawRate1, 0.0f,
-                      &c->eyeyaw,
-                      ((CritterPackedType *)hdr)->lookPitchRate1, ((CritterPackedType *)hdr)->lookPitchBias1,
-                      &c->eyepitch);
+                      &c->eyepitch, ((CritterPackedType *)hdr)->lookPitchRate1,
+                      ((CritterPackedType *)hdr)->lookPitchBias1);
     }
 }
 
