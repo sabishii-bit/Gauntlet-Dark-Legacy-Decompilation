@@ -5094,13 +5094,13 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
 
         maximumHealth = c->hdr->maxHealth *
                         gCurLevel->ene_health;
-        creditedDamage = damage < lbl_80346470 ? lbl_80346470 :
+        creditedDamage = damage < 0.0f ? 0.0f :
                          damage > c->health ? c->health : damage;
 
         ratio = (f32)((f64)creditedDamage /
-                      (lbl_80346490 + (f64)maximumHealth));
-        if ((f64)ratio > lbl_80346490) {
-            ratio = lbl_803464A8;
+                      (1.0 + (f64)maximumHealth));
+        if ((f64)ratio > 1.0) {
+            ratio = 1.0f;
         }
         experience = (s32)(ratio * c->hdr->expValue);
         if (critterClass == 4) {
