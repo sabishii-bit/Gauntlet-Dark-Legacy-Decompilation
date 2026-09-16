@@ -1694,8 +1694,7 @@ void CritterInitColnodes(Critter *c)
                     }
                 } else {
                     s32 idx = -1;
-                    void *atc = *(void **)((u8 *)c->hdr +
-                                offsetof(CritterPackedType, atree));
+                    void *atc = c->hdr->atree;
                     if (atc != NULL && name != NULL && ch != 0 &&
                         name[1] != 0) {
                         idx = AtreeFindNodeIdx(
@@ -2649,9 +2648,9 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                 velocity[2] = c->mtx[2][2];
             } else if ((desc->behaviorFlags & 1) != 0 && c->unk124 >= 0) {
                 GetPlayerColPos(c->unk124, velocity);
-                velocity[0] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][0]));
-                velocity[1] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][1]));
-                velocity[2] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][2]));
+                velocity[0] -= ((MBObject *)Effects[result].node)->mat[3][0];
+                velocity[1] -= ((MBObject *)Effects[result].node)->mat[3][1];
+                velocity[2] -= ((MBObject *)Effects[result].node)->mat[3][2];
             } else {
                 velocity[0] = c->mtx[2][0];
                 velocity[1] = c->mtx[2][1];
@@ -2688,7 +2687,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
             velocity[1] *= speed;
             velocity[2] *= speed;
 
-            if ((*(u32 *)sfxDesc & 8) != 0) {
+            if ((sfxDesc->flags & 8) != 0) {
                 angularVelocity[0] = Random(1.570796327f);
                 angularVelocity[1] = 0.0f;
                 angularVelocity[2] = Random(1.570796327f);
@@ -3545,8 +3544,6 @@ void CritterChildCriticalMove(Critter *c)
 /* 0x8003B67C -- choose the closest ready move in the 0x30..0x39 family. */
 void CritterLookForReady(Critter *c)
 {
-    s32 timeOffset;
-    s32 moveOffset;
     s32 i;
     CritterMove *moves;
     s32 result;
@@ -3569,10 +3566,8 @@ void CritterLookForReady(Critter *c)
     }
 
     i = 0;
-    timeOffset = 0;
-    moveOffset = 0;
     while (i < moveCount) {
-        move = (CritterMove *)((u8 *)moves + moveOffset);
+        move = &moves[i];
         type = move->type;
         if (type < 0x30 || type > 0x39) {
             goto next;
@@ -3594,7 +3589,7 @@ void CritterLookForReady(Critter *c)
 
         if ((f64)move->cooldown > 0.0 &&
             sMusicFadeBase <
-                *(f32 *)((u8 *)c + offsetof(Critter, moveTimes) + timeOffset) +
+                c->moveTimes[i] +
                     move->cooldown) {
             goto next;
         }
@@ -3608,8 +3603,6 @@ void CritterLookForReady(Critter *c)
 
     next:
         i++;
-        timeOffset += 4;
-        moveOffset += sizeof(CritterMove);
     }
 
     if (result >= 0) {
@@ -6084,7 +6077,6 @@ void CritterResolveMultipleTargets(Critter *c)
     s32 i;
     s32 outerOffset;
     s32 player;
-    f32 decrement;
 
     if (c->alivecnt <= 0) {
         return;
@@ -6092,7 +6084,6 @@ void CritterResolveMultipleTargets(Critter *c)
     if (c->unk11C >= 0) {
         return;
     }
-    decrement = 1.0f;
     outerOffset = 0;
     for (i = 0; i < c->targetCount; i++, outerOffset += 0x24) {
         CritterTargetInfo *record = (CritterTargetInfo *)
@@ -6139,7 +6130,7 @@ void CritterResolveMultipleTargets(Critter *c)
                     owner->targets[j + 1];
             }
             owner->targetCount--;
-            CritterPlayerNTargets[player] -= decrement;
+            CritterPlayerNTargets[player] -= 1.0f;
         }
     }
 }
