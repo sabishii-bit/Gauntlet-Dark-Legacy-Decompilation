@@ -3425,9 +3425,9 @@ void CritterLookForCriticalMove(Critter *c)
 void CritterChildCriticalMove(Critter *c)
 {
     s32 i;
+    s32 playerChoice;
     s32 patternChoice;
     s32 moveChoice;
-    s32 playerChoice;
     CritterPattern *patterns;
     CritterPattern *pattern;
     CritterMove *moves;
@@ -3437,9 +3437,9 @@ void CritterChildCriticalMove(Critter *c)
     u32 flags;
     f32 best;
 
+    playerChoice = -1;
     patternChoice = -1;
     moveChoice = -1;
-    playerChoice = -1;
     best = 999999.0f;
 
     if (c->unk11C >= 0 && c->unk120 + 1 < 8) {
