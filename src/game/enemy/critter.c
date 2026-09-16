@@ -2383,22 +2383,23 @@ s32 CritterDoSfx(Critter *c, s32 sfx, f32 *position, s32 parented, s32 parentSfx
     } else if ((flags & 0x200) != 0) {
         nodeCount = 0;
         parentSfxIndex = 0;
-        /* Measured against the banked object: the already-consumed `parentSfxIndex`
-         * parameter and the raw member spellings are BOTH load-bearing here.
+        /* The already-consumed `parentSfxIndex` parameter and descriptor access
+         * still have unresolved source spellings here.
          * `&c->hitnodes[nodeCount]` with typed members holds the size at 1156
          * bytes but replaces the target's `li` at +0x190 with `addi`
          * (1 differing word, `fndiff ... CritterDoSfx --ops` reports
          * `target-only: +1 li`); keeping `parentSfxIndex` and typing only the members
          * gives 1156 -> 1152 bytes and 193 differing words.  The element type
          * is recovered (CritterHitNode in game/critter.h); the spelling is a
-         * separate matching obligation. */
+         * separate matching obligation.  The three position members can use
+         * that type without changing the complete native object (R109). */
         for (; nodeCount < c->hdr->colCount;
              nodeCount++, parentSfxIndex += sizeof(CritterHitNode)) {
             u8 *node = (u8 *)c + offsetof(Critter, hitnodes) + parentSfxIndex;
             if ((*(s16 *)(*(u8 **)(node + offsetof(CritterHitNode, descriptor)) + offsetof(CritterColDescriptor, flags)) & 1) == 0) {
                 world[0] = ((CritterHitNode *)node)->position[0] + color[0];
-                world[1] = *(f32 *)(node + (offsetof(CritterHitNode, position) + 4)) + color[1];
-                world[2] = *(f32 *)(node + (offsetof(CritterHitNode, position) + 8)) + color[2];
+                world[1] = ((CritterHitNode *)node)->position[1] + color[1];
+                world[2] = ((CritterHitNode *)node)->position[2] + color[2];
                 result = CritterDoSfxSub(c, entry, world, 0, flags);
             }
         }
@@ -2773,7 +2774,7 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
         }
         break;
     case 0:
-        CritterNodePlayerCollide(c, (CritterDamageDef *)desc, 1);
+        CritterNodePlayerCollide(c, desc, 1);
         CritterNodeEnemyCollide(c, desc);
         if (active) {
             CritterDoTexmodNode(c, action, 1, NULL);
@@ -2788,7 +2789,7 @@ void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active)
         }
         break;
     case 4:
-        CritterFirePlayerCollide(c, (CritterDamageDef *)desc);
+        CritterFirePlayerCollide(c, desc);
         if (active) {
             CritterDoTexmodNode(c, action, 1, NULL);
         }
@@ -3025,7 +3026,7 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
             c->unk120 = 0;
         } else {
             c->moveTimes[moveIndex] =
-                (f32)(0.0333333333 * (f32)(*(s16 *)((u8 *)c + 0x88) - 2) +
+                (f32)(0.0333333333 * (f32)(c->atree.animinfo.numframes - 2) +
                       sMusicFadeBase);
         }
     }
@@ -6030,7 +6031,7 @@ void CritterGetTargetPlayers(Critter *c)
             continue;
         }
         if ((player->flags & 4) && c->state != 0) {
-            if (*(s16 *)((u8 *)c->hdr->descriptor + offsetof(CritterDescriptor, type)) != 4) {
+            if (c->hdr->descriptor->type != 4) {
                 continue;
             }
         }
