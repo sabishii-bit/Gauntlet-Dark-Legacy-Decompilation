@@ -7230,7 +7230,6 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
     f64 penetration;
     f32 scale;
     s32 result;
-    s32 count;
     s32 i;
 
     cpos = c->pos;
@@ -7240,7 +7239,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
     dest[1] = cpos[1] + delta[1];
     dest[2] = cpos[2] + delta[2];
     result = 0;
-    count = 0;
+    hits = 0;
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
         if (player->state != 1 && player->state != 4) {
@@ -7275,7 +7274,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
             }
         }
         if (result != 0) {
-            count++;
+            hits++;
             length = NormalVector(sep);
             penetration = combined - length;
             penetration = penetration < 1.0 ? 1.0 :
@@ -7296,7 +7295,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
         delta[2] = 0.0f;
         delta[0] = 0.0f;
     }
-    return count;
+    return hits;
 }
 
 /* 0x80034F60 -- stop translation against collidable item records returned by
