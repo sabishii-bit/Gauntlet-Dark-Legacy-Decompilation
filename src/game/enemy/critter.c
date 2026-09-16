@@ -217,8 +217,6 @@ extern void *lbl_80344EB4;
 /* Original file-static rolling ID; GC stores a halfword at 0x80343BE8. */
 static u16 CritterNewID = 1;
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
-extern f32   lbl_80346470;
-extern f64   lbl_80346478;
 extern f64   lbl_80346488;
 extern f64   lbl_80346490;
 extern f32   lbl_803464BC;
@@ -3562,8 +3560,6 @@ void CritterLookForReady(Critter *c)
     s32 moveCount;
     CritterMove *move;
     s32 type;
-    f64 zeroDouble;
-    f32 zeroFloat;
     f32 best;
     f32 distance;
 
@@ -3579,9 +3575,7 @@ void CritterLookForReady(Critter *c)
         return;
     }
 
-    zeroFloat = lbl_80346470;
     i = 0;
-    zeroDouble = lbl_80346488;
     timeOffset = 0;
     moveOffset = 0;
     while (i < moveCount) {
@@ -3599,13 +3593,13 @@ void CritterLookForReady(Critter *c)
 
         if (c->targetCount == 0 && c->waypoint != NULL) {
             if (c->targetCount == 0 &&
-                move->readyDistance > zeroFloat) {
+                move->readyDistance > 0.0f) {
                 result = i;
                 break;
             }
         }
 
-        if ((f64)move->cooldown > zeroDouble &&
+        if ((f64)move->cooldown > 0.0 &&
             sMusicFadeBase <
                 *(f32 *)((u8 *)c + offsetof(Critter, moveTimes) + timeOffset) +
                     move->cooldown) {
@@ -5074,7 +5068,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         damage = 10000.0f;
     }
     if (critterClass != 4 &&
-        (f64)lbl_803447D8 < lbl_80346490) {
+        (f64)lbl_803447D8 < 1.0) {
         damage *= 2.0;
     }
 
@@ -5117,7 +5111,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
             level = gPlayers[player].level;
             damageScale = 1.0f;
             if (level < gCurLevel->plevel) {
-                damageScale = (f32)(lbl_80346490 -
+                damageScale = (f32)(1.0 -
                     0.02 *
                     (f64)(gCurLevel->plevel -
                           level));
@@ -6284,7 +6278,6 @@ s32 CritterGetTarget(Critter *c, f32 *out)
 {
     u8 unused[16];
     LookoutParam *waypoint;
-    f64 minimum_distance;
     s32 result;
 
     if (c->targetCount <= 0) {
@@ -6316,7 +6309,7 @@ waypoint_body:
         distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
 
-        if ((f64)distance < minimum_distance) {
+        if ((f64)distance < 1.0) {
             c->waypoint = NextWaypoint(waypoint);
             goto waypoint_test;
         } else {
@@ -6329,7 +6322,6 @@ waypoint_body:
     }
 
 init_waypoint_search:
-    minimum_distance = lbl_80346490;
 waypoint_test:
     waypoint = c->waypoint;
     if (waypoint != NULL) {
@@ -6940,13 +6932,11 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     f32 out[3];
     u8 unusedLow[4];
     f32 delta[3];
-    f64 zero;
     f32 bx;
     f32 by;
     f32 bz;
     f32 radius;
     f32 f26v;
-    f64 k;
     s32 count;
     s32 idx;
     Enemy *e;
@@ -6962,8 +6952,6 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     pos[1] = c->moveOrigin[1] + out[1];
     pos[2] = c->moveOrigin[2] + out[2];
     StartItemGrid(pos, f26v);
-    k = lbl_80346478;
-    zero = lbl_80346488;
     while ((idx = NextGridItem()) >= 0) {
         s32 state;
         e = &gEnemies[idx];
@@ -6974,7 +6962,7 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
         if (e->type == 31) {
             continue;
         }
-        if (radius > zero && sMusicFadeBase < e->fxhittime[0]) {
+        if (radius > 0.0 && sMusicFadeBase < e->fxhittime[0]) {
             continue;
         }
         if (LineCylinderCollide(e->objgrp.coll_pos, e->rad + f26v,
@@ -6982,9 +6970,9 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
             delta[0] = pos[0] - bx;
             delta[1] = pos[1] - by;
             delta[2] = pos[2] - bz;
-            delta[0] = (f32)(k * delta[0]);
-            delta[1] = (f32)(k * delta[1]);
-            delta[2] = (f32)(k * delta[2]);
+            delta[0] = (f32)(2.0 * delta[0]);
+            delta[1] = (f32)(2.0 * delta[1]);
+            delta[2] = (f32)(2.0 * delta[2]);
             damage_enemy(e, -1, 0, radius, out, delta, 1);
             count++;
         }
