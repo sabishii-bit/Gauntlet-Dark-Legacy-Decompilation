@@ -217,8 +217,6 @@ extern void *lbl_80344EB4;
 /* Original file-static rolling ID; GC stores a halfword at 0x80343BE8. */
 static u16 CritterNewID = 1;
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
-extern f64   lbl_80346488;
-extern f64   lbl_80346490;
 extern f32   lbl_803464BC;
 extern f64   lbl_803464C8;
 extern f64   lbl_803464D0;
@@ -5207,23 +5205,19 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
     }
     /* The GC parent-survived branch also reaches this child-count test. */
     if (c->childcnt > 0) {
-        f64 childZero;
-
         livingChildren = 0.0f;
         for (child = c->next; child != NULL; child = child->next) {
             if (child->state >= 2) {
-                livingChildren = (f32)((f64)livingChildren +
-                                       lbl_80346490);
+                livingChildren += 1.0;
             }
         }
-        childZero = lbl_80346488;
-        if ((f64)livingChildren > childZero) {
+        if ((f64)livingChildren > 0.0) {
             childDamage = (f32)(0.5 *
                                 (f64)(damage / livingChildren));
             for (child = c->next; child != NULL; child = child->next) {
                 if (child->state >= 2) {
                     child->health -= childDamage;
-                    if ((f64)child->health <= childZero) {
+                    if ((f64)child->health <= 0.0) {
                         CritterKill(child);
                     }
                 }
