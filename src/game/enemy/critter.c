@@ -546,7 +546,7 @@ void NodeLookAtPos(void *node, f32 *target, f32 a, f32 b, f32 *yaw, f32 c,
 void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage);
 s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
                               s32 enabled);
-void CritterAwardExp(s32 who, f32 amount);
+void CritterAwardExp(int who, f32 amount);
 struct CritterDamageDef;
 s32 CritterDamagePlayer(Player *player, Critter *c,
                         CritterDamageDef *damageDef, s32 flags,
@@ -578,7 +578,7 @@ void CritterCollideStart(f32 *pt, f32 rad, Critter *skip);
 s32  CritterNoHit(Critter *c, s32 id);
 s32  CritterNoHitSub(Critter *c, s32 id);
 void fn_80037ED0(f32 add, Critter *c, s32 id);
-s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
+s32 CritterDamage(Critter *c, f32 damage, int player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source);
 s32  ProcessCritter(Critter *c);
 s32  ProcessCritterList(void);
@@ -5011,8 +5011,10 @@ static inline void CritterInitPlayerData(void)
  * bookkeeping and transition a depleted critter into its death state.
  * The original critter-first argument order also recovers the GC parameter
  * homes: damage at sp+12 and flags at sp+20. Flags retain the unsigned type
- * required by this TU's existing ModifyDamage declaration. */
-s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
+ * required by this TU's existing ModifyDamage declaration. The player index
+ * and AwardExp's selector are int, as corroborated by their PDB types: s32
+ * is long, whose distinct MWCC type changes the inlined guard/copy sequence. */
+s32 CritterDamage(Critter *c, f32 damage, int player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source)
 {
     s32 critterClass;
@@ -6387,7 +6389,7 @@ static inline void CritterDamagedPlayerSub(s32 playerIndex, Critter *c, f32 amou
 
 /* 0x80036740 -- award experience to one player (who >= 0) or all four active
  * players (who < 0), by the integer part of `amount`. */
-void CritterAwardExp(s32 who, f32 amount)
+void CritterAwardExp(int who, f32 amount)
 {
     s32 end;
     Player *player;
