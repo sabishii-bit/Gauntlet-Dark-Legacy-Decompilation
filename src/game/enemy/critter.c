@@ -217,12 +217,10 @@ extern void *lbl_80344EB4;
 /* Original file-static rolling ID; GC stores a halfword at 0x80343BE8. */
 static u16 CritterNewID = 1;
 extern volatile f32 sMusicFadeBase;   /* 0x80344594 shared game-time / fade base   */
-extern f32   lbl_80346480;
 extern f32   lbl_80346470;
 extern f64   lbl_80346478;
 extern f64   lbl_80346488;
 extern f64   lbl_80346490;
-extern f64   lbl_803464B0;
 extern f32   lbl_803464BC;
 extern f64   lbl_803464C8;
 extern f64   lbl_803464D0;
@@ -3219,7 +3217,7 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
         f32 period;
         if (frame >= first && frame <= move->frameEnd) {
             period = move->framePeriod;
-            if (period <= lbl_80346488 ||
+            if (period <= 0.0 ||
                 (s32)CritterAnimMod(frame - first, period) == 0) {
                 result |= 1;
             }
@@ -3228,7 +3226,7 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
         if (second >= 0 && frame >= second &&
             frame <= move->frameEnd2) {
             period = move->framePeriod;
-            if (period <= lbl_80346488 ||
+            if (period <= 0.0 ||
                 (s32)CritterAnimMod(frame - second, period) == 0) {
                 result |= 2;
             }
@@ -3739,7 +3737,7 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
     }
     if (move->interruptAnim0 >= 0) {
         entry = &c->hdr->file->damage[move->interruptAnim0];
-        if ((entry->behaviorFlags & 0x4000) && c->unkAC8 > lbl_80346488 &&
+        if ((entry->behaviorFlags & 0x4000) && c->unkAC8 > 0.0 &&
             entry->type != 1) {
             return;
         }
@@ -4782,7 +4780,6 @@ s32 ProcessCritter(Critter *c)
     s32 collided;
     f32 scale;
     f32 childHealth;
-    f64 zero;
 
     if (c->parent != NULL) {
         return 0;
@@ -4814,18 +4811,17 @@ s32 ProcessCritter(Critter *c)
         scale = c->health /
                 (c->hdr->maxHealth *
                  gCurLevel->ene_health);
-        if ((f64)c->health <= lbl_80346488) {
+        if ((f64)c->health <= 0.0) {
             AtreeDelete(&c->geometer);
             c->damageflash = NULL;
         } else {
-            MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
+            MBTreeSetScale(scale, 1.0f, 1.0f,
                            c->damageflash);
         }
     }
 
     {
         Critter *current = c->next;
-        zero = lbl_80346488;
         while (current != NULL) {
             CopyMat4(&c->mtx[0][0], &current->mtx[0][0]);
             current->movevec[0] = c->movevec[0];
@@ -4851,11 +4847,11 @@ s32 ProcessCritter(Critter *c)
                 scale = current->health /
                         (current->hdr->maxHealth *
                          gCurLevel->ene_health);
-                if ((f64)current->health <= zero) {
+                if ((f64)current->health <= 0.0) {
                     AtreeDelete(&current->geometer);
                     current->damageflash = NULL;
                 } else {
-                    MBTreeSetScale(scale, lbl_803464A8, lbl_803464A8,
+                    MBTreeSetScale(scale, 1.0f, 1.0f,
                                    current->damageflash);
                 }
             }
@@ -4867,16 +4863,16 @@ s32 ProcessCritter(Critter *c)
         allDead = 1;
         for (child = c->next; child != NULL; child = child->next) {
             if (allDead > 0 &&
-                (childHealth = child->health) <= lbl_80346470) {
+                (childHealth = child->health) <= 0.0f) {
                 allDead++;
             } else {
                 allDead = 0;
             }
         }
         if (allDead > 1) {
-            c->health = lbl_80346480;
+            c->health = -1.0f;
         }
-        if (c->health <= lbl_80346470) {
+        if (c->health <= 0.0f) {
             CritterKill(c);
         }
     }
@@ -4935,7 +4931,7 @@ animate_ai:
             ((MBObject *)c->shadow)->mat[3][1] = c->vel[1];
             ((MBObject *)c->shadow)->mat[3][2] = c->vel[2];
             ((MBObject *)c->shadow)->mat[3][1] =
-                (f32)(lbl_803464B0 +
+                (f32)(0.1 +
                       (f64)gFloorCollisionResult.mtx[3][1]);
         }
     }
@@ -5131,7 +5127,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                     (f64)(gCurLevel->plevel -
                           level));
             }
-            if ((f64)damageScale < lbl_803464B0) {
+            if ((f64)damageScale < 0.1) {
                 damageScale = 0.1f;
             }
             damage *= damageScale;
@@ -5187,7 +5183,7 @@ s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
         }
     }
 
-    if ((f64)damage <= lbl_80346488) {
+    if ((f64)damage <= 0.0) {
         return 0;
     }
 
@@ -5511,8 +5507,8 @@ void fn_80037ED0(f32 add, Critter *c, s32 id)
     s32 offset;
 
     oldest = -1;
-    oldest_time = lbl_80346480;
-    if ((f64)add <= lbl_80346488) {
+    oldest_time = -1.0f;
+    if ((f64)add <= 0.0) {
         return;
     }
 
@@ -5522,7 +5518,7 @@ void fn_80037ED0(f32 add, Critter *c, s32 id)
             c->timed[i] = sMusicFadeBase + add;
             return;
         }
-        if ((f64)oldest_time < lbl_80346488 ||
+        if ((f64)oldest_time < 0.0 ||
             c->timed[i] < oldest_time) {
             oldest_time = c->timed[i];
             oldest = i;
@@ -5767,7 +5763,7 @@ s32 CritterMoveNodeColSub(Critter *c, f32 radius, f32 height,
     resultIndex = -1;
     i = 0;
     byteOffset = 0;
-    best = lbl_80346480;
+    best = -1.0f;
     /* `node` is deliberately a byte cursor that is ADVANCED onto the node's
      * position vector and then passed to LineCylinderCollide: the target emits
      * `lfsu f3,60(r4)` at 0x80037734+0x80 and reuses r4 as the call's p2
@@ -6264,7 +6260,7 @@ f32 CritterReCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, s32 targe
 
     best = -1;
     bestScore = 2.0e21f;
-    if (target != NULL && (f64)target->idleGate > lbl_80346488 &&
+    if (target != NULL && (f64)target->idleGate > 0.0 &&
         c->unk4AC > target->idleGate) {
         return -1;
     }
@@ -6474,7 +6470,7 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     radius = (f32)(enabled != 0
                        ? (f64)(((CritterDamageDef *)dmg)->damage *
                                gCurLevel->ene_damage)
-                       : lbl_80346488);
+                       : 0.0);
     expansion = ((CritterDamageDef *)dmg)->maxDistance;
     bestDistance = 2.0e21f;
     bestPlayer = -1;
@@ -7043,7 +7039,7 @@ void CritterWorldDamage(Critter *c, void *surface, f32 *origin,
     case 0x60000:
         break;
     }
-    if (damage > lbl_80346488) {
+    if (damage > 0.0) {
         CritterDamage(c, damage, -1, flags, contact, direction, 1);
     }
 }
