@@ -6071,10 +6071,10 @@ static inline f32 CritterPlayerAnger(Critter *c, s32 player)
  * critter and its child chain. */
 void CritterResolveMultipleTargets(Critter *c)
 {
-    s32 threshold;
-    s32 i;
+    int threshold;
+    int player;
+    int i;
     s32 outerOffset;
-    s32 player;
 
     if (c->alivecnt <= 0) {
         return;
@@ -6086,7 +6086,7 @@ void CritterResolveMultipleTargets(Critter *c)
     for (i = 0; i < c->targetCount; i++, outerOffset += 0x24) {
         CritterTargetInfo *record = (CritterTargetInfo *)
             ((u8 *)c + offsetof(Critter, targets[0].pidx) + outerOffset);
-        player = (s32)record->pidx;
+        player = (int)record->pidx;
         if (record->invanger > 1.0) {
             threshold = 2;
         } else if (record->invanger > 0.75) {
@@ -6111,7 +6111,7 @@ void CritterResolveMultipleTargets(Critter *c)
                 for (j = 0; j < child->targetCount; j++) {
                     CritterTargetInfo *entry;
                     entry = &child->targets[j];
-                    if ((s32)entry->pidx == player &&
+                    if ((int)entry->pidx == player &&
                         (owner == NULL || entry->testdist > best)) {
                         owner = child;
                         best = entry->testdist;
