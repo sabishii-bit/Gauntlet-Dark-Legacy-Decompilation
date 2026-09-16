@@ -480,7 +480,7 @@ extern MBObject *MBNewObject(s32 object, void *matrix, void *parent, u32 flags);
 extern void *FloorCollide(f32 *pos, s32 a, s32 b, s32 mode, f32 x, f32 y,
                           f32 z);
 extern FloorCollisionResult gFloorCollisionResult; /* 0x8023CAE0 */
-extern f32   lbl_8023CA98[];
+extern FloorCollisionResult lbl_8023CA98; /* wall probe result */
 extern void *EnemyWallCollide(f32 radius, f32 *from, f32 *to, f32 *normal);
 extern s32   SlideAlongWall(f32 radius, f32 *pos, f32 *vel, f32 *wallpt,
                             f32 *normal);
@@ -5036,7 +5036,7 @@ s32 CritterDamage(Critter *c, f32 damage, int player, u32 flags,
     move = &(c->hdr->movesPtr)[c->curmove];
     if (move->type == 35) {
         damage *= 0.25;
-        flags &= ~0x130;
+        flags &= ~(DMG_KNOCKBACK | DMG_KNOCKDOWN | DMG_KNOCKOVER);
         if (move->sfxFrame >= 1000 &&
             (c->moveSfxFlags & 1) == 0 &&
             move->sfx >= 0) {
@@ -5084,7 +5084,7 @@ s32 CritterDamage(Critter *c, f32 damage, int player, u32 flags,
 
         c->playerDamage[player].dealt += creditedDamage;
         c->playerDamage[player].dealtTime = sMusicFadeBase;
-        if (flags & 0x00800000) {
+        if (flags & DMG_HEAL) {
             do_heal_players(creditedDamage, &gPlayers[player], c->mtx);
         }
 
@@ -7074,7 +7074,7 @@ f32 *delta;
         if (((u32)wallSurface->flags & 0x38) != 0) {
             result = 0;
         } else if (SlideAlongWall(wallRadius, from, delta, contact,
-                                  lbl_8023CA98 + 4) < 0) {
+                                  lbl_8023CA98.mtx[1]) < 0) {
             delta[0] = delta[2] = 0.0f;
             result = 2;
         } else {
