@@ -245,7 +245,6 @@ extern f64   lbl_80346568;
 extern const char lbl_80346574[];
 extern f64   lbl_80346580;
 extern f64   lbl_80346600;
-extern f32   lbl_803464A8;
 extern f32   gClockTime;
 extern Effect Effects[];
 extern void  MBPsysSetEVolume(void *psys, f32 a, f32 b);
@@ -612,7 +611,6 @@ void CritterAnimate(Critter *c);
 void CritterMoveDone(Critter *c, s32 moveIndex);
 extern s32 lbl_8034489C;
 extern f64 lbl_80346608;
-extern f32 lbl_80346470;
 s32  CritterAnimInterrupt(CritterMove *a, CritterMove *b);
 s32  CritterFindMoveType(Critter *c, s32 type, s32 mode);
 void CritterDoDamage(Critter *c, s32 action, s32 phase, s32 active);
@@ -2907,12 +2905,12 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     for (; i < hdr->moveCount; i++) {
         move = &hdr->movesPtr[i];
         if ((move->flags & 4) == 0 && move->type == type) {
-            if ((f64)move->cooldown > lbl_80346488) {
+            if ((f64)move->cooldown > 0.0) {
                 remaining = c->moveTimes[i] + move->cooldown - sMusicFadeBase;
             } else {
-                remaining = *(volatile f32 *)&lbl_80346470;
+                remaining = 0.0f;
             }
-            if ((f64)remaining <= lbl_80346488 || mode != 0) {
+            if ((f64)remaining <= 0.0 || mode != 0) {
                 if (result < 0 || remaining < best) {
                     best = remaining;
                     result = i;
@@ -4596,7 +4594,7 @@ s32 CritterGolemAI(Critter *c)
         CritterLookAtPlayer(c, move);
     }
 
-    if (lbl_80346490 != lbl_803447D8) {
+    if (1.0 != lbl_803447D8) {
         if (c->mbnode != NULL) {
             MBTreeSetScale(lbl_803447D8, lbl_803447D8, lbl_803447D8, c->mbnode);
         }
@@ -5924,7 +5922,7 @@ f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target
         if (c->rateScale < moveTarget->minRateScale) {
             return 1.2e21f;
         }
-        if (moveTarget->maxRateScale > lbl_80346488 &&
+        if (moveTarget->maxRateScale > 0.0 &&
             c->rateScale >= moveTarget->maxRateScale) {
             return 1.2e21f;
         }
@@ -5934,25 +5932,25 @@ f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target
     delta[1] = target[1] - c->pos[1];
     delta[2] = target[2] - c->pos[2];
     vertical = delta[1];
-    delta[1] = lbl_80346470;
+    delta[1] = 0.0f;
     distance = SlowNormalVector(delta);
 
     if (moveTarget != NULL) {
         if (distance < moveTarget->minDistance) {
             return 1.01e21f;
         }
-        if (moveTarget->maxDistance > lbl_80346488 && distance > moveTarget->maxDistance) {
+        if (moveTarget->maxDistance > 0.0 && distance > moveTarget->maxDistance) {
             return 1.02e21f;
         }
-        if (vertical < lbl_80346470) {
+        if (vertical < 0.0f) {
             vertical = -vertical;
         }
-        if (moveTarget->maxVertical > *(volatile f64 *)&lbl_80346488 &&
+        if (moveTarget->maxVertical > 0.0 &&
             vertical > moveTarget->maxVertical) {
             return 1.03e21f;
         }
         YawVec3(c->mtx[2], forward, -moveTarget->yaw);
-        forward[1] = lbl_80346470;
+        forward[1] = 0.0f;
         SlowNormalVector(forward);
         dot = delta[0] * forward[0] + delta[2] * forward[2];
         if (dot < moveTarget->minDot) {
@@ -5961,7 +5959,7 @@ f32 CritterCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, f32 *target
         score = CritterCalcTargetScore(distance, dot, &absdot);
     } else {
         forward[0] = c->mtx[2][0];
-        forward[1] = lbl_80346470;
+        forward[1] = 0.0f;
         forward[2] = c->mtx[2][2];
         SlowNormalVector(forward);
         dot = delta[0] * forward[0] + delta[2] * forward[2];
@@ -6204,7 +6202,7 @@ void CritterGetSingleTargetPlayer(Critter *c)
     }
     if (c->targetCount != 0) {
         c->waypoint = NULL;
-        CritterPlayerNTargets[c->targets[0].pidx] += lbl_803464A8;
+        CritterPlayerNTargets[c->targets[0].pidx] += 1.0f;
     }
 }
 
@@ -6233,11 +6231,11 @@ f32 CritterReCalcTarget(Critter *c, CritterTargetCriteria *moveTarget, s32 targe
         if (range < moveTarget->minDistance) {
             return 1.01e21f;
         }
-        if (moveTarget->maxDistance > lbl_80346488 && range > moveTarget->maxDistance) {
+        if (moveTarget->maxDistance > 0.0 && range > moveTarget->maxDistance) {
             return 1.02e21f;
         }
         YawVec3(c->mtx[2], forward, -moveTarget->yaw);
-        forward[1] = lbl_80346470;
+        forward[1] = 0.0f;
         SlowNormalVector(forward);
         dot = entry->dpos[0] * forward[0] + entry->dpos[2] * forward[2];
         if (dot < moveTarget->minDot) {
@@ -6390,7 +6388,7 @@ s32 CritterDamagePlayer(Player *player, Critter *c,
 
     descriptor = c->hdr->descriptor;
     if (descriptor->type != 4 &&
-        (f64)lbl_803447D8 < lbl_80346490) {
+        (f64)lbl_803447D8 < 1.0) {
         damage *= 0.5;
     }
 
@@ -6399,7 +6397,7 @@ s32 CritterDamagePlayer(Player *player, Critter *c,
     {
         Player *hit;
         hit = &gPlayers[playerIndex];
-        hit->bossdamage = lbl_80346470;
+        hit->bossdamage = 0.0f;
         hit->fxhittime = (f32)(0.25 + (f64)sMusicFadeBase);
         CritterDamagedPlayerSub(playerIndex, c, damage);
     }
