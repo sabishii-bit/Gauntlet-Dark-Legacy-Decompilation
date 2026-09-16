@@ -464,4 +464,10 @@ extern struct CritterHeader *gCritterHeaders[9][6]; /* 0x8024C004 hdr table    *
 void CritterInit(void);
 extern s32 gCritterCountMax;                 /* 0x8034462C high-water count    */
 
+/* Score one critter, or select the nearest eligible root/child target. */
+f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward,
+                         f32 dotThresh, f32 limit, f32 *out);
+Critter *CritterLineCollide(f32 *origin, f32 *forward, f32 dotThresh,
+                           f32 limit, f32 *out, f32 *score);
+
 #endif /* GAME_CRITTER_H */

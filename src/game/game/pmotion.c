@@ -248,12 +248,8 @@ extern f32 lbl_80347C88; /* 30.0f default target range */
 extern f32 lbl_80347D58; /* 200.0f boss target range */
 extern u8* gBossObj;
 extern s32 optionsAudioAndPrefs30[];
-extern f32 CritterLineRootColSub(f32 a, f32 b, void* critter, f32* pos,
-                                 f32* dir, f32* out);
 extern f32 closest_enemy(f32 a, f32 b, f32* pos, f32* dir, f32* out, s32* id,
                          s32 range);
-extern u8* CritterLineCollide(f32 a, f32 b, f32* pos, f32* dir, f32* hit,
-                              f32* dist);
 extern f32 fn_8005B274(f32 a, f32 b, f32* pos, f32* dir, f32* hit, u8** obj);
 extern void FatalError(const char* msg, s32 code);
 extern s32 PlayerCollidePlayers(Player* p, f32 range, f32 height, f32* from,
@@ -3677,12 +3673,12 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     }
 
     if (id >= 0x10000) {
-        u8* critter = (u8*)gCritterPool + (id & 0xFFFF) * 2784;
-        tx = PF(critter, 0x5C, f32);
-        ty = PF(critter, 0x60, f32);
-        tz = PF(critter, 0x64, f32);
-        best = CritterLineRootColSub(lbl_80347D08, lbl_80347B30, critter,
-                                     pos, dir, out);
+        Critter* critter = &gCritterPool[id & 0xFFFF];
+        tx = critter->pos[0];
+        ty = critter->pos[1];
+        tz = critter->pos[2];
+        best = CritterLineRootColSub(critter, pos, dir,
+                                     lbl_80347D08, lbl_80347B30, out);
     } else if (id >= 0) {
         enemy = (u8*)gEnemies + id * 916;
         if (*(s32*)enemy != 31) {
@@ -3726,7 +3722,7 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     }
 
     if (best >= limit) {
-        u8* critter;
+        Critter* critter;
         if (optionsAudioAndPrefs30[5] >= 1) {
             dotThresh = lbl_80347D08;
         } else {
@@ -3734,9 +3730,9 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
         }
         best = closest_enemy(dotThresh, limit, pos, dir, out, &id,
                              (s32)PF(p, 0x108, f32));
-        critter = CritterLineCollide(dotThresh, limit, pos, dir, vec, &dist);
+        critter = CritterLineCollide(pos, dir, dotThresh, limit, vec, &dist);
         if (critter != NULL && dist < best) {
-            if (*(void**)(critter + 4) == NULL) {
+            if (critter->hdr == NULL) {
                 /* lint-allow-next-line FM007: FatalError status code, passed to the API verbatim */
                 FatalError("Ack!", 0x800000);
             }
@@ -3744,7 +3740,7 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
             out[0] = vec[0];
             out[1] = vec[1];
             out[2] = vec[2];
-            id = *(s16*)critter | 0x10000;
+            id = critter->index | 0x10000;
         }
         dist = fn_8005B274(dotThresh, limit, pos, dir, vec, &obj);
         if (dist < best) {

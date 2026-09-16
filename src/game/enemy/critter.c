@@ -578,10 +578,6 @@ void CritterCollideStart(f32 *pt, f32 rad, Critter *skip);
 s32  CritterNoHit(Critter *c, s32 id);
 s32  CritterNoHitSub(Critter *c, s32 id);
 void fn_80037ED0(f32 add, Critter *c, s32 id);
-Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
-                            f32 *forward, f32 *out, f32 *score);
-f32  CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
-                           f32 dotThresh, f32 limit);
 s32 CritterDamage(Critter *c, f32 damage, s32 player, u32 flags,
                   f32 *hitPosition, f32 *direction, s32 source);
 s32  ProcessCritter(Critter *c);
@@ -723,8 +719,6 @@ s32 CritterLineNodeColSub(Critter *c, f32 *origin, f32 *forward,
 static inline s32 CritterTimedSlotActive(Critter *c, s32 id);
 s32 CritterNoHit(Critter *c, s32 id);
 s32 CritterNoHitSub(Critter *c, s32 id);
-f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
-                          f32 dotThresh, f32 limit);
 static inline void CritterColnodeUpdateMoves(Critter *c, MBObject *node);
 static inline void CritterKill(Critter *c);
 static inline void CritterRemoveColnodeChildren(Critter *c, MBObject *node);
@@ -5316,8 +5310,8 @@ static inline void CritterColnodeUpdateMoves(Critter *c, MBObject *node)
 
 /* 0x800380F0 -- score a swept point against a critter's active hit nodes,
  * falling back to its body radius when it has no qualifying node. */
-f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
-                          f32 dotThresh, f32 limit)
+f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward,
+                          f32 dotThresh, f32 limit, f32 *out)
 {
     /* Xbox GetTargetSub records a four-float direction; GC uses xyz. */
     f32 delta[4];
@@ -5416,8 +5410,8 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
 
 /* 0x80037F84 -- find the nearest live critter intersected by a directed
  * safe-rock query, considering both roots and their child chains. */
-Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
-                            f32 *forward, f32 *out, f32 *score)
+Critter *CritterLineCollide(f32 *origin, f32 *forward, f32 dotThresh,
+                            f32 limit, f32 *out, f32 *score)
 {
     u8 unused[8];
     f32 contact[3];
@@ -5453,8 +5447,8 @@ Critter *CritterLineCollide(f32 dotThresh, f32 limit, f32 *origin,
                 break;
             }
         }
-        d = CritterLineRootColSub(cur, origin, forward, contact, dotThresh,
-                                  limit);
+        d = CritterLineRootColSub(cur, origin, forward, dotThresh, limit,
+                                  contact);
         if (d < best) {
             best = d;
             cx = contact[0];
@@ -6596,7 +6590,6 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
     u32 damageFlags;
     s32 playerIndex;
     CritterDescriptor *descriptor;
-    u8 *counter;
     u8 *hit;
 
     damageFlags = ((CritterDamageDef *)damageDef)->flags | flags;
@@ -6617,9 +6610,8 @@ static inline void CritterDamagePlayerInlineNode(Player *player, Critter *c,
     ((Player *)hit)->bossdamage = zero;
     ((Player *)hit)->fxhittime =
         (f32)(hitTimeBase + (f64)sMusicFadeBase);
-    counter = (u8 *)c + playerIndex * 0x10;
-    ((Critter *)counter)->playerDamage[0].received += *damage;
-    *(f32 *)(counter + (offsetof(Critter, playerDamage[0].receivedTime))) = sMusicFadeBase;
+    c->playerDamage[playerIndex].received += *damage;
+    c->playerDamage[playerIndex].receivedTime = sMusicFadeBase;
 }
 
 
@@ -6633,7 +6625,6 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     s32 playerIndex;
     f32 damage;
     CritterDescriptor *descriptor;
-    u8 *counter;
     u8 *hit;
 
     damageFlags = ((CritterDamageDef *)damageDef)->flags | flags;
@@ -6654,9 +6645,8 @@ static inline void CritterDamagePlayerInline(Player *player, Critter *c,
     ((Player *)hit)->bossdamage = zero;
     ((Player *)hit)->fxhittime =
         (f32)(hitTimeBase + (f64)sMusicFadeBase);
-    counter = (u8 *)c + playerIndex * 0x10;
-    ((Critter *)counter)->playerDamage[0].received += damage;
-    *(f32 *)(counter + (offsetof(Critter, playerDamage[0].receivedTime))) = sMusicFadeBase;
+    c->playerDamage[playerIndex].received += damage;
+    c->playerDamage[playerIndex].receivedTime = sMusicFadeBase;
 }
 
 /* Detach the grabbed player and throw it along the critter's forward axis.
