@@ -233,7 +233,7 @@ void AudioLoadComplete(volatile s32* slot);
 
 s32 AudioSetTrackPan(s32 handle, s32 pan)
 {
-    volatile u8 unused[8];
+    u8 unused[8];
     s32 param[2];
     s32 wasBusy = sAudioQueBusy;
 
@@ -261,7 +261,7 @@ s32 AudioSetTrackPan(s32 handle, s32 pan)
 s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
 {
     s32 param[2];
-    volatile u8 unused[8];
+    u8 unused[8];
     s32 wasBusy = sAudioQueBusy;
     s32 t = (vol * lbl_80343B4C) >> 8;
     s32 v;
@@ -294,7 +294,7 @@ s32 AudioSetTrackVolMusic(s32 handle, s32 vol)
 s32 AudioSetTrackVolSfx(s32 handle, s32 vol)
 {
     s32 param[2];
-    volatile u8 unused[8];
+    u8 unused[8];
     s32 wasBusy = sAudioQueBusy;
     s32 t = (vol * lbl_80343B48) >> 8;
     s32 v;
@@ -962,7 +962,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
 {
     s32 mapPtr;
     char name[64];
-    volatile u8 unused[256];
+    u8 unused[256];
     s32 mapSz1;
     s32 mapSz2;
     s32 slot;

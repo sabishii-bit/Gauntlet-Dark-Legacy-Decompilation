@@ -99,9 +99,45 @@ TOOLS: Dict[str, Callable[[str], str]] = {
 }
 
 
+def expected_length(response):
+    """The Content-Length the server promised, or None if it did not."""
+    raw = response.headers.get("Content-Length") if response.headers else None
+    try:
+        return int(raw) if raw is not None else None
+    except ValueError:
+        return None
+
+
+def verify_length(url, output, expected, got):
+    """Refuse a short write instead of leaving a truncated tool on disk.
+
+    A truncated download used to be written out and reported as success. It
+    surfaces far downstream and does not look like a download problem at all:
+    dtk-linux-x86_64 arrived 31,386 bytes short, its ELF header still named a
+    section-header offset past EOF, and EVERY dtk invocation then segfaulted --
+    `--version` included -- which reads as a corrupt binary, not a bad fetch.
+    A 1 GB compiler archive failing this way would be worse still.
+    """
+    if expected is None or got == expected:
+        return
+    try:
+        os.remove(output)
+    except OSError:
+        pass
+    raise SystemExit(
+        f"download_tool: SHORT DOWNLOAD of {url}\n"
+        f"  expected {expected} bytes, wrote {got}; the partial file was "
+        f"removed.\n  Re-run; if it repeats, fetch it manually and verify the "
+        f"size."
+    )
+
+
 def download(url, response, output) -> None:
+    expected = expected_length(response)
     if url.endswith(".zip"):
-        data = io.BytesIO(response.read())
+        blob = response.read()
+        verify_length(url, output, expected, len(blob))
+        data = io.BytesIO(blob)
         with zipfile.ZipFile(data) as f:
             f.extractall(output)
         # Make all files executable
@@ -113,6 +149,7 @@ def download(url, response, output) -> None:
         with open(output, "wb") as f:
             shutil.copyfileobj(response, f)
         st = os.stat(output)
+        verify_length(url, output, expected, st.st_size)
         os.chmod(output, st.st_mode | stat.S_IEXEC)
 
 

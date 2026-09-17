@@ -520,17 +520,17 @@ static void WorldVectorNorm(Vec* out, f32 x, f32 y, f32 z, f32 c,
 #pragma opt_propagation off
 static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
                             Vec* b0, Vec* b1, s32 flattenY) {
-    volatile f64 highPad;
+    f64 highPad;
     Vec da;
-    volatile f32 daPad;
+    f32 daPad;
     Vec db;
-    volatile f32 middle0;
-    volatile f32 middle1;
+    f32 middle0;
+    f32 middle1;
     u8 unused[8];
     Vec point;
     struct {
         f32 pad[3];
-        volatile f32 result;
+        f32 result;
     } sqrtLocal;
     register f32 length;
 
@@ -562,7 +562,7 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
         f32 y;
         register f32 absA1;
         register f32 absA0;
-        volatile f64 absPad;
+        f64 absPad;
         f32 distance = PointLineDist2D(a0, b0, &db, out);
 
         if (flattenY != 0) {

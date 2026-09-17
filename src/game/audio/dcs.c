@@ -1098,9 +1098,9 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
         u16 call = d->callInstr[sample];
         DcsSampleData* data = &d->samples[call & 0xFFF];
         AXPBADDR addr;
-        volatile u8 middlePad[12];
+        u8 middlePad[12];
         AXPBADPCM adpcm;
-        volatile u8 lowPad[4];
+        u8 lowPad[4];
         u32 start;
         u32 end;
 
@@ -1382,7 +1382,7 @@ void dcsVoiceUpdate(s32 channel) {
     s32 excess;
     s32 scaled;
     AXVPB **voiceSlot;
-    volatile u8 unused[8];
+    u8 unused[8];
 
     if (volume < 0) {
         volume = 0;
@@ -1490,7 +1490,6 @@ s32 BankReadHeader(void* file, u32* header) {
 }
 
 /* 0x800D4048  parse in-memory BANK header */
-#pragma opt_lifetimes off
 s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version) {
     char signature[4];
     s32 result;
@@ -1525,10 +1524,8 @@ s32 BankParseHeader(u32* header, s32* byteSwapped, u32* version) {
     }
     return result;
 }
-#pragma opt_lifetimes reset
 
 /* 0x800D415C  parse a VAG sample header */
-#pragma opt_lifetimes off
 s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
     s32 result;
     u32 word;
@@ -1573,7 +1570,6 @@ s32 VagParseHeader(void* file, u32* header, DcsSampleData* sample) {
     }
     return result;
 }
-#pragma opt_lifetimes reset
 
 /* 0x800D42E4  set stream loop/one-shot flag */
 void dcsSetStreamFlag(DcsStream* stream, s32 looping) {
