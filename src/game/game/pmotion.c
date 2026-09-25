@@ -4101,7 +4101,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
 s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
                        f32* hit) {
     f32 localHit[12];
-    volatile u8 unused[12];
+    u8 unused[12];
     f32 best = lbl_80347B30;
     s32 closest = -1;
     s32 count = 0;

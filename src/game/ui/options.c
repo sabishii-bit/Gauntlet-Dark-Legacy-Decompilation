@@ -1897,7 +1897,7 @@ void show_optmenu(OPTMENU* m)
     s32 x;
     s32 y;
     s32 savedFlags;
-    volatile s32 lh;
+    s32 lh;
     void* winset;
     s32 sel;
     OPTITEM* it;

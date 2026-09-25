@@ -1164,7 +1164,7 @@ void CritterInitSfx(void *file, s32 index, void *atreeHeader)
  * dependency referenced by a loaded type's move and collision tables. */
 void CritterInitMoves(CritterPackedType *header)
 {
-    volatile u8 unused[8];
+    u8 unused[8];
     CritterFileHeader *container;
     void *atree;
     CritterMove *moves;
@@ -3790,7 +3790,7 @@ void CritterRotate(Critter *c, CritterMove *move)
     f32 delta;
     f32 turn;
     f32 limit;
-    volatile f64 highPad;
+    f64 highPad;
     f32 target[3];
     u8 unused[8];
 

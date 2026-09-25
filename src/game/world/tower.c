@@ -2007,8 +2007,6 @@ void SumnerSpeechEnd(void) {
 
 /* Scan players for a level-up (score/level fields 0x1EC0/0x1EDC); if any
  * levelled up, summon the "WIZARD" congratulation.  Internal. */
-#pragma opt_common_subs off
-#pragma opt_propagation off
 int sumnerCheckLevelUp(void) {
     TowerMsgState* s = &lbl_8028C288;
     s32 count = 0;
@@ -2060,8 +2058,6 @@ int sumnerCheckLevelUp(void) {
     CaptionTextReset();
     return count;
 }
-#pragma opt_propagation reset
-#pragma opt_common_subs reset
 
 /* Activate Sumner hint mode. */
 void SumnerHintsActivate(s32 player) {

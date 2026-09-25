@@ -655,7 +655,7 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
         s32 y;
         s32 width;
         s32 height;
-        volatile s32 pad;
+        s32 pad;
         MBGlobalState* window;
         s32 xValue;
         s32 yValue;

@@ -1123,7 +1123,6 @@ static inline void modify_boss_ene(char* buffer)
     }
 }
 
-#pragma opt_propagation off
 /* One .bss object, split into two symbols by the extractor: its head is
  * named sSpeechNameBuf (.bss 0x8028B5D0, size 0x40 -- the sprintf scratch
  * buffer) and the id table 0x4B0 bytes later is named sActiveTrackId (.bss
@@ -1330,7 +1329,6 @@ void AudioSetupBossStreams(register int idx, register char* name)
         speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     }
 }
-#pragma opt_propagation reset
 
 void fn_8009FCA8(int flag)
 {
@@ -1996,7 +1994,6 @@ void fn_8009CEE0(int pidx, int sel, int flags)
     sndFxPlayEx(soundId, p1, pan, 66);
 }
 
-#pragma opt_propagation off
 void fn_8009CFA8(int pidx, int sel)
 {
     int p1 = lbl_801232C8[pidx];
@@ -2012,7 +2009,6 @@ void fn_8009CFA8(int pidx, int sel)
     }
     sndFxPlayEx(soundId, p1, 127, 66);
 }
-#pragma opt_propagation reset
 
 void AudioBridgeOpen(int pos)
 {
